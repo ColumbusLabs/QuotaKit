@@ -1607,3 +1607,10 @@
 "overview_layout_subtitle" = "Scegli quante informazioni mostrare in Panoramica.";
 "overview_layout_detailed" = "Dettagliato";
 "overview_layout_compact" = "Compatto";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Subtotale stimato (%@): %@";
+"Excluded requests with missing final usage: %d" = "Richieste escluse senza dati di utilizzo finali: %d";
+"antigravity_cost_estimate_hint" = "Uso locale × prezzi API pubblici · non sono addebiti o crediti Antigravity";
+"antigravity_quota_window_note" = "Il costo della finestra copre tutti i modelli · la finestra mostrata è la famiglia più vincolata";
+"antigravity_no_priced_token_history" = "Nessuna cronologia di token Antigravity con prezzo disponibile.";

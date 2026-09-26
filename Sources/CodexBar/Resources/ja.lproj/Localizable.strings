@@ -1604,3 +1604,10 @@
 "overview_layout_subtitle" = "概要に表示する情報量を選択します。";
 "overview_layout_detailed" = "詳細";
 "overview_layout_compact" = "コンパクト";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "推定小計 (%@): %@";
+"Excluded requests with missing final usage: %d" = "最終的な使用量が未記録のため除外されたリクエスト: %d";
+"antigravity_cost_estimate_hint" = "ローカル使用量 × 公開API価格 · Antigravity の請求やクレジットではありません";
+"antigravity_quota_window_note" = "ウィンドウの費用は全モデルを含みます · 表示中のウィンドウは最も制限の厳しいファミリーです";
+"antigravity_no_priced_token_history" = "価格付きの Antigravity トークン履歴がありません。";

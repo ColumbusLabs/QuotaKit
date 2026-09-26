@@ -48,11 +48,7 @@ extension CostUsageTokenSnapshot {
             byAdding: .day,
             value: -(max(1, self.historyDays) - 1),
             to: calendar.startOfDay(for: self.updatedAt)) ?? self.updatedAt
-        let projectionDays = Self.quotaProjectionDays(
-            daily: self.daily,
-            quotaSlices: self.quotaSlices,
-            hourly: self.hourly,
-            calendar: calendar)
+        let projectionDays = self.memoizedQuotaProjectionDays(calendar: calendar)
 
         let count = max(1, min(weekCount, 8))
         let boundaries = Self.quotaWeekBoundaries(
@@ -88,15 +84,32 @@ extension CostUsageTokenSnapshot {
                 totalTokens: projection.totalTokens,
                 totalCostUSD: projection.totalCostUSD,
                 entryCount: projection.entryCount,
-                tokensAreComplete: projection.tokensAreComplete && self.historyCoverageIsEstablished
+                tokensAreComplete: projection.tokensAreComplete && self.historyIsFullyScanned
                     && start >= historyStart,
-                costIsComplete: projection.costIsComplete && self.historyCoverageIsEstablished
+                costIsComplete: projection.costIsComplete && self.historyIsFullyScanned
                     && start >= historyStart,
                 boundariesAreEstimated: !evidence.confirms(start)
                     || (offset > 0 && !evidence.confirms(end)) || resetAt <= now))
             offset += 1
         }
         return weeks
+    }
+
+    /// Builds the per-day projection off the caller's critical path. The projection walks every
+    /// exact slice, so callers that publish a snapshot to UI should warm it from a background task;
+    /// `quotaWeekSummaries` then reuses it instead of rebuilding it on each menu card build.
+    public func warmQuotaProjection(calendar: Calendar = .current) {
+        _ = self.memoizedQuotaProjectionDays(calendar: CostUsageLocalDay.gregorianCalendar(matching: calendar))
+    }
+
+    private func memoizedQuotaProjectionDays(calendar: Calendar) -> [QuotaProjectionDay] {
+        self.quotaProjectionMemo.days(timeZone: calendar.timeZone) {
+            Self.quotaProjectionDays(
+                daily: self.daily,
+                quotaSlices: self.quotaSlices,
+                hourly: self.hourly,
+                calendar: calendar)
+        }
     }
 
     public static let quotaWeekBoundaryTolerance: TimeInterval = 2 * 60
@@ -274,7 +287,7 @@ extension CostUsageTokenSnapshot {
         return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
     }
 
-    private struct QuotaProjectionSlice {
+    fileprivate struct QuotaProjectionSlice {
         let start: Date
         /// Nil denotes an exact event. Non-nil denotes a coarse `[start, end)` interval.
         let end: Date?
@@ -298,7 +311,7 @@ extension CostUsageTokenSnapshot {
         }
     }
 
-    private struct QuotaProjectionDay {
+    fileprivate struct QuotaProjectionDay {
         let start: Date
         let end: Date
         let daily: CostUsageDailyReport.Entry?
@@ -313,17 +326,10 @@ extension CostUsageTokenSnapshot {
         }
     }
 
-    private struct QuotaTokenContribution {
+    private struct QuotaContribution<Value> {
         let isValid: Bool
         let sawValue: Bool
-        let value: Int
-        let usedDaily: Bool
-    }
-
-    private struct QuotaCostContribution {
-        let isValid: Bool
-        let sawValue: Bool
-        let value: Double
+        let value: Value
         let usedDaily: Bool
     }
 
@@ -348,9 +354,10 @@ extension CostUsageTokenSnapshot {
         calendar: Calendar) -> [QuotaProjectionDay]
     {
         var slicesByDay: [String: [QuotaProjectionSlice]] = [:]
+        var dayMemo = CostUsageLocalDayKeyMemo()
         if !quotaSlices.isEmpty {
             for entry in quotaSlices {
-                let dayKey = CostUsageLocalDay.key(from: entry.timestamp, calendar: calendar)
+                let dayKey = dayMemo.key(for: entry.timestamp, calendar: calendar)
                 slicesByDay[dayKey, default: []].append(QuotaProjectionSlice(
                     start: entry.timestamp,
                     end: nil,
@@ -364,12 +371,12 @@ extension CostUsageTokenSnapshot {
                 hourly: hourly,
                 calendar: calendar)
             {
-                let dayKey = CostUsageLocalDay.key(from: slice.start, calendar: calendar)
+                let dayKey = dayMemo.key(for: slice.start, calendar: calendar)
                 slicesByDay[dayKey, default: []].append(slice)
             }
         } else {
             for entry in hourly {
-                let dayKey = CostUsageLocalDay.key(from: entry.hour, calendar: calendar)
+                let dayKey = dayMemo.key(for: entry.hour, calendar: calendar)
                 let hourEnd = calendar.date(byAdding: .hour, value: 1, to: entry.hour)
                     ?? entry.hour.addingTimeInterval(60 * 60)
                 slicesByDay[dayKey, default: []].append(QuotaProjectionSlice(
@@ -425,9 +432,9 @@ extension CostUsageTokenSnapshot {
         calendar: Calendar) -> [QuotaProjectionSlice]
     {
         var exactByHour: [Date: CostUsageTemporalTotals] = [:]
+        var hourMemo = CostUsageHourStartMemo()
         for entry in exact {
-            let hourStart = calendar.dateInterval(of: .hour, for: entry.timestamp)?.start
-                ?? entry.timestamp
+            let hourStart = hourMemo.start(for: entry.timestamp, calendar: calendar)
             var accumulator = exactByHour[hourStart] ?? CostUsageTemporalTotals()
             accumulator.add(
                 totalTokens: entry.totalTokens,
@@ -482,12 +489,7 @@ extension CostUsageTokenSnapshot {
         end: Date,
         days: [QuotaProjectionDay]) -> QuotaWindowProjection
     {
-        var totalTokens = 0
-        var sawTokens = false
-        var tokensAreValid = true
-        var totalCost = 0.0
-        var sawCost = false
-        var costIsValid = true
+        var totals = CostUsageTemporalTotals()
         var entryCount = 0
         var tokensAreComplete = true
         var costIsComplete = true
@@ -497,30 +499,11 @@ extension CostUsageTokenSnapshot {
             tokensAreComplete = tokensAreComplete && coverage.tokens
             costIsComplete = costIsComplete && coverage.cost
             let tokenContribution = self.projectQuotaTokens(day: day, start: start, end: end)
-            if !tokenContribution.isValid {
-                tokensAreValid = false
-            } else if tokenContribution.sawValue {
-                let (sum, overflowed) = totalTokens.addingReportingOverflow(tokenContribution.value)
-                if overflowed {
-                    tokensAreValid = false
-                } else {
-                    totalTokens = sum
-                    sawTokens = true
-                }
-            }
-
             let costContribution = self.projectQuotaCost(day: day, start: start, end: end)
-            if !costContribution.isValid {
-                costIsValid = false
-            } else if costContribution.sawValue {
-                let sum = totalCost + costContribution.value
-                if sum.isFinite {
-                    totalCost = sum
-                    sawCost = true
-                } else {
-                    costIsValid = false
-                }
-            }
+            totals.add(
+                totalTokens: tokenContribution
+                    .isValid ? (tokenContribution.sawValue ? tokenContribution.value : nil) : -1,
+                costUSD: costContribution.isValid ? (costContribution.sawValue ? costContribution.value : nil) : -1)
 
             entryCount += day.slices.count(where: { $0.overlaps(start: start, end: end) })
             if tokenContribution.usedDaily || costContribution.usedDaily || day.slices.isEmpty {
@@ -529,11 +512,11 @@ extension CostUsageTokenSnapshot {
         }
 
         return QuotaWindowProjection(
-            totalTokens: tokensAreValid && sawTokens ? totalTokens : nil,
-            totalCostUSD: costIsValid && sawCost ? totalCost : nil,
+            totalTokens: totals.totalTokens,
+            totalCostUSD: totals.costUSD,
             entryCount: entryCount,
-            tokensAreComplete: tokensAreComplete && tokensAreValid && sawTokens,
-            costIsComplete: costIsComplete && costIsValid && sawCost)
+            tokensAreComplete: tokensAreComplete && totals.totalTokens != nil,
+            costIsComplete: costIsComplete && totals.costUSD != nil)
     }
 
     /// Completeness is independent of the useful subtotal retained by the projection.
@@ -568,13 +551,13 @@ extension CostUsageTokenSnapshot {
     private static func projectQuotaTokens(
         day: QuotaProjectionDay,
         start: Date,
-        end: Date) -> QuotaTokenContribution
+        end: Date) -> QuotaContribution<Int>
     {
         guard let daily = day.daily else {
             return self.projectTokenSlices(day.slices, start: start, end: end)
         }
         if daily.hasOnlyIncompleteRequests {
-            return QuotaTokenContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
         }
         guard let dailyTokens = daily.totalTokens,
               dailyTokens >= 0
@@ -582,17 +565,17 @@ extension CostUsageTokenSnapshot {
             if daily.totalTokens == nil {
                 return self.projectTokenSlices(day.slices, start: start, end: end)
             }
-            return QuotaTokenContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
         }
 
         switch self.tokenReconciliation(day.slices, daily: dailyTokens) {
         case .exact:
             if day.slices.isEmpty {
-                return QuotaTokenContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
+                return QuotaContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
             }
             return self.projectTokenSlices(day.slices, start: start, end: end)
         case .inconsistent:
-            return QuotaTokenContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
         case .residual:
             break
         }
@@ -601,25 +584,25 @@ extension CostUsageTokenSnapshot {
             // timestamped slices on either side still belong to their windows.
             return self.projectTokenSlices(day.slices, start: start, end: end)
         }
-        return QuotaTokenContribution(isValid: true, sawValue: true, value: dailyTokens, usedDaily: true)
+        return QuotaContribution(isValid: true, sawValue: true, value: dailyTokens, usedDaily: true)
     }
 
     private static func projectQuotaCost(
         day: QuotaProjectionDay,
         start: Date,
-        end: Date) -> QuotaCostContribution
+        end: Date) -> QuotaContribution<Double>
     {
         guard let daily = day.daily else {
             return self.projectCostSlices(day.slices, start: start, end: end)
         }
         if daily.hasOnlyIncompleteRequests {
-            return QuotaCostContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
         }
         guard let dailyCost = self.knownDailyCost(daily) else {
             if daily.costUSD == nil {
                 return self.projectCostSlices(day.slices, start: start, end: end)
             }
-            return QuotaCostContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
         }
 
         if !self.dailyCostIsComplete(daily) {
@@ -627,18 +610,18 @@ extension CostUsageTokenSnapshot {
             guard temporal.isValid, day.isContained(start: start, end: end) else { return temporal }
             // Partial daily and timestamped evidence can overlap. Retain the larger proven
             // subtotal; adding them would count some requests twice.
-            return QuotaCostContribution(
+            return QuotaContribution(
                 isValid: true, sawValue: true, value: max(dailyCost, temporal.value), usedDaily: true)
         }
 
         switch self.costReconciliation(day.slices, daily: dailyCost) {
         case .exact:
             if day.slices.isEmpty {
-                return QuotaCostContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
+                return QuotaContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
             }
             return self.projectCostSlices(day.slices, start: start, end: end)
         case .inconsistent:
-            return QuotaCostContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
         case .residual:
             break
         }
@@ -647,7 +630,7 @@ extension CostUsageTokenSnapshot {
             // timestamped slices on either side still belong to their windows.
             return self.projectCostSlices(day.slices, start: start, end: end)
         }
-        return QuotaCostContribution(isValid: true, sawValue: true, value: dailyCost, usedDaily: true)
+        return QuotaContribution(isValid: true, sawValue: true, value: dailyCost, usedDaily: true)
     }
 
     private static func dailyCostIsComplete(_ daily: CostUsageDailyReport.Entry) -> Bool {
@@ -667,20 +650,12 @@ extension CostUsageTokenSnapshot {
         _ slices: [QuotaProjectionSlice],
         daily: Int) -> QuotaReconciliation
     {
-        if slices.isEmpty { return daily == 0 ? .exact : .residual }
-        var total = 0
-        var isComplete = true
+        var totals = CostUsageTemporalTotals()
         for slice in slices {
-            guard let tokens = slice.totalTokens, tokens >= 0 else {
-                isComplete = false
-                continue
-            }
-            let (sum, overflowed) = total.addingReportingOverflow(tokens)
-            guard !overflowed else { return .inconsistent }
-            total = sum
+            totals.addTokens(slice.totalTokens.flatMap { $0 >= 0 ? $0 : nil })
         }
-        if total > daily { return .inconsistent }
-        return isComplete && total == daily ? .exact : .residual
+        guard let total = totals.knownTokenSubtotal, total <= daily else { return .inconsistent }
+        return (slices.isEmpty || totals.tokensAreComplete) && total == daily ? .exact : .residual
     }
 
     private static func costReconciliation(
@@ -688,69 +663,70 @@ extension CostUsageTokenSnapshot {
         daily: Double) -> QuotaReconciliation
     {
         if slices.isEmpty { return daily == 0 ? .exact : .residual }
-        var total = 0.0
-        var isComplete = true
+        var totals = CostUsageTemporalTotals()
         for slice in slices {
-            guard let cost = slice.costUSD, cost.isFinite, cost >= 0 else {
-                isComplete = false
-                continue
-            }
-            total += cost
-            guard total.isFinite else { return .inconsistent }
+            totals.addCost(slice.costUSD.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil })
         }
+        guard let total = totals.knownCostSubtotal else { return .inconsistent }
         let tolerance = max(1e-9, abs(daily) * 1e-9)
         if total > daily + tolerance { return .inconsistent }
-        return isComplete && abs(total - daily) <= tolerance ? .exact : .residual
+        return totals.costIsComplete && abs(total - daily) <= tolerance ? .exact : .residual
     }
 
     private static func projectTokenSlices(
         _ slices: [QuotaProjectionSlice],
         start: Date,
-        end: Date) -> QuotaTokenContribution
+        end: Date) -> QuotaContribution<Int>
     {
-        var total = 0
-        var sawValue = false
-        for slice in slices where slice.overlaps(start: start, end: end) {
-            // A reset that cuts a coarse hour/day interval cannot be assigned to one window.
-            // Drop that interval only; known events and fully contained buckets still count.
-            if !slice.isContained(start: start, end: end) {
-                continue
-            }
-            guard let tokens = slice.totalTokens else { continue }
-            guard tokens >= 0 else {
-                return QuotaTokenContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
-            }
-            let (sum, overflowed) = total.addingReportingOverflow(tokens)
-            guard !overflowed else {
-                return QuotaTokenContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
-            }
-            total = sum
-            sawValue = true
+        var totals = CostUsageTemporalTotals()
+        for slice in slices where slice.isContained(start: start, end: end) {
+            // A cut coarse interval is unassignable; exact events and contained buckets still count.
+            totals.addTokens(slice.totalTokens)
         }
-        return QuotaTokenContribution(isValid: true, sawValue: sawValue, value: total, usedDaily: false)
+        return QuotaContribution(
+            isValid: totals.knownTokenSubtotal != nil,
+            sawValue: totals.totalTokens != nil,
+            value: totals.totalTokens ?? 0,
+            usedDaily: false)
     }
 
     private static func projectCostSlices(
         _ slices: [QuotaProjectionSlice],
         start: Date,
-        end: Date) -> QuotaCostContribution
+        end: Date) -> QuotaContribution<Double>
     {
-        var total = 0.0
-        var sawValue = false
-        for slice in slices where slice.overlaps(start: start, end: end) {
-            if !slice.isContained(start: start, end: end) {
-                continue
-            }
-            guard let cost = slice.costUSD else { continue }
-            guard cost.isFinite, cost >= 0 else {
-                return QuotaCostContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
-            }
-            total += cost
-            guard total.isFinite else {
-                return QuotaCostContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
-            }
-            sawValue = true
+        var totals = CostUsageTemporalTotals()
+        for slice in slices where slice.isContained(start: start, end: end) {
+            totals.addCost(slice.costUSD)
         }
-        return QuotaCostContribution(isValid: true, sawValue: sawValue, value: total, usedDaily: false)
+        return QuotaContribution(
+            isValid: totals.knownCostSubtotal != nil,
+            sawValue: totals.costUSD != nil,
+            value: totals.costUSD ?? 0,
+            usedDaily: false)
+    }
+}
+
+/// Per-snapshot cache of the quota projection. The projection is a pure function of the snapshot's
+/// immutable entries and the bucket time zone, so copies of a snapshot share one memo and it never
+/// participates in equality.
+final class CostUsageQuotaProjectionMemo: @unchecked Sendable, Equatable {
+    private let lock = NSLock()
+    private var cached: (timeZone: TimeZone, days: [CostUsageTokenSnapshot.QuotaProjectionDay])?
+
+    static func == (_: CostUsageQuotaProjectionMemo, _: CostUsageQuotaProjectionMemo) -> Bool {
+        true
+    }
+
+    fileprivate func days(
+        timeZone: TimeZone,
+        build: () -> [CostUsageTokenSnapshot.QuotaProjectionDay]) -> [CostUsageTokenSnapshot.QuotaProjectionDay]
+    {
+        self.lock.withLock {
+            if let cached = self.cached, cached.timeZone == timeZone { return cached.days }
+            let days = build()
+            self.cached = (timeZone, days)
+            return days
+        }
     }
 }

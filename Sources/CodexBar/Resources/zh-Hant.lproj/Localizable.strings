@@ -1635,3 +1635,10 @@
 "overview_layout_subtitle" = "選擇「概覽」顯示的資訊量。";
 "overview_layout_detailed" = "詳細";
 "overview_layout_compact" = "精簡";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "估算小計（%@）：%@";
+"Excluded requests with missing final usage: %d" = "因缺少最終用量而排除的請求：%d";
+"antigravity_cost_estimate_hint" = "本機用量 × 公開 API 價格 · 並非 Antigravity 帳單或額度";
+"antigravity_quota_window_note" = "視窗費用涵蓋所有模型 · 所示視窗為最受限的模型系列";
+"antigravity_no_priced_token_history" = "沒有可計價的 Antigravity 權杖歷史記錄。";

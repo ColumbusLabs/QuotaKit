@@ -1607,3 +1607,10 @@
 "overview_layout_subtitle" = "Pilih seberapa banyak informasi yang ditampilkan Ikhtisar.";
 "overview_layout_detailed" = "Terperinci";
 "overview_layout_compact" = "Ringkas";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Subtotal perkiraan (%@): %@";
+"Excluded requests with missing final usage: %d" = "Permintaan yang dikecualikan karena data penggunaan akhir tidak tersedia: %d";
+"antigravity_cost_estimate_hint" = "Penggunaan lokal × harga API publik · bukan tagihan atau kredit Antigravity";
+"antigravity_quota_window_note" = "Biaya jendela mencakup semua model · jendela yang ditampilkan adalah keluarga paling terbatas";
+"antigravity_no_priced_token_history" = "Tidak ada riwayat token Antigravity berharga yang tersedia.";

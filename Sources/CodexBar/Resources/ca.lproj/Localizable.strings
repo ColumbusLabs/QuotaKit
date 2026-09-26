@@ -1607,3 +1607,10 @@
 "overview_layout_subtitle" = "Trieu quanta informació mostra el Resum.";
 "overview_layout_detailed" = "Detallat";
 "overview_layout_compact" = "Compacte";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Subtotal estimat (%@): %@";
+"Excluded requests with missing final usage: %d" = "Sol·licituds excloses sense dades d’ús finals: %d";
+"antigravity_cost_estimate_hint" = "Ús local × preus públics de l'API · no són càrrecs ni crèdits d'Antigravity";
+"antigravity_quota_window_note" = "El cost de la finestra inclou tots els models · la finestra mostrada és la família més limitada";
+"antigravity_no_priced_token_history" = "No hi ha historial de tokens d'Antigravity amb preu disponible.";

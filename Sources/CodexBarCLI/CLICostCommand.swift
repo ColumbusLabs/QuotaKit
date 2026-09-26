@@ -170,9 +170,19 @@ extension CodexBarCLI {
         provider: UsageProvider,
         snapshot: CostUsageTokenSnapshot,
         groupBy: CostGroupBy = .none,
-        useColor: Bool) -> String
+        useColor: Bool,
+        calendar: Calendar = .current) -> String
     {
-        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let name = descriptor.metadata.displayName
+        // Provider-specific by design: Antigravity is the one cost provider whose local models can
+        // all be absent from the pricing catalog, so it falls back to the token-only rendering.
+        // Other providers keep the cost shape and render their unknown values as dashes.
+        let costIsEntirelyUnknown = provider == .antigravity
+            && (snapshot.last30DaysCostUSD == nil || (snapshot.daily.isEmpty && snapshot.last30DaysCostUSD == 0))
+        if descriptor.tokenCost.presentation == .tokensOnly || costIsEntirelyUnknown {
+            return Self.renderLocalTokenHistoryText(name: name, snapshot: snapshot, useColor: useColor)
+        }
         // Provider-specific by design: Codex cost is explicitly an API-equivalent local-session estimate.
         let title = provider == .codex
             ? "\(name) API-equivalent estimate (not billed)"
@@ -185,6 +195,9 @@ extension CodexBarCLI {
             return Self.renderSessionCostText(header: header, snapshot: snapshot)
         }
 
+        let todayIncomplete = snapshot.summary(forLastDays: 1, calendar: calendar).incompleteRequestCount
+        let incomplete = CostUsageIncompleteRequests.sum(snapshot.daily.map(\.incompleteRequestCount))
+        let unpriced = snapshot.daily.reduce(0) { $0 + max(0, $1.unpricedRequestCount ?? 0) }
         let todayCost = snapshot.sessionCostUSD
             .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
         let todayTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
@@ -206,9 +219,49 @@ extension CodexBarCLI {
         }
 
         let hintLine = Self.costEstimateHint(provider: provider)
-        return [header, todayLine, monthLine, meteredLine, hintLine]
-            .compactMap(\.self)
-            .joined(separator: "\n")
+        var lines: [String?] = [
+            header,
+            todayLine + (todayIncomplete > 0 ? " · Incomplete" : ""),
+            monthLine + (incomplete > 0 ? " · Incomplete" : ""),
+            meteredLine,
+        ]
+        if incomplete > 0 {
+            lines
+                .append("Incomplete: \(incomplete) requests lacked final usage and were excluded from tokens and cost.")
+        }
+        if unpriced > 0 {
+            lines.append("Partial estimate: \(unpriced) recorded request\(unpriced == 1 ? "" : "s") had no price.")
+        }
+        if !snapshot.historyIsFullyScanned {
+            lines.append("Partial local history · recorded token subtotal")
+        }
+        lines.append(hintLine)
+        return lines.compactMap(\.self).joined(separator: "\n")
+    }
+
+    private static func renderLocalTokenHistoryText(
+        name: String,
+        snapshot: CostUsageTokenSnapshot,
+        useColor: Bool) -> String
+    {
+        let header = Self.costHeaderLine("\(name) Token History", useColor: useColor)
+        let hint = "Local token history · dollar costs unavailable"
+        guard snapshot.historyCoverageIsEstablished || snapshot.last30DaysTokens != nil else {
+            return [header, "Local token history is unavailable or incomplete.", hint].joined(separator: "\n")
+        }
+        let today = snapshot.sessionTokens.map { "\(UsageFormatter.tokenCountString($0)) tokens" } ?? "—"
+        let total = snapshot.last30DaysTokens.map { "\(UsageFormatter.tokenCountString($0)) tokens" } ?? "—"
+        let historyLabel = snapshot.periodLabel
+        let lines: [String?] = [
+            header,
+            "Today: \(today)",
+            snapshot.historyDays == 1 ? nil : "\(historyLabel): \(total)",
+            snapshot.daily.isEmpty && snapshot.historyCoverageIsEstablished
+                ? "No token usage found in the selected period." : nil,
+            snapshot.historyIsFullyScanned ? nil : "Partial local history · recorded token subtotal",
+            hint,
+        ]
+        return lines.compactMap(\.self).joined(separator: "\n")
     }
 
     private static func renderProjectCostText(header: String, snapshot: CostUsageTokenSnapshot) -> String {

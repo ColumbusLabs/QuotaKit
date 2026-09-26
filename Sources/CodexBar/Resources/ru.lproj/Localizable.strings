@@ -1605,3 +1605,10 @@
 "overview_layout_subtitle" = "Выберите, сколько информации показывать в обзоре.";
 "overview_layout_detailed" = "Подробный";
 "overview_layout_compact" = "Компактный";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Оценка подытога (%@): %@";
+"Excluded requests with missing final usage: %d" = "Исключённые запросы без итоговых данных об использовании: %d";
+"antigravity_cost_estimate_hint" = "Локальное использование × публичные цены API · это не счета и не кредиты Antigravity";
+"antigravity_quota_window_note" = "Стоимость окна включает все модели · показано окно самого ограниченного семейства";
+"antigravity_no_priced_token_history" = "Нет оценённой истории токенов Antigravity.";

@@ -1608,3 +1608,10 @@
 "overview_layout_subtitle" = "เลือกปริมาณข้อมูลที่จะแสดงในภาพรวม";
 "overview_layout_detailed" = "แบบละเอียด";
 "overview_layout_compact" = "กะทัดรัด";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "ยอดรวมย่อยโดยประมาณ (%@): %@";
+"Excluded requests with missing final usage: %d" = "คำขอที่ไม่นับรวมเนื่องจากไม่มีข้อมูลการใช้งานขั้นสุดท้าย: %d";
+"antigravity_cost_estimate_hint" = "การใช้งานในเครื่อง × ราคา API สาธารณะ · ไม่ใช่ค่าบริการหรือเครดิตของ Antigravity";
+"antigravity_quota_window_note" = "ค่าใช้จ่ายของหน้าต่างครอบคลุมทุกโมเดล · หน้าต่างที่แสดงคือกลุ่มที่จำกัดมากที่สุด";
+"antigravity_no_priced_token_history" = "ไม่มีประวัติโทเคน Antigravity ที่คิดราคาไว้";

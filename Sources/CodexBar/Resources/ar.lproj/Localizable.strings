@@ -1608,3 +1608,10 @@
 "overview_layout_subtitle" = "اختر مقدار المعلومات التي تعرضها النظرة العامة.";
 "overview_layout_detailed" = "مفصل";
 "overview_layout_compact" = "مضغوط";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "الإجمالي الفرعي التقديري (%@): %@";
+"Excluded requests with missing final usage: %d" = "الطلبات المستبعدة لعدم توفر بيانات الاستخدام النهائية: %d";
+"antigravity_cost_estimate_hint" = "الاستخدام المحلي × أسعار واجهة البرمجة العامة · ليست رسوم أو أرصدة Antigravity";
+"antigravity_quota_window_note" = "تكلفة النافذة تشمل كل النماذج · النافذة المعروضة هي الفئة الأكثر تقييدًا";
+"antigravity_no_priced_token_history" = "لا يتوفر سجل رموز Antigravity مُسعّر.";

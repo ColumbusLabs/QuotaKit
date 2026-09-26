@@ -290,6 +290,15 @@ public struct ProviderMenuCardPresentation: Sendable {
     public let supportsInlineTokenCostDashboard: Bool
     /// Codex and Claude local cost dashboards split spend by live Weekly quota windows.
     public let showsQuotaWeekCost: Bool
+    /// Appended under the quota-window rows when the window shown does not span the same scope as
+    /// the spend bucketed into it — e.g. a per-model-family quota beside all-model spend.
+    public let quotaWindowNote: String?
+    /// Derives past quota-window boundaries from the live reset alone, ignoring previously observed
+    /// resets. Antigravity reports a weekly bucket per model family and surfaces whichever family is
+    /// most constrained, so stored observations name *different* quotas. Feeding them to the boundary
+    /// builder manufactures windows minutes apart that no daily spend can be attributed to. Nominal
+    /// 7-day strides from the live reset stay correct and are still used.
+    public let ignoresObservedQuotaResetBoundaries: Bool
     public let primaryDescriptionPlacement: ProviderPrimaryDescriptionPlacement
     public let showsPrimaryBalanceDescription: Bool
     public let showsSecondaryBalanceDescription: Bool
@@ -312,6 +321,8 @@ public struct ProviderMenuCardPresentation: Sendable {
         primaryCostHistoryResolver: @escaping PrimaryCostHistoryResolver = { _, tokenSnapshot in tokenSnapshot },
         supportsInlineTokenCostDashboard: Bool = false,
         showsQuotaWeekCost: Bool = false,
+        quotaWindowNote: String? = nil,
+        ignoresObservedQuotaResetBoundaries: Bool = false,
         primaryDescriptionPlacement: ProviderPrimaryDescriptionPlacement = .standard,
         showsPrimaryBalanceDescription: Bool = false,
         showsSecondaryBalanceDescription: Bool = false,
@@ -334,6 +345,8 @@ public struct ProviderMenuCardPresentation: Sendable {
         self.primaryCostHistoryResolver = primaryCostHistoryResolver
         self.supportsInlineTokenCostDashboard = supportsInlineTokenCostDashboard
         self.showsQuotaWeekCost = showsQuotaWeekCost
+        self.quotaWindowNote = quotaWindowNote
+        self.ignoresObservedQuotaResetBoundaries = ignoresObservedQuotaResetBoundaries
         self.primaryDescriptionPlacement = primaryDescriptionPlacement
         self.showsPrimaryBalanceDescription = showsPrimaryBalanceDescription
         self.showsSecondaryBalanceDescription = showsSecondaryBalanceDescription

@@ -1606,3 +1606,10 @@
 "overview_layout_subtitle" = "Genel Bakış’ın ne kadar bilgi göstereceğini seçin.";
 "overview_layout_detailed" = "Ayrıntılı";
 "overview_layout_compact" = "Kompakt";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Tahmini ara toplam (%@): %@";
+"Excluded requests with missing final usage: %d" = "Nihai kullanım verileri eksik olduğu için hariç tutulan istekler: %d";
+"antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
+"antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
+"antigravity_no_priced_token_history" = "Fiyatlandırılmış Antigravity token geçmişi yok.";

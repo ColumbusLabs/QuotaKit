@@ -39,20 +39,29 @@ func spendDashboardTokenMixValue(_ value: Int?) -> String {
 func spendDashboardMetricText(
     cost: Double?,
     tokens: Int?,
-    currencyCode: String) -> String
+    currencyCode: String,
+    incompleteRequestCount: Int = 0,
+    costIsLowerBound: Bool = false,
+    tokensAreLowerBound: Bool = false) -> String
 {
-    let costText = cost.map { UsageFormatter.currencyString($0, currencyCode: currencyCode) }
-    let tokenText = tokens.map(UsageFormatter.tokenCountString)
-    switch (costText, tokenText) {
-    case let (cost?, tokens?):
-        return "\(cost) · \(L("%@ tokens", tokens))"
-    case let (cost?, nil):
-        return cost
-    case let (nil, tokens?):
-        return L("%@ tokens", tokens)
-    case (nil, nil):
-        return "—"
-    }
+    // A truncated scan or an unpriced request makes the subtotal a floor, not an exact value.
+    // The row must say so with the same `≥` marker the header and menu card already use.
+    let parts = [
+        cost.map {
+            spendDashboardLowerBoundText(
+                UsageFormatter.currencyString($0, currencyCode: currencyCode), isLowerBound: costIsLowerBound)
+        },
+        tokens.map {
+            spendDashboardLowerBoundText(
+                L("%@ tokens", UsageFormatter.tokenCountString($0)), isLowerBound: tokensAreLowerBound)
+        },
+    ].compactMap(\.self)
+    return (parts.isEmpty ? "—" : parts.joined(separator: " · "))
+        + UsageFormatter.incompleteUsageSuffix(incompleteRequestCount)
+}
+
+func spendDashboardLowerBoundText(_ value: String, isLowerBound: Bool) -> String {
+    isLowerBound ? "≥ \(value)" : value
 }
 
 func spendDashboardCoverageChipText(_ coverage: CostUsageCoverageCounts) -> String {
@@ -803,7 +812,10 @@ private struct SpendProviderPanel: View {
                                 : spendDashboardMetricText(
                                     cost: row.totalCost,
                                     tokens: row.totalTokens,
-                                    currencyCode: self.group.currencyCode))
+                                    currencyCode: self.group.currencyCode,
+                                    incompleteRequestCount: row.incompleteRequestCount,
+                                    costIsLowerBound: row.costIsLowerBound,
+                                    tokensAreLowerBound: row.tokensAreLowerBound))
                             .foregroundStyle(row.totalCost == nil && row.totalTokens == nil ? .secondary : .primary)
                             .monospacedDigit()
                     }
@@ -1356,6 +1368,10 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let provenance: String
         let coverage: CostUsageCoverageCounts
         let tokenMix: CostUsageTokenMix
+        /// True when this group's totals are floors rather than exact values, so a consumer never
+        /// mistakes a truncated or partly unpriced scan for complete history.
+        let costIsLowerBound: Bool
+        let tokensAreLowerBound: Bool
         let providers: [Provider]
         let models: [Model]
     }
@@ -1366,6 +1382,9 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let sourceKind: String
         let totalTokens: Int?
         let totalCost: Double?
+        let incompleteRequestCount: Int?
+        let costIsLowerBound: Bool
+        let tokensAreLowerBound: Bool
     }
 
     struct Model: Encodable, Sendable {
@@ -1388,13 +1407,18 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
                     provenance: group.provenance.rawValue,
                     coverage: group.coverage,
                     tokenMix: group.tokenMix,
+                    costIsLowerBound: group.hasPartialCost,
+                    tokensAreLowerBound: group.hasPartialTokens,
                     providers: group.providers.map {
                         Provider(
                             id: $0.id,
                             displayName: $0.displayName,
                             sourceKind: $0.sourceKind.rawValue,
                             totalTokens: $0.totalTokens,
-                            totalCost: $0.totalCost)
+                            totalCost: $0.totalCost,
+                            incompleteRequestCount: $0.incompleteRequestCount > 0 ? $0.incompleteRequestCount : nil,
+                            costIsLowerBound: $0.costIsLowerBound,
+                            tokensAreLowerBound: $0.tokensAreLowerBound)
                     },
                     models: group.models.map {
                         Model(
@@ -1528,7 +1552,7 @@ func spendDashboardHistoryCaption(
     var parts: [String] = []
     if group.hasPartialCost || group.hasPartialTokens {
         parts.append(L("Partial estimate"))
-        if group.hasPartialCost {
+        if group.hasUnpricedProviders {
             parts.append(spendDashboardPartialSourceCoverageText(group))
         }
     } else {

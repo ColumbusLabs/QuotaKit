@@ -1603,3 +1603,10 @@
 "overview_layout_subtitle" = "Välj hur mycket information som visas i översikten.";
 "overview_layout_detailed" = "Detaljerad";
 "overview_layout_compact" = "Kompakt";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Uppskattad delsumma (%@): %@";
+"Excluded requests with missing final usage: %d" = "Uteslutna förfrågningar utan slutliga användningsdata: %d";
+"antigravity_cost_estimate_hint" = "Lokal användning × publika API-priser · inte Antigravity-avgifter eller krediter";
+"antigravity_quota_window_note" = "Fönsterkostnaden omfattar alla modeller · fönstret som visas är den mest begränsade familjen";
+"antigravity_no_priced_token_history" = "Ingen prissatt Antigravity-tokenhistorik tillgänglig.";
