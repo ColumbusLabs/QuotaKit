@@ -247,6 +247,7 @@ final class UsageStore {
     @ObservationIgnored var openAIWebAccountDidChange: Bool = false
     @ObservationIgnored var creditsRefreshTask: Task<Void, Never>?
     @ObservationIgnored var creditsRefreshTaskKey: String?
+    @ObservationIgnored var creditsRefreshTaskToken: UUID?
     @ObservationIgnored var openAIDashboardBackgroundRefreshTask: Task<Void, Never>?
     @ObservationIgnored var openAIDashboardBackgroundRefreshTaskKey: String?
     @ObservationIgnored var openAIDashboardRefreshTask: Task<Void, Never>?
@@ -267,6 +268,9 @@ final class UsageStore {
     @ObservationIgnored var _test_codexResetCreditsFetcherOverride: CodexResetCreditsFetcher?
     @ObservationIgnored var _test_widgetSnapshotSaveOverride: (@MainActor (WidgetSnapshot) async -> Void)?
     @ObservationIgnored var _test_providerRefreshOverride: (@MainActor (UsageProvider) async -> Void)?
+    #if DEBUG
+    @ObservationIgnored var _test_codexPlanHistoryBackfillWillRecord: (@MainActor () -> Void)?
+    #endif
     @ObservationIgnored var _test_providerFetchOutcomeOverride: (@MainActor (
         UsageProvider) async -> ProviderFetchOutcome)?
     @ObservationIgnored var _test_tokenUsageRefreshOverride: (@MainActor (UsageProvider, Bool) async -> Void)?
@@ -419,6 +423,7 @@ final class UsageStore {
     @ObservationIgnored var scheduledResetBoundaryRefreshAt: Date?
     @ObservationIgnored var attemptedResetBoundaryRefreshes: Set<Date> = []
     @ObservationIgnored var codexPlanHistoryBackfillTask: Task<Void, Never>?
+    @ObservationIgnored var codexPlanHistoryBackfillTaskToken: UUID?
     @ObservationIgnored let historicalUsageHistoryStore: HistoricalUsageHistoryStore
     @ObservationIgnored let planUtilizationHistoryStore: PlanUtilizationHistoryStore
     @ObservationIgnored let codexAccountUsageSnapshotStore: (any CodexAccountUsageSnapshotStoring)?

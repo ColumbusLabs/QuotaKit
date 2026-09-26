@@ -101,6 +101,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Antigravity: match local token-history timestamps by turn ID and preserve valid history around reordered steps.
 - Codex costs: recover excess cached request rows from validated session files while retaining supported historical pricing through bounded scans.
 - Codex costs: count paginated continuation usage once and retain its fork baseline and request index across cached resumes.
+- Codex: keep background credits and plan-history tasks owned by their current refresh, and restart a verified running app-server daemon after promoting a managed account to the system home.
+- Mac fleet sync: continue watching config changes after atomic file replacement during watcher startup or callbacks.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.
