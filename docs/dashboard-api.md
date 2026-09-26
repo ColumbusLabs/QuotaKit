@@ -31,6 +31,12 @@ so changes apply without restarting `serve`. The default is remaining when no pr
 older browser-cached snapshots without this field also use remaining. Earlier web dashboards always showed used
 percentages. The numeric `usedPercent` and `remainingPercent` fields retain their existing meanings.
 
+The **Usage display** control defaults to **Follow server**. **Used** and **Remaining** override labels and bar widths
+only in this browser, persisted under `quotakit.dashboard.usageDisplay` in localStorage. Choosing **Follow server**
+removes the override. Unknown values or unavailable storage fall back to the server preference on load; if saving
+fails, selections still work for the current page. Warning and critical levels always use consumption, regardless
+of display mode. This preference does not change the API payload, identity policy, or provider data.
+
 The UI does not change the transport threat model: `quotakit serve` is plain HTTP. Off-loopback, a token typed into the page transits the network in cleartext like every other request unless a TLS-terminating reverse proxy protects the connection.
 
 ## One-shot command semantics
