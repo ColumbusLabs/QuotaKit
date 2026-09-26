@@ -18,6 +18,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- OpenCode Go: include recorded local token counts in daily and per-model history without inventing costs or treating missing counts as zero (upstream #4000).
+
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.
