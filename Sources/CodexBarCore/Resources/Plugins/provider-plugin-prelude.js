@@ -238,8 +238,8 @@
     return decodeURIComponent(escaped);
   }
 
-  const nowMillis = Number(ctx.__codexbarNowMillis);
-  delete ctx.__codexbarNowMillis;
+  const nowMillis = Number(ctx.__quotaKitNowMillis);
+  delete ctx.__quotaKitNowMillis;
   ctx.date = Object.freeze({
     now() {
       return parseDate(nowMillis);

@@ -78,7 +78,7 @@ struct OpenCodexNousUsageTests {
         let expected = [0.044862, 0.059058, 5.503258][index]
         #expect(abs(cost - expected) < 1e-10)
         #expect(snapshot.daily.first?.estimatedRequestCount == 1)
-        #expect((snapshot.daily.first?.pricedRequestCount ?? 0) == 0)
+        #expect(snapshot.daily.first?.coverageCounts.priced == 0)
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == entry.model)
     }
 
@@ -107,7 +107,7 @@ struct OpenCodexNousUsageTests {
         #expect(snapshot.last30DaysCostUSD == (hasNousPrice ? 0.044862 : nil))
         #expect(snapshot.daily.first?.estimatedRequestCount == (hasNousPrice ? 1 : 0))
         #expect(snapshot.daily.first?.unpricedRequestCount == (hasNousPrice ? 0 : 1))
-        #expect((snapshot.daily.first?.pricedRequestCount ?? 0) == 0)
+        #expect(snapshot.daily.first?.coverageCounts.priced == 0)
         #expect(snapshot.meteredCostUSD == nil)
     }
 

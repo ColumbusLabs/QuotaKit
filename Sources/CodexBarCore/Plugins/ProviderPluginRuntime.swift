@@ -631,11 +631,11 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     {
         let ctx = JSValue(newObjectIn: self.context)!
         let host = JSValue(newObjectIn: self.context)!
-        ctx.setObject(now.timeIntervalSince1970 * 1000, forKeyedSubscript: "__codexbarNowMillis" as NSString)
+        ctx.setObject(now.timeIntervalSince1970 * 1000, forKeyedSubscript: "__quotaKitNowMillis" as NSString)
         if let optionalRequestTimeoutSeconds = contextOptions.optionalRequestTimeoutSeconds {
             ctx.setObject(
                 optionalRequestTimeoutSeconds,
-                forKeyedSubscript: "__codexbarOptionalRequestTimeoutSeconds" as NSString)
+                forKeyedSubscript: "__quotaKitOptionalRequestTimeoutSeconds" as NSString)
         }
 
         let settingGet: @convention(block) (String, Bool) -> JSValue = { [weak self] key, secure in

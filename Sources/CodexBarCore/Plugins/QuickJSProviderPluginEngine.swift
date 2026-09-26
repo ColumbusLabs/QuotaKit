@@ -62,7 +62,7 @@ private func quickJSInstallContextOptions(
     _ = JS_SetPropertyStr(
         context,
         target,
-        "__codexbarOptionalRequestTimeoutSeconds",
+        "__quotaKitOptionalRequestTimeoutSeconds",
         JS_NewFloat64(context, timeout))
 }
 
@@ -460,7 +460,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         _ = JS_SetPropertyStr(
             self.context,
             ctx,
-            "__codexbarNowMillis",
+            "__quotaKitNowMillis",
             JS_NewFloat64(self.context, now.timeIntervalSince1970 * 1000))
         quickJSInstallContextOptions(contextOptions, context: self.context, target: ctx)
         let env = JS_NewObject(self.context)
