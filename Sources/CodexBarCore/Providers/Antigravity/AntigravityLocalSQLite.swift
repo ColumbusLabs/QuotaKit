@@ -145,13 +145,13 @@ extension AntigravityLocalReader {
                 throw failure
             }
             if hasSteps {
-                var neededStepUUIDCounts: [String: Int] = [:]
+                var neededStepOccurrences: [String: [StepOccurrence]] = [:]
                 for stepUUID in Set(rows.pendingTimestampRows.map(\.stepUUID)) {
-                    neededStepUUIDCounts[stepUUID] = rows.stepOccurrenceRows[stepUUID]?.count ?? 0
+                    neededStepOccurrences[stepUUID] = rows.stepOccurrences[stepUUID] ?? []
                 }
                 let stepScan = try self.readStepTimestamps(
                     database,
-                    neededStepUUIDCounts: neededStepUUIDCounts,
+                    neededStepOccurrences: neededStepOccurrences,
                     progress: progress)
                 guard stepScan.isComplete else {
                     rows.source.isComplete = false
@@ -162,7 +162,7 @@ extension AntigravityLocalReader {
                     session: session,
                     pendingRows: rows.pendingTimestampRows,
                     stepTimestamps: stepScan.timestamps,
-                    stepOccurrenceRows: rows.stepOccurrenceRows)
+                    stepOccurrences: rows.stepOccurrences)
                 if recoveredCount < rows.pendingTimestampRows.count {
                     rows.source.isComplete = false
                 }
@@ -186,7 +186,12 @@ extension AntigravityLocalReader {
     private struct ParsedRows {
         var source: SourceResult
         var pendingTimestampRows: [PendingTimestampRow]
-        var stepOccurrenceRows: [String: [Int64]]
+        var stepOccurrences: [String: [StepOccurrence]]
+    }
+
+    private struct StepOccurrence {
+        let row: Int64
+        let timestampMs: Int64?
     }
 
     private struct StepTimestamp {
@@ -221,10 +226,11 @@ extension AntigravityLocalReader {
 
     private static func readStepTimestamps(
         _ database: OpaquePointer,
-        neededStepUUIDCounts: [String: Int],
+        neededStepOccurrences: [String: [StepOccurrence]],
         progress: SQLProgress) throws -> StepTimestampScan
     {
-        guard !neededStepUUIDCounts.isEmpty else { return StepTimestampScan(timestamps: [:], isComplete: true) }
+        guard !neededStepOccurrences.isEmpty else { return StepTimestampScan(timestamps: [:], isComplete: true) }
+        let neededStepUUIDCounts = neededStepOccurrences.mapValues(\.count)
         let stepProgress = StepScanProgress(progress: progress)
         let registered = sqlite3_create_function_v2(
             database,
@@ -319,9 +325,22 @@ extension AntigravityLocalReader {
                     timestampMs: parsed.timestampMs))
             }
         }
+        let resolved = self.resolveStepTimestamps(
+            stepTimestamps,
+            neededStepOccurrences: neededStepOccurrences)
+        return StepTimestampScan(timestamps: resolved, isComplete: isComplete && rowsAreValid)
+    }
+
+    private static func resolveStepTimestamps(
+        _ stepTimestamps: [String: [StepTimestamp]],
+        neededStepOccurrences: [String: [StepOccurrence]]) -> [String: [Int64]]
+    {
         var resolved: [String: [Int64]] = [:]
         for (stepUUID, timestamps) in stepTimestamps {
-            guard let neededCount = neededStepUUIDCounts[stepUUID] else { continue }
+            guard let occurrences = neededStepOccurrences[stepUUID] else { continue }
+            let sortedOccurrences = occurrences.sorted { $0.row < $1.row }
+            guard Set(sortedOccurrences.map(\.row)).count == sortedOccurrences.count else { continue }
+            let neededCount = sortedOccurrences.count
             let sorted = timestamps.sorted { $0.row < $1.row }
             // The defensive schema does not require idx to be a key. Conflicting duplicate indices
             // cannot be ordered safely, so withhold that UUID instead of publishing a false date.
@@ -329,16 +348,21 @@ extension AntigravityLocalReader {
                 continue
             }
             let orderedTimestamps = sorted.map(\.timestampMs)
+            let selected: [Int64]
             if orderedTimestamps.count == 1, let sharedTimestamp = orderedTimestamps[0] {
-                resolved[stepUUID] = Array(repeating: sharedTimestamp, count: neededCount)
-                continue
+                selected = Array(repeating: sharedTimestamp, count: neededCount)
+            } else {
+                guard orderedTimestamps.count >= neededCount else { continue }
+                let candidates = orderedTimestamps.prefix(neededCount)
+                guard candidates.allSatisfy({ $0 != nil }) else { continue }
+                selected = candidates.compactMap(\.self)
             }
-            guard orderedTimestamps.count >= neededCount else { continue }
-            let selected = orderedTimestamps.prefix(neededCount)
-            guard selected.allSatisfy({ $0 != nil }) else { continue }
-            resolved[stepUUID] = selected.compactMap(\.self)
+            guard zip(sortedOccurrences, selected).allSatisfy({ pair in
+                pair.0.timestampMs == nil || pair.0.timestampMs == pair.1
+            }) else { continue }
+            resolved[stepUUID] = selected
         }
-        return StepTimestampScan(timestamps: resolved, isComplete: isComplete && rowsAreValid)
+        return resolved
     }
 
     private static func readRows(
@@ -349,7 +373,7 @@ extension AntigravityLocalReader {
         let budget = progress.budget
         var result = SourceResult()
         var pendingTimestampRows: [PendingTimestampRow] = []
-        var stepOccurrenceRows: [String: [Int64]] = [:]
+        var stepOccurrences: [String: [StepOccurrence]] = [:]
         while true {
             try budget.check()
             let step = sqlite3_step(statement)
@@ -398,7 +422,9 @@ extension AntigravityLocalReader {
                 continue
             }
             if let stepUUID = turn.stepUUID {
-                stepOccurrenceRows[stepUUID, default: []].append(row)
+                stepOccurrences[stepUUID, default: []].append(StepOccurrence(
+                    row: row,
+                    timestampMs: turn.timestampMs))
             }
             if turn.timestampMs == nil, let stepUUID = turn.stepUUID {
                 pendingTimestampRows.append(PendingTimestampRow(row: row, stepUUID: stepUUID, turn: turn))
@@ -413,7 +439,7 @@ extension AntigravityLocalReader {
         return ParsedRows(
             source: result,
             pendingTimestampRows: pendingTimestampRows,
-            stepOccurrenceRows: stepOccurrenceRows)
+            stepOccurrences: stepOccurrences)
     }
 
     private static func appendRecoveredEvents(
@@ -421,11 +447,11 @@ extension AntigravityLocalReader {
         session: String,
         pendingRows: [PendingTimestampRow],
         stepTimestamps: [String: [Int64]],
-        stepOccurrenceRows: [String: [Int64]]) -> Int
+        stepOccurrences: [String: [StepOccurrence]]) -> Int
     {
         var occurrenceOffsets: [String: [Int64: Int]] = [:]
-        for (stepUUID, rows) in stepOccurrenceRows {
-            let sorted = rows.sorted()
+        for (stepUUID, occurrences) in stepOccurrences {
+            let sorted = occurrences.map(\.row).sorted()
             guard Set(sorted).count == sorted.count else { continue }
             occurrenceOffsets[stepUUID] = Dictionary(
                 uniqueKeysWithValues: sorted.enumerated().map { ($0.element, $0.offset) })
