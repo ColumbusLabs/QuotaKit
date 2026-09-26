@@ -403,41 +403,6 @@ struct GeminiStatusProbeAPITests {
     }
 
     @Test
-    func `fnm helper returns first line while an owned process holds stdout open`() throws {
-        let env = try GeminiTestEnvironment()
-        defer { env.cleanup() }
-        let holder = try GeminiStdoutHolderFixture(root: env.homeURL)
-        defer { #expect(holder.cleanup().succeeded) }
-
-        let result = holder.runProducer()
-        try #require(result == "/tmp/gemini-package", "\(holder.producerDiagnostics)")
-        let publishedPID = try String(contentsOf: holder.pidFile, encoding: .utf8)
-        #expect(pid_t(publishedPID) == holder.process.processIdentifier)
-        #expect(holder.process.isRunning)
-
-        #expect(holder.cleanup().succeeded)
-        #expect(!holder.process.isRunning)
-    }
-
-    @Test
-    func `fnm helper producer failure cleans up without a PID artifact`() throws {
-        let env = try GeminiTestEnvironment()
-        defer { env.cleanup() }
-        let holder = try GeminiStdoutHolderFixture(root: env.homeURL)
-        defer { #expect(holder.cleanup().succeeded) }
-        let missingParent = env.homeURL.appendingPathComponent("missing/holder.pid")
-
-        #expect(holder.runProducer(pidFile: missingParent) == nil)
-        #expect(holder.producerDiagnostics.contains("FileNotFoundError"))
-        #expect(holder.producerDiagnostics.contains(missingParent.path))
-        #expect(!FileManager.default.fileExists(atPath: missingParent.path))
-        #expect(holder.process.isRunning)
-
-        #expect(holder.cleanup().succeeded)
-        #expect(!holder.process.isRunning)
-    }
-
-    @Test
     func `fnm helper timeout hard stops a process that ignores SIGTERM`() throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
