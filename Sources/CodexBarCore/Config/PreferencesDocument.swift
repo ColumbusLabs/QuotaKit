@@ -48,7 +48,7 @@ public struct PreferencesDocument: Codable, Sendable {
     private static var keys: Set<String> {
         self.boolKeys.union(self.stringChoices.keys).union(self.thresholdKeys).union([
             "weeklyProgressWorkDays", "preferredCurrencyCode", "mergedOverviewSelectedProviders",
-            "switcherShortcuts",
+            "switcherShortcuts", "mergeIconStackedTopProvider", "mergeIconStackedBottomProvider",
         ])
     }
 
@@ -64,6 +64,10 @@ public struct PreferencesDocument: Codable, Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         return try encoder.encode(self)
+    }
+
+    public func contains(_ key: String) -> Bool {
+        self.preferences[key] != nil
     }
 
     public func value<T: Decodable>(_ key: String, as _: T.Type = T.self) throws -> T? {
@@ -123,12 +127,16 @@ public struct PreferencesDocument: Codable, Sendable {
             switch value {
             case .bool: valid = Self.boolKeys.contains(key)
             case let .string(raw):
-                valid = Self.stringChoices[key]?.contains(raw)
-                    ??
-                    (key == "preferredCurrencyCode" &&
-                        (raw == "auto" || (raw.count == 3 && raw.utf8.allSatisfy { (65...90).contains($0) })))
+                if key == "mergeIconStackedTopProvider" || key == "mergeIconStackedBottomProvider" {
+                    valid = UsageProvider(rawValue: raw) != nil
+                } else {
+                    valid = Self.stringChoices[key]?.contains(raw)
+                        ?? (key == "preferredCurrencyCode" &&
+                            (raw == "auto" || (raw.count == 3 && raw.utf8.allSatisfy { (65...90).contains($0) })))
+                }
             case let .integer(number): valid = key == "weeklyProgressWorkDays" && (1...7).contains(number)
             case .null: valid = key == "weeklyProgressWorkDays"
+                    || key == "mergeIconStackedTopProvider" || key == "mergeIconStackedBottomProvider"
             case let .array(values):
                 if Self.thresholdKeys.contains(key) {
                     valid = values

@@ -841,6 +841,30 @@ extension SettingsStore {
         set { self.setDefault(\.switcherShowsIcons, newValue, key: "switcherShowsIcons") }
     }
 
+    var mergeIconsStacked: Bool {
+        get { self.defaultsState.mergeIconsStacked }
+        set {
+            self.defaultsState.mergeIconsStacked = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconsStacked")
+        }
+    }
+
+    var mergeIconStackedTopProviderRaw: String? {
+        get { self.defaultsState.mergeIconStackedTopProviderRaw }
+        set {
+            self.defaultsState.mergeIconStackedTopProviderRaw = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconStackedTopProvider")
+        }
+    }
+
+    var mergeIconStackedBottomProviderRaw: String? {
+        get { self.defaultsState.mergeIconStackedBottomProviderRaw }
+        set {
+            self.defaultsState.mergeIconStackedBottomProviderRaw = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconStackedBottomProvider")
+        }
+    }
+
     var mergedMenuLastSelectedWasOverview: Bool {
         get { self.mergedMenuLastSelectedWasOverviewStorage }
         set {

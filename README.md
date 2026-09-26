@@ -19,6 +19,7 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 - iPhone alerts when a provider runs out of quota or becomes available again.
 - Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.
 - A unified Mac usage-and-spend dashboard plus optional external hooks for quota and provider-state events.
+- A stacked merged menu icon that shows two providers at once, using each provider’s first layout line.
 - QuotaKit Pro widgets for Home Screen and Lock Screen status at a glance.
 - Share cards for usage and cost views.
 
