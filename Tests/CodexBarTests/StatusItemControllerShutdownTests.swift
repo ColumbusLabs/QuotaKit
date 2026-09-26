@@ -83,7 +83,7 @@ struct StatusItemControllerShutdownTests {
             StatusItemController.menuCardRenderingEnabled = !SettingsStore.isRunningTests
             StatusItemController.resetMenuRefreshEnabledForTesting()
         }
-        let providerItem = controller._test_vendStatusItem(for: .claude, onCreated: { _ in })
+        let providerItem = controller.lazyStatusItem(for: .claude)
         let items = [controller.statusItem] + Array(controller.statusItems.values)
         let names = items.map { $0.autosaveName ?? "" }
         let visibility = Dictionary(uniqueKeysWithValues: items.map { (ObjectIdentifier($0), $0.isVisible) })
@@ -126,7 +126,77 @@ struct StatusItemControllerShutdownTests {
     }
 
     @Test
-    func `runtime removal retires identity before removal and restores saved placement`() {
+    func `startup recovery keeps identities until hidden removal and preserves placement`() {
+        for merged in [true, false] {
+            // A quiet relaunch is already hosted; an update handoff can miss its first sample.
+            for unavailableSamples in [0, 1] {
+                let statusBar = RecordingStatusBar()
+                let controller = self.makeController(
+                    statusBar: statusBar, merged: merged, enabledProviders: [.codex, .claude])
+                defer {
+                    statusBar.onRemove = nil
+                    controller.prepareForAppShutdown()
+                    StatusItemController.menuCardRenderingEnabled = !SettingsStore.isRunningTests
+                    StatusItemController.resetMenuRefreshEnabledForTesting()
+                }
+                let defaults = controller.settings.userDefaults
+                let expectedNames = controller.expectedVisibleStatusItemAutosaveNames
+                #expect(expectedNames == (merged ? ["codexbar-merged"] : ["codexbar-codex", "codexbar-claude"]))
+                let originalItems = statusBar.createdItems
+                let names = originalItems.map { $0.autosaveName ?? "" }
+                for (index, name) in names.enumerated() {
+                    defaults.set(
+                        400 + index * 100,
+                        forKey:
+                        MenuBarStatusItemPlacementPreflight.preferredPositionKey(autosaveName: name))
+                }
+                statusBar.onRemove = { item in
+                    #expect(names.contains(item.autosaveName ?? ""))
+                    let key = MenuBarStatusItemPlacementPreflight.preferredPositionKey(
+                        autosaveName: item.autosaveName ?? "")
+                    defaults.removeObject(forKey: key)
+                }
+
+                var probe = StartupHostingProbe(unavailableSamples: unavailableSamples)
+                let launchedAt = Date()
+                var recoveries = 0
+                for sample in 0..<3 {
+                    let items = [controller.statusItem] + Array(controller.statusItems.values)
+                    if MenuBarVisibilityWatcher.shouldAttemptStartupRecovery(
+                        appLaunchedAt: launchedAt,
+                        now: launchedAt.addingTimeInterval(2 + Double(sample)),
+                        snapshots: probe.sample(items))
+                    {
+                        recoveries += 1
+                        controller.recreateStatusItemsForVisibilityRecovery()
+                    }
+                }
+
+                #expect(recoveries == unavailableSamples)
+                #expect(statusBar.removedItems.count == originalItems.count * unavailableSamples)
+                #expect(controller.expectedVisibleStatusItemAutosaveNames == expectedNames)
+                #expect(controller.statusItem.autosaveName == "codexbar-merged")
+                for item in statusBar.createdItems {
+                    #expect(item.unnamedVisibleEvents.isEmpty)
+                    #expect(names.contains(item.firstShownName ?? ""))
+                }
+                // Model delayed cleanup of retired items after their replacements have been created.
+                for item in statusBar.removedItems {
+                    if let name = item.autosaveName {
+                        defaults.removeObject(forKey:
+                            MenuBarStatusItemPlacementPreflight.preferredPositionKey(autosaveName: name))
+                    }
+                }
+                for (index, name) in names.enumerated() {
+                    let key = MenuBarStatusItemPlacementPreflight.preferredPositionKey(autosaveName: name)
+                    #expect(defaults.integer(forKey: key) == 400 + index * 100)
+                }
+            }
+        }
+    }
+
+    @Test
+    func `runtime removal hides and removes before retiring identity and restores saved placement`() {
         let statusBar = RecordingStatusBar()
         let controller = self.makeController(statusBar: statusBar)
         defer {
@@ -147,13 +217,14 @@ struct StatusItemControllerShutdownTests {
             item.events.removeAll()
             statusBar.onRemove = { removed in
                 #expect(removed === item)
-                #expect(removed.autosaveName == nil)
+                #expect(removed.autosaveName == name)
+                #expect(!removed.isVisible)
                 defaults.removeObject(forKey: key)
             }
 
             controller.removeStatusItemPreservingPlacement(item)
 
-            #expect(item.events == ["name:nil", "remove"])
+            #expect(item.events == ["visible:false", "remove", "name:nil"])
             #expect(defaults.integer(forKey: key) == 845)
         }
     }
@@ -361,17 +432,19 @@ struct StatusItemControllerShutdownTests {
         #expect(controller.store.pendingForcedRefreshEnrichmentTask == nil)
     }
 
-    private func makeController(statusBar: NSStatusBar = .system) -> StatusItemController {
+    private func makeController(
+        statusBar: NSStatusBar = .system,
+        merged: Bool = true,
+        enabledProviders: Set<UsageProvider> = [.codex]) -> StatusItemController
+    {
         StatusItemController.menuCardRenderingEnabled = false
         StatusItemController.setMenuRefreshEnabledForTesting(true)
 
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
-        settings.mergeIcons = true
-        if let codexMetadata = ProviderRegistry.shared.metadata[.codex] {
-            settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
-        }
+        settings.mergeIcons = merged
+        enableTestProviders(enabledProviders, settings: settings)
 
         let environment = Self.isolatedEnvironment()
         let fetcher = UsageFetcher(environment: environment)
@@ -391,7 +464,7 @@ struct StatusItemControllerShutdownTests {
     }
 
     private func makeSettings() -> SettingsStore {
-        testSettingsStore(suiteName: "StatusItemControllerShutdownTests")
+        testSettingsStore(suiteName: "StatusItemControllerShutdownTests", userDefaults: InMemoryUserDefaults())
     }
 
     private static func isolatedEnvironment() -> [String: String] {
@@ -407,12 +480,14 @@ struct StatusItemControllerShutdownTests {
 }
 
 private final class RecordingStatusBar: NSStatusBar {
+    var createdItems: [RecordingStatusItem] = []
     var removedItems: [NSStatusItem] = []
     var onRemove: ((NSStatusItem) -> Void)?
 
     override func statusItem(withLength length: CGFloat) -> NSStatusItem {
         let item = RecordingStatusItem()
         item.length = length
+        self.createdItems.append(item)
         return item
     }
 
@@ -425,6 +500,8 @@ private final class RecordingStatusBar: NSStatusBar {
 
 private final class RecordingStatusItem: NSStatusItem {
     var events: [String] = []
+    var unnamedVisibleEvents: [String] = []
+    var firstShownName: String?
     var onVisibilityChange: (() -> Void)?
     private var recordedName: String?
     private var recordedMenu: NSMenu?
@@ -436,6 +513,7 @@ private final class RecordingStatusItem: NSStatusItem {
         set {
             self.recordedName = newValue
             self.events.append("name:\(newValue ?? "nil")")
+            self.recordVisibleIdentity("name")
         }
     }
 
@@ -452,17 +530,49 @@ private final class RecordingStatusItem: NSStatusItem {
         set {
             self.recordedVisibility = newValue
             self.events.append("visible:\(newValue)")
+            self.recordVisibleIdentity("visibility")
             self.onVisibilityChange?()
         }
     }
 
     override var length: CGFloat {
         get { self.recordedLength }
-        set { self.recordedLength = newValue }
+        set {
+            self.recordedLength = newValue
+            self.recordVisibleIdentity("length")
+        }
     }
 
     override var button: NSStatusBarButton? {
         nil
+    }
+
+    private func recordVisibleIdentity(_ event: String) {
+        // AppKit starts visible at zero width; record exposure after the existing naming factory.
+        guard self.recordedVisibility, self.recordedLength != 0 else { return }
+        if self.recordedName?.isEmpty != false {
+            self.unnamedVisibleEvents.append(event)
+        } else if self.firstShownName == nil {
+            self.firstShownName = self.recordedName
+        }
+    }
+}
+
+@MainActor
+private struct StartupHostingProbe {
+    var unavailableSamples: Int
+
+    mutating func sample(_ items: [NSStatusItem]) -> [StatusItemVisibilitySnapshot] {
+        let hosted = self.unavailableSamples == 0
+        self.unavailableSamples = max(0, self.unavailableSamples - 1)
+        return items.map {
+            StatusItemVisibilitySnapshot(
+                isVisible: $0.isVisible,
+                hasButton: true,
+                hasWindow: hosted,
+                hasScreen: hosted,
+                buttonWidth: 24)
+        }
     }
 }
 

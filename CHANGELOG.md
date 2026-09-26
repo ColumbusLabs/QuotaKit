@@ -25,6 +25,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
 - OpenRouter: explain the required API key field when only a separate Management API key is configured.
 - Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.
 - Cursor costs: estimate omitted event costs from cached model prices and retain priced, estimated, and unpriced request coverage.
