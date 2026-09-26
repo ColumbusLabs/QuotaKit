@@ -23,6 +23,19 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `bifrost exposes only a virtual key and a configured gateway URL`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bifrost")
+        let fields = BifrostProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .bifrost))
+        #expect(fields.map(\.id) == ["bifrost-api-key", "bifrost-base-url"])
+        #expect(fields.map(\.kind) == [.secure, .plain])
+        fields[0].binding.wrappedValue = "fixture-virtual-key"
+        fields[1].binding.wrappedValue = "https://bifrost.example.com"
+        #expect(fixture.settings.providerConfig(for: .bifrost)?.apiKey == "fixture-virtual-key")
+        #expect(fixture.settings.providerConfig(for: .bifrost)?.enterpriseHost == "https://bifrost.example.com")
+    }
+
+    @Test
     func `bedrock discloses monitoring charges before credentials in either authentication mode`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bedrock-charges")
         let context = fixture.settingsContext(provider: .bedrock)

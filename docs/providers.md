@@ -104,6 +104,7 @@ complete when the available scan window covers fewer days.
 | ClawRouter | API key + optional base URL → `/v1/usage` monthly budget, spend, and routed-provider usage (`api`). |
 | Wayfinder | Local gateway URL → `/healthz`, `/v1/savings`, `/router/models`, `/metrics` for health, routing split, savings, and decision latency (`api`). |
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
+| Bifrost | Virtual key + base URL → `/api/governance/virtual-keys/quota` budget and rate-limit usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
 | Neuralwatt | API key from config/env → `/v1/quota` subscription kWh usage and prepaid balance (`api`). |
@@ -597,6 +598,14 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Spend remains visible in the API-spend row when LiteLLM has no budget limit configured.
 - Accepts base URLs with or without a `/v1` suffix; management requests are sent to the proxy root.
 - Details: `docs/litellm.md`.
+
+## Bifrost
+- Virtual key from config or `BIFROST_API_KEY`; base URL from config `enterpriseHost` or `BIFROST_BASE_URL` (required).
+- Reads `/api/governance/virtual-keys/quota` with header `x-bf-vk: <virtual key>` — a self-service endpoint, no admin/master key.
+- Budgets are ordered by shortest reset cycle: shortest is the primary window, next is the secondary window, remaining budgets and rate limits appear as additional named windows.
+- An unlimited budget keeps reported spend visible without inventing a quota; absent budget rows do not imply zero spend.
+- A disabled key keeps showing remaining budgets/rate limits with an inactive-key marker rather than erroring, unless it has neither.
+- Details: `docs/bifrost.md`.
 
 ## Poe
 - API key from config or `POE_API_KEY`.

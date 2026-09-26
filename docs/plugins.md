@@ -190,6 +190,8 @@ Approval records live outside plugin files under `~/Library/Application Support/
 change to instance ID, normalized origins, auth mode/header, secure setting names, capabilities, or cookie domains
 invalidates approval before the next request. There is no bulk approval or import path.
 
+Bifrost's bundled plugin uses a configured HTTPS or private-network HTTP gateway. The virtual key is sent only to the validated gateway origin.
+
 `quotakit plugins list` shows locally discovered plugins. `quotakit plugins fetch <id>` displays the same approval
 fields and can approve only from an interactive terminal; redirected/headless input fails closed. Browser-cookie plugins
 are app-only and fail closed in the CLI.
