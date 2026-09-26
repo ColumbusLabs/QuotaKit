@@ -454,7 +454,7 @@ enum DashboardSnapshotBuilder {
     }
 
     private static func makeCredits(_ credits: CreditsSnapshot?) -> DashboardCreditsPayload? {
-        guard let credits else { return nil }
+        guard let credits, credits.balanceReadSucceeded else { return nil }
         return DashboardCreditsPayload(remaining: credits.remaining, unit: "credits")
     }
 

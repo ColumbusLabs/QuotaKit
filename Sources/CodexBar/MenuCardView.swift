@@ -180,6 +180,7 @@ struct UsageMenuCardView: View {
         let inlineUsageDashboard: InlineUsageDashboardModel?
         var creditsText: String?
         var creditsRemaining: Double?
+        var creditsShowProgress = true
         var creditsProgressPercent: Double?, creditsScaleText: String?
         var creditsHintText: String?
         var creditsHintCopyText: String?
@@ -252,6 +253,7 @@ struct UsageMenuCardView: View {
                     if let credits = liveModel.creditsText {
                         CreditsBarContent(
                             creditsText: credits,
+                            showsProgress: liveModel.creditsShowProgress,
                             progressPercent: liveModel.creditsProgressPercent,
                             scaleText: liveModel.creditsScaleText,
                             hintText: liveModel.creditsHintText,
@@ -776,6 +778,7 @@ struct UsageMenuCardCreditsSectionView: View {
             VStack(alignment: .leading, spacing: 6) {
                 CreditsBarContent(
                     creditsText: credits,
+                    showsProgress: liveModel.creditsShowProgress,
                     progressPercent: liveModel.creditsProgressPercent,
                     scaleText: liveModel.creditsScaleText,
                     hintText: liveModel.creditsHintText,
@@ -800,6 +803,7 @@ struct UsageMenuCardCreditsSectionView: View {
 
 private struct CreditsBarContent: View {
     let creditsText: String
+    let showsProgress: Bool
     var progressPercent: Double?, scaleText: String?
     let hintText: String?
     let hintCopyText: String?
@@ -811,7 +815,7 @@ private struct CreditsBarContent: View {
             Text(L("Credits"))
                 .font(.body)
                 .fontWeight(.medium)
-            if let progressPercent {
+            if self.showsProgress, let progressPercent {
                 UsageProgressBar(
                     percent: min(100, max(0, progressPercent)),
                     tint: self.progressColor,
@@ -945,13 +949,20 @@ extension UsageMenuCardView.Model {
         let creditsScaleText = Self.creditsScaleText(credits: input.credits)
         let codexCreditLimitDetail = Self.codexCreditLimitDetail(credits: input.credits, now: input.now)
         let isClaudeAdminAPI = input.snapshot?.loginMethod(for: input.provider) == "Admin API"
+        let extraUsageCost = Self.resolvedProviderCost(input: input)
+        let extraUsageSnapshot = extraUsageCost.map { cost in
+            (input.snapshot ?? UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: cost.updatedAt)).with(providerCost: cost)
+        } ?? input.snapshot
         let showsProviderCost = menuCard.showsProviderCost(context: ProviderCostVisibilityContext(
-            snapshot: input.snapshot,
+            snapshot: extraUsageSnapshot,
             showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
-        let costPresentation = input.snapshot.map { presentation.cost(snapshot: $0) }
+        let costPresentation = extraUsageSnapshot.map { presentation.cost(snapshot: $0) }
         let providerCostStyle = costPresentation?.menuCardStyle ?? .generic
         let providerCostFollowsSummaryStyle = Self.providerCostFollowsSummaryStyle(
-            cost: input.snapshot?.providerCost,
+            cost: extraUsageCost,
             style: providerCostStyle,
             isClaudeAdminAPI: isClaudeAdminAPI) && !menuCard.providerCostIsRequiredUsage
         let providerCost: ProviderCostSection? = if !showsProviderCost ||
@@ -960,7 +971,7 @@ extension UsageMenuCardView.Model {
             nil
         } else {
             Self.providerCostSection(
-                cost: input.snapshot?.providerCost,
+                cost: extraUsageCost,
                 style: providerCostStyle,
                 percentStyle: input.usageBarsShowUsed ? .used : .left,
                 isClaudeAdminAPI: isClaudeAdminAPI,
@@ -1004,7 +1015,8 @@ extension UsageMenuCardView.Model {
             openAIAPIUsage: openAIAPIUsage,
             inlineUsageDashboard: inlineUsageDashboard,
             creditsText: creditsText,
-            creditsRemaining: input.credits?.codexCreditLimit?.remaining ?? input.credits?.remaining,
+            creditsRemaining: input.credits?.displayRemaining,
+            creditsShowProgress: input.credits?.hasWorkspaceBalance != true,
             creditsProgressPercent: creditsProgressPercent,
             creditsScaleText: creditsScaleText,
             creditsHintText: codexCreditLimitDetail ?? redacted.creditsHintText,
@@ -1014,6 +1026,19 @@ extension UsageMenuCardView.Model {
             tokenUsage: tokenUsage,
             placeholder: placeholder,
             progressColor: Self.progressColor(for: input.provider))
+    }
+
+    private static func resolvedProviderCost(input: Input) -> ProviderCostSnapshot? {
+        // Codex extra credits come from member credit snapshots, not USD spend.
+        if input.provider == .codex {
+            if let projected = input.codexProjection?.extraUsageCost {
+                return projected
+            }
+            if let fromCredits = CodexExtraUsageCost.providerCost(from: input.credits) {
+                return fromCredits
+            }
+        }
+        return input.snapshot?.providerCost
     }
 
     static func visibleProviderDetails(

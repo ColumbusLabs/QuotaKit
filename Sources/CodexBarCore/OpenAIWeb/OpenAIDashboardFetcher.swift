@@ -47,6 +47,7 @@ public struct OpenAIDashboardFetcher {
     }
 
     struct DashboardSnapshotComponents {
+        var accountID: String?
         let signedInEmail: String?
         let scrape: ScrapeResult
         let codeReview: Double?
@@ -57,12 +58,15 @@ public struct OpenAIDashboardFetcher {
         let rateLimits: (primary: RateWindow?, secondary: RateWindow?)
         let extraRateWindows: [NamedRateWindow]
         let creditsRemaining: Double?
+        var creditsAvailable: Bool?
+        var balanceIsWorkspace: Bool?
         let codexCreditLimit: CodexCreditLimitSnapshot?
         let accountPlan: String?
         let subscription: OpenAISubscriptionMetadata?
     }
 
     struct DashboardScrapeData {
+        var accountID: String?
         let signedInEmail: String?
         let codeReview: Double?
         let codeReviewLimit: RateWindow?
@@ -72,6 +76,8 @@ public struct OpenAIDashboardFetcher {
         let rateLimits: (primary: RateWindow?, secondary: RateWindow?)
         let extraRateWindows: [NamedRateWindow]
         let creditsRemaining: Double?
+        var creditsAvailable: Bool?
+        var balanceIsWorkspace: Bool?
         let codexCreditLimit: CodexCreditLimitSnapshot?
         let accountPlan: String?
         let hasDashboardPageSignal: Bool
@@ -83,6 +89,7 @@ public struct OpenAIDashboardFetcher {
     {
         OpenAIDashboardSnapshot(
             signedInEmail: components.signedInEmail,
+            accountID: components.accountID,
             codeReviewRemainingPercent: components.codeReview,
             codeReviewLimit: components.codeReviewLimit,
             creditEvents: components.events,
@@ -93,6 +100,8 @@ public struct OpenAIDashboardFetcher {
             secondaryLimit: components.rateLimits.secondary,
             extraRateWindows: components.extraRateWindows.isEmpty ? nil : components.extraRateWindows,
             creditsRemaining: components.creditsRemaining,
+            creditsAvailable: components.creditsAvailable,
+            balanceIsWorkspace: components.balanceIsWorkspace,
             codexCreditLimit: components.codexCreditLimit,
             accountPlan: components.accountPlan,
             subscriptionExpiresAt: components.subscription?.expiresAt,
@@ -105,6 +114,11 @@ public struct OpenAIDashboardFetcher {
         apiData: DashboardAPIData?,
         verifiedSignedInEmail: String?) -> DashboardScrapeData
     {
+        // The page exposes an email, but no workspace account ID. Its fields cannot be
+        // paired with an account-scoped API response for another workspace of that email.
+        let apiData = apiData.flatMap {
+            ManagedCodexAccount.normalizeWorkspaceAccountID($0.accountID) == nil ? $0 : nil
+        }
         let bodyText = scrape.bodyText ?? ""
         let codeReview = OpenAIDashboardParser.parseCodeReviewRemainingPercent(bodyText: bodyText)
         let events = OpenAIDashboardParser.parseCreditEvents(rows: scrape.rows)
@@ -116,7 +130,9 @@ public struct OpenAIDashboardFetcher {
             secondary: apiData?.secondaryLimit ?? parsedRateLimits.secondary)
         let codeReviewLimit = OpenAIDashboardParser.parseCodeReviewLimit(bodyText: bodyText)
         let parsedCreditsRemaining = OpenAIDashboardParser.parseCreditsRemaining(bodyText: bodyText)
-        let creditsRemaining = apiData?.creditsRemaining ?? parsedCreditsRemaining
+        // An explicit API response withholds a balance deliberately; the page may still show a placeholder zero.
+        let usesAPIBalance = apiData?.creditsRemaining != nil || apiData?.creditsAvailable != nil
+        let creditsRemaining = usesAPIBalance ? apiData?.creditsRemaining : parsedCreditsRemaining
         let codexCreditLimit = apiData?.codexCreditLimit
         let accountPlan = scrape.accountPlan ?? apiData?.accountPlan
         let hasParsedUsageLimits = parsedRateLimits.primary != nil || parsedRateLimits.secondary != nil
@@ -134,13 +150,15 @@ public struct OpenAIDashboardFetcher {
             usageBreakdown: usageBreakdown,
             hasUsageLimits: hasUsageLimits,
             creditsRemaining: creditsRemaining,
+            creditsAvailable: apiData?.creditsAvailable,
             codexCreditLimit: codexCreditLimit))
 
         // Codex `additional_rate_limits` (e.g. Codex Spark) only ship over the JSON usage API, so the
         // dashboard HTML scrape never contributes here; we just forward what the apiData decoded.
         let extraRateWindows = apiData?.extraRateWindows ?? []
         return DashboardScrapeData(
-            signedInEmail: self.firstNonEmpty(scrape.signedInEmail, verifiedSignedInEmail),
+            accountID: apiData?.accountID,
+            signedInEmail: scrape.signedInEmail,
             codeReview: codeReview,
             codeReviewLimit: codeReviewLimit,
             events: events,
@@ -149,28 +167,14 @@ public struct OpenAIDashboardFetcher {
             rateLimits: rateLimits,
             extraRateWindows: extraRateWindows,
             creditsRemaining: creditsRemaining,
+            creditsAvailable: apiData?.creditsAvailable,
+            balanceIsWorkspace: usesAPIBalance ? apiData?.balanceIsWorkspace : nil,
             codexCreditLimit: codexCreditLimit,
             accountPlan: accountPlan,
             hasDashboardPageSignal: self.hasAnyDashboardSignal(
                 hasReturnableData: hasDashboardPageData,
                 creditsHeaderPresent: scrape.creditsHeaderPresent),
             hasReturnableData: hasReturnableData)
-    }
-
-    struct DashboardAPIData {
-        let primaryLimit: RateWindow?
-        let secondaryLimit: RateWindow?
-        let extraRateWindows: [NamedRateWindow]
-        let creditsRemaining: Double?
-        let codexCreditLimit: CodexCreditLimitSnapshot?
-        let accountPlan: String?
-
-        var hasUsageData: Bool {
-            self.primaryLimit != nil
-                || self.secondaryLimit != nil
-                || self.creditsRemaining != nil
-                || self.codexCreditLimit != nil
-        }
     }
 
     public struct ProbeResult: Sendable {
@@ -253,43 +257,33 @@ public struct OpenAIDashboardFetcher {
         let deadline = Self.deadline(startingAt: startedAt, timeout: timeout)
         let logLine: (String) -> Void = { logger?($0) }
         logLine("dashboard phase=api_preflight")
-        let preflight: (
-            apiData: DashboardAPIData?,
-            verifiedSignedInEmail: String?,
-            subscription: OpenAISubscriptionMetadata?)
-        do {
-            preflight = try await Self.fetchDashboardAPIPreflight(
-                websiteDataStore: websiteDataStore,
-                deadline: deadline,
-                logger: logLine)
-        } catch {
-            // Cookie/API preflight is an optimization and cannot make the DOM fallback unreachable.
-            // Preserve cancellation and let the shared deadline decide whether a page scrape still
-            // has time to run.
-            try Task.checkCancellation()
-            logLine(
-                "usage API preflight unavailable; falling back to serialized WebView scrape: "
-                    + error.localizedDescription)
-            preflight = (nil, nil, nil)
-        }
+        let preflight = try await Self.fetchDashboardAPIPreflight(
+            websiteDataStore: websiteDataStore,
+            deadline: deadline,
+            logger: logLine)
         try Task.checkCancellation()
-        let (apiData, verifiedSignedInEmail, subscription) =
-            (preflight.apiData, preflight.verifiedSignedInEmail, preflight.subscription)
+        let (apiData, verifiedSignedInEmail) =
+            (preflight.apiData, preflight.verifiedSignedInEmail)
         logLine("dashboard phase=api_preflight_done elapsed=\(Self.phaseElapsed(since: startedAt))")
 
+        if let apiData,
+           apiData.hasUsageData,
+           ManagedCodexAccount.normalizeWorkspaceAccountID(apiData.accountID) != nil,
+           let verifiedSignedInEmail
+        {
+            logLine("account-scoped usage API supplied verified data; page workspace is unproven")
+            return try Self.verifiedAPISnapshot(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previousSnapshot)
+        }
+
         if Self.shouldSkipPageScrape(allowPageScrape: allowPageScrape) {
-            if let apiData, apiData.hasUsageData, let verifiedSignedInEmail {
-                logLine("usage api supplied verified dashboard data; skipping WebView")
-                return Self.snapshotByMergingAPI(
-                    apiData: apiData,
-                    verifiedEmail: verifiedSignedInEmail,
-                    subscription: subscription,
-                    previous: previousSnapshot)
-            }
-            // A background caller may prefer the API, but a missing/insufficient preflight must
-            // still recover page-only fields from the serialized DOM fallback. The page gate is a
-            // cadence policy, not permission to silently return stale data when the API is unusable.
-            logLine("usage API preflight incomplete; falling back to serialized WebView scrape")
+            logLine("page scrape disabled; requiring a verified API reading")
+            return try Self.verifiedAPISnapshot(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previousSnapshot)
         }
 
         let remainingTimeout = try Self.requiredRemainingTimeout(until: deadline)
@@ -309,7 +303,7 @@ public struct OpenAIDashboardFetcher {
             webView: lease.webView,
             apiData: apiData,
             verifiedSignedInEmail: verifiedSignedInEmail,
-            subscription: subscription,
+            subscriptionResult: .unavailable,
             previousSnapshot: previousSnapshot,
             deadline: deadline,
             startedAt: startedAt,
@@ -317,6 +311,9 @@ public struct OpenAIDashboardFetcher {
             log: lease.log))
     }
 
+    /// Fetches optional subscription metadata independently of the dashboard result.
+    /// Callers can return usage promptly, then apply this result only after re-checking
+    /// account authority.
     public func clearSessionData(
         accountEmail: String?,
         cacheScope: CookieHeaderCache.Scope? = nil) async
@@ -643,11 +640,13 @@ public struct OpenAIDashboardFetcher {
 
     nonisolated static func dashboardAPIData(from response: CodexUsageResponse) -> DashboardAPIData {
         DashboardAPIData(
+            accountID: response.accountId,
             primaryLimit: self.rateWindow(from: response.rateLimit?.primaryWindow),
             secondaryLimit: self.rateWindow(from: response.rateLimit?.secondaryWindow),
             extraRateWindows: CodexAdditionalRateLimitMapper.extraRateWindows(
                 from: response.additionalRateLimits),
             creditsRemaining: response.credits?.balance,
+            creditsAvailable: response.credits.map { $0.hasCredits && !$0.unlimited },
             codexCreditLimit: response.resolvedIndividualLimit?.codexCreditLimitSnapshot(updatedAt: Date()),
             accountPlan: response.planType?.rawValue)
     }
@@ -658,15 +657,18 @@ public struct OpenAIDashboardFetcher {
         logger: @escaping (String) -> Void)
         async throws -> (
             apiData: DashboardAPIData?,
-            verifiedSignedInEmail: String?,
-            subscription: OpenAISubscriptionMetadata?)
+            verifiedSignedInEmail: String?)
     {
         let cookieHeader = try await self.chatGPTCookieHeader(in: websiteDataStore, deadline: deadline)
-        let apiData = await self.fetchDashboardUsageAPI(
+        let response = try await self.fetchDashboardAPIResponse(
             cookieHeader: cookieHeader,
             deadline: deadline,
             logger: logger)
-        let verifiedEmail: String? = if apiData?.hasUsageData == true {
+        try Task.checkCancellation()
+        let apiData = response?.apiData
+        let verifiedEmail: String? = if let email = response?.verifiedSignedInEmail {
+            email
+        } else if apiData?.hasUsageData == true {
             await self.fetchSignedInEmailFromAPI(
                 cookieHeader: cookieHeader,
                 deadline: deadline,
@@ -674,62 +676,11 @@ public struct OpenAIDashboardFetcher {
         } else {
             nil
         }
-        let subscription: OpenAISubscriptionMetadata? = if apiData?.hasUsageData == true {
-            await self.fetchSubscriptionFromAPI(
-                cookieHeader: cookieHeader,
-                deadline: deadline,
-                logger: logger)
-        } else {
-            nil
-        }
-
+        try Task.checkCancellation()
         if apiData?.hasUsageData == true, verifiedEmail != nil {
             logger("usage api supplied verified dashboard data")
         }
-        return (apiData, verifiedEmail, subscription)
-    }
-
-    private static func fetchDashboardUsageAPI(
-        websiteDataStore: WKWebsiteDataStore,
-        logger: @escaping (String) -> Void) async -> DashboardAPIData?
-    {
-        guard let cookieHeader = try? await self.chatGPTCookieHeader(in: websiteDataStore, deadline: nil) else {
-            return nil
-        }
-        return await self.fetchDashboardUsageAPI(cookieHeader: cookieHeader, deadline: nil, logger: logger)
-    }
-
-    static func fetchDashboardUsageAPI(
-        cookieHeader: String,
-        deadline: Date?,
-        logger: @escaping (String) -> Void) async -> DashboardAPIData?
-    {
-        guard !cookieHeader.isEmpty else { return nil }
-        let remaining = deadline.map { self.remainingTimeout(until: $0) } ?? 4
-        guard remaining > 0 else { return nil }
-
-        do {
-            let (data, response) = try await CodexAuthenticatedHTTPTransport.current.data(
-                for: self.dashboardUsageAPIRequest(cookieHeader: cookieHeader, timeout: min(4, remaining)))
-            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            logger("usage api status=\(status)")
-            guard status >= 200, status < 300 else { return nil }
-            let decoded = try JSONDecoder().decode(CodexUsageResponse.self, from: data)
-            let result = self.dashboardAPIData(from: decoded)
-            let enrichedResult = await self.fetchSpendControlsMonthlyUsageIfNeeded(
-                result,
-                response: decoded,
-                cookieHeader: cookieHeader,
-                deadline: deadline,
-                logger: logger)
-            if enrichedResult.hasUsageData {
-                logger("usage api supplied language-independent rate/credit data")
-            }
-            return enrichedResult
-        } catch {
-            logger("usage api unavailable: \(error.localizedDescription)")
-            return nil
-        }
+        return (apiData, verifiedEmail)
     }
 
     static func fetchSignedInEmailFromAPI(
@@ -770,11 +721,11 @@ public struct OpenAIDashboardFetcher {
     static func fetchSubscriptionFromAPI(
         cookieHeader: String,
         deadline: Date?,
-        logger: @escaping (String) -> Void) async -> OpenAISubscriptionMetadata?
+        logger: @escaping (String) -> Void) async -> OpenAISubscriptionFetchResult
     {
-        guard !cookieHeader.isEmpty else { return nil }
+        guard !cookieHeader.isEmpty else { return .unavailable }
         let remaining = deadline.map { self.remainingTimeout(until: $0) } ?? 2
-        guard remaining > 0 else { return nil }
+        guard remaining > 0 else { return .unavailable }
 
         do {
             let (data, response) = try await CodexAuthenticatedHTTPTransport.current.data(
@@ -783,23 +734,48 @@ public struct OpenAIDashboardFetcher {
                     timeout: min(2, remaining)))
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             logger("subscription api status=\(status)")
-            guard status >= 200, status < 300 else { return nil }
-            let metadata = self.subscriptionMetadata(from: data)
-            if metadata != nil {
+            guard status >= 200, status < 300 else { return .unavailable }
+            let result = self.subscriptionMetadataResult(from: data)
+            if case .success = result, result.metadata != nil {
                 logger("subscription api supplied renewal data")
+            } else if case .success = result {
+                logger("subscription api response empty")
+            } else {
+                logger("subscription api response invalid")
             }
-            return metadata
+            return result
         } catch {
             logger("subscription api unavailable: \(error.localizedDescription)")
-            return nil
+            return .unavailable
         }
     }
 
     nonisolated static func subscriptionMetadata(from data: Data) -> OpenAISubscriptionMetadata? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        let activeUntil = (json["active_until"] as? String) ?? (json["activeUntil"] as? String)
-        let willRenew = (json["will_renew"] as? Bool) ?? (json["willRenew"] as? Bool)
-        return OpenAISubscriptionMetadata.parse(activeUntil: activeUntil, willRenew: willRenew)
+        self.subscriptionMetadataResult(from: data).metadata
+    }
+
+    nonisolated static func subscriptionMetadataResult(from data: Data) -> OpenAISubscriptionFetchResult {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return .unavailable
+        }
+
+        let activeUntilValue = json["active_until"] ?? json["activeUntil"]
+        let willRenewValue = json["will_renew"] ?? json["willRenew"]
+        guard let activeUntilValue, let willRenewValue else { return .unavailable }
+
+        let activeUntil = (activeUntilValue as? String)
+        let willRenew = (willRenewValue as? Bool)
+        let activeUntilIsValid = activeUntilValue is NSNull || activeUntil != nil
+        let willRenewIsBoolean = (willRenewValue as? NSNumber).map {
+            CFGetTypeID($0) == CFBooleanGetTypeID()
+        } ?? false
+        let willRenewIsValid = willRenewValue is NSNull || willRenewIsBoolean
+        guard activeUntilIsValid, willRenewIsValid else { return .unavailable }
+
+        return OpenAISubscriptionMetadata.parseResult(
+            activeUntil: activeUntil,
+            willRenew: willRenew,
+            fieldsPresent: true)
     }
 
     private static func chatGPTCookieHeader(in store: WKWebsiteDataStore, deadline: Date?) async throws -> String {
@@ -886,6 +862,26 @@ public struct OpenAIDashboardFetcher {
 }
 
 extension OpenAIDashboardFetcher {
+    struct DashboardAPIData {
+        var accountID: String?
+        let primaryLimit: RateWindow?
+        let secondaryLimit: RateWindow?
+        let extraRateWindows: [NamedRateWindow]
+        let creditsRemaining: Double?
+        var creditsAvailable: Bool?
+        var balanceIsWorkspace: Bool?
+        let codexCreditLimit: CodexCreditLimitSnapshot?
+        let accountPlan: String?
+
+        var hasUsageData: Bool {
+            self.primaryLimit != nil
+                || self.secondaryLimit != nil
+                || self.creditsRemaining != nil
+                || self.creditsAvailable == true
+                || self.codexCreditLimit != nil
+        }
+    }
+
     struct CreditsHistoryWaitContext {
         let now: Date
         let anyDashboardSignalAt: Date?
@@ -977,13 +973,68 @@ extension OpenAIDashboardFetcher {
 }
 
 extension OpenAIDashboardFetcher {
-    private static func fetchSpendControlsMonthlyUsageIfNeeded(
+    static func fetchWorkspaceRemainingBalanceIfNeeded(
         _ result: DashboardAPIData,
         response: CodexUsageResponse,
-        cookieHeader: String,
+        authentication: (cookieHeader: String, bearerToken: String?),
         deadline: Date?,
-        logger: @escaping (String) -> Void) async -> DashboardAPIData
+        logger: @escaping (String) -> Void) async throws -> DashboardAPIData
     {
+        try Task.checkCancellation()
+        guard result.creditsRemaining == nil,
+              response.credits?.hasCredits == true,
+              response.credits?.unlimited != true,
+              let accountId = response.accountId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !accountId.isEmpty
+        else { return result }
+
+        let remaining = deadline.map { self.remainingTimeout(until: $0) } ?? 4
+        guard remaining > 0,
+              let request = self.dashboardWorkspaceRemainingBalanceAPIRequest(
+                  accountId: accountId,
+                  cookieHeader: authentication.cookieHeader,
+                  bearerToken: authentication.bearerToken,
+                  timeout: min(4, remaining))
+        else { return result }
+
+        do {
+            let (data, response) = try await CodexAuthenticatedHTTPTransport.current.data(for: request)
+            try Task.checkCancellation()
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard status >= 200, status < 300 else {
+                logger("workspace remaining balance api unavailable: status=\(status)")
+                return result
+            }
+            let decoded = try JSONDecoder().decode(CodexWorkspaceRemainingBalanceResponse.self, from: data)
+            guard let balance = decoded.balance else { return result }
+            logger("workspace remaining balance api supplied owner-visible balance")
+            return DashboardAPIData(
+                accountID: result.accountID,
+                primaryLimit: result.primaryLimit,
+                secondaryLimit: result.secondaryLimit,
+                extraRateWindows: result.extraRateWindows,
+                creditsRemaining: balance,
+                creditsAvailable: result.creditsAvailable,
+                balanceIsWorkspace: true,
+                codexCreditLimit: result.codexCreditLimit,
+                accountPlan: result.accountPlan)
+        } catch {
+            if error is CancellationError || Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                throw CancellationError()
+            }
+            logger("workspace remaining balance api unavailable")
+            return result
+        }
+    }
+
+    static func fetchSpendControlsMonthlyUsageIfNeeded(
+        _ result: DashboardAPIData,
+        response: CodexUsageResponse,
+        authentication: (cookieHeader: String, bearerToken: String?),
+        deadline: Date?,
+        logger: @escaping (String) -> Void) async throws -> DashboardAPIData
+    {
+        try Task.checkCancellation()
         guard CodexSpendControlsMonthlyUsageGate.shouldFetch(response: response),
               let accountId = response.accountId?.trimmingCharacters(in: .whitespacesAndNewlines),
               !accountId.isEmpty
@@ -996,7 +1047,8 @@ extension OpenAIDashboardFetcher {
         }
         guard let request = self.dashboardSpendControlsMonthlyUsageAPIRequest(
             accountId: accountId,
-            cookieHeader: cookieHeader,
+            cookieHeader: authentication.cookieHeader,
+            bearerToken: authentication.bearerToken,
             timeout: min(4, remaining))
         else {
             logger("spend controls monthly usage api unavailable: invalid account id")
@@ -1005,6 +1057,7 @@ extension OpenAIDashboardFetcher {
 
         do {
             let (data, response) = try await CodexAuthenticatedHTTPTransport.current.data(for: request)
+            try Task.checkCancellation()
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             guard status >= 200, status < 300 else {
                 logger("spend controls monthly usage api unavailable: status=\(status)")
@@ -1013,14 +1066,20 @@ extension OpenAIDashboardFetcher {
             let decoded = try JSONDecoder().decode(CodexSpendControlsMonthlyUsageResponse.self, from: data)
             guard let limit = decoded.codexCreditLimitSnapshot(updatedAt: Date()) else { return result }
             return DashboardAPIData(
+                accountID: result.accountID,
                 primaryLimit: result.primaryLimit,
                 secondaryLimit: result.secondaryLimit,
                 extraRateWindows: result.extraRateWindows,
                 creditsRemaining: result.creditsRemaining,
+                creditsAvailable: result.creditsAvailable,
+                balanceIsWorkspace: result.balanceIsWorkspace,
                 codexCreditLimit: limit,
                 accountPlan: result.accountPlan)
         } catch {
-            logger("spend controls monthly usage api unavailable: \(error.localizedDescription)")
+            if error is CancellationError || Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                throw CancellationError()
+            }
+            logger("spend controls monthly usage api unavailable")
             return result
         }
     }
@@ -1036,6 +1095,7 @@ extension OpenAIDashboardFetcher {
 
     nonisolated static func dashboardUsageAPIRequest(
         cookieHeader: String,
+        bearerToken: String? = nil,
         timeout: TimeInterval = 4) -> URLRequest
     {
         var request = URLRequest(
@@ -1044,9 +1104,12 @@ extension OpenAIDashboardFetcher {
             timeoutInterval: timeout)
         request.httpMethod = "GET"
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        if let bearerToken {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
         return request
     }
 
@@ -1060,9 +1123,44 @@ extension OpenAIDashboardFetcher {
             "/spend-controls/current-user/monthly-usage")
     }
 
+    nonisolated static func dashboardWorkspaceRemainingBalanceAPIURL(accountId: String) -> URL? {
+        var allowedCharacters = CharacterSet.urlPathAllowed
+        allowedCharacters.subtract(CharacterSet(charactersIn: "/?#%"))
+        guard let encodedAccountId = accountId.addingPercentEncoding(withAllowedCharacters: allowedCharacters),
+              !encodedAccountId.isEmpty
+        else { return nil }
+        return URL(string: "https://chatgpt.com/backend-api/accounts/\(encodedAccountId)/remaining_balance")
+    }
+
+    nonisolated static func dashboardWorkspaceRemainingBalanceAPIRequest(
+        accountId: String,
+        cookieHeader: String,
+        bearerToken: String? = nil,
+        timeout: TimeInterval = 4) -> URLRequest?
+    {
+        guard let url = self.dashboardWorkspaceRemainingBalanceAPIURL(accountId: accountId) else {
+            return nil
+        }
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: timeout)
+        request.httpMethod = "GET"
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        if let bearerToken {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
+        return request
+    }
+
     nonisolated static func dashboardSpendControlsMonthlyUsageAPIRequest(
         accountId: String,
         cookieHeader: String,
+        bearerToken: String? = nil,
         timeout: TimeInterval = 4) -> URLRequest?
     {
         guard let url = self.dashboardSpendControlsMonthlyUsageAPIURL(accountId: accountId) else {
@@ -1074,9 +1172,12 @@ extension OpenAIDashboardFetcher {
             timeoutInterval: timeout)
         request.httpMethod = "GET"
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        if let bearerToken {
+            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
         return request
     }
 
@@ -1093,7 +1194,7 @@ extension OpenAIDashboardFetcher {
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
         return request
     }
 
@@ -1109,7 +1210,7 @@ extension OpenAIDashboardFetcher {
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
         return request
     }
 
@@ -1150,6 +1251,56 @@ extension OpenAIDashboardFetcher {
         try Self.throwIfBlockingReadinessState(probe)
     }
 }
+
+extension OpenAIDashboardFetcher {
+    public func fetchSubscriptionMetadata(
+        accountEmail: String?,
+        cacheScope: CookieHeaderCache.Scope? = nil,
+        logger: ((String) -> Void)? = nil,
+        timeout: TimeInterval = 8) async -> OpenAISubscriptionFetchResult
+    {
+        guard !Task.isCancelled, timeout > 0 else { return .unavailable }
+        let deadline = Self.deadline(startingAt: Date(), timeout: timeout)
+        let logLine: (String) -> Void = { logger?($0) }
+        let websiteDataStore = OpenAIDashboardWebsiteDataStore.store(
+            forAccountEmail: accountEmail,
+            scope: cacheScope)
+        guard let cookieHeader = try? await Self.chatGPTCookieHeader(
+            in: websiteDataStore,
+            deadline: deadline)
+        else {
+            logLine("subscription metadata unavailable: cookies unavailable")
+            return .unavailable
+        }
+
+        guard !Task.isCancelled, Date() < deadline else { return .unavailable }
+        let apiResult = await Self.fetchSubscriptionFromAPI(
+            cookieHeader: cookieHeader,
+            deadline: min(deadline, Date().addingTimeInterval(2)),
+            logger: logLine)
+        guard !Task.isCancelled, Date() < deadline else { return .unavailable }
+        guard !apiResult.succeeded else { return apiResult }
+
+        do {
+            let lease = try await self.makeWebView(
+                websiteDataStore: websiteDataStore,
+                logger: logger,
+                timeout: Self.requiredRemainingTimeout(until: deadline))
+            defer { lease.release() }
+            logLine("subscription metadata billing fallback start after dashboard result")
+            return try await (OpenAISubscription.fetch(
+                lease.webView,
+                deadline: deadline,
+                logger: lease.log))
+        } catch is CancellationError {
+            return .unavailable
+        } catch {
+            logLine("subscription metadata unavailable: \(error.localizedDescription)")
+            return .unavailable
+        }
+    }
+}
+
 #else
 import Foundation
 

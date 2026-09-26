@@ -251,7 +251,10 @@ extension CodexWebDashboardStrategy {
                     accountEmail: attachedAccountEmail,
                     snapshot: dashboard))
             }
-            return OpenAIWebCodexResult(usage: usage, credits: credits, dashboard: dashboard)
+            return OpenAIWebCodexResult(
+                usage: CodexExtraUsageCost.attaching(to: usage, credits: credits),
+                credits: credits,
+                dashboard: dashboard)
         case .displayOnly:
             if decision.cleanup.contains(.dashboardCache) {
                 OpenAIDashboardCacheStore.clear()
