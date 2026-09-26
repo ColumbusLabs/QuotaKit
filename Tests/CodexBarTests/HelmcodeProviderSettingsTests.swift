@@ -6,10 +6,7 @@ import Testing
 struct HelmcodeProviderSettingsTests {
     @Test @MainActor
     func `manual tenant and cookie settings survive app and CLI projection`() throws {
-        let settings = testSettingsStore(
-            suiteName: "HelmcodeProviderSettingsTests",
-            userDefaults: InMemoryUserDefaults(),
-            keychainAccessPolicy: .init(setDisabled: { _ in }, isExplicitlyDisabled: { false }))
+        let settings = testSettingsStore(suiteName: "HelmcodeProviderSettingsTests")
         settings.helmcodeCookieSource = .manual
         settings.helmcodeCookieHeader = "session=fixture"
         settings.helmcodeManualTenant = "nanBuilders"
