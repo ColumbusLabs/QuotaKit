@@ -287,10 +287,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Older or absent revisions require bounded reparsing before cached rows can be reused.
-    /// Revision 3 reparses all revision-2 files once to repair rowless duplicate entries.
-    /// Older entries cannot distinguish a truly empty fragment from suppressed usage.
-    static let currentCodexParserRevision = 3
+    /// Direct-fork baseline corrections require bounded reparsing of older native files.
+    static let currentCodexParserRevision = 5
 
     var mtimeUnixMs: Int64
     var size: Int64

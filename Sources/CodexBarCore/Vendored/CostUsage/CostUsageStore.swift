@@ -83,6 +83,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "6fd5257bc1319193", // Direct-fork baseline repair reparses older native files through parser revision 5.
         "154f5c0cc5ea50d3", // Provider-aware OpenCodex pricing leaves persisted usage rows compatible.
         "606a690018e2845e", // LF scanning and empty-fragment retention preserve rows and checkpoints.
         "91a311c1117c5d33", // Parser revisions reparse older native files without rebuilding the store.
