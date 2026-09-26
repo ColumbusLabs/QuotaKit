@@ -39,5 +39,9 @@ struct SyncCoordinatorProviderDetailsTests {
         let provider = try #require(pusher.lastSnapshot?.providers.first { $0.providerID == "atlascloud" })
         #expect(provider.rateWindows.isEmpty)
         #expect(provider.providerDetails?.first?.rows.first?.value == "$95.50")
+        let record = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "atlascloud"
+        })
+        #expect(record.provider.providerDetails?.first?.rows.first?.value == "$95.50")
     }
 }

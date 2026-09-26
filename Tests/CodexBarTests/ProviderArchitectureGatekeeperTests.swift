@@ -23,6 +23,10 @@ import Testing
 @MainActor
 // swiftlint:disable:next type_body_length
 struct ProviderArchitectureGatekeeperTests {
+    private static let postBaselineProviders: Set<UsageProvider> = [
+        .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
+        .atlascloud, .vercel, .llmman, .nous, .muse,
+    ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
         let expected = Set(UsageProvider.allCases)
@@ -147,7 +151,9 @@ struct ProviderArchitectureGatekeeperTests {
     func `descriptor widget colors preserve the pre-derivation literals`() {
         var widgetFingerprint: UInt64 = 1_469_598_103_934_665_603
         var burnDownFingerprint = widgetFingerprint
-        let legacyDescriptors = ProviderDescriptorRegistry.all.filter { $0.id != .bifrost && $0.id != .devpass }
+        let legacyDescriptors = ProviderDescriptorRegistry.all.filter {
+            !Self.postBaselineProviders.contains($0.id)
+        }
         for descriptor in legacyDescriptors {
             Self.hash(descriptor.id.rawValue.utf8, into: &widgetFingerprint)
             Self.hash(descriptor.branding.widgetColor, into: &widgetFingerprint)
@@ -155,14 +161,14 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 14_713_946_761_593_016_704)
-        #expect(burnDownFingerprint == 8_203_558_470_650_233_316)
+        #expect(widgetFingerprint == 17_280_185_541_844_475_335)
+        #expect(burnDownFingerprint == 837_695_352_323_570_000)
     }
 
     @Test
     func `descriptor unavailable debug messages preserve the legacy table`() throws {
         let descriptors = ProviderDescriptorRegistry.all.filter {
-            $0.metadata.debugLogUnavailableMessage != nil && $0.id != .bifrost && $0.id != .devpass
+            $0.metadata.debugLogUnavailableMessage != nil && !Self.postBaselineProviders.contains($0.id)
         }
         var fingerprint: UInt64 = 1_469_598_103_934_665_603
         for descriptor in descriptors {
@@ -197,7 +203,7 @@ struct ProviderArchitectureGatekeeperTests {
     func `small provider capabilities preserve legacy registries`() {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
-            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper,
+            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper, .atlascloud, .vercel,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,

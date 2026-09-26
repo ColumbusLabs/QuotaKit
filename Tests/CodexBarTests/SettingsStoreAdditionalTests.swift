@@ -244,6 +244,7 @@ struct SettingsStoreAdditionalTests {
             .hyper: [.automatic],
             .atlascloud: [.automatic],
             .vercel: [.automatic],
+            .nous: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {
