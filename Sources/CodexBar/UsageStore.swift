@@ -1497,7 +1497,8 @@ extension UsageStore {
         let costScopeSignature = self.tokenSnapshotScopeSignature(for: provider)
         let publicationRevision = self.providerPublicationRevision(for: provider)
         let providerConfigRevision = self.settings.providerConfigRevision(for: provider)
-        if !force, self.tokenRefreshFailureIsCoolingDown(provider: provider, now: now) {
+        let explicitlyRequested = force && ProviderInteractionContext.current == .userInitiated
+        if !explicitlyRequested, self.tokenRefreshFailureIsCoolingDown(provider: provider, now: now) {
             return
         }
         if !force, self.tokenRefreshCanReuseCurrentSnapshot(

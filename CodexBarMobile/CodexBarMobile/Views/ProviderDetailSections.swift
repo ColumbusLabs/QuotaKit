@@ -156,7 +156,10 @@ enum ProviderDetailSectionDispatcher {
         if provider.providerID == "azureopenai", let value = provider.azureOpenAIInfo {
             sections.append(.azureOpenAI(value))
         }
-        if provider.providerID == "alibabatokenplan", let value = provider.alibabaTokenPlan {
+        if provider.providerID == "alibabatokenplan",
+           let value = provider.alibabaTokenPlan,
+           value.usedCredits != nil || value.totalCredits != nil || value.remainingCredits != nil
+        {
             sections.append(.alibabaTokenPlan(value))
         }
         if provider.providerID == "deepseek", let value = provider.deepSeekUsage {

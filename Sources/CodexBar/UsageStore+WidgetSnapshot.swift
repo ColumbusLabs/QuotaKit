@@ -840,9 +840,14 @@ extension UsageStore {
             return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
         }
         if provider == .alibabatokenplan,
-           let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
+           let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot)
         {
             return dyn
+        }
+        if provider == .qwencloud,
+           snapshot.primary?.windowMinutes == 30 * 24 * 60
+        {
+            return "Monthly"
         }
         return metadata?.sessionLabel ?? "Session"
     }

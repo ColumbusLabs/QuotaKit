@@ -37,7 +37,11 @@ extension UsageStore {
         self.spendDashboardTokenPublicationRevisions.removeAll()
     }
 
-    func refreshSpendDashboardTokenUsageNow(for provider: UsageProvider, force: Bool) async {
+    func refreshSpendDashboardTokenUsageNow(
+        for provider: UsageProvider,
+        force: Bool,
+        bypassFailureCooldown: Bool = false) async
+    {
         guard Self.usesSpendDashboardIndependentTokenSnapshot(provider) else { return }
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.clearSpendDashboardTokenSnapshot(for: provider)
@@ -72,6 +76,12 @@ extension UsageStore {
         let costScopeSignature = self.spendDashboardTokenSnapshotScopeSignature(for: provider)
         let publicationRevision = self.providerPublicationRevision(for: provider)
         let providerConfigRevision = self.settings.providerConfigRevision(for: provider)
+        if !bypassFailureCooldown, self.tokenRefreshFailureIsCoolingDown(provider: provider, now: now) {
+            return
+        }
+        if bypassFailureCooldown {
+            self.tokenFetchFailureCooldowns.removeValue(forKey: provider.instanceID)
+        }
         self.lastSpendDashboardTokenFetchAt[provider.instanceID] = now
         self.lastSpendDashboardTokenFetchScope[provider.instanceID] = costScopeSignature
         self.spendDashboardTokenRefreshInFlight.insert(provider.instanceID)
@@ -134,12 +144,24 @@ extension UsageStore {
                     costScopeSignature: costScopeSignature)
                 return
             }
-            if error is CancellationError {
+            if Task.isCancelled || error is CancellationError {
                 self.clearSpendDashboardTokenFetchMetadataIfMatching(
                     provider: provider,
                     attemptedAt: now,
                     costScopeSignature: costScopeSignature)
                 return
+            }
+            if provider == .cursor,
+               case CursorStatusProbeError.costRequestForbidden = error,
+               let retryDelay = Self.tokenFetchFailureRetryDelay(error, ttl: self.tokenFetchTTL)
+            {
+                self.tokenFetchFailureCooldowns[provider.instanceID] = TokenFetchFailureCooldown(
+                    attemptedAt: now,
+                    retryAfter: now.addingTimeInterval(retryDelay),
+                    publicationRevision: publicationRevision,
+                    providerConfigRevision: providerConfigRevision,
+                    historyDays: self.settings.costUsageHistoryDays,
+                    costScopeSignature: self.tokenSnapshotScopeSignature(for: provider))
             }
             self.clearSpendDashboardTokenSnapshot(for: provider)
         }

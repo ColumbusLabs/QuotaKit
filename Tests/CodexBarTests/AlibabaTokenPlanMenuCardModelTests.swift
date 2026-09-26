@@ -5,6 +5,41 @@ import Testing
 
 struct AlibabaTokenPlanMenuCardModelTests {
     @Test
+    func `Personal monthly-only usage is labeled Monthly while Team credits stay Credits`() throws {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let snapshot = try AlibabaTokenPlanPersonalUsageParser.parse(
+            from: Data(#"{"per1MonthPercentage":0.25}"#.utf8),
+            subscriptionData: nil,
+            quotaConfigData: nil,
+            now: now).toUsageSnapshot()
+        let metadata = try #require(ProviderDefaults.metadata[.alibabatokenplan])
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .alibabatokenplan,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.map(\.title) == ["Monthly"])
+        #expect(AlibabaTokenPlanProviderDescriptor.descriptor.presentation
+            .rateWindowLabels(metadata: metadata, snapshot: snapshot).primary == "Monthly")
+        #expect(AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot) == "Monthly")
+    }
+
+    @Test
     func `Personal rolling windows use duration labels`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let snapshot = AlibabaTokenPlanUsageSnapshot(

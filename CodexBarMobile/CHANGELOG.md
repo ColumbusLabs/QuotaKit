@@ -27,6 +27,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Fixed
 
+- Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.
 - A fresh historical rebuild now publishes monotonic partial progress to the

@@ -1011,7 +1011,8 @@ final class SyncCoordinator {
 
         if provider == .alibabatokenplan {
             return (
-                AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot?.primary) ?? metadata?.sessionLabel,
+                snapshot.flatMap { AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: $0) } ??
+                    metadata?.sessionLabel,
                 AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot?.secondary) ??
                     metadata?.weeklyLabel,
                 metadata?.opusLabel ?? "Sonnet")
@@ -1020,7 +1021,7 @@ final class SyncCoordinator {
         if provider == .qwencloud,
            snapshot?.primary?.windowMinutes == 30 * 24 * 60
         {
-            return ("30-day", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
+            return ("Monthly", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
         }
 
         if provider == .cursor {

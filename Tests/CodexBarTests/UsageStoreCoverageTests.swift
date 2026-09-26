@@ -155,11 +155,28 @@ struct UsageStoreCoverageTests {
         await store.refreshTokenUsage(.cursor, force: false)
         #expect(attempts == 1)
 
+        // Menu opens bypass the snapshot TTL but must still honor a forbidden-cost cooldown.
         await store.refreshTokenUsage(.cursor, force: true)
+        await store.refreshSpendDashboardTokenUsageNow(for: .cursor, force: true)
+        #expect(attempts == 1)
+
+        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            await store.refreshTokenUsage(.cursor, force: true)
+        }
         #expect(attempts == 2)
+        await store.refreshSpendDashboardTokenUsageNow(
+            for: .cursor,
+            force: true,
+            bypassFailureCooldown: true)
+        #expect(attempts == 3)
         settings.cursorCookieHeader = "fixture=cursor-b"
         await store.refreshTokenUsage(.cursor, force: false)
-        #expect(attempts == 3)
+        #expect(attempts == 4)
+        settings.cursorCookieHeader = "fixture=cursor-c"
+        await store.refreshSpendDashboardTokenUsageNow(for: .cursor, force: true)
+        #expect(attempts == 5)
+        await store.refreshTokenUsage(.cursor, force: true)
+        #expect(attempts == 5)
     }
 
     @Test

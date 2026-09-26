@@ -55,6 +55,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."),
+                        String(
+                            localized: "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone."),
                     ]),
             ]),
         ReleaseNotesVersion(

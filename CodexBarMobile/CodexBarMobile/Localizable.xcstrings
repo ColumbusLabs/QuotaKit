@@ -1,6 +1,35 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan と Qwen Cloud の月間クォータが、iPhone で「月間」と表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan 和 Qwen Cloud 的月度额度现在会在 iPhone 上标为“每月”。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan 和 Qwen Cloud 的每月額度現在會在 iPhone 上標示為「每月」。"
+          }
+        }
+      }
+    },
     "$%.2f / 30d": {
       "extractionState": "manual",
       "localizations": {

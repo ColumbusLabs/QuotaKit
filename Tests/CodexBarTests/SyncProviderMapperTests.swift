@@ -191,6 +191,17 @@ struct SyncProviderMapperTests {
     }
 
     @Test
+    func `mapAlibabaTokenPlan: monthly-only Personal usage keeps the generic window without an empty card`() throws {
+        let personal = try AlibabaTokenPlanPersonalUsageParser.parse(
+            from: Data(#"{"per1MonthPercentage":0.25}"#.utf8),
+            subscriptionData: nil,
+            quotaConfigData: nil,
+            now: Self.now).toUsageSnapshot()
+        #expect(personal.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(SyncCoordinator.mapAlibabaTokenPlan(provider: .alibabatokenplan, snapshot: personal) == nil)
+    }
+
+    @Test
     func `mapAlibabaTokenPlan: maps plan name and quota → credits`() throws {
         let plan = try #require(SyncCoordinator.mapAlibabaTokenPlan(
             provider: .alibabatokenplan, snapshot: self.snapshot(alibaba: self.alibabaFixture())))

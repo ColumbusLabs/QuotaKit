@@ -563,7 +563,11 @@ extension UsageMenuCardView.Model {
         } else if input.provider == .opencode {
             OpenCodeProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
         } else if input.provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
+            AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
+        } else if input.provider == .qwencloud,
+                  snapshot.primary?.windowMinutes == 30 * 24 * 60
+        {
+            "Monthly"
         } else {
             input.metadata.sessionLabel
         }
