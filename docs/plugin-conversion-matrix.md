@@ -26,11 +26,12 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 
 | Status | Count |
 |---|---:|
-| `cut-over` | 9 |
-| `converted` | 9 |
-| `convertible-now` | 6 |
-| `needs-cookie-import` | 19 |
-| `needs-files/subprocess/oauth-broker` | 15 |
+| `cut-over` | 17 |
+| `converted` | 4 |
+| `convertible-now` | 4 |
+| `needs-cookie-import` | 9 |
+| `needs-host-extension` | 5 |
+| `needs-files/subprocess/oauth-broker` | 19 |
 | `needs-pty/webview/native` | 9 |
 | **Total** | **67** |
 
@@ -39,7 +40,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | Provider | Status | Converted | Reason |
 |---|---|:---:|---|
 | codex | `needs-pty/webview/native` | No | PTY CLI, OAuth files/refresh, browser cookies, WKWebView scraping, local logs, and reset-credit details exceed this host. |
-| openai | `converted` | Yes | Converted: fixed-origin bearer GET pagination with daily spend, model, line-item, and token details. |
+| openai | `cut-over` | Yes | Bundled plugin returns typed daily spend, model, line-item, and token details. |
 | azureopenai | `needs-pty/webview/native` | No | The current quota probe is a POST chat completion against a user-configured deployment origin. |
 | claude | `needs-files/subprocess/oauth-broker` | No | Full parity needs credential files/Keychain, OAuth refresh, CLI/PTY, cookies, local logs, and admin details. |
 | clinepass | `convertible-now` | No | Verified fixed-origin bearer GET; limits and identity map to generic windows. |
@@ -73,7 +74,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | elevenlabs | `convertible-now` | No | Verified `xi-api-key` GET; heterogeneous character/minute quotas map to named generic windows. |
 | windsurf | `needs-files/subprocess/oauth-broker` | No | Chromium localStorage, IDE databases, and binary protobuf decoding supply the current session. |
 | zed | `needs-files/subprocess/oauth-broker` | No | Zed server settings and a named Keychain credential must be read locally. |
-| perplexity | `converted` | Yes | Converted: declared-domain cookie import and generic recurring, bonus, and purchased credit windows. |
+| perplexity | `cut-over` | Yes | Bundled plugin iterates declared-domain sessions and reports recurring, bonus, and purchased credits. |
 | mimo | `needs-files/subprocess/oauth-broker` | No | The canonical pipeline includes the file-based local usage fallback as well as browser sessions; cookies alone cannot preserve it. |
 | doubao | `needs-files/subprocess/oauth-broker` | No | Full parity needs a CLI subprocess or Volcengine HMAC signing and POST-based plan calls. |
 | sakana | `cut-over` | Yes | Manual cookie credentials already enter through the core descriptor; two fixed-origin HTML GETs and generic quota/PAYG detail projection fit the host. |
@@ -85,7 +86,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | crof | `cut-over` | Yes | Cut over on JavaScriptCore: fixed-origin bearer GET with exact credit formatting and America/Chicago daily reset; native fetch code is Linux-only. |
 | venice | `cut-over` | Yes | Cut over on JavaScriptCore: fixed-origin bearer GET with DIEM/USD allocation projection; native fetch code is Linux-only. |
 | commandcode | `needs-host-extension` | No | Optional subscription enrichment races a two-second grace after required credits finish; per-request timeouts cannot preserve that join boundary. |
-| qoder | `converted` | Yes | Converted: declared global/China cookie domains, browser headers, and merged generic quota window. |
+| qoder | `cut-over` | Yes | Bundled plugin iterates regional sessions and reports merged quotas. |
 | stepfun | `needs-files/subprocess/oauth-broker` | No | Device registration, password login, refresh, quota, and plan operations are POST-based token-broker work. |
 | bedrock | `needs-files/subprocess/oauth-broker` | No | AWS profiles/CLI credentials, SigV4 signing, pagination, and two services need host-owned credential/signing APIs. |
 | grok | `needs-pty/webview/native` | No | Persistent stdio JSON-RPC, auth/session files, cookies, logs, and binary gRPC-web are strongly native. |
@@ -100,7 +101,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | longcat | `needs-cookie-import` | No | Still needs path/domain-aware cookie selection and retries across imported profiles; per-domain cache isolation does not expose those candidates. |
 | sub2api | `cut-over` | Yes | Cut over on JavaScriptCore: configured HTTPS/loopback origins, a hard 15-second request deadline, strict parsing, exact confidence, and classified failures match native behavior; the native fetch core is Linux-only. |
 | wayfinder | `needs-pty/webview/native` | No | The local unauthenticated HTTP gateway, metrics text, and routing/savings model violate HTTPS-only generic scope. |
-| zenmux | `convertible-now` | No | Verified fixed-origin bearer GET pair; subscription and optional PAYG balance map generically. |
+| zenmux | `cut-over` | Yes | Bundled plugin reports subscription usage and optional PAYG balance. |
 | aiand | `cut-over` | Yes | Verified fixed-origin bearer GET pagination; 30-day spend maps to generic cost. |
 | zoommate | `needs-cookie-import` | No | Skipped: cookie-to-JWT exchange plus paginated history requires provider-specific retry state. |
 | xai | `converted` | Yes | Converted: bearer GET balance plus best-effort JSON POST history and billing details. |
