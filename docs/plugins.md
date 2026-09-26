@@ -16,6 +16,24 @@ Plugins are local files only. QuotaKit has no plugin catalog, does not download 
 resolve imports. A plugin cannot use Node, browser globals, subprocesses, local files, databases, OAuth, WebViews, or
 arbitrary native APIs. The maximum source size is 1 MiB.
 
+App refreshes are scoped to the installed plugin runtime and its fetch settings. Disabling, removing, reloading, or
+reconfiguring a plugin prevents an older refresh from publishing usage or errors. A replacement refresh waits for retired
+work to finish and reads the current configuration when its fetch starts. Display-only preferences do not invalidate usage.
+
+## Bundled API-key provider registration
+
+For a bundled plugin with a simple API-key configuration, declare a public `PluginProviderSpec` named `spec` in its
+provider-owned `*ProviderDescriptor.swift` file, then expose `descriptor = Self.spec.makeDescriptor()`. The spec owns
+metadata, branding, environment-key aliases, the API-key field, and optional presentation and script-settings overrides;
+the bundled script still owns requests and parsing. See `XKiroProviderDescriptor` for a minimal example and
+`ZenMuxProviderDescriptor` for optional usage settings.
+
+Run `Scripts/regenerate-provider-manifests.sh` after wiring the provider. A spec with an `apiKeyField` and no separate
+app implementation registers `PluginAPIKeyProviderImplementation(spec: ...)` in the existing provider order. Preserve
+the provider's availability and detail-line policies explicitly. Providers with extra fields or token-account behavior
+can share the descriptor builder while retaining their app implementation, as GitKraken and DeepInfra do. Keep native
+credential discovery and cookie/session handling outside this API-key-only building block.
+
 ## Minimal plugin
 
 ```js
