@@ -50,12 +50,9 @@ public enum AntigravityProviderDescriptor {
                 ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
-                noDataMessage: { "No Antigravity token history was found in the local tokscale cache." },
+                noDataMessage: { "No Antigravity local token history was found." },
                 supportsTokenSnapshot: true),
-            pace: ProviderPaceCapability(
-                sessionPaceWindowRule: .custom { window, _ in
-                    window.windowMinutes == nil || window.windowMinutes == 300
-                }),
+            pace: ProviderPaceCapability(sessionPaceWindowRule: .windowDuration(minutes: 300)),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 iconWindowResolver: self.iconWindows,

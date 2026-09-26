@@ -258,6 +258,7 @@ extension UsageStore {
                 snapshot: snapshot,
                 capturedAt: now,
                 forSessionEquivalents: true)
+            + Self.antigravityQuotaObservationSamples(snapshot: snapshot, capturedAt: now)
             : detectorSamples
         var effectiveOwner = claudeOAuthHistoryOwnerIdentifier
         if provider == .claude, isClaudeOAuthSample, let owner = claudeOAuthHistoryOwnerIdentifier {
@@ -409,7 +410,8 @@ extension UsageStore {
                 self.assertPlanUtilizationEntriesSorted(updatedEntries)
                 guard self.updatedPlanUtilizationEntries(
                     existingEntries: &updatedEntries,
-                    entry: sample.entry)
+                    entry: sample.entry,
+                    isQuotaObservation: sample.name.isQuotaObservation)
                 else {
                     continue
                 }
@@ -427,12 +429,7 @@ extension UsageStore {
         }
 
         guard didChange else { return nil }
-        return historiesByKey.values.sorted { lhs, rhs in
-            if lhs.windowMinutes != rhs.windowMinutes {
-                return lhs.windowMinutes < rhs.windowMinutes
-            }
-            return lhs.name.rawValue < rhs.name.rawValue
-        }
+        return historiesByKey.values.sorted(by: PlanUtilizationSeriesHistory.precedes)
     }
 
     private nonisolated static func mergedPlanUtilizationEntries(
@@ -446,7 +443,8 @@ extension UsageStore {
 
     private nonisolated static func updatedPlanUtilizationEntries(
         existingEntries: inout [PlanUtilizationHistoryEntry],
-        entry: PlanUtilizationHistoryEntry) -> Bool
+        entry: PlanUtilizationHistoryEntry,
+        isQuotaObservation: Bool = false) -> Bool
     {
         let insertionIndex = self.planUtilizationEntryInsertionIndex(
             entries: existingEntries,
@@ -457,9 +455,8 @@ extension UsageStore {
             insertionIndex: insertionIndex,
             hourBucket: sampleHourBucket)
         let existingHourEntries = Array(existingEntries[sameHourRange])
-        let canonicalHourEntries = self.canonicalPlanUtilizationHourEntries(
-            existingHourEntries: existingHourEntries,
-            incomingEntry: entry)
+        let compact = isQuotaObservation ? self.latestObservationHourEntries : self.canonicalPlanUtilizationHourEntries
+        let canonicalHourEntries = compact(existingHourEntries, entry)
 
         guard canonicalHourEntries != existingHourEntries else { return false }
         existingEntries.replaceSubrange(sameHourRange, with: canonicalHourEntries)
@@ -755,26 +752,14 @@ extension UsageStore {
         existingHourEntries: [PlanUtilizationHistoryEntry],
         incomingEntry: PlanUtilizationHistoryEntry) -> [PlanUtilizationHistoryEntry]
     {
-        let hourlyObservations = (existingHourEntries + [incomingEntry]).sorted { lhs, rhs in
-            if lhs.capturedAt != rhs.capturedAt {
-                return lhs.capturedAt < rhs.capturedAt
-            }
-            if lhs.usedPercent != rhs.usedPercent {
-                return lhs.usedPercent < rhs.usedPercent
-            }
-            let lhsReset = lhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            let rhsReset = rhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            return lhsReset < rhsReset
-        }
+        let hourlyObservations = (existingHourEntries + [incomingEntry])
+            .sorted(by: PlanUtilizationHistoryEntry.precedes)
         guard var activeSegmentPeak = hourlyObservations.first else { return [] }
 
         var peakBeforeLatestReset: PlanUtilizationHistoryEntry?
 
         for observation in hourlyObservations.dropFirst() {
-            if self.startsNewPlanUtilizationResetSegment(
-                activeSegmentPeak: activeSegmentPeak,
-                observation: observation)
-            {
+            if self.haveMeaningfullyDifferentResetBoundaries(activeSegmentPeak.resetsAt, observation.resetsAt) {
                 if peakBeforeLatestReset == nil {
                     peakBeforeLatestReset = activeSegmentPeak
                 }
@@ -791,15 +776,6 @@ extension UsageStore {
             return [peakBeforeLatestReset, activeSegmentPeak]
         }
         return [activeSegmentPeak]
-    }
-
-    private nonisolated static func startsNewPlanUtilizationResetSegment(
-        activeSegmentPeak: PlanUtilizationHistoryEntry,
-        observation: PlanUtilizationHistoryEntry) -> Bool
-    {
-        self.haveMeaningfullyDifferentResetBoundaries(
-            activeSegmentPeak.resetsAt,
-            observation.resetsAt)
     }
 
     private nonisolated static func segmentPeakEntry(
@@ -1641,7 +1617,8 @@ extension UsageStore {
                 for entry in history.entries.sorted(by: { $0.capturedAt < $1.capturedAt }) {
                     _ = self.updatedPlanUtilizationEntries(
                         existingEntries: &mergedEntries,
-                        entry: entry)
+                        entry: entry,
+                        isQuotaObservation: history.name.isQuotaObservation)
                 }
                 mergedEntriesByKey[key] = mergedEntries
             }
@@ -1653,12 +1630,7 @@ extension UsageStore {
                 windowMinutes: key.windowMinutes,
                 entries: entries)
         }
-        .sorted { lhs, rhs in
-            if lhs.windowMinutes != rhs.windowMinutes {
-                return lhs.windowMinutes < rhs.windowMinutes
-            }
-            return lhs.name.rawValue < rhs.name.rawValue
-        }
+        .sorted(by: PlanUtilizationSeriesHistory.precedes)
     }
 
     #if DEBUG
