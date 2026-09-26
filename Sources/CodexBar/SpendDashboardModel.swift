@@ -57,6 +57,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         let coveredDayCount: Int
         let sourceKind: SourceKind
         let incompleteRequestCount: Int
+        let hasPartialCost: Bool
 
         init(
             id: String,
@@ -67,7 +68,8 @@ struct SpendDashboardModel: Equatable, Sendable {
             totalCost: Double?,
             coveredDayCount: Int,
             sourceKind: SourceKind = .native,
-            incompleteRequestCount: Int = 0)
+            incompleteRequestCount: Int = 0,
+            hasPartialCost: Bool = false)
         {
             self.id = id
             self.rank = rank
@@ -78,6 +80,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.coveredDayCount = coveredDayCount
             self.sourceKind = sourceKind
             self.incompleteRequestCount = incompleteRequestCount
+            self.hasPartialCost = hasPartialCost
         }
     }
 
@@ -679,7 +682,13 @@ struct SpendDashboardModel: Equatable, Sendable {
                     totalCost: entry.element.totalCost,
                     coveredDayCount: entry.element.coveredDayCount,
                     sourceKind: entry.element.input.sourceKind,
-                    incompleteRequestCount: entry.element.incompleteRequestCount)
+                    incompleteRequestCount: entry.element.incompleteRequestCount,
+                    hasPartialCost: entry.element.historyScanIsPartial
+                        || entry.element.incompleteRequestCount > 0
+                        || entry.element.entries.contains { day in
+                            let coverage = day.entry.coverageCounts
+                            return coverage.unpriced > 0 || coverage.unmetered > 0
+                        })
             }
     }
 

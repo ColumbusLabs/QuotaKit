@@ -36,10 +36,15 @@ adds or ranks amounts across currencies.
 The page also shows token mix (input / output / cache / reasoning), priced/unpriced/unmetered/estimated coverage,
 sessions, Codex projects, and a 365-day token heatmap. A heatmap day with no coverage is a gap, not zero activity,
 and is not clickable. Custom list-price overlays are documented in `docs/model-pricing.md`.
+Usage details group each provider's account or local-history sources with its model rows. The first six models
+show by default, and **Show all** reveals the rest. Projects and sessions share a detail selector; daily and
+hourly charts share a trend selector when hourly history exists. A selected day can be cleared from the summary.
+Incomplete source costs retain an approximate marker and unknown amounts remain unknown.
 
 OpenCodex `~/.opencodex/usage.jsonl` is an opt-in, read-only spend source (off by default). It is not a quota
-Provider. When both OpenCodex logs and native Codex sessions are present they stay on separate rows; merging would
-double-count the same traffic. An optional toggle can hide native Codex while OpenCodex data is present. Export JSON
+Provider. When both OpenCodex logs and native Codex sessions are present they stay as separate sources under the
+Codex provider group; merging would double-count the same traffic. An optional toggle can hide native Codex while
+OpenCodex data is present. Export JSON
 emits the currently aggregated model (provenance, mix, coverage).
 
 The view stays local and does not upload usage history. Refreshes retain the last successful model if a replacement
