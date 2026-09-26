@@ -2221,7 +2221,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/SettingsStore.swift",
-            line: 1253,
+            line: 1266,
             anchor: "if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {",
             expectedProviderIDs: ["factory", "minimax", "zai"],
             expectedReferenceCount: 8,
@@ -3843,7 +3843,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Z.ai team-scope credentials uniquely require an organization or workspace identifier."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/SettingsStore.swift",
-            line: 896,
+            line: 901,
             anchor: "switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? \"\") {",
             expectedProviderIDs: ["antigravity", "cursor"],
             expectedReferenceCount: 8,

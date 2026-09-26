@@ -20,7 +20,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 - `~/.quotakit/config.json` by default for new QuotaKit installs.
 - `~/.quotakit/config.json` is copied to the QuotaKit default path when the preferred file is absent.
 - The directory is created if missing.
-- Permissions are set to `0600` whenever QuotaKit writes the file on macOS and Linux.
+- Writes on macOS and Linux stage a `0600` file in a private `0700` directory beside the destination, then sync and atomically replace the destination. Failed writes preserve the previous file.
 
 ## Root shape
 ```json

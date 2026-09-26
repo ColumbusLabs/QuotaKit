@@ -326,7 +326,7 @@ final class UsageStore {
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored let environmentBase: [String: String]
-    @ObservationIgnored let pluginApprovalStore = ProviderPluginApprovalStore()
+    @ObservationIgnored let pluginApprovalStore: ProviderPluginApprovalStore
     @ObservationIgnored let sessionQuotaNotifier: any SessionQuotaNotifying
     @ObservationIgnored let quotaTransitionWriter: any QuotaTransitionWriting
     @ObservationIgnored let sessionQuotaLogger = CodexBarLog.logger(LogCategories.sessionQuota)
@@ -500,6 +500,7 @@ final class UsageStore {
         quotaTransitionWriter: any QuotaTransitionWriting = QuotaTransitionWriter(),
         startupBehavior: StartupBehavior = .automatic,
         environmentBase: [String: String] = ProcessInfo.processInfo.environment,
+        pluginApprovalStore: ProviderPluginApprovalStore = ProviderPluginApprovalStore(),
         widgetSnapshotURL: URL? = nil,
         planUtilizationHistoryLoadGateForTesting: PlanUtilizationHistoryLoadGate? = nil)
     {
@@ -510,6 +511,7 @@ final class UsageStore {
         self.settings = settings
         self.registry = registry
         self.environmentBase = environmentBase
+        self.pluginApprovalStore = pluginApprovalStore
         self.widgetSnapshotURL = widgetSnapshotURL
         self.historicalUsageHistoryStore = historicalUsageHistoryStore
         self.startupBehavior = startupBehavior.resolved(isRunningTests: Self.isRunningTestsProcess())

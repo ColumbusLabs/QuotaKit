@@ -24,10 +24,19 @@ public struct CodexBarConfigStore: @unchecked Sendable {
 
     public let fileURL: URL
     private let fileManager: FileManager
+    private let openAIWebAccessEnabledOverride: Bool?
+    private let environment: [String: String]
 
-    public init(fileURL: URL = Self.defaultURL(), fileManager: FileManager = .default) {
+    public init(
+        fileURL: URL = Self.defaultURL(),
+        fileManager: FileManager = .default,
+        openAIWebAccessEnabledOverride: Bool? = nil,
+        environment: [String: String] = ProcessInfo.processInfo.environment)
+    {
         self.fileURL = fileURL
         self.fileManager = fileManager
+        self.openAIWebAccessEnabledOverride = openAIWebAccessEnabledOverride
+        self.environment = environment
     }
 
     public func load() throws -> CodexBarConfig? {
@@ -39,17 +48,58 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         let decoder = JSONDecoder()
         do {
             let decoded = try decoder.decode(CodexBarConfig.self, from: data)
-            return decoded.normalized()
+            return self.applyingCodexCookieDenial(to: decoded.normalized())
         } catch {
             throw CodexBarConfigStoreError.decodeFailed(error.localizedDescription)
         }
+    }
+
+    private func applyingCodexCookieDenial(to config: CodexBarConfig) -> CodexBarConfig {
+        // The CLI reads config independently of the Mac app. Honor a stored web-access denial
+        // even while an app config save is pending or when the config file cannot be rewritten.
+        // An explicitly selected config path has separate CLI ownership.
+        let hasExplicitConfigFile = [Self.pathEnvironmentKey, Self.legacyPathEnvironmentKey].contains {
+            !(self.environment[$0]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        }
+        let xdgHome = self.environment[Self.xdgConfigHomeEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasEffectiveXDGHome = !xdgHome.isEmpty &&
+            ((xdgHome as NSString).expandingTildeInPath as NSString).isAbsolutePath
+        guard !hasExplicitConfigFile, !hasEffectiveXDGHome else { return config }
+        let accessEnabled: Bool?
+        if let override = self.openAIWebAccessEnabledOverride {
+            accessEnabled = override
+        } else if self.fileURL.standardizedFileURL == Self.defaultURL().standardizedFileURL {
+            accessEnabled = Self.macAppOpenAIWebAccessEnabled()
+        } else {
+            accessEnabled = nil
+        }
+        guard accessEnabled == false else { return config }
+        var denied = config
+        var codex = denied.providerConfig(for: .codex) ?? ProviderConfig(id: .codex)
+        codex.cookieSource = .off
+        denied.setProviderConfig(codex)
+        return denied.normalized()
+    }
+
+    private static func macAppOpenAIWebAccessEnabled() -> Bool? {
+        #if os(macOS)
+        let defaults = ClaudeOAuthKeychainPromptPreference.applicationUserDefaults
+        if let value = defaults.object(forKey: "openAIWebAccessEnabled") as? Bool { return value }
+        if let legacy = defaults.object(forKey: "openAIWebAccess") as? Bool { return legacy }
+        #endif
+        return nil
+    }
+
+    public func effectiveDefaultConfig() -> CodexBarConfig {
+        self.applyingCodexCookieDenial(to: .makeDefault())
     }
 
     public func loadOrCreateDefault() throws -> CodexBarConfig {
         if let existing = try self.load() {
             return existing
         }
-        let config = CodexBarConfig.makeDefault()
+        let config = self.effectiveDefaultConfig()
         try self.save(config)
         return config
     }
@@ -71,12 +121,7 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     }
 
     public func saveEncodedData(_ data: Data) throws {
-        let directory = self.fileURL.deletingLastPathComponent()
-        if !self.fileManager.fileExists(atPath: directory.path) {
-            try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        }
-        try data.write(to: self.fileURL, options: [.atomic])
-        try self.applySecurePermissionsIfNeeded()
+        try CredentialFileWriter.writePrivate(data, to: self.fileURL)
     }
 
     public func deleteIfPresent() throws {
@@ -150,19 +195,6 @@ public struct CodexBarConfigStore: @unchecked Sendable {
             return
         }
 
-        let directory = self.fileURL.deletingLastPathComponent()
-        if !self.fileManager.fileExists(atPath: directory.path) {
-            try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        }
-        try self.fileManager.copyItem(at: legacyURL, to: self.fileURL)
-        try self.applySecurePermissionsIfNeeded()
-    }
-
-    private func applySecurePermissionsIfNeeded() throws {
-        #if os(macOS) || os(Linux)
-        try self.fileManager.setAttributes([
-            .posixPermissions: NSNumber(value: Int16(0o600)),
-        ], ofItemAtPath: self.fileURL.path)
-        #endif
+        try CredentialFileWriter.writePrivate(Data(contentsOf: legacyURL), to: self.fileURL)
     }
 }
