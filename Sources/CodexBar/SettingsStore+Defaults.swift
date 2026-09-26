@@ -871,6 +871,14 @@ extension SettingsStore {
     var openAIWebAccessEnabled: Bool {
         get { self.defaultsState.openAIWebAccessEnabled }
         set {
+            // The CLI reads the provider config without this app-only preference. Keep its
+            // cookie source aligned with a denial, and restore Auto on explicit opt-in.
+            let currentCookieSource = self.providerConfig(for: .codex)?.cookieSource
+            if !newValue, currentCookieSource != .off {
+                self.updateProviderConfig(provider: .codex) { $0.cookieSource = .off }
+            } else if newValue, currentCookieSource == .off {
+                self.updateProviderConfig(provider: .codex) { $0.cookieSource = .auto }
+            }
             self.defaultsState.openAIWebAccessEnabled = newValue
             self.userDefaults.set(newValue, forKey: "openAIWebAccessEnabled")
             CodexBarLog.logger(LogCategories.settings).info(

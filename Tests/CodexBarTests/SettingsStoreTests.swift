@@ -1246,13 +1246,12 @@ struct SettingsStoreTests {
         #expect(store.codexCookieSource == .auto)
     }
 
-    @Test
-    func `imports legacy open AI web access defaults key`() throws {
-        let suite = "SettingsStoreTests-openai-web-legacy-key"
+    @Test(arguments: ["openAIWebAccess", "openAIWebAccessEnabled"])
+    func `explicit browser denial wins over saved auto cookies in CLI config`(preferenceKey: String) throws {
+        let suite = "SettingsStoreTests-openai-web-denial-\(preferenceKey)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
-        defaults.removeObject(forKey: "openAIWebAccessEnabled")
-        defaults.set(false, forKey: "openAIWebAccess")
+        defaults.set(false, forKey: preferenceKey)
         defaults.set(false, forKey: "debugDisableKeychainAccess")
         let configStore = testConfigStore(suiteName: suite)
         try configStore.save(CodexBarConfig(providers: [
@@ -1267,6 +1266,12 @@ struct SettingsStoreTests {
 
         #expect(store.openAIWebAccessEnabled == false)
         #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == false)
+        #expect(store.codexCookieSource == .off)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
+
+        store.openAIWebAccessEnabled = true
+        #expect(store.codexCookieSource == .auto)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .auto)
     }
 
     @Test

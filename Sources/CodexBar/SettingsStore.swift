@@ -407,7 +407,7 @@ final class SettingsStore {
             }
         }
         // Provider-specific by design: the legacy OpenAI web denial also governs Codex's CLI cookie source.
-        if !self.openAIWebAccessEnabled, self.providerConfig(for: .codex)?.cookieSource == nil {
+        if !self.openAIWebAccessEnabled, self.providerConfig(for: .codex)?.cookieSource != .off {
             self.codexCookieSource = .off
         }
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess

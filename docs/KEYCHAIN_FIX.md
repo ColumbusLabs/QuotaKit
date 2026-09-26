@@ -31,8 +31,8 @@ still in place, but the architecture has changed:
 
 Startup persists its resolved OpenAI web-access preference before loading app state. The legacy
 `openAIWebAccess` key and current `openAIWebAccessEnabled` key preserve explicit denial across launches. A denied
-preference with no configured cookie source is saved as Codex `cookieSource: "off"`, so CLI refresh cannot interpret
-an absent source as Auto. Existing explicit cookie-source choices remain unchanged.
+preference saves Codex `cookieSource: "off"` even when an older config selected Auto, so CLI refresh also honors the
+denial. Explicitly enabling web access later restores Auto; selecting a cookie source in Settings remains available.
 
 Credential-bearing file writes share `CredentialFileWriter`: each write creates a `0700` staging directory
 beside the destination and an exclusive `0600` file before writing bytes. The writer syncs and atomically
