@@ -240,8 +240,19 @@ enum CostUsageClaudeCacheIO {
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheEncode)
         #endif
-        guard let data = try? JSONEncoder().encode(cache) else { return nil }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(cache) else { return nil }
         try checkCancellation?()
+        // Keep the artifact stamp stable when a rescan produces the same cache. Recheck the
+        // stamp after reading so a concurrent writer cannot make the comparison stale.
+        if let stamp = CostUsageClaudeFileStamp.read(at: url),
+           stamp.size == Int64(data.count),
+           (try? Data(contentsOf: url)) == data,
+           CostUsageClaudeFileStamp.read(at: url) == stamp
+        {
+            return stamp
+        }
         let directory = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(
             at: directory,

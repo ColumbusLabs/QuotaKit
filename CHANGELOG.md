@@ -14,6 +14,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Claude and Vertex cost caches avoid rewriting identical history JSON after an unchanged rescan.
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
 
 ### Fixed

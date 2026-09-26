@@ -14,6 +14,28 @@ struct CostUsageScannerClaudeMemoTests {
     }
 
     @Test
+    func `identical Claude cache saves retain the artifact stamp`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: env.cacheRoot)
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1
+        let first = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        let bytes = try Data(contentsOf: cacheURL)
+
+        let second = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        #expect(second == first)
+        #expect(try Data(contentsOf: cacheURL) == bytes)
+
+        cache.lastScanUnixMs = 2
+        _ = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).lastScanUnixMs == 2)
+    }
+
+    @Test
     func `identical warm refresh only inventories sources`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
