@@ -551,8 +551,9 @@ extension SettingsStore {
         let costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         let codexLocalSessionCostLedgerEnabled = userDefaults.object(
             forKey: "codexLocalSessionCostLedgerEnabled") as? Bool ?? false
-        let rawCostUsageHistoryDays = userDefaults.object(forKey: "tokenCostUsageHistoryDays") as? Int ?? 30
-        let costUsageHistoryDays = max(1, min(365, rawCostUsageHistoryDays))
+        let costReportingPeriod = CostReportingPeriod.migrated(
+            rawValue: userDefaults.string(forKey: CostReportingPeriod.defaultsKey),
+            legacyDays: userDefaults.object(forKey: CostReportingPeriod.legacyDaysKey) as? Int)
         let storedBucketTimeZone = userDefaults.string(forKey: "tokenCostUsageBucketTimeZone") ?? ""
         let costUsageBucketTimeZoneIdentifier = CostUsageBucketTimeZone.isValidIdentifier(storedBucketTimeZone)
             ? storedBucketTimeZone
@@ -664,7 +665,7 @@ extension SettingsStore {
             copilotIconSecondaryWindowIDRaw: copilotIconSecondaryWindowIDRaw,
             costUsageEnabled: costUsageEnabled,
             codexLocalSessionCostLedgerEnabled: codexLocalSessionCostLedgerEnabled,
-            costUsageHistoryDays: costUsageHistoryDays,
+            costReportingPeriod: costReportingPeriod,
             costUsageBucketTimeZoneIdentifier: costUsageBucketTimeZoneIdentifier,
             openCodexUsageLogsEnabled: userDefaults.object(forKey: "openCodexUsageLogsEnabled") as? Bool ?? false,
             hideNativeCodexCostWhenOpenCodexPresent: userDefaults.object(

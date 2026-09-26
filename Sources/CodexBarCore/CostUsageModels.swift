@@ -133,18 +133,20 @@ public enum CostUsageTokenOwnership: Sendable, Equatable {
 public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
-    public let sessionRequests: Int?
+    public internal(set) var sessionRequests: Int?
     public let last30DaysTokens: Int?
     public let last30DaysCostUSD: Double?
-    public let last30DaysRequests: Int?
+    public internal(set) var last30DaysRequests: Int?
     public let currencyCode: String
     public let historyDays: Int
     public let historyCoverageIsEstablished: Bool
+    public let historyScanIsPartial: Bool
     /// Exact producer-local day-key bounds for the history window. These are
     /// optional so snapshots created by older providers remain compatible.
     public let historySinceDayKey: String?
     public let historyUntilDayKey: String?
-    public let historyLabel: String?
+    public var historyLabel: String?
+    public var reportingPeriod: CostReportingPeriod?
     /// Provider-metered spend over the same window as `last30DaysCostUSD` — what the plan
     /// actually deducts, as opposed to the API-rate estimate. Only some providers (e.g. Cursor)
     /// report this; `nil` when unknown.
@@ -164,6 +166,10 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let hourly: [CostUsageHourlyEntry]
     public let updatedAt: Date
 
+    public var historyIsFullyScanned: Bool {
+        self.historyCoverageIsEstablished && !self.historyScanIsPartial
+    }
+
     public init(
         sessionTokens: Int?,
         sessionCostUSD: Double?,
@@ -174,6 +180,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         currencyCode: String = "USD",
         historyDays: Int = 30,
         historyCoverageIsEstablished: Bool = true,
+        historyScanIsPartial: Bool = false,
         historySinceDayKey: String? = nil,
         historyUntilDayKey: String? = nil,
         historyLabel: String? = nil,
@@ -197,9 +204,11 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.currencyCode = normalizedCurrencyCode.isEmpty ? "XXX" : normalizedCurrencyCode
         self.historyDays = historyDays
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.historyScanIsPartial = historyScanIsPartial
         self.historySinceDayKey = historySinceDayKey
         self.historyUntilDayKey = historyUntilDayKey
         self.historyLabel = historyLabel
+        self.reportingPeriod = nil
         self.meteredCostUSD = meteredCostUSD
         self.costProvenance = costProvenance
         self.credentialScopeFingerprint = credentialScopeFingerprint
@@ -217,14 +226,10 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
 
     public func summary(forLastDays requestedDays: Int, calendar: Calendar = .current) -> CostUsageWindowSummary {
         let days = max(1, requestedDays)
-        let today = calendar.startOfDay(for: self.updatedAt)
-        let start = calendar.date(byAdding: .day, value: -(days - 1), to: today) ?? today
-        let startKey = CostUsageLocalDay.key(from: start, calendar: calendar)
-        let endKey = CostUsageLocalDay.key(from: today, calendar: calendar)
-        let entries = self.daily.filter { entry in
-            guard let dayKey = Self.localDayKey(for: entry.date, calendar: calendar) else { return false }
-            return dayKey >= startKey && dayKey <= endKey
-        }
+        let entries = CostReportingPeriod.rolling(days: days).entries(
+            self.daily,
+            now: self.updatedAt,
+            calendar: calendar)
         let costs = entries.compactMap(\.costUSD)
         let tokens = entries.compactMap(\.totalTokens)
         let requests = entries.compactMap(\.requestCount)

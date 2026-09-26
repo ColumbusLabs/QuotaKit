@@ -160,8 +160,9 @@ extension UsageStore {
         {
             return
         }
-        self.tokenSnapshots[provider.instanceID] = snapshot
-        self.publishTokenSnapshotState(snapshot, for: provider)
+        let displayed = snapshot.reporting(self.settings.costReportingPeriod)
+        self.tokenSnapshots[provider.instanceID] = displayed
+        self.publishTokenSnapshotState(displayed, for: provider)
     }
 
     func publishConfirmedEmptyTokenSnapshot(for provider: UsageProvider) {
@@ -171,23 +172,25 @@ extension UsageStore {
 
     private func publishTokenSnapshotState(_ snapshot: CostUsageTokenSnapshot?, for provider: UsageProvider) {
         self.tokenSnapshotPublicationRevisions[provider.instanceID, default: 0] &+= 1
+        let displayed = snapshot?.reporting(self.settings.costReportingPeriod)
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
-            snapshot: snapshot,
+            snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
+            semanticFingerprint: displayed.map(self.spendDashboardSnapshotSemanticFingerprint))
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
     func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
-        self.tokenSnapshots[provider.instanceID] = snapshot
+        let displayed = snapshot.reporting(self.settings.costReportingPeriod)
+        self.tokenSnapshots[provider.instanceID] = displayed
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
-            snapshot: snapshot,
+            snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(snapshot))
+            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(displayed))
     }
 
     func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
@@ -395,7 +398,10 @@ extension UsageStore {
         let scope = self.tokenCostScope(for: provider)
         var base = "\(scope.signature)|historyDays=\(historyDays)"
         if includeSettingsRevision {
-            base += "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+            base += "|settingsRevision=\(self.settings.costUsageSettingsRevision)|"
+                + self.settings.costReportingPeriod.identity(
+                    now: Date(),
+                    calendar: self.settings.costUsageBucketCalendar)
         }
         guard provider == .cursor else {
             return base
@@ -426,7 +432,10 @@ extension UsageStore {
         let scope = self.tokenCostScope(for: .cursor)
         var signature = "\(scope.signature)|historyDays=\(historyDays)"
         if includeSettingsRevision {
-            signature += "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+            signature += "|settingsRevision=\(self.settings.costUsageSettingsRevision)|"
+                + self.settings.costReportingPeriod.identity(
+                    now: Date(),
+                    calendar: self.settings.costUsageBucketCalendar)
         }
         return "\(signature)|cursorCookie=\(source.rawValue):\(credentialFingerprint)"
     }
@@ -527,28 +536,33 @@ extension UsageStore {
         // Provider-specific by design: snapshot-backed spend sources own their live billing
         // projection. Grok contributes local session tokens only; xAI contributes Management API
         // daily spend only. Neither converts a quota or prepaid balance into dollars.
-        switch provider {
+        let result: CostUsageTokenSnapshot? = switch provider {
         case .openai:
-            return snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
+            snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
         case .mistral:
-            return snapshot?.mistralUsage?.toCostUsageTokenSnapshot(historyDays: windowDays)
+            snapshot?.mistralUsage?.toCostUsageTokenSnapshot(historyDays: windowDays)
         case .opencodego:
             // Web-only source mode and machines with no readable local database leave
             // `opencodegoUsage.daily` empty; a non-nil-but-dataless projection would still
             // surface a Cost row whose history submenu has nothing to render.
-            return snapshot?.opencodegoUsage.flatMap { usage in
+            snapshot?.opencodegoUsage.flatMap { usage in
                 usage.daily.isEmpty ? nil : usage
                     .toCostUsageTokenSnapshot(historyDays: windowDays)
             }
         case .openrouter:
-            return snapshot?.costUsage
+            snapshot?.costUsage
         case .xai:
-            return snapshot.flatMap { XAICostUsageMapping.tokenSnapshot(from: $0, historyDays: windowDays) }
+            snapshot.flatMap { XAICostUsageMapping.tokenSnapshot(from: $0, historyDays: windowDays) }
         case .grok:
-            return self.grokLocalTokenSnapshot(from: snapshot, historyDays: windowDays)
+            self.grokLocalTokenSnapshot(from: snapshot, historyDays: windowDays)
         default:
-            return nil
+            nil
         }
+        guard historyDays == nil else { return result }
+        return result?.selecting(
+            self.settings.costReportingPeriod,
+            now: Date(),
+            calendar: self.settings.costUsageBucketCalendar)
     }
 
     nonisolated static func tokenCostRequiresProviderSnapshot(_ provider: UsageProvider) -> Bool {
