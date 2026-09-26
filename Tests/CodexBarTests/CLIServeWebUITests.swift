@@ -1,11 +1,42 @@
 import Commander
 import Foundation
+@preconcurrency import JavaScriptCore
 import Testing
 @testable import CodexBarCLI
 
 struct CLIServeWebUITests {
     private var html: String {
         String(bytes: CLIServeWebUI.response().body, encoding: .utf8) ?? ""
+    }
+
+    @Test(arguments: [false, true])
+    func `usage window follows the server fill preference`(showUsed: Bool) throws {
+        let start = try #require(self.html.range(of: "function renderWindow(window)"))
+        let end = try #require(self.html.range(of: "function renderCostChart(history)"))
+        let context = try #require(JSContext())
+        context.evaluateScript("""
+        const state = {snapshot: {host: {usageBarsShowUsed: \(showUsed)}}};
+        function finiteNumber(value) { return Number.isFinite(value) ? value : 0; }
+        function percent(value) { return `${Math.round(value)}%`; }
+        function resetTime() { return null; }
+        function node(tag, className, text) {
+          return {
+            className, text, children: [], style: {}, attributes: {},
+            append(...items) { this.children.push(...items); },
+            setAttribute(key, value) { this.attributes[key] = value; }
+          };
+        }
+        """)
+        context.evaluateScript(String(self.html[start.lowerBound..<end.lowerBound]))
+        context.evaluateScript("const rendered = renderWindow({label: 'Session', usedPercent: 25, remainingPercent: 75});")
+        #expect(context.exception == nil)
+        let expected = showUsed ? 25 : 75
+        #expect(context.evaluateScript("rendered.children[0].children[0].text")?.toString() ==
+            "Session · \(expected)% \(showUsed ? "used" : "left")")
+        #expect(context.evaluateScript("rendered.children[1].children[0].style.width")?.toString() ==
+            "\(expected)%")
+        #expect(context.evaluateScript("rendered.children[1].attributes['aria-valuenow']")?.toString() ==
+            String(expected))
     }
 
     @Test

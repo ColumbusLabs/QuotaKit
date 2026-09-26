@@ -773,18 +773,19 @@ extension CLIServeWebUI {
         function renderWindow(window) {
           const item = node("div", "window");
           const head = node("div", "window-head");
-          const label = node(
-            "span",
-            "window-label",
-            `${window.label || "Usage"} · ${percent(window.usedPercent)} used`
-          );
-          head.append(label);
+          const showUsed = Boolean(state.snapshot && state.snapshot.host && state.snapshot.host.usageBarsShowUsed);
+          const pct = showUsed
+            ? window.usedPercent
+            : (window.remainingPercent ?? (100 - finiteNumber(window.usedPercent)));
+          const suffix = showUsed ? "used" : "left";
+          head.append(node("span", "window-label",
+            `${window.label || "Usage"} · ${percent(pct)} ${suffix}`));
           const reset = resetTime(window.resetAt);
           if (reset) head.append(node("span", "window-time", reset));
 
           const track = node("div", "track");
           const fill = node("div", "fill");
-          const width = Math.min(100, Math.max(0, finiteNumber(window.usedPercent)));
+          const width = Math.min(100, Math.max(0, finiteNumber(pct)));
           fill.style.width = `${width}%`;
           track.setAttribute("role", "progressbar");
           track.setAttribute("aria-label", "Usage window");

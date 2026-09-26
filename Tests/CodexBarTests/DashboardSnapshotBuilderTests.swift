@@ -298,6 +298,7 @@ struct DashboardSnapshotBuilderTests {
         #expect(host["codexBarVersion"] as? String == "9.8.7")
         #expect(host["quotaKitVersion"] as? String == "9.8.7")
         #expect(host["refreshIntervalSeconds"] as? Int == 60)
+        #expect(host["usageBarsShowUsed"] as? Bool == false)
 
         #expect(provider["id"] as? String == "codex")
         #expect(provider["name"] as? String == "Codex")
@@ -607,6 +608,32 @@ struct DashboardSnapshotBuilderTests {
 
         #expect(snapshot.host.refreshIntervalSeconds == Int.max / 3)
         #expect(snapshot.staleAfterSeconds == (Int.max / 3) * 3)
+    }
+
+    @Test
+    func `dashboard snapshot builder serializes usage bars show used host preference`() throws {
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [],
+            costPayloads: [],
+            config: CodexBarConfig(providers: []),
+            identityMode: .none,
+            generatedAt: Date(),
+            refreshInterval: 60,
+            codexBarVersion: "1.0.0",
+            usageBarsShowUsed: true)
+        let object = try self.jsonObject(snapshot)
+        let host = try #require(object["host"] as? [String: Any])
+        #expect(host["usageBarsShowUsed"] as? Bool == true)
+
+        let shellSnapshot = DashboardSnapshotBuilder.makeShellSnapshot(
+            config: CodexBarConfig(providers: []),
+            generatedAt: Date(),
+            refreshInterval: 60,
+            codexBarVersion: "1.0.0",
+            usageBarsShowUsed: true)
+        let shellObject = try self.jsonObject(shellSnapshot)
+        let shellHost = try #require(shellObject["host"] as? [String: Any])
+        #expect(shellHost["usageBarsShowUsed"] as? Bool == true)
     }
 
     @Test
