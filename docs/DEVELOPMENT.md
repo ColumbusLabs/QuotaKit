@@ -59,6 +59,15 @@ For Mac local development:
 
 ## Common Tasks
 
+### Menu Bar Status Item Teardown
+
+Runtime removal retires a status item's autosave identity before removal and restores its saved position if AppKit
+clears it. During `applicationWillTerminate`, removal keeps the identity intact: renaming a host just before exit can
+leave a blank menu bar slot. Status-menu Quit requests termination after menu tracking unwinds; the termination
+callback detaches menus and removes merged and provider items without hiding or renaming them. Recording status-bar
+tests cover teardown order, identity, visibility, and saved-position restoration. They cannot prove native Control
+Center host removal or placement after process exit.
+
 ### Add a New Provider
 See the canonical [provider authoring guide](provider.md#adding-a-new-provider) for the complete flow.
 

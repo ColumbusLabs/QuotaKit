@@ -20,6 +20,8 @@ read_when:
   nested menus.
 - Provider status items use stable autosave names and are reused across provider toggles so macOS can preserve icon
   positions.
+- Normal quit removes status items with their stable identities intact, preventing retained blank menu bar slots while
+  preserving saved placement.
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
 - Overview spend uses the native menu background rather than an extra accent tint.
 - Overview row order follows provider order; selecting a row jumps to that provider detail card.
