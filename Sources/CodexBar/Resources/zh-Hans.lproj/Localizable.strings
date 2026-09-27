@@ -1639,3 +1639,11 @@
 "section_widgets" = "小组件";
 "account_widgets_title" = "为小组件保持账户更新";
 "account_widgets_description" = "在每个 Account Usage 小组件中选择一个账户。每个服务商最多刷新六个账户。";
+"Managed by Homebrew" = "由 Homebrew 管理";
+"Copy update command" = "复制更新命令";
+"Update to %@" = "更新到 %@";
+"QuotaKit %@ is available" = "QuotaKit %@ 已推出";
+"QuotaKit is up to date" = "QuotaKit 已是最新版本";
+"Checking for updates…" = "正在检查更新…";
+"Updating with Homebrew…" = "正在通过 Homebrew 更新…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 更新失败。你也可以在终端中运行此命令：";

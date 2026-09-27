@@ -1625,3 +1625,11 @@
 "section_widgets" = "Widgets";
 "account_widgets_title" = "Mantener las cuentas actualizadas para los widgets";
 "account_widgets_description" = "Elige una cuenta en cada widget Account Usage. Actualiza hasta seis cuentas por proveedor.";
+"Managed by Homebrew" = "Gestionado por Homebrew";
+"Copy update command" = "Copiar comando de actualización";
+"Update to %@" = "Actualizar a %@";
+"QuotaKit %@ is available" = "QuotaKit %@ está disponible";
+"QuotaKit is up to date" = "QuotaKit está actualizado";
+"Checking for updates…" = "Buscando actualizaciones…";
+"Updating with Homebrew…" = "Actualizando con Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "La actualización con Homebrew falló. Puedes ejecutar este comando en Terminal:";

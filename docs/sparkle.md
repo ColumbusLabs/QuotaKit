@@ -1,5 +1,5 @@
 ---
-summary: "Sparkle integration details for CodexBar: updater config, keys, and release flow."
+summary: "QuotaKit update integration: Sparkle, Homebrew ownership, and release flow."
 read_when:
   - Touching Sparkle settings, feed URL, or keys
   - Generating or troubleshooting the Sparkle appcast
@@ -12,7 +12,7 @@ read_when:
 - Updater: `SPUStandardUpdaterController` owned by `AppDelegate` (see `Sources/CodexBar/CodexbarApp.swift:1`).
 - Feed: `SUFeedURL` in Info.plist points to GitHub Releases appcast (`appcast.xml`).
 - Key: `SUPublicEDKey` set to `AGCY8w5vHirVfGGDGc8Szc5iuOqupZSh9pMj/Qs67XI=`. Keep the Ed25519 private key safe; use it when generating the appcast.
-- UI: auto-check toggle (About) enables auto-downloads; menu only shows “Update ready, restart now?” once an update is downloaded.
+- UI: auto-check toggle (About) enables auto-downloads; a staged update remains owned by Sparkle and a manual check reopens its install UI. The menu shows the staged reminder or a manual update check and running version.
 - LSUIElement: works; updater window will show when checking. App is non-sandboxed.
 - Channels: stable vs beta are served from the same appcast. Beta items are tagged with `sparkle:channel="beta"`; About → Update Channel controls `allowedChannels`.
 
@@ -53,5 +53,5 @@ spaces.
 ## Notes
 - HTML release notes are embedded in the appcast entry; the Sparkle update dialog should show formatted bullets (not raw tags).
 - If you change the feed host or key, update Info.plist (`SUFeedURL`, `SUPublicEDKey`) and bump the app.
-- Auto-check toggle is persisted via Sparkle; manual “Check for Updates…” remains in About.
-- CodexBar disables Sparkle in Homebrew and unsigned builds; those installs should be updated via `brew` or reinstalling from Releases.
+- Auto-check toggle is persisted via Sparkle; manual “Check for Updates…” is available in About and the menu.
+- Homebrew Cask installs use Homebrew for updates. QuotaKit recognizes Caskroom artifact links to `QuotaKit.app`, checks the `steipete/tap/quotakit` cask version, and runs `brew upgrade --cask steipete/tap/quotakit` only after the user selects Update. About also offers a copyable command when an update fails. Unsigned builds have no updater.

@@ -38,6 +38,7 @@ struct MenuDescriptor {
 
     enum MenuActionSystemImage: String {
         case installUpdate = "arrow.down.circle"
+        case checkForUpdates = "arrow.triangle.2.circlepath.circle"
         case refresh = "arrow.clockwise"
         case dashboard = "chart.xyaxis.line"
         case statusPage = "waveform.path.ecg"
@@ -62,6 +63,7 @@ struct MenuDescriptor {
 
     enum MenuAction: Equatable {
         case installUpdate
+        case checkForUpdates
         case refresh
         case refreshAugmentSession
         case dashboard
@@ -91,6 +93,10 @@ struct MenuDescriptor {
         managedCodexAccountCoordinator: ManagedCodexAccountCoordinator? = nil,
         codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator? = nil,
         updateReady: Bool,
+        availableUpdateVersion: String? = nil,
+        isInstallingUpdate: Bool = false,
+        canCheckForUpdates: Bool = false,
+        versionText: String = AppVersion.shortVersion,
         includeContextualActions: Bool = true,
         codexWorkspacesMenuEnabled: Bool = false,
         isKeepingAwake: Bool = false,
@@ -160,7 +166,12 @@ struct MenuDescriptor {
                 labelStyle: agentSessionLabelStyle,
                 now: now))
         }
-        sections.append(Self.metaSection(updateReady: updateReady))
+        sections.append(Self.metaSection(
+            updateReady: updateReady,
+            availableUpdateVersion: availableUpdateVersion,
+            isInstallingUpdate: isInstallingUpdate,
+            canCheckForUpdates: canCheckForUpdates,
+            versionText: versionText))
 
         return MenuDescriptor(sections: sections)
     }
@@ -645,15 +656,28 @@ struct MenuDescriptor {
         return Section(entries: entries)
     }
 
-    private static func metaSection(updateReady: Bool) -> Section {
+    static func metaSection(
+        updateReady: Bool,
+        availableUpdateVersion: String? = nil,
+        isInstallingUpdate: Bool = false,
+        canCheckForUpdates: Bool = false,
+        versionText: String = AppVersion.shortVersion) -> Section
+    {
         var entries: [Entry] = []
         if updateReady {
             entries.append(.action(L("Update ready, restart now?"), .installUpdate))
+        } else if isInstallingUpdate {
+            entries.append(.text(L("Updating with Homebrew…"), .secondary))
+        } else if let availableUpdateVersion {
+            entries.append(.action(String(format: L("Update to %@"), availableUpdateVersion), .installUpdate))
+        } else if canCheckForUpdates {
+            entries.append(.action(L("Check for Updates…"), .checkForUpdates))
         }
+        let aboutLabel = L("About CodexBar") + (versionText.isEmpty ? "" : " (v\(versionText))")
         entries.append(contentsOf: [
             .action(L("Refresh"), .refresh),
             .action(L("Settings..."), .settings),
-            .action(L("About CodexBar"), .about),
+            .action(aboutLabel, .about),
             .action(L("Quit"), .quit),
         ])
         return Section(entries: entries)
@@ -844,6 +868,7 @@ extension MenuDescriptor.MenuAction {
     var systemImageName: String? {
         switch self {
         case .installUpdate: MenuDescriptor.MenuActionSystemImage.installUpdate.rawValue
+        case .checkForUpdates: MenuDescriptor.MenuActionSystemImage.checkForUpdates.rawValue
         case .settings: MenuDescriptor.MenuActionSystemImage.settings.rawValue
         case .about: MenuDescriptor.MenuActionSystemImage.about.rawValue
         case .quit: MenuDescriptor.MenuActionSystemImage.quit.rawValue

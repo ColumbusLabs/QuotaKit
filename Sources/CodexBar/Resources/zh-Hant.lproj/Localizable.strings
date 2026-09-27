@@ -1658,3 +1658,11 @@
 "section_widgets" = "小工具";
 "account_widgets_title" = "為小工具保持帳戶更新";
 "account_widgets_description" = "在每個 Account Usage 小工具中選擇一個帳戶。每個供應商最多重新整理六個帳戶。";
+"Managed by Homebrew" = "由 Homebrew 管理";
+"Copy update command" = "複製更新指令";
+"Update to %@" = "更新至 %@";
+"QuotaKit %@ is available" = "QuotaKit %@ 已推出";
+"QuotaKit is up to date" = "QuotaKit 已是最新版本";
+"Checking for updates…" = "正在檢查更新…";
+"Updating with Homebrew…" = "正在透過 Homebrew 更新…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 更新失敗。你也可以在終端機中執行此指令：";

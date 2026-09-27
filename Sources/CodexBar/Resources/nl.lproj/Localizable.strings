@@ -1626,3 +1626,11 @@
 "section_widgets" = "Widgets";
 "account_widgets_title" = "Accounts voor widgets actueel houden";
 "account_widgets_description" = "Kies een account in elke Account Usage-widget. Werkt maximaal zes accounts per aanbieder bij.";
+"Managed by Homebrew" = "Beheerd door Homebrew";
+"Copy update command" = "Updatecommando kopiëren";
+"Update to %@" = "Bijwerken naar %@";
+"QuotaKit %@ is available" = "QuotaKit %@ is beschikbaar";
+"QuotaKit is up to date" = "QuotaKit is up-to-date";
+"Checking for updates…" = "Zoeken naar updates…";
+"Updating with Homebrew…" = "Bijwerken met Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Bijwerken met Homebrew is mislukt. Je kunt deze opdracht in Terminal uitvoeren:";

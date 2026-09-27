@@ -42,6 +42,8 @@ Activity history includes aggregate token, request, and distinct model counts. R
 
 The dashboard action opens [OpenRouter Activity](https://openrouter.ai/activity). If optional credits or Activity data cannot be fetched, available key usage is preserved and the affected detail shows an unavailable diagnostic. If all usable data sources fail, the provider fetch reports an error.
 
+Shared usage cards group recognized gateway model identifiers such as `openai/gpt-4o` under public family labels such as “GPT,” with usage attributed to OpenRouter. Raw namespaces and model names are omitted; shared rankings disclose partial model history.
+
 ## CLI usage
 
 ```bash

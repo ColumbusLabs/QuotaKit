@@ -13,6 +13,7 @@ read_when:
 
 ## Menu bar
 - Overview offers Share Usage Snapshot when its Usage & Spend summary has shareable data. The local preview uses the same spend sources, hidden-source choices, calendar, and currency as that summary; Copy Image exports PNG and TIFF without uploading anything.
+- Shared snapshots name the last included reporting day in the dashboard's timezone, use a singular caption for one subscription, and keep recognized public model families behind one gateway namespace. A partial model history is labeled as partial.
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
 - Stacked switcher provider labels remain on one line so row content stays aligned.

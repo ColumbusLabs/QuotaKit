@@ -107,6 +107,7 @@ struct ShareStatsCurrencyPayload: Sendable, Equatable, Identifiable {
 struct ShareStatsPayload: Sendable, Equatable {
     let days: Int
     let periodEnd: Date
+    let periodEndTimeZone: TimeZone
     let providers: [ShareStatsProviderPayload]
     let topModels: [ShareStatsModelPayload]
     let currencies: [ShareStatsCurrencyPayload]
@@ -122,10 +123,12 @@ struct ShareStatsPayload: Sendable, Equatable {
         currencies: [ShareStatsCurrencyPayload],
         totalTokens: Int?,
         hasPartialTokens: Bool = false,
-        hasPartialModels: Bool = false)
+        hasPartialModels: Bool = false,
+        periodEndTimeZone: TimeZone = .current)
     {
         self.days = days
         self.periodEnd = periodEnd
+        self.periodEndTimeZone = periodEndTimeZone
         self.providers = providers
         self.topModels = topModels
         self.currencies = currencies
@@ -187,10 +190,20 @@ enum ShareStatsSanitizer {
         else { return nil }
 
         let normalized = value.lowercased()
+        guard !normalized.contains("://"), !normalized.contains("\\") else { return nil }
+        // Gateways add one namespace; shared output still uses fixed public family labels.
+        let components = normalized.split(separator: "/", omittingEmptySubsequences: false)
+        let model: String
+        switch components.count {
+        case 1: model = normalized
+        case 2 where !components[0].isEmpty && !components[1].isEmpty:
+            model = String(components[1])
+        default: return nil
+        }
         let regionalPrefixes = ["us.", "eu.", "apac.", "global."]
-        let familyName = regionalPrefixes.first { normalized.hasPrefix($0) }.map {
-            String(normalized.dropFirst($0.count))
-        } ?? normalized
+        let familyName = regionalPrefixes.first { model.hasPrefix($0) }.map {
+            String(model.dropFirst($0.count))
+        } ?? model
         let publicModelFamilies: [(prefixes: [String], label: String)] = [
             (["amazon.nova-", "nova-"], "Amazon Nova"),
             (["anthropic.claude-", "claude-", "claude "], "Claude"),
@@ -217,10 +230,6 @@ enum ShareStatsSanitizer {
             (["tts-"], "OpenAI TTS"),
             (["whisper-"], "Whisper"),
         ]
-        guard !normalized.contains("://"),
-              !normalized.contains("/"),
-              !normalized.contains("\\")
-        else { return nil }
         return publicModelFamilies.first { family in
             family.prefixes.contains(where: familyName.hasPrefix)
         }?.label
@@ -346,7 +355,14 @@ enum ShareStatsBuilder {
         }
         let totalTokens = self.combinedTotalTokens(model.groups.map(\.totalTokens))
         let hasPartialTokens = model.groups.contains(where: \.hasPartialTokens)
-        let periodEnd = model.groups.map(\.chartDomain.upperBound).max() ?? Date()
+        guard let periodGroup = model.groups.max(by: { $0.chartDomain.upperBound < $1.chartDomain.upperBound }) else {
+            return nil
+        }
+        // The chart extends through the next day's start; sharing names the last included civil day.
+        let lastIncludedInstant = max(
+            periodGroup.chartDomain.lowerBound,
+            periodGroup.chartDomain.upperBound.addingTimeInterval(-1))
+        let periodEnd = periodGroup.calendar.startOfDay(for: lastIncludedInstant)
         let payload = ShareStatsPayload(
             days: model.requestedDays,
             periodEnd: periodEnd,
@@ -355,7 +371,8 @@ enum ShareStatsBuilder {
             currencies: currencies,
             totalTokens: totalTokens,
             hasPartialTokens: hasPartialTokens,
-            hasPartialModels: hasPartialModels)
+            hasPartialModels: hasPartialModels,
+            periodEndTimeZone: periodGroup.timeZone)
         return payload.hasShareableData ? payload : nil
     }
 
@@ -413,6 +430,10 @@ enum ShareStatsPayloadFactory {
 }
 
 enum ShareStatsFormatting {
+    static func subscriptionSummary(count: Int) -> String {
+        count == 1 ? "1 subscription" : "\(count) subscriptions"
+    }
+
     static func compactCount(_ value: Int) -> String {
         let magnitude = abs(Double(value))
         let divisor: Double
@@ -430,6 +451,12 @@ enum ShareStatsFormatting {
 
     static func currency(_ value: Double, code: String) -> String {
         UsageFormatter.currencyString(value, currencyCode: code)
+    }
+
+    static func dataThrough(_ payload: ShareStatsPayload) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = payload.periodEndTimeZone
+        return self.dataThrough(payload.periodEnd, calendar: calendar)
     }
 
     static func dataThrough(_ date: Date, calendar: Calendar = .current) -> String {
@@ -503,7 +530,7 @@ enum ShareStatsFormatting {
                 return "\(model.modelName) (\(model.providerName)): \(metrics.joined(separator: " · "))"
             })
         }
-        lines.append("Generated locally by QuotaKit · Data through \(self.dataThrough(payload.periodEnd))")
+        lines.append("Generated locally by QuotaKit · Data through \(self.dataThrough(payload))")
         return lines.joined(separator: "\n")
     }
 }
