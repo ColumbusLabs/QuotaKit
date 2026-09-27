@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GROUP_SIZE="${CODEXBAR_TEST_GROUP_SIZE:-12}"
 SUITE_TIMEOUT="${CODEXBAR_TEST_SUITE_TIMEOUT:-180}"
 RETRY_NON_TIMEOUT_FAILURES="${CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES:-1}"
+KEEP_GOING="${CODEXBAR_TEST_KEEP_GOING:-0}"
 
 cd "${ROOT_DIR}"
 
@@ -30,6 +31,15 @@ case "${RETRY_NON_TIMEOUT_FAILURES}" in
   1) ;;
   *)
     echo "CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES must be 0 or 1" >&2
+    exit 2
+    ;;
+esac
+
+case "${KEEP_GOING}" in
+  0) ;;
+  1) ARGS+=(--keep-going) ;;
+  *)
+    echo "CODEXBAR_TEST_KEEP_GOING must be 0 or 1" >&2
     exit 2
     ;;
 esac

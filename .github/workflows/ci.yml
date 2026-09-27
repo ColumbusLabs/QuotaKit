@@ -221,6 +221,7 @@ jobs:
           CODEXBAR_TEST_GROUP_SIZE=4 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \
             CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
+            CODEXBAR_TEST_KEEP_GOING=1 \
             CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
             ./Scripts/test.sh

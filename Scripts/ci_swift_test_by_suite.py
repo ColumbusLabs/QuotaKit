@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -40,6 +40,7 @@ class RunStats:
     timed_out_groups: int = 0
     recovered_groups: int = 0
     isolated_selection_retries: int = 0
+    failed_groups: list[str] = field(default_factory=list)
 
     def summary_rows(self) -> list[tuple[str, str]]:
         shard = "none"
@@ -83,6 +84,11 @@ def parse_args() -> argparse.Namespace:
         help="fail immediately when a group exits without timing out",
     )
     parser.add_argument("--list-only", action="store_true")
+    parser.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="run remaining groups after failures, then exit nonzero",
+    )
     parser.add_argument("--swift-command", default="swift")
     parser.add_argument("--swift-command-arg", action="append", default=[])
     return parser.parse_args()
@@ -234,12 +240,21 @@ def append_github_summary(stats: RunStats) -> None:
             safe_value = value.replace("|", "\\|")
             summary.write(f"| {field} | `{safe_value}` |\n")
         summary.write("\n")
+        if stats.failed_groups:
+            summary.write("Failed groups:\n\n")
+            for group in stats.failed_groups:
+                summary.write(f"- {group}\n")
+            summary.write("\n")
 
 
 def print_timing_summary(stats: RunStats) -> None:
     print("Swift test timing summary:", flush=True)
     for field, value in stats.summary_rows():
         print(f"- {field}: {value}", flush=True)
+    if stats.failed_groups:
+        print("Failed groups:", flush=True)
+        for group in stats.failed_groups:
+            print(f"- {group}", flush=True)
 
 
 def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection]]:
@@ -393,34 +408,33 @@ def main() -> int:
             group_timed_out = group_result == 124
             if group_timed_out:
                 stats.timed_out_groups += 1
-            if len(group) == 1:
-                result = group_result
-                return result
-
-            if group_result != 124:
-                if not args.retry_non_timeout_failures:
-                    result = group_result
-                    return result
-
+            if len(group) > 1 and not group_timed_out and args.retry_non_timeout_failures:
                 stats.full_group_retries += 1
                 print(f"Group {group_index} failed with exit code {group_result}; retrying group once", flush=True)
                 retry_result = run_group(group, args.timeout, swift_command)
                 if retry_result == 0:
                     stats.recovered_groups += 1
                     continue
-                if retry_result != 124:
-                    result = retry_result
-                    return result
-                group_timed_out = True
-                stats.timed_out_groups += 1
+                group_result = retry_result
+                if retry_result == 124:
+                    group_timed_out = True
+                    stats.timed_out_groups += 1
 
-            print(f"Group {group_index} timed out; retrying selections one at a time", flush=True)
-            retry_result = retry_selections_individually(group, args.timeout, swift_command, stats)
-            if retry_result != 0:
-                result = retry_result
+            if len(group) > 1 and group_timed_out:
+                print(f"Group {group_index} timed out; retrying selections one at a time", flush=True)
+                group_result = retry_selections_individually(group, args.timeout, swift_command, stats)
+                if group_result == 0:
+                    stats.recovered_groups += 1
+                    continue
+
+            stats.failed_groups.append(
+                f"Group {group_index}/{len(suite_groups)} (exit {group_result}): "
+                + ", ".join(suite.name for suite in group)
+            )
+            if result == 0:
+                result = group_result
+            if not args.keep_going:
                 return result
-            if group_timed_out:
-                stats.recovered_groups += 1
 
         return result
     finally:

@@ -139,6 +139,8 @@ if "CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-index to Scripts/test.sh")
 if "CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-count to Scripts/test.sh")
+if "CODEXBAR_TEST_KEEP_GOING=1" not in job:
+    raise SystemExit("swift-test-macos broad test must continue after failed groups")
 if "swift test --filter \"$CODEXBAR_TEST_FILTER\"" not in job:
     raise SystemExit("swift-test-macos must run the selected focused suites")
 PY
@@ -182,6 +184,29 @@ grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Isolated selection retries | `0` |' "${GITHUB_STEP_SUMMARY}"
 [[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+
+reset_case keep-going
+export FAKE_SWIFT_MODE=group_always_fail
+set +e
+CODEXBAR_TEST_GROUP_SIZE=4 \
+  CODEXBAR_TEST_SUITE_TIMEOUT=10 \
+  CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
+  CODEXBAR_TEST_KEEP_GOING=1 \
+  "${ROOT_DIR}/Scripts/test.sh" \
+    --swift-command /bin/bash \
+    --swift-command-arg=-c \
+    --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+    --swift-command-arg=fake-swift \
+    > "${TEMP_DIR}/keep-going.log" 2>&1
+keep_going_status=$?
+set -e
+[[ "${keep_going_status}" -eq 1 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 4 ]]
+grep -Fq '| First-pass failed groups | `3` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq 'Group 1/3 (exit 1): CodexBarTests.Alpha' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 2/3 (exit 1):' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 3/3 (exit 1):' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-0
 export FAKE_SWIFT_MODE=success

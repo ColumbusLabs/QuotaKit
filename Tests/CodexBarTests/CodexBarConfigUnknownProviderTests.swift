@@ -26,24 +26,25 @@ struct CodexBarConfigUnknownProviderTests {
     }
 
     @Test
-    func `reading and saving retired Crof config preserves its record`() throws {
+    func `reading and saving unavailable provider config preserves its record`() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = CodexBarConfigStore(fileURL: directory.appendingPathComponent("config.json"))
         let config = CodexBarConfig(providers: UsageProvider.allCases
-            .filter { $0.rawValue != "crof" }
             .map { ProviderConfig(id: $0.instanceID, enabled: false) })
         let expected = try store.encodedData(for: config)
         let text = try #require(String(data: expected, encoding: .utf8))
-        let retired = text.replacingOccurrences(
+        let unavailableProvider = #"{"id":"retired-fixture-provider","enabled":true,"apiKey":"retired-fixture-key"}"#
+        let unavailable = text.replacingOccurrences(
             of: "\"providers\" : [",
-            with: "\"providers\" : [{\"id\":\"crof\",\"enabled\":true,\"apiKey\":\"retired-fixture-key\"},")
-        let original = Data(retired.utf8)
+            with: "\"providers\" : [\(unavailableProvider),")
+        let original = Data(unavailable.utf8)
         try store.saveEncodedData(original)
 
         let loaded = try #require(try store.load())
 
         #expect(loaded.providers.map(\.id) == config.providers.map(\.id))
+        #expect(loaded.unavailableProviders.map(\.id) == ["retired-fixture-provider"])
         #expect(try Data(contentsOf: store.fileURL) == original)
         try store.save(loaded)
         let saved = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: store.fileURL)) as? NSDictionary)
