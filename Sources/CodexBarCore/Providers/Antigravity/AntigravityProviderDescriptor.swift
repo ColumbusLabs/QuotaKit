@@ -61,10 +61,7 @@ public enum AntigravityProviderDescriptor {
                 chartEstimateDisclaimer: .localized(self.estimateHintKey),
                 preservesCalendarDaysInCharts: true,
                 presentation: .costAndTokens),
-            pace: ProviderPaceCapability(
-                sessionPaceWindowRule: .custom { window, _ in
-                    window.windowMinutes == nil || window.windowMinutes == 300
-                }),
+            pace: ProviderPaceCapability(sessionPaceWindowRule: .windowDuration(minutes: 300)),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 iconWindowResolver: self.iconWindows,

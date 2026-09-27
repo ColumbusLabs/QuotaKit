@@ -60,7 +60,8 @@ struct ClaudeSecurityCLIPromptPolicyTests {
                 }
             }
         }
-        let allowed = mode == .always || (mode == .onlyOnUserAction && interaction == .userInitiated)
+        // QuotaKit decodes legacy `.always` preferences as user-action-only before evaluating the launch.
+        let allowed = mode.normalized == .onlyOnUserAction && interaction == .userInitiated
         #expect(reads.value == (allowed ? 1 : 0))
     }
 }
