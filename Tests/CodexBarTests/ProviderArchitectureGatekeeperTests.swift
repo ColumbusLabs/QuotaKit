@@ -1454,19 +1454,19 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This logged-out-page classifier matches OpenAI's public landing-page brand token."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 427,
+            line: 455,
             anchor: ".appendingPathComponent(\".claude\", isDirectory: true)",
             expectedProviderIDs: ["claude"],
             reason: "The Claude transcript locator follows Claude Code's fixed default projects directory."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 501,
+            line: 529,
             anchor: ".appendingPathComponent(\".claude\", isDirectory: true)",
             expectedProviderIDs: ["claude"],
             reason: "The budgeted Claude transcript locator follows Claude Code's fixed default projects directory."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 608,
+            line: 636,
             anchor: "if value.contains(\"ide\") || value.contains(\"vscode\") || value.contains(\"cursor\") || value.contains(\"zed\") {",
             expectedProviderIDs: ["cursor", "zed"],
             reason: "This session-source classifier recognizes editor-origin strings emitted by upstream clients."),
@@ -3165,7 +3165,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact CLI construct preserves the provider-specific command and output contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 211,
+            line: 232,
             anchor: "return AgentSession.Provider.claude.rawValue",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
@@ -3173,7 +3173,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration normalizes the Claude Desktop wrapper to its agent provider name."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 244,
+            line: 265,
             anchor: "if basename == AgentSession.Provider.codex.rawValue {",
             expectedProviderIDs: ["claude", "codex", "pi"],
             expectedReferenceCount: 7,
@@ -3183,7 +3183,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration maps a provider-owned process, path, or window contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 300,
+            line: 321,
             anchor: "guard self.provider(for: record) == .claude else { return .cli }",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 3,
@@ -3191,7 +3191,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration identifies ChatGPT Codex app-server candidates before verifying their running executable."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 339,
+            line: 367,
             anchor: "URL(fileURLWithPath: $0).lastPathComponent == AgentSession.Provider.claude.rawValue",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
