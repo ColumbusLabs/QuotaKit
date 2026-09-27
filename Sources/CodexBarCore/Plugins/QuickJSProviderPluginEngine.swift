@@ -194,7 +194,6 @@ private final class QuickJSPluginValue: ProviderPluginValue {
 
 final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
     static let memoryLimitBytes = 64 * 1024 * 1024
-    static let stackLimitBytes = 2 * 1024 * 1024
 
     private struct FetchState {
         let contextOptions: ProviderPluginContextOptions
@@ -943,7 +942,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 }
 
-private final class QuickJSSerialWorker: @unchecked Sendable {
+final class QuickJSSerialWorker: @unchecked Sendable {
     typealias Job = () -> Void
 
     private final class State: @unchecked Sendable {
