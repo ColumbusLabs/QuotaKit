@@ -38,6 +38,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Warp: show the active monthly or add-on credit pool across menu surfaces.
 - Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.
 - Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
 - OpenRouter: explain the required API key field when only a separate Management API key is configured.
