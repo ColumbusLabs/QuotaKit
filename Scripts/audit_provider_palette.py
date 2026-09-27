@@ -14,9 +14,9 @@ MAC_PROVIDERS = ROOT / "Sources/CodexBarCore/Providers"
 
 PROVIDER_RE = re.compile(r"id:\s*\.(?P<id>[A-Za-z0-9_]+)")
 COLOR_RE = re.compile(
-    r"ProviderColor\(\s*red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)"
+    r"color:\s*(?:ProviderColor|\.init)\(\s*red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)"
 )
-HEX_COLOR_RE = re.compile(r"ProviderColor\(\s*hex:\s*0x(?P<hex>[0-9A-Fa-f]{6})\s*\)")
+HEX_COLOR_RE = re.compile(r"color:\s*(?:ProviderColor|\.init)\(\s*hex:\s*0x(?P<hex>[0-9A-Fa-f]{6})\s*\)")
 MOBILE_ENTRY_RE = re.compile(
     r'\(\s*\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\s*\)'
 )
