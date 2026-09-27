@@ -12,6 +12,8 @@ read_when:
 - OpenCode Go usage API at `GET https://opencode.ai/zen/go/v1/usage`, authenticated by `OPENCODE_API_KEY` or
   `providers[].apiKey`, or a selected API-key token account.
 - OpenCode Go local history from `~/.local/share/opencode/opencode.db` on macOS and Linux.
+  Device-local quota estimates retain their values and reset dates, but QuotaKit omits pace
+  forecasts until an account-scoped source reports authoritative usage.
 - `POST https://opencode.ai/_server` with server function IDs:
   - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
   - `subscription.get` (`7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4`)

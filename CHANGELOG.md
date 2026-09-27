@@ -38,6 +38,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- OpenCode Go local quota estimates no longer produce pace forecasts in Mac menus, the CLI, or iPhone sync.
+- Browser cookie refresh resumes after a current noninteractive Safe Storage grant, while explicit denial cooldowns remain in place.
+- Claude Web identifies Cloudflare challenges without treating them as expired sessions, and opens Claude provider settings for recovery.
+- Claude restored-history details use a source-neutral note; successful identity-free CLI quota reads retain account actions; model-scoped weekly labels are localized.
+- MiMo local usage skips malformed session rows before request deduplication.
+- Codex OAuth and PAT distinguish HTTP 403 permission failures from HTTP 401 authentication failures.
+- Config file watching observes external edits across atomic replacements and app writes.
 - Antigravity: resolve session and weekly quota independently, retain distinct model rows and actionable fallback errors, and recover Linux port discovery after `lsof` failures.
 - Cursor: use a verified selected-team member budget for Enterprise and Business usage, with summary fallback.
 - OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.

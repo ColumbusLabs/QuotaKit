@@ -645,6 +645,7 @@ final class SyncCoordinator {
                 label: labels.primary,
                 window: codexProjection?.rateWindow(for: .session) ?? p,
                 role: provider == .cursor ? .weekly : .session,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         if let s = snapshot?.secondary {
@@ -653,6 +654,7 @@ final class SyncCoordinator {
                 label: labels.secondary,
                 window: codexProjection?.rateWindow(for: .weekly) ?? s,
                 role: .weekly,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
@@ -661,6 +663,7 @@ final class SyncCoordinator {
                 label: labels.tertiary,
                 window: t,
                 role: .other,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
@@ -671,6 +674,7 @@ final class SyncCoordinator {
                 label: extra.title,
                 window: extra.window,
                 role: .other,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
 
@@ -1060,6 +1064,7 @@ final class SyncCoordinator {
         label: String?,
         window: RateWindow,
         role: SyncPaceWindowRole,
+        dataConfidence: UsageDataConfidence,
         now: Date) -> SyncRateWindow
     {
         SyncRateWindow(
@@ -1068,7 +1073,9 @@ final class SyncCoordinator {
             windowMinutes: window.windowMinutes,
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
-            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now),
+            pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
+                ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
+                : nil,
             identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window, role: role))
     }
 

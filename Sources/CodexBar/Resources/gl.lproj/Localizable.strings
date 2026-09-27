@@ -1634,3 +1634,5 @@
 "Checking for updates…" = "Buscando actualizacións…";
 "Updating with Homebrew…" = "Actualizando con Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Fallou a actualización con Homebrew. Podes executar este comando no Terminal:";
+"claude_limited_usage_detail" = "Detalles de uso limitados";
+"%@ weekly" = "%@ semanal";

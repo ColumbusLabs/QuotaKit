@@ -325,8 +325,8 @@ extension UsageMenuCardView.Model {
         }
 
         if input.provider == .claude, input.snapshot?.dataConfidence == .percentOnly {
-            // CLI-scraped usage carries rendered percentages only; label the reduced fidelity honestly.
-            return [L("Usage via Claude CLI (limited detail)")] + subscriptionNotes
+            // Both CLI scraping and restored history carry percentages without full usage detail.
+            return [L("claude_limited_usage_detail")] + subscriptionNotes
         }
 
         // Provider-specific by design: OpenCode Go local quota windows need an explicit authority warning.
@@ -996,9 +996,15 @@ extension UsageMenuCardView.Model {
             } else {
                 L("Unavailable")
             }
-            let title = input.provider == .doubao && namedWindow.id.contains("-team-")
-                ? "\(L(namedWindow.title)) (\(L("Team")))"
-                : L(namedWindow.title)
+            // Keep canonical model titles in data and localize the complete weekly phrase in the menu.
+            let title = if input.provider == .claude, namedWindow.id.hasPrefix("claude-weekly-scoped-") {
+                String(format: L("%@ weekly"), namedWindow.title.replacingOccurrences(
+                    of: #"\s+only\s*$"#, with: "", options: [.regularExpression, .caseInsensitive]))
+            } else if input.provider == .doubao, namedWindow.id.contains("-team-") {
+                "\(L(namedWindow.title)) (\(L("Team")))"
+            } else {
+                L(namedWindow.title)
+            }
             // Provider-specific by design: Kiro overage remaining copy is unique to that extra window.
             let detailLeftText: String? = if usageKnown {
                 Self.kiroOverageRemainingDetail(

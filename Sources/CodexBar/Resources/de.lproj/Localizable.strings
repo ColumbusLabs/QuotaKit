@@ -1635,3 +1635,5 @@
 "Checking for updates…" = "Suche nach Updates…";
 "Updating with Homebrew…" = "Aktualisierung über Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew-Aktualisierung fehlgeschlagen. Sie können stattdessen diesen Befehl im Terminal ausführen:";
+"claude_limited_usage_detail" = "Eingeschränkte Nutzungsdetails";
+"%@ weekly" = "%@ wöchentlich";

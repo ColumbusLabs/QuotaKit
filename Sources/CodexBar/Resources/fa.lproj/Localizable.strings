@@ -1639,3 +1639,5 @@
 "Checking for updates…" = "در حال بررسی به‌روزرسانی…";
 "Updating with Homebrew…" = "در حال به‌روزرسانی با Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "به‌روزرسانی با Homebrew ناموفق بود. می‌توانید به‌جای آن این فرمان را در Terminal اجرا کنید:";
+"claude_limited_usage_detail" = "جزئیات استفاده محدود است";
+"%@ weekly" = "%@ هفتگی";

@@ -153,6 +153,8 @@ extension StatusItemController {
             CodexWorkspacesWindowIdentity.menuItem
         case .settings:
             "settings"
+        case let .providerSettings(provider):
+            "providerSettings:\(provider.rawValue)"
         case .about:
             "about"
         case .quit:

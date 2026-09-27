@@ -11,7 +11,6 @@ final class ConfigFileWatcher: @unchecked Sendable {
     private let lock = NSLock()
     private var source: DispatchSourceFileSystemObject?
     private var observedHash: String?
-    private var expectedAppWriteHash: String?
     private var stopped = false
 
     init(
@@ -42,17 +41,11 @@ final class ConfigFileWatcher: @unchecked Sendable {
         }
     }
 
-    func noteAppWrite(data: Data) {
-        self.lock.withLock {
-            self.expectedAppWriteHash = CanonicalSyncJSON.hash(data: data)
-        }
-    }
-
     static func withAppWrite(_ data: Data, watcher: ConfigFileWatcher?, operation: () throws -> Void) rethrows {
         guard let watcher else { return try operation() }
         try watcher.lock.withLock {
             try operation()
-            watcher.expectedAppWriteHash = CanonicalSyncJSON.hash(data: data)
+            watcher.observedHash = CanonicalSyncJSON.hash(data: data)
         }
     }
 
@@ -112,12 +105,12 @@ final class ConfigFileWatcher: @unchecked Sendable {
     }
 
     private func processChange() {
-        guard let data = try? Data(contentsOf: self.fileURL) else { return }
-        let hash = CanonicalSyncJSON.hash(data: data)
         let shouldNotify = self.lock.withLock {
+            guard !self.stopped, let data = try? Data(contentsOf: self.fileURL) else { return false }
+            let hash = CanonicalSyncJSON.hash(data: data)
             guard self.observedHash != hash else { return false }
             self.observedHash = hash
-            return self.expectedAppWriteHash != hash
+            return true
         }
         guard shouldNotify else { return }
         self.changeHandler()

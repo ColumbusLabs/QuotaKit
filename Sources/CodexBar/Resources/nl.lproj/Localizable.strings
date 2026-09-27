@@ -1634,3 +1634,5 @@
 "Checking for updates…" = "Zoeken naar updates…";
 "Updating with Homebrew…" = "Bijwerken met Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Bijwerken met Homebrew is mislukt. Je kunt deze opdracht in Terminal uitvoeren:";
+"claude_limited_usage_detail" = "Beperkte gebruiksdetails";
+"%@ weekly" = "%@ wekelijks";

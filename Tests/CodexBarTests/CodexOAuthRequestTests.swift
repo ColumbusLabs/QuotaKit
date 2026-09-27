@@ -7,6 +7,33 @@ import FoundationNetworking
 
 @Suite(.serialized)
 struct CodexOAuthRequestTests {
+    @Test(arguments: [401, 403])
+    func `authenticated usage preserves permission status while 401 remains unauthorized`(status: Int) async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: nil))
+            return (Data("permission denied".utf8), response)
+        }
+        do {
+            _ = try await CodexOAuthUsageFetcher.fetchUsage(
+                accessToken: "synthetic-token",
+                accountId: "synthetic-account",
+                env: [:],
+                session: transport)
+            Issue.record("Expected an authenticated request failure")
+        } catch CodexOAuthFetchError.unauthorized {
+            #expect(status == 401)
+        } catch CodexOAuthFetchError.serverError(let code, let body) {
+            #expect(status == 403)
+            #expect(code == 403)
+            #expect(body == "permission denied")
+        }
+    }
+
     @Test
     func `authenticated transport disables shared network state`() {
         let configuration = CodexAuthenticatedHTTPTransport.makeConfiguration()

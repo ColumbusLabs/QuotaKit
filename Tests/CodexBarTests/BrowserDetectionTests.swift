@@ -374,7 +374,7 @@ struct BrowserDetectionTests {
     }
 
     @Test
-    func `recorded browser denial suppresses automatic family and permits explicit source retry`() {
+    func `recorded browser denial permits background recovery and preserves explicit source retry`() {
         BrowserCookieAccessGate.resetForTesting()
         defer { BrowserCookieAccessGate.resetForTesting() }
 
@@ -390,8 +390,8 @@ struct BrowserDetectionTests {
                 return .allowed
             } operation: {
                 ProviderInteractionContext.$current.withValue(.background) {
-                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start.addingTimeInterval(1)) == false)
-                    #expect(BrowserCookieAccessGate.shouldAttempt(.edge, now: start.addingTimeInterval(1)) == false)
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start.addingTimeInterval(1)) == true)
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.edge, now: start.addingTimeInterval(1)) == true)
                     #expect(BrowserCookieAccessGate.shouldAttempt(.safari, now: start.addingTimeInterval(1)) == true)
                 }
                 BrowserCookieAccessGate.withExplicitRetry {
@@ -409,7 +409,7 @@ struct BrowserDetectionTests {
             }
         }
 
-        #expect(preflightCount == 2)
+        #expect(preflightCount == 4)
     }
 
     @Test

@@ -10,6 +10,9 @@ read_when:
 
 The Xiaomi MiMo provider tracks your current balance from the Xiaomi MiMo console.
 
+The optional local `mimo-usage.py` tracker skips malformed JSON and token rows before request
+deduplication, so a corrupt session entry cannot prevent valid usage from refreshing the cache.
+
 ## Features
 
 - **Balance display**: Shows total balance plus paid and granted components when MiMo returns them.
