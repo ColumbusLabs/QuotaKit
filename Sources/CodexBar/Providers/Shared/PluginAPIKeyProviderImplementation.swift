@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Foundation
 
@@ -29,6 +30,15 @@ struct PluginAPIKeyProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         guard let field = self.spec.apiKeyField else { return [] }
+        let actions: [ProviderSettingsActionDescriptor] = field.action.flatMap { action in
+            guard let url = URL(string: action.url) else { return nil }
+            return ProviderSettingsActionDescriptor(
+                id: action.id,
+                title: action.title,
+                style: .link,
+                isVisible: nil,
+                perform: { NSWorkspace.shared.open(url) })
+        }.map { [$0] } ?? []
         return [ProviderSettingsFieldDescriptor(
             id: field.id,
             title: field.title,
@@ -36,7 +46,8 @@ struct PluginAPIKeyProviderImplementation: ProviderImplementation {
             kind: .secure,
             placeholder: field.placeholder,
             binding: context.providerConfigBinding(.apiKey),
-            actions: field.action.map { [.openURL(id: $0.id, title: $0.title, url: URL(string: $0.url))] } ?? [],
-            isVisible: nil)]
+            actions: actions,
+            isVisible: nil,
+            onActivate: nil)]
     }
 }
