@@ -7,7 +7,7 @@ struct SpendDashboardDailyLedgerTests {
     func `collapsed ledger shows newest thirty days and expansion preserves all days`() {
         let summaries = (0..<365).map { offset in
             SpendDashboardModel.DailySummary(
-                day: Date(timeIntervalSince1970: Double(offset) * 86_400),
+                day: Date(timeIntervalSince1970: Double(offset) * 86400),
                 providers: [],
                 totalTokens: nil,
                 requestCount: nil,

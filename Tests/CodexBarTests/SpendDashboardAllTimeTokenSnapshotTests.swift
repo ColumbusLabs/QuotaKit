@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct SpendDashboardAllTimeTokenSnapshotTests {
     @Test
-    func `new regular Claude publication refreshes independent dashboard history`() async throws {
+    func `new regular Claude publication refreshes independent dashboard history`() async {
         let (settings, store) = Self.store(provider: .claude)
         let now = Date()
         var scanCount = 0
