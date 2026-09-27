@@ -112,7 +112,18 @@ struct AccountIdentityComputerTests {
     // MARK: - Non-Tier-A providers
 
     @Test
-    func `Non-Tier-A providers return nil — fall to legacy per-device bucket on iOS`() {
+    func `Pi without stable account identity leaves grouping to legacy identifiers`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .pi,
+            accountEmail: "label@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
+        #expect(AccountIdentityComputer.compute(provider: .pi, identity: identity) == nil)
+        #expect(AccountIdentityComputer.compute(provider: .pi, identity: nil) == nil)
+    }
+
+    @Test
+    func `Non-Tier-A providers return nil for legacy iOS grouping`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
             .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
@@ -129,7 +140,7 @@ struct AccountIdentityComputerTests {
         for provider in nonTierA {
             #expect(
                 AccountIdentityComputer.compute(provider: provider, identity: identity) == nil,
-                "\(provider) should return nil — iOS uses legacy per-device bucket.")
+                "\(provider) should return nil — iOS uses legacy grouping.")
         }
     }
 

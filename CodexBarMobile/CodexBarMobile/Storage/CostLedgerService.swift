@@ -31,8 +31,8 @@ import SwiftData
 /// Result of `CostLedgerService.aggregate(windowDays:in:asOf:)`. Mirrors
 /// the shape `CostDashboardInsights` consumes today, so P4 can swap the
 /// blob-derived insights for this without changing the dashboard renderer.
-/// Cross-device merge is done in the aggregator (per `(providerID, dayKey)`
-/// group, take the row with the largest `lastUpdated`).
+/// Cross-device merge is done in the aggregator: local history rows from
+/// distinct devices are summed; account-level rows use the newest revision.
 struct CostLedgerAggregation: Equatable {
     /// Window the aggregator was asked to compute, in days.
     let windowDays: Int
@@ -93,7 +93,7 @@ enum CostLedgerService {
     /// are independent contributions and must all survive aggregation; API
     /// backed providers instead represent one account-level total and use
     /// newest-row deduplication below.
-    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
+    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai", "pi"]
 
     /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
     /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
@@ -297,10 +297,10 @@ enum CostLedgerService {
     // MARK: - Aggregate (reader · Round 3 / P3)
 
     /// Aggregate ledger rows for the trailing `windowDays`. Cross-device
-    /// merge:within the window, group by `(providerID, dayKey)` and prefer
-    /// the row with the newest displayed-total revision, breaking ties with
-    /// the payload revision. This prevents a newer breakdown-only dashboard
-    /// response from masking a newer total on another device.
+    /// merge: within the window, local history providers retain each device's
+    /// rows; account-level providers keep the row with the newest displayed-
+    /// total revision, breaking ties with the payload revision. This prevents
+    /// a newer breakdown-only dashboard response from masking a newer total.
     ///
     /// `asOf` exists for deterministic tests; production callers pass `Date()`.
     /// The "window" is `[asOf-(windowDays-1) … asOf]` in UTC dayKeys.
