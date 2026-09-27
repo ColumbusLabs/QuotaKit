@@ -599,11 +599,13 @@ extension UsageStore {
             }
         }
 
-        self.scheduleSupplementalUsageUpdates(
-            provider: provider,
-            results: results,
-            selectedAccountID: effectiveSelected.id,
-            generation: generation)
+        if let effectiveSelected {
+            self.scheduleSupplementalUsageUpdates(
+                provider: provider,
+                results: results,
+                selectedAccountID: effectiveSelected.id,
+                generation: generation)
+        }
 
         if let selectedOutcome, let resolvedSelectedAccount {
             await self.applySelectedOutcome(
