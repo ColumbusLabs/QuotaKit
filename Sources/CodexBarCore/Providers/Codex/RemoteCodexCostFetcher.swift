@@ -8,10 +8,10 @@ public struct CodexHostCostWindow: Codable, Sendable, Equatable {
     public let coverage: CostUsageCoverageCounts
     public let provenance: CostProvenance
 
-    init(tokens: Int?, costUSD: Double?, window: CostUsageWindowSummary) {
+    init(tokens: Int?, costUSD: Double?, window: CostUsageWindowSummary, entries: [CostUsageDailyReport.Entry]) {
         self.totalTokens = tokens
         self.costUSD = costUSD
-        self.incompleteRequestCount = window.incompleteRequestCount
+        self.incompleteRequestCount = CostUsageIncompleteRequests.sum(entries.map(\.incompleteRequestCount))
         self.coverage = window.coverage
         self.provenance = window.provenance
     }
@@ -58,11 +58,15 @@ public struct CodexCostSummary: Codable, Sendable, Equatable {
         self.today = CodexHostCostWindow(
             tokens: snapshot.sessionTokens,
             costUSD: snapshot.sessionCostUSD,
-            window: snapshot.summary(forLastDays: 1, calendar: calendar))
+            window: snapshot.summary(forLastDays: 1, calendar: calendar),
+            entries: CostReportingPeriod.rolling(days: 1).entries(
+                snapshot.daily, now: snapshot.updatedAt, calendar: calendar))
         self.history = CodexHostCostWindow(
             tokens: snapshot.last30DaysTokens,
             costUSD: snapshot.last30DaysCostUSD,
-            window: snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar))
+            window: snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar),
+            entries: CostReportingPeriod.rolling(days: snapshot.historyDays).entries(
+                snapshot.daily, now: snapshot.updatedAt, calendar: calendar))
     }
 
     public func validate(historyDays: Int) throws {
