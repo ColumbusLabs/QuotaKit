@@ -6,6 +6,29 @@ import Testing
 @MainActor
 struct SpendDashboardAllTimeTokenSnapshotTests {
     @Test
+    func `new regular Claude publication refreshes independent dashboard history`() async throws {
+        let (settings, store) = Self.store(provider: .claude)
+        let now = Date()
+        var scanCount = 0
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, _, _, historyDays in
+            #expect(historyDays == SpendDashboardSource.scanDays)
+            scanCount += 1
+            return Self.snapshot(days: ["2026-08-17"], historyDays: historyDays, now: now)
+        }
+
+        _ = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .refreshMissing, now: now)
+        #expect(scanCount == 1)
+        _ = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .refreshMissing, now: now)
+        #expect(scanCount == 1)
+
+        store._setTokenSnapshotForTesting(
+            Self.snapshot(days: ["2026-08-17"], historyDays: 30, now: now),
+            provider: .claude)
+        _ = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .refreshMissing, now: now)
+        #expect(scanCount == 2)
+    }
+
+    @Test
     func `Claude spend dashboard scans all-time without publishing the menu window`() async throws {
         try await self.expectIndependentAllTimeScan(provider: .claude)
     }

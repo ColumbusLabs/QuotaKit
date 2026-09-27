@@ -882,7 +882,7 @@ private struct SpendProjectPanel: View {
     }
 }
 
-private struct SpendPanelExpandButton: View {
+struct SpendPanelExpandButton: View {
     let rowCount: Int
     let collapsedRowCount: Int
     @Binding var showsAllRows: Bool

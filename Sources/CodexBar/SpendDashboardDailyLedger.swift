@@ -35,9 +35,28 @@ private enum SpendDailyLedgerLayout {
             + (horizontalPadding * 2)
 }
 
+/// Bound initial layout while keeping the complete ledger available on demand.
+func spendDailyLedgerVisibleSummaries(
+    _ summaries: [SpendDashboardModel.DailySummary],
+    showsAllRows: Bool,
+    collapsedRowCount: Int) -> [SpendDashboardModel.DailySummary]
+{
+    Array(summaries.suffix(showsAllRows ? summaries.count : collapsedRowCount).reversed())
+}
+
 struct SpendDailyLedger: View {
     let group: SpendDashboardModel.CurrencyGroup
     let hidePersonalInfo: Bool
+    @State private var showsAllRows = false
+
+    static let collapsedRowCount = 30
+
+    private var visibleSummaries: [SpendDashboardModel.DailySummary] {
+        spendDailyLedgerVisibleSummaries(
+            self.group.dailySummaries,
+            showsAllRows: self.showsAllRows,
+            collapsedRowCount: Self.collapsedRowCount)
+    }
 
     var body: some View {
         SpendDashboardPanel {
@@ -56,21 +75,25 @@ struct SpendDailyLedger: View {
                         VStack(alignment: .leading, spacing: 0) {
                             self.header
                             Divider()
-                            LazyVStack(spacing: 0) {
-                                ForEach(self.group.dailySummaries.reversed()) { summary in
+                            VStack(spacing: 0) {
+                                ForEach(Array(self.visibleSummaries.enumerated()), id: \.element.id) { index, summary in
+                                    if index > 0 {
+                                        Divider()
+                                    }
                                     SpendDailyLedgerRow(
                                         summary: summary,
                                         currencyCode: self.group.currencyCode,
                                         timeZone: self.group.timeZone,
                                         hidePersonalInfo: self.hidePersonalInfo)
-                                    if summary.day != self.group.dailySummaries.first?.day {
-                                        Divider()
-                                    }
                                 }
                             }
                         }
                         .frame(minWidth: SpendDailyLedgerLayout.minimumTableWidth, alignment: .leading)
                     }
+                    SpendPanelExpandButton(
+                        rowCount: self.group.dailySummaries.count,
+                        collapsedRowCount: Self.collapsedRowCount,
+                        showsAllRows: self.$showsAllRows)
                 }
             }
         }
@@ -140,7 +163,6 @@ private struct SpendDailyLedgerRow: View {
             HStack(spacing: 5) {
                 ForEach(self.activeProviders.prefix(4)) { row in
                     SpendProviderIcon(provider: row.provider)
-                        .help(self.sourceName(row.displayName))
                 }
                 if self.activeProviders.count > 4 {
                     Text("+\(codexBarLocalizedInteger(self.activeProviders.count - 4))")
@@ -148,6 +170,7 @@ private struct SpendDailyLedgerRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .help(self.activeProviders.map { self.sourceName($0.displayName) }.joined(separator: ", "))
         }
     }
 

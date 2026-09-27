@@ -1,6 +1,12 @@
 import CodexBarCore
 import Foundation
 
+struct SpendDashboardTokenRefreshTrigger: Equatable {
+    let providerConfigRevision: UInt64
+    let scopeSignature: String
+    let regularPublicationRevision: UInt64
+}
+
 @MainActor
 extension UsageStore {
     nonisolated static func usesSpendDashboardIndependentTokenSnapshot(_ provider: UsageProvider) -> Bool {
@@ -28,6 +34,27 @@ extension UsageStore {
         self.spendDashboardTokenPublicationRevisions[provider.instanceID] ?? 0
     }
 
+    func spendDashboardTokenRefreshTrigger(for provider: UsageProvider) -> SpendDashboardTokenRefreshTrigger {
+        SpendDashboardTokenRefreshTrigger(
+            providerConfigRevision: self.settings.providerConfigRevision(for: provider),
+            scopeSignature: self.spendDashboardTokenSnapshotScopeSignature(for: provider),
+            regularPublicationRevision: self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)?
+                .publicationRevision ?? 0)
+    }
+
+    func spendDashboardTokenRefreshNeeded(for provider: UsageProvider) -> Bool {
+        guard Self.usesSpendDashboardIndependentTokenSnapshot(provider),
+              self.settings.isCostUsageEffectivelyEnabled(for: provider), self.isEnabled(provider)
+        else { return false }
+        if provider == .cursor, self.settings.cursorCookieSource == .off { return false }
+        let trigger = self.spendDashboardTokenRefreshTrigger(for: provider)
+        // A failed attempt is retried on a new publication or explicit refresh, not observation churn.
+        guard self.spendDashboardTokenFailedTriggers[provider.instanceID] != trigger else { return false }
+        guard self.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: provider) != nil else { return true }
+        guard trigger.regularPublicationRevision != 0 else { return false }
+        return self.spendDashboardTokenIncorporatedTriggers[provider.instanceID] != trigger
+    }
+
     func clearSpendDashboardTokenSnapshot(for provider: UsageProvider) {
         self.spendDashboardTokenPublications.removeValue(forKey: provider.instanceID)
     }
@@ -36,6 +63,8 @@ extension UsageStore {
         guard !self.settings.costUsageEnabled else { return }
         self.spendDashboardTokenPublications.removeAll()
         self.spendDashboardTokenPublicationRevisions.removeAll()
+        self.spendDashboardTokenIncorporatedTriggers.removeAll()
+        self.spendDashboardTokenFailedTriggers.removeAll()
     }
 
     func refreshSpendDashboardTokenUsageNow(
@@ -73,12 +102,15 @@ extension UsageStore {
         let historyDays = SpendDashboardSource.scanDays
         guard case let .proceed(cursorCookieHeaderOverride) = self.prepareCursorCostCookie(for: provider) else {
             self.clearSpendDashboardTokenSnapshot(for: provider)
+            self.spendDashboardTokenFailedTriggers[provider.instanceID] = self.spendDashboardTokenRefreshTrigger(
+                for: provider)
             return
         }
         let costScope = self.tokenCostScope(for: provider)
         let costScopeSignature = self.spendDashboardTokenSnapshotScopeSignature(for: provider)
         let publicationRevision = self.providerPublicationRevision(for: provider)
         let providerConfigRevision = self.settings.providerConfigRevision(for: provider)
+        let trigger = self.spendDashboardTokenRefreshTrigger(for: provider)
         if !bypassFailureCooldown, self.tokenRefreshFailureIsCoolingDown(provider: provider, now: now) {
             return
         }
@@ -88,7 +120,10 @@ extension UsageStore {
         self.lastSpendDashboardTokenFetchAt[provider.instanceID] = now
         self.lastSpendDashboardTokenFetchScope[provider.instanceID] = costScopeSignature
         self.spendDashboardTokenRefreshInFlight.insert(provider.instanceID)
-        defer { self.spendDashboardTokenRefreshInFlight.remove(provider.instanceID) }
+        defer {
+            self.spendDashboardTokenRefreshInFlight.remove(provider.instanceID)
+            self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
+        }
 
         if let override = self._test_tokenUsageRefreshOverride {
             await override(provider, force)
@@ -146,6 +181,11 @@ extension UsageStore {
                 return
             }
             self.lastSpendDashboardTokenFetchScope[provider.instanceID] = completedCostScopeSignature
+            self.spendDashboardTokenIncorporatedTriggers[provider.instanceID] = SpendDashboardTokenRefreshTrigger(
+                providerConfigRevision: providerConfigRevision,
+                scopeSignature: completedCostScopeSignature,
+                regularPublicationRevision: trigger.regularPublicationRevision)
+            self.spendDashboardTokenFailedTriggers.removeValue(forKey: provider.instanceID)
 
             guard hasUsage else {
                 self.publishSpendDashboardConfirmedEmptyTokenSnapshot(
@@ -186,6 +226,7 @@ extension UsageStore {
                     costScopeSignature: self.tokenSnapshotScopeSignature(for: provider))
             }
             self.clearSpendDashboardTokenSnapshot(for: provider)
+            self.spendDashboardTokenFailedTriggers[provider.instanceID] = trigger
         }
     }
 
@@ -210,6 +251,9 @@ extension UsageStore {
         for provider: UsageProvider,
         accounting: PiSnapshotAccounting? = nil)
     {
+        self.spendDashboardTokenIncorporatedTriggers[provider.instanceID] = self.spendDashboardTokenRefreshTrigger(
+            for: provider)
+        self.spendDashboardTokenFailedTriggers.removeValue(forKey: provider.instanceID)
         if let snapshot {
             self.publishSpendDashboardTokenSnapshot(snapshot, for: provider, accounting: accounting)
         } else {

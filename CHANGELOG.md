@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 - Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
+- Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
 
 ### Added
 - Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
@@ -80,6 +81,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 
 ### Improved
+- Usage & Spend initially lays out the newest 30 daily ledger rows; Show all reveals the full selected range.
 - Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
 - Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.
 
