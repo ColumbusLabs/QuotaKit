@@ -9,9 +9,11 @@ extension CursorStatusProbe {
         requestUsage: CursorUsageResponse? = nil,
         sandUsage: CursorSandUsageStatus? = nil,
         identityFallback: CursorSessionIdentity? = nil,
-        teamBudget: CursorTeamSpend.Budget? = nil) -> CursorStatusSnapshot
+        teamBudget: CursorTeamSpend.Budget? = nil,
+        teamBudgetLookupFailed: Bool = false) -> CursorStatusSnapshot
     {
         let teamBudget = summary.isTeamPlan ? teamBudget : nil
+        let teamBudgetLookupFailed = summary.isTeamPlan && teamBudgetLookupFailed
         let billingCycleStart = ISO8601DateParser.parse(summary.billingCycleStart)
         let billingCycleEnd = ISO8601DateParser.parse(summary.billingCycleEnd)
 
@@ -26,8 +28,10 @@ extension CursorStatusProbe {
 
         // Cursor's usage-summary percent fields are already in percentage units, even when they are fractional
         // values below 1.0 (for example 0.36 means 0.36%, which the dashboard rounds to 0%).
-        let autoPercent = teamBudget == nil ? normPct(summary.individualUsage?.plan?.autoPercentUsed) : nil
-        let apiPercent = teamBudget == nil ? normPct(summary.individualUsage?.plan?.apiPercentUsed) : nil
+        let autoPercent = teamBudget == nil && !teamBudgetLookupFailed
+            ? normPct(summary.individualUsage?.plan?.autoPercentUsed) : nil
+        let apiPercent = teamBudget == nil && !teamBudgetLookupFailed
+            ? normPct(summary.individualUsage?.plan?.apiPercentUsed) : nil
 
         // Enterprise / team-member personal cap (cents). Reported under `individualUsage.overall` for accounts
         // that don't get a `plan` block. Falls through to existing logic when absent so non-enterprise paths
@@ -42,6 +46,8 @@ extension CursorStatusProbe {
         // Verified member budgets take precedence; otherwise retain summary percentages and cap fallbacks.
         let planPercentUsed: Double = if let teamBudget {
             UsagePercent(used: teamBudget.usedUSD, limit: teamBudget.limitUSD).displayClamped
+        } else if teamBudgetLookupFailed {
+            0
         } else if let totalPercentUsed = summary.individualUsage?.plan?.totalPercentUsed {
             UsagePercent(raw: totalPercentUsed).displayClamped
         } else if let autoUsed = autoPercent, let apiUsed = apiPercent {
@@ -68,6 +74,10 @@ extension CursorStatusProbe {
         if let teamBudget {
             planUsed = teamBudget.usedUSD
             planLimit = teamBudget.limitUSD
+        } else if teamBudgetLookupFailed {
+            // A failed member lookup cannot turn nominal or pooled summary values into a fresh personal cap.
+            planUsed = 0
+            planLimit = 0
         } else if planLimitRaw > 0 || planUsedRaw > 0 {
             planUsed = planUsedRaw / 100.0
             planLimit = planLimitRaw / 100.0
@@ -89,9 +99,10 @@ extension CursorStatusProbe {
         let teamOnDemandLimit: Double? = summary.teamUsage?.onDemand?.limit.map { Double($0) / 100.0 }
 
         // Legacy request-based plan: maxRequestUsage being non-nil indicates a request-based plan
-        let requestsUsed: Int? = teamBudget == nil
+        let requestsUsed: Int? = teamBudget == nil && !teamBudgetLookupFailed
             ? requestUsage?.gpt4?.numRequestsTotal ?? requestUsage?.gpt4?.numRequests : nil
-        let requestsLimit: Int? = teamBudget == nil ? requestUsage?.gpt4?.maxRequestUsage : nil
+        let requestsLimit: Int? = teamBudget == nil && !teamBudgetLookupFailed
+            ? requestUsage?.gpt4?.maxRequestUsage : nil
 
         return CursorStatusSnapshot(
             planPercentUsed: planPercentUsed,

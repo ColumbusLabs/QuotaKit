@@ -51,11 +51,14 @@ struct DeepSeekTransportRetentionTests {
         }
         #expect(UsageStore.isStartupConnectivityRetryableError(error))
         try await Fixture.withStore(prior: prior) { store in
+            store.beginDeepSeekProfileTransition()
             store._test_providerFetchOutcomeOverride = { _ in .init(result: .failure(error), attempts: []) }
             for _ in 0..<2 {
                 await store.refreshProvider(.deepseek)
+                #expect(store.snapshots[.deepseek] == nil)
+                #expect(store.lastKnownResetSnapshots[.deepseek] == nil)
+                #expect(store.presentationSnapshot(for: .deepseek) == nil)
             }
-            #expect(store.snapshots[.deepseek] == nil)
             #expect(store.errors[.deepseek] == error.localizedDescription)
             var saved: WidgetSnapshot?
             store._test_widgetSnapshotSaveOverride = { saved = $0 }
@@ -107,7 +110,8 @@ struct DeepSeekTransportRetentionTests {
             let firstError = await Fixture.failure(rejected)
             store._test_providerFetchOutcomeOverride = { _ in .init(result: .failure(firstError), attempts: []) }
             await store.refreshProvider(.deepseek)
-            #expect(store.snapshots[.deepseek]?.primary == prior.primary)
+            #expect(store.snapshots[.deepseek] == nil)
+            #expect(store.lastKnownResetSnapshots[.deepseek] == nil)
             #expect(store.failureGates[.deepseek]?.streak == 1)
             let rejectedStatus = await cache.lookup(candidate: Fixture.candidateA, now: Date())
             #expect(rejectedStatus.lastKnownStatus == false)
@@ -161,6 +165,7 @@ struct DeepSeekTransportRetentionTests {
             store.settings.setDeepSeekProfileID(Fixture.candidateA.id, apiKey: account.token)
             store.cacheTokenAccountSnapshot(provider: .deepseek, account: account, snapshot: prior, sourceLabel: "web")
             store._setSnapshotForTesting(prior, provider: .deepseek)
+            store.beginDeepSeekProfileTransition()
             try Fixture.installAccountFailure(error, on: store)
             let fallback = try #require(store.accountSnapshots[.deepseek]?.first)
             for _ in 0..<2 {
@@ -173,6 +178,11 @@ struct DeepSeekTransportRetentionTests {
                         account: account,
                         fallbackSnapshot: prior,
                         fallbackAccountSnapshot: fallback)
+                }
+                if !matches {
+                    #expect(store.snapshots[.deepseek] == nil)
+                    #expect(store.lastKnownResetSnapshots[.deepseek] == nil)
+                    #expect(store.presentationSnapshot(for: .deepseek) == nil)
                 }
             }
             let cached = try #require(store.accountSnapshots[.deepseek]?.first)

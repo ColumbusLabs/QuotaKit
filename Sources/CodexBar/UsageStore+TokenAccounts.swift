@@ -1602,6 +1602,18 @@ extension UsageStore {
                     after: error,
                     hadPriorData: prior != nil,
                     priorSnapshot: prior?.snapshot) ? prior?.snapshot : nil
+                if provider == .deepseek,
+                   Self.shouldRetireUnverifiedDeepSeekBalance(
+                       after: error,
+                       priorSnapshot: prior?.snapshot ?? self.snapshots[provider.instanceID])
+                {
+                    self.invalidateGenericWidgetUsage(for: provider)
+                    self.snapshots.removeValue(forKey: provider.instanceID)
+                    self.lastKnownResetSnapshots.removeValue(forKey: provider.instanceID)
+                    self.lastSourceLabels.removeValue(forKey: provider.instanceID)
+                    self.clearProviderDerivedTokenSnapshot(for: provider)
+                    self.clearDeepSeekProfileTransition()
+                }
                 if let retained {
                     self.snapshots[provider.instanceID] = retained
                     self.lastKnownResetSnapshots[provider.instanceID] = retained

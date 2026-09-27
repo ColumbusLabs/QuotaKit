@@ -74,6 +74,18 @@ extension UsageStore {
         return self.errorIsCancellation(error)
     }
 
+    nonisolated static func shouldRetireUnverifiedDeepSeekBalance(
+        after error: Error,
+        priorSnapshot: UsageSnapshot?) -> Bool
+    {
+        guard priorSnapshot?.deepseekPlatformBalanceOwner != nil || error is DeepSeekPlatformTransportError
+        else { return false }
+        return !self.shouldPreservePriorSnapshot(
+            after: error,
+            hadPriorData: priorSnapshot != nil,
+            priorSnapshot: priorSnapshot)
+    }
+
     nonisolated static func shouldPreservePriorSnapshot(
         after error: Error,
         hadPriorData: Bool,

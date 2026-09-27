@@ -1489,10 +1489,16 @@ public struct CursorStatusProbe: Sendable {
         let (usageSummary, rawJSON) = usageSummaryResult
 
         var teamBudget: CursorTeamSpend.Budget?
+        var teamBudgetLookupFailed = false
         if usageSummary.isTeamPlan,
            let email = userInfo?.email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty
         {
-            teamBudget = try? await self.fetchTeamSpend(cookieHeader: cookieHeader, email: email, deadline: deadline)
+            do {
+                teamBudget = try await self.fetchTeamSpend(cookieHeader: cookieHeader, email: email, deadline: deadline)
+                teamBudgetLookupFailed = teamBudget == nil
+            } catch {
+                teamBudgetLookupFailed = true
+            }
         }
         try Task.checkCancellation()
 
@@ -1500,7 +1506,9 @@ public struct CursorStatusProbe: Sendable {
         // Uses try? to avoid breaking the flow for users where this endpoint fails or returns unexpected data.
         var requestUsage: CursorUsageResponse?
         var requestUsageRawJSON: String?
-        if teamBudget == nil, let userId = userInfo?.sub ?? identityFallback?.requestUsageUserID {
+        if teamBudget == nil, !teamBudgetLookupFailed,
+           let userId = userInfo?.sub ?? identityFallback?.requestUsageUserID
+        {
             do {
                 let (usage, usageRawJSON) = try await self.fetchRequestUsage(
                     userId: userId,
@@ -1531,7 +1539,8 @@ public struct CursorStatusProbe: Sendable {
             requestUsage: requestUsage,
             sandUsage: sandUsage,
             identityFallback: identityFallback,
-            teamBudget: teamBudget)
+            teamBudget: teamBudget,
+            teamBudgetLookupFailed: teamBudgetLookupFailed)
     }
 
     private func fetchUsageSummary(

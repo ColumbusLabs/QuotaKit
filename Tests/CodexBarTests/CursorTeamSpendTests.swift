@@ -112,7 +112,8 @@ struct CursorTeamSpendTests {
         let fixture = Self.fixture(pages: pages)
         let snapshot = try await fixture.probe.fetchWithCookieHeader(Self.cookie)
         #expect(snapshot.planPercentUsed == 0)
-        #expect(snapshot.planLimitUSD == 20)
+        #expect(snapshot.planLimitUSD == 0)
+        #expect(snapshot.toUsageSnapshot().primary == nil)
         let requests = await fixture.transport.requests().filter { $0.url?.path.hasSuffix("get-team-spend") == true }
         #expect(requests.count <= 20)
     }
@@ -152,13 +153,16 @@ struct CursorTeamSpendTests {
     }
 
     @Test(arguments: ["me", "teams", "get-team-spend"], [403, 500, 200])
-    func `optional team HTTP and decoding failures preserve the summary`(endpoint: String, code: Int) async throws {
+    func `failed member lookup cannot publish a nominal plan as fresh usage`(endpoint: String, code: Int)
+    async throws {
         let fixture = Self.fixture(pages: [Self.page(Self.member)], failures: [endpoint: code])
         let snapshot = try await fixture.probe.fetchWithCookieHeader(
             Self.cookie, identityFallback: .init(subject: nil, email: "member@example.com"))
         #expect(snapshot.planPercentUsed == 0)
         #expect(snapshot.planUsedUSD == 0)
-        #expect(snapshot.planLimitUSD == 20)
+        #expect(snapshot.planLimitUSD == (endpoint == "me" ? 20 : 0))
+        #expect((snapshot.toUsageSnapshot().primary == nil) == (endpoint != "me"))
+        #expect(snapshot.requestsLimit == nil)
         #expect(snapshot.onDemandUsedUSD == 2.5)
     }
 
