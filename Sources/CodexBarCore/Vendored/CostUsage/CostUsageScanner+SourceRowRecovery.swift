@@ -16,11 +16,14 @@ extension CostUsageScanner {
                 priorityTurns: priorityTurns,
                 sourceBoundary: (source.offsets, sourcePricing.isEmpty ? nil : source.target))
         }
-        return Self.codexRowsWithPricingMetadata(
+        var remainingPricing = pendingPricing
+        let pricedRows = Self.codexRowsWithPricingMetadata(
             rows,
             priorityTurns: priorityTurns,
-            preservingPricingFrom: { pendingPricing.removeValue(forKey: Self.codexUsageRowKey(
+            preservingPricingFrom: { remainingPricing.removeValue(forKey: Self.codexUsageRowKey(
                 sessionId: sessionId, row: $0)) })
+        pendingPricing = remainingPricing
+        return pricedRows
     }
 
     static func retainCodexSourcePricing(
