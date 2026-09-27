@@ -1877,15 +1877,17 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuCardView+ModelHelpers.swift",
-            line: 1106,
-            anchor: "if provider == .claude, window.windowMinutes != 10080 {",
-            expectedProviderIDs: ["antigravity", "claude", "codex"],
-            expectedReferenceCount: 4,
-            expectedReferenceFingerprint: ["claude@0", "antigravity@3", "claude@3", "codex@3"],
+            line: 1107,
+            anchor: "if provider == .claude || provider == .cursor, window.windowMinutes != 10080 {",
+            expectedProviderIDs: ["antigravity", "claude", "codex", "cursor"],
+            expectedReferenceCount: 6,
+            expectedReferenceFingerprint: [
+                "claude@0", "cursor@0", "antigravity@3", "claude@3", "codex@3", "cursor@3",
+            ],
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuCardView+ModelHelpers.swift",
-            line: 1138,
+            line: 1141,
             anchor: "guard input.provider == .antigravity else { return nil }",
             expectedProviderIDs: ["antigravity"],
             expectedReferenceCount: 1,

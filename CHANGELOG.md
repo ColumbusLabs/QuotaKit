@@ -38,6 +38,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cursor: keep monthly Auto pace separate from the Grok Bot weekly allowance.
 - Abacus: show monthly credits and provider labels in menu layout percentages and pace.
 - Perplexity: restore credit-pool percentages and CLI amounts while keeping credit descriptions out of reset clocks.
 - Abacus: retain credit amounts beside real billing reset dates in CLI output.
