@@ -91,8 +91,8 @@ public enum MuseCredentials {
             service: self.keychainService,
             account: self.keychainAccount)
         {
-        case .allowed, .interactionRequired: true
-        case .notFound, .temporarilyUnavailable, .failure: false
+        case .allowed, .interactionRequired, .temporarilyUnavailable: true
+        case .notFound, .failure: false
         }
         #else
         return false

@@ -48,7 +48,7 @@ struct MuseKeychainAccessTests {
             MuseCredentials.hasLogin(environment: [:], homeDirectory: home)
         }
         #expect(hasLogin ==
-            (outcome == .allowed || outcome == .interactionRequired))
+            (outcome == .allowed || outcome == .interactionRequired || outcome == .temporarilyUnavailable))
         #expect(!events.value.isEmpty)
         #expect(events.value.allSatisfy { $0 == "preflight" })
     }
