@@ -62,6 +62,8 @@ struct SpendDashboardModel: Equatable, Sendable {
         let costIsLowerBound: Bool
         /// The token total is a floor for the same reason.
         let tokensAreLowerBound: Bool
+        /// Includes unpriced, unmetered, or incomplete source cost coverage.
+        let hasPartialCost: Bool
 
         init(
             id: String,
@@ -74,7 +76,8 @@ struct SpendDashboardModel: Equatable, Sendable {
             sourceKind: SourceKind = .native,
             incompleteRequestCount: Int = 0,
             costIsLowerBound: Bool = false,
-            tokensAreLowerBound: Bool = false)
+            tokensAreLowerBound: Bool = false,
+            hasPartialCost: Bool = false)
         {
             self.id = id
             self.rank = rank
@@ -87,6 +90,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.incompleteRequestCount = incompleteRequestCount
             self.costIsLowerBound = costIsLowerBound
             self.tokensAreLowerBound = tokensAreLowerBound
+            self.hasPartialCost = hasPartialCost || costIsLowerBound || incompleteRequestCount > 0
         }
     }
 
@@ -235,6 +239,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         let providers: [ProviderRow]
         let models: [ModelRow]
         let dailyPoints: [DailyPoint]
+        let dailySummaries: [DailySummary]
         let totalTokens: Int?
         let totalCost: Double?
         let coveredDayCount: Int
@@ -268,6 +273,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             models: [ModelRow],
             projects: [ProjectRow] = [],
             dailyPoints: [DailyPoint],
+            dailySummaries: [DailySummary] = [],
             totalTokens: Int?,
             totalCost: Double?,
             coveredDayCount: Int,
@@ -289,6 +295,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.providers = providers
             self.models = models
             self.dailyPoints = dailyPoints
+            self.dailySummaries = dailySummaries
             self.totalTokens = totalTokens
             self.totalCost = totalCost
             self.coveredDayCount = coveredDayCount
@@ -627,6 +634,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             models: modelSummary.rows,
             projects: Self.projectRows(summaries: summaries, bounds: bounds, calendar: calendar),
             dailyPoints: dailyPoints,
+            dailySummaries: Self.dailySummaries(summaries: summaries, calendar: calendar),
             totalTokens: Self.knownIntSum(providers.map(\.totalTokens)),
             totalCost: Self.knownCostSum(providers.map(\.totalCost)),
             coveredDayCount: Self.commonCoverageDayCount(summaries: summaries, calendar: calendar),
@@ -749,8 +757,19 @@ struct SpendDashboardModel: Equatable, Sendable {
                     coveredDayCount: entry.element.coveredDayCount,
                     sourceKind: entry.element.input.sourceKind,
                     incompleteRequestCount: entry.element.incompleteRequestCount,
-                    costIsLowerBound: entry.element.hasUnpricedRequests || entry.element.historyScanIsPartial,
-                    tokensAreLowerBound: entry.element.historyScanIsPartial)
+                    costIsLowerBound: entry.element.hasUnpricedRequests
+                        || entry.element.historyScanIsPartial
+                        || entry.element.entries.contains { day in
+                            let coverage = day.entry.coverageCounts
+                            return coverage.unpriced > 0 || coverage.unmetered > 0
+                        },
+                    tokensAreLowerBound: entry.element.historyScanIsPartial,
+                    hasPartialCost: entry.element.historyScanIsPartial
+                        || entry.element.incompleteRequestCount > 0
+                        || entry.element.entries.contains { day in
+                            let coverage = day.entry.coverageCounts
+                            return coverage.unpriced > 0 || coverage.unmetered > 0
+                        })
             }
     }
 
@@ -1026,14 +1045,16 @@ struct SpendDashboardModel: Equatable, Sendable {
         }
         // A day with no row is a proven zero only when the scan covered it; a truncated scan
         // leaves it unknown.
-        let emptyCost: Double? = summary.historyScanIsPartial
-            || (summary.entries.isEmpty && summary.totalCost == nil && summary.totalTokens != 0) ? nil : 0
+        let emptyCost: Double? = summary.totalCost != nil && !summary.historyScanIsPartial ? 0 : nil
         let totalCost = summary.hasInvalidCostHistory ? nil : entries.isEmpty ? emptyCost : Self.completeCostSum(costs)
 
         return DailyProviderRow(
             incompleteRequestCount: CostUsageIncompleteRequests.sum(entries.map(\.entry.incompleteRequestCount)),
-            costIsLowerBound: entries.contains { ($0.entry.unpricedRequestCount ?? 0) > 0 }
-                || summary.historyScanIsPartial,
+            costIsLowerBound: entries.contains { item in
+                let coverage = item.entry.coverageCounts
+                return (item.entry.unpricedRequestCount ?? 0) > 0
+                    || coverage.unpriced > 0 || coverage.unmetered > 0
+            } || summary.historyScanIsPartial,
             countsAreLowerBound: summary.historyScanIsPartial,
             sourceID: summary.input.id,
             provider: summary.input.provider,
@@ -1285,17 +1306,21 @@ struct SpendDashboardModel: Equatable, Sendable {
         return scanStart...scanEnd
     }
 
-    private static func commonCoverageDayCount(summaries: [InputSummary], calendar: Calendar) -> Int {
-        guard let first = summaries.first?.coveredInterval else { return 0 }
+    private static func commonCoverageInterval(summaries: [InputSummary]) -> ClosedRange<Date>? {
+        guard let first = summaries.first?.coveredInterval else { return nil }
         var intersection = first
         for summary in summaries.dropFirst() {
-            guard let interval = summary.coveredInterval else { return 0 }
+            guard let interval = summary.coveredInterval else { return nil }
             let start = max(intersection.lowerBound, interval.lowerBound)
             let end = min(intersection.upperBound, interval.upperBound)
-            guard start <= end else { return 0 }
+            guard start <= end else { return nil }
             intersection = start...end
         }
-        return Self.dayCount(in: intersection, calendar: calendar)
+        return intersection
+    }
+
+    private static func commonCoverageDayCount(summaries: [InputSummary], calendar: Calendar) -> Int {
+        Self.dayCount(in: Self.commonCoverageInterval(summaries: summaries), calendar: calendar)
     }
 
     private static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {
@@ -1549,7 +1574,7 @@ extension SpendDashboardModel.CurrencyGroup {
 
     var hasPartialCost: Bool {
         if self.incompleteRequestCount > 0 { return true }
-        if self.providers.contains(where: \.costIsLowerBound) { return true }
+        if self.providers.contains(where: \.hasPartialCost) { return true }
         let values = self.providers.map(\.totalCost)
         let mixedProviderTotals = values.contains { $0 != nil } && values.contains { $0 == nil }
         let incompletePricedCoverage = self.totalCost != nil &&

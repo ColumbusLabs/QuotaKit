@@ -1,0 +1,275 @@
+import CodexBarCore
+import SwiftUI
+
+struct SpendProviderBreakdown: Identifiable, Equatable {
+    let provider: UsageProvider
+    let displayName: String
+    let subscriptions: [SpendDashboardModel.ProviderRow]
+    let models: [SpendDashboardModel.ModelRow]
+    let totalTokens: Int?
+    let totalCost: Double?
+    let incompleteRequestCount: Int
+    let hasPartialTokens: Bool
+    let hasPartialCost: Bool
+    let hasPartialModelHistory: Bool
+    let modelCount: Int
+
+    var id: String {
+        self.provider.rawValue
+    }
+}
+
+private let spendProviderModelDisplayLimit = 6
+
+private func spendDashboardProviderTokenSum(_ values: [Int]) -> Int? {
+    guard !values.isEmpty else { return nil }
+    var total = 0
+    for value in values {
+        let result = total.addingReportingOverflow(value)
+        guard !result.overflow else { return nil }
+        total = result.partialValue
+    }
+    return total
+}
+
+private func spendDashboardProviderCostSum(_ values: [Double]) -> Double? {
+    guard !values.isEmpty else { return nil }
+    let total = values.reduce(0, +)
+    return total.isFinite ? total : nil
+}
+
+func spendDashboardProviderBreakdowns(
+    _ group: SpendDashboardModel.CurrencyGroup) -> [SpendProviderBreakdown]
+{
+    let providerIDs = Set(group.providers.map(\.provider)).union(group.models.map(\.provider))
+    return providerIDs.map { provider in
+        let subscriptions = group.providers.filter { $0.provider == provider }
+        let models = group.models.filter { $0.provider == provider }
+        let costs = subscriptions.compactMap(\.totalCost)
+        let tokens = subscriptions.compactMap(\.totalTokens)
+        let totalCost = spendDashboardProviderCostSum(costs)
+        let totalTokens = spendDashboardProviderTokenSum(tokens)
+        let incompleteRequestCount = CostUsageIncompleteRequests.sum(subscriptions.map(\.incompleteRequestCount))
+        return SpendProviderBreakdown(
+            provider: provider,
+            displayName: ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName,
+            subscriptions: subscriptions,
+            models: models,
+            totalTokens: totalTokens,
+            totalCost: totalCost,
+            incompleteRequestCount: incompleteRequestCount,
+            hasPartialTokens: incompleteRequestCount > 0 || tokens.count < subscriptions.count ||
+                (totalTokens == nil && !tokens.isEmpty),
+            hasPartialCost: subscriptions.contains(\.hasPartialCost)
+                || incompleteRequestCount > 0 || costs.count < subscriptions.count ||
+                (totalCost == nil && !costs.isEmpty),
+            hasPartialModelHistory: group.incompleteModelProviders.contains(provider),
+            modelCount: models.count)
+    }
+    .sorted { lhs, rhs in
+        switch (lhs.totalCost, rhs.totalCost) {
+        case let (left?, right?) where left != right: left > right
+        case (_?, nil): true
+        case (nil, _?): false
+        default:
+            switch (lhs.totalTokens, rhs.totalTokens) {
+            case let (left?, right?) where left != right: left > right
+            case (_?, nil): true
+            case (nil, _?): false
+            default: lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
+            }
+        }
+    }
+}
+
+func spendDashboardBreakdownMetricText(
+    cost: Double?,
+    tokens: Int?,
+    currencyCode: String,
+    hasPartialCost: Bool = false,
+    hasPartialTokens: Bool = false,
+    incompleteRequestCount: Int = 0) -> String
+{
+    let costText = cost.map {
+        let formatted = UsageFormatter.currencyString($0, currencyCode: currencyCode)
+        return hasPartialCost ? "~\(formatted)" : formatted
+    }
+    let tokenText = tokens.map {
+        let formatted = L("%@ tokens", UsageFormatter.tokenCountString($0))
+        return hasPartialTokens ? "~\(formatted)" : formatted
+    }
+    let components = [costText, tokenText].compactMap(\.self)
+    return (components.isEmpty ? "—" : components.joined(separator: " · "))
+        + UsageFormatter.incompleteUsageSuffix(incompleteRequestCount)
+}
+
+struct SpendProviderBreakdownRows: View {
+    let group: SpendDashboardModel.CurrencyGroup
+    let hidePersonalInfo: Bool
+    @State private var expandedProviders: Set<UsageProvider> = []
+
+    init(group: SpendDashboardModel.CurrencyGroup, hidePersonalInfo: Bool = false) {
+        self.group = group
+        self.hidePersonalInfo = hidePersonalInfo
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(self.breakdowns.enumerated()), id: \.element.id) { index, breakdown in
+                if index > 0 {
+                    Divider()
+                        .padding(.vertical, 8)
+                }
+                self.providerGroup(breakdown)
+            }
+        }
+    }
+
+    private var breakdowns: [SpendProviderBreakdown] {
+        spendDashboardProviderBreakdowns(self.group)
+    }
+
+    private func showsSubscriptionChildren(_ breakdown: SpendProviderBreakdown) -> Bool {
+        breakdown.subscriptions.count > 1
+            || breakdown.subscriptions.contains {
+                $0.displayName != breakdown.displayName || $0.sourceKind != .native
+            }
+    }
+
+    private func providerGroup(_ breakdown: SpendProviderBreakdown) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                SpendProviderIcon(provider: breakdown.provider, size: 22)
+                Text(breakdown.displayName)
+                    .font(.headline)
+                Spacer()
+                Text(spendDashboardBreakdownMetricText(
+                    cost: breakdown.totalCost,
+                    tokens: breakdown.totalTokens,
+                    currencyCode: self.group.currencyCode,
+                    hasPartialCost: breakdown.hasPartialCost,
+                    hasPartialTokens: breakdown.hasPartialTokens,
+                    incompleteRequestCount: breakdown.incompleteRequestCount))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(breakdown.totalCost == nil && breakdown.totalTokens == nil ? .secondary : .primary)
+                    .monospacedDigit()
+            }
+            .padding(.vertical, 7)
+
+            if self.showsSubscriptionChildren(breakdown) {
+                self.subsectionLabel(breakdown.subscriptions.contains { $0.sourceKind != .native }
+                    ? L("Sources") : L("Accounts"))
+                ForEach(Array(breakdown.subscriptions.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        self.childDivider
+                    }
+                    HStack(spacing: 9) {
+                        SpendProviderIcon(provider: row.provider, sourceKind: row.sourceKind, size: 16)
+                            .opacity(0.76)
+                        Text(self.sourceName(row.displayName))
+                            .lineLimit(1)
+                            .help(self.sourceName(row.displayName))
+                        Spacer()
+                        Text(spendDashboardBreakdownMetricText(
+                            cost: row.totalCost,
+                            tokens: row.totalTokens,
+                            currencyCode: self.group.currencyCode,
+                            hasPartialCost: row.hasPartialCost,
+                            incompleteRequestCount: row.incompleteRequestCount))
+                            .foregroundStyle(row.totalCost == nil && row.totalTokens == nil ? .secondary : .primary)
+                            .monospacedDigit()
+                    }
+                    .font(.subheadline)
+                    .padding(.leading, 34)
+                    .padding(.vertical, 6)
+                }
+            }
+
+            if !breakdown.models.isEmpty {
+                self.subsectionLabel(L("Models"), showsPartialWarning: breakdown.hasPartialModelHistory)
+                let models = self.expandedProviders.contains(breakdown.provider)
+                    ? breakdown.models : Array(breakdown.models.prefix(spendProviderModelDisplayLimit))
+                ForEach(Array(models.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        self.childDivider
+                    }
+                    HStack(spacing: 9) {
+                        SpendProviderIcon(provider: row.provider, size: 16)
+                            .opacity(0.76)
+                        Text(row.modelName)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .help(row.modelName)
+                        Spacer()
+                        Text(spendDashboardMetricText(
+                            cost: row.totalCost,
+                            tokens: row.totalTokens,
+                            currencyCode: self.group.currencyCode,
+                            incompleteRequestCount: row.incompleteRequestCount))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    .font(.subheadline)
+                    .padding(.leading, 34)
+                    .padding(.vertical, 6)
+                }
+                if breakdown.modelCount > spendProviderModelDisplayLimit {
+                    let isExpanded = self.expandedProviders.contains(breakdown.provider)
+                    Button {
+                        if isExpanded {
+                            self.expandedProviders.remove(breakdown.provider)
+                        } else {
+                            self.expandedProviders.insert(breakdown.provider)
+                        }
+                    } label: {
+                        Text(isExpanded ? L("Show less") : L("Show all (%d)", breakdown.modelCount))
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .padding(.leading, 59)
+                    .padding(.top, 5)
+                }
+            } else if breakdown.hasPartialModelHistory {
+                self.modelHistoryState(L("Model breakdown unavailable"))
+            } else if self.group.models.isEmpty {
+                self.modelHistoryState(L("No model-level history"))
+            }
+        }
+    }
+
+    private func modelHistoryState(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            self.subsectionLabel(L("Models"))
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 59)
+                .padding(.vertical, 6)
+        }
+    }
+
+    private func subsectionLabel(_ title: String, showsPartialWarning: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .tracking(0.6)
+            if showsPartialWarning {
+                Label(L("Partial model breakdown"), systemImage: "exclamationmark.triangle")
+                    .font(.caption2)
+            }
+        }
+        .foregroundStyle(.secondary)
+        .padding(.leading, 34)
+        .padding(.top, 7)
+        .padding(.bottom, 2)
+    }
+
+    private var childDivider: some View {
+        Divider()
+            .padding(.leading, 59)
+    }
+
+    private func sourceName(_ name: String) -> String {
+        PersonalInfoRedactor.redactEmails(in: name, isEnabled: self.hidePersonalInfo) ?? name
+    }
+}

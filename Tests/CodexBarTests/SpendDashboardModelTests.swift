@@ -5,6 +5,95 @@ import Testing
 
 struct SpendDashboardModelTests {
     @Test
+    func `daily ledger retains known subtotal beside unknown source cost`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                .init(id: "priced", provider: .claude, displayName: "Claude", snapshot: Self.snapshot(
+                    currency: "USD", entries: [Self.entry(day: "2026-07-16", cost: 2)])),
+                .init(id: "unknown", provider: .codex, displayName: "Codex", snapshot: Self.snapshot(
+                    currency: "USD", entries: [Self.entry(day: "2026-07-16", cost: nil)])),
+            ],
+            requestedDays: 1,
+            now: Self.now,
+            calendar: Self.calendar)
+        let group = try #require(model.groups.first)
+        let day = try #require(group.dailySummaries.first)
+
+        #expect(day.totalCost == 2)
+        #expect(day.hasPartialCost)
+        #expect(day.providers.first(where: { $0.sourceID == "priced" })?.totalCost == 2)
+        #expect(day.providers.first(where: { $0.sourceID == "unknown" })?.totalCost == nil)
+        #expect(spendDashboardLedgerCostText(day, currencyCode: "USD").hasPrefix("~"))
+    }
+
+    @Test
+    func `daily ledger uses calendar days across spring daylight saving`() throws {
+        var eastern = Calendar(identifier: .gregorian)
+        eastern.timeZone = try #require(TimeZone(identifier: "America/New_York"))
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-03-09T16:00:00Z"))
+        let snapshot = Self.snapshot(
+            currency: "USD",
+            entries: [
+                Self.entry(day: "2026-03-07", cost: 1),
+                Self.entry(day: "2026-03-08", cost: 2),
+                Self.entry(day: "2026-03-09", cost: 3),
+            ],
+            historyDays: 3,
+            updatedAt: now)
+        let group = try #require(SpendDashboardModel.build(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
+            requestedDays: 3,
+            now: now,
+            calendar: eastern).groups.first)
+
+        #expect(group.dailySummaries.count == 3)
+        #expect(group.dailySummaries.map(\.totalCost) == [1, 2, 3])
+        #expect(eastern.dateComponents(
+            [.day],
+            from: group.dailySummaries[0].day,
+            to: group.dailySummaries[1].day).day == 1)
+        #expect(group.dailySummaries[1].day.timeIntervalSince(group.dailySummaries[0].day) == 86_400)
+        #expect(group.dailySummaries[2].day.timeIntervalSince(group.dailySummaries[1].day) == 82_800)
+    }
+
+    @Test
+    func `daily ledger keeps proven zero days distinct from unavailable days`() throws {
+        let zero = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 0,
+            last30DaysCostUSD: 0,
+            currencyCode: "USD",
+            historyDays: 2,
+            daily: [],
+            updatedAt: Self.now)
+        let group = try #require(SpendDashboardModel.build(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: zero)],
+            requestedDays: 2,
+            now: Self.now,
+            calendar: Self.calendar).groups.first)
+        #expect(group.dailySummaries.count == 2)
+        #expect(group.dailySummaries.allSatisfy { $0.totalCost == 0 && $0.totalTokens == 0 })
+
+        let unknown = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: nil,
+            last30DaysCostUSD: nil,
+            currencyCode: "USD",
+            historyDays: 2,
+            historyCoverageIsEstablished: false,
+            daily: [],
+            updatedAt: Self.now)
+        let unavailable = try #require(SpendDashboardModel.build(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: unknown)],
+            requestedDays: 2,
+            now: Self.now,
+            calendar: Self.calendar).groups.first)
+        #expect(unavailable.dailySummaries.isEmpty)
+    }
+
+    @Test
     func `session identity hides names and project context with privacy enabled`() {
         let row = SpendDashboardModel.SessionRow(
             id: "codex:session-1234567890",

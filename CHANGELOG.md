@@ -56,6 +56,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
 - Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.
 
+- Usage & Spend groups accounts, local-history sources, and all model rows under each provider. Compact detail and day/hour selectors retain partial-cost warnings and local calendar boundaries. A daily ledger remains visible in either chart mode, while an expanded data-controls section keeps source selection, privacy context, and exports together.
+
 - Manus and T3 Chat: retrieve browser usage through bundled plugins.
 
 - Provider plugins: use typed result mapping for OpenAI and Fireworks billing.
