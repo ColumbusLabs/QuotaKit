@@ -361,7 +361,7 @@ extension StatusItemController {
     {
         let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
         let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
-        let tokens = self.settings.menuBarLayoutResolution(for: provider).layout
+        let tokens = self.renderedMenuBarLayoutResolution(for: provider).layout
             .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
         let selections = Set(tokens.filter { absolute == nil || $0.resetIsAbsolute == absolute }
             .compactMap(\.resetWindow))

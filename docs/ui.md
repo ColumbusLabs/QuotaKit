@@ -57,11 +57,12 @@ unavailable, including the first 3% of a window; see [Pace tracking](#pace-track
 
 Enable **Color Pace Indicator** under **Menu Bar → Icon** to show usage behind pace in green and usage ahead of pace
 in red. The setting defaults off and colors Session, Weekly, and Auto pace in both the menu bar and layout preview.
-Zero and unavailable pace stay neutral; stale colors dim unless high contrast is active.
+Zero and unavailable pace stay neutral. Stale colors dim, and high-contrast rendering uses the system label color.
 
 The Time palette also offers explicit Session and Weekly reset countdowns and clocks. The existing Resets in and Reset
 at tokens retain automatic-window behavior. Conditional branches can use the same explicit reset tokens. Layouts save
-V4 data and older-readable V3, V2, and legacy projections so older app versions can still load supported tokens.
+V4 data and older-readable V3, V2, and legacy projections that omit explicit reset tokens so older app versions can
+still load supported tokens.
 
 Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
 uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot

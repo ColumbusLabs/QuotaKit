@@ -615,10 +615,11 @@ final class MenuBarLayoutRenderer {
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
             var attributes = style.attributes
-            if options.colorPace, let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0 {
+            if options.colorPace, !options.highContrast,
+               let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0
+            {
                 let color: NSColor = delta < 0 ? .systemGreen : .systemRed
-                attributes[.foregroundColor] = options.isStale && !options.highContrast ? color
-                    .withAlphaComponent(0.5) : color
+                attributes[.foregroundColor] = options.isStale ? color.withAlphaComponent(0.5) : color
             }
             return self.optionalTextToken(
                 Self.pace(window, data: data),

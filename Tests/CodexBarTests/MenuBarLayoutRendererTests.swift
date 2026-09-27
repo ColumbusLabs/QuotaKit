@@ -51,6 +51,18 @@ struct MenuBarLayoutRendererTests {
         }
     }
 
+    @Test(arguments: [false, true])
+    func `high contrast keeps pace in system label color`(stale: Bool) {
+        let output = MenuBarLayoutRenderer().render(
+            layout: MenuBarLayout(lines: [[.pace(window: .weekly)]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options(isStale: stale, colorPace: true, highContrast: true))
+        #expect(output.attributedTitle.string == "+11%")
+        #expect(output.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+            == .labelColor)
+    }
+
     @Test
     func `renderer composes every token with live values`() {
         let renderer = MenuBarLayoutRenderer()

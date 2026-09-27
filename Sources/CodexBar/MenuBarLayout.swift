@@ -389,12 +389,12 @@ struct MenuBarLayoutConditional: Codable, Hashable, Sendable {
         return readable && readableBranches ? self : nil
     }
 
-    /// The V3 schema understands every current branch token except named extra percentages.
+    /// V3 predates both named extra percentages and explicit reset-window tokens.
     var v3Compatible: MenuBarLayoutConditional? {
         self.thenToken.hasV3Representation && self.elseToken.hasV3Representation ? self : nil
     }
 
-    /// V2 predates named extra percentages, but understands the rest of this layout schema.
+    /// V2 predates both named extra percentages and explicit reset-window tokens.
     var releasedCompatible: MenuBarLayoutConditional? {
         self.thenToken.hasReleasedRepresentation && self.elseToken.hasReleasedRepresentation ? self : nil
     }
@@ -521,12 +521,12 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
         }
     }
 
-    /// V3 readers predate descriptor-owned named extra windows.
+    /// V3 readers predate descriptor-owned named extras and explicit reset-window tokens.
     var hasV3Representation: Bool {
-        if case .extraPercent = self {
-            return false
+        switch self {
+        case .extraPercent, .windowResetCountdown, .windowResetAbsolute: false
+        default: true
         }
-        return true
     }
 
     var hasReleasedRepresentation: Bool {
@@ -677,12 +677,12 @@ struct MenuBarLayout: Codable, Hashable, Sendable {
         Set(self.lines.joined().compactMap(\.selectedLane))
     }
 
-    /// Projection readable by V2, which shipped before named extra percentages.
+    /// Projection readable by V2, which shipped before named extras and explicit reset windows.
     func releasedCompatible() -> MenuBarLayout {
         self.projected { $0.hasReleasedRepresentation ? $0 : nil }
     }
 
-    /// Projection readable by V3, which shipped before named extra percentages.
+    /// Projection readable by V3, which shipped before named extras and explicit reset windows.
     func v3Compatible() -> MenuBarLayout {
         self.projected { $0.hasV3Representation ? $0 : nil }
     }
@@ -708,7 +708,7 @@ struct MenuBarLayout: Codable, Hashable, Sendable {
     }
 }
 
-/// Keep V2 readers on their original schema; explicit reset selections live in V3 and newer.
+/// Keep older readers on their original schemas; explicit reset selections live only in V4.
 enum MenuBarLayoutUserDefaultsKey {
     static let layout = "menuBarLayout"
     static let layoutReleased = "menuBarLayoutV2"
