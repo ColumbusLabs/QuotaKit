@@ -333,15 +333,25 @@ struct CostUsageDailyReportMergeTests {
     func `merged coverage keeps priced and unpriced source requests separate`() {
         let priced = CostUsageDailyReport(data: [
             .init(
-                date: "2026-04-04", inputTokens: 20, outputTokens: 0,
-                totalTokens: 20, requestCount: 2, costUSD: 1.0,
-                modelsUsed: ["test-model"], modelBreakdowns: nil),
+                date: "2026-04-04",
+                inputTokens: 20,
+                outputTokens: 0,
+                totalTokens: 20,
+                requestCount: 2,
+                costUSD: 1.0,
+                modelsUsed: ["test-model"],
+                modelBreakdowns: nil),
         ], summary: nil)
         let unpriced = CostUsageDailyReport(data: [
             .init(
-                date: "2026-04-04", inputTokens: 10, outputTokens: 0,
-                totalTokens: 10, requestCount: 1, costUSD: nil,
-                modelsUsed: ["test-model"], modelBreakdowns: nil,
+                date: "2026-04-04",
+                inputTokens: 10,
+                outputTokens: 0,
+                totalTokens: 10,
+                requestCount: 1,
+                costUSD: nil,
+                modelsUsed: ["test-model"],
+                modelBreakdowns: nil,
                 unpricedRequestCount: 1),
         ], summary: nil)
 

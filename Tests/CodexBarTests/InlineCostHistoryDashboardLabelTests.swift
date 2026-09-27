@@ -21,14 +21,29 @@ struct InlineCostHistoryDashboardLabelTests {
                 historyScanIsPartial: scanIsPartial,
                 daily: [
                     CostUsageDailyReport.Entry(
-                        date: "2026-07-12", inputTokens: 100, outputTokens: 0,
-                        totalTokens: 100, costUSD: 3, modelsUsed: [], modelBreakdowns: nil),
+                        date: "2026-07-12",
+                        inputTokens: 100,
+                        outputTokens: 0,
+                        totalTokens: 100,
+                        costUSD: 3,
+                        modelsUsed: [],
+                        modelBreakdowns: nil),
                     CostUsageDailyReport.Entry(
-                        date: "2026-07-14", inputTokens: 10, outputTokens: 0,
-                        totalTokens: 10, costUSD: nil, modelsUsed: [], modelBreakdowns: nil),
+                        date: "2026-07-14",
+                        inputTokens: 10,
+                        outputTokens: 0,
+                        totalTokens: 10,
+                        costUSD: nil,
+                        modelsUsed: [],
+                        modelBreakdowns: nil),
                     CostUsageDailyReport.Entry(
-                        date: "2026-07-15", inputTokens: 100, outputTokens: 0,
-                        totalTokens: 100, costUSD: 4, modelsUsed: [], modelBreakdowns: nil),
+                        date: "2026-07-15",
+                        inputTokens: 100,
+                        outputTokens: 0,
+                        totalTokens: 100,
+                        costUSD: 4,
+                        modelsUsed: [],
+                        modelBreakdowns: nil),
                 ],
                 updatedAt: now)
             let model = UsageMenuCardView.Model.make(.init(
