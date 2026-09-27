@@ -459,6 +459,29 @@ struct CLICostTests {
     }
 
     @Test
+    func `Claude cost text labels priced subtotals with unpriced requests`() {
+        let entry = CostUsageDailyReport.Entry(
+            date: "2026-07-01",
+            inputTokens: 30,
+            outputTokens: 3,
+            totalTokens: 33,
+            costUSD: 1,
+            modelsUsed: ["fixture/priced", "fixture/unpriced"],
+            modelBreakdowns: nil,
+            unpricedRequestCount: 1)
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 33,
+            sessionCostUSD: 1,
+            last30DaysTokens: 33,
+            last30DaysCostUSD: nil,
+            daily: [entry],
+            updatedAt: Date(timeIntervalSince1970: 1_782_864_000))
+
+        let output = CodexBarCLI.renderCostText(provider: .claude, snapshot: snapshot, useColor: false)
+        #expect(output.contains("Partial estimate: 1 recorded request had no price."))
+    }
+
+    @Test
     func `renders codex project grouped cost text`() {
         let snap = CostUsageTokenSnapshot(
             sessionTokens: 1200,

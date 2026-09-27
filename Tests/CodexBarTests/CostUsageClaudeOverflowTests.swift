@@ -55,6 +55,36 @@ struct CostUsageClaudeOverflowTests {
         #expect(report.summary?.cacheReadTokens == 0)
     }
 
+    @Test
+    func `mixed priced and unpriced Claude rows retain partial cost coverage`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 1)
+        var cache = CostUsageCache()
+        cache.files["fixture.jsonl"] = CostUsageFileUsage(
+            mtimeUnixMs: 0,
+            size: 0,
+            days: [:],
+            claudeRows: [
+                self.row(input: 10, output: 1, model: "fixture/priced"),
+                self.row(input: 20, output: 2, model: "fixture/unpriced", costNanos: 0, costPriced: false),
+            ])
+        let report = CostUsageScanner.buildClaudeReportFromCache(
+            cache: cache,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day),
+            now: day,
+            modelsDevCacheRoot: env.cacheRoot)
+        let entry = try #require(report.data.first)
+        #expect(entry.costUSD == 1)
+        #expect(entry.totalTokens == 33)
+        #expect(entry.unpricedRequestCount == 1)
+        #expect(entry.unmeteredRequestCount == nil)
+        #expect(entry.incompleteRequestCount == 0)
+
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: day, calendar: .current)
+        #expect(snapshot.last30DaysCostUSD == nil)
+    }
+
     @Test(arguments: [false, true])
     func `missing legacy rows retain packed totals while complete empty rows are authoritative`(
         complete: Bool) throws
@@ -198,7 +228,9 @@ struct CostUsageClaudeOverflowTests {
         input: Int,
         output: Int,
         day: String = "2026-07-01",
-        model: String = "fixture/overflow") -> CostUsageScanner.ClaudeUsageRow
+        model: String = "fixture/overflow",
+        costNanos: Int = 1_000_000_000,
+        costPriced: Bool = true) -> CostUsageScanner.ClaudeUsageRow
     {
         CostUsageScanner.ClaudeUsageRow(
             dayKey: day,
@@ -214,8 +246,8 @@ struct CostUsageClaudeOverflowTests {
             cacheCreate: 0,
             cacheCreate1h: 0,
             output: output,
-            costNanos: 1_000_000_000,
-            costPriced: true)
+            costNanos: costNanos,
+            costPriced: costPriced)
     }
 
     private static func extremePriceCatalog(model: String) throws -> ModelsDevCatalog {

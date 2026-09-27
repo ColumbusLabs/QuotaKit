@@ -1073,7 +1073,7 @@ extension CostUsageScanner {
                 costUSD: entryCost,
                 modelsUsed: modelNames,
                 modelBreakdowns: sortedBreakdown,
-                unpricedRequestCount: dayIncompleteCount > 0 ? unpricedCount : nil,
+                unpricedRequestCount: (unpricedCount ?? 0) > 0 ? unpricedCount : nil,
                 unmeteredRequestCount: dayIncompleteCount > 0 ? dayIncompleteCount : nil,
                 estimatedRequestCount: dayIncompleteCount > 0 ? dayPricedCount.value : nil))
 
