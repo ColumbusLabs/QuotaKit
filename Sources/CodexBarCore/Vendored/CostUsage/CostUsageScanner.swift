@@ -7158,14 +7158,11 @@ enum CostUsageScanner {
 
     private static func codexExactValidationNeedsCheck(
         path: String,
-        usage: CostUsageFileUsage,
-        sinceKey: String,
-        untilKey: String,
         roots: [URL]) -> Bool
     {
-        guard self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots) else { return false }
-        return self.codexUsageTouchesWindow(usage, sinceKey: sinceKey, untilKey: untilKey)
-            || !FileManager.default.fileExists(atPath: path)
+        // An old partition file can gain current usage after the prior scan. Check its
+        // persisted snapshot before pruning it, even if its cached days are all old.
+        self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
     }
 
     private static func codexExactValidationSummary(
@@ -7383,12 +7380,8 @@ enum CostUsageScanner {
         let lastPath = state.exactCachedValidationLastPath
         let candidates = cache.files.keys.filter { path in
             guard lastPath.map({ path > $0 }) ?? true else { return false }
-            guard let usage = cache.files[path] else { return false }
             return Self.codexExactValidationNeedsCheck(
                 path: path,
-                usage: usage,
-                sinceKey: scanSinceKey,
-                untilKey: scanUntilKey,
                 roots: roots)
         }.sorted().prefix(remainingWorkVisits)
         for path in candidates where !scanBudget.shouldStopBeforeNextFile() {
@@ -7412,13 +7405,10 @@ enum CostUsageScanner {
                     isComplete: false)
             }
         }
-        let hasRemainingCachedValidation = cache.files.contains { path, usage in
+        let hasRemainingCachedValidation = cache.files.contains { path, _ in
             (state.exactCachedValidationLastPath.map { path > $0 } ?? true)
                 && Self.codexExactValidationNeedsCheck(
                     path: path,
-                    usage: usage,
-                    sinceKey: scanSinceKey,
-                    untilKey: scanUntilKey,
                     roots: roots)
         }
         let summary = Self.codexExactValidationSummary(
@@ -7500,7 +7490,16 @@ enum CostUsageScanner {
                                               pending.rootPaths == Self.codexSessionsRoots(options: options)
                                                   .map(Self.codexResolvedPath).sorted()
         {
-            range.retainingScanStart(pending.scanSinceKey)
+            // The requested window has one day of scan padding on each side. Preserve
+            // unfinished discovery within the maximum 365-day lookback, but do not let
+            // an older request pin later narrow refreshes to years of stale history.
+            let oldestRetainedScanDay = range.calendar.date(
+                byAdding: .day,
+                value: -365,
+                to: Self.parseDayKey(range.untilKey, calendar: range.calendar) ?? now)
+                .map { CostUsageDayRange.dayKey(from: $0, calendar: range.calendar) }
+                ?? pending.scanSinceKey
+            range.retainingScanStart(max(pending.scanSinceKey, oldestRetainedScanDay))
         } else {
             range
         }

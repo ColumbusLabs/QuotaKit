@@ -81,7 +81,8 @@ struct CostUsageBoundedProgressTests {
             completedRootPaths: roots,
             pendingFilePaths: [pendingPath],
             completedCurrentWindowRootPaths: roots,
-            completedCurrentWindowFlatRootPaths: roots)
+            completedCurrentWindowFlatRootPaths: roots,
+            directoryCursorVersion: 3)
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
 
         for (index, since) in [narrowSince, wideSince, narrowSince].enumerated() {
@@ -326,7 +327,7 @@ struct CostUsageBoundedProgressTests {
     }
 
     @Test
-    func `exact validation ignores historical corpus outside retained window and converges retention`() throws {
+    func `exact validation retains historical snapshots and detects changed old files`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let historicalDay = try env.makeLocalNoon(year: 2020, month: 1, day: 2)
@@ -357,18 +358,54 @@ struct CostUsageBoundedProgressTests {
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: prepared)
 
         options.maxCodexScanDurationPerRefresh = 60
+        // swiftlint:disable multiline_arguments
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex, since: currentDay, until: currentDay,
+            now: currentDay.addingTimeInterval(1), options: options)
+        // swiftlint:enable multiline_arguments
+        var narrowed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let changedPath = try #require(narrowed.files.keys.first { $0.contains("/2020/01/02/progress-0000") })
+        let iso = env.isoString(for: currentDay)
+        let appendedRow = [
+            #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#,
+            #"{"total_token_usage":{"input_tokens":250,"cached_input_tokens":80,"output_tokens":30},"#,
+            #""model":"openai/gpt-5.2-codex"}}}"#,
+        ].joined()
+        let handle = try FileHandle(forWritingTo: historicalURLs[0])
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((appendedRow + "\n").utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: currentDay.addingTimeInterval(2)],
+                                              ofItemAtPath: historicalURLs[0].path)
+        // Start a fresh exact proof after the append, regardless of an earlier page cursor.
+        narrowed.codexActiveLookbackState = try Self.completedLookbackState(
+            cache: narrowed, options: options, pendingFilePaths: [])
+        narrowed.codexScanInventoryPaths = nil
+        narrowed.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: narrowed)
+
+        // swiftlint:disable multiline_arguments
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex, since: currentDay, until: currentDay,
+            now: currentDay.addingTimeInterval(2), options: options)
+        // swiftlint:enable multiline_arguments
+        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(pending.codexActiveLookbackState?.pendingFilePaths.contains(changedPath) == true)
+        #expect(pending.codexScanCatchUpPending == true)
+
         let converged = try Self.finishBoundedCatchUp(
             env: env,
             day: currentDay,
             options: &options,
-            startingAt: 1)
+            startingAt: 3)
 
-        #expect(converged.files.count == 1)
-        #expect(converged.files.keys.first?.hasSuffix("progress-0000.jsonl") == true)
+        #expect(converged.files.count == 601)
+        #expect(converged.files[changedPath]?.days.keys.contains("2026-05-10") == true)
+        #expect(converged.days.keys.contains("2020-01-02") == false)
         #expect(converged.codexRetainedLookbackDays == 365)
         #expect(converged.codexActiveLookbackState == nil)
         #expect(converged.codexScanCatchUpPending == false)
-        #expect(converged.codexScanInventoryPaths?.count == 1)
+        #expect(converged.codexScanInventoryPaths?.count == 2)
     }
 
     @Test
