@@ -60,7 +60,11 @@ struct SyncCoordinatorProviderDetailsTests {
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            environmentBase: [
+                PoeSettingsReader.apiKeyEnvironmentKey: "fixture-key",
+                SakanaSettingsReader.cookieHeaderKey: "session=fixture",
+            ])
         for provider in providers {
             try settings.setProviderEnabled(
                 provider: provider,
