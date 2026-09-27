@@ -62,7 +62,7 @@ public enum CostReportingPeriod: Hashable, Sendable, RawRepresentable {
         let start = CostUsageLocalDay.key(from: bounds.lowerBound, calendar: calendar)
         let end = CostUsageLocalDay.key(from: bounds.upperBound, calendar: calendar)
         return entries.filter {
-            guard let day = CostUsageTokenSnapshot.localDayKey(for: $0.date, calendar: calendar) else { return false }
+            guard let day = CostUsageLocalDay.key(fromEntryDate: $0.date, calendar: calendar) else { return false }
             return day >= start && day <= end
         }
     }
