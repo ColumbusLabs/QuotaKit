@@ -612,4 +612,14 @@ extension UsageStore {
     {
         statuses.values.contains(where: \.pending)
     }
+
+    private static func spendDashboardCodexCostCatchUpProgressKey(
+        _ statuses: [String: CostUsageFetcher.CodexScanCatchUpStatus]) -> String
+    {
+        statuses.sorted { $0.key < $1.key }.map { entry in
+            let cacheIdentity = entry.key
+            let progressKey = entry.value.progressKey
+            return "\(cacheIdentity.count):\(cacheIdentity)\(progressKey.count):\(progressKey)"
+        }.joined()
+    }
 }

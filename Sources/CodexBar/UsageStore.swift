@@ -1578,14 +1578,6 @@ extension UsageStore {
         let startedAt = Date()
         self.tokenCostLogger
             .debug("cost usage start provider=\(provider.rawValue) force=\(force)")
-        let refreshContext = TokenUsageRefreshContext(
-            provider: provider,
-            now: now,
-            historyDays: historyDays,
-            costScopeSignature: costScopeSignature,
-            publicationScope: publicationScope,
-            startedAt: startedAt)
-
         do {
             // Codex cost usage scans the explicit token-cost scope: selected managed account by
             // default, or this Mac's ambient Codex home when the local ledger is enabled.
