@@ -1,6 +1,18 @@
 import CodexBarCore
 import SwiftUI
 
+extension UsageFormatter {
+    static func incompleteUsageNote(_ count: Int) -> String? {
+        guard count > 0 else { return nil }
+        return L("Excluded requests with missing final usage: %d", count)
+    }
+
+    static func incompleteUsageSuffix(_ count: Int) -> String {
+        guard let note = self.incompleteUsageNote(count) else { return "" }
+        return " · \(note)"
+    }
+}
+
 struct SpendProviderBreakdown: Identifiable, Equatable {
     let provider: UsageProvider
     let displayName: String
@@ -60,7 +72,7 @@ func spendDashboardProviderBreakdowns(
             incompleteRequestCount: incompleteRequestCount,
             hasPartialTokens: incompleteRequestCount > 0 || tokens.count < subscriptions.count ||
                 (totalTokens == nil && !tokens.isEmpty),
-            hasPartialCost: subscriptions.contains(\.hasPartialCost)
+            hasPartialCost: subscriptions.contains(where: \.hasPartialCost)
                 || incompleteRequestCount > 0 || costs.count < subscriptions.count ||
                 (totalCost == nil && !costs.isEmpty),
             hasPartialModelHistory: group.incompleteModelProviders.contains(provider),

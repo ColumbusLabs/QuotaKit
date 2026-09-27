@@ -1568,6 +1568,10 @@ struct SpendDashboardModel: Equatable, Sendable {
 }
 
 extension SpendDashboardModel.CurrencyGroup {
+    var incompleteRequestCount: Int {
+        CostUsageIncompleteRequests.sum(self.providers.map(\.incompleteRequestCount))
+    }
+
     var pricedProviderCount: Int {
         self.providers.count { $0.totalCost != nil }
     }

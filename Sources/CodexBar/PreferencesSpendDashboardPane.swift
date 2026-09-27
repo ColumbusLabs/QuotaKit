@@ -1430,7 +1430,7 @@ enum SpendDashboardJSONExporter {
     }
 }
 
-private struct SpendDashboardPanel<Content: View>: View {
+struct SpendDashboardPanel<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
