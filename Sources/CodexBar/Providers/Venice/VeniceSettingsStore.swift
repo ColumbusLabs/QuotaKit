@@ -22,7 +22,10 @@ extension SettingsStore {
 
     var veniceCookieSource: ProviderCookieSource {
         get { self.resolvedCookieSource(provider: .venice, fallback: .auto) }
-        set { self.setCookieSource(newValue, provider: .venice) }
+        set {
+            self.updateProviderConfig(provider: .venice) { $0.cookieSource = newValue }
+            self.logProviderModeChange(provider: .venice, field: "cookieSource", value: newValue.rawValue)
+        }
     }
 
     var veniceCookieHeader: String {
