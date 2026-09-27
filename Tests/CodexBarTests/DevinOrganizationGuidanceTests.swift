@@ -13,7 +13,7 @@ struct DevinOrganizationGuidanceTests {
             terminalWidth: 100,
             useColor: false)
 
-        #expect(output.contains("~/.config/codexbar/config.json"))
+        #expect(output.contains("~/.quotakit/config.json"))
         #expect(output.contains("cookieSource=manual"))
         #expect(output.contains("docs/devin.md#manual-auth"))
     }
