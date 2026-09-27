@@ -88,6 +88,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "4c666659fa05e700", // Pending-range and parent-discovery scheduling preserve parsed rows and checkpoints.
         "1dfdbe376483ff0c", // Explicit report coverage is additive; persisted parser rows remain compatible.
         "fd299eccf5e46671", // Pricing-rescan evidence adds optional state; prior rows remain compatible.
         "8214dde4d869b323", // Linux Priority scanning and Claude pricing leave persisted native rows compatible.
