@@ -7,6 +7,16 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .typesafe
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        let cookies: TypeSafeProviderSettings = context.settings.resolvedCookieSettings(
+            provider: self.id,
+            configuredSource: context.settings.typesafeCookieSource,
+            configuredHeader: context.settings.typesafeCookieHeader,
+            tokenOverride: context.tokenOverride)
+        return .typesafe(cookies)
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         !support.requiresManualCookieSource || context.settings.typesafeCookieSource == .manual
             || !context.settings.tokenAccounts(for: .typesafe).isEmpty

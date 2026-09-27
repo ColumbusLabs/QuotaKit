@@ -4,11 +4,23 @@ import Foundation
 
 extension QuickJSProviderPluginEngine {
     static func transpileTypeScript(source: String, sucraseSource: String) throws -> String {
+        let worker = QuickJSSerialWorker(
+            name: "QuotaKit QuickJS TypeScript transpiler",
+            stackSizeBytes: QuickJSRuntimeLimits.nativeStackSizeBytes)
+        return try worker.sync {
+            try self.transpileTypeScriptOnWorker(source: source, sucraseSource: sucraseSource)
+        }
+    }
+
+    private static func transpileTypeScriptOnWorker(source: String, sucraseSource: String) throws -> String {
         guard let runtime = JS_NewRuntime() else {
             throw ProviderPluginError.load("QuickJS could not create a TypeScript transpiler runtime")
         }
         JS_SetMemoryLimit(runtime, self.memoryLimitBytes)
-        JS_SetMaxStackSize(runtime, self.stackLimitBytes)
+        JS_SetMaxStackSize(
+            runtime,
+            QuickJSRuntimeLimits.javaScriptStackLimitBytes(
+                workerStackSizeBytes: QuickJSRuntimeLimits.nativeStackSizeBytes))
         guard let context = JS_NewContext(runtime) else {
             JS_FreeRuntime(runtime)
             throw ProviderPluginError.load("QuickJS could not create a TypeScript transpiler context")
