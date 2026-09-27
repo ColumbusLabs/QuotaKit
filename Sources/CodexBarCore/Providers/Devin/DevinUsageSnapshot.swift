@@ -11,7 +11,7 @@ public enum DevinUsageError: LocalizedError, Sendable {
 
     private static let manualAuthHelp =
         "Manual auth: Settings → Providers → Devin → Auth source → Manual (app), " +
-        "or cookieSource=manual in your CLI config (default ~/.config/codexbar/config.json). " +
+        "or cookieSource=manual in your CLI config (default ~/.quotakit/config.json). " +
         "Setup: https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/devin.md#manual-auth"
 
     public var errorDescription: String? {
