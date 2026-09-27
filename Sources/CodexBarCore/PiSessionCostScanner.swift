@@ -102,7 +102,6 @@ enum PiSessionCostScanner {
     /// Bump for Pi-only cost formula changes not represented by the parser or pricing fingerprints.
     private static let costFormulaVersion = 2
     private static let maxLineBytes = 16 * 1024 * 1024
-    private static let maxSafeRoundedInt = Double(Int.max) - 1
     private static let sessionStartFilenameRegex = try? NSRegularExpression(
         pattern: "^(\\d{4}-\\d{2}-\\d{2})T(\\d{2})-(\\d{2})-(\\d{2})-(\\d{3})Z_")
     private static let isoFormatterBox = PiSessionISO8601FormatterBox()
