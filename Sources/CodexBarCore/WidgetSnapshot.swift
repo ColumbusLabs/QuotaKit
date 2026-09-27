@@ -252,7 +252,7 @@ public enum WidgetSnapshotStore {
     }
 
     public static func load(bundleID: String? = Bundle.main.bundleIdentifier) -> WidgetSnapshot? {
-        guard !TestProcessSafety.isRunning, !self.isBoundedIOCircuitBreakerTripped() else { return nil }
+        guard !TestProcessSafety.isRunningUnderTests(), !self.isBoundedIOCircuitBreakerTripped() else { return nil }
         return self.load(from: self.snapshotURL(bundleID: bundleID))
     }
 
@@ -267,7 +267,7 @@ public enum WidgetSnapshotStore {
     }
 
     public static func save(_ snapshot: WidgetSnapshot, bundleID: String? = Bundle.main.bundleIdentifier) {
-        guard !TestProcessSafety.isRunning, !self.isBoundedIOCircuitBreakerTripped() else { return }
+        guard !TestProcessSafety.isRunningUnderTests(), !self.isBoundedIOCircuitBreakerTripped() else { return }
         self.save(snapshot, to: self.snapshotURL(bundleID: bundleID))
     }
 
