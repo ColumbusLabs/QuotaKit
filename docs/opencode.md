@@ -21,6 +21,19 @@ read_when:
 - Secondary window: optional weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
 - Resets computed as `now + resetInSec`.
 
+## Using OpenCode with Codex or OpenAI
+
+Codex quota and local token/cost history are separate sources. The Codex provider reads session and weekly quota
+from the signed-in account's remote endpoint; these percentages do not come from local session logs.
+
+When OpenCode holds a Codex OAuth session, explicitly enabling **External Codex OAuth sources** can reuse its
+`openai` OAuth entry for remote quota. Native Codex credentials take precedence, and an explicit `CODEX_HOME`
+prevents external fallback. External credentials remain read-only; stale credentials fail closed, and API-key
+entries are ignored.
+
+This does not import ordinary OpenCode sessions into Codex token or spend totals. The OpenCode Go SQLite reader
+selects only `opencode-go` assistant records. OpenAI API usage is separate from Codex subscription quota.
+
 ## Notes
 - OpenCode Go accounts accept labeled API keys or Cookie headers. In Auto mode, a selected API-key account uses the
   usage API with that key, isolated from provider-wide and ambient `OPENCODE_API_KEY` values. A selected Cookie

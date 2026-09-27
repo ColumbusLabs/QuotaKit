@@ -737,6 +737,16 @@ if [[ "$LOWER_CONF" == "release" && "$SIGNING_MODE" == "identity" ]]; then
     echo "  codesign / spctl / notarization / stapler all pass." >&2
     exit 1
   fi
+  # A local profile must belong to the resolved signing team. Embedding a
+  # profile from another team can pass codesign yet fail AMFI at launch.
+  if ! PROFILE_TEAM_ID=$(/usr/bin/security cms -D -i "$PROVISION_PROFILE" | python3 -c     'import plistlib, sys; print(plistlib.load(sys.stdin.buffer)["TeamIdentifier"][0])'); then
+    echo "FATAL: cannot read provisioning profile team from $PROVISION_PROFILE" >&2
+    exit 1
+  fi
+  if [[ "$PROFILE_TEAM_ID" != "$APP_TEAM_ID" ]]; then
+    echo "FATAL: provisioning profile team does not match APP_TEAM_ID" >&2
+    exit 1
+  fi
   cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 elif [[ -f "$PROVISION_PROFILE" ]]; then
   # Adhoc / debug builds: embed best-effort if available, do not fail.

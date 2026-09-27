@@ -15,6 +15,13 @@ Some internal target and folder names still use inherited identifiers such as
 `CodexBar`, `CodexBarCore`, and `CodexBarMobile`. Treat those as implementation
 names. Public product copy should say QuotaKit.
 
+## CI aggregate contract
+
+The `lint-build-test` check requires successful lint, eligible macOS tests, eligible iOS simulator tests, and
+both x86_64 and ARM64 entries of `build-linux-cli`. The Linux job builds `CodexBarCLI`, runs portable
+`CodexBarLinuxTests`, and checks the CLI help path. Linux failures, cancellations, and skipped matrix results
+fail the aggregate gate; only the existing macOS and iOS path gates can skip their own tests.
+
 ## Quick Start
 
 ```bash
@@ -51,7 +58,7 @@ For Mac local development:
 | `Sources/CodexBarCLI/` | Bundled `quotakit` command-line tool |
 | `Sources/CodexBarWidget/` | WidgetKit support |
 | `Tests/CodexBarTests/` | macOS app/core test suite |
-| `TestsLinux/` | Linux-specific CLI/core coverage |
+| `TestsLinux/` | Portable CLI/core coverage in the Linux CI matrix |
 | `Shared/` | CloudKit, sync, and shared models |
 | `CodexBarMobile/` | iOS companion app |
 | `WidgetExtension/` | iOS widget extension project config |

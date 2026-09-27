@@ -40,8 +40,11 @@ Usage source picker:
 - `additional_rate_limits[]` (model-specific limits such as GPT-5.3-Codex-Spark) map to named
   `UsageSnapshot.extraRateWindows` entries. Spark uses stable `codex-spark` / `codex-spark-weekly` ids and
   `Codex Spark 5-hour` / `Codex Spark Weekly` titles. When the field is absent, the snapshot is unchanged.
-- Preferences → Providers → Codex → Show Codex Spark usage hides only the Spark rows in menus and the provider
-  preview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
+- Preferences → Providers → Codex → Visible usage items lets you hide individual Spark rows in menus, the Settings
+  preview, and Overview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
+- Explicitly enabling **External Codex OAuth sources** can reuse OpenCode's `openai` OAuth entry for remote
+  quota when native Codex credentials are absent. It does not import OpenCode session token or cost history; see
+  [OpenCode with Codex or OpenAI](opencode.md#using-opencode-with-codex-or-openai).
 
 ### Advanced profile-home accounts
 - Managed Codex accounts remain the default multi-account path.
@@ -191,7 +194,10 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Cache:
   - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
-- Window: configurable 1-365 day rolling history, with a 60s minimum refresh interval.
+- Window: a visible rolling history of up to 365 days; routine background work scans 30 days.
+- Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode). Manual disables
+  that recurring timer, while startup refreshes, explicit refreshes, and pending Codex catch-up may still scan.
+  The scanner's 60-second debounce is an internal limit, not the app refresh cadence.
 
 ### Usage & Spend account rows
 
