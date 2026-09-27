@@ -22,10 +22,17 @@ struct DashboardReportedCostTests {
     @Test
     func `local cost retains precedence over reported history`() throws {
         let local = CostPayload(
-            provider: "openrouter", source: "local", updatedAt: Self.now,
-            sessionTokens: nil, sessionCostUSD: nil, historyDays: 30,
-            last30DaysTokens: nil, last30DaysCostUSD: 4,
-            daily: [], totals: nil, error: nil)
+            provider: "openrouter",
+            source: "local",
+            updatedAt: Self.now,
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            historyDays: 30,
+            last30DaysTokens: nil,
+            last30DaysCostUSD: 4,
+            daily: [],
+            totals: nil,
+            error: nil)
         let cost = try #require(Self.dashboard(history: Self.history(cost: 99), local: local).providers.first?.cost)
         #expect(cost.last30DaysUSD == 4)
     }
@@ -48,13 +55,22 @@ struct DashboardReportedCostTests {
         breakdowns: [CostUsageDailyReport.ModelBreakdown] = []) -> CostUsageTokenSnapshot
     {
         let entry = CostUsageDailyReport.Entry(
-            date: "2026-09-18", inputTokens: nil, outputTokens: nil,
-            totalTokens: nil, costUSD: nil, modelsUsed: nil, modelBreakdowns: breakdowns)
+            date: "2026-09-18",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: nil,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: breakdowns)
         return CostUsageTokenSnapshot(
-            sessionTokens: nil, sessionCostUSD: nil,
-            last30DaysTokens: nil, last30DaysCostUSD: cost,
-            currencyCode: currency, historyDays: days,
-            daily: [entry], updatedAt: Self.now)
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: nil,
+            last30DaysCostUSD: cost,
+            currencyCode: currency,
+            historyDays: days,
+            daily: [entry],
+            updatedAt: Self.now)
     }
 
     private static func dashboard(
@@ -63,9 +79,16 @@ struct DashboardReportedCostTests {
     {
         DashboardSnapshotBuilder.makeSnapshot(
             usagePayloads: [ProviderPayload(
-                provider: .openrouter, account: nil, version: nil, source: "api", status: nil,
+                provider: .openrouter,
+                account: nil,
+                version: nil,
+                source: "api",
+                status: nil,
                 usage: UsageSnapshot(primary: nil, secondary: nil, costUsage: history, updatedAt: self.now),
-                credits: nil, antigravityPlanInfo: nil, openaiDashboard: nil, error: nil)],
+                credits: nil,
+                antigravityPlanInfo: nil,
+                openaiDashboard: nil,
+                error: nil)],
             costPayloads: local.map { [$0] } ?? [],
             config: CodexBarConfig(providers: [ProviderConfig(id: .openrouter, enabled: true)]),
             identityMode: .redacted,
