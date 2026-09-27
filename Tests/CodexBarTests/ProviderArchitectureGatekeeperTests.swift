@@ -5615,13 +5615,19 @@ struct ProviderArchitectureGatekeeperTests {
         return lines.enumerated().flatMap { index, line -> [ProviderReference] in
             let code = self.codeBeforeLineComment(line)
             guard !code.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+            guard code.contains(".") || code.contains("\"") else { return [] }
+            let literals = self.quotedStringLiterals(in: code)
+            let plainStringRanges = literals.compactMap { literal -> Range<String.Index>? in
+                code[literal.range].contains("\\(") ? nil : literal.range
+            }
             var matches: [String] = []
             var newlyRecognizedMatches: [String] = []
-            for providerID in providerIDs {
+            for providerID in providerIDs where code.contains(".\(providerID)") {
                 for strength in self.dottedProviderReferenceStrengths(
                     providerID,
                     in: code,
-                    statement: statementContexts[index])
+                    statement: statementContexts[index],
+                    plainStringRanges: plainStringRanges)
                 {
                     matches.append(providerID)
                     if strength != .strong {
@@ -5629,8 +5635,10 @@ struct ProviderArchitectureGatekeeperTests {
                     }
                 }
             }
-            for literal in self.quotedStringLiterals(in: code) {
-                for providerID in providerIDs where self.isProviderIDLiteral(
+            for literal in literals {
+                let providerID = literal.value.lowercased()
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                if providerIDs.contains(providerID), self.isProviderIDLiteral(
                     providerID,
                     literal: literal.value,
                     range: literal.range,
@@ -5657,12 +5665,10 @@ struct ProviderArchitectureGatekeeperTests {
     private static func dottedProviderReferenceStrengths(
         _ rawValue: String,
         in line: String,
-        statement: StatementContext) -> [ProviderReferenceStrength]
+        statement: StatementContext,
+        plainStringRanges: [Range<String.Index>]) -> [ProviderReferenceStrength]
     {
         let needle = ".\(rawValue)"
-        let plainStringRanges = self.quotedStringLiterals(in: line).compactMap { literal -> Range<String.Index>? in
-            line[literal.range].contains("\\(") ? nil : literal.range
-        }
         var searchStart = line.startIndex
         var found: [ProviderReferenceStrength] = []
         while let range = line.range(of: needle, range: searchStart..<line.endIndex) {
