@@ -22,6 +22,6 @@ extension ProviderConfig {
     }
 
     public var sanitizedClaudeSwapExecutablePath: String? {
-        Self.clean(self.claudeSwapExecutablePath)
+        SettingsValue.cleaned(self.claudeSwapExecutablePath)
     }
 }
