@@ -228,6 +228,50 @@ struct CostUsageStoreTests {
     }
 
     @Test
+    func `file aggregates keep event details with their day and model`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/grouped-history.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: [
+                "2026-08-01": ["model-a": [12, 0, 5]],
+                "2026-08-02": ["model-b": [3, 0, 4]],
+            ])
+        usage.codexScanComplete = true
+        usage.codexRows = [
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-01", model: "model-a", turnID: "one", eventIndex: 0,
+                input: 10, cached: 0, output: 2, knownCostNanos: 100, pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-02", model: "model-b", turnID: "two", eventIndex: 0,
+                input: 3, cached: 0, output: 4, knownCostNanos: 200, pricingMode: "priority"),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-01", model: "model-a", turnID: "three", eventIndex: 0,
+                input: 2, cached: 0, output: 3, knownCostNanos: 300, pricingMode: "standard"),
+        ]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-02"
+        cache.files[path] = usage
+        cache.days = usage.days
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        _ = store.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-02"))
+
+        let aggregates = await store.fetchFileDayAggregates(path: path)
+        #expect(aggregates.map(\.day) == ["2026-08-01", "2026-08-02"])
+        #expect(aggregates.map(\.requestCount) == [2, 1])
+        #expect(aggregates.map(\.authoritativeCostNanos) == [400, 200])
+        #expect(aggregates.map(\.standardTokens) == [17, 0])
+        #expect(aggregates.map(\.priorityTokens) == [0, 7])
+    }
+
+    @Test
     func `pending Codex pricing survives a staged replacement reload`() throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

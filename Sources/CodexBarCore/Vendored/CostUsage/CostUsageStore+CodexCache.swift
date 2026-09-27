@@ -1532,12 +1532,15 @@ extension CostUsageStore {
         addKeys(usage.codexPriorityCostNanos)
         addKeys(usage.codexStandardTokens)
         addKeys(usage.codexPriorityTokens)
-        for row in usage.codexRows ?? [] {
-            keys.insert(DayModelKey(day: row.day, model: row.model))
+        // Group event rows once. Filtering the full list for every day and model makes
+        // large restored histories quadratic before the report can be read.
+        let rowsByKey = Dictionary(grouping: usage.codexRows ?? []) {
+            DayModelKey(day: $0.day, model: $0.model)
         }
+        keys.formUnion(rowsByKey.keys)
         return keys.map { key in
             let packed = usage.days[key.day]?[key.model] ?? []
-            let rows = (usage.codexRows ?? []).filter { $0.day == key.day && $0.model == key.model }
+            let rows = rowsByKey[key] ?? []
             var aggregate = CostUsageStoreDayAggregate(
                 day: key.day,
                 model: key.model,

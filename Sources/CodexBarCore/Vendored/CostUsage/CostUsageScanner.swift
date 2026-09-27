@@ -36,8 +36,8 @@ enum CostUsageScanner {
     /// this value records that lineage exists but this rollout owns its counter or suffix.
     static let codexForkDependencyNotRequiredKey = "mode:lineage-only:v1"
 
-    static func resetCodexDirectoryCursorsForTesting() {
-        self.codexDirectoryCursorRegistry.reset()
+    static func resetCodexDirectoryCursorsForTesting(under root: URL) {
+        self.codexDirectoryCursorRegistry.reset(under: root)
     }
 
     static func setUnavailableCodexDirectoriesForTesting(_ paths: Set<String>) {
@@ -1342,13 +1342,26 @@ enum CostUsageScanner {
 
         // swiftlint:enable function_parameter_count
 
+        func resumePendingDiscovery() throws {
+            guard !self.discovery.isComplete else { return }
+            guard !self.discovery.pendingSessionIds.isEmpty else {
+                self.discovery.headScan = nil
+                return
+            }
+            _ = try self.resumeDiscovery()
+        }
+
         func remember(fileURL: URL, sessionId: String?) {
             guard let sessionId, !sessionId.isEmpty else { return }
             let path = fileURL.standardizedFileURL.path
             self.discovery.filePathBySessionId[sessionId] = path
+            self.resolveRequest(sessionId: sessionId)
+            self.discovery.fileStamps[path] = Self.fileStamp(fileURL: fileURL)
+        }
+
+        private func resolveRequest(sessionId: String) {
             self.discovery.missingSessionIds.removeAll { $0 == sessionId }
             self.discovery.pendingSessionIds.removeAll { $0 == sessionId }
-            self.discovery.fileStamps[path] = Self.fileStamp(fileURL: fileURL)
         }
 
         func forgetMissingFiles(_ paths: Set<String>) {
@@ -1372,6 +1385,7 @@ enum CostUsageScanner {
 
         func lookup(sessionId: String) throws -> Lookup {
             if let cached = self.cachedFileURL(for: sessionId) {
+                self.resolveRequest(sessionId: sessionId)
                 return .found(cached)
             }
 
@@ -1399,10 +1413,19 @@ enum CostUsageScanner {
                 }
             }
 
-            if !self.discovery.pendingSessionIds.contains(sessionId) {
+            let alreadyClassified = self.hasScannedInventory && self.discovery.missingSessionIds.contains(sessionId)
+            if !alreadyClassified, !self.discovery.pendingSessionIds.contains(sessionId) {
                 self.discovery.pendingSessionIds.append(sessionId)
+                self.discovery.isComplete = false
             }
-            return try self.resumeDiscovery(requestedSessionId: sessionId)
+            guard try self.resumeDiscovery(requestedSessionId: sessionId) else { return .deferred }
+            if let cached = self.cachedFileURL(for: sessionId) {
+                self.resolveRequest(sessionId: sessionId)
+                return .found(cached)
+            }
+            return .missing(dependencyKey: Self.missingDependencyKey(
+                sessionId: sessionId,
+                generation: self.discovery.generation ?? "unknown"))
         }
 
         private func cachedFileURL(for sessionId: String) -> URL? {
@@ -1421,31 +1444,27 @@ enum CostUsageScanner {
             }
         }
 
-        private func resumeDiscovery(requestedSessionId: String) throws -> Lookup {
+        private var hasScannedInventory: Bool {
+            self.discovery.headScan == nil
+                && self.discovery.nextFileIndex >= self.discovery.filePaths.count
+                && self.discovery.nextDirectoryIndex >= self.discovery.directoryPaths.count
+        }
+
+        private func resumeDiscovery(requestedSessionId: String? = nil) throws -> Bool {
             while true {
                 try self.checkCancellation?()
-                if let cached = self.cachedFileURL(for: requestedSessionId) {
-                    return .found(cached)
+                if let requestedSessionId, self.cachedFileURL(for: requestedSessionId) != nil {
+                    return true
                 }
-
                 if self.discovery.nextFileIndex < self.discovery.filePaths.count {
-                    guard try self.scanNextFileHead() else { return .deferred }
+                    guard try self.scanNextFileHead() else { return false }
                     continue
                 }
-
                 if self.discovery.nextDirectoryIndex < self.discovery.directoryPaths.count {
-                    guard try self.enumerateNextDirectory() else { return .deferred }
+                    guard try self.enumerateNextDirectory() else { return false }
                     continue
                 }
-
-                self.finishDiscovery()
-                if let cached = self.cachedFileURL(for: requestedSessionId) {
-                    return .found(cached)
-                }
-                let generation = self.discovery.generation ?? "unknown"
-                return .missing(dependencyKey: Self.missingDependencyKey(
-                    sessionId: requestedSessionId,
-                    generation: generation))
+                return try self.finishDiscovery()
             }
         }
 
@@ -1454,6 +1473,14 @@ enum CostUsageScanner {
             let fileURL = URL(fileURLWithPath: path)
             let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
             guard metadata.fileId != nil else {
+                if let scanBudget = self.scanBudget {
+                    switch scanBudget.admit(workBytes: 1) {
+                    case let .allow(allowance):
+                        scanBudget.complete(admittedWorkBytes: allowance, actualWorkBytes: allowance)
+                    case .deferBudget:
+                        return false
+                    }
+                }
                 self.advancePastHead(path: path, stamp: nil)
                 return true
             }
@@ -1466,7 +1493,7 @@ enum CostUsageScanner {
             let remainingBytes = max(0, metadata.size - startOffset)
             let admittedBytes: Int64
             if let scanBudget = self.scanBudget {
-                switch scanBudget.admit(workBytes: remainingBytes) {
+                switch scanBudget.admit(workBytes: max(1, remainingBytes)) {
                 case let .allow(allowance): admittedBytes = allowance
                 case .deferBudget: return false
                 }
@@ -1483,10 +1510,11 @@ enum CostUsageScanner {
                 checkCancellation: self.checkCancellation)
             self.scanBudget?.complete(
                 admittedWorkBytes: admittedBytes,
-                actualWorkBytes: result.bytesRead)
+                actualWorkBytes: max(1, result.bytesRead))
 
             if let sessionId = result.sessionId, !sessionId.isEmpty {
                 self.discovery.filePathBySessionId[sessionId] = path
+                self.discovery.missingSessionIds.removeAll { $0 == sessionId }
                 self.advancePastHead(path: path, stamp: Self.fileStamp(metadata: metadata))
                 return true
             }
@@ -1581,24 +1609,36 @@ enum CostUsageScanner {
             self.discovery.directoryPaths.append(path)
         }
 
-        private func finishDiscovery() {
+        private func finishDiscovery() throws -> Bool {
+            var processedCount = 0
+            defer { self.discovery.pendingSessionIds.removeFirst(processedCount) }
+            for sessionId in self.discovery.pendingSessionIds {
+                try self.checkCancellation?()
+                if let scanBudget = self.scanBudget {
+                    switch scanBudget.admit(workBytes: 1) {
+                    case let .allow(allowance):
+                        scanBudget.complete(admittedWorkBytes: allowance, actualWorkBytes: allowance)
+                    case .deferBudget:
+                        return false
+                    }
+                }
+                if self.cachedFileURL(for: sessionId) == nil,
+                   !self.discovery.missingSessionIds.contains(sessionId)
+                {
+                    self.discovery.missingSessionIds.append(sessionId)
+                }
+                processedCount += 1
+            }
             let generation = Self.discoveryGeneration(
                 roots: self.discovery.roots,
                 directoryStamps: self.discovery.directoryStamps)
             self.discovery.generation = generation
-            for sessionId in self.discovery.pendingSessionIds
-                where self.discovery.filePathBySessionId[sessionId] == nil
-            {
-                if !self.discovery.missingSessionIds.contains(sessionId) {
-                    self.discovery.missingSessionIds.append(sessionId)
-                }
-            }
             self.discovery.missingSessionIds.sort()
-            self.discovery.pendingSessionIds.removeAll()
             self.discovery.directoryPaths = self.discovery.directoryStamps.keys.sorted()
             self.discovery.nextDirectoryIndex = self.discovery.directoryPaths.count
             self.discovery.validationDirectoryIndex = 0
             self.discovery.isComplete = true
+            return true
         }
 
         private func validateInventory() throws -> InventoryValidation {
@@ -2270,7 +2310,7 @@ enum CostUsageScanner {
     struct CostUsageDayRange {
         let sinceKey: String
         let untilKey: String
-        let scanSinceKey: String
+        private(set) var scanSinceKey: String
         let scanUntilKey: String
         let calendar: Calendar
 
@@ -2283,6 +2323,12 @@ enum CostUsageScanner {
             let scanUntil = calendar.date(byAdding: .day, value: 1, to: until) ?? until
             self.scanSinceKey = Self.dayKey(from: scanSince, calendar: calendar)
             self.scanUntilKey = Self.dayKey(from: scanUntil, calendar: calendar)
+        }
+
+        func retainingScanStart(_ scanSinceKey: String) -> Self {
+            var retained = self
+            retained.scanSinceKey = min(self.scanSinceKey, scanSinceKey)
+            return retained
         }
 
         static func localGregorianCalendar(matching calendar: Calendar = .current) -> Calendar {
@@ -3283,10 +3329,13 @@ enum CostUsageScanner {
         }
         #endif
 
-        func reset() {
+        func reset(under root: URL) {
+            let roots = Set([root.standardizedFileURL.path, root.resolvingSymlinksInPath().standardizedFileURL.path])
             self.lock.lock()
-            self.cursors.removeAll()
-            self.lock.unlock()
+            defer { self.lock.unlock() }
+            for path in self.cursors.keys where roots.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
+                self.cursors.removeValue(forKey: path)
+            }
         }
 
         func setUnavailablePathsForTesting(_ paths: Set<String>) {
@@ -7314,7 +7363,20 @@ enum CostUsageScanner {
         let loadedCache = Self.loadCodexCache(options: options, range: range)
         var cache = loadedCache.cache
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
-        let plan = Self.makeCodexRefreshPlan(cache: cache, range: range, now: now, nowMs: nowMs, options: options)
+        // Keep an unfinished discovery queue on its original wider scan range when a
+        // dashboard requests a narrower report of the same roots and ending day.
+        let scanRange: CostUsageDayRange = if !options.forceRescan,
+                                              cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+                                              cache.scanUntilKey == range.scanUntilKey,
+                                              let pending = cache.codexActiveLookbackState,
+                                              pending.rootPaths == Self.codexSessionsRoots(options: options)
+                                                  .map(Self.codexResolvedPath).sorted()
+        {
+            range.retainingScanStart(pending.scanSinceKey)
+        } else {
+            range
+        }
+        let plan = Self.makeCodexRefreshPlan(cache: cache, range: scanRange, now: now, nowMs: nowMs, options: options)
         let previousReport = Self.codexPreviousReportCandidate(
             cache: cache,
             store: loadedCache.store,
@@ -7323,6 +7385,7 @@ enum CostUsageScanner {
             options: options)
 
         if plan.shouldRefresh {
+            let range = scanRange
             try checkCancellation?()
             if options.forceRescan {
                 cache = CostUsageCache()
@@ -8028,6 +8091,8 @@ enum CostUsageScanner {
                     }
                 }
             }
+
+            try fileIndex.resumePendingDiscovery()
 
             let shouldRetainWiderWindow = !options.forceRescan && !plan
                 .priorityMetadataChanged && !plan.needsTurnIDCacheMigration && !plan.needsProjectMetadataMigration

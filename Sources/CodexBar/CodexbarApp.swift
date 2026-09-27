@@ -26,6 +26,11 @@ enum CodexBarEntryPoint {
         if CodexBarCoreResourceSmoke.isRequested() {
             exit(CodexBarCoreResourceSmoke.run())
         }
+        #if DEBUG
+        if MenuBarLayoutNativeProof.runIfRequested() {
+            return
+        }
+        #endif
         guard CodexBarLaunchMode.resolve(arguments: CommandLine.arguments) == .application else {
             return
         }
