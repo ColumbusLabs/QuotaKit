@@ -159,8 +159,7 @@ extension CostUsageScanner {
                     outputTokens: output,
                     modelsDevCatalog: pricing.modelsDevCatalog,
                     modelsDevCacheRoot: pricing.modelsDevCacheRoot,
-                    customPricing: pricing.customPricing,
-                    pricingResolver: pricing.pricingResolver)
+                    customPricing: pricing.customPricing)
             let cost = rowCostIsTrusted
                 ? rowCost?.totalCostUSD ?? aggregateCost
                 : aggregateCost

@@ -866,7 +866,7 @@ enum CostUsagePricing {
                 tokens: tokens)
         }
 
-        guard let pricing = self.resolveClaudePricing(model: model) else { return nil }
+        guard let pricing = self.resolveClaudePricing(model: key) else { return nil }
         return self.claudeCostUSD(
             pricing: pricing,
             tokens: tokens)
