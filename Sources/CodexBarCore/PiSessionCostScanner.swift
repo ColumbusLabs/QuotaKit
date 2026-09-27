@@ -1199,10 +1199,15 @@ enum PiSessionCostScanner {
         pricingContext: ModelsDevPricingContext? = nil) -> PiPackedUsage?
     {
         guard let usage = message["usage"] as? [String: Any] else { return nil }
-        var hasCounter = false
-        func read(_ value: Any?) -> Int? {
-            if value != nil { hasCounter = true }
-            return Self.readNonNegativeInt(value)
+        var hasValidCounter = false
+        var hasInvalidCounter = false
+        func read(_ value: Any?) -> Int {
+            guard let count = Self.readNonNegativeInt(value) else {
+                hasInvalidCounter = true
+                return 0
+            }
+            if value != nil { hasValidCounter = true }
+            return count
         }
         let input = read(
             usage["input"]
@@ -1239,7 +1244,7 @@ enum PiSessionCostScanner {
                 ?? usage["tokenCount"]
                 ?? usage["token_count"]
                 ?? usage["tokens"])
-        guard hasCounter, let input, let cacheRead, let cacheWrite, let output, let directTotal,
+        guard hasValidCounter,
               let derivedTotal = CheckedSum.integers([input, cacheRead, cacheWrite, output])
         else { return nil }
         let totalTokens = max(directTotal, derivedTotal)
@@ -1251,7 +1256,7 @@ enum PiSessionCostScanner {
             outputTokens: output,
             totalTokens: totalTokens)
         // Pi-compatible JSONL does not record Anthropic cache retention, so use Pi's persisted default tariff.
-        let costUSD = totalTokens == derivedTotal ? self.computedCostUSD(
+        let costUSD = !hasInvalidCounter && totalTokens == derivedTotal ? self.computedCostUSD(
             provider: provider,
             modelName: modelName,
             usage: rawUsage,

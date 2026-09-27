@@ -107,8 +107,9 @@ struct CostUsageScannerWhitespaceTests {
                 now: nextDay.addingTimeInterval(1),
                 options: options)
             let partial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-            #expect(partial.files[path]?.hasCurrentCodexParser == true)
-            #expect(partial.files[path]?.codexReplacementScanPending != true)
+            // The old generation remains visible until the bounded replacement completes.
+            #expect(partial.files[path]?.hasCurrentCodexParser == false)
+            #expect(partial.files[path]?.codexReplacementScanPending == true)
             #expect(partial.files[path]?.codexScanComplete == false)
             options.maxCodexScanBytesPerRefresh = 512 * 1024 * 1024
         }

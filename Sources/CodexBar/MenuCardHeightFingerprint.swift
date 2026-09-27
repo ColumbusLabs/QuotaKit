@@ -19,6 +19,7 @@ extension UsageMenuCardView.Model {
             "planEmphasized=\(self.planEmphasis.isEmphasized)",
             MenuCardHeightFingerprint.field("placeholder", self.placeholder),
             MenuCardHeightFingerprint.field("credits", self.creditsText),
+            "creditsShowProgress=\(self.creditsShowProgress)",
             "creditsRemaining=\(self.creditsRemaining.map(String.init(describing:)) ?? "nil")",
             MenuCardHeightFingerprint.field("creditsHint", self.creditsHintText),
             MenuCardHeightFingerprint.field("creditsCopy", self.creditsHintCopyText),

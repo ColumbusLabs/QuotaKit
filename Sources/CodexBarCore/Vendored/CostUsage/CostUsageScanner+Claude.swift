@@ -612,6 +612,14 @@ extension CostUsageScanner {
         var stamps: [String: CostUsageClaudeFileStamp] {
             self.files.mapValues(\.stamp)
         }
+
+        func replacedPaths(comparedWith prior: [String: CostUsageClaudeFileStamp]?) -> Set<String> {
+            guard let prior else { return [] }
+            return Set(self.files.compactMap { path, source in
+                guard let old = prior[path], old.fileID != source.stamp.fileID else { return nil }
+                return path
+            })
+        }
     }
 
     private final class ClaudeScanState {
@@ -620,6 +628,7 @@ extension CostUsageScanner {
         let providerFilter: ClaudeLogProviderFilter
         let forceFullScan: Bool
         let changedPaths: Set<String>
+        let replacedPaths: Set<String>
         let pricingResolver: CostUsagePricing.ClaudeResolver
         let checkCancellation: CancellationCheck?
 
@@ -629,6 +638,7 @@ extension CostUsageScanner {
             providerFilter: ClaudeLogProviderFilter,
             forceFullScan: Bool,
             changedPaths: Set<String>,
+            replacedPaths: Set<String>,
             pricingResolver: CostUsagePricing.ClaudeResolver,
             checkCancellation: CancellationCheck?)
         {
@@ -637,6 +647,7 @@ extension CostUsageScanner {
             self.providerFilter = providerFilter
             self.forceFullScan = forceFullScan
             self.changedPaths = changedPaths
+            self.replacedPaths = replacedPaths
             self.pricingResolver = pricingResolver
             self.checkCancellation = checkCancellation
         }
@@ -663,7 +674,8 @@ extension CostUsageScanner {
         state.pricingResolver.prepareCatalog()
         if let cached = state.cache.files[path], !state.forceFullScan {
             let startOffset = cached.parsedBytes ?? cached.size
-            let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
+            let canIncremental = !state.replacedPaths.contains(path)
+                && size > cached.size && startOffset > 0 && startOffset <= size
                 && cached.claudeRows != nil
             if canIncremental {
                 #if DEBUG
@@ -821,12 +833,14 @@ extension CostUsageScanner {
             } else {
                 []
             }
+            let replacedPaths = inventory.replacedPaths(comparedWith: priorMemo?.sourceInventory)
             let scanState = ClaudeScanState(
                 cache: cache,
                 range: range,
                 providerFilter: providerFilter,
                 forceFullScan: forceFullScan,
                 changedPaths: changedPaths,
+                replacedPaths: replacedPaths,
                 pricingResolver: pricingResolver,
                 checkCancellation: checkCancellation)
 

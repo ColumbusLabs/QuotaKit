@@ -10,7 +10,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v8.json")
+                == "claude-v10.json")
     }
 
     @Test

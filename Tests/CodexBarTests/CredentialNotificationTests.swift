@@ -96,6 +96,8 @@ struct CredentialNotificationTests {
             suiteName: "credential-refresh-\(selected)", tokenAccountStore: InMemoryTokenAccountStore())
         settings.credentialExpiryNotificationsEnabled = true
         settings.statusChecksEnabled = false
+        settings.iCloudSyncEnabled = false
+        settings.accountWidgetsEnabled = false
         settings.addTokenAccount(provider: .deepseek, label: "First", token: "fixture-first")
         settings.addTokenAccount(provider: .deepseek, label: "Second", token: "fixture-second")
         let store = Self.store(settings)

@@ -368,7 +368,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(advanceCount == 2)
         #expect(statusLoadCount == 2)
         #expect(snapshotLoadCount == 3)
-        #expect(sleepDurations.first == 8)
+        #expect(sleepDurations.first == 1998)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 3)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 3)
         #expect(store.tokenError(for: .codex) == nil)
@@ -478,7 +478,7 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test(arguments: [false, true])
-    func `terminal pauses discard a refresh queued during the pass`(throwsError: Bool) async throws {
+    func `terminal pauses coalesce same scope refresh and allow explicit resume`(throwsError: Bool) async throws {
         let store = try Self.makeStore(suite: "terminal-queued-restart-\(throwsError)")
         defer { store.cancelCodexCostCatchUp() }
         store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
@@ -492,7 +492,7 @@ struct UsageStoreCodexCostCatchUpTests {
             advanceCount += 1
             if advanceCount == 1 {
                 store?.startCodexCostCatchUpIfNeeded(afterRefreshing: .codex)
-                #expect(store?.codexCostCatchUpRestartRequested == true)
+                #expect(store?.codexCostCatchUpRestartRequested == false)
             }
             if throwsError {
                 throw NSError(domain: "SyntheticCatchUp", code: 1)
@@ -506,14 +506,14 @@ struct UsageStoreCodexCostCatchUpTests {
         await Self.waitUntil { store.codexCostCatchUpTask == nil }
 
         #expect(statusLoadCount == 1)
-        #expect(advanceCount == 1)
+        #expect(advanceCount == (throwsError ? 1 : 3))
         #expect(store.codexCostCatchUpActivity?.phase == .paused)
         #expect(!store.codexCostCatchUpRestartRequested)
 
-        store.startCodexCostCatchUpIfNeeded()
+        store.startAcceleratedCodexCostCatchUp()
         await Self.waitUntil { store.codexCostCatchUpTask == nil }
         #expect(statusLoadCount == 2)
-        #expect(advanceCount == 2)
+        #expect(advanceCount == (throwsError ? 2 : 6))
     }
 
     @Test

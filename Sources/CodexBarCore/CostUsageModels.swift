@@ -1296,6 +1296,11 @@ extension CostUsageDailyReport {
                 totals.add(entry)
             }
         }
+        let hasUnpricedActivity = reports.lazy.flatMap(\.data).contains { entry in
+            (entry.unpricedRequestCount ?? 0) > 0
+                || (entry.unmeteredRequestCount ?? 0) > 0
+                || (entry.costUSD == nil && ((entry.totalTokens ?? 0) > 0 || (entry.requestCount ?? 0) > 0))
+        }
         return Summary(
             totalInputTokens: totals.tokenMix.inputTokens,
             totalOutputTokens: totals.tokenMix.outputTokens,
@@ -1303,7 +1308,7 @@ extension CostUsageDailyReport {
             cacheCreationTokens: totals.tokenMix.cacheCreationTokens,
             reasoningTokens: totals.tokenMix.reasoningTokens,
             totalTokens: totals.resolvedTotalTokens.value,
-            totalCostUSD: totals.resolvedCostUSD())
+            totalCostUSD: hasUnpricedActivity ? nil : totals.resolvedCostUSD())
     }
 
     private static func sortedModelBreakdowns(_ breakdowns: [ModelBreakdown]) -> [ModelBreakdown] {

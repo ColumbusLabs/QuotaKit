@@ -351,8 +351,8 @@ struct CursorMenuCardModelTests {
             now: now))
 
         let metrics = Dictionary(uniqueKeysWithValues: model.metrics.map { ($0.title, $0) })
-        #expect(metrics["Total"]?.detailLeftText == "On pace")
-        #expect(metrics["Auto"]?.detailLeftText == (cursorUsedPercent == 3 ? "On pace" : "23% in deficit"))
+        #expect(metrics["Total"]?.detailLeftText == "2% in reserve")
+        #expect(metrics["Auto"]?.detailLeftText == (cursorUsedPercent == 3 ? "2% in reserve" : "23% in deficit"))
         #expect(metrics["API"]?.detailLeftText == "11% in deficit")
         #expect(metrics["Grok Bot"]?.detailLeftText == "35% in reserve")
         #expect(metrics["Grok Bot"]?.detailRightText == "Lasts until reset")

@@ -25,7 +25,7 @@ import Testing
 struct ProviderArchitectureGatekeeperTests {
     private static let postBaselineProviders: Set<UsageProvider> = [
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-        .atlascloud, .vercel, .llmman, .nous, .muse,
+        .atlascloud, .vercel, .llmman, .nous, .muse, .pi,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {

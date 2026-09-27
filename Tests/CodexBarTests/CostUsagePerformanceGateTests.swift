@@ -641,6 +641,20 @@ struct CostUsagePerformanceGateTests {
         let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let cachedUsage = try #require(cache.files.values.first { !($0.codexRows?.isEmpty ?? true) })
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        #expect(catalog.pricing(providerID: "openai", modelID: model) != nil)
+        #expect(CostUsagePricing.codexCostUSD(
+            model: model,
+            inputTokens: 100,
+            cachedInputTokens: 20,
+            outputTokens: 10,
+            modelsDevCatalog: catalog) != nil)
+        #expect(cachedUsage.codexRows?.allSatisfy {
+            CostUsageScanner.codexResolvedCostUSD(
+                for: $0,
+                modelsDevCatalog: catalog,
+                modelsDevCacheRoot: nil) != nil
+        } == true)
+        #expect(CostUsageScanner.codexCanonicalPricingRows(cachedUsage).unresolvedGroups.isEmpty)
         #expect(!CostUsageScanner.needsCodexPricingMetadata(cachedUsage, range: range))
         var catalogLoadCount = 0
         let report = CostUsageScanner.buildCodexReportFromCache(

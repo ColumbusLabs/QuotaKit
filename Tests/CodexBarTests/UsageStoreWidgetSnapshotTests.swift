@@ -16,6 +16,7 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+        settings.claudeSwapEnabled = true
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -61,7 +62,7 @@ struct UsageStoreWidgetSnapshotTests {
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
         #expect(entry.primary?.usedPercent == 37)
-        #expect(entry.quotaOwnerKey == "claude-swap:2")
+        #expect(entry.quotaOwnerKey?.hasPrefix("claude/swap:2:") == true)
         #expect(entry.quotaOwnerKey?.contains("private@example.com") == false)
     }
 

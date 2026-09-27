@@ -10,7 +10,7 @@ import Testing
 @Suite(.serialized)
 struct CostUsageFetcherTests {
     @Test
-    func `all time includes retained logs older than a year`() async throws {
+    func `all time limits history to the retained year`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let old = try env.makeLocalNoon(year: 2024, month: 1, day: 31)
@@ -39,8 +39,8 @@ struct CostUsageFetcherTests {
             allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
-        #expect(snapshot.daily.map(\.date) == ["2024-01-31", "2026-02-01"])
-        #expect(snapshot.last30DaysTokens == 130)
+        #expect(snapshot.daily.map(\.date) == ["2026-02-01"])
+        #expect(snapshot.last30DaysTokens == 7)
     }
 
     @Test

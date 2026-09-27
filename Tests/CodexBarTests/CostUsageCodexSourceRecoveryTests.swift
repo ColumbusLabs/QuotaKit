@@ -483,15 +483,24 @@ struct CostUsageCodexSourceRecoveryTests {
                 day: day,
                 env: env,
                 sessionID: "synthetic-unavailable-session").joined(separator: "\n") + "\n")
+        let unrelated = try env.writeCodexSessionFile(
+            day: day,
+            filename: "deleted-unrelated.jsonl",
+            contents: Self.sourceLines(
+                inputs: [200_000],
+                day: day,
+                env: env,
+                sessionID: "synthetic-unrelated-session").joined(separator: "\n") + "\n")
         var options = Self.options(env: env)
         let original = Self.report(day: day, options: options)
-        #expect(original.summary?.totalTokens == 1_200_000)
+        #expect(original.summary?.totalTokens == 1_400_000)
         let canonical = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         var contaminated = canonical
         contaminated.files[available.path]?.codexRows = Self.contaminatedRows(day: day)
         contaminated.files[unavailable.path]?.codexRows = Self.contaminatedRows(day: day)
         #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: contaminated).catchUpRequired)
         try FileManager.default.removeItem(at: unavailable)
+        try FileManager.default.removeItem(at: unrelated)
 
         let recorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = recorder
@@ -504,7 +513,14 @@ struct CostUsageCodexSourceRecoveryTests {
         #expect(reopened.files[available.path]?.codexRows == canonical.files[available.path]?.codexRows)
         #expect(reopened.files[unavailable.path]?.codexRows == contaminated.files[unavailable.path]?.codexRows)
         #expect(reopened.files[unavailable.path]?.days == canonical.files[unavailable.path]?.days)
+        #expect(reopened.files[unrelated.path] == nil)
         #expect(Self.cachedReport(cache: reopened, day: day).summary?.totalTokens == 1_200_000)
+
+        // Once the available source is repaired, a later inventory can confirm deletion.
+        options.refreshMinIntervalSeconds = 0
+        let settled = Self.report(day: day, options: options, elapsed: 2)
+        #expect(settled.summary?.totalTokens == 600_000)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[unavailable.path] == nil)
     }
 
     @Test

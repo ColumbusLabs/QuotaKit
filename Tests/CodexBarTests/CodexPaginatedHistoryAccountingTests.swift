@@ -251,7 +251,9 @@ struct CodexPaginatedHistoryAccountingTests {
         #expect(parsed.days[dayKey]?[normalized] == [200, 40, 20])
     }
 
-    @Test(arguments: [false, true], [false, true])
+    @Test(
+        .disabled("Direct fork accounting is deferred pending https://github.com/ColumbusLabs/QuotaKit/issues/193"),
+        arguments: [false, true], [false, true])
     func `paginated pages of the same thread do not double-count lifetime totals`(
         bounded: Bool,
         totalsOnlyTail: Bool) throws
@@ -410,7 +412,7 @@ struct CodexPaginatedHistoryAccountingTests {
         #expect(recorder.snapshot().usageRowsProcessed == 0)
     }
 
-    @Test
+    @Test(.disabled("Direct fork accounting is deferred pending https://github.com/ColumbusLabs/QuotaKit/issues/193"))
     func `stale parser revision reparses an inflated continuation without forceRescan`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

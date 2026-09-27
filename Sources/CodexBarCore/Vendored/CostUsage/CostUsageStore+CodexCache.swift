@@ -1,5 +1,11 @@
 import Foundation
 
+#if canImport(SQLite3)
+import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
+#endif
+
 // The full-cache compatibility path and the candidate-scoped catch-up path intentionally share
 // one persistence vocabulary so their on-disk semantics cannot drift.
 // swiftlint:disable file_length
@@ -1309,8 +1315,8 @@ extension CostUsageStore {
                 detailsPayload: try? JSONEncoder().encode(details),
                 inventoryValidationGeneration: usage.codexInventoryValidationGeneration),
             sessionID: usage.sessionId,
-            coverageSinceDay: usage.days.keys.min(),
-            coverageUntilDay: usage.days.keys.max(),
+            coverageSinceDay: usage.days.keys.min() ?? baseline.file?.coverageSinceDay,
+            coverageUntilDay: usage.days.keys.max() ?? baseline.file?.coverageUntilDay,
             updatedAtUnixMs: max(usage.mtimeUnixMs, usage.codexSession?.latestActivityUnixMs ?? 0),
             hasBufferedSubagentLines: usage.codexBufferedSubagentLines?.isEmpty == false,
             hasBufferedUnresolvedForkLines: usage.codexBufferedUnresolvedForkLines?.isEmpty == false)
@@ -1356,16 +1362,35 @@ extension CostUsageStore {
         let newParsedBytes = file.parsedBytes ?? 0
         let replacingStagedGeneration = usage.codexReplacementScanPending == false
             || baseline.file?.scanState.replacementScanPending == true
-        let appendSafe = canReuseRows
-            && baseline.file?.scanState.fileIdentity == file.scanState.fileIdentity
+        let appendSafe = baseline.file?.scanState.fileIdentity == file.scanState.fileIdentity
             && oldParsedBytes < newParsedBytes
         let stableCursor = oldParsedBytes == newParsedBytes
+        // A stable byte cursor and row count do not imply identical pricing or parser rows.
+        // Metadata-only repricing can change the payload without changing either value. Check
+        // the prefix only when the planner could reuse or append it, and stream cold baselines.
+        let reuseCandidate = canReuseRows && !replacingStagedGeneration
+        let snapshotPrefixMatches = reuseCandidate
+            && ((stableCursor && baseline.snapshotCount == snapshotCount)
+                || (appendSafe && baseline.snapshotCount <= snapshotCount))
+            && self.snapshotPrefixMatches(
+                path: path,
+                storedCount: baseline.snapshotCount,
+                source: sourceSnapshots,
+                cached: baseline.usage?.codexTokenSnapshots)
+        let rowPrefixMatches = reuseCandidate
+            && ((stableCursor && baseline.rowCount == rowCount)
+                || (appendSafe && baseline.rowCount <= rowCount))
+            && self.rowPrefixMatches(
+                path: path,
+                storedCount: baseline.rowCount,
+                source: sourceRows,
+                cached: baseline.usage?.codexRows)
         let snapshotAction: CostUsagePersistenceAction = replacingStagedGeneration
             ? .replace
             : CostUsagePersistencePlanner.action(
-                canReuse: canReuseRows,
+                canReuse: canReuseRows && snapshotPrefixMatches,
                 stableCursor: stableCursor,
-                appendSafe: appendSafe,
+                appendSafe: appendSafe && canReuseRows && snapshotPrefixMatches,
                 persistedCount: baseline.snapshotCount,
                 sourceCount: snapshotCount)
         let snapshots = snapshotAction.materialize(sourceSnapshots) { index, snapshot in
@@ -1383,9 +1408,9 @@ extension CostUsageStore {
         let rowAction: CostUsagePersistenceAction = replacingStagedGeneration
             ? .replace
             : CostUsagePersistencePlanner.action(
-                canReuse: canReuseRows,
+                canReuse: canReuseRows && rowPrefixMatches,
                 stableCursor: stableCursor,
-                appendSafe: appendSafe,
+                appendSafe: appendSafe && canReuseRows && rowPrefixMatches,
                 persistedCount: baseline.rowCount,
                 sourceCount: rowCount)
         let rows: [CostUsageStoreUsageRow] = rowAction.materialize(sourceRows) { index, row in
@@ -1423,6 +1448,88 @@ extension CostUsageStore {
             sawInterleavedTotals: usage.hasInterleavedTotals ?? false,
             seenRawTotals: (usage.seenRawTotals ?? []).map(Self.totals),
             updatedAtUnixMs: file.updatedAtUnixMs))
+    }
+
+    private func rowPrefixMatches(
+        path: String,
+        storedCount: Int,
+        source: [CostUsageScanner.CodexUsageRow],
+        cached: [CostUsageScanner.CodexUsageRow]?) -> Bool
+    {
+        guard storedCount > 0 else { return true }
+        if let cached {
+            return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
+        }
+        return self.withDatabase(default: false) { database in
+            let statement = try Self.prepare(database, """
+            SELECT row_index, payload FROM usage_rows
+            WHERE file_id = (SELECT id FROM files WHERE path = ?)
+            ORDER BY row_index
+            """)
+            defer { sqlite3_finalize(statement) }
+            Self.bind(path, to: statement, at: 1)
+            let decoder = JSONDecoder()
+            var index = 0
+            var result = sqlite3_step(statement)
+            while result == SQLITE_ROW {
+                guard index < storedCount,
+                      sqlite3_column_int64(statement, 0) == Int64(index),
+                      let payload = Self.columnData(statement, at: 1),
+                      let row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: payload),
+                      row == source[index]
+                else { return false }
+                index += 1
+                result = sqlite3_step(statement)
+            }
+            guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+            return index == storedCount
+        }
+    }
+
+    private func snapshotPrefixMatches(
+        path: String,
+        storedCount: Int,
+        source: [CostUsageCodexTokenSnapshot],
+        cached: [CostUsageCodexTokenSnapshot]?) -> Bool
+    {
+        guard storedCount > 0 else { return true }
+        if let cached {
+            return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
+        }
+        return self.withDatabase(default: false) { database in
+            let statement = try Self.prepare(database, """
+            SELECT event_index, timestamp, timestamp_ms, day,
+                   last_input, last_cached, last_output, last_reasoning,
+                   total_input, total_cached, total_output, total_reasoning, end_offset
+            FROM token_snapshots
+            WHERE file_id = (SELECT id FROM files WHERE path = ?)
+            ORDER BY event_index
+            """)
+            defer { sqlite3_finalize(statement) }
+            Self.bind(path, to: statement, at: 1)
+            var index = 0
+            var result = sqlite3_step(statement)
+            while result == SQLITE_ROW {
+                guard index < storedCount,
+                      sqlite3_column_int64(statement, 0) == Int64(index),
+                      let timestamp = Self.columnText(statement, at: 1)
+                else { return false }
+                let snapshot = CostUsageStoreTokenSnapshot(
+                    path: path,
+                    eventIndex: index,
+                    timestamp: timestamp,
+                    timestampUnixMs: Self.columnInt64(statement, at: 2),
+                    day: Self.columnText(statement, at: 3),
+                    last: Self.decodeTotals(statement, startingAt: 4),
+                    total: Self.decodeTotals(statement, startingAt: 8),
+                    endOffset: Self.columnInt64(statement, at: 12))
+                guard Self.tokenSnapshot(from: snapshot) == source[index] else { return false }
+                index += 1
+                result = sqlite3_step(statement)
+            }
+            guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+            return index == storedCount
+        }
     }
 }
 

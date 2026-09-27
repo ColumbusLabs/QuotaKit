@@ -672,7 +672,11 @@ extension CodexBarCLI {
             }
         }
 
-        let summary = snapshot.summary(forLastDays: snapshot.historyDays)
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
+        var coverage = CostUsageCoverageAccumulator()
+        for entry in entries {
+            coverage.add(entry)
+        }
         return CostTotalsPayload(
             totalInputTokens: (sawInput && !overflowInput) ? totalInput : nil,
             totalOutputTokens: (sawOutput && !overflowOutput) ? totalOutput : nil,
@@ -682,7 +686,7 @@ extension CodexBarCLI {
             totalTokens: (sawTokens && !overflowTokens) ? totalTokens : snapshot.last30DaysTokens,
             totalCostUSD: sawCost ? totalCost : snapshot.last30DaysCostUSD,
             provenance: summary.provenance.rawValue,
-            coverage: summary.coverage)
+            coverage: coverage.counts)
     }
 
     static func decodeCostReportingPeriod(

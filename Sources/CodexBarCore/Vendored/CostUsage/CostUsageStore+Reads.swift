@@ -196,11 +196,11 @@ extension CostUsageStore {
     /// Attach the stamp only after the read transaction commits. A concurrent writer must not
     /// let a decoded older snapshot borrow a newer stamp.
     func readStampedCodexScanSnapshot() -> (snapshot: CostUsageStoreSnapshot, stamp: CodexScanStamp)? {
-        #if DEBUG
-        Self.snapshotReadForTesting?(self.databaseURL)
-        #endif
-        return self.withDatabase(default: nil) { database in
+        self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
+            #if DEBUG
+            Self.snapshotReadForTesting?(self.databaseURL)
+            #endif
             let snapshot = try Self.inReadTransaction(database) {
                 try Self.readSnapshot(database)
             }

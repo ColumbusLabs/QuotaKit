@@ -50,7 +50,7 @@ extension CostUsageClaudeResolverTests {
                 output: output,
                 costNanos: nanos,
                 costPriced: cost != nil))
-            let packedKey = CostUsagePricing.normalizeClaudeModel(stored)
+            let packedKey = stored
             let components = [input, 3, 4, output, nanos, 1, cost == nil ? 0 : 1, 2]
             let previous = expectedDays[dayKey]?[packedKey] ?? Array(repeating: 0, count: 8)
             expectedDays[dayKey, default: [:]][packedKey] = zip(previous, components).map(+)
@@ -72,7 +72,7 @@ extension CostUsageClaudeResolverTests {
         #expect(parsed.rows == expectedRows)
         #expect(parsed.rows.map { Array($0.model.utf8) } == expectedRows.map { Array($0.model.utf8) })
         #expect(parsed.days == expectedDays)
-        #expect(parsed.days[dayKey]?["example"] != nil)
+        #expect(parsed.days[dayKey]?["anthropic.example"] != nil)
         #expect(parsed.rows.contains { $0.model == "anthropic.example" })
     }
 

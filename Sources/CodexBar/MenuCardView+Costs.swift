@@ -162,7 +162,7 @@ extension UsageMenuCardView.Model {
     static func creditsProgressPercent(credits: CreditsSnapshot?) -> Double? {
         guard credits?.hasWorkspaceBalance != true else { return nil }
         if let limit = credits?.codexCreditLimit { return limit.remainingPercent }
-        guard let balance = credits?.remaining, let scale = self.fallbackCreditsScale(credits: credits) else {
+        guard let balance = credits?.displayRemaining, let scale = self.fallbackCreditsScale(credits: credits) else {
             return nil
         }
         return min(100, max(0, balance / scale * 100))

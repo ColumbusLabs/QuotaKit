@@ -2326,7 +2326,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: CostUsageScanner.Options(
                 codexSessionsRoot: env.codexSessionsRoot,
                 cacheRoot: env.cacheRoot,
-                codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite")))
+                codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite")),
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 165)
         #expect(cached?.last30DaysTokens == 165)

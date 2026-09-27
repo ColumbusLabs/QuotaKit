@@ -111,28 +111,28 @@ assert_macos_selection 'SettingsWindowAppearanceTests|SpendActivityHeatmapTests'
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_macos_selection SettingsWindowAppearanceTests '[0]' mapped-source-only \
   $'M\tSources/CodexBar/PreferencesView.swift'
-assert_macos_selection '' '[0,1]' mac-app-entrypoint \
+assert_macos_selection '' '[0,1,2,3]' mac-app-entrypoint \
   $'M\tSources/CodexBar/App.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' widget-persistence \
+assert_macos_selection '' '[0,1,2,3]' widget-persistence \
   $'M\tSources/CodexBar/UsageStore+WidgetSnapshot.swift' \
   $'M\tTests/CodexBarTests/WidgetEmptyProjectionTests.swift'
-assert_macos_selection '' '[0,1]' nested-sync-source \
+assert_macos_selection '' '[0,1,2,3]' nested-sync-source \
   $'M\tSources/CodexBar/Sync/SyncCoordinator.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' provider-registry \
+assert_macos_selection '' '[0,1,2,3]' provider-registry \
   $'M\tSources/CodexBarCore/ProviderRegistry.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' civil-day-test-with-source-fallback \
+assert_macos_selection '' '[0,1,2,3]' civil-day-test-with-source-fallback \
   $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift' \
   $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
   $'M\tSources/CodexBarCore/ProviderRegistry.swift'
-assert_macos_selection '' '[0,1]' unmapped-test-file \
+assert_macos_selection '' '[0,1,2,3]' unmapped-test-file \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
-assert_macos_selection '' '[0,1]' unrelated-test-suite \
+assert_macos_selection '' '[0,1,2,3]' unrelated-test-suite \
   $'M\tSources/CodexBar/PreferencesView.swift' \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
-assert_macos_selection '' '[0,1]' ci-workflow \
+assert_macos_selection '' '[0,1,2,3]' ci-workflow \
   $'M\t.github/workflows/ci.yml' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_gate false docs-site $'M\tdocs/index.html' $'M\tdocs/site.css' $'M\tdocs/site.js' \

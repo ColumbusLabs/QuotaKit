@@ -133,8 +133,8 @@ if required_not_deferred not in job:
     raise SystemExit("swift-test-macos must skip only required tests explicitly deferred for drafts")
 if "shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}" not in job:
     raise SystemExit("swift-test-macos must use the validated path gate shard indexes")
-if not re.search(r"(?m)^\s+shard-count:\s+\[2\]\s*$", job):
-    raise SystemExit("swift-test-macos shard-count must be [2]")
+if not re.search(r"(?m)^\s+shard-count:\s+\[4\]\s*$", job):
+    raise SystemExit("swift-test-macos shard-count must be [4]")
 if "CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-index to Scripts/test.sh")
 if "CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }}" not in job:

@@ -1072,6 +1072,9 @@ extension CostUsageScanner {
                     && cached.forkedFromId == nil
                     && !hasIncompleteInterleaveState))
         guard canIncremental, cached.codexNextUsageRowIndex != nil else { return false }
+        let nextUsageRowIndex = max(
+            cached.codexNextUsageRowIndex ?? 0,
+            Self.nextCodexUsageRowIndex(cached.codexRows))
 
         let resumesResolvedFork = cached.forkedFromId != nil && !cached.hasBufferedCodexForkRetryLines
         if resumesResolvedFork {
@@ -1090,7 +1093,7 @@ extension CostUsageScanner {
             initialHasDivergentTotals: initialHasDivergentTotals,
             initialHasInterleavedTotals: cached.hasInterleavedTotals ?? false,
             initialCodexTurnID: cached.lastCodexTurnID,
-            initialCodexUsageRowIndex: cached.codexNextUsageRowIndex ?? Self.nextCodexUsageRowIndex(cached.codexRows),
+            initialCodexUsageRowIndex: nextUsageRowIndex,
             initialLastAcceptedTokenTimestampUnixMs: cached.codexSession?.latestAcceptedUsageUnixMs,
             initialBufferedSubagentLines: cached.codexBufferedSubagentLines,
             initialBufferedUnresolvedForkLines: cached.codexBufferedUnresolvedForkLines,

@@ -33,6 +33,10 @@ struct PiSessionCostNumericTests {
             #expect(report.data.first?.inputTokens == (expected == 0 ? nil : expected))
             #expect(report.data.first?.outputTokens == 2)
             #expect(report.summary?.totalTokens == expected + 2)
+            if expected == 0 {
+                #expect(report.data.first?.costUSD == nil)
+                #expect(report.data.first?.unpricedRequestCount == 1)
+            }
         }
     }
 }

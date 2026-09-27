@@ -21,9 +21,9 @@ struct SpendDashboardAllTimeTokenSnapshotTests {
         _ = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .refreshMissing, now: now)
         #expect(scanCount == 1)
 
-        store._setTokenSnapshotForTesting(
+        store.publishTokenSnapshot(
             Self.snapshot(days: ["2026-08-17"], historyDays: 30, now: now),
-            provider: .claude)
+            for: .claude)
         _ = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .refreshMissing, now: now)
         #expect(scanCount == 2)
     }

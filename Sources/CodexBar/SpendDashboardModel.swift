@@ -1577,6 +1577,7 @@ extension SpendDashboardModel.CurrencyGroup {
     }
 
     var hasPartialCost: Bool {
+        guard self.totalCost != nil else { return false }
         if self.incompleteRequestCount > 0 { return true }
         if self.providers.contains(where: \.hasPartialCost) { return true }
         let values = self.providers.map(\.totalCost)

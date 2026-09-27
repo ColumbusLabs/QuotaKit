@@ -309,8 +309,8 @@ extension CostUsageScanner {
             .canonicalProjectPath(for: projectPath)
         let stagedRows = plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []
         let sourceSessionID = parsed.sessionId ?? input.cached?.sessionId
-        let sourcePricing = parsed.sessionId != nil && parsed.sessionId != input.cached?.sessionId
-            ? [:] : plan.sourcePricing
+        let sourcePricing = input.cached?.sessionId != nil && parsed.sessionId != nil
+            && parsed.sessionId != input.cached?.sessionId ? [:] : plan.sourcePricing
         var pendingPricing = Self.codexRescanPendingPricing(
             migratedCached: migratedCached,
             metadata: input.metadata,

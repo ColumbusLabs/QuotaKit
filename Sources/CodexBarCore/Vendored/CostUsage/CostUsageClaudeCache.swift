@@ -329,8 +329,8 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 9
-        case .vertexai: 6
+        case .claude: 10
+        case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }
         let suffix = reportContext == .spendDashboard ? "-history" : ""

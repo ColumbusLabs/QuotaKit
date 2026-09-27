@@ -427,7 +427,8 @@ struct PiSessionCostScannerTests {
             options: cachedOptions)
         #expect(firstReport.data.first?.totalTokens == 15)
 
-        try secondContents.write(to: url, atomically: true, encoding: .utf8)
+        // Preserve the file identity so this exercises the unchanged-metadata path.
+        try secondContents.write(to: url, atomically: false, encoding: .utf8)
         try FileManager.default.setAttributes([.modificationDate: stableModifiedAt], ofItemAtPath: url.path)
         let replacedModifiedAt = try #require(
             FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)

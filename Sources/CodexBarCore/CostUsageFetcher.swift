@@ -1600,8 +1600,11 @@ public struct CostUsageFetcher: Sendable {
                 }
             }
 
+            let nativeReport = reports.count == 1
+                ? reports[0]
+                : CostUsageDailyReport.merged(reports, calendar: options.calendar)
             let nativeSnapshot: CostUsageTokenSnapshot? = reports.isEmpty ? nil : Self.tokenSnapshot(
-                from: CostUsageDailyReport.merged(reports),
+                from: nativeReport,
                 now: now,
                 historyDays: clampedHistoryDays,
                 calendar: options.calendar,
@@ -1670,7 +1673,9 @@ public struct CostUsageFetcher: Sendable {
             // rescan on the strength of another source's scan.
             return CachedCodexTokenSnapshotResult(
                 snapshot: Self.tokenSnapshot(
-                    from: CostUsageDailyReport.merged(reports, calendar: options.calendar),
+                    from: reports.count == 1
+                        ? reports[0]
+                        : CostUsageDailyReport.merged(reports, calendar: options.calendar),
                     now: now,
                     historyDays: clampedHistoryDays,
                     calendar: options.calendar,
@@ -1682,7 +1687,8 @@ public struct CostUsageFetcher: Sendable {
                     sessions: Self.codexSessionsWithThreadTitles(sessions, sessionsRoot: roots.first),
                     updatedAt: scanTimes.min()),
                 accounting: accounting,
-                lastRefreshAt: piMerged || staleSnapshotUpdatedAt != nil ? nil : nativeScanAt,
+                lastRefreshAt: piMerged || !piHistoryIsComplete || staleSnapshotUpdatedAt != nil
+                    ? nil : nativeScanAt,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
                 currentDayIsFullyVerified: currentDayIsFullyVerified)
         }
@@ -2198,13 +2204,13 @@ public struct CostUsageFetcher: Sendable {
         } else {
             nil
         }
-        // Prefer summary totals when present; fall back to summing daily entries. A non-empty
-        // row set where every row carries an explicit value has a known priced subtotal even
-        // when some requests are unpriced. Coverage metadata separately marks that subtotal
-        // incomplete; a whole day without cost remains unavailable.
+        // Prefer summary totals when present; fall back to summing daily entries. A priced
+        // subtotal is not a complete window cost when any request remains unpriced.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
-        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
+        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy {
+            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+        }
         // A bounded Codex refresh may expose an explicitly partial projection. Keep its compact
         // subtotal useful when every materialized day has a priced subtotal, while the coverage
         // flag above tells consumers that the subtotal is not an established window total.

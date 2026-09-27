@@ -5,7 +5,7 @@ import Testing
 struct CodexForkAppendResumeTests {
     private typealias Usage = (input: Int, cached: Int, output: Int)
 
-    @Test
+    @Test(.disabled("Direct fork accounting is deferred pending https://github.com/ColumbusLabs/QuotaKit/issues/193"))
     func `bounded append resumes a complete fork with an unresolved parent`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

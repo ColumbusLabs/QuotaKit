@@ -185,6 +185,7 @@ struct ProviderRegistryTests {
             [.t3chat, .groq],
             [.deepseek, .atlascloud],
             [.v0, .typesafe],
+            [.deepgram, .pi],
         ]
 
         for leftIndex in descriptors.indices {

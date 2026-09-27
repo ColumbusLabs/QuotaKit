@@ -236,6 +236,52 @@ struct CostUsageStoreTests {
     }
 
     @Test
+    func `stable cursor persists changed pricing evidence in usage rows`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/repriced.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 0, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 3,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 3,
+            pricingMode: "priority")]
+        cache.files[path] = usage
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+
+        #expect(store.syncLoadCodexCache(calendar: calendar).files[path]?.codexRows?.first?.pricingMode == "priority")
+    }
+
+    @Test
     func `file aggregates keep event details with their day and model`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

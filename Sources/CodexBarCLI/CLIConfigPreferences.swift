@@ -63,6 +63,14 @@ extension CodexBarCLI {
 }
 
 struct ConfigPreferencesOptions: CommanderParsable {
+    @Option(name: .long("format"), help: "Output format: text | json")
+    var format: OutputFormat?
+    @Flag(name: .long("json"), help: "Emit JSON output")
+    var jsonShortcut: Bool = false
+    @Flag(name: .long("json-only"), help: "Emit JSON only (suppress non-JSON output)")
+    var jsonOnly: Bool = false
+    @Flag(name: .long("pretty"), help: "Pretty-print JSON output")
+    var pretty: Bool = false
     @Option(name: .long("file"), help: "Preferences JSON path; export defaults to stdout")
     var file: String?
     @Option(name: .long("defaults-domain"), help: "macOS defaults domain (default: com.columbuslabs.quotakit.mac)")

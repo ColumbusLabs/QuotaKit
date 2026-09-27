@@ -445,6 +445,7 @@ extension UsageStore {
             } catch is CancellationError {
                 return
             } catch {
+                guard self.spendDashboardCodexCostCatchUpContextIsCurrent(context) else { return }
                 self.publishSpendDashboardCodexCostCatchUpActivity(
                     statuses: statuses,
                     context: context,

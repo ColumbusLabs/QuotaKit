@@ -654,11 +654,13 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         let oldTask = try #require(store.spendDashboardCodexCostCatchUpTask)
         try await oldGate.waitForPendingCount(1)
         #expect(oldAdvanceCount == 2)
-        let revision = store.spendDashboardCodexCostCatchUpRevision
         // The executor can finish before cancellation while its MainActor continuation is still queued.
         oldGate.resume(returning: .failure(NSError(domain: "SyntheticCatchUp", code: 2)))
         store.startSpendDashboardCodexCostCatchUpIfNeeded(
             accounts: [Self.account(id: "replacement", cacheIdentity: "cache-replacement")], mode: .accelerated)
+        // An error published before replacement is valid; only revisions after
+        // replacement starts can belong to the obsolete worker.
+        let revision = store.spendDashboardCodexCostCatchUpRevision
         let replacementTask = try #require(store.spendDashboardCodexCostCatchUpTask)
         let replacementToken = try #require(store.spendDashboardCodexCostCatchUpToken)
         await oldTask.value

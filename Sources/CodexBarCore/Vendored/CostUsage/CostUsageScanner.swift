@@ -1018,6 +1018,7 @@ enum CostUsageScanner {
         let range: CostUsageDayRange
         let forceFullScan: Bool
         let sourceRowRecoveryPathKeys: Set<String>
+        let preserveUnavailableHistoryDuringRecovery: Bool
         let dropDeferredCodexRows: Bool
         let requiresTurnIDCache: Bool
         let changedPriorityTurnIDs: Set<String>
@@ -6548,6 +6549,10 @@ enum CostUsageScanner {
         try context.checkCancellation?()
         let metadata = Self.codexFileMetadata(fileURL: fileURL)
         if context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(fileURL))
+            || (context.preserveUnavailableHistoryDuringRecovery
+                && cache.files[metadata.path].map {
+                    Self.codexUnavailableHistoryNeedsRecovery($0, range: context.range)
+                } == true)
             || cache.files[metadata.path]?.codexPendingSourcePricing != nil
         {
             guard metadata.fileId != nil, FileManager.default.isReadableFile(atPath: metadata.path) else {
@@ -6676,6 +6681,15 @@ enum CostUsageScanner {
         return max(0, metadata.size)
     }
 
+    private static func codexUnavailableHistoryNeedsRecovery(
+        _ usage: CostUsageFileUsage,
+        range: CostUsageDayRange) -> Bool
+    {
+        usage.codexPendingSourcePricing != nil
+            || codexSourceRowRecoveryPricing(usage, range: range) != nil
+            || codexParserRevisionMigrationPricing(usage, range: range) != nil
+    }
+
     private static func makeCodexRefreshPlan(
         cache: CostUsageCache,
         range: CostUsageDayRange,
@@ -6694,8 +6708,8 @@ enum CostUsageScanner {
             []
         }
         let preserveUnavailableHistoryDuringRecovery = !options.forceRescan && !rootsChanged
-            && (!sourceRowRecoveryPathKeys.isEmpty || cache.files.values.contains {
-                $0.codexPendingSourcePricing != nil
+            && (!sourceRowRecoveryPathKeys.isEmpty || cache.files.contains { path, usage in
+                usage.codexPendingSourcePricing != nil && FileManager.default.isReadableFile(atPath: path)
             })
         let pricingMetadataMigrationPathKeys = options.useCodexCatchUpWorkingSet
             ? []
@@ -8192,7 +8206,8 @@ enum CostUsageScanner {
                 {
                     guard let old = cache.files[key] else { continue }
                     if plan.preserveUnavailableHistoryDuringRecovery,
-                       !FileManager.default.fileExists(atPath: key) { continue }
+                       !FileManager.default.fileExists(atPath: key),
+                       Self.codexUnavailableHistoryNeedsRecovery(old, range: range) { continue }
                     let shouldDrop = shouldDropAllUnscannedFiles ||
                         old.touchesCodexScanWindow(
                             sinceKey: range.scanSinceKey,
@@ -8212,7 +8227,8 @@ enum CostUsageScanner {
                         calendar: range.calendar)
                     else { continue }
                     guard FileManager.default.fileExists(atPath: key) else {
-                        if plan.preserveUnavailableHistoryDuringRecovery { continue }
+                        if plan.preserveUnavailableHistoryDuringRecovery,
+                           Self.codexUnavailableHistoryNeedsRecovery(old, range: range) { continue }
                         Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
                         cache.files.removeValue(forKey: key)
                         continue
@@ -8660,6 +8676,7 @@ enum CostUsageScanner {
             forceFullScan: options.forceRescan || plan.windowExpanded
                 || plan.needsProjectMetadataMigration,
             sourceRowRecoveryPathKeys: plan.sourceRowRecoveryPathKeys,
+            preserveUnavailableHistoryDuringRecovery: plan.preserveUnavailableHistoryDuringRecovery,
             dropDeferredCodexRows: options.forceRescan || plan.needsTurnIDCacheMigration,
             requiresTurnIDCache: plan.needsTurnIDCacheMigration,
             changedPriorityTurnIDs: plan.changedPriorityTurnIDs,

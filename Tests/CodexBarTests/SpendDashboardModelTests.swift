@@ -197,6 +197,7 @@ struct SpendDashboardModelTests {
             .xai,
             // Antigravity joined via the tokscale-compatible local usage reader.
             .antigravity,
+            .pi,
             // Muse contributes token history even when dollar costs are unavailable.
             .muse,
         ])

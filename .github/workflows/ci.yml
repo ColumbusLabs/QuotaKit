@@ -167,10 +167,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Two shards amortize SwiftPM's per-shard discovery/cold build.
-        # Each shard remains within the 50-minute Swift Test timeout.
+        # Four shards keep the broad integration suite clear of the Swift Test timeout.
         shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}
-        shard-count: [2]
+        shard-count: [4]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         # Full history so `lint.sh audit_parser_version` can compare against

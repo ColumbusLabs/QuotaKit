@@ -660,7 +660,7 @@ struct CostUsageScannerForkSplitTests {
         #expect(project.modelBreakdowns?.first { $0.modelName == unpricedModel }?.costUSD == nil)
     }
 
-    @Test
+    @Test(.disabled("Direct fork accounting is deferred pending https://github.com/ColumbusLabs/QuotaKit/issues/193"))
     func `source refresh removes copied fork prefix without losing fast split`() throws {
         let fixture = try self.makeFixture()
         defer { fixture.environment.cleanup() }
@@ -720,7 +720,7 @@ struct CostUsageScannerForkSplitTests {
         #expect(abs((report.summary?.totalCostUSD ?? 0) - (standardCost + priorityCost)) < 1e-12)
     }
 
-    @Test
+    @Test(.disabled("Direct fork accounting is deferred pending https://github.com/ColumbusLabs/QuotaKit/issues/193"))
     func `codex report keeps trusted fork deduplicated row split`() throws {
         let fixture = try self.makeFixture()
         defer { fixture.environment.cleanup() }

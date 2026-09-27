@@ -387,7 +387,7 @@ struct CursorUsageEventsPaginationTests {
     }
 
     @Test
-    func `fetchUsage preserves a 403 as a non authentication failure`() async {
+    func `fetchUsage reports a 403 as a non authentication cost failure`() async {
         let transport = ProviderHTTPTransportStub { _ in
             Self.httpResponse(#"{"error":"forbidden"}"#, statusCode: 403)
         }
@@ -396,11 +396,10 @@ struct CursorUsageEventsPaginationTests {
         let error = await #expect(throws: CursorStatusProbeError.self) {
             _ = try await fetcher.fetchUsage(cookieHeader: "x=y", since: nil, until: nil)
         }
-        guard case let .networkError(message) = error else {
-            Issue.record("Expected networkError")
+        guard case .costRequestForbidden = error else {
+            Issue.record("Expected costRequestForbidden")
             return
         }
-        #expect(message == "HTTP 403")
     }
 
     @Test

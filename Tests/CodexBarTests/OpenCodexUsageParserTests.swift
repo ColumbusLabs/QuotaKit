@@ -22,8 +22,12 @@ struct OpenCodexUsageParserTests {
         #expect(entry.totalTokens == nil)
     }
 
-    @Test(arguments: [("12.9", 12), ("-0.5", 0), (String(Int.max), Int.max)])
-    func `token counts retain truncation and exact integer values`(literal: String, expected: Int) throws {
+    @Test(arguments: [
+        ("12.9", nil as Int?),
+        ("-0.5", nil as Int?),
+        (String(Int.max), Int.max as Int?),
+    ])
+    func `token counts reject fractions and retain exact integer values`(literal: String, expected: Int?) throws {
         let line = """
         {"requestId":"valid","timestamp":1784179200,"provider":"openai","model":"gpt-5.4",\
         "usageStatus":"reported","usage":{"inputTokens":\(literal)}}
@@ -118,8 +122,8 @@ struct OpenCodexUsageParserTests {
             now: now,
             historyDays: 7,
             calendar: calendar)
-        #expect(snapshot.daily[0].inputTokens == Int.max)
-        #expect(snapshot.daily[0].totalTokens == Int.max)
+        #expect(snapshot.daily[0].inputTokens == nil)
+        #expect(snapshot.daily[0].totalTokens == nil)
         #expect(snapshot.sessions.count == 2)
     }
 

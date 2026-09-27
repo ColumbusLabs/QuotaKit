@@ -590,6 +590,7 @@ private enum OpenCodexUsageSnapshotReference {
         var cost: Double = 0
         var sawTokens = false
         var sawCost = false
+        var tokensAreComplete = true
     }
 
     static func snapshot(
@@ -670,7 +671,8 @@ private enum OpenCodexUsageSnapshotReference {
             return CostUsageHourlyEntry(
                 hour: hour,
                 totalTokens: bucket.sawTokens ? bucket.tokens : nil,
-                costUSD: bucket.sawCost ? bucket.cost : nil)
+                costUSD: bucket.sawCost ? bucket.cost : nil,
+                tokensAreComplete: bucket.tokensAreComplete)
         }
         let todayEntry = CostUsageTokenSnapshot.entry(
             in: daily,
@@ -779,6 +781,8 @@ private enum OpenCodexUsageSnapshotReference {
         if let tokens = entry.resolvedTotalTokens {
             hour.tokens += tokens
             hour.sawTokens = true
+        } else {
+            hour.tokensAreComplete = false
         }
         if let cost {
             hour.cost += cost

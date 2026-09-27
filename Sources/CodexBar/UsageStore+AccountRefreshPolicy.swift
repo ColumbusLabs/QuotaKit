@@ -13,7 +13,12 @@ extension UsageStore {
     }
 
     func shouldFetchAllTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) -> Bool {
-        guard TokenAccountSupportCatalog.support(for: provider) != nil, accounts.count > 1 else { return false }
+        guard let support = TokenAccountSupportCatalog.support(for: provider), accounts.count > 1 else {
+            return false
+        }
+        // Saved credentials stay passive while a provider uses a web or other non-token source.
+        let source = self.settings.providerConfig(for: provider)?.source ?? .auto
+        guard !support.passiveSourceModes.contains(source) else { return false }
         // CloudKit sync and account widgets both need every saved token account, independent of menu layout.
         if self.settings.iCloudSyncEnabled || self.settings.accountWidgetsEnabled { return true }
         return self.settings.multiAccountMenuLayout == .stacked

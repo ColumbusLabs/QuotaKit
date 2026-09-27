@@ -141,6 +141,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         let before = controller.modelDerivationCounters.snapshot
         let pending = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: Self.configuration().bucketCalendar,
             preferredCurrencyCode: "USD",
@@ -158,6 +159,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         await Self.waitForBuilds(before.buildCompletions + 1, controller: controller)
         let completed = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: Self.configuration().bucketCalendar,
             preferredCurrencyCode: "USD",
@@ -406,6 +408,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         let before = controller.modelDerivationCounters.snapshot
         let reused = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: configuration.bucketCalendar,
             preferredCurrencyCode: configuration.preferredCurrencyCode,
@@ -417,6 +420,7 @@ struct SpendDashboardRecalculationPerformanceTests {
 
         let pendingScoped = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: configuration.bucketCalendar,
             preferredCurrencyCode: configuration.preferredCurrencyCode,
@@ -427,6 +431,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         await Self.waitForBuilds(before.buildCompletions + 1, controller: controller)
         let scoped = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: configuration.bucketCalendar,
             preferredCurrencyCode: configuration.preferredCurrencyCode,
@@ -434,6 +439,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         let afterScopedBuild = controller.modelDerivationCounters.snapshot
         let scopedAgain = publication.model(
             requestedDays: controller.selectedDays,
+            reportingPeriod: controller.selectedPeriod,
             now: Self.now,
             calendar: configuration.bucketCalendar,
             preferredCurrencyCode: configuration.preferredCurrencyCode,

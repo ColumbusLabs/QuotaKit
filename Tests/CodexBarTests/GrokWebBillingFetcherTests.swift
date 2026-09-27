@@ -425,7 +425,9 @@ struct GrokWebBillingFetcherTests {
 
     @Test
     func `web strategy applies settings tier when billing used the auth file`() async throws {
-        let result = try await GrokWebFetchStrategy().fetch(
+        var strategy = GrokWebFetchStrategy()
+        strategy.loadCredentials = { _ in .success(Self.credentials) }
+        let result = try await strategy.fetch(
             Self.webContext(grokHome: nil),
             webBilling: { _ in
                 (
