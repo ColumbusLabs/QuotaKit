@@ -36,6 +36,7 @@ public struct ProviderPluginCookieSession: Codable, Equatable, Sendable {
 
 final class ProviderPluginCookieBroker: @unchecked Sendable {
     typealias Importer = @Sendable (String) throws -> [(header: String, source: String)]
+    typealias BatchImporter = @Sendable (String, Int) throws -> [(header: String, source: String)]?
 
     private struct Issued {
         let session: ProviderPluginCookieSession
@@ -46,7 +47,9 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private let provider: UsageProvider
     private let domains: Set<String>
     private let settings: ProviderSettingsSnapshot.CookieProviderSettings
-    private let importer: Importer
+    private let importer: BatchImporter
+    private var importBatches: [String: Int] = [:]
+    private var exhaustedImports = Set<String>()
     private let lock = NSLock()
     private var observed: [String: Issued] = [:]
     private var issuedSessions: [String: Issued] = [:]
@@ -55,29 +58,46 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private var seen: [String: Set<String>] = [:]
     private var manualDomain: String?
 
-    convenience init(provider: UsageProvider, domains: Set<String>, context: ProviderFetchContext) {
+    convenience init(
+        provider: UsageProvider,
+        domains: Set<String>,
+        context: ProviderFetchContext,
+        importer: BatchImporter? = nil)
+    {
         self.init(
             provider: provider,
             domains: domains,
             settings: context.settings.flatMap {
                 ProviderDescriptorRegistry.descriptor(for: provider).settingsSection.cookieSettings(from: $0)
             } ?? .init(cookieSource: .auto, manualCookieHeader: nil),
-            importer: { domain in
-                try Self.importCookieHeaders(
+            batches: importer ?? { domain, batch in
+                guard batch == 0 else { return nil }
+                return try Self.importCookieHeaders(
                     provider: provider, domain: domain, browserDetection: context.browserDetection)
             })
+    }
+
+    convenience init(
+        provider: UsageProvider,
+        domains: Set<String>,
+        settings: ProviderSettingsSnapshot.CookieProviderSettings,
+        importer: @escaping Importer)
+    {
+        self.init(provider: provider, domains: domains, settings: settings, batches: { domain, batch in
+            try batch == 0 ? importer(domain) : nil
+        })
     }
 
     init(
         provider: UsageProvider,
         domains: Set<String>,
         settings: ProviderSettingsSnapshot.CookieProviderSettings,
-        importer: @escaping Importer)
+        batches: @escaping BatchImporter)
     {
         self.provider = provider
         self.domains = domains
         self.settings = settings
-        self.importer = importer
+        self.importer = batches
     }
 
     var cookieSource: ProviderCookieSource {
@@ -152,11 +172,18 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                 cachedAt: cached.storedAt.timeIntervalSince1970)
         }
         guard !cachedOnly else { return nil }
-        if self.imported[domain] == nil {
-            self.imported[domain] = []
-            self.imported[domain] = try self.importer(domain)
-        }
-        while var candidates = self.imported[domain], !candidates.isEmpty {
+        while !self.exhaustedImports.contains(domain) {
+            if self.imported[domain]?.isEmpty != false {
+                let batch = self.importBatches[domain, default: 0]
+                self.importBatches[domain] = batch + 1
+                guard let candidates = try self.importer(domain, batch) else {
+                    self.exhaustedImports.insert(domain)
+                    break
+                }
+                self.imported[domain] = candidates
+                if candidates.isEmpty { continue }
+            }
+            var candidates = self.imported[domain] ?? []
             let candidate = candidates.removeFirst()
             self.imported[domain] = candidates
             guard let header = CookieHeaderNormalizer.normalize(candidate.header),

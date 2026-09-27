@@ -109,6 +109,76 @@ struct AccountIdentityComputerTests {
         #expect(AccountIdentityComputer.compute(provider: .replicate, identity: nil) == [])
     }
 
+    @Test
+    func `Copilot numeric user identity is scoped to its GitHub API host`() {
+        let publicIDs = AccountIdentityComputer.compute(
+            provider: .copilot, identity: nil, externalIdentifier: "github:user:42")
+        let enterpriseIDs = AccountIdentityComputer.compute(
+            provider: .copilot, identity: nil, externalIdentifier: "github:api.example.ghe.com:user:42")
+        #expect(publicIDs?.count == 1)
+        #expect(enterpriseIDs?.count == 1)
+        #expect(publicIDs != enterpriseIDs)
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot, identity: nil, externalIdentifier: "same-login") == [])
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: nil,
+            externalIdentifier: "github:api.other.ghe.com:user:not-a-number") == [])
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: nil,
+            externalIdentifier: "github:user:42",
+            copilotExpectedAPIHost: "api.example.ghe.com") == [])
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: nil,
+            externalIdentifier: "github:api.example.ghe.com:user:42",
+            copilotExpectedAPIHost: "api.example.ghe.com") == enterpriseIDs)
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: nil,
+            externalIdentifier: "github:api.other.ghe.com:user:42",
+            copilotExpectedAPIHost: "api.example.ghe.com") == [])
+    }
+
+    @Test
+    func `Verified Copilot IDs ignore editable labels on public and Enterprise hosts`() {
+        let named = ProviderIdentitySnapshot(
+            providerID: .copilot,
+            accountEmail: "Work",
+            accountOrganization: nil,
+            loginMethod: "Pro")
+        let publicIDs = AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: named,
+            externalIdentifier: "github:user:42",
+            copilotExpectedAPIHost: "api.github.com")
+        #expect(publicIDs == ["copilot:github-user:github%3Auser%3A42"])
+        let otherPublicIDs = AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: named,
+            externalIdentifier: "github:user:99",
+            copilotExpectedAPIHost: "api.github.com")
+        #expect(otherPublicIDs == ["copilot:github-user:github%3Auser%3A99"])
+        #expect(publicIDs != otherPublicIDs)
+        let enterpriseIDs = AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: named,
+            externalIdentifier: "github:api.example.ghe.com:user:42",
+            copilotExpectedAPIHost: "api.example.ghe.com")
+        #expect(enterpriseIDs == ["copilot:github-user:github%3Aapi.example.ghe.com%3Auser%3A42"])
+        let placeholder = ProviderIdentitySnapshot(
+            providerID: .copilot,
+            accountEmail: "Account 1",
+            accountOrganization: nil,
+            loginMethod: nil)
+        #expect(AccountIdentityComputer.compute(
+            provider: .copilot,
+            identity: placeholder,
+            externalIdentifier: "github:user:42",
+            copilotExpectedAPIHost: "api.github.com") == publicIDs)
+    }
+
     // MARK: - Non-Tier-A providers
 
     @Test
@@ -126,7 +196,7 @@ struct AccountIdentityComputerTests {
     func `Non-Tier-A providers return nil for legacy iOS grouping`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
-            .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
+            .perplexity, .cursor, .gemini, .opencode, .opencodego,
             .alibaba, .factory, .minimax, .kimi, .augment, .jetbrains,
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,

@@ -32,7 +32,8 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `llmman keeps its API key and daemon address in its own config`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-llmman")
-        let fields = LLMManProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .llmman))
+        let fields = PluginAPIKeyProviderImplementation(spec: LLMManProviderDescriptor.spec)
+            .settingsFields(context: fixture.settingsContext(provider: .llmman))
         #expect(fields.map(\.id) == ["llmman-api-key", "llmman-base-url"])
         #expect(fields.map(\.kind) == [.secure, .plain])
         fields[0].binding.wrappedValue = "fixture-key"
@@ -70,7 +71,7 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `bifrost exposes only a virtual key and a configured gateway URL`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bifrost")
-        let fields = BifrostProviderImplementation()
+        let fields = PluginAPIKeyProviderImplementation(spec: BifrostProviderDescriptor.spec)
             .settingsFields(context: fixture.settingsContext(provider: .bifrost))
         #expect(fields.map(\.id) == ["bifrost-api-key", "bifrost-base-url"])
         #expect(fields.map(\.kind) == [.secure, .plain])
@@ -827,7 +828,8 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `aixy and xkiro expose their API key settings`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy-xkiro")
-        let aixy = AixyProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .aixy))
+        let aixy = PluginAPIKeyProviderImplementation(spec: AixyProviderDescriptor.spec)
+            .settingsFields(context: fixture.settingsContext(provider: .aixy))
         #expect(aixy.map(\.id) == ["aixy-api-key", "aixy-base-url"])
         let xkiro = try #require(ProviderCatalog.implementation(for: .xkiro))
             .settingsFields(context: fixture.settingsContext(provider: .xkiro))
@@ -851,7 +853,7 @@ struct ProviderSettingsDescriptorTests {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepgram")
         let context = fixture.settingsContext(provider: .deepgram)
 
-        let implementation = DeepgramProviderImplementation()
+        let implementation = PluginAPIKeyProviderImplementation(spec: DeepgramProviderDescriptor.spec)
         let fields = implementation.settingsFields(context: context)
 
         #expect(fields.contains(where: { $0.id == "deepgram-api-key" }))

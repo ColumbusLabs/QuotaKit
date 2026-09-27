@@ -731,14 +731,16 @@ enum CLIRenderer {
         now: Date,
         lines: inout [String])
     {
-        let extras = ProviderDescriptorRegistry.descriptor(for: provider)
-            .presentation
-            .extraRateWindows(snapshot: snapshot)
+        let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
+        let extras = presentation.extraRateWindows(snapshot: snapshot)
         for extra in extras {
             lines.append(self.rateLine(title: extra.title, window: extra.window, useColor: context.useColor))
-            if let reset = self.resetLine(for: extra.window, style: context.resetStyle, now: now) {
-                lines.append(self.subtleLine(reset, useColor: context.useColor))
-            }
+            self.appendResetAndDetailLines(
+                usesDetail: presentation.menuCard.extraRateWindowShowsResetDescriptionAsDetail(extra),
+                window: extra.window,
+                context: context,
+                now: now,
+                lines: &lines)
         }
     }
 
@@ -844,7 +846,7 @@ enum CLIRenderer {
             lines.append(pace)
         }
         self.appendResetAndDetailLines(
-            provider: provider,
+            usesDetail: ProviderDescriptorRegistry.descriptor(for: provider).metadata.usesDetailBackedWindow,
             window: window,
             context: context,
             now: now,
@@ -852,13 +854,13 @@ enum CLIRenderer {
     }
 
     private static func appendResetAndDetailLines(
-        provider: UsageProvider,
+        usesDetail: Bool,
         window: RateWindow,
         context: RenderContext,
         now: Date,
         lines: inout [String])
     {
-        if ProviderDescriptorRegistry.descriptor(for: provider).metadata.usesDetailBackedWindow {
+        if usesDetail {
             if let reset = self.resetLineForDetailBackedWindow(window: window, style: context.resetStyle, now: now) {
                 lines.append(self.subtleLine(reset, useColor: context.useColor))
             }

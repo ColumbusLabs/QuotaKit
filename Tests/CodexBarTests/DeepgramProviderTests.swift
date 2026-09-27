@@ -9,41 +9,12 @@ import Testing
 struct DeepgramProviderTests {
     @Test
     func `deepgram field kinds and bindings`() throws {
-        let suite = "DeepgramProviderTests-field-kinds"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
-        let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
-        let context = ProviderSettingsContext(
-            provider: .deepgram,
-            settings: settings,
-            store: store,
-            boolBinding: { keyPath in
-                Binding(
-                    get: { settings[keyPath: keyPath] },
-                    set: { settings[keyPath: keyPath] = $0 })
-            },
-            stringBinding: { keyPath in
-                Binding(
-                    get: { settings[keyPath: keyPath] },
-                    set: { settings[keyPath: keyPath] = $0 })
-            },
-            statusText: { _ in nil },
-            setStatusText: { _, _ in },
-            lastAppActiveRunAt: { _ in nil },
-            setLastAppActiveRunAt: { _, _ in },
-            requestConfirmation: { _ in },
-            runLoginFlow: {})
+        let fixture = try ProviderSettingsDescriptorTests()
+            .makeSettingsFixture(suite: "DeepgramProviderTests-field-kinds")
+        let settings = fixture.settings
+        let context = fixture.settingsContext(provider: .deepgram)
 
-        let fields = DeepgramProviderImplementation().settingsFields(context: context)
+        let fields = try (#require(ProviderCatalog.implementation(for: .deepgram))).settingsFields(context: context)
         let apiField = try #require(fields.first(where: { $0.id == "deepgram-api-key" }))
         let projectField = try #require(fields.first(where: { $0.id == "deepgram-project-id" }))
 
@@ -123,30 +94,6 @@ struct DeepgramProviderTests {
         #expect(request.timeoutInterval == 15)
         #expect(usage.detailRow(label: "Requests")?.value == "7")
         #expect(usage.detailRow(label: "Audio")?.value == "1.5 hours")
-    }
-
-    @Test
-    nonisolated func `native fetch preserves typed usage for QuotaKit sync`() async throws {
-        let body = #"""
-        {
-          "start": "2025-01-16",
-          "end": "2025-01-23",
-          "results": [{ "hours": 1.5, "total_hours": 2, "tokens_in": 10,
-                        "tokens_out": 5, "tts_characters": 20, "requests": 7 }]
-        }
-        """#
-        let snapshot = try await DeepgramUsageFetcher.fetchUsage(
-            apiKey: "dg-test",
-            projectID: "project-123",
-            environment: [DeepgramUsageFetcher.apiURLKey: "https://deepgram.test/v1"],
-            transport: Self.transport { _ in body })
-        let usage = snapshot.toUsageSnapshot()
-
-        #expect(usage.deepgramUsage?.requests == 7)
-        #expect(usage.deepgramUsage?.hours == 1.5)
-        #expect(usage.deepgramUsage?.tokensIn == 10)
-        #expect(usage.deepgramUsage?.tokensOut == 5)
-        #expect(usage.deepgramUsage?.ttsCharacters == 20)
     }
 
     @Test

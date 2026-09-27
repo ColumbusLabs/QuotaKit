@@ -24,6 +24,91 @@ struct AccountIdentityMergeTests {
     }
 
     @Test
+    func `Copilot Enterprise hosts do not merge through a shared login or legacy bucket`() throws {
+        let east = Self.makeProvider(
+            id: "copilot",
+            email: "same-login @ api.east.ghe.example",
+            identifiers: ["copilot:github-user:github%3Aapi.east.ghe.example%3Auser%3A42"])
+        let west = Self.makeProvider(
+            id: "copilot",
+            email: "same-login @ api.west.ghe.example",
+            identifiers: ["copilot:github-user:github%3Aapi.west.ghe.example%3Auser%3A42"])
+        let old = Self.makeProvider(id: "copilot", email: nil, identifiers: nil)
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "mac-a", providers: [east, west]),
+            Self.makeMac(deviceID: "mac-b", providers: [east, old]),
+        ]))
+        #expect(merged.providers.count == 3)
+        #expect(merged.providers.filter { $0.accountIdentities?.isEmpty == false }.count == 2)
+    }
+
+    @Test
+    func `Hostless Enterprise accounts with matching default labels stay local to each Mac`() throws {
+        let a = Self.makeProvider(
+            id: "copilot",
+            email: "Account 1 @ api.example.ghe.com (local 00000000-0000-0000-0000-000000000001)",
+            identifiers: [])
+        let b = Self.makeProvider(
+            id: "copilot",
+            email: "Account 1 @ api.example.ghe.com (local 00000000-0000-0000-0000-000000000002)",
+            identifiers: [])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "mac-a", providers: [a]),
+            Self.makeMac(deviceID: "mac-b", providers: [b]),
+        ]))
+        #expect(merged.providers.count == 2)
+    }
+
+    @Test
+    func `Verified public Copilot stays separate from a label-only older Mac`() throws {
+        let old = Self.makeProvider(id: "copilot", email: "same-login", identifiers: nil)
+        let current = Self.makeProvider(
+            id: "copilot",
+            email: "same-login @ github.com",
+            identifiers: ["copilot:github-user:github%3Auser%3A42"])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "old-mac", providers: [old]),
+            Self.makeMac(deviceID: "new-mac", providers: [current]),
+        ]))
+        // Mixed-version Macs can show duplicate cards until the older Mac upgrades.
+        #expect(merged.providers.count == 2)
+    }
+
+    @Test
+    func `Verified public Copilot IDs with the same editable label remain distinct`() throws {
+        let first = Self.makeProvider(
+            id: "copilot",
+            email: "Work @ github.com",
+            identifiers: ["copilot:github-user:github%3Auser%3A42"])
+        let second = Self.makeProvider(
+            id: "copilot",
+            email: "Work @ github.com",
+            identifiers: ["copilot:github-user:github%3Auser%3A99"])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "mac-a", providers: [first]),
+            Self.makeMac(deviceID: "mac-b", providers: [second]),
+        ]))
+        #expect(merged.providers.count == 2)
+    }
+
+    @Test
+    func `Enterprise Copilot IDs with the same label remain distinct`() throws {
+        let first = Self.makeProvider(
+            id: "copilot",
+            email: "Account 1 @ api.example.ghe.com",
+            identifiers: ["copilot:github-user:github%3Aapi.example.ghe.com%3Auser%3A42"])
+        let second = Self.makeProvider(
+            id: "copilot",
+            email: "Account 1 @ api.example.ghe.com",
+            identifiers: ["copilot:github-user:github%3Aapi.example.ghe.com%3Auser%3A99"])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "mac-a", providers: [first]),
+            Self.makeMac(deviceID: "mac-b", providers: [second]),
+        ]))
+        #expect(merged.providers.count == 2)
+    }
+
+    @Test
     func `Legacy snapshot with email synthesizes provider:email:<lowered> identifier`() {
         let p = Self.makeProvider(
             id: "codex",

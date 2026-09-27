@@ -7,6 +7,23 @@ import Testing
 @MainActor
 struct ClinePassProviderTests {
     @Test
+    func `session availability does not copy the token into config`() throws {
+        let fixture = try ProviderSettingsDescriptorTests().makeSettingsFixture(suite: #function)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("providers.json")
+        try #"{"providers":{"cline":{"settings":{"auth":{"accessToken":"fixture-session"}}}}}"#
+            .write(to: file, atomically: true, encoding: .utf8)
+        let implementation = try #require(ProviderCatalog.implementation(for: .clinepass))
+        #expect(implementation.isAvailable(context: .init(
+            provider: .clinepass,
+            settings: fixture.settings,
+            environment: ["HOME": directory.path, "CLINE_PROVIDER_SETTINGS_PATH": file.path])))
+        #expect(fixture.settings.providerConfig(for: .clinepass)?.sanitizedAPIKey == nil)
+    }
+
+    @Test
     func `provider appears in settings with API key field and official icon`() throws {
         let suite = "ClinePassProviderTests-settings"
         let defaults = InMemoryUserDefaults()

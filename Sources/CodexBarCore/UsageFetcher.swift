@@ -199,6 +199,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
     /// gap G — transient, like azureOpenAIUsage.
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
+    /// Retains an observed zero when a metered Copilot seat has no visible credit row.
+    public let copilotMeteredZeroCredits: Bool
     /// Live-only marker for optional Command Code subscription lookup failure.
     public let commandCodeSubscriptionEnrichmentUnavailable: Bool
     /// Live-only marker that Command Code returned a recognized subscription plan.
@@ -241,6 +243,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case poeUsage
         case cursorRateWindowLayout
         case xaiUsage
+        case copilotMeteredZeroCredits
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case updatedAt
@@ -295,6 +298,7 @@ public struct UsageSnapshot: Codable, Sendable {
         cursorRateWindowLayout: CursorRateWindowLayout? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
+        copilotMeteredZeroCredits: Bool = false,
         commandCodeSubscriptionEnrichmentUnavailable: Bool = false,
         commandCodeHasSubscriptionPlan: Bool = false,
         commandCodeMonthlyGrantDepleted: Bool = false,
@@ -350,6 +354,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.cursorRateWindowLayout = cursorRateWindowLayout
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
+        self.copilotMeteredZeroCredits = copilotMeteredZeroCredits
         self.commandCodeSubscriptionEnrichmentUnavailable = commandCodeSubscriptionEnrichmentUnavailable
         self.commandCodeHasSubscriptionPlan = commandCodeHasSubscriptionPlan
         self.commandCodeMonthlyGrantDepleted = commandCodeMonthlyGrantDepleted
@@ -362,6 +367,10 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func with(extraRateWindows: [NamedRateWindow]?) -> UsageSnapshot {
         self.replacing(extraRateWindows: .value(extraRateWindows))
+    }
+
+    public func with(details: [ProviderDetailSection]) -> UsageSnapshot {
+        self.replacing(details: .value(details))
     }
 
     public func withCodexResetCredits(_ resetCredits: CodexRateLimitResetCreditsSnapshot?) -> UsageSnapshot {
@@ -457,6 +466,8 @@ public struct UsageSnapshot: Codable, Sendable {
         }
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
+        self.copilotMeteredZeroCredits = try container
+            .decodeIfPresent(Bool.self, forKey: .copilotMeteredZeroCredits) ?? false
         self.commandCodeSubscriptionEnrichmentUnavailable = false // Live-only fetch state
         self.commandCodeHasSubscriptionPlan = false // Live-only fetch state
         self.commandCodeMonthlyGrantDepleted = false // Live-only fetch state
@@ -520,6 +531,9 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
         try container.encodeIfPresent(self.cursorRateWindowLayout?.rawValue, forKey: .cursorRateWindowLayout)
         try container.encodeIfPresent(self.xaiUsage, forKey: .xaiUsage)
+        if self.copilotMeteredZeroCredits {
+            try container.encode(true, forKey: .copilotMeteredZeroCredits)
+        }
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
@@ -571,6 +585,10 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func detailRow(label: String) -> ProviderDetailSection.Row? {
         self.details.lazy.flatMap(\.rows).first { $0.label == label }
+    }
+
+    public func detailRow(id: String) -> ProviderDetailSection.Row? {
+        self.details.lazy.flatMap(\.rows).first { $0.id == id }
     }
 
     public func rateLimitsUnavailable(for provider: UsageProvider) -> Bool {
@@ -717,6 +735,7 @@ public struct UsageSnapshot: Codable, Sendable {
             cursorRateWindowLayout: self.cursorRateWindowLayout,
             azureOpenAIUsage: self.azureOpenAIUsage,
             alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            copilotMeteredZeroCredits: self.copilotMeteredZeroCredits,
             commandCodeSubscriptionEnrichmentUnavailable: self.commandCodeSubscriptionEnrichmentUnavailable,
             commandCodeHasSubscriptionPlan: self.commandCodeHasSubscriptionPlan,
             commandCodeMonthlyGrantDepleted: self.commandCodeMonthlyGrantDepleted,

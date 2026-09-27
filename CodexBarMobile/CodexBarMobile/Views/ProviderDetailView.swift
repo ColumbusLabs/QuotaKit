@@ -203,7 +203,7 @@ struct ProviderDetailView: View {
     }
 
     private var providerIdentitySubtitle: String? {
-        if let accountEmail = self.provider.accountEmail, !accountEmail.isEmpty {
+        if let accountEmail = self.provider.displayAccountLabel, !accountEmail.isEmpty {
             return MobilePersonalInfoRedactor.redactEmail(accountEmail, isEnabled: self.hidePersonalInfo)
         }
         if let loginMethod = self.provider.loginMethod, !loginMethod.isEmpty {

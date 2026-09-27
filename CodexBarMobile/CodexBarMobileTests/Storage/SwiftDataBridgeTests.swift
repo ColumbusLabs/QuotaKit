@@ -32,6 +32,7 @@ struct SwiftDataBridgeTests {
         lastUpdated: Date,
         utilization: [SyncUtilizationSeries]? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil,
+        accountIdentities: [String]? = nil,
         costSummary: SyncCostSummary? = nil,
         hyperBalance: SyncHyperBalance? = nil,
         providerDetails: [SyncProviderDetailSection]? = nil) -> ProviderUsageSnapshot
@@ -50,6 +51,7 @@ struct SwiftDataBridgeTests {
             rateWindows: [],
             utilizationHistory: utilization,
             codexResetCredits: codexResetCredits,
+            accountIdentities: accountIdentities,
             hyperBalance: hyperBalance,
             providerDetails: providerDetails)
     }
@@ -136,6 +138,37 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 2)
         let deviceIDs = Set(providers.map(\.deviceID))
         #expect(deviceIDs == Set(["device-A", "device-B"]))
+    }
+
+    @Test
+    func `Copilot host identities survive cold-start persistence across different labels`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let identity = "copilot:github-user:github%3Aapi.example.ghe.com%3Auser%3A42"
+        let east = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [self.makeProvider(
+                id: "copilot",
+                name: "Copilot",
+                email: "Alice @ api.example.ghe.com",
+                lastUpdated: self.ts1,
+                accountIdentities: [identity])],
+            timestamp: self.ts1)
+        let west = self.makeSnapshot(
+            deviceID: "device-B",
+            providers: [self.makeProvider(
+                id: "copilot",
+                name: "Copilot",
+                email: "Work @ api.example.ghe.com",
+                lastUpdated: self.ts2,
+                accountIdentities: [identity])],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [east, west], into: context)
+
+        let hydrated = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
+        #expect(hydrated.count == 2)
+        #expect(hydrated.flatMap(\.providers).allSatisfy { $0.accountIdentities == [identity] })
+        #expect(CloudSyncReader.mergeSnapshots(hydrated)?.providers.count == 1)
     }
 
     @Test
@@ -321,6 +354,8 @@ struct SwiftDataBridgeTests {
 
         let schema = Schema(CodexBarSwiftDataSchema.models)
         #expect(schema.entitiesByName["ProviderSnapshotModel"]?.attributesByName["hyperBalanceData"]?
+            .isOptional == true)
+        #expect(schema.entitiesByName["ProviderSnapshotModel"]?.attributesByName["accountIdentitiesData"]?
             .isOptional == true)
 
         do {

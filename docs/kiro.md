@@ -16,21 +16,23 @@ Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAu
 1) **CLI command** (primary)
    - Command: `kiro-cli chat --no-interactive "/usage"`
    - Timeout: 20 seconds (idle cutoff after 4 seconds of no output once the CLI starts responding).
-   - CodexBar tries ordinary stdout/stderr pipes first for current Kiro CLI releases. Incomplete or unusable
+   - QuotaKit tries ordinary stdout/stderr pipes first for current Kiro CLI releases. Incomplete or unusable
      pipe output falls back to a pseudo-terminal within the same overall command deadline for older releases.
    - Requires `kiro-cli` installed and logged in via AWS Builder ID.
-   - Output is ANSI-decorated; CodexBar strips escape sequences before parsing.
+   - Output is ANSI-decorated; QuotaKit strips escape sequences before parsing.
 
 2) **`GetUsageLimits` API** (overage enrichment, best effort)
    - The CLI report states credits against the plan alone and **omits the overage section entirely for
      organization accounts**, so it can never state the overage cap. The API carries the overage allowance
      on top of the plan, which is the ceiling an account actually spends against.
-   - Endpoint: `POST https://codewhisperer.us-east-1.amazonaws.com/`,
-     header `X-Amz-Target: AmazonCodeWhispererService.GetUsageLimits`, body `{"profileArn": ...}`.
+   - Endpoint follows the CLI profile ARN: US East uses `POST https://codewhisperer.us-east-1.amazonaws.com/`;
+     Frankfurt uses `POST https://q.eu-central-1.amazonaws.com/`. Invalid or unsupported profile ARNs skip enrichment.
+     Header `X-Amz-Target: AmazonCodeWhispererService.GetUsageLimits`, body `{"profileArn": ...}`.
    - Credentials come from the CLI's own state, opened **read-only** (the CLI owns the token and its refresh):
      `~/Library/Application Support/kiro-cli/data.sqlite3`
      - `auth_kv` key `kirocli:odic:token` → `access_token`
      - `state` key `api.codewhisperer.profile` → `arn`
+   - Regional endpoints follow [AWS profile-region routing](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/firewall.html), independently of the IAM Identity Center authentication region.
    - Runs after the CLI probe, so a token the CLI refreshed along the way is already in place.
    - Failure is non-fatal: the plan-relative numbers the CLI produced stand. The API path depends on the CLI's
      private token store, which a Kiro release can move, whereas the CLI reads only its own published output.

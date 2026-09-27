@@ -221,8 +221,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
 extension CostUsageScanner {
     enum ClaudeScanWork: Sendable {
         case cacheDecode
-        case transcriptParse
-        case incrementalTranscriptParse
+        case transcriptParse(startOffset: Int64)
         case reconcile
         case cacheEncode
         case reprice
@@ -252,10 +251,9 @@ extension CostUsageScanner {
             defer { self.lock.unlock() }
             switch work {
             case .cacheDecode: self.metrics.cacheDecodes += 1
-            case .transcriptParse: self.metrics.transcriptParses += 1
-            case .incrementalTranscriptParse:
+            case let .transcriptParse(startOffset):
                 self.metrics.transcriptParses += 1
-                self.metrics.incrementalTranscriptParses += 1
+                if startOffset > 0 { self.metrics.incrementalTranscriptParses += 1 }
             case .reconcile: self.metrics.reconciliations += 1
             case .cacheEncode: self.metrics.cacheEncodes += 1
             case .reprice: self.metrics.repricedRows += 1
@@ -307,6 +305,32 @@ extension CostUsageScanner {
 }
 #endif
 
+struct CostUsageClaudeCacheArtifact: Codable {
+    var usage = CostUsageCache()
+    var sourceFileIDs: [String: String] = [:]
+
+    private enum CodingKeys: String, CodingKey { case sourceFileIDs }
+
+    init() {}
+
+    init(usage: CostUsageCache, sourceFileIDs: [String: String]) {
+        self.usage = usage
+        self.sourceFileIDs = sourceFileIDs
+    }
+
+    init(from decoder: any Decoder) throws {
+        self.usage = try CostUsageCache(from: decoder)
+        self.sourceFileIDs = try decoder.container(keyedBy: CodingKeys.self)
+            .decodeIfPresent([String: String].self, forKey: .sourceFileIDs) ?? [:]
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        try self.usage.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.sourceFileIDs, forKey: .sourceFileIDs)
+    }
+}
+
 /// Claude and Vertex retain their small transcript cache. Codex deliberately has no route
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
@@ -329,7 +353,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 10
+        case .claude: 11
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }
@@ -345,38 +369,52 @@ enum CostUsageClaudeCacheIO {
         reportContext: CostUsageReportContext = .regular,
         calendar: Calendar? = nil) -> CostUsageCache
     {
+        self.loadArtifact(
+            provider: provider,
+            cacheRoot: cacheRoot,
+            reportContext: reportContext,
+            calendar: calendar).usage
+    }
+
+    static func loadArtifact(
+        provider: UsageProvider,
+        cacheRoot: URL? = nil,
+        reportContext: CostUsageReportContext = .regular,
+        calendar: Calendar? = nil) -> CostUsageClaudeCacheArtifact
+    {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
-        guard let data = try? Data(contentsOf: url) else { return CostUsageCache() }
+        guard let data = try? Data(contentsOf: url) else { return CostUsageClaudeCacheArtifact() }
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheDecode)
         #endif
-        guard let cache = try? JSONDecoder().decode(CostUsageCache.self, from: data),
-              cache.version == self.schemaVersion
-        else { return CostUsageCache() }
-        if let calendar, cache.timeZoneIdentifier != calendar.timeZone.identifier {
-            return CostUsageCache()
+        guard let artifact = try? JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: data),
+              artifact.usage.version == self.schemaVersion
+        else { return CostUsageClaudeCacheArtifact() }
+        if let calendar, artifact.usage.timeZoneIdentifier != calendar.timeZone.identifier {
+            return CostUsageClaudeCacheArtifact()
         }
-        return cache
+        return artifact
     }
 
     static func save(
         provider: UsageProvider,
         cache: CostUsageCache,
+        sourceFileIDs: [String: String] = [:],
         cacheRoot: URL? = nil,
         reportContext: CostUsageReportContext = .regular,
         calendar: Calendar = .current,
         checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> CostUsageClaudeFileStamp?
     {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
-        var cache = cache
-        cache.version = self.schemaVersion
-        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        var artifact = CostUsageClaudeCacheArtifact(usage: cache, sourceFileIDs: sourceFileIDs)
+        artifact.usage.version = self.schemaVersion
+        artifact.usage.timeZoneIdentifier = calendar.timeZone.identifier
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheEncode)
         #endif
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        guard let data = try? encoder.encode(cache) else { return nil }
+        guard let data = try? encoder.encode(artifact) else { return nil }
         try checkCancellation?()
         // Keep the artifact stamp stable when a rescan produces the same cache. Recheck the
         // stamp after reading so a concurrent writer cannot make the comparison stale.

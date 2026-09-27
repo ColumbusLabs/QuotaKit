@@ -45,6 +45,11 @@ Usage source picker:
 - Explicitly enabling **External Codex OAuth sources** can reuse OpenCode's `openai` OAuth entry for remote
   quota when native Codex credentials are absent. It does not import OpenCode session token or cost history; see
   [OpenCode with Codex or OpenAI](opencode.md#using-opencode-with-codex-or-openai).
+- Stacked account refreshes retain each managed account's selected workspace through usage publication and menu
+  matching, even when its auth file names a different default workspace. Changing the selected workspace while a
+  refresh is running discards the old workspace's result.
+- System Account promotion fails closed when a managed selection differs from the auth file's default workspace.
+  QuotaKit keeps that selection managed rather than silently promoting the default or rewriting Codex-owned auth.
 
 ### Advanced profile-home accounts
 - Managed Codex accounts remain the default multi-account path.
@@ -66,6 +71,16 @@ Example:
   ]
 }
 ```
+
+### Same-email workspace labels
+
+Account settings, the System Account picker, and the menu switcher retain the workspace name when it is available.
+If the same email and workspace label would appear more than once (including missing names or the “Personal” fallback),
+QuotaKit adds a stable eight-character hash of the workspace identity. The hash stays the same when selecting or promoting
+that workspace and never exposes the full provider identifier. This is display-only; stored account metadata and
+credential selection are unchanged. Separate profile homes for the same workspace also include a hashed source identity,
+so their labels stay distinct without exposing paths. Compact switcher buttons keep the discriminator visible when space
+is limited, using additional rows when needed.
 
 ### OpenAI web dashboard (optional, off by default)
 - Enable it in Preferences -> Providers -> Codex -> OpenAI web extras.
@@ -164,6 +179,10 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
   - **Local session cost estimates** is a Codex-only opt-in that instead scans this Mac's ambient `$CODEX_HOME`
     (or `~/.codex`) independently of quota, OAuth, web-dashboard, and administrator access.
+  - Multi-account menus show an ambient ledger once under **This Mac**, honoring inline, submenu, or combined display.
+    Managed-account and profile-home history is never promoted to this shared section.
+  - Regular menu cost refreshes publish local session estimates even when global cost tracking is off. This does not
+    enable other providers' cost scans; results still require the same provider configuration and history/account scope.
   - The local-only mode never makes a network request or uploads session content. It uses an existing local models.dev
     cache when available, then the bundled `CostUsagePricing` rates.
 - Source files:

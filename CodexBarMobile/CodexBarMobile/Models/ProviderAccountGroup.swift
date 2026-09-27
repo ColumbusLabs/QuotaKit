@@ -61,9 +61,12 @@ struct ProviderAccountGroup: Identifiable {
     func tabLabel(forIndex index: Int) -> String {
         guard self.accounts.indices.contains(index) else { return "" }
         let snapshot = self.accounts[index]
-        if let email = snapshot.accountEmail,
+        if let email = snapshot.displayAccountLabel,
            !email.isEmpty
         {
+            // Copilot's host-qualified label is not an email address. Keep
+            // its host visible when separate Enterprise accounts share a login.
+            if snapshot.providerID == "copilot" { return email }
             // Prefer the local-part (before @) for compactness in the
             // segmented control. Mac shows "admin-msxiao113" — same
             // shape after stripping the @openai.com domain.

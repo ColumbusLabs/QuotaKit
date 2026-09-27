@@ -737,12 +737,13 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
-    func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {
+    func presentCodexLoginResult(_ result: CLILoginRunner.Result) {
         guard let info = CodexLoginAlertPresentation.alertInfo(for: result) else { return }
         self.presentLoginAlert(title: info.title, message: info.message)
     }
 
     private func presentManagedCodexAccountError(_ error: Error) {
+        guard !(error is CancellationError) else { return }
         let info = if let error = error as? ManagedCodexAccountCoordinatorError,
                       error == .authenticationInProgress
         {
@@ -779,9 +780,10 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
-    func describe(_ outcome: CodexLoginRunner.Result.Outcome) -> String {
+    func describe(_ outcome: CLILoginRunner.Result.Outcome) -> String {
         switch outcome {
         case .success: "success"
+        case .cancelled: "cancelled"
         case .timedOut: "timedOut"
         case let .failed(status): "failed(status: \(status))"
         case .missingBinary: "missingBinary"

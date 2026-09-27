@@ -74,6 +74,36 @@ struct ProviderUsageViewSubtitleTests {
     }
 
     @Test
+    func `Copilot hides only canonical local UUID suffix in ordinary account display`() {
+        let raw = "Account 1 @ api.example.ghe.com (local 00000000-0000-0000-0000-000000000001)"
+        let snap = self.makeSnapshot(
+            providerID: "copilot",
+            providerName: "Copilot",
+            accountEmail: raw)
+        let view = ProviderUsageView(provider: snap, duplicateOrdinal: nil)
+        #expect(view.subtitleLine() == "Account 1 @ api.example.ghe.com")
+        #expect(snap.displayAccountLabel == "Account 1 @ api.example.ghe.com")
+        #expect(snap.accountEmail == raw)
+        #expect(snap.cardIdentityKey == "copilot|\(raw)")
+    }
+
+    @Test
+    func `Copilot preserves user labels that do not end in a canonical local UUID`() {
+        let labels = [
+            "Account 1 @ api.example.ghe.com (local favorite)",
+            "Account 1 @ api.example.ghe.com (local 00000000-0000-0000-0000-000000000001) notes",
+            "Account 1 @ api.example.ghe.com (local 00000000-0000-0000-0000-00000000000Z)",
+            "My custom label (local 00000000-0000-0000-0000-000000000001)",
+        ]
+        for label in labels {
+            let snap = self.makeSnapshot(providerID: "copilot", providerName: "Copilot", accountEmail: label)
+            #expect(snap.displayAccountLabel == label)
+        }
+        let other = self.makeSnapshot(accountEmail: labels[0])
+        #expect(other.displayAccountLabel == labels[0])
+    }
+
+    @Test
     func `Single-card + nil email → subtitle is nil (clean layout)`() {
         let view = ProviderUsageView(
             provider: self.makeSnapshot(accountEmail: nil),

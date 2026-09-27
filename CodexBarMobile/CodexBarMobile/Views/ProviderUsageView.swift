@@ -228,7 +228,7 @@ struct ProviderUsageView: View {
     /// Exposed as `internal` (no `private`) so unit tests can pin the
     /// selection rule without going through SwiftUI's view hierarchy.
     func subtitleLine() -> String? {
-        if let email = self.provider.accountEmail, !email.isEmpty {
+        if let email = self.provider.displayAccountLabel, !email.isEmpty {
             return MobilePersonalInfoRedactor.redactEmail(email, isEnabled: self.hidePersonalInfo)
         }
         if let ordinal = self.duplicateOrdinal {

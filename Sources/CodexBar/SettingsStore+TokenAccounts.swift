@@ -122,7 +122,8 @@ extension SettingsStore {
         externalIdentifier: String?? = nil,
         usageScope: String?? = nil,
         organizationID: String?? = nil,
-        workspaceID: String?? = nil)
+        workspaceID: String?? = nil,
+        seatCreditEntitlement: String?? = nil)
     {
         guard let data = self.tokenAccountsData(for: provider), !data.accounts.isEmpty else { return }
         guard let index = data.accounts.firstIndex(where: { $0.id == accountID }) else { return }
@@ -162,6 +163,13 @@ extension SettingsStore {
         } else {
             resolvedWorkspaceID = existing.workspaceID
         }
+        let resolvedSeatCreditEntitlement: String?
+        if let seatCreditEntitlement {
+            let trimmed = seatCreditEntitlement?.trimmingCharacters(in: .whitespacesAndNewlines)
+            resolvedSeatCreditEntitlement = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        } else {
+            resolvedSeatCreditEntitlement = existing.seatCreditEntitlement
+        }
         guard self.isValidZaiTokenAccountMetadata(
             provider: provider,
             usageScope: resolvedUsageScope,
@@ -179,7 +187,8 @@ extension SettingsStore {
             externalIdentifier: resolvedIdentifier,
             usageScope: resolvedUsageScope,
             organizationID: resolvedOrganizationID,
-            workspaceID: resolvedWorkspaceID)
+            workspaceID: resolvedWorkspaceID,
+            seatCreditEntitlement: resolvedSeatCreditEntitlement)
 
         var accounts = data.accounts
         accounts[index] = updatedAccount

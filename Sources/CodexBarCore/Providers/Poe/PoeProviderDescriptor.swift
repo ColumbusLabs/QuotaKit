@@ -22,7 +22,7 @@ public enum PoeProviderDescriptor {
             subtitle: "Stored in ~/.quotakit/config.json. Get your key from poe.com/api/keys.",
             placeholder: nil),
         showsAPIDetail: true,
-        requiresCredentialForAvailability: true)
+        availability: .configuredKey)
 }
 
 struct PoeAPIFetchStrategy: ProviderFetchStrategy {

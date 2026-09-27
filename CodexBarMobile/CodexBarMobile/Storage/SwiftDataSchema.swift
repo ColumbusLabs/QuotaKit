@@ -93,6 +93,9 @@ final class ProviderSnapshotModel {
     var hyperBalanceData: Data?
     /// JSON-encoded display-only detail rows for providers without quota windows.
     var providerDetailsData: Data?
+    /// Stable account aliases for cross-Mac merging after cold-start hydration.
+    /// Optional so existing iPhone stores migrate without a backfill.
+    var accountIdentitiesData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \UtilizationEntryModel.provider)
     var utilizationEntries: [UtilizationEntryModel] = []
@@ -116,6 +119,7 @@ final class ProviderSnapshotModel {
         crossModelUsageData: Data? = nil,
         hyperBalanceData: Data? = nil,
         providerDetailsData: Data? = nil,
+        accountIdentitiesData: Data? = nil,
         device: DeviceRecord? = nil)
     {
         self.compositeKey = Self.makeCompositeKey(
@@ -138,6 +142,7 @@ final class ProviderSnapshotModel {
         self.crossModelUsageData = crossModelUsageData
         self.hyperBalanceData = hyperBalanceData
         self.providerDetailsData = providerDetailsData
+        self.accountIdentitiesData = accountIdentitiesData
         self.device = device
     }
 

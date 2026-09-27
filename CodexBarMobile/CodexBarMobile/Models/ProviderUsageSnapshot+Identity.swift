@@ -12,6 +12,27 @@ import Foundation
 /// exposes it without touching the Shared module (kept iOS-scoped because
 /// the Mac target doesn't render cards).
 extension ProviderUsageSnapshot {
+    /// Account label shown in regular iPhone views. Legacy Enterprise
+    /// Copilot records keep a full local UUID in `accountEmail` so separate
+    /// Macs cannot merge ambiguous accounts; only this exact generated
+    /// suffix is hidden from presentation. Raw sync/debug views retain it.
+    var displayAccountLabel: String? {
+        guard let accountEmail = self.accountEmail,
+              self.providerID == "copilot",
+              accountEmail.hasSuffix(")"),
+              let marker = accountEmail.range(of: " (local ", options: .backwards),
+              marker.lowerBound != accountEmail.startIndex
+        else { return self.accountEmail }
+        let closingParen = accountEmail.index(before: accountEmail.endIndex)
+        let rawUUID = String(accountEmail[marker.upperBound..<closingParen])
+        guard let uuid = UUID(uuidString: rawUUID),
+              rawUUID == uuid.uuidString.lowercased()
+        else { return accountEmail }
+        let visibleLabel = String(accountEmail[..<marker.lowerBound])
+        guard visibleLabel.contains(" @ api.") else { return accountEmail }
+        return visibleLabel
+    }
+
     /// Identity used by SwiftUI `ForEach` and view-scoped accessibility
     /// identifiers. Matches `CloudSyncReader.mergeSnapshots`'s bucket key
     /// so that two `providerID == "codex"` entries with different

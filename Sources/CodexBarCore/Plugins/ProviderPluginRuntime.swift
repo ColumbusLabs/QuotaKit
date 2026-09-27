@@ -701,26 +701,25 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
-            guard rawHour.isFinite,
-                  rawHour.rounded() == rawHour,
-                  (0...23).contains(rawHour),
-                  let timeZone = TimeZone(identifier: identifier)
-            else {
+            do {
+                return try ProviderPluginDate.nextDailyReset(now: now, hour: rawHour, timeZone: identifier)
+            } catch {
                 self?.context.exception = JSValue(
-                    newErrorFromMessage: "invalid daily reset time zone or hour",
-                    in: self?.context)
+                    newErrorFromMessage: "invalid daily reset time zone or hour", in: self?.context)
                 return .nan
             }
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = timeZone
-            let start = calendar.startOfDay(for: now)
-            var candidate = calendar.date(byAdding: .hour, value: Int(rawHour), to: start)!
-            if candidate <= now {
-                candidate = calendar.date(byAdding: .day, value: 1, to: candidate)!
-            }
-            return candidate.timeIntervalSince1970 * 1000
         }
         host.setObject(nextDailyReset, forKeyedSubscript: "nextDailyReset" as NSString)
+
+        let addMonths: @convention(block) (Double, Double, String) -> Double = { [weak self] date, months, zone in
+            do {
+                return try ProviderPluginDate.addMonths(milliseconds: date, months: months, timeZone: zone)
+            } catch {
+                self?.context.exception = JSValue(newErrorFromMessage: error.localizedDescription, in: self?.context)
+                return .nan
+            }
+        }
+        host.setObject(addMonths, forKeyedSubscript: "addMonths" as NSString)
 
         let http = self.makeHTTPBlock(
             settings: settings,
@@ -859,7 +858,8 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 settings: settings,
                 secrets: secrets,
                 manifest: self.manifest,
-                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy)
+                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy,
+                redactionValues: redactionValues)
         } catch {
             self.reject(callbacks.reject, error: error, transportErrors: redactionValues.transportErrors)
             return

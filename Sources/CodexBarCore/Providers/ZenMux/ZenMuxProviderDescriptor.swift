@@ -32,7 +32,7 @@ public enum ZenMuxProviderDescriptor {
             placeholder: "ZenMux management key…",
             action: ("zenmux-open-management", "Open ZenMux Management", "https://zenmux.ai/platform/management")),
         showsAPIDetail: true,
-        requiresCredentialForAvailability: true)
+        availability: .configuredKey)
 
     static func scriptValues(_ context: ProviderFetchContext) -> ScriptFetchStrategy.Values? {
         self.spec.scriptValues(context)

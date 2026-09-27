@@ -9,6 +9,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.
 - Bifrost and DevPass quota windows now sync from QuotaKit Mac with provider branding and quota alerts.
 - Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now show branded iPhone cards and quota alerts when synced from QuotaKit Mac.
 - Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac with dedicated iPhone provider branding; Helmcode quota alerts are available.
@@ -28,6 +29,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Fixed
 
+- Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.
 - Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.

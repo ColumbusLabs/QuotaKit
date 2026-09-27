@@ -100,31 +100,11 @@ extension SettingsStore {
             return true
         }
 
-        let claudeRoots: [URL] = {
-            if let configuredRoot = env[ClaudeConfigPaths.configDirectoryEnvironmentKey],
-               !configuredRoot.isEmpty
-            {
-                return [ClaudeConfigPaths.configRoot(
-                    environment: env,
-                    workingDirectory: workingDirectory)
-                    .appendingPathComponent("projects", isDirectory: true)]
-            }
-
-            var pathEnvironment = env
-            if pathEnvironment["HOME"]?.isEmpty ?? true {
-                pathEnvironment["HOME"] = home.path
-            }
-            let ownerHome = ClaudeConfigPaths.homeDirectory(
-                environment: pathEnvironment,
-                workingDirectory: workingDirectory)
-            let configRoot = ClaudeConfigPaths.configRoot(
-                environment: pathEnvironment,
-                workingDirectory: workingDirectory)
-            return [
-                ownerHome.appendingPathComponent(".config/claude/projects", isDirectory: true),
-                configRoot.appendingPathComponent("projects", isDirectory: true),
-            ] + ClaudeDesktopProjectsLocator.roots(homeDirectory: ownerHome, fileManager: fileManager)
-        }()
+        let claudeRoots = ClaudeConfigPaths.costProjectsRoots(
+            environment: env,
+            homeDirectory: home,
+            fileManager: fileManager,
+            workingDirectory: workingDirectory)
 
         return claudeRoots.contains(where: hasAnyJsonl(in:))
     }

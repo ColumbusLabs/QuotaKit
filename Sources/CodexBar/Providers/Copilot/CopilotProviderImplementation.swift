@@ -18,6 +18,7 @@ struct CopilotProviderImplementation: ProviderImplementation {
         _ = settings.copilotBudgetExtrasEnabled
         _ = settings.copilotBudgetCookieSource
         _ = settings.copilotBudgetCookieHeader
+        _ = settings.copilotSeatCreditEntitlementRaw
     }
 
     @MainActor
@@ -155,7 +156,12 @@ struct CopilotProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
+        let seatEntitlementBinding = Binding(
+            get: { context.settings.copilotEffectiveSeatCreditEntitlementRaw },
+            set: { newValue in
+                context.store.setCopilotSeatCreditEntitlement(newValue)
+            })
+        return [
             ProviderSettingsFieldDescriptor(
                 id: "copilot-budget-cookie-header",
                 title: "Manual GitHub Cookie header",
@@ -187,6 +193,27 @@ struct CopilotProviderImplementation: ProviderImplementation {
                 placeholder: "github.com",
                 binding: context.stringBinding(\.copilotEnterpriseHost),
                 actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "copilot-seat-credit-entitlement",
+                title: "Included AI credits (per seat)",
+                subtitle: "GitHub does not publish this value. Enter it to show a usage bar. " +
+                    "Applies to the selected GitHub account.",
+                kind: .plain,
+                placeholder: "e.g. 3000",
+                binding: seatEntitlementBinding,
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "copilot-clear-default-allowance",
+                        title: "Clear default allowance",
+                        style: .bordered,
+                        isVisible: {
+                            !context.settings.tokenAccounts(for: .copilot).isEmpty &&
+                                !context.settings.copilotSeatCreditEntitlementRaw.isEmpty
+                        },
+                        perform: { context.store.clearCopilotDefaultSeatCreditEntitlement() }),
+                ],
                 isVisible: nil,
                 onActivate: nil),
             ProviderSettingsFieldDescriptor(

@@ -333,6 +333,7 @@ struct SpendDashboardPane: View {
             // request so configuration capture sees the active range.
             self.controller.activateHistoryDemandForVisibleDashboard()
             self.controller.update(configuration: self.configuration)
+            self.controller.refreshIfStale()
             if !self.controller.isRefreshing {
                 self.synchronizeCodexCostCatchUp()
             }
@@ -375,6 +376,7 @@ struct SpendDashboardPane: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             self.controller.refreshDateWindow()
+            self.controller.refreshIfStale()
         }
         .onReceive(NotificationCenter.default.publisher(for: .codexbarCurrencyExchangeRatesDidChange)) { _ in
             self.controller.refreshDateWindow()

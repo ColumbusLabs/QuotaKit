@@ -4,6 +4,9 @@ import Foundation
 import Testing
 @testable import CodexBar
 
+// SyncCoordinator's CloudKit lifecycle fixtures share one mock and serialized suite.
+// swiftlint:disable file_length
+
 /// Mock sync pusher that records push calls for testing.
 final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var pushCount = 0
@@ -27,6 +30,10 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var fetchRecordNamesCallCount = 0
     var fetchRecordNamesLastDeviceID: String?
     var nextFetchRecordNamesResult: [String] = []
+    var shouldBlockNextRecordNameFetch = false
+    var recordNameFetchIsBlocked = false
+    private var blockedRecordNameFetchContinuation: CheckedContinuation<Void, Never>?
+    private var recordNameFetchStartedContinuation: CheckedContinuation<Void, Never>?
 
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
@@ -66,7 +73,29 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     func fetchPerProviderRecordNames(forDeviceID deviceID: String) async -> [String] {
         self.fetchRecordNamesCallCount += 1
         self.fetchRecordNamesLastDeviceID = deviceID
+        if self.shouldBlockNextRecordNameFetch {
+            self.shouldBlockNextRecordNameFetch = false
+            self.recordNameFetchIsBlocked = true
+            self.recordNameFetchStartedContinuation?.resume()
+            self.recordNameFetchStartedContinuation = nil
+            await withCheckedContinuation { continuation in
+                self.blockedRecordNameFetchContinuation = continuation
+            }
+            self.recordNameFetchIsBlocked = false
+        }
         return self.nextFetchRecordNamesResult
+    }
+
+    func resumeBlockedRecordNameFetch() {
+        self.blockedRecordNameFetchContinuation?.resume()
+        self.blockedRecordNameFetchContinuation = nil
+    }
+
+    func waitForBlockedRecordNameFetch() async {
+        if self.recordNameFetchIsBlocked { return }
+        await withCheckedContinuation { continuation in
+            self.recordNameFetchStartedContinuation = continuation
+        }
     }
 }
 
