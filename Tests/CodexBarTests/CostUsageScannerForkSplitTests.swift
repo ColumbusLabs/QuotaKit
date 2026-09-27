@@ -296,6 +296,20 @@ struct CostUsageScannerForkSplitTests {
 
         #expect(abs((report.summary?.totalCostUSD ?? 0) - expected) < 1e-12)
 
+        var conflictingUsage = usage
+        conflictingUsage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: dayKey,
+            model: model,
+            turnID: "incomplete-row",
+            eventIndex: 0,
+            timestampUnixMs: 1,
+            input: 100_000,
+            cached: 0,
+            output: 0)]
+        cache.files = ["/linear-conflicting.jsonl": conflictingUsage]
+        let conflicting = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
+        #expect(conflicting.summary?.totalCostUSD == nil)
+
         var priorityUsage = usage
         priorityUsage.codexPriorityTokens = [dayKey: [model: 400_100]]
         cache.files = ["/linear-priority.jsonl": priorityUsage]

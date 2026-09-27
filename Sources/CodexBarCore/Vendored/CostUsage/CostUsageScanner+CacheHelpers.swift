@@ -1449,6 +1449,7 @@ extension CostUsageScanner {
         var pricing = CodexReportDayPricingContext(
             rowsByDayModel: [:],
             unresolvedRowGroups: [],
+            unresolvedPersistedRowGroups: [],
             modeOwnershipMismatchGroups: [],
             requestPricingEvidenceGroups: [],
             incompletePricingEvidenceGroups: [],
@@ -1460,6 +1461,11 @@ extension CostUsageScanner {
         for usage in reportCache.files.values {
             let reconciled = self.codexCanonicalPricingRows(usage)
             pricing.unresolvedRowGroups.formUnion(reconciled.unresolvedGroups)
+            let persistedRowGroups = Set((usage.codexRows ?? []).map {
+                CodexDayModelKey(day: $0.day, model: $0.model)
+            })
+            pricing.unresolvedPersistedRowGroups.formUnion(
+                reconciled.unresolvedGroups.intersection(persistedRowGroups))
             let modeEvidence = self.codexPricingModeEvidence(
                 usage: usage,
                 reconciledRows: reconciled.rows,
