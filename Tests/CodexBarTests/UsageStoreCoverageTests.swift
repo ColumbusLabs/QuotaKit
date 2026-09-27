@@ -303,7 +303,7 @@ struct UsageStoreCoverageTests {
         #expect(model.metrics.allSatisfy { $0.pacePercent == nil })
         #expect(model.creditsText == nil)
         #expect(model.providerDetails.first?.rows.map(\.label) == [
-            "Individual credits", "Workspace billing@example.test",
+            "Individual", "Workspace billing@example.test",
         ])
         #expect(model.creditsRemaining == nil)
 
