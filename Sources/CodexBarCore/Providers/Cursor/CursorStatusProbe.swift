@@ -479,7 +479,7 @@ public struct CursorStatusSnapshot: Sendable {
             nil
         }
 
-        let billingCycleWindowMinutes = Self.billingCycleWindowMinutes(
+        let billingCycleWindowMinutes = CursorSandUsageStatus.windowMinutes(
             start: self.billingCycleStart,
             end: self.billingCycleEnd)
 
