@@ -639,6 +639,11 @@ final class CloudSyncReader: @unchecked Sendable {
         let mergedUtilization = Self.mergeUtilizationHistories(
             entries.compactMap(\.utilizationHistory))
 
+        // Keep verified identifiers when an older Mac contributes only a
+        // synthesized email key. Dropping them makes a merged Enterprise
+        // Copilot card lose its host-scoped identity on the next merge.
+        let mergedAccountIdentities = Array(Set(entries.flatMap { $0.accountIdentities ?? [] })).sorted()
+
         return ProviderUsageSnapshot(
             providerID: base.providerID,
             providerName: base.providerName,
@@ -655,6 +660,7 @@ final class CloudSyncReader: @unchecked Sendable {
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
             codexResetCredits: Self.latestCodexResetCredits(entries),
+            accountIdentities: mergedAccountIdentities.isEmpty ? nil : mergedAccountIdentities,
             crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage),
             hyperBalance: Self.latestNonNil(entries, \.hyperBalance),
             providerDetails: Self.latestNonNil(entries, \.providerDetails))

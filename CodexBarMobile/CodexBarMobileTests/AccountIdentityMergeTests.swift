@@ -40,6 +40,26 @@ struct AccountIdentityMergeTests {
         ]))
         #expect(merged.providers.count == 3)
         #expect(merged.providers.filter { $0.accountIdentities?.isEmpty == false }.count == 2)
+        #expect(Set(merged.providers.flatMap { $0.accountIdentities ?? [] }) == Set([
+            "copilot:github-user:github%3Aapi.east.ghe.example%3Auser%3A42",
+            "copilot:github-user:github%3Aapi.west.ghe.example%3Auser%3A42",
+        ]))
+    }
+
+    @Test
+    func `Merging a legacy email snapshot retains modern explicit identifiers`() throws {
+        let modern = Self.makeProvider(
+            id: "codex",
+            email: "user@example.com",
+            identifiers: ["codex:account:org-x", "codex:email:user@example.com"])
+        let legacy = Self.makeProvider(id: "codex", email: "user@example.com", identifiers: nil)
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            Self.makeMac(deviceID: "new-mac", providers: [modern]),
+            Self.makeMac(deviceID: "old-mac", providers: [legacy]),
+        ]))
+        let provider = try #require(merged.providers.first)
+        #expect(merged.providers.count == 1)
+        #expect(provider.accountIdentities == ["codex:account:org-x", "codex:email:user@example.com"])
     }
 
     @Test
