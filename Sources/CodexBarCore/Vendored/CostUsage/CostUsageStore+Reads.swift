@@ -199,7 +199,7 @@ extension CostUsageStore {
         #if DEBUG
         Self.snapshotReadForTesting?(self.databaseURL)
         #endif
-        self.withDatabase(default: nil) { database in
+        return self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
             let snapshot = try Self.inReadTransaction(database) {
                 try Self.readSnapshot(database)

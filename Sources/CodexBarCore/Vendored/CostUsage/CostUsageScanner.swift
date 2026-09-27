@@ -6422,7 +6422,6 @@ enum CostUsageScanner {
             || cache.files[metadata.path]?.codexPendingSourcePricing != nil
         {
             guard metadata.fileId != nil, FileManager.default.isReadableFile(atPath: metadata.path) else {
-                state.deferredCachePaths.insert(metadata.path)
                 return .deferred
             }
         }
