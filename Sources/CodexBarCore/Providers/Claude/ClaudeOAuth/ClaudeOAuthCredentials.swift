@@ -2884,6 +2884,9 @@ public enum ClaudeOAuthCredentialsStore {
             store.advance()
             return
         }
+        if KeychainTestSafety.shouldIsolateUserStateUnderTests() {
+            return
+        }
         #endif
         self.sharedDefaults.set(UUID().uuidString, forKey: self.directKeychainReadConsentRevocationMarkerKey)
         self.sharedDefaults.synchronize()

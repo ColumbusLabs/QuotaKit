@@ -10,6 +10,12 @@ read_when:
 
 Status: **Phase 1 account display implemented; Phase 2 explicit account activation accepted.**
 
+The opt-in adapter also projects source-reported spend, disabled slots, and dated last-good
+usage into account cards. Historical quota is labeled with its capture age and stays out of
+the menu bar, widgets, and brief CLI warnings. An active slot reporting a foreign credential
+offers an explicit re-authentication action when the adapter supports switching. Retained
+quota remains bound to a hashed account-and-slot fingerprint; labels and emails are not stored.
+
 Related: [#1756](https://github.com/steipete/CodexBar/issues/1756),
 [#1268](https://github.com/steipete/CodexBar/issues/1268), and the bounded Claude sign-in repair in
 [#1811](https://github.com/steipete/CodexBar/pull/1811).
@@ -96,7 +102,9 @@ last refresh, adapter errors, and a link to the upstream project; CodexBar shoul
 
 ## Phase 2 explicit activation contract
 
-- Only an explicit click on an inactive, actionable account card can start a switch.
+- Only an explicit click on an actionable account card can start a switch. Normal activation targets inactive slots.
+  An active slot reporting `foreign_credential` offers **Re-authenticate**, using the same slot command so claude-swap
+  can reconcile its proven credential mismatch. No force flag is used; selecting the active segment remains inspection-only.
 - Derive the numeric slot from the already validated account snapshot and execute exactly
   `cswap --switch-to <slot> --json`; never accept free-form arguments or invoke a shell.
 - Serialize switches, validate `schemaVersion == 1` and the returned target slot, and bound captured output.

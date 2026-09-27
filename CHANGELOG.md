@@ -11,6 +11,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
 
 ### Added
+- Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
 - Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.
 - CLI: compare local Codex cost estimates with a trusted SSH host through separate bounded summaries.
@@ -55,6 +56,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.
 - Updates: recognize Homebrew-installed QuotaKit, offer its cask update from About and the menu, and reopen Sparkle's staged install UI from manual checks.
 - Sharing: preserve the reporting timezone and final included day, use singular subscription captions, and retain recognized gateway model families.
+- Claude and Vertex local cost history: deduplicate proxy responses without request IDs, isolate dashboard and regular report windows, and keep representable totals when oversized rows overflow.
 - Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
 - OpenRouter: explain the required API key field when only a separate Management API key is configured.
 - Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.

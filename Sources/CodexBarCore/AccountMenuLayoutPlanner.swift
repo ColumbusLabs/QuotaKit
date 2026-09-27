@@ -44,6 +44,7 @@ public enum AccountMenuLayoutPlanner {
         /// Structured constrained windows. Rendering stays in the app layer so
         /// provider metadata labels can be localized without changing planning.
         public let constraints: [Constraint]
+        public let lastKnownUsageCapturedAt: Date?
         /// Unlocalized summary retained for non-UI consumers and diagnostics.
         public var constraintDetail: String? {
             guard !self.constraints.isEmpty else { return nil }
@@ -64,6 +65,7 @@ public enum AccountMenuLayoutPlanner {
             headroomPercent: Double?,
             severity: Severity?,
             constraints: [Constraint],
+            lastKnownUsageCapturedAt: Date? = nil,
             hasError: Bool,
             canActivate: Bool,
             isBestCandidate: Bool)
@@ -73,6 +75,7 @@ public enum AccountMenuLayoutPlanner {
             self.headroomPercent = headroomPercent
             self.severity = severity
             self.constraints = constraints
+            self.lastKnownUsageCapturedAt = lastKnownUsageCapturedAt
             self.hasError = hasError
             self.canActivate = canActivate
             self.isBestCandidate = isBestCandidate
@@ -109,6 +112,7 @@ public enum AccountMenuLayoutPlanner {
         let collapsible = healthyTailExpanded
             ? []
             : compactRows.filter { $0.severity == .healthy && !$0.isBestCandidate && !$0.hasError &&
+                $0.lastKnownUsageCapturedAt == nil &&
                 !expandedAccountIDs.contains($0.accountID)
             }
         let collapsedIDs: Set<ProviderAccountIdentity> =
@@ -186,6 +190,7 @@ public enum AccountMenuLayoutPlanner {
             headroomPercent: headroom,
             severity: headroom.map(self.severity(forHeadroom:)),
             constraints: Array(constraints),
+            lastKnownUsageCapturedAt: account.usesLastKnownUsage ? account.snapshot?.updatedAt : nil,
             hasError: account.error != nil,
             canActivate: account.canActivate,
             isBestCandidate: isBestCandidate)
@@ -196,7 +201,7 @@ public enum AccountMenuLayoutPlanner {
     {
         accounts
             .compactMap { account -> (id: ProviderAccountIdentity, headroom: Double)? in
-                guard account.canActivate, account.error == nil,
+                guard account.canActivate, account.error == nil, !account.usesLastKnownUsage,
                       let headroom = self.headroomPercent(for: account),
                       self.severity(forHeadroom: headroom) == .healthy
                 else { return nil }

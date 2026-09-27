@@ -139,7 +139,8 @@ extension UsageStore {
         codexHomePath: String?,
         historyDays: Int,
         cursorCookieHeaderOverride: String? = nil,
-        includePiSessions: Bool = true) async throws -> CostUsageTokenResult
+        includePiSessions: Bool = true,
+        reportContext: CostUsageReportContext = .regular) async throws -> CostUsageTokenResult
     {
         if let override = self._test_tokenUsageResultLoaderOverride {
             return try await override(provider, force, now, codexHomePath, historyDays, includePiSessions)
@@ -186,7 +187,8 @@ extension UsageStore {
                     includePiSessions: effectiveIncludePiSessions,
                     piSessionProcessContexts: piSessionProcessContexts,
                     bypassScannerDebounce: true,
-                    calendar: self.settings.costUsageBucketCalendar)
+                    calendar: self.settings.costUsageBucketCalendar,
+                    reportContext: reportContext)
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))

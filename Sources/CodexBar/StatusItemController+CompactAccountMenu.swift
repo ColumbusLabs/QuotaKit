@@ -147,14 +147,8 @@ extension StatusItemController {
                     menu.addItem(.separator())
                 }
                 let rowModel = MenuCardCompactAccountRowView.Model(
-                    label: PersonalInfoRedactor.redactEmail(
-                        compactRow.label,
-                        isEnabled: self.settings.hidePersonalInfo),
-                    headroomPercent: compactRow.headroomPercent,
-                    severity: compactRow.severity,
-                    constraintDetail: Self.localizedCompactConstraintDetail(compactRow),
-                    hasError: compactRow.hasError,
-                    showsBestBadge: compactRow.isBestCandidate)
+                    row: compactRow,
+                    hidePersonalInfo: self.settings.hidePersonalInfo)
                 let accountID = compactRow.accountID
                 menu.addItem(self.makeMenuCardItem(
                     MenuCardCompactAccountRowView(
@@ -195,12 +189,15 @@ extension StatusItemController {
     /// numeric headroom values and severity classification untouched.
     static func localizedCompactConstraintDetail(
         _ row: AccountMenuLayoutPlanner.CompactRow,
-        localize: (String) -> String = { L($0) }) -> String?
+        localize: (String) -> String = { L($0) },
+        now: Date = .now) -> String?
     {
-        guard !row.constraints.isEmpty else { return nil }
-        return row.constraints
+        var details = row.constraints
             .map { "\(localize($0.label)) \($0.remainingPercent)%" }
-            .joined(separator: " · ")
+        if let capturedAt = row.lastKnownUsageCapturedAt {
+            details.append(LastKnownUsagePresentation.message(capturedAt: capturedAt, now: now))
+        }
+        return details.isEmpty ? nil : details.joined(separator: " · ")
     }
 
     /// Classic stacked layout: one full card per account. Shared fallback for

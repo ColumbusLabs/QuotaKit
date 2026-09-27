@@ -164,7 +164,8 @@ The accepted multi-account design in
   shell, fixed arguments, bounded runtime and output), requires `schemaVersion == 1`, and parses only slot number,
   active state, usage status, email (display only), display-only `organizationName` (always present, may be empty),
   optional display-only `alias` when non-empty, the 5-hour/7-day windows, and optional display-only model-scoped
-  weekly windows from `usage.scoped`. Identity stays `claude-swap:<slot>`; organization name and alias are never
+  weekly windows from `usage.scoped`, optional `usage.spend`, and source measurement times. Identity stays
+  `claude-swap:<slot>`; organization name and alias are never
   used as identity. When two or more slots share an email, cards append ` · organizationName` or ` · Account N`;
   a user-chosen cswap alias replaces that label. Unique emails stay email-only.
 - Display: when claude-swap reports more than one account, the Claude menu and `quotakit cards` show one card per
@@ -198,7 +199,7 @@ The accepted multi-account design in
   `unavailable` means claude-swap deferred polling because a window is at 100%, QuotaKit keeps that slot's last
   projected usage bars and names the exhausted window (5-hour session, 7-day weekly, and/or a scoped model such as
   Fable) plus its reset time — not "Usage fetch failed." A first refresh that is already `unavailable` with no
-  retained windows still notes that polling is deferred. Active rows are marked `[active]`; no claude-swap row infers
+  retained windows says usage is unavailable, without assuming why the source could not fetch it. Active rows are marked `[active]`; no claude-swap row infers
   a plan badge.
 - Switching: an inactive account with usable source credentials shows “Switch Account…”. Clicking it runs exactly
   `cswap --switch-to <slot> --json`, validates the versioned result and requested slot, then refreshes both ambient
@@ -208,6 +209,10 @@ The accepted multi-account design in
 - Expired, missing, unknown, or Keychain-inaccessible credentials stay non-actionable. A failed switch remains visible
   on that account without discarding its last successful usage. A running Claude Code process can take up to the
   claude-swap Keychain cache interval to observe the new account.
+- A `foreign_credential` row explains that the live credential belongs to another account. An inactive row can use
+  the existing explicit slot switch. An active row offers **Re-authenticate**, which runs the same
+  `cswap --switch-to <slot> --json` command to let claude-swap reconcile its own credential state, without `--force`. Clicking the active segment
+  still only inspects it; repair requires its explicit button.
 - Multiple claude-swap accounts—and a single account when explicitly enabled—take precedence over Claude
   token-account presentation (stacked cards and the segmented switcher).
 
@@ -251,6 +256,11 @@ Compact multi-account layout proof (synthetic accounts and usage data):
     visible, and never derives quota percentages from spend or token totals.
 
 ## Cost usage (local log scan)
+- Claude Swap account cards accept `usageFetchedAt`, source-reported `spend`, `disabled`, and
+  `lastGoodUsage`/`lastGoodFetchedAt` from the opt-in adapter. Failed account readings can show
+  last-known quota with its capture age and an explicit diagnostic. Active foreign-credential
+  slots offer a manual re-authentication action when switching is supported. Historical quota
+  is excluded from the menu bar, widgets, and brief CLI warning/reset summaries.
 - Source roots:
   - Native Claude logs:
     - `$CLAUDE_CONFIG_DIR` (comma-separated), each root uses `<root>/projects`.
@@ -275,7 +285,7 @@ Compact multi-account layout proof (synthetic accounts and usage data):
     single pi-compatible session can contribute to multiple models/days.
   - Matching assistant entry IDs within the same session are counted once across roots; distinct turns are retained.
 - Cache:
-  - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart.
+  - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart. Dashboard and regular report windows keep separate cache files so duplicate proxy responses cannot leak a winner between ranges. Oversized token components remain unavailable independently while representable components and costs stay visible.
   - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v2.json`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 

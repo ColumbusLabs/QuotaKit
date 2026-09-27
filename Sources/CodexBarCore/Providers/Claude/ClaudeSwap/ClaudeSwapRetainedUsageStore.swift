@@ -14,10 +14,18 @@ public enum ClaudeSwapRetainedUsageStore {
 
     public static func load() -> [ProviderAccountUsageSnapshot] {
         guard let url = self.resolvedFileURL(),
-              let data = try? Data(contentsOf: url),
-              let records = try? JSONDecoder().decode([Record].self, from: data)
+              let data = try? Data(contentsOf: url)
         else { return [] }
+        return self.decode(data)
+    }
+
+    static func decode(_ data: Data) -> [ProviderAccountUsageSnapshot] {
+        guard let records = try? JSONDecoder().decode([Record].self, from: data) else { return [] }
         return records.map(\.account)
+    }
+
+    static func encode(_ accounts: [ProviderAccountUsageSnapshot]) -> Data? {
+        try? JSONEncoder().encode(accounts.compactMap(Record.init(account:)))
     }
 
     /// After a relaunch the in-memory array is empty even when this cache still
@@ -30,8 +38,7 @@ public enum ClaudeSwapRetainedUsageStore {
 
     public static func save(_ accounts: [ProviderAccountUsageSnapshot]) {
         guard let url = self.resolvedFileURL() else { return }
-        let records = accounts.compactMap(Record.init(account:))
-        guard let data = try? JSONEncoder().encode(records) else { return }
+        guard let data = self.encode(accounts) else { return }
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true)
@@ -73,11 +80,6 @@ public enum ClaudeSwapRetainedUsageStore {
         return self.fingerprint(email: email, slot: account.id.opaqueID)
     }
 
-    /// Stable, non-reversible owner key for consumers that retain an account's quota.
-    public static func ownershipFingerprint(for account: ProviderAccountUsageSnapshot) -> String? {
-        self.fingerprint(from: account)
-    }
-
     static func fingerprintAccountID(_ fingerprint: String) -> String {
         self.fingerprintPrefix + fingerprint
     }
@@ -108,6 +110,8 @@ public enum ClaudeSwapRetainedUsageStore {
         var secondary: RateWindow?
         var extraRateWindows: [NamedRateWindow]?
         var updatedAt: Date
+        /// Legacy records predate source-reported fallbacks and decode as live.
+        var usesLastKnownUsage: Bool?
 
         init?(account: ProviderAccountUsageSnapshot) {
             guard account.id.source == ClaudeSwapAccountProjection.sourceName,
@@ -126,6 +130,7 @@ public enum ClaudeSwapRetainedUsageStore {
             self.secondary = snapshot.secondary
             self.extraRateWindows = snapshot.extraRateWindows
             self.updatedAt = snapshot.updatedAt
+            self.usesLastKnownUsage = account.usesLastKnownUsage ? true : nil
         }
 
         var account: ProviderAccountUsageSnapshot {
@@ -136,6 +141,7 @@ public enum ClaudeSwapRetainedUsageStore {
                 provider: .claude,
                 displayLabel: "",
                 isActive: false,
+                usesLastKnownUsage: self.usesLastKnownUsage ?? false,
                 snapshot: UsageSnapshot(
                     primary: self.primary,
                     secondary: self.secondary,

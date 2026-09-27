@@ -13,6 +13,49 @@ struct MenuCardCompactAccountRowView: View {
         let hasError: Bool
         let showsBestBadge: Bool
 
+        init(
+            label: String,
+            headroomPercent: Double?,
+            severity: AccountMenuLayoutPlanner.Severity?,
+            constraintDetail: String?,
+            hasError: Bool,
+            showsBestBadge: Bool)
+        {
+            self.label = label
+            self.headroomPercent = headroomPercent
+            self.severity = severity
+            self.constraintDetail = constraintDetail
+            self.hasError = hasError
+            self.showsBestBadge = showsBestBadge
+        }
+
+        init(
+            row: AccountMenuLayoutPlanner.CompactRow,
+            hidePersonalInfo: Bool = false,
+            now: Date = .now)
+        {
+            self.label = PersonalInfoRedactor.redactEmail(row.label, isEnabled: hidePersonalInfo)
+            self.headroomPercent = row.headroomPercent
+            self.severity = row.severity
+            self.constraintDetail = StatusItemController.localizedCompactConstraintDetail(row, now: now)
+            self.hasError = row.hasError
+            self.showsBestBadge = row.isBestCandidate
+        }
+
+        var accessibilityText: String {
+            var parts = [self.label]
+            if let label = self.headroomLabel {
+                parts.append(String(format: L("%@ remaining"), label))
+            }
+            if let detail = self.constraintDetail {
+                parts.append(detail)
+            }
+            if self.hasError {
+                parts.append(L("Account unavailable"))
+            }
+            return parts.joined(separator: ", ")
+        }
+
         var headroomLabel: String? {
             self.headroomPercent.map { "\(Int($0.rounded()))%" }
         }
@@ -103,7 +146,7 @@ struct MenuCardCompactAccountRowView: View {
         .padding(.vertical, 5)
         .frame(width: self.width, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(self.accessibilityText)
+        .accessibilityLabel(self.model.accessibilityText)
     }
 
     private var severityColor: Color {
@@ -124,19 +167,6 @@ struct MenuCardCompactAccountRowView: View {
         }
     }
 
-    private var accessibilityText: String {
-        var parts = [self.model.label]
-        if let label = self.model.headroomLabel {
-            parts.append(String(format: L("%@ remaining"), label))
-        }
-        if let detail = self.model.constraintDetail {
-            parts.append(detail)
-        }
-        if self.model.hasError {
-            parts.append(L("Account unavailable"))
-        }
-        return parts.joined(separator: ", ")
-    }
 }
 
 /// Summary row standing in for the healthy accounts hidden by the compact

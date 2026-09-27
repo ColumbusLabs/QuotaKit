@@ -54,6 +54,7 @@ Vertex AI Claude usage is logged to the same local files as direct Anthropic API
 **Note:** The model name must include the `@` format for detection to work. If Claude Code normalizes model names to `-` format when logging, the entries won't be distinguishable from direct Anthropic API usage.
 
 ## Troubleshooting
+- Mac Usage & Spend keeps Vertex's history window separate from its regular cost report, including Claude Code transcripts with Vertex metadata.
 - **No quota data**: Ensure Cloud Monitoring API access in the selected project.
 - **No cost data**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage with Vertex AI metadata.
 - **Auth issues**: Re-run `gcloud auth application-default login`.
