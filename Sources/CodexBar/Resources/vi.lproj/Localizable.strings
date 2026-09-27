@@ -1504,6 +1504,7 @@
 "More" = "Nhiều";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Cài đặt…";
 "Install plugin" = "Cài đặt plugin";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Sao chép tệp JavaScript hoặc TypeScript vào thư mục plugin.";

@@ -1507,6 +1507,7 @@
 "More" = "มาก";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "ติดตั้ง…";
 "Install plugin" = "ติดตั้งปลั๊กอิน";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "คัดลอกไฟล์ JavaScript หรือ TypeScript ไปยังโฟลเดอร์ปลั๊กอิน";
