@@ -6,7 +6,6 @@ import Testing
 
 @MainActor
 @Suite(.serialized)
-// swiftlint:disable:next type_body_length
 struct ProviderSettingsDescriptorTests {
     @Test
     func `xKiro keeps its API key in provider config`() throws {
