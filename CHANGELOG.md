@@ -38,6 +38,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Perplexity: restore credit-pool percentages and CLI amounts while keeping credit descriptions out of reset clocks.
 - Abacus: retain credit amounts beside real billing reset dates in CLI output.
 - Warp: show the active monthly or add-on credit pool across menu surfaces.
 - Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.

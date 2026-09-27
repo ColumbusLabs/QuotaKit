@@ -95,7 +95,7 @@ struct WarpAutomaticCreditsTests {
             #expect(output.attributedTitle.string == "\(Int(showUsed ? 100 - remaining : remaining))%")
             if used == 1500, bonus == 770, !unlimited {
                 for (window, expected): (PercentWindow, String) in [
-                    (.session, showUsed ? "S 100%" : "S 0%"),
+                    (.session, showUsed ? "C 100%" : "C 0%"),
                     (.weekly, showUsed ? "A 23%" : "A 77%"),
                 ] {
                     let explicit = MenuBarLayoutRenderer().render(

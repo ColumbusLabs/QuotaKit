@@ -709,20 +709,14 @@ enum CLIRenderer {
         lines: inout [String])
     {
         guard labels.showsTertiary, let tertiary = snapshot.tertiary else { return }
-        lines.append(self.rateLine(title: labels.tertiary, window: tertiary, useColor: context.useColor))
-        if let pace = self.paceLine(
+        self.appendRateWindowLines(
             provider: provider,
+            title: labels.tertiary,
             window: tertiary,
-            slot: .tertiary,
-            weeklyWorkDays: context.weeklyWorkDays,
-            useColor: context.useColor,
-            now: now)
-        {
-            lines.append(pace)
-        }
-        if let reset = self.resetLine(for: tertiary, style: context.resetStyle, now: now) {
-            lines.append(self.subtleLine(reset, useColor: context.useColor))
-        }
+            paceSlot: .tertiary,
+            context: context,
+            now: now,
+            lines: &lines)
     }
 
     private static func appendExtraRateWindows(
