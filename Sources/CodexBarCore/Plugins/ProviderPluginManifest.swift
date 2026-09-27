@@ -401,7 +401,9 @@ public struct ProviderPluginManifest: Sendable {
     }
 
     /// Provider-specific by design: these providers validate private-network HTTP overrides in Swift.
-    private static let bundledPrivateNetworkHTTPProviders: Set<UsageProvider> = [.aixy, .llmproxy, .litellm]
+    private static let bundledPrivateNetworkHTTPProviders: Set<UsageProvider> = [
+        .aixy, .bifrost, .litellm, .llmman, .llmproxy,
+    ]
 }
 
 enum ProviderPluginOrigin {
