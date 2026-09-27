@@ -188,8 +188,8 @@ struct MenuBarLayoutResetText: Hashable {
     let countdown: String?
     let absolute: String?
 
-    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider, now: Date) {
-        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider?, now: Date) {
+        let metadata = ProviderDescriptorRegistry.descriptor(for: provider ?? .codex).metadata
         // Balance-only providers keep their documented legacy reset-token balance aliases.
         let fallback = metadata.usesDetailBackedWindow && !metadata.balanceOnly ? nil : window?.resetDescription
         self.countdown = window?.resetsAt
@@ -688,7 +688,7 @@ final class MenuBarLayoutRenderer {
             accessibilityPrefix = self.primaryLabel(data: data) ?? L("Session")
         case .weekly:
             accessibilityPrefix = data.laneLabels.secondary
-            prefix = String(accessibilityPrefix.prefix(1)).uppercased()
+            prefix = String(data.laneLabels.secondary.prefix(1)).uppercased()
         case .scopedWeekly:
             prefix = data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
             accessibilityPrefix = data.scopedWeeklyTitle ?? L("Scoped weekly")
@@ -943,7 +943,7 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider ?? .codex)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
         return descriptor.presentation.primarySemanticWindow == .session
