@@ -28,7 +28,7 @@ struct LiteLLMProviderImplementation: ProviderImplementation {
             id: "litellm-model-usage",
             title: "Show model activity",
             subtitle: "Read the user's last 30 days of tokens and logged requests by model.",
-            binding: context.binding(\.litellmModelUsageEnabled),
+            binding: context.boolBinding(\.litellmModelUsageEnabled),
             statusText: nil,
             actions: [],
             isVisible: nil,
