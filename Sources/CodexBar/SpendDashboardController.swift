@@ -1322,6 +1322,8 @@ final class SpendDashboardController {
         self.rebuildModel()
     }
 
+    // Keep the load and reconciliation state machine together while preserving its transition order.
+    // swiftlint:disable:next cyclomatic_complexity
     private func handleBuiltRequest(
         _ request: SpendDashboardLoadRequest,
         startedWith startConfiguration: SpendDashboardConfiguration,
