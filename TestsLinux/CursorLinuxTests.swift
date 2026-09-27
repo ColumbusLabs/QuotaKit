@@ -30,8 +30,9 @@ struct CursorLinuxTests {
     }
 
     @Test
-    func `Cursor automatic source does not require macOS web support`() {
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(
+    func `Cursor automatic source requires macOS web support until Linux runtime restoration`() {
+        // The full Cursor.app authentication path from upstream 9779a600b is pending integration.
+        #expect(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .cursor,
             settings: ProviderSettingsSnapshot.make(

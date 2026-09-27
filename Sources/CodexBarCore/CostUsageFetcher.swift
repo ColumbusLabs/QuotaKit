@@ -2199,17 +2199,15 @@ public struct CostUsageFetcher: Sendable {
             nil
         }
         // Prefer summary totals when present; fall back to summing daily entries. A non-empty
-        // row set where every row carries an explicit value is a known total even when it sums
-        // to zero; keep nil only for genuinely missing values.
+        // row set where every row carries an explicit value has a known priced subtotal even
+        // when some requests are unpriced. Coverage metadata separately marks that subtotal
+        // incomplete; a whole day without cost remains unavailable.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
-        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy {
-            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
-        }
+        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
         // A bounded Codex refresh may expose an explicitly partial projection. Keep its compact
-        // subtotal useful when every materialized day is priced, while the coverage flag above
-        // tells consumers that the subtotal is not an established window total. Never let a
-        // known subset beside an unpriced day masquerade as a complete cost.
+        // subtotal useful when every materialized day has a priced subtotal, while the coverage
+        // flag above tells consumers that the subtotal is not an established window total.
         let last30DaysCostUSD: Double? = if !monetaryValuesAreAvailable {
             nil
         } else if allEntriesCarryCost {

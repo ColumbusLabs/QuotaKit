@@ -242,7 +242,10 @@ struct CostUsageQuotaWeekLinuxTests {
         #expect(current?.totalTokens == 400)
         #expect(previous?.totalCostUSD == 2)
         #expect(previous?.totalTokens == 200)
-        #expect((current?.totalCostUSD ?? 0) + (previous?.totalCostUSD ?? 0) == 6)
+        let currentCost: Double = current?.totalCostUSD ?? 0
+        let previousCost: Double = previous?.totalCostUSD ?? 0
+        let combinedCost: Double = currentCost + previousCost
+        #expect(combinedCost == 6)
         #expect(current?.entryCount == 1)
         #expect(previous?.entryCount == 1)
     }
@@ -285,7 +288,10 @@ struct CostUsageQuotaWeekLinuxTests {
         #expect(previous?.totalTokens == 200)
         #expect(current?.totalCostUSD == 4)
         #expect(current?.totalTokens == 400)
-        #expect((current?.totalCostUSD ?? 0) + (previous?.totalCostUSD ?? 0) == 6)
+        let currentCost: Double = current?.totalCostUSD ?? 0
+        let previousCost: Double = previous?.totalCostUSD ?? 0
+        let combinedCost: Double = currentCost + previousCost
+        #expect(combinedCost == 6)
     }
 
     @Test
@@ -812,6 +818,31 @@ extension CostUsageQuotaWeekLinuxTests {
             calendar: Self.utcCalendar)
         #expect(snapshot.last30DaysTokens == 300)
         #expect(snapshot.last30DaysCostUSD == 1)
+        let current = snapshot.quotaWeekSummaries(
+            resetAt: Self.utcDate(year: 2026, month: 7, day: 18, hour: 0), calendar: Self.utcCalendar).first
+        #expect(current?.costIsComplete == false)
+    }
+
+    @Test
+    func `priced daily subtotals survive explicit unpriced coverage across days`() {
+        let report = CostUsageDailyReport(
+            data: [
+                .init(
+                    date: "2026-07-10", inputTokens: nil, outputTokens: nil,
+                    totalTokens: 100, costUSD: 1, modelsUsed: nil, modelBreakdowns: nil),
+                .init(
+                    date: "2026-07-11", inputTokens: nil, outputTokens: nil,
+                    totalTokens: 200, costUSD: 2, modelsUsed: nil, modelBreakdowns: nil,
+                    unpricedRequestCount: 1),
+            ],
+            summary: nil)
+        let snapshot = CostUsageFetcher.tokenSnapshot(
+            from: report,
+            now: Self.utcDate(year: 2026, month: 7, day: 11, hour: 12),
+            historyDays: 30,
+            calendar: Self.utcCalendar)
+
+        #expect(snapshot.last30DaysCostUSD == 3)
         let current = snapshot.quotaWeekSummaries(
             resetAt: Self.utcDate(year: 2026, month: 7, day: 18, hour: 0), calendar: Self.utcCalendar).first
         #expect(current?.costIsComplete == false)
