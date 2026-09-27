@@ -1,9 +1,12 @@
 import Foundation
 
-#if os(macOS)
 #if canImport(SQLite3)
 import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
 #endif
+#if canImport(FoundationNetworking)
+import FoundationNetworking
 #endif
 
 #if os(macOS) || os(Linux)
@@ -102,7 +105,7 @@ struct CursorSessionIdentity: Equatable, Sendable {
 }
 #endif
 
-#if os(macOS)
+#if os(macOS) || os(Linux)
 struct CursorAppAuthSession: Equatable, Sendable {
     static let persistedCookieMarker = "QuotaKit Cursor.app local auth"
 
