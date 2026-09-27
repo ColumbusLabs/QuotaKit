@@ -2271,7 +2271,7 @@ enum CostUsageScanner {
     struct CostUsageDayRange {
         let sinceKey: String
         let untilKey: String
-        let scanSinceKey: String
+        private(set) var scanSinceKey: String
         let scanUntilKey: String
         let calendar: Calendar
 
@@ -2284,6 +2284,12 @@ enum CostUsageScanner {
             let scanUntil = calendar.date(byAdding: .day, value: 1, to: until) ?? until
             self.scanSinceKey = Self.dayKey(from: scanSince, calendar: calendar)
             self.scanUntilKey = Self.dayKey(from: scanUntil, calendar: calendar)
+        }
+
+        func retainingScanStart(_ scanSinceKey: String) -> Self {
+            var retained = self
+            retained.scanSinceKey = min(self.scanSinceKey, scanSinceKey)
+            return retained
         }
 
         static func localGregorianCalendar(matching calendar: Calendar = .current) -> Calendar {
@@ -7315,7 +7321,20 @@ enum CostUsageScanner {
         let loadedCache = Self.loadCodexCache(options: options, range: range)
         var cache = loadedCache.cache
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
-        let plan = Self.makeCodexRefreshPlan(cache: cache, range: range, now: now, nowMs: nowMs, options: options)
+        // Keep an unfinished discovery queue on its original wider scan range when a
+        // dashboard requests a narrower report of the same roots and ending day.
+        let scanRange: CostUsageDayRange = if !options.forceRescan,
+                                              cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+                                              cache.scanUntilKey == range.scanUntilKey,
+                                              let pending = cache.codexActiveLookbackState,
+                                              pending.rootPaths == Self.codexSessionsRoots(options: options)
+                                                  .map(Self.codexResolvedPath).sorted()
+        {
+            range.retainingScanStart(pending.scanSinceKey)
+        } else {
+            range
+        }
+        let plan = Self.makeCodexRefreshPlan(cache: cache, range: scanRange, now: now, nowMs: nowMs, options: options)
         let previousReport = Self.codexPreviousReportCandidate(
             cache: cache,
             store: loadedCache.store,
@@ -7324,6 +7343,7 @@ enum CostUsageScanner {
             options: options)
 
         if plan.shouldRefresh {
+            let range = scanRange
             try checkCancellation?()
             if options.forceRescan {
                 cache = CostUsageCache()
