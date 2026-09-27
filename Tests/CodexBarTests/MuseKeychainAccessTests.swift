@@ -7,7 +7,7 @@ import Testing
 
 struct MuseKeychainAccessTests {
     @Test(
-        arguments: [KeychainAccessPreflight.Outcome.interactionRequired, .failure(-1)],
+        arguments: [KeychainAccessPreflight.Outcome.interactionRequired, .temporarilyUnavailable, .failure(-1)],
         [ProviderInteraction.background, .userInitiated])
     func `refreshes fail before any secret read or prompt when preflight is not allowed`(
         outcome: KeychainAccessPreflight.Outcome,
@@ -33,6 +33,7 @@ struct MuseKeychainAccessTests {
     @Test(arguments: [
         KeychainAccessPreflight.Outcome.allowed,
         .interactionRequired,
+        .temporarilyUnavailable,
         .notFound,
         .failure(-1),
     ], [ProviderInteraction.background, .userInitiated])
