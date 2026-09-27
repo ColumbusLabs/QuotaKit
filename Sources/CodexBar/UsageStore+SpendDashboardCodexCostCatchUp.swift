@@ -224,6 +224,10 @@ extension UsageStore {
                 // free pages after every worker lifetime, including cancellation and failures.
                 self.scheduleMemoryPressureRelief()
                 if self.spendDashboardCodexCostCatchUpToken == token {
+                    // Scope invalidation can exit without publishing a terminal activity.
+                    if self.spendDashboardCodexCostCatchUpActivity?.phase == .indexing {
+                        self.spendDashboardCodexCostCatchUpActivity = nil
+                    }
                     self.spendDashboardCodexCostCatchUpTask = nil
                     self.spendDashboardCodexCostCatchUpToken = nil
                     self.spendDashboardCodexCostCatchUpScopeSignature = nil
