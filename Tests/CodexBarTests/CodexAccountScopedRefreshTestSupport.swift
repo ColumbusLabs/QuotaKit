@@ -83,7 +83,7 @@ extension CodexAccountScopedRefreshTests {
         environmentBase: [String: String] = [:],
         codexAccountUsageSnapshotStore: (any CodexAccountUsageSnapshotStoring)? = nil) -> UsageStore
     {
-        let root = FileManager.default.temporaryDirectory
+        let root = CodexCredentialFixtures.root
             .appendingPathComponent("codexbar-tests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         var environment = [
@@ -574,7 +574,7 @@ extension CodexAccountScopedRefreshTests {
         suite: String,
         snapshotStore: (any CodexAccountUsageSnapshotStoring)? = nil) -> UsageStore
     {
-        let root = FileManager.default.temporaryDirectory
+        let root = CodexCredentialFixtures.root
             .appendingPathComponent("codexbar-weekly-publication-tests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let environment = [

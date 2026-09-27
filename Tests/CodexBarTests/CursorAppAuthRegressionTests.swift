@@ -41,7 +41,7 @@ struct CursorAppAuthRegressionTests {
         let applicationSupport = try #require(
             FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first)
         #expect(!fileURL.standardizedFileURL.path.hasPrefix(applicationSupport.standardizedFileURL.path))
-        #expect(fileURL.path.contains("CursorSessionStoreTests-\(getpid())-"))
+        #expect(fileURL.path.contains("codexbar-session-tests-"))
     }
 
     @Test
@@ -60,8 +60,8 @@ struct CursorAppAuthRegressionTests {
 
         await store.persistAppSession(CursorAppAuthSession(accessToken: firstToken))
         await store.persistAppSession(CursorAppAuthSession(accessToken: secondToken))
-        await store.resetForTesting(clearDisk: false)
-        let cookies = await store.getCookies()
+        let reader = CursorSessionStore(fileURL: fileURL)
+        let cookies = await reader.getCookies()
         let cookie = try #require(cookies.first)
 
         #expect(cookies.count == 1)

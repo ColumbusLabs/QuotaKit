@@ -135,6 +135,14 @@ Control Center host removal or placement after process exit. This does not diagn
 make test
 ```
 
+### Test file isolation and native test discovery
+
+`Scripts/test.sh` denies ambient Codex credential files and provider session files in test processes and their children. Codex credential tests use `CodexCredentialFixtures` or an explicit `CodexCredentialFileAccess.withFixtureScope` for synthetic files. A child process must receive its own `FixtureScope.childEnvironment`; it does not inherit a parent's fixture grants. `Scripts/test_codex_file_isolation_child.sh` and `Scripts/test_provider_session_file_isolation.sh` provide optimized synthetic child proofs without live account access.
+
+Settings tests skip automatic app-group migration and shared defaults discovery. Migration tests inject their own defaults, file manager, and snapshot paths. Widget snapshot tests can persist to an injected URL without reloading WidgetKit timelines.
+
+The sharded runner retries `swift test list` once only when it detects the known missing Sparkle framework path. It validates the built framework before repairing the test bundle's `PackageFrameworks` symlink. Other discovery failures retain their original result.
+
 ### Format And Lint
 
 `Scripts/install_lint_tools.sh` installs repository-pinned SwiftFormat and SwiftLint archives after checksum verification.

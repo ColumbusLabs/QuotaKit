@@ -680,26 +680,18 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
 public actor CursorSessionStore {
     public static let shared = CursorSessionStore()
 
-    #if DEBUG
-    private static let defaultTestFileURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("CursorSessionStoreTests-\(getpid())-\(UUID().uuidString)", isDirectory: true)
-        .appendingPathComponent("cursor-session.json")
-    #endif
-
     private var sessionCookies: [HTTPCookie] = []
     private var hasLoadedFromDisk = false
     private let fileURL: URL
 
     private init() {
         let fm = FileManager.default
-        #if DEBUG
-        if KeychainTestSafety.shouldIsolateUserStateUnderTests() {
-            self.fileURL = Self.defaultTestFileURL
+        if ProviderSessionStoreFile.isIsolated() {
+            self.fileURL = ProviderSessionStoreFile.url(for: "cursor-session.json")
             Self.prepareStorage(fileURL: self.fileURL, legacyFileURL: nil)
             Task { await self.loadFromDiskIfNeeded() }
             return
         }
-        #endif
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory
         self.fileURL = appSupport

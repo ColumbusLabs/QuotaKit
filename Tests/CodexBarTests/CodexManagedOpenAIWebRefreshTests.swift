@@ -36,7 +36,7 @@ private actor FirstSaveBlockingWidgetSnapshotSaver {
     }
 }
 
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct CodexManagedOpenAIWebRefreshTests {
     @Test
@@ -47,7 +47,7 @@ struct CodexManagedOpenAIWebRefreshTests {
         if let codexMeta = ProviderRegistry.shared.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        let managedHomeURL = FileManager.default.temporaryDirectory
+        let managedHomeURL = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? Self.writeCodexAuthFile(
             homeURL: managedHomeURL,
@@ -143,7 +143,7 @@ struct CodexManagedOpenAIWebRefreshTests {
         if let codexMeta = ProviderRegistry.shared.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        let managedHomeURL = FileManager.default.temporaryDirectory
+        let managedHomeURL = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? Self.writeCodexAuthFile(
             homeURL: managedHomeURL,
@@ -199,7 +199,7 @@ struct CodexManagedOpenAIWebRefreshTests {
         if let codexMeta = ProviderRegistry.shared.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        let managedHomeURL = FileManager.default.temporaryDirectory
+        let managedHomeURL = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? Self.writeCodexAuthFile(
             homeURL: managedHomeURL,
@@ -274,7 +274,7 @@ struct CodexManagedOpenAIWebRefreshTests {
         if let codexMeta = ProviderRegistry.shared.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        let managedHomeURL = FileManager.default.temporaryDirectory
+        let managedHomeURL = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? Self.writeCodexAuthFile(
             homeURL: managedHomeURL,
@@ -366,7 +366,7 @@ struct CodexManagedOpenAIWebRefreshTests {
     func `manual cookie import bypasses same account refresh coalescing`() async throws {
         let settings = try self.makeSettingsStore(
             suite: "CodexManagedOpenAIWebRefreshTests-manual-import-bypass-coalesce")
-        let managedHome = FileManager.default.temporaryDirectory
+        let managedHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-managed-openai-web-refresh-\(UUID().uuidString)", isDirectory: true)
         try Self.writeCodexAuthFile(
             homeURL: managedHome,

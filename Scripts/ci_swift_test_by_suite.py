@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
+from pathlib import Path
 import re
 import signal
 import subprocess
@@ -102,17 +104,86 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
         return 124
 
 
+def is_missing_sparkle_runtime_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    output = f"{result.stdout}\n{result.stderr}"
+    return (
+        "Library not loaded: @rpath/Sparkle.framework/Versions/B/Sparkle" in output
+        and "PackageFrameworks/Sparkle.framework" in output
+    )
+
+
+def valid_sparkle_runtime(path: Path) -> bool:
+    return path.is_dir() and any(
+        (path / "Versions" / version / "Sparkle").is_file()
+        for version in ("Current", "B")
+    )
+
+
+def sparkle_runtime_matches_source(destination: Path, source: Path) -> bool:
+    if not destination.is_symlink():
+        return False
+    try:
+        return destination.resolve(strict=True) == source.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+
+
+def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
+    result = subprocess.run(
+        [*swift_command, "build", "--show-bin-path"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+
+    bin_dir = Path(lines[0])
+    if not bin_dir.is_absolute():
+        bin_dir = Path.cwd() / bin_dir
+    source = bin_dir / "Sparkle.framework"
+    if not valid_sparkle_runtime(source):
+        return False
+
+    package_frameworks = bin_dir / "PackageFrameworks"
+    package_frameworks.mkdir(parents=True, exist_ok=True)
+    destination = package_frameworks / "Sparkle.framework"
+    lock_path = package_frameworks / ".sparkle-runtime.lock"
+    with lock_path.open("a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        if sparkle_runtime_matches_source(destination, source):
+            return True
+        if destination.exists() and not destination.is_symlink():
+            return valid_sparkle_runtime(destination)
+
+        temporary = package_frameworks / f".Sparkle.framework.{os.getpid()}.{time.time_ns()}"
+        try:
+            temporary.symlink_to(Path("..") / "Sparkle.framework", target_is_directory=True)
+            os.replace(temporary, destination)
+        except IsADirectoryError:
+            return valid_sparkle_runtime(destination)
+        finally:
+            if temporary.is_symlink():
+                temporary.unlink()
+        return sparkle_runtime_matches_source(destination, source)
+
+
 def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
     command = [*swift_command, "test", "list"]
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as error:
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
+        if repair_sparkle_test_runtime(swift_command):
+            print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
+            result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
         print(f"+ {swift_command[0]} test list", flush=True)
-        if error.stdout:
-            print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
-        if error.stderr:
-            print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
-        raise
+        if result.stdout:
+            print(result.stdout, end="" if result.stdout.endswith("\n") else "\n", flush=True)
+        if result.stderr:
+            print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
+        result.check_returncode()
     selections: set[TestSelection] = set()
     unknown: list[str] = []
     for line in result.stdout.splitlines():
