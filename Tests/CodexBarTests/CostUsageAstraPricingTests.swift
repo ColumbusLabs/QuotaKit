@@ -130,10 +130,10 @@ struct CostUsageAstraPricingTests {
     }
 
     @Test
-    func `unpublished Astra aliases and other providers remain unpriced`() throws {
+    func `unrelated models and other providers remain unpriced`() throws {
         let environment = try CostUsageTestEnvironment()
         defer { environment.cleanup() }
-        for model in ["gpt-6", "other-provider/gpt-6-astra"] {
+        for model in ["fictional-unpriced-model", "other-provider/gpt-6-astra"] {
             #expect(CostUsagePricing.codexCostUSD(
                 model: model,
                 inputTokens: 1000,
