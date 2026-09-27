@@ -957,7 +957,7 @@ extension UsageStore {
             return
         }
         // Credential-change cleanup already ran above; cancellation is now safe to suppress.
-        if Self.errorIsCancellation(error) {
+        if Self.shouldSuppressProviderCancellation(error, priorSnapshot: self.snapshots[provider.instanceID]) {
             if provider == .deepseek,
                self.isCurrentProviderRefreshGeneration(provider, generation: context.generation)
             {
@@ -1525,7 +1525,8 @@ extension UsageStore {
                 Self.isClaudeCLIUsageParseFailure(error)
             let preservesPriorData = Self.shouldPreservePriorSnapshot(
                 after: error,
-                hadPriorData: hadPriorData) ||
+                hadPriorData: hadPriorData,
+                priorSnapshot: self.snapshots[provider.instanceID]) ||
                 (provider == .antigravity && error is AntigravityOfflineQuotaFallbackError && hadPriorData) ||
                 (provider == .claude &&
                     hadPriorData &&
