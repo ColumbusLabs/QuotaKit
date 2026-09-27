@@ -344,7 +344,7 @@ extension UsageMenuCardView.Model {
         let primaryCostUSD = usesLatestPrimary ? latest?.costUSD : snapshot.sessionCostUSD
         let incompleteCount = CostUsageIncompleteRequests.sum(snapshot.daily.map(\.incompleteRequestCount))
         let primaryIncompleteCount = usesLatestPrimary ? latest?.incompleteRequestCount ?? 0
-            : snapshot.summary(forLastDays: 1, calendar: input.costUsageBucketCalendar).incompleteRequestCount
+            : snapshot.incompleteRequestCount(forLastDays: 1, calendar: input.costUsageBucketCalendar)
         let primarySuffix = UsageFormatter.incompleteUsageSuffix(primaryIncompleteCount)
         let historySuffix = UsageFormatter.incompleteUsageSuffix(incompleteCount)
         let quota = Self.costHistoryQuotaPresentation(
