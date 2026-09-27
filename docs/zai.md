@@ -131,11 +131,13 @@ Copy each value once, on one line. Multi-line or duplicated IDs can make the API
 ## Parsing + mapping
 - Response fields:
   - `data.limits[]` → each limit entry.
-  - `data.planName` (or `plan`, `plan_type`, `packageName`) → plan label.
+  - `data.planName` (or `plan`, `plan_type`, `packageName`, `level`) → plan label.
 - Limit types:
   - `TOKENS_LIMIT` and `CREDIT_LIMIT` → the first Coding Plan limit is primary; the last is secondary when multiple limits are present.
   - `TIME_LIMIT` → a separate MCP window when a Coding Plan window is available, otherwise the primary window.
 - Empty or unrecognized limits remain unavailable; they do not imply 0% usage. Explicit zero usage remains visible.
+- A limit needs an integer `percentage`. When positive `usage` and `currentValue` or `remaining` counts are present,
+  the counts determine the used percentage, clamped to 0–100%. Unknown durations sort after known durations.
 - Window duration:
   - Unit + number → minutes/hours/days.
 - Reset:
@@ -144,6 +146,8 @@ Copy each value once, on one line. Multi-line or duplicated IDs can make the API
   - `usageDetails[]` per model (MCP usage list).
 
 ## Key files
+- `Sources/CodexBarCore/Resources/Plugins/zai.js` (plugin quota mapping)
+- `Sources/CodexBarCore/Providers/Zai/ZaiProviderDescriptor.swift`
 - `Sources/CodexBarCore/Providers/Zai/ZaiUsageStats.swift`
 - `Sources/CodexBarCore/Providers/Zai/ZaiSettingsReader.swift`
 - `Sources/CodexBar/ZaiTokenStore.swift` (legacy migration helper)

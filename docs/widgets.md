@@ -15,10 +15,10 @@ read_when:
 - WidgetKit owns the outer margins. Small, medium, and large tiles share the same rendering and quota-selection rules; overflow labels disclose omitted detail rows. Snapshot and reset dates remain live relative text between timeline updates.
 - Snapshot age labels advance between timeline reloads. Stale token-cost rows track their own saved timestamp once they lag quota data by more than ten minutes. Fetching new usage still depends on app refresh and WidgetKit accepting a timeline.
 - The app writes snapshots after the main refresh pipeline and token-usage refreshes; narrow single-provider refresh paths may wait for the next snapshot write.
-- Automatic provider refresh is the sole periodic trigger for token/cost refreshes; the token/cost TTL only determines
-  eligibility when that refresh runs. Automatic local-history scans have a 15-minute minimum (30 minutes in low-power
-  mode), while Manual disables automatic scans. The floor limits repeated local-history work and extra WidgetKit reload
-  requests without changing provider usage/status freshness or the user-selected provider refresh cadence.
+- Scheduled provider refreshes trigger regular token/cost refreshes; the token/cost TTL determines eligibility when
+  that refresh runs. Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode).
+  Manual disables the recurring refresh timer; startup refreshes and pending Codex catch-up may still scan local
+  history. The floor limits repeated local-history work and WidgetKit reload requests without changing quota freshness.
 - Claude local cost/token history remains eligible for widget snapshots when its account does not expose numeric
   session or weekly quota data.
 - When claude-swap owns Claude's menu presentation, the provider widget uses the active swap account even if
@@ -42,6 +42,9 @@ read_when:
 - **QuotaKit Metric** (`CodexBarCompactWidget`): compact credits/today-cost/30-day-cost widget, small only.
 - **QuotaKit Burn Down** (`CodexBarBurnDownWidget`): configurable quota burn-down chart, medium only.
 - **QuotaKit Burn Down (Combined)** (`CodexBarCombinedBurnDownWidget`): two quota burn-down charts, medium only.
+
+Switcher widgets share one remembered provider selection, so switching one updates all Switcher widgets. To keep
+Claude and Codex visible side by side, add two **QuotaKit Usage** widgets and configure each **Provider** separately.
 
 ## Account selection
 

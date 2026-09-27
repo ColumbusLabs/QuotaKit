@@ -338,6 +338,77 @@ jobs:
           name: CodexBarMobile-xcresult
           path: ${{ runner.temp }}/CodexBarMobile.xcresult
 
+  build-linux-cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-24.04
+          - runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Swift ${{ env.SWIFT_VERSION }} via swiftly
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v gpg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ca-certificates gpg
+          fi
+
+          SWIFTLY_ARCH="$(uname -m)"
+          SWIFTLY_ARCHIVE="$RUNNER_TEMP/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz"
+          SWIFTLY_SIGNATURE="${SWIFTLY_ARCHIVE}.sig"
+          SWIFTLY_HOME_DIR="$HOME/.local/share/swiftly"
+          SWIFTLY_BIN_DIR="$HOME/.local/bin"
+          SWIFT_GNUPGHOME="$(mktemp -d)"
+          SWIFT_KEYS="$RUNNER_TEMP/swift-signing-keys.asc"
+          POST_INSTALL_SCRIPT="$(mktemp)"
+
+          mkdir -p "$SWIFTLY_BIN_DIR"
+          chmod 700 "$SWIFT_GNUPGHOME"
+          curl -fsSL "https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz" -o "$SWIFTLY_ARCHIVE"
+          curl -fsSL "https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz.sig" -o "$SWIFTLY_SIGNATURE"
+          curl -fsSL --compressed "https://www.swift.org/keys/all-keys.asc" -o "$SWIFT_KEYS"
+          GNUPGHOME="$SWIFT_GNUPGHOME" gpg --batch --import "$SWIFT_KEYS"
+          SIGNATURE_STATUS="$(GNUPGHOME="$SWIFT_GNUPGHOME" gpg --batch --status-fd=1 \
+            --verify "$SWIFTLY_SIGNATURE" "$SWIFTLY_ARCHIVE" 2>&1)"
+          printf '%s\n' "$SIGNATURE_STATUS"
+          grep -Fq "[GNUPG:] VALIDSIG ${SWIFTLY_SIGNING_FINGERPRINT} " <<< "$SIGNATURE_STATUS"
+          tar -xzf "$SWIFTLY_ARCHIVE" -C /tmp
+          /tmp/swiftly init --assume-yes --skip-install
+
+          . "$SWIFTLY_HOME_DIR/env.sh"
+          echo "$SWIFTLY_BIN_DIR" >> "$GITHUB_PATH"
+          echo "SWIFTLY_HOME_DIR=$SWIFTLY_HOME_DIR" >> "$GITHUB_ENV"
+          echo "SWIFTLY_BIN_DIR=$SWIFTLY_BIN_DIR" >> "$GITHUB_ENV"
+
+          swiftly install "$SWIFT_VERSION" --use --assume-yes --verify --post-install-file "$POST_INSTALL_SCRIPT"
+          if [[ -s "$POST_INSTALL_SCRIPT" ]]; then
+            sudo apt-get update
+            sudo bash "$POST_INSTALL_SCRIPT"
+          fi
+
+          hash -r
+          swift --version
+
+      - name: Install Linux SQLite headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Build CLI and run portable Linux tests
+        run: |
+          set -euo pipefail
+          swift build --product CodexBarCLI
+          swift test --filter CodexBarLinuxTests
+          bin_dir="$(swift build --product CodexBarCLI --show-bin-path)"
+          timeout 20 "$bin_dir/CodexBarCLI" --help >/dev/null
+
   lint-build-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -346,6 +417,7 @@ jobs:
       - lint
       - swift-test-macos
       - ios-test
+      - build-linux-cli
     if: ${{ always() && !cancelled() }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -359,7 +431,8 @@ jobs:
             "${{ needs.swift-test-macos.result }}" \
             "${{ needs.changes.outputs.macos-tests-deferred }}" \
             "${{ needs.changes.outputs.ios-tests }}" \
-            "${{ needs.ios-test.result }}"
+            "${{ needs.ios-test.result }}" \
+            "${{ needs.build-linux-cli.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -375,6 +448,7 @@ jobs:
           IOS_TESTS: ${{ needs.changes.outputs.ios-tests }}
           IOS_TESTS_REASON: ${{ needs.changes.outputs.ios-tests-reason }}
           IOS_RESULT: ${{ needs.ios-test.result }}
+          LINUX_RESULT: ${{ needs.build-linux-cli.result }}
         run: |
           set -euo pipefail
           macos_reason="${MACOS_TESTS_REASON:-<unset>}"
@@ -392,6 +466,7 @@ jobs:
             printf '| macOS gate reason | %s |\n' "$macos_reason"
             printf '| macOS focused suites | `%s` |\n' "${MACOS_TEST_FILTER:-<full suite or skipped>}"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
+            printf '| build-linux-cli matrix result | `%s` |\n' "$LINUX_RESULT"
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| iOS gate reason | %s |\n' "$ios_reason"
             printf '| ios-test result | `%s` |\n' "$IOS_RESULT"
