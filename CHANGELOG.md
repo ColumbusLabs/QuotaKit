@@ -12,6 +12,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
 
 ### Added
+- Menu bar layouts can show explicit Session or Weekly reset countdowns and clocks, including conditional branches.
+- Optional pace colors show reserve in green and early exhaustion risk in red.
 - Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
 - Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.

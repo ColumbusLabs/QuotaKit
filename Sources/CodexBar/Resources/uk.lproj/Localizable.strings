@@ -1629,3 +1629,6 @@
 "account_widgets_description" = "Виберіть обліковий запис у кожному віджеті Account Usage. Оновлює до шести облікових записів для кожного постачальника.";
 "claude_limited_usage_detail" = "Обмежена деталізація використання";
 "%@ weekly" = "%@ за тиждень";
+
+"Color Pace Indicator" = "Кольорова індикація темпу";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелений — витрати нижчі за очікуваний темп (є запас); червоний — вищі (ризик дострокового вичерпання квоти).";

@@ -1631,3 +1631,6 @@
 "account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
 "claude_limited_usage_detail" = "Kullanım ayrıntıları sınırlı";
 "%@ weekly" = "%@ haftalık";
+
+"Color Pace Indicator" = "Kullanım hızını renklendir";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";

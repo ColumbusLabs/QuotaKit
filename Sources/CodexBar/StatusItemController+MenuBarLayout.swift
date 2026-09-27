@@ -162,7 +162,8 @@ extension StatusItemController {
             isStale: self.store.isStale(provider: provider),
             now: now,
             verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment,
-            forceStackedStyle: forceStackedStyle)
+            forceStackedStyle: forceStackedStyle,
+            colorPace: self.settings.menuBarColorPace)
     }
 
     func menuBarLayoutRenderData(
@@ -349,6 +350,24 @@ extension StatusItemController {
                 provider: provider,
                 snapshot: snapshot,
                 window: automatic))
+    }
+
+    /// Select dates from the same semantic windows as reset display tokens. Keep styles separate:
+    /// an absolute weekly clock must not cause minute-by-minute countdown wakeups.
+    func menuBarLayoutResetDates(
+        for provider: UsageProvider,
+        now: Date,
+        absolute: Bool? = nil) -> [Date]
+    {
+        let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
+        let tokens = self.settings.menuBarLayoutResolution(for: provider).layout
+            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let selections = Set(tokens.filter { absolute == nil || $0.resetIsAbsolute == absolute }
+            .compactMap(\.resetWindow))
+        return PercentWindow.allCases.filter(selections.contains).compactMap {
+            windows.resetWindow($0, snapshot: snapshot)?.resetsAt
+        }
     }
 
     private func setButtonLayoutContent(

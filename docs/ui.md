@@ -55,6 +55,14 @@ behind it, `0%` on pace. Each pace token reads its own window, so `Weekly pace` 
 `Runs out`, which always estimates from the weekly (or automatic) lane. A pace token renders an en dash while pace is
 unavailable, including the first 3% of a window; see [Pace tracking](#pace-tracking).
 
+Enable **Color Pace Indicator** under **Menu Bar → Icon** to show usage behind pace in green and usage ahead of pace
+in red. The setting defaults off and colors Session, Weekly, and Auto pace in both the menu bar and layout preview.
+Zero and unavailable pace stay neutral; stale colors dim unless high contrast is active.
+
+The Time palette also offers explicit Session and Weekly reset countdowns and clocks. The existing Resets in and Reset
+at tokens retain automatic-window behavior. Conditional branches can use the same explicit reset tokens. Layouts save
+V4 data and older-readable V3, V2, and legacy projections so older app versions can still load supported tokens.
+
 Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
 uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs

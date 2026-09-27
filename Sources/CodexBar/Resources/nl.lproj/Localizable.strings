@@ -1628,3 +1628,6 @@
 "account_widgets_description" = "Kies een account in elke Account Usage-widget. Werkt maximaal zes accounts per aanbieder bij.";
 "claude_limited_usage_detail" = "Beperkte gebruiksdetails";
 "%@ weekly" = "%@ wekelijks";
+
+"Color Pace Indicator" = "Gebruikstempo kleuren";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Groen als het verbruik achterloopt op het verwachte tempo (reserve); rood als het voorloopt (risico op vroegtijdige uitputting).";

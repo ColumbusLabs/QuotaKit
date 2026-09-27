@@ -7,6 +7,19 @@ import UniformTypeIdentifiers
 
 struct MenuBarLayoutEditorTests {
     @Test
+    func `time palette and conditional branches include explicit reset windows`() {
+        let session = MenuBarLayoutToken.windowResetCountdown(window: .session)
+        let weekly = MenuBarLayoutToken.windowResetAbsolute(window: .weekly)
+        #expect(MenuBarLayoutPaletteTokens.time.contains(session))
+        #expect(MenuBarLayoutPaletteTokens.time.contains(weekly))
+        #expect(MenuBarLayoutPaletteTokens.conditionalBranch.contains(session))
+        #expect(MenuBarLayoutPaletteTokens.conditionalBranch.contains(weekly))
+        #expect(session.resetWindow == .session)
+        #expect(weekly.resetWindow == .weekly)
+        #expect(weekly.resetIsAbsolute)
+    }
+
+    @Test
     @MainActor
     func `all scope discloses enabled saved overrides and targeted reset preserves other overrides`() throws {
         let settings = testSettingsStore(suiteName: "MenuBarLayoutEditorTests-overrides")

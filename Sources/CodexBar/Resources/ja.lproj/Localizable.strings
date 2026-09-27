@@ -1629,3 +1629,6 @@
 "account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";
 "claude_limited_usage_detail" = "使用量の詳細情報は限られています";
 "%@ weekly" = "%@（週間）";
+
+"Color Pace Indicator" = "使用ペースを色分け";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "想定より使用が遅い場合は緑（余裕あり）、速い場合は赤（上限に早く達するおそれ）で表示します。";

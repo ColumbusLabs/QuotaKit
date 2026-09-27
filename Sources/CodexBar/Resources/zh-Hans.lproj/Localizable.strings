@@ -1641,3 +1641,6 @@
 "account_widgets_description" = "在每个 Account Usage 小组件中选择一个账户。每个服务商最多刷新六个账户。";
 "claude_limited_usage_detail" = "用量详情有限";
 "%@ weekly" = "%@ 每周";
+
+"Color Pace Indicator" = "用颜色显示使用节奏";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "使用量低于预期进度时显示绿色（有余量）；高于预期时显示红色（可能提前耗尽配额）。";
