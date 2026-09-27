@@ -122,7 +122,27 @@ When Cursor rejects a cost request with HTTP 403, ordinary menu and spend-dashbo
 
 ## Key files
 - `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe.swift`
+- `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe+UsageSummary.swift` (summary projection)
+- `Sources/CodexBarCore/Providers/Cursor/CursorTeamSpend.swift` (verified member budget)
 - `Sources/CodexBarCore/Providers/Cursor/CursorSandUsage.swift` (Grok Bot weekly included usage)
 - `Sources/CodexBar/CursorLoginRunner.swift` (login flow)
 - `Sources/CodexBar/Providers/Cursor/CursorLoginFlow.swift` (menu integration)
 - `Sources/CodexBar/CursorLoginBrowserRouter.swift` (browser routing and selection)
+
+### Enterprise and Business member budgets
+
+For team plans with a fresh nonempty email from `/api/auth/me`, the usage probe also checks `/api/dashboard/teams` and
+`/api/dashboard/get-team-spend`. It prefers `portal-selected-team-id` over `team_id`,
+verifies the selection against the authenticated account's teams, and uses a sole
+team when no selection cookie is present (including Cursor.app authentication).
+Multiple teams without a selection remain on the usage-summary fallback.
+
+The authenticated member's `overallSpendCents` and `effectivePerUserLimitDollars`
+(or `monthlyLimitDollars` when the effective limit is absent) drive the primary
+percentage and plan dollars. Missing spend or non-positive limits are not treated
+as a zero-usage budget. Other members' data is not included in debug output.
+The optional lookup shares a ten-second deadline and the configured request timeout, with at most twenty pages of
+fifty members. It requires consistent page-count metadata, full intermediate pages, and the complete page set before accepting one
+matching member. Missing completion metadata, duplicate matches, or unavailable, invalid, or incomplete responses
+preserve usage-summary behavior. Billing dates and extra/on-demand charges remain sourced from usage-summary;
+team response dates and other members' details are not retained. Caller cancellation still stops the fetch.
