@@ -42,6 +42,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Menu bar: offer a per-provider percent window choice, keep cached menu card heights stable, and scope warmed status submenus to their provider.
 - Antigravity: resolve session and weekly quota independently, retain distinct model rows and actionable fallback errors, and recover Linux port discovery after `lsof` failures.
 - Cursor: use a verified selected-team member budget for Enterprise and Business usage, with summary fallback.
 - OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.

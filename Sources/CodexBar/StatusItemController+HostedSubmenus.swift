@@ -105,12 +105,12 @@ extension StatusItemController {
     func attachStatusComponentsSubmenuIfNeeded(
         to item: NSMenuItem,
         action: MenuDescriptor.MenuAction,
-        menu: NSMenu,
+        provider: UsageProvider?,
         width: CGFloat)
     {
         guard action == .statusPage,
-              let statusProvider = self.menuProvider(for: menu) ?? self.lastMenuProvider?.firstPartyProvider,
-              let submenu = self.makeStatusComponentsSubmenu(provider: statusProvider, width: width)
+              let provider,
+              let submenu = self.makeStatusComponentsSubmenu(provider: provider, width: width)
         else { return }
         item.action = nil
         item.submenu = submenu

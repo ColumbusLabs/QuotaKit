@@ -62,6 +62,9 @@ derive their first layout from the prior style, display mode, metric, and reset 
 untouched for downgrade safety, while a saved token layout takes precedence.
 Custom layout saves keep older-readable projections so a downgrade can still load the layout; provider-specific
 named percentages are omitted from those older projections without removing the rest of the layout.
+Provider settings also offer a simple percent-window picker when the menu bar uses Icon and Percent and the provider
+supports multiple windows. It writes a provider layout override while keeping custom mixed-window layouts visible as
+Custom in the picker.
 
 For Abacus, explicitly selecting Credits keeps the monthly allowance visible. With 250 of 1,000 credits used, it
 shows `C 75%` remaining (or `C 25%` with Show usage as used). Its billing window and reset date still drive pacing;

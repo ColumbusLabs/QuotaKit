@@ -492,7 +492,8 @@ extension StatusItemController {
                 to: menu,
                 context: menuContext,
                 switcherSelection: contentSelection)
-            self.addActionableSections(context.descriptor.sections, to: menu, width: context.menuWidth)
+            self.addActionableSections(
+                context.descriptor.sections, to: menu, width: context.menuWidth, provider: context.currentProvider)
             self.cacheVisibleMergedSwitcherContent(
                 in: menu,
                 selection: contentSelection,
@@ -876,6 +877,7 @@ extension StatusItemController {
         _ sections: [MenuDescriptor.Section],
         to menu: NSMenu,
         width: CGFloat,
+        provider: UsageProvider? = nil,
         captureMenu: NSMenu? = nil)
     {
         let actionableSections = sections.filter { section in section.entries.contains(where: \ .isActionable) }
@@ -936,7 +938,7 @@ extension StatusItemController {
                     self.attachStatusComponentsSubmenuIfNeeded(
                         to: item,
                         action: action,
-                        menu: captureMenu ?? menu,
+                        provider: provider,
                         width: width)
                     if case let .switchAccount(targetProvider) = action,
                        let subtitle = self.switchAccountSubtitle(for: targetProvider)
