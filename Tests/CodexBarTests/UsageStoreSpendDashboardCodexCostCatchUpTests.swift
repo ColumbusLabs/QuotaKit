@@ -7,6 +7,59 @@ import Testing
 @Suite(.serialized)
 struct UsageStoreSpendDashboardCodexCostCatchUpTests {
     @Test
+    func `automatic sleep uses active scan duration instead of awaited latency`() async throws {
+        let store = try Self.makeStore(suite: "active-duration")
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        var sleeps: [TimeInterval] = []
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            .init(pending: true, progressKey: "pending")
+        }
+        store._test_spendDashboardCodexCostCatchUpActiveDuration = 2
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            try await Task.sleep(for: .milliseconds(20))
+            return .init(pending: true, progressKey: "progressed")
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { delay in
+            sleeps.append(delay)
+            if sleeps.count == 2 { throw CancellationError() }
+        }
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(
+            accounts: [Self.account(id: "account", cacheIdentity: "cache-account")])
+        let task = try #require(store.spendDashboardCodexCostCatchUpTask)
+        await task.value
+        #expect(sleeps == [1998, 1998])
+    }
+
+    @Test(arguments: [CodexCostCatchUpMode.automatic, .accelerated])
+    func `app low power preference reaches successive catch-up passes`(mode: CodexCostCatchUpMode) async throws {
+        let store = try Self.makeStore(suite: "app-low-power-worker")
+        store.settings.backgroundWorkLowPowerModePreference = .on
+        var sleeps: [TimeInterval] = []
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "pending")
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "progressed")
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { delay in
+            sleeps.append(delay)
+            if sleeps.count == 2 { throw CancellationError() }
+        }
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(
+            accounts: [Self.account(id: "account", cacheIdentity: "cache-account")], mode: mode)
+        let task = try #require(store.spendDashboardCodexCostCatchUpTask)
+        await task.value
+        #expect(sleeps.count == 2)
+        if mode == .automatic {
+            #expect(sleeps.allSatisfy { $0 >= 1800 })
+        } else {
+            #expect(sleeps == [0, 0])
+        }
+    }
+
+    @Test
     func `invalidated pass retires its orphaned indexing activity`() async throws {
         let store = try Self.makeStore(suite: "invalidated-activity")
         let gate = SpendDashboardPendingLoads<CostUsageFetcher.CodexScanCatchUpStatus>()
@@ -622,7 +675,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
 
     private static func makeStore(suite: String) throws -> UsageStore {
         let settings = testSettingsStore(
-            suiteName: "UsageStoreSpendDashboardCodexCostCatchUpTests-\(suite)")
+            suiteName: "UsageStoreSpendDashboardCodexCostCatchUpTests-\(suite)", userDefaults: InMemoryUserDefaults())
         settings.costUsageEnabled = true
         let metadata = try #require(ProviderRegistry.shared.metadata[.codex])
         settings.setProviderEnabled(provider: .codex, metadata: metadata, enabled: true)

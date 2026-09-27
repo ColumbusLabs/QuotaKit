@@ -306,6 +306,7 @@ final class UsageStore {
         Int) async throws -> CostUsageFetcher.CodexScanCatchUpStatus)?
     @ObservationIgnored var _test_codexCostCatchUpSleepOverride: (@MainActor (
         TimeInterval) async throws -> Void)?
+    @ObservationIgnored var _test_codexCostCatchUpActiveDuration: TimeInterval = 0
     @ObservationIgnored var _test_codexCostCatchUpResourceStateOverride: (@MainActor () -> (
         powerSource: CodexCostCatchUpPowerSource,
         lowPowerModeEnabled: Bool,
@@ -318,6 +319,7 @@ final class UsageStore {
         Int) async throws -> CostUsageFetcher.CodexScanCatchUpStatus)?
     @ObservationIgnored var _test_spendDashboardCodexCostCatchUpSleepOverride: (@MainActor (
         TimeInterval) async throws -> Void)?
+    @ObservationIgnored var _test_spendDashboardCodexCostCatchUpActiveDuration: TimeInterval = 0
     @ObservationIgnored var _test_spendDashboardCodexCostCatchUpResourceStateOverride: (@MainActor () -> (
         powerSource: CodexCostCatchUpPowerSource,
         lowPowerModeEnabled: Bool,
