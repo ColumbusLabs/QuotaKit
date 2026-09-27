@@ -134,20 +134,20 @@ final class CloudSyncReader: @unchecked Sendable {
 
     /// Providers whose cost data comes from LOCAL files (per-machine CLI history).
     /// Cost data from these providers must be SUMMED across devices, not deduplicated.
-    /// All other providers read cost from account-level web APIs → safe to deduplicate.
+    /// Providers outside this set retain the freshest non-nil cost summary.
     ///
-    /// **Why these three specifically:**
+    /// **Why these providers specifically:**
     /// - `claude` reads `~/.claude/history.jsonl` on each Mac — two Macs each
     ///   hold their own history; summing gives total spend across machines.
     /// - `codex` reads Codex CLI's per-Mac JSONL — same reasoning.
     /// - `vertexai` reads `gcloud` auth cache + request logs — per-Mac.
-    /// All other providers (Cursor, Augment, Perplexity, JetBrains AI, …)
-    /// report cost from an account-level web API — both Macs see the same
-    /// server-authoritative number, so `latestNonNil` is correct and SUM
-    /// would double-count. **Adding a new local-CLI provider here is a
+    /// - `pi` reads local Pi/OMP session files — each Mac has its own spend.
+    /// Other providers with account-level cost APIs (Cursor, Augment,
+    /// Perplexity, JetBrains AI, …) use `latestNonNil` so shared server
+    /// totals are not double-counted. **Adding a new local-CLI provider here is a
     /// behavior change.** Test multi-device Cost tab before and after to
     /// verify the summed value matches user expectation.
-    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
+    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai", "pi"]
 
     /// Merges snapshots from multiple devices into a single unified snapshot.
     ///
@@ -599,7 +599,7 @@ final class CloudSyncReader: @unchecked Sendable {
     ///     latest entry — these are always populated on every provider
     ///     refresh, so the newer timestamp's data is the current quota state.
     ///   - Cost (`costSummary`): SUM across devices for local-cost providers
-    ///     (claude / codex / vertexai, which read per-Mac CLI files), take
+    ///     (claude / codex / vertexai / pi, which read per-Mac files), take
     ///     **latestNonNil** otherwise (account-level API data; old-Mac
     ///     version-drift protection).
     ///   - Utilization history: MERGE across devices and dedup by hour.

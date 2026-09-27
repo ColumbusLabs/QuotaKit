@@ -38,8 +38,8 @@ public enum AccountIdentityComputer {
     /// Compute the identifier set for a provider snapshot.
     ///
     /// Returns nil for providers that don't have a stable account model
-    /// (most quota-only providers): iOS will fall back to the legacy
-    /// per-device bucket for those — current behavior, no regression.
+    /// (most quota-only providers): iOS uses its legacy email or provider-only
+    /// grouping for those — current behavior, no regression.
     ///
     /// Returns `[]` only when this provider DOES participate (Tier-A) but
     /// no identifier could be derived (e.g. user signed out, fetch failed).
@@ -61,7 +61,7 @@ public enum AccountIdentityComputer {
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
-             // iOS falls back to per-device legacy bucket. Promote to a
+             // iOS uses legacy email or provider-only grouping. Promote to a
              // dedicated case (with stable identifier extraction) only
              // after we ship corresponding iOS render support and have a
              // real cross-Mac merge use case for that provider.
@@ -86,8 +86,8 @@ public enum AccountIdentityComputer {
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
              .atlascloud, .vercel, .llmman, .nous, .muse, .pi:
             // Non-Tier-A providers: no stable account model required by
-            // iOS today. Return nil → iOS falls back to per-device legacy
-            // bucket. If a future provider needs cross-Mac merging, add
+            // iOS today. Return nil → iOS uses legacy email or provider-only
+            // grouping. If a future provider needs account-specific merging, add
             // a case here with its identifier sources.
             nil
         }
