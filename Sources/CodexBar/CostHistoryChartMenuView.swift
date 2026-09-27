@@ -311,7 +311,7 @@ struct CostHistoryChartMenuView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(
                         format: L("Est. total (%@): %@"),
-                        self.windowLabel ?? Self.windowLabel(days: self.historyDays),
+                        self.windowLabel,
                         self.costString(total)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
