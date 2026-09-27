@@ -1628,13 +1628,5 @@
 "section_widgets" = "Tiện ích";
 "account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
 "account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";
-"Managed by Homebrew" = "Được quản lý bằng Homebrew";
-"Copy update command" = "Sao chép lệnh cập nhật";
-"Update to %@" = "Cập nhật lên %@";
-"QuotaKit %@ is available" = "Đã có QuotaKit %@";
-"QuotaKit is up to date" = "QuotaKit đã được cập nhật";
-"Checking for updates…" = "Đang kiểm tra bản cập nhật…";
-"Updating with Homebrew…" = "Đang cập nhật bằng Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Cập nhật bằng Homebrew không thành công. Bạn có thể chạy lệnh này trong Terminal:";
 "claude_limited_usage_detail" = "Thông tin sử dụng ít chi tiết";
 "%@ weekly" = "%@ hàng tuần";

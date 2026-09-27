@@ -1628,13 +1628,5 @@
 "section_widgets" = "Виджеты";
 "account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
 "account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";
-"Managed by Homebrew" = "Управляется через Homebrew";
-"Copy update command" = "Скопировать команду обновления";
-"Update to %@" = "Обновить до %@";
-"QuotaKit %@ is available" = "Доступна версия QuotaKit %@";
-"QuotaKit is up to date" = "QuotaKit обновлён";
-"Checking for updates…" = "Проверка обновлений…";
-"Updating with Homebrew…" = "Обновление через Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Не удалось обновить через Homebrew. Вместо этого можно выполнить эту команду в Терминале:";
 "claude_limited_usage_detail" = "Ограниченная детализация использования";
 "%@ weekly" = "%@ за неделю";

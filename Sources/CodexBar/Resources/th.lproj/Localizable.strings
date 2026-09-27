@@ -1631,13 +1631,5 @@
 "section_widgets" = "วิดเจ็ต";
 "account_widgets_title" = "อัปเดตบัญชีสำหรับวิดเจ็ต";
 "account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";
-"Managed by Homebrew" = "จัดการโดย Homebrew";
-"Copy update command" = "คัดลอกคำสั่งอัปเดต";
-"Update to %@" = "อัปเดตเป็น %@";
-"QuotaKit %@ is available" = "QuotaKit %@ พร้อมให้ใช้งานแล้ว";
-"QuotaKit is up to date" = "QuotaKit เป็นเวอร์ชันล่าสุดแล้ว";
-"Checking for updates…" = "กำลังตรวจหาอัปเดต…";
-"Updating with Homebrew…" = "กำลังอัปเดตด้วย Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "อัปเดตผ่าน Homebrew ไม่สำเร็จ คุณสามารถเรียกใช้คำสั่งนี้ใน Terminal แทนได้:";
 "claude_limited_usage_detail" = "รายละเอียดการใช้งานมีจำกัด";
 "%@ weekly" = "%@ รายสัปดาห์";

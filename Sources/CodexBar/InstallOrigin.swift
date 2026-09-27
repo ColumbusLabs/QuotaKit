@@ -10,35 +10,28 @@ enum InstallOrigin {
         appBundleURL: URL,
         caskroomURLs: [URL] = Self.caskroomURLs) -> Bool
     {
-        !self.homebrewPrefixes(appBundleURL: appBundleURL, caskroomURLs: caskroomURLs).isEmpty
+        self.isInCaskroom(appBundleURL: appBundleURL) ||
+            self.hasMatchingCaskArtifact(appBundleURL: appBundleURL, caskroomURLs: caskroomURLs)
     }
 
-    static func homebrewPrefix(
-        appBundleURL: URL,
-        caskroomURLs: [URL] = Self.caskroomURLs) -> URL?
-    {
-        let prefixes = self.homebrewPrefixes(appBundleURL: appBundleURL, caskroomURLs: caskroomURLs)
-        return prefixes.count == 1 ? prefixes[0] : nil
-    }
-
-    private static func homebrewPrefixes(appBundleURL: URL, caskroomURLs: [URL]) -> [URL] {
+    private static func isInCaskroom(appBundleURL: URL) -> Bool {
         let resolved = appBundleURL.resolvingSymlinksInPath().standardizedFileURL
-        var prefixes: [URL] = []
         let legacyCask = resolved.deletingLastPathComponent().deletingLastPathComponent()
-        if resolved.lastPathComponent == "QuotaKit.app", legacyCask.lastPathComponent == "quotakit",
-           legacyCask.deletingLastPathComponent().lastPathComponent == "Caskroom"
-        {
-            prefixes.append(legacyCask.deletingLastPathComponent().deletingLastPathComponent())
-        }
+        return resolved.lastPathComponent == "QuotaKit.app" &&
+            legacyCask.lastPathComponent == "quotakit" &&
+            legacyCask.deletingLastPathComponent().lastPathComponent == "Caskroom"
+    }
 
+    private static func hasMatchingCaskArtifact(appBundleURL: URL, caskroomURLs: [URL]) -> Bool {
+        let resolved = appBundleURL.resolvingSymlinksInPath().standardizedFileURL
         let fileManager = FileManager.default
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: resolved.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return prefixes
+            return false
         }
 
         // Homebrew moves the bundle into Applications and leaves a symlink in Caskroom.
-        let linkedPrefixes = caskroomURLs.filter { caskroom in
+        return caskroomURLs.contains { caskroom in
             let caskURL = caskroom.appendingPathComponent("quotakit", isDirectory: true)
             guard let versions = try? fileManager.contentsOfDirectory(
                 at: caskURL,
@@ -49,7 +42,6 @@ enum InstallOrigin {
                 return (try? fileManager.destinationOfSymbolicLink(atPath: artifact.path)) != nil &&
                     artifact.resolvingSymlinksInPath().standardizedFileURL == resolved
             }
-        }.map { $0.deletingLastPathComponent() }
-        return Array(Set((prefixes + linkedPrefixes).map { $0.resolvingSymlinksInPath().standardizedFileURL }))
+        }
     }
 }

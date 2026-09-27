@@ -1629,13 +1629,5 @@
 "section_widgets" = "Araç takımları";
 "account_widgets_title" = "Araç takımları için hesapları güncel tut";
 "account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
-"Managed by Homebrew" = "Homebrew tarafından yönetiliyor";
-"Copy update command" = "Güncelleme komutunu kopyala";
-"Update to %@" = "%@ sürümüne güncelle";
-"QuotaKit %@ is available" = "QuotaKit %@ kullanılabilir";
-"QuotaKit is up to date" = "QuotaKit güncel";
-"Checking for updates…" = "Güncellemeler denetleniyor…";
-"Updating with Homebrew…" = "Homebrew ile güncelleniyor…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew güncellemesi başarısız oldu. Bunun yerine bu komutu Terminal'de çalıştırabilirsiniz:";
 "claude_limited_usage_detail" = "Kullanım ayrıntıları sınırlı";
 "%@ weekly" = "%@ haftalık";

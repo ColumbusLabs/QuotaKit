@@ -62,7 +62,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Abacus: retain credit amounts beside real billing reset dates in CLI output.
 - Warp: show the active monthly or add-on credit pool across menu surfaces.
 - Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.
-- Updates: recognize Homebrew-installed QuotaKit, offer its cask update from About and the menu, and reopen Sparkle's staged install UI from manual checks.
+- Updates: recognize Homebrew-installed QuotaKit and reopen Sparkle's staged install UI from manual checks.
 - Sharing: preserve the reporting timezone and final included day, use singular subscription captions, and retain recognized gateway model families.
 - Claude and Vertex local cost history: deduplicate proxy responses without request IDs, isolate dashboard and regular report windows, and keep representable totals when oversized rows overflow.
 - Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.

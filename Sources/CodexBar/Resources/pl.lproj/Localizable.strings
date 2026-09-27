@@ -1630,13 +1630,5 @@
 "section_widgets" = "Widżety";
 "account_widgets_title" = "Aktualizuj konta dla widżetów";
 "account_widgets_description" = "Wybierz konto w każdym widżecie Account Usage. Odświeża do sześciu kont na dostawcę.";
-"Managed by Homebrew" = "Zarządzane przez Homebrew";
-"Copy update command" = "Kopiuj polecenie aktualizacji";
-"Update to %@" = "Aktualizuj do %@";
-"QuotaKit %@ is available" = "QuotaKit %@ jest dostępny";
-"QuotaKit is up to date" = "QuotaKit jest aktualny";
-"Checking for updates…" = "Sprawdzanie aktualizacji…";
-"Updating with Homebrew…" = "Aktualizowanie przez Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Aktualizacja przez Homebrew nie powiodła się. Możesz zamiast tego uruchomić to polecenie w Terminalu:";
 "claude_limited_usage_detail" = "Mniej szczegółowe dane o zużyciu";
 "%@ weekly" = "%@ tygodniowo";

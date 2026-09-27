@@ -1630,13 +1630,5 @@
 "section_widgets" = "Ginys";
 "account_widgets_title" = "Mantén els comptes actualitzats per als ginys";
 "account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";
-"Managed by Homebrew" = "Gestionat per Homebrew";
-"Copy update command" = "Copia l’ordre d’actualització";
-"Update to %@" = "Actualitza a %@";
-"QuotaKit %@ is available" = "QuotaKit %@ està disponible";
-"QuotaKit is up to date" = "QuotaKit està actualitzat";
-"Checking for updates…" = "S'estan cercant actualitzacions…";
-"Updating with Homebrew…" = "S'està actualitzant amb Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "L'actualització amb Homebrew ha fallat. Podeu executar aquesta ordre al Terminal:";
 "claude_limited_usage_detail" = "Detalls d’ús limitats";
 "%@ weekly" = "%@ setmanal";

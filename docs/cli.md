@@ -23,7 +23,6 @@ approval is still required. The installer uses absolute system tools, clears the
 requesting approval, and stops on installation failure. The in-app installer is separate and uses Foundation symlinks.
 
 ### Release tarball install (macOS/Linux)
-- Homebrew formula (Linux today): `brew install steipete/tap/quotakit`.
 - Download release tarballs from GitHub Releases:
   - macOS: `QuotaKitCLI-v<tag>-macos-arm64.tar.gz`, `QuotaKitCLI-v<tag>-macos-x86_64.tar.gz`
   - Linux (glibc): `QuotaKitCLI-v<tag>-linux-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-x86_64.tar.gz`

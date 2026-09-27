@@ -1627,13 +1627,5 @@
 "section_widgets" = "ウィジェット";
 "account_widgets_title" = "ウィジェット用にアカウントを更新する";
 "account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";
-"Managed by Homebrew" = "Homebrew で管理されています";
-"Copy update command" = "更新コマンドをコピー";
-"Update to %@" = "%@ にアップデート";
-"QuotaKit %@ is available" = "QuotaKit %@ が利用可能です";
-"QuotaKit is up to date" = "QuotaKit は最新です";
-"Checking for updates…" = "アップデートを確認中…";
-"Updating with Homebrew…" = "Homebrew でアップデート中…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew でのアップデートに失敗しました。代わりにターミナルで次のコマンドを実行できます:";
 "claude_limited_usage_detail" = "使用量の詳細情報は限られています";
 "%@ weekly" = "%@（週間）";

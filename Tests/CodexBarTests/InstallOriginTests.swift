@@ -8,7 +8,6 @@ struct InstallOriginTests {
         for prefix in ["/opt/homebrew", "/usr/local"] {
             let app = URL(fileURLWithPath: "\(prefix)/Caskroom/quotakit/1.0.0/QuotaKit.app")
             #expect(InstallOrigin.isHomebrewCask(appBundleURL: app, caskroomURLs: []))
-            #expect(InstallOrigin.homebrewPrefix(appBundleURL: app, caskroomURLs: [])?.path == prefix)
         }
     }
 
@@ -25,25 +24,24 @@ struct InstallOriginTests {
 
             #expect(InstallOrigin.isHomebrewCask(appBundleURL: app, caskroomURLs: caskrooms))
             #expect(InstallOrigin.isHomebrewCask(appBundleURL: alias, caskroomURLs: caskrooms))
-            #expect(InstallOrigin.homebrewPrefix(appBundleURL: alias, caskroomURLs: caskrooms)?.path ==
-                root.appendingPathComponent("brew").path)
             #expect(!InstallOrigin.isHomebrewCask(appBundleURL: other, caskroomURLs: caskrooms))
         }
     }
 
     @Test
-    func `ambiguous cask owners do not select a brew executable`() throws {
+    func `multiple matching cask artifacts still disable Sparkle`() throws {
         try self.withFixture { root, app, artifact in
             try FileManager.default.createSymbolicLink(at: artifact, withDestinationURL: app)
             let second = root.appendingPathComponent("other-brew/Caskroom/quotakit/0.59.0/QuotaKit.app")
-            try FileManager.default.createDirectory(at: second.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: second.deletingLastPathComponent(),
+                withIntermediateDirectories: true)
             try FileManager.default.createSymbolicLink(at: second, withDestinationURL: app)
             let caskrooms = [
                 root.appendingPathComponent("brew/Caskroom"),
                 root.appendingPathComponent("other-brew/Caskroom"),
             ]
             #expect(InstallOrigin.isHomebrewCask(appBundleURL: app, caskroomURLs: caskrooms))
-            #expect(InstallOrigin.homebrewPrefix(appBundleURL: app, caskroomURLs: caskrooms) == nil)
         }
     }
 

@@ -94,8 +94,6 @@ struct MenuDescriptor {
         managedCodexAccountCoordinator: ManagedCodexAccountCoordinator? = nil,
         codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator? = nil,
         updateReady: Bool,
-        availableUpdateVersion: String? = nil,
-        isInstallingUpdate: Bool = false,
         canCheckForUpdates: Bool = false,
         versionText: String = AppVersion.shortVersion,
         includeContextualActions: Bool = true,
@@ -169,8 +167,6 @@ struct MenuDescriptor {
         }
         sections.append(Self.metaSection(
             updateReady: updateReady,
-            availableUpdateVersion: availableUpdateVersion,
-            isInstallingUpdate: isInstallingUpdate,
             canCheckForUpdates: canCheckForUpdates,
             versionText: versionText))
 
@@ -661,18 +657,12 @@ struct MenuDescriptor {
 
     static func metaSection(
         updateReady: Bool,
-        availableUpdateVersion: String? = nil,
-        isInstallingUpdate: Bool = false,
         canCheckForUpdates: Bool = false,
         versionText: String = AppVersion.shortVersion) -> Section
     {
         var entries: [Entry] = []
         if updateReady {
             entries.append(.action(L("Update ready, restart now?"), .installUpdate))
-        } else if isInstallingUpdate {
-            entries.append(.text(L("Updating with Homebrew…"), .secondary))
-        } else if let availableUpdateVersion {
-            entries.append(.action(String(format: L("Update to %@"), availableUpdateVersion), .installUpdate))
         } else if canCheckForUpdates {
             entries.append(.action(L("Check for Updates…"), .checkForUpdates))
         }

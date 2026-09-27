@@ -18,9 +18,7 @@ struct MenuContent: View {
             settings: self.settings,
             account: self.account,
             updateReady: self.updater.updateStatus.isUpdateReady,
-            availableUpdateVersion: self.updater.updateStatus.availableVersion,
-            isInstallingUpdate: self.updater.updateStatus.isInstalling,
-            canCheckForUpdates: self.updater.isAvailable || self.updater is HomebrewUpdaterController)
+            canCheckForUpdates: self.updater.isAvailable)
 
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(descriptor.sections.enumerated()), id: \.offset) { index, section in

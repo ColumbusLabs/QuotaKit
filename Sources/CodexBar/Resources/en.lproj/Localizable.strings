@@ -1630,13 +1630,5 @@
 "section_widgets" = "Widgets";
 "account_widgets_title" = "Keep accounts updated for widgets";
 "account_widgets_description" = "Choose an account in each Account Usage widget. Refreshes up to six accounts per provider.";
-"Managed by Homebrew" = "Managed by Homebrew";
-"Copy update command" = "Copy update command";
-"Update to %@" = "Update to %@";
-"QuotaKit %@ is available" = "QuotaKit %@ is available";
-"QuotaKit is up to date" = "QuotaKit is up to date";
-"Checking for updates…" = "Checking for updates…";
-"Updating with Homebrew…" = "Updating with Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew update failed. You can run this command in Terminal instead:";
 "claude_limited_usage_detail" = "Limited usage detail";
 "%@ weekly" = "%@ weekly";

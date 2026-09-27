@@ -42,18 +42,7 @@ struct AboutPane: View {
                     .listRowBackground(Color.clear)
             }
 
-            if let homebrewUpdater = self.updater as? HomebrewUpdaterController {
-                Section {
-                    Toggle(L("check_updates_auto"), isOn: self.$autoUpdateEnabled)
-                    LabeledContent(String(format: L("version_format"), self.versionString)) {
-                        Button(L("check_for_updates")) { homebrewUpdater.checkForUpdates(nil) }
-                            .disabled(homebrewUpdater.phase == .checking || homebrewUpdater.phase == .installing)
-                    }
-                    AboutHomebrewUpdateStatusView(updater: homebrewUpdater)
-                } header: {
-                    Text(L("section_updates"))
-                }
-            } else if self.updater.isAvailable {
+            if self.updater.isAvailable {
                 Section {
                     Toggle(L("check_updates_auto"), isOn: self.$autoUpdateEnabled)
 
@@ -73,9 +62,7 @@ struct AboutPane: View {
                 }
             } else {
                 Section {
-                    AboutUpdatesUnavailableView(
-                        reason: self.updater.unavailableReason ?? L("updates_unavailable"),
-                        command: self.updater.manualUpdateCommand)
+                    AboutUpdatesUnavailableView(reason: self.updater.unavailableReason ?? L("updates_unavailable"))
                 } header: {
                     Text(L("section_updates"))
                 }
@@ -172,109 +159,13 @@ struct AboutPane: View {
 }
 
 @MainActor
-struct AboutHomebrewUpdateStatusView: View {
-    let updater: HomebrewUpdaterController
-
-    var body: some View {
-        switch self.updater.phase {
-        case .idle:
-            EmptyView()
-        case .checking:
-            Self.progressRow(L("Checking for updates…"))
-        case .upToDate:
-            Label(L("QuotaKit is up to date"), systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.secondary)
-        case let .available(version):
-            LabeledContent(String(format: L("QuotaKit %@ is available"), version)) {
-                Button(String(format: L("Update to %@"), version)) { self.updater.installUpdate() }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("about-homebrew-install-update")
-            }
-        case .installing:
-            Self.progressRow(L("Updating with Homebrew…"))
-        case let .failed(message):
-            AboutUpdatesUnavailableView(
-                reason: L("Homebrew update failed. You can run this command in Terminal instead:") + "\n" + message,
-                command: .homebrew)
-        }
-    }
-
-    private static func progressRow(_ title: String) -> some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text(title).foregroundStyle(.secondary)
-        }
-    }
-}
-
-@MainActor
 struct AboutUpdatesUnavailableView: View {
-    typealias CopyAction = @MainActor @Sendable (String, @escaping @MainActor @Sendable (Bool) -> Void) -> Void
-
     let reason: String
-    let command: ManualUpdateCommand?
-    let copyAction: CopyAction
-    @State private var didCopy = false
-
-    init(
-        reason: String,
-        command: ManualUpdateCommand? = nil,
-        copyAction: @escaping CopyAction = Self.copyCommand)
-    {
-        self.reason = reason
-        self.command = command
-        self.copyAction = copyAction
-    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(self.reason)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-            if let command {
-                HStack(spacing: 12) {
-                    Text(command.command)
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button {
-                        self.copyAction(command.command) { self.didCopy = $0 }
-                    } label: {
-                        Label(
-                            self.didCopy ? L("Copied") : L("Copy update command"),
-                            systemImage: self.didCopy ? "checkmark" : "doc.on.doc")
-                            .labelStyle(.iconOnly)
-                    }
-                    .controlSize(.small)
-                    .frame(width: 28)
-                    .help(self.didCopy ? L("Copied") : L("Copy update command"))
-                    .accessibilityIdentifier("about-copy-update-command")
-                }
-                .environment(\.layoutDirection, .leftToRight)
-                .padding(10)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6).strokeBorder(.primary.opacity(0.08))
-                }
-            }
-        }
-        .task(id: self.didCopy) {
-            guard self.didCopy else { return }
-            do {
-                try await Task.sleep(for: .seconds(2))
-                self.didCopy = false
-            } catch {}
-        }
-    }
-
-    private static func copyCommand(_ text: String, completion: @escaping @MainActor @Sendable (Bool) -> Void) {
-        MenuPasteboardCopy.perform(text, writer: { text in
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            completion(pasteboard.setString(text, forType: .string))
-        })
+        Text(self.reason)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
     }
 }
 

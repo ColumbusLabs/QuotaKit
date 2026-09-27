@@ -1630,13 +1630,5 @@
 "section_widgets" = "Widget";
 "account_widgets_title" = "Perbarui akun untuk widget";
 "account_widgets_description" = "Pilih akun di setiap widget Account Usage. Memperbarui hingga enam akun per penyedia.";
-"Managed by Homebrew" = "Dikelola oleh Homebrew";
-"Copy update command" = "Salin perintah pembaruan";
-"Update to %@" = "Perbarui ke %@";
-"QuotaKit %@ is available" = "QuotaKit %@ tersedia";
-"QuotaKit is up to date" = "QuotaKit sudah terbaru";
-"Checking for updates…" = "Memeriksa pembaruan…";
-"Updating with Homebrew…" = "Memperbarui dengan Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "Pembaruan Homebrew gagal. Anda dapat menjalankan perintah ini di Terminal:";
 "claude_limited_usage_detail" = "Rincian penggunaan terbatas";
 "%@ weekly" = "%@ mingguan";

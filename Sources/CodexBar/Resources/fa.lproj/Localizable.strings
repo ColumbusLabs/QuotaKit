@@ -1631,13 +1631,5 @@
 "section_widgets" = "ویجت‌ها";
 "account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
 "account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";
-"Managed by Homebrew" = "مدیریت‌شده توسط Homebrew";
-"Copy update command" = "کپی فرمان به‌روزرسانی";
-"Update to %@" = "به‌روزرسانی به %@";
-"QuotaKit %@ is available" = "QuotaKit %@ در دسترس است";
-"QuotaKit is up to date" = "QuotaKit به‌روز است";
-"Checking for updates…" = "در حال بررسی به‌روزرسانی…";
-"Updating with Homebrew…" = "در حال به‌روزرسانی با Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "به‌روزرسانی با Homebrew ناموفق بود. می‌توانید به‌جای آن این فرمان را در Terminal اجرا کنید:";
 "claude_limited_usage_detail" = "جزئیات استفاده محدود است";
 "%@ weekly" = "%@ هفتگی";

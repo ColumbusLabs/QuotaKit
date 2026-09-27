@@ -1626,13 +1626,5 @@
 "section_widgets" = "Widgets";
 "account_widgets_title" = "Actualiser les comptes pour les widgets";
 "account_widgets_description" = "Choisissez un compte dans chaque widget Account Usage. Actualise jusqu’à six comptes par fournisseur.";
-"Managed by Homebrew" = "Géré par Homebrew";
-"Copy update command" = "Copier la commande de mise à jour";
-"Update to %@" = "Mettre à jour vers %@";
-"QuotaKit %@ is available" = "QuotaKit %@ est disponible";
-"QuotaKit is up to date" = "QuotaKit est à jour";
-"Checking for updates…" = "Recherche de mises à jour…";
-"Updating with Homebrew…" = "Mise à jour via Homebrew…";
-"Homebrew update failed. You can run this command in Terminal instead:" = "La mise à jour Homebrew a échoué. Vous pouvez exécuter cette commande dans le Terminal :";
 "claude_limited_usage_detail" = "Détails d’utilisation limités";
 "%@ weekly" = "%@ hebdomadaire";

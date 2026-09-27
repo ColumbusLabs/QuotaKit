@@ -1,5 +1,5 @@
 ---
-summary: "QuotaKit update integration: Sparkle, Homebrew ownership, and release flow."
+summary: "QuotaKit update integration: Sparkle and release flow."
 read_when:
   - Touching Sparkle settings, feed URL, or keys
   - Generating or troubleshooting the Sparkle appcast
@@ -54,4 +54,4 @@ spaces.
 - HTML release notes are embedded in the appcast entry; the Sparkle update dialog should show formatted bullets (not raw tags).
 - If you change the feed host or key, update Info.plist (`SUFeedURL`, `SUPublicEDKey`) and bump the app.
 - Auto-check toggle is persisted via Sparkle; manual “Check for Updates…” is available in About and the menu.
-- Homebrew Cask installs use Homebrew for updates. QuotaKit recognizes Caskroom artifact links to `QuotaKit.app`, checks the `steipete/tap/quotakit` cask version, and runs `brew upgrade --cask steipete/tap/quotakit` only after the user selects Update. About also offers a copyable command when an update fails. Unsigned builds have no updater.
+- QuotaKit disables Sparkle when it detects a Homebrew Cask installation. No QuotaKit Homebrew tap is currently published, so the app does not offer a Homebrew update check or command. Unsigned builds also have no updater.

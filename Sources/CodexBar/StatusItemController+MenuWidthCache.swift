@@ -12,7 +12,7 @@ extension StatusItemController {
         let usesMergedSwitcherWidth = self.shouldMergeIcons &&
             self.switcherProviderIDs(enabledFirstPartyProviders: providers).count > 1
         let sectionSets: [(provider: UsageProvider?, sections: [MenuDescriptor.Section])] = if usesMergedSwitcherWidth,
-            !providers.isEmpty
+                                                                                               !providers.isEmpty
         {
             providers.map { provider in
                 if provider == selectedProvider {
@@ -55,9 +55,7 @@ extension StatusItemController {
             managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator,
             updateReady: self.updater.updateStatus.isUpdateReady,
-            availableUpdateVersion: self.updater.updateStatus.availableVersion,
-            isInstallingUpdate: self.updater.updateStatus.isInstalling,
-            canCheckForUpdates: self.updater.isAvailable || self.updater is HomebrewUpdaterController,
+            canCheckForUpdates: self.updater.isAvailable,
             includeContextualActions: includeContextualActions,
             codexWorkspacesMenuEnabled: codexWorkspacesMenuEnabled,
             isKeepingAwake: self.agentSessions.isKeepingAwake,
