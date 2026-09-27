@@ -185,7 +185,7 @@ struct ClaudeOAuthDirectKeychainReadConsentTests {
             showOptionalCreditsAndExtraUsage: true,
             hidePersonalInfo: false,
             now: Date()))
-        #expect(card.usageNotes == [L("Usage via Claude CLI (limited detail)")])
+        #expect(card.usageNotes == [L("claude_limited_usage_detail")])
         let oauth = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage)
         #expect(oauth.dataConfidence == .unknown)
     }
