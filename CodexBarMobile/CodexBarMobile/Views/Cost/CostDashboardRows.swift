@@ -199,9 +199,9 @@ struct FullBreakdownListView: View {
         }
         .navigationTitle(Text(self.title))
         #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
-            .background(self.theme.canvas)
+        .background(self.theme.canvas)
     }
 }
 
@@ -273,9 +273,9 @@ struct FullBudgetListView: View {
         }
         .navigationTitle(Text("Budgets"))
         #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
-            .background(self.theme.canvas)
+        .background(self.theme.canvas)
     }
 }
 
