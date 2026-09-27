@@ -1632,3 +1632,6 @@
 "account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";
 "claude_limited_usage_detail" = "Detalls d’ús limitats";
 "%@ weekly" = "%@ setmanal";
+
+"Color Pace Indicator" = "Acoloreix el ritme";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verd quan l’ús va per sota del ritme previst (reserva); vermell quan va per sobre (risc d’esgotar la quota abans d’hora).";

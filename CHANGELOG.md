@@ -8,6 +8,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Menu bar layouts can show explicit Session or Weekly reset countdowns and clocks, including conditional branches.
+- Optional pace colors show reserve in green and early exhaustion risk in red.
 - Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
 - Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.
@@ -40,6 +42,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 - Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
+- Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
 - Menu bar: offer a per-provider percent window choice, keep cached menu card heights stable, and scope warmed status submenus to their provider.
 - OpenCode Go local quota estimates no longer produce pace forecasts in Mac menus, the CLI, or iPhone sync.
 - Browser cookie refresh resumes after a current noninteractive Safe Storage grant, while explicit denial cooldowns remain in place.
@@ -77,6 +80,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 
 ### Improved
+- Usage & Spend initially lays out the newest 30 daily ledger rows; Show all reveals the full selected range.
 - Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
 - Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.
 

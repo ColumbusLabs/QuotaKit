@@ -273,6 +273,51 @@ struct MenuBarCountdownRefreshTests {
     }
 
     @Test
+    func `stacked rows ignore reset tokens on their hidden second line`() throws {
+        let settings = testSettingsStore(suiteName: "MenuBarCountdownRefreshTests-stacked-hidden-reset")
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.menuBarShowsBrandIconWithPercent = true
+        settings.menuBarIconStyle = .iconAndPercent
+        settings.mergeIcons = true
+        settings.mergedIconDisplayStyle = .stacked
+        settings.mergeIconStackedTopProvider = .codex
+        settings.mergeIconStackedBottomProvider = .claude
+        settings.setMenuBarLayout(MenuBarLayout(lines: [
+            [.icon], [.windowResetCountdown(window: .session)],
+        ]), for: nil)
+        for provider: UsageProvider in [.codex, .claude] {
+            let metadata = try #require(ProviderRegistry.shared.metadata[provider])
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(
+            fetcher: fetcher,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let now = Date()
+        let reset = now.addingTimeInterval(3600)
+        store._setSnapshotForTesting(UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: reset, resetDescription: nil),
+            secondary: nil,
+            updatedAt: now), provider: .codex)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: .system)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        #expect(controller.renderedMenuBarLayoutResolution(for: .codex).layout.lines == [[.icon]])
+        #expect(controller.menuBarLayoutResetDates(for: .codex, now: now).isEmpty)
+        settings.mergedIconDisplayStyle = .switcher
+        #expect(controller.menuBarLayoutResetDates(for: .codex, now: now) == [reset])
+    }
+
+    @Test
     func `absolute clock smart mode schedules the exhausted reset boundary`() {
         // Isolated defaults: this test enables the smart option, which must not leak into `.standard`
         // and flip other suites' exhausted-lane expectations.

@@ -375,7 +375,8 @@ struct MenuBarLayoutConditional: Codable, Hashable, Sendable {
 
     /// This conditional as the legacy schema can read it, or nil when it cannot be represented.
     ///
-    /// Two things make an entry unreadable there. A metric outside the original four throws on decode
+    /// New window-selectable reset branches are also omitted because older token decoders reject them.
+    /// Two predicate properties make an entry unreadable there. A metric outside the original four throws on decode
     /// and takes the whole array with it. A non-`.used` direction is worse than unreadable: the extra
     /// key is silently ignored by that release's synthesized decoder, so `session remaining > 80` would
     /// come back as `session used > 80` and render the opposite branch. Dropping the entry is the honest
@@ -388,12 +389,12 @@ struct MenuBarLayoutConditional: Codable, Hashable, Sendable {
         return readable && readableBranches ? self : nil
     }
 
-    /// The V3 schema understands every current branch token except named extra percentages.
+    /// V3 predates both named extra percentages and explicit reset-window tokens.
     var v3Compatible: MenuBarLayoutConditional? {
         self.thenToken.hasV3Representation && self.elseToken.hasV3Representation ? self : nil
     }
 
-    /// V2 predates named extra percentages, but understands the rest of this layout schema.
+    /// V2 predates both named extra percentages and explicit reset-window tokens.
     var releasedCompatible: MenuBarLayoutConditional? {
         self.thenToken.hasReleasedRepresentation && self.elseToken.hasReleasedRepresentation ? self : nil
     }
@@ -475,6 +476,9 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     case usageBar
     case resetCountdown
     case resetAbsolute
+    /// Explicit reset windows keep separate discriminators so persisted automatic tokens stay unchanged.
+    case windowResetCountdown(window: PercentWindow)
+    case windowResetAbsolute(window: PercentWindow)
     case runsOut
     case runsOutCompact
     case balance
@@ -488,16 +492,20 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     /// the conditionals library; the layout stores only its identity.
     case conditional(id: UUID)
 
-    /// Both persisted reset tokens render the automatic semantic window.
+    /// The semantic window read by a reset token, including the historical automatic variants.
     var resetWindow: PercentWindow? {
         switch self {
         case .resetCountdown, .resetAbsolute: .automatic
+        case let .windowResetCountdown(window), let .windowResetAbsolute(window): window
         default: nil
         }
     }
 
     var resetIsAbsolute: Bool {
-        self == .resetAbsolute
+        switch self {
+        case .resetAbsolute, .windowResetAbsolute: true
+        default: false
+        }
     }
 
     var selectedLane: MenuBarLayoutLane? {
@@ -505,27 +513,27 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
         return nil
     }
 
-    /// Tokens added after 0.53.x that an older decoder has no case for at all. `legacyCompatible`
-    /// cannot map them onto an existing case without inventing content, so the layout projection
-    /// drops them instead: an older release then decodes the rest of the layout rather than
-    /// failing the whole blob and losing the user's arrangement.
+    /// Older decoders must never see token cases added in a newer layout schema.
     var hasLegacyRepresentation: Bool {
         switch self {
-        case .conditional, .extraPercent, .hidden: false
+        case .conditional, .extraPercent, .hidden, .windowResetCountdown, .windowResetAbsolute: false
         default: true
         }
     }
 
-    /// V3 and V2 readers predate descriptor-owned named extra windows.
+    /// V3 readers predate descriptor-owned named extras and explicit reset-window tokens.
     var hasV3Representation: Bool {
-        if case .extraPercent = self {
-            return false
+        switch self {
+        case .extraPercent, .windowResetCountdown, .windowResetAbsolute: false
+        default: true
         }
-        return true
     }
 
     var hasReleasedRepresentation: Bool {
-        self.hasV3Representation
+        switch self {
+        case .extraPercent, .windowResetCountdown, .windowResetAbsolute: false
+        default: true
+        }
     }
 
     /// Maps `lanePercent` onto tokens a 0.53.x decoder already understands so a downgrade keeps a
@@ -669,12 +677,12 @@ struct MenuBarLayout: Codable, Hashable, Sendable {
         Set(self.lines.joined().compactMap(\.selectedLane))
     }
 
-    /// Projection readable by V2, which shipped before named extra percentages.
+    /// Projection readable by V2, which shipped before named extras and explicit reset windows.
     func releasedCompatible() -> MenuBarLayout {
         self.projected { $0.hasReleasedRepresentation ? $0 : nil }
     }
 
-    /// Projection readable by V3, which shipped before named extra percentages.
+    /// Projection readable by V3, which shipped before named extras and explicit reset windows.
     func v3Compatible() -> MenuBarLayout {
         self.projected { $0.hasV3Representation ? $0 : nil }
     }
@@ -700,6 +708,7 @@ struct MenuBarLayout: Codable, Hashable, Sendable {
     }
 }
 
+/// Keep older readers on their original schemas; explicit reset selections live only in V4.
 enum MenuBarLayoutUserDefaultsKey {
     static let layout = "menuBarLayout"
     static let layoutReleased = "menuBarLayoutV2"

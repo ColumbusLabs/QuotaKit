@@ -1633,3 +1633,6 @@
 "account_widgets_description" = "Scegli un account in ogni widget Account Usage. Aggiorna fino a sei account per fornitore.";
 "claude_limited_usage_detail" = "Dettagli di utilizzo limitati";
 "%@ weekly" = "%@ settimanale";
+
+"Color Pace Indicator" = "Colora il ritmo";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verde quando il consumo è inferiore al ritmo previsto (riserva); rosso quando è superiore (rischio di esaurimento anticipato).";

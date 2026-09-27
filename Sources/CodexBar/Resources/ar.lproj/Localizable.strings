@@ -1634,3 +1634,6 @@
 "account_widgets_description" = "اختر حسابًا في كل أداة Account Usage. يتم تحديث ما يصل إلى ستة حسابات لكل مزوّد.";
 "claude_limited_usage_detail" = "تفاصيل الاستخدام محدودة";
 "%@ weekly" = "%@ أسبوعيًا";
+
+"Color Pace Indicator" = "تلوين وتيرة الاستخدام";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "أخضر عندما يكون الاستخدام أبطأ من الوتيرة المتوقعة (احتياطي)؛ وأحمر عندما يكون أسرع (خطر النفاد مبكرًا).";

@@ -1634,3 +1634,6 @@
 "account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";
 "claude_limited_usage_detail" = "รายละเอียดการใช้งานมีจำกัด";
 "%@ weekly" = "%@ รายสัปดาห์";
+
+"Color Pace Indicator" = "แสดงสีอัตราการใช้งาน";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "สีเขียวเมื่อใช้งานช้ากว่าอัตราที่คาดไว้ (มีโควตาสำรอง) สีแดงเมื่อเร็วกว่า (เสี่ยงหมดโควตาก่อนเวลา)";

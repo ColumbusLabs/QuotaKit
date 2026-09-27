@@ -13,6 +13,58 @@ struct MenuBarLayoutRendererTests {
     private let now = Date(timeIntervalSince1970: 1_752_768_000)
 
     @Test
+    func `explicit reset tokens read their selected windows`() {
+        let renderer = MenuBarLayoutRenderer()
+        let data = self.data()
+        let session = renderer.render(
+            layout: MenuBarLayout(lines: [[.windowResetCountdown(window: .session)]]),
+            data: data,
+            icon: nil,
+            options: self.options())
+        let weekly = renderer.render(
+            layout: MenuBarLayout(lines: [[.windowResetCountdown(window: .weekly)]]),
+            data: data,
+            icon: nil,
+            options: self.options())
+        #expect(session.attributedTitle.string != weekly.attributedTitle.string)
+        #expect(session.accessibilityLabel.contains(L("Session")))
+        #expect(weekly.accessibilityLabel.contains(L("Weekly")))
+    }
+
+    @Test
+    func `pace color reflects signed delta and toggle changes cached rendering`() {
+        let renderer = MenuBarLayoutRenderer()
+        for (window, expected): (PercentWindow, NSColor) in [
+            (.session, .systemGreen),
+            (.weekly, .systemRed),
+            (.automatic, .controlTextColor),
+        ] {
+            let layout = MenuBarLayout(lines: [[.pace(window: window)]])
+            let plain = renderer.render(layout: layout, data: self.data(), icon: nil, options: self.options())
+            let colored = renderer.render(
+                layout: layout,
+                data: self.data(),
+                icon: nil,
+                options: self.options(colorPace: true))
+            #expect(colored.attributedTitle.string == plain.attributedTitle.string)
+            #expect(colored.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+                == expected)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `high contrast keeps pace in system label color`(stale: Bool) {
+        let output = MenuBarLayoutRenderer().render(
+            layout: MenuBarLayout(lines: [[.pace(window: .weekly)]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options(isStale: stale, colorPace: true, highContrast: true))
+        #expect(output.attributedTitle.string == "+11%")
+        #expect(output.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+            == .labelColor)
+    }
+
+    @Test
     func `renderer composes every token with live values`() {
         let renderer = MenuBarLayoutRenderer()
         let icon = NSImage(size: NSSize(width: 16, height: 16))
@@ -1644,6 +1696,7 @@ struct MenuBarLayoutRendererTests {
         isStale: Bool = false,
         conditionals: [MenuBarLayoutConditional] = [],
         isDebugApp: Bool = false,
+        colorPace: Bool = false,
         highContrast: Bool = false,
         appearanceName: String = "aqua",
         forceStackedStyle: Bool = false) -> MenuBarLayoutRenderOptions
@@ -1658,7 +1711,8 @@ struct MenuBarLayoutRendererTests {
             isStale: isStale,
             now: now ?? self.now,
             verticalAdjustment: verticalAdjustment,
-            forceStackedStyle: forceStackedStyle)
+            forceStackedStyle: forceStackedStyle,
+            colorPace: colorPace)
     }
 
     private func averageBrightness(

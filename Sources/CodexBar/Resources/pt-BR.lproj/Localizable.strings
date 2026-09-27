@@ -1630,3 +1630,6 @@
 "account_widgets_description" = "Escolha uma conta em cada widget Account Usage. Atualiza até seis contas por provedor.";
 "claude_limited_usage_detail" = "Detalhes de uso limitados";
 "%@ weekly" = "%@ semanal";
+
+"Color Pace Indicator" = "Colorir o ritmo";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verde quando o uso está abaixo do ritmo previsto (reserva); vermelho quando está acima (risco de esgotar a cota antes da hora).";

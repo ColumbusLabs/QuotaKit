@@ -1629,3 +1629,6 @@
 "account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";
 "claude_limited_usage_detail" = "Begränsade användningsdetaljer";
 "%@ weekly" = "%@ per vecka";
+
+"Color Pace Indicator" = "Färglägg förbrukningstakten";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grönt när förbrukningen ligger under förväntad takt (reserv); rött när den ligger över (risk att kvoten tar slut i förtid).";

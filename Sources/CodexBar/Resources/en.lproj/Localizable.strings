@@ -1633,3 +1633,6 @@
 "account_widgets_description" = "Choose an account in each Account Usage widget. Refreshes up to six accounts per provider.";
 "claude_limited_usage_detail" = "Limited usage detail";
 "%@ weekly" = "%@ weekly";
+
+"Color Pace Indicator" = "Color Pace Indicator";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)";

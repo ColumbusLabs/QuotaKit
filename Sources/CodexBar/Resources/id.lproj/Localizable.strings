@@ -1633,3 +1633,6 @@
 "account_widgets_description" = "Pilih akun di setiap widget Account Usage. Memperbarui hingga enam akun per penyedia.";
 "claude_limited_usage_detail" = "Rincian penggunaan terbatas";
 "%@ weekly" = "%@ mingguan";
+
+"Color Pace Indicator" = "Warnai laju penggunaan";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Hijau saat penggunaan lebih lambat dari laju perkiraan (cadangan); merah saat lebih cepat (risiko kuota habis lebih awal).";

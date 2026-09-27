@@ -1631,3 +1631,6 @@
 "account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";
 "claude_limited_usage_detail" = "Thông tin sử dụng ít chi tiết";
 "%@ weekly" = "%@ hàng tuần";
+
+"Color Pace Indicator" = "Tô màu nhịp sử dụng";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Xanh khi mức sử dụng chậm hơn nhịp dự kiến (còn dư); đỏ khi nhanh hơn (nguy cơ hết hạn mức sớm).";

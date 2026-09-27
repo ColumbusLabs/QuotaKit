@@ -1631,3 +1631,6 @@
 "account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";
 "claude_limited_usage_detail" = "Ограниченная детализация использования";
 "%@ weekly" = "%@ за неделю";
+
+"Color Pace Indicator" = "Цветовая индикация темпа";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелёный — расход ниже ожидаемого темпа (есть запас); красный — выше (риск досрочного исчерпания квоты).";

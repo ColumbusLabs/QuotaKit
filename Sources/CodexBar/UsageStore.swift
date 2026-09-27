@@ -193,6 +193,10 @@ final class UsageStore {
     var tokenSnapshotPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
     var spendDashboardTokenPublications: [ProviderInstanceID: TokenSnapshotPublication] = [:]
     var spendDashboardTokenPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
+    @ObservationIgnored var spendDashboardTokenIncorporatedTriggers:
+        [ProviderInstanceID: SpendDashboardTokenRefreshTrigger] = [:]
+    @ObservationIgnored var spendDashboardTokenFailedTriggers:
+        [ProviderInstanceID: SpendDashboardTokenRefreshTrigger] = [:]
     var spendDashboardPublication = SpendDashboardPublication.empty
     @ObservationIgnored var sharedSpendDashboardControllerStorage: SpendDashboardController?
     @ObservationIgnored var sharedSpendDashboardObservationStarted = false
@@ -473,7 +477,7 @@ final class UsageStore {
     @ObservationIgnored var _test_piHistoryScopeResolver: (@Sendable ([String: String]) async throws -> String)?
     @ObservationIgnored var lastSpendDashboardTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastSpendDashboardTokenFetchScope: [ProviderInstanceID: String] = [:]
-    @ObservationIgnored var spendDashboardTokenRefreshInFlight: Set<ProviderInstanceID> = []
+    var spendDashboardTokenRefreshInFlight: Set<ProviderInstanceID> = []
     @ObservationIgnored var planUtilizationHistory: [ProviderInstanceID: PlanUtilizationHistoryBuckets] = [:]
     @ObservationIgnored var sessionEquivalentBurnCache: [ProviderInstanceID: SessionEquivalentBurnCacheEntry] = [:]
     @ObservationIgnored var sessionEquivalentHistoryScanCount: Int = 0

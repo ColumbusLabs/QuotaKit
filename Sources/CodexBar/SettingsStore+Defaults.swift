@@ -306,6 +306,11 @@ extension SettingsStore {
         set { self.setDefault(\.menuBarHidesCritters, newValue, key: "menuBarHidesCritters") }
     }
 
+    var menuBarColorPace: Bool {
+        get { self.defaultsState.menuBarColorPace }
+        set { self.setDefault(\.menuBarColorPace, newValue, key: "menuBarColorPace") }
+    }
+
     var menuBarHighContrastOnInactiveDisplays: Bool {
         get { self.defaultsState.menuBarHighContrastOnInactiveDisplays }
         set { self.setDefault(
