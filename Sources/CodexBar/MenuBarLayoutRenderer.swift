@@ -714,7 +714,7 @@ final class MenuBarLayoutRenderer {
             automaticText: data.automaticText,
             showUsed: options.showUsed)
         let prefix: String
-        let accessibilityPrefix = Self.windowAccessibilityLabel(window, data: data)
+        var accessibilityPrefix = Self.windowAccessibilityLabel(window, data: data)
         switch window {
         case .session:
             prefix = self.primaryLabel(data: data).flatMap(\.first).map { String($0).uppercased() }
@@ -722,7 +722,7 @@ final class MenuBarLayoutRenderer {
             accessibilityPrefix = self.primaryLabel(data: data) ?? L("Session")
         case .weekly:
             accessibilityPrefix = data.laneLabels.secondary
-            prefix = String(accessibilityPrefix.prefix(1)).uppercased()
+            prefix = String(data.laneLabels.secondary.prefix(1)).uppercased()
         case .scopedWeekly:
             prefix = data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
         case .automatic:
@@ -993,7 +993,8 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        guard let provider = data.provider else { return nil }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
         return descriptor.presentation.primarySemanticWindow == .session
