@@ -62,5 +62,4 @@ struct CodexWorkspaceAuthorityPublicationTests {
             })
         return result.credits == original.credits && result.credits?.hasWorkspaceBalance != true
     }
-
 }

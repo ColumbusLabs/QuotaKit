@@ -52,8 +52,8 @@ struct SpendDashboardModelTests {
             [.day],
             from: group.dailySummaries[0].day,
             to: group.dailySummaries[1].day).day == 1)
-        #expect(group.dailySummaries[1].day.timeIntervalSince(group.dailySummaries[0].day) == 86_400)
-        #expect(group.dailySummaries[2].day.timeIntervalSince(group.dailySummaries[1].day) == 82_800)
+        #expect(group.dailySummaries[1].day.timeIntervalSince(group.dailySummaries[0].day) == 86400)
+        #expect(group.dailySummaries[2].day.timeIntervalSince(group.dailySummaries[1].day) == 82800)
     }
 
     @Test
@@ -94,7 +94,7 @@ struct SpendDashboardModelTests {
     }
 
     @Test
-    func `session identity hides names and project context with privacy enabled`() {
+    func `session identity hides names and project context with privacy enabled`() throws {
         let row = SpendDashboardModel.SessionRow(
             id: "codex:session-1234567890",
             rank: 1,
@@ -109,7 +109,7 @@ struct SpendDashboardModelTests {
             totalCost: 1,
             modelName: "gpt-4o")
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         #expect(row.displayIdentity(hidePersonalInfo: false).name == "Private task")
         #expect(row.displayIdentity(hidePersonalInfo: true).name != "Private task")
         #expect(row.displayIdentity(hidePersonalInfo: true).path == nil)

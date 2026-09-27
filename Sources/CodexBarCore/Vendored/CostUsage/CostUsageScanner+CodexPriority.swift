@@ -74,7 +74,7 @@ extension CostUsageScanner {
     /// Snapshot of the live process memo for `databaseURL`. Nil when this process has not
     /// opened the DB.
     static func codexPriorityTurnsPersistedCursor(databaseURL: URL) -> CodexPriorityTurnsPersistedCursor? {
-        return self.codexPriorityTurnsMemo.withLock { memo in
+        self.codexPriorityTurnsMemo.withLock { memo in
             memo[databaseURL.path].map {
                 self.persistedCursor(from: $0, databasePath: databaseURL.path)
             }

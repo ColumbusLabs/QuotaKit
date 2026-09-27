@@ -76,8 +76,11 @@ struct GrokRemainingResetsRoutingTests {
             webTimeout: 1,
             webDebugDumpHTML: false,
             verbose: false,
-            env: ["GROK_HOME": home.path, "GROK_CLI_PATH": home.appendingPathComponent("missing-grok").path,
-                  "PATH": home.path],
+            env: [
+                "GROK_HOME": home.path,
+                "GROK_CLI_PATH": home.appendingPathComponent("missing-grok").path,
+                "PATH": home.path,
+            ],
             settings: nil,
             fetcher: UsageFetcher(),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),

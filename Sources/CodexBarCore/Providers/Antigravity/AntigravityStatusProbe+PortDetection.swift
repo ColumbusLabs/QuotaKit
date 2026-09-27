@@ -4,7 +4,9 @@ import Foundation
 struct AntigravityPortDiscoveryPendingError: LocalizedError {
     let underlyingError: any Error
 
-    var errorDescription: String? { self.underlyingError.localizedDescription }
+    var errorDescription: String? {
+        self.underlyingError.localizedDescription
+    }
 }
 
 /// Parses Linux `/proc/<pid>/net/tcp{,6}` output to recover the listening ports

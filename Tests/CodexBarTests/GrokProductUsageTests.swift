@@ -46,7 +46,7 @@ struct GrokProductUsageTests {
     }
 
     @Test
-    func `a CLI usage percent never borrows proxy product shares`() throws {
+    func `a CLI usage percent never borrows proxy product shares`() {
         let proxy = GrokWebBillingSnapshot(
             usedPercent: 6,
             resetsAt: nil,

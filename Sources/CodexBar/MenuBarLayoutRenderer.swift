@@ -953,6 +953,7 @@ final class MenuBarLayoutRenderer {
     private static func secondaryLabel(data: MenuBarLayoutRenderData) -> String? {
         PercentWindow.weekly.providerLabel(provider: data.provider)
     }
+
     private static func sessionPrefix(_ window: MenuBarLayoutRenderWindow?) -> String {
         guard let minutes = window?.windowMinutes, minutes > 0 else { return "S" }
         guard minutes.isMultiple(of: 60) else { return "\(minutes)m" }

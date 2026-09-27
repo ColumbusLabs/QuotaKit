@@ -741,13 +741,13 @@ extension SettingsStore {
 
     private static func loadOptionalCreditsDefaults(userDefaults: UserDefaults) -> OptionalCreditsDefaults {
         OptionalCreditsDefaults(
-            showOptionalCreditsAndExtraUsage: Self.loadBoolDefault(
+            showOptionalCreditsAndExtraUsage: self.loadBoolDefault(
                 "showOptionalCreditsAndExtraUsage", fallback: true, from: userDefaults),
-            claudeDailyRoutinesUsageVisible: Self.loadBoolDefault(
+            claudeDailyRoutinesUsageVisible: self.loadBoolDefault(
                 "claudeDailyRoutinesUsageVisible", fallback: true, from: userDefaults),
-            claudeModelScopedWeeklyUsageVisible: Self.loadBoolDefault(
+            claudeModelScopedWeeklyUsageVisible: self.loadBoolDefault(
                 "claudeModelScopedWeeklyUsageVisible", fallback: true, from: userDefaults),
-            codexSparkUsageVisible: Self.loadBoolDefault(
+            codexSparkUsageVisible: self.loadBoolDefault(
                 "codexSparkUsageVisible", fallback: true, from: userDefaults))
     }
 
@@ -756,8 +756,11 @@ extension SettingsStore {
         batterySaverEnabled: Bool)
     {
         (
-            accessEnabled: Self.loadBoolDefault("openAIWebAccessEnabled", fallback: false, from: userDefaults),
-            batterySaverEnabled: Self.loadBoolDefault("openAIWebBatterySaverEnabled", fallback: false, from: userDefaults))
+            accessEnabled: self.loadBoolDefault("openAIWebAccessEnabled", fallback: false, from: userDefaults),
+            batterySaverEnabled: self.loadBoolDefault(
+                "openAIWebBatterySaverEnabled",
+                fallback: false,
+                from: userDefaults))
     }
 
     private static func hadPreviousAppLaunch(userDefaults: UserDefaults) -> Bool {

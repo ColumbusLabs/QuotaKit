@@ -1320,7 +1320,7 @@ struct SpendDashboardModel: Equatable, Sendable {
     }
 
     private static func commonCoverageDayCount(summaries: [InputSummary], calendar: Calendar) -> Int {
-        Self.dayCount(in: Self.commonCoverageInterval(summaries: summaries), calendar: calendar)
+        self.dayCount(in: self.commonCoverageInterval(summaries: summaries), calendar: calendar)
     }
 
     private static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {

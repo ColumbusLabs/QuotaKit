@@ -180,10 +180,10 @@ enum OpenCodexUsageAggregator {
     {
         day.mix.merge(entry.usage?.tokenMix ?? .init())
         day.tokens.merge(entry.resolvedTotalCount)
-        day.priced = Self.saturatingAdd(day.priced, entry.usageStatus == .reported ? 1 : 0)
-        day.estimated = Self.saturatingAdd(day.estimated, entry.usageStatus == .estimated ? 1 : 0)
-        day.unmetered = Self.saturatingAdd(day.unmetered, entry.usageStatus == .unsupported ? 1 : 0)
-        day.unpriced = Self.saturatingAdd(day.unpriced, entry.usageStatus == .unreported ? 1 : 0)
+        day.priced = self.saturatingAdd(day.priced, entry.usageStatus == .reported ? 1 : 0)
+        day.estimated = self.saturatingAdd(day.estimated, entry.usageStatus == .estimated ? 1 : 0)
+        day.unmetered = self.saturatingAdd(day.unmetered, entry.usageStatus == .unsupported ? 1 : 0)
+        day.unpriced = self.saturatingAdd(day.unpriced, entry.usageStatus == .unreported ? 1 : 0)
 
         if let cost {
             day.cost += cost

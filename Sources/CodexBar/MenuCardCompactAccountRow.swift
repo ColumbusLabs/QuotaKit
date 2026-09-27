@@ -166,7 +166,6 @@ struct MenuCardCompactAccountRowView: View {
         case .healthy, .none: return MenuHighlightStyle.normalSecondaryText
         }
     }
-
 }
 
 /// Summary row standing in for the healthy accounts hidden by the compact

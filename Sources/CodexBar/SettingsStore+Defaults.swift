@@ -536,7 +536,10 @@ extension SettingsStore {
     var codexLocalSessionCostLedgerEnabled: Bool {
         get { self.defaultsState.codexLocalSessionCostLedgerEnabled }
         set {
-            self.setCostDefault(\.codexLocalSessionCostLedgerEnabled, newValue, key: "codexLocalSessionCostLedgerEnabled")
+            self.setCostDefault(
+                \.codexLocalSessionCostLedgerEnabled,
+                newValue,
+                key: "codexLocalSessionCostLedgerEnabled")
             self.noteBackgroundWorkSettingsChanged()
         }
     }
@@ -652,7 +655,10 @@ extension SettingsStore {
         }
         set {
             let normalized = newValue.normalized
-            self.setOptionalDefault(\.claudeOAuthKeychainPromptModeRaw, normalized.rawValue, key: "claudeOAuthKeychainPromptMode")
+            self.setOptionalDefault(
+                \.claudeOAuthKeychainPromptModeRaw,
+                normalized.rawValue,
+                key: "claudeOAuthKeychainPromptMode")
             self.noteBackgroundWorkSettingsChanged()
         }
     }
@@ -755,7 +761,10 @@ extension SettingsStore {
 
     var claudeModelScopedWeeklyUsageVisible: Bool {
         get { self.defaultsState.claudeModelScopedWeeklyUsageVisible }
-        set { self.setDefault(\.claudeModelScopedWeeklyUsageVisible, newValue, key: "claudeModelScopedWeeklyUsageVisible") }
+        set { self.setDefault(
+            \.claudeModelScopedWeeklyUsageVisible,
+            newValue,
+            key: "claudeModelScopedWeeklyUsageVisible") }
     }
 
     var codexSparkUsageVisible: Bool {

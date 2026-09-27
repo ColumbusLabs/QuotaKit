@@ -275,8 +275,8 @@ extension UsageStore {
         }
     }
 
-    // Keep the pure discriminator helper for existing callers and parser tests. Refreshes use the
-    // instance method above so verified ownership and warning episodes can be reconciled.
+    /// Keep the pure discriminator helper for existing callers and parser tests. Refreshes use the
+    /// instance method above so verified ownership and warning episodes can be reconciled.
     static func warningClaudeAccountDiscriminator(
         strategyKind: ProviderFetchKind,
         observation: ClaudeOAuthActiveAccountObservation,

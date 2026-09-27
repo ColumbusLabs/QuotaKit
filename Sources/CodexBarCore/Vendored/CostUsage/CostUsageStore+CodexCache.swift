@@ -228,7 +228,8 @@ extension CostUsageStore {
             let previousFilesByPath = Dictionary(uniqueKeysWithValues: lockedPrevious.files.map { ($0.path, $0) })
             let snapshotCountsByPath = lockedPrevious.tokenSnapshots
                 .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
-            let rowCountsByPath = lockedPrevious.usageRows.reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
+            let rowCountsByPath = lockedPrevious.usageRows
+                .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
             let aggregatesByPath = Dictionary(grouping: lockedPrevious.fileDayAggregates, by: \.path)
             var persistedFiles = 0
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
@@ -639,8 +640,8 @@ extension CostUsageStore {
         var snapshotCount: Int
         var rowCount: Int
         var canReuseRows: Bool
-        var usage: CostUsageFileUsage? = nil
-        var aggregates: [CostUsageStoreDayAggregate]? = nil
+        var usage: CostUsageFileUsage?
+        var aggregates: [CostUsageStoreDayAggregate]?
     }
 
     private struct CurrentCodexRootDevice {
@@ -806,15 +807,17 @@ extension CostUsageStore {
                         [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence].self,
                         from: $0.payload)) ?? [:]
                 } : nil,
-                codexPendingSourcePricingAnchor: isHydrated ? buffers.first { $0.kind == .sourcePricingAnchor }.flatMap {
-                    try? JSONDecoder().decode(CostUsageCodexTokenIndexAnchor.self, from: $0.payload)
-                } : nil,
+                codexPendingSourcePricingAnchor: isHydrated ? buffers.first { $0.kind == .sourcePricingAnchor }
+                    .flatMap {
+                        try? JSONDecoder().decode(CostUsageCodexTokenIndexAnchor.self, from: $0.payload)
+                    } : nil,
                 codexStagedRecoveryRows: isHydrated ? buffers.first { $0.kind == .stagedRecoveryRows }.flatMap {
                     try? JSONDecoder().decode([CostUsageScanner.CodexUsageRow].self, from: $0.payload)
                 } : nil,
-                codexStagedRecoverySnapshots: isHydrated ? buffers.first { $0.kind == .stagedRecoverySnapshots }.flatMap {
-                    try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
-                } : nil,
+                codexStagedRecoverySnapshots: isHydrated ? buffers.first { $0.kind == .stagedRecoverySnapshots }
+                    .flatMap {
+                        try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
+                    } : nil,
                 codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
                 codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
@@ -1218,7 +1221,7 @@ extension CostUsageStore {
            snapshotCount == baseline.snapshotCount,
            let persistedAggregates = baseline.aggregates,
            persistedAggregates.sorted(by: { ($0.day, $0.model) < ($1.day, $1.model) })
-               == Self.fileAggregates(usage, pricing: aggregatePricing)
+           == Self.fileAggregates(usage, pricing: aggregatePricing)
         {
             return
         }
@@ -1999,7 +2002,7 @@ extension CostUsageStore {
 struct CostUsageStoreLoad: @unchecked Sendable {
     var store: CostUsageStore
     var cache: CostUsageCache
-    var scanStamp: CostUsageStore.CodexScanStamp? = nil
+    var scanStamp: CostUsageStore.CodexScanStamp?
 }
 
 enum CostUsageStoreAccess {

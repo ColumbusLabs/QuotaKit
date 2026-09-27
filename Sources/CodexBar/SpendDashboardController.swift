@@ -1075,6 +1075,7 @@ final class SpendDashboardController {
     var selectedDays: Int {
         self.selectedPeriod.days(now: self.nowProvider(), calendar: self.configuration?.bucketCalendar ?? .current)
     }
+
     private(set) var selectedDay: Date?
     /// Ephemeral visibility flag for #160 history demand. See
     /// `activeRequestedHistoryDays`: the persisted `selectedDays` preference

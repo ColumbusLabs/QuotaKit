@@ -5908,8 +5908,9 @@ enum CostUsageScanner {
         }
 
         var parsedBytes: Int64
-        let targetSize = min(scanTargetSize ?? Self.codexFileMetadata(fileURL: fileURL).size,
-                             Self.codexFileMetadata(fileURL: fileURL).size)
+        let targetSize = min(
+            scanTargetSize ?? Self.codexFileMetadata(fileURL: fileURL).size,
+            Self.codexFileMetadata(fileURL: fileURL).size)
         var physicalLineIndex = (initialBufferedSubagentLines?.last?.lineIndex ?? -1) + 1
         var jsonlResumeState = initialJSONLResumeState
         do {

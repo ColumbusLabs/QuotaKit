@@ -1339,10 +1339,10 @@ extension UsageStore {
                 return ResolvedCodexAccountOutcome(snapshot: nil, usage: nil, sourceLabel: nil)
             }
             let errorMessage = self.tokenAccountSnapshotErrorMessage(error)
-            if (Self.isPreservableNetworkTransportError(error)
-                || Self.shouldPreserveCodexAccountSnapshotOnFailure(errorMessage)),
-               let priorSnapshot,
-               let priorUsage = priorSnapshot.snapshot
+            if Self.isPreservableNetworkTransportError(error)
+                || Self.shouldPreserveCodexAccountSnapshotOnFailure(errorMessage),
+                let priorSnapshot,
+                let priorUsage = priorSnapshot.snapshot
             {
                 let snapshot = CodexAccountUsageSnapshot(
                     account: account,

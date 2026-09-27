@@ -23,7 +23,7 @@ struct SettingsStoreBrowserDenialTests {
     }
 
     @Test
-    func `initial inferred denial is frozen before generic config is created`() throws {
+    func `initial inferred denial is frozen before generic config is created`() {
         let defaults = InMemoryUserDefaults()
 
         #expect(!SettingsStore.initializeOpenAIWebAccessPreference(

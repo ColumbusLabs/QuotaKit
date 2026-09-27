@@ -20,7 +20,7 @@ struct GeminiFixturePathTests {
         let environment = [
             "PATH": path,
             "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS": "1",
-            ]
+        ]
         // Model a peer's /usr/bin/env lookup while the same fixture PATH override is active.
         for (arguments, expected) in [
             (["codexbar-path-peer"], "inherited-peer"),

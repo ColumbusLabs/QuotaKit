@@ -136,7 +136,7 @@ public struct PreferencesDocument: Codable, Sendable {
                 }
             case let .integer(number): valid = key == "weeklyProgressWorkDays" && (1...7).contains(number)
             case .null: valid = key == "weeklyProgressWorkDays"
-                    || key == "mergeIconStackedTopProvider" || key == "mergeIconStackedBottomProvider"
+                || key == "mergeIconStackedTopProvider" || key == "mergeIconStackedBottomProvider"
             case let .array(values):
                 if Self.thresholdKeys.contains(key) {
                     valid = values

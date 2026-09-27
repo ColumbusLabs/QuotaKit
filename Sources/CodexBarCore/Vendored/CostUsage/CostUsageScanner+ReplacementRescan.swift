@@ -323,7 +323,7 @@ extension CostUsageScanner {
         let replayedRows = stagedRows + classifiedNewRows
         let replayedSnapshots = plan.stageParsedRows
             ? (plan.replacementWasPending ? input.cached?.codexStagedRecoverySnapshots ?? [] : [])
-                + parsed.tokenSnapshots
+            + parsed.tokenSnapshots
             : parsed.tokenSnapshots
         let uniqueRows = Self.uniqueCodexRows(
             rows: replayedRows,

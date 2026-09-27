@@ -53,5 +53,4 @@ struct SettingsStoreMergeIconStackedTests {
         #expect(target.mergeIconStackedTopProvider == .codex)
         #expect(target.mergeIconStackedBottomProvider == nil)
     }
-
 }

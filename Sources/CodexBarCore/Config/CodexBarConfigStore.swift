@@ -65,13 +65,12 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         let hasEffectiveXDGHome = !xdgHome.isEmpty &&
             ((xdgHome as NSString).expandingTildeInPath as NSString).isAbsolutePath
         guard !hasExplicitConfigFile, !hasEffectiveXDGHome else { return config }
-        let accessEnabled: Bool?
-        if let override = self.openAIWebAccessEnabledOverride {
-            accessEnabled = override
+        let accessEnabled: Bool? = if let override = self.openAIWebAccessEnabledOverride {
+            override
         } else if self.fileURL.standardizedFileURL == Self.defaultURL().standardizedFileURL {
-            accessEnabled = Self.macAppOpenAIWebAccessEnabled()
+            Self.macAppOpenAIWebAccessEnabled()
         } else {
-            accessEnabled = nil
+            nil
         }
         guard accessEnabled == false else { return config }
         var denied = config

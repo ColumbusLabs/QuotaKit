@@ -834,12 +834,12 @@ enum CLIRenderer {
         lines.append(self.rateLine(title: title, window: window, useColor: context.useColor))
         if ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence),
            let pace = self.paceLine(
-            provider: provider,
-            window: window,
-            slot: paceSlot,
-            weeklyWorkDays: context.weeklyWorkDays,
-            useColor: context.useColor,
-            now: now)
+               provider: provider,
+               window: window,
+               slot: paceSlot,
+               weeklyWorkDays: context.weeklyWorkDays,
+               useColor: context.useColor,
+               now: now)
         {
             lines.append(pace)
         }
