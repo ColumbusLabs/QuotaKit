@@ -7,10 +7,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
-### Fixed
-- Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
-- Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
-
 ### Added
 - Menu bar layouts can show explicit Session or Weekly reset countdowns and clocks, including conditional branches.
 - Optional pace colors show reserve in green and early exhaustion risk in red.
@@ -45,6 +41,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
+- Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
 - Menu bar: offer a per-provider percent window choice, keep cached menu card heights stable, and scope warmed status submenus to their provider.
 - OpenCode Go local quota estimates no longer produce pace forecasts in Mac menus, the CLI, or iPhone sync.
 - Browser cookie refresh resumes after a current noninteractive Safe Storage grant, while explicit denial cooldowns remain in place.
@@ -56,7 +54,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Antigravity: resolve session and weekly quota independently, retain distinct model rows and actionable fallback errors, and recover Linux port discovery after `lsof` failures.
 - Cursor: use a verified selected-team member budget for Enterprise and Business usage, with summary fallback.
 - OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.
-- Copilot: show configured seat-credit progress in Automatic provider tabs when metered quotas are unavailable.
 - DeepSeek: retain balances through transport failures only for the matching live browser session.
 - Amp: restore Tier Agent and Orb usage, billing-period pace, and precise credit units.
 - Cursor: keep monthly Auto pace separate from the Grok Bot weekly allowance.
