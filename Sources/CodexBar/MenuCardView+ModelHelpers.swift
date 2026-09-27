@@ -629,9 +629,12 @@ extension UsageMenuCardView.Model {
                 var consumedLabels: Set<String> = []
                 if let balance = section.rows.first(where: { $0.label == "Balance" }) {
                     try rows.append(ProviderDetailSection.Row(
+                        id: balance.id,
                         label: L("Balance"),
                         value: balance.value,
-                        secondaryValue: balance.secondaryValue))
+                        secondaryValue: balance.secondaryValue,
+                        progress: balance.progress,
+                        usageValue: balance.usageValue))
                     consumedLabels.insert(balance.label)
                 }
                 for period in [
