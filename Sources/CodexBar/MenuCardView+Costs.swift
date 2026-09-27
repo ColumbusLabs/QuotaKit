@@ -227,7 +227,9 @@ extension UsageMenuCardView.Model {
             L("Today")
         }
         let sessionLine: String = {
-            if tokensOnly { return Self.tokenWindowLine(label: sessionLabel, tokens: snapshot.sessionTokens) }
+            if tokensOnly {
+                return Self.tokenWindowLine(label: sessionLabel, tokens: snapshot.sessionTokens)
+            }
             if let sessionTokens {
                 return String(format: L("%@: %@ · %@ tokens"), sessionLabel, sessionCost, sessionTokens)
             }
@@ -262,7 +264,9 @@ extension UsageMenuCardView.Model {
             Self.costHistoryWindowLabel(days: snapshot.historyDays)
         }
         let monthLine: String = {
-            if tokensOnly { return Self.tokenWindowLine(label: windowLabel, tokens: monthTokensValue) }
+            if tokensOnly {
+                return Self.tokenWindowLine(label: windowLabel, tokens: monthTokensValue)
+            }
             if let monthTokens {
                 return String(format: L("%@: %@ · %@ tokens"), windowLabel, monthCost, monthTokens)
             }
@@ -278,6 +282,10 @@ extension UsageMenuCardView.Model {
             return String(format: L("Cursor-metered: %@ (%@)"), amount, windowLabel.lowercased())
         }
         let err = (error?.isEmpty ?? true) ? nil : error
+        let hintLines = [
+            Self.tokenUsageHint(provider: provider),
+            tokensOnly ? Self.tokenHistoryCoverageHint(snapshot) : nil,
+        ].compactMap(\.self)
         return TokenUsageSection(
             isRefreshing: isRefreshing,
             sessionLine: sessionLine,
@@ -293,7 +301,7 @@ extension UsageMenuCardView.Model {
                         sourceCurrencyCode: snapshot.currencyCode)
                 }
                 : [],
-            hintLine: Self.tokenUsageHint(provider: provider),
+            hintLine: hintLines.isEmpty ? nil : hintLines.joined(separator: "\n"),
             errorLine: err,
             errorCopyText: (error?.isEmpty ?? true) ? nil : error)
     }
