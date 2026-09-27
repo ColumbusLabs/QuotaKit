@@ -1465,6 +1465,8 @@ extension UsageStore {
         }
     }
 
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity function_body_length
     func applySelectedOutcome(
         _ outcome: ProviderFetchOutcome,
         provider: UsageProvider,
@@ -1641,6 +1643,7 @@ extension UsageStore {
             }
         }
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length
 }
 
 extension UsageStore {

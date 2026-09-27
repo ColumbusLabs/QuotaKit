@@ -1405,7 +1405,7 @@ public struct CostUsageFetcher: Sendable {
 
     // Cached projection hydration deliberately keeps native, retained-history, and Pi merge
     // evidence in one closure so the publication flags cannot drift from the assembled snapshot.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     static func loadCachedCodexTokenSnapshotResult(
         now: Date = Date(),
         codexHomePath: String? = nil,

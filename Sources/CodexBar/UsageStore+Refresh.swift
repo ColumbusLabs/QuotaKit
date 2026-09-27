@@ -1,3 +1,5 @@
+// This established cohesive source exceeds the file-length limit; split during a dedicated refactor.
+// swiftlint:disable file_length
 import CodexBarCore
 import Foundation
 
@@ -1427,6 +1429,8 @@ extension UsageStore {
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
 
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity function_body_length
     private func handleProviderFetchFailure(
         provider: UsageProvider,
         error: Error,
@@ -1603,6 +1607,8 @@ extension UsageStore {
             runtime.providerDidFail(context: context, provider: provider, error: error)
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity function_body_length
 
     private func validatedClaudeOAuthTokenAccountFallback(
         context: ProviderRefreshOutcomeContext) -> (ProviderTokenAccount, TokenAccountUsageSnapshot)?

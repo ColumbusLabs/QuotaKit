@@ -16,6 +16,7 @@ public enum AtlasCloudProviderDescriptor {
         environmentKey: "ATLASCLOUD_API_KEY",
         missingCredentialMessage: { _ in "Set an Atlas Cloud API key in Settings or ATLASCLOUD_API_KEY." },
         apiKeyField: .init(
-            id: "atlascloud-api-key", title: "Atlas Cloud API key",
+            id: "atlascloud-api-key",
+            title: "Atlas Cloud API key",
             subtitle: "Saved in QuotaKit's local config file. Or set ATLASCLOUD_API_KEY."))
 }

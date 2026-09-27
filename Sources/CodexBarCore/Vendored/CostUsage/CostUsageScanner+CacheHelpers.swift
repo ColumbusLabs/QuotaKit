@@ -381,7 +381,9 @@ extension CostUsageScanner {
         rows.map { row in
             let retained = retainedPricing?(row)
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
-            let isPriority = priorityMetadata != nil || retained?.pricingMode == "priority" || row.pricingMode == "priority"
+            let isPriority = priorityMetadata != nil
+                || retained?.pricingMode == "priority"
+                || row.pricingMode == "priority"
             let pricedModel = priorityMetadata.map { Self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
                 ?? retained?.pricingModel
                 ?? row.pricingModel

@@ -9,20 +9,41 @@ struct SpendDashboardProviderBreakdownTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let rows = [
             SpendDashboardModel.ProviderRow(
-                id: "codex-account", rank: 1, provider: .codex, displayName: "Codex Account",
-                totalTokens: 120, totalCost: 2, coveredDayCount: 1,
-                sourceKind: .native, incompleteRequestCount: 1, hasPartialCost: true),
+                id: "codex-account",
+                rank: 1,
+                provider: .codex,
+                displayName: "Codex Account",
+                totalTokens: 120,
+                totalCost: 2,
+                coveredDayCount: 1,
+                sourceKind: .native,
+                incompleteRequestCount: 1,
+                hasPartialCost: true),
             SpendDashboardModel.ProviderRow(
-                id: "codex-opencodex", rank: 2, provider: .codex, displayName: "OpenCodex",
-                totalTokens: 40, totalCost: nil, coveredDayCount: 1,
+                id: "codex-opencodex",
+                rank: 2,
+                provider: .codex,
+                displayName: "OpenCodex",
+                totalTokens: 40,
+                totalCost: nil,
+                coveredDayCount: 1,
                 sourceKind: .openCodex),
             SpendDashboardModel.ProviderRow(
-                id: "claude", rank: 3, provider: .claude, displayName: "Claude",
-                totalTokens: 30, totalCost: 1, coveredDayCount: 1),
+                id: "claude",
+                rank: 3,
+                provider: .claude,
+                displayName: "Claude",
+                totalTokens: 30,
+                totalCost: 1,
+                coveredDayCount: 1),
         ]
         let model = SpendDashboardModel.ModelRow(
-            rank: 1, provider: .codex, providerName: "Codex", modelName: "example-model",
-            totalTokens: 160, totalCost: 2)
+            rank: 1,
+            provider: .codex,
+            providerName: "Codex",
+            modelName: "example-model",
+            totalTokens: 160,
+            totalCost: 2)
         let group = SpendDashboardModel.CurrencyGroup(
             currencyCode: "USD",
             providers: rows,
@@ -54,8 +75,13 @@ struct SpendDashboardProviderBreakdownTests {
         let group = SpendDashboardModel.CurrencyGroup(
             currencyCode: "USD",
             providers: [SpendDashboardModel.ProviderRow(
-                id: "claude", rank: 1, provider: .claude, displayName: "Claude",
-                totalTokens: 12, totalCost: nil, coveredDayCount: 1)],
+                id: "claude",
+                rank: 1,
+                provider: .claude,
+                displayName: "Claude",
+                totalTokens: 12,
+                totalCost: nil,
+                coveredDayCount: 1)],
             models: [],
             dailyPoints: [],
             totalTokens: 12,

@@ -53,19 +53,35 @@ struct ShareStatsCompletenessTests {
     }
 
     private static func input(
-        provider: UsageProvider, name: String, tokens: Int, cost: Double,
+        provider: UsageProvider,
+        name: String,
+        tokens: Int,
+        cost: Double,
         incomplete: Int = 0) -> SpendDashboardModel.ProviderInput
     {
         let modelName = provider == .codex ? "gpt-4o" : "claude-sonnet-4"
-        return .init(id: name, provider: provider, displayName: name, snapshot: CostUsageTokenSnapshot(
-            sessionTokens: nil, sessionCostUSD: nil, last30DaysTokens: nil, last30DaysCostUSD: nil,
-            daily: [.init(
-                date: "2026-09-18", inputTokens: nil, outputTokens: nil,
-                totalTokens: tokens, costUSD: cost, modelsUsed: nil,
-                modelBreakdowns: [.init(
-                    modelName: modelName, costUSD: cost, totalTokens: tokens,
-                    incompleteRequestCount: incomplete)])],
-            updatedAt: Self.now))
+        return .init(
+            id: name,
+            provider: provider,
+            displayName: name,
+            snapshot: CostUsageTokenSnapshot(
+                sessionTokens: nil,
+                sessionCostUSD: nil,
+                last30DaysTokens: nil,
+                last30DaysCostUSD: nil,
+                daily: [.init(
+                    date: "2026-09-18",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: tokens,
+                    costUSD: cost,
+                    modelsUsed: nil,
+                    modelBreakdowns: [.init(
+                        modelName: modelName,
+                        costUSD: cost,
+                        totalTokens: tokens,
+                        incompleteRequestCount: incomplete)])],
+                updatedAt: Self.now))
     }
 
     private static func model(
@@ -74,19 +90,37 @@ struct ShareStatsCompletenessTests {
     {
         let providers = [
             SpendDashboardModel.ProviderRow(
-                id: "codex", rank: 1, provider: .codex, displayName: "Codex",
-                totalTokens: 30, totalCost: 3, coveredDayCount: 7),
+                id: "codex",
+                rank: 1,
+                provider: .codex,
+                displayName: "Codex",
+                totalTokens: 30,
+                totalCost: 3,
+                coveredDayCount: 7),
             SpendDashboardModel.ProviderRow(
-                id: "claude", rank: 2, provider: .claude, displayName: "Claude",
-                totalTokens: 20, totalCost: 2, coveredDayCount: 7),
+                id: "claude",
+                rank: 2,
+                provider: .claude,
+                displayName: "Claude",
+                totalTokens: 20,
+                totalCost: 2,
+                coveredDayCount: 7),
         ]
         let models = [
             SpendDashboardModel.ModelRow(
-                rank: 1, provider: .codex, providerName: "Codex", modelName: "gpt-4o",
-                totalTokens: 30, totalCost: 3),
+                rank: 1,
+                provider: .codex,
+                providerName: "Codex",
+                modelName: "gpt-4o",
+                totalTokens: 30,
+                totalCost: 3),
             SpendDashboardModel.ModelRow(
-                rank: 2, provider: .claude, providerName: "Claude", modelName: "claude-sonnet-4",
-                totalTokens: 20, totalCost: 2),
+                rank: 2,
+                provider: .claude,
+                providerName: "Claude",
+                modelName: "claude-sonnet-4",
+                totalTokens: 20,
+                totalCost: 2),
         ]
         let group = SpendDashboardModel.CurrencyGroup(
             currencyCode: "USD",

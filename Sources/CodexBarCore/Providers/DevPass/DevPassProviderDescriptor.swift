@@ -14,7 +14,8 @@ public enum DevPassProviderDescriptor {
         environmentKey: "DEVPASS_API_KEY",
         missingCredentialMessage: { _ in "Set a DevPass API key in Settings or DEVPASS_API_KEY." },
         apiKeyField: .init(
-            id: "devpass-api-key", title: "DevPass API key",
+            id: "devpass-api-key",
+            title: "DevPass API key",
             subtitle: "Saved in QuotaKit's local config file. Or set DEVPASS_API_KEY.",
             placeholder: "Regular LLM Gateway API key",
             action: ("devpass-dashboard", "Open DevPass", "https://devpass.llmgateway.io/dashboard")))

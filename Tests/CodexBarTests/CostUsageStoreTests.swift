@@ -24,7 +24,8 @@ struct CostUsageStoreTests {
         cache.scanUntilKey = "2026-08-01"
         cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
         _ = writer.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
 
         #if DEBUG
@@ -73,7 +74,8 @@ struct CostUsageStoreTests {
         cache.scanSinceKey = "2026-08-01"
         cache.scanUntilKey = "2026-08-03"
         _ = writer.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"))
         let stale = Self.file(path: "/rollouts/pruned-after-identical-save.jsonl", day: "2026-07-01")
         #expect(await writer.upsertFile(stale))
@@ -107,13 +109,15 @@ struct CostUsageStoreTests {
         cache.scanUntilKey = "2026-08-01"
         cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
         _ = writer.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
         let stale = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
 
         cache.files["/sessions/b.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 2, size: 0, days: [:])
         _ = writer.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
         let refused = CostUsageStoreAccess.save(
             store: stale.store,
@@ -151,17 +155,21 @@ struct CostUsageStoreTests {
             cache.scanUntilKey = "2026-08-01"
             cache.files = Dictionary(uniqueKeysWithValues: (0..<fileCount).map { index in
                 ("/sessions/\(index).jsonl", CostUsageFileUsage(
-                    mtimeUnixMs: 1000, size: 0, days: [:]))
+                    mtimeUnixMs: 1000,
+                    size: 0,
+                    days: [:]))
             })
             _ = store.syncSaveCodexCache(
-                cache, calendar: .current,
+                cache,
+                calendar: .current,
                 requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
             var changed = store.syncLoadCodexCache(calendar: .current)
             changed.lastScanUnixMs += 1000
             changed.files["/sessions/0.jsonl"]?.lastModel = "test-model"
             let before = await store.persistenceWriteMetricsForTesting()
             let result = store.syncSaveCodexCache(
-                changed, calendar: .current,
+                changed,
+                calendar: .current,
                 requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
                 skipIdenticalContent: true)
             let after = await store.persistenceWriteMetricsForTesting()
@@ -243,14 +251,35 @@ struct CostUsageStoreTests {
         usage.codexScanComplete = true
         usage.codexRows = [
             CostUsageScanner.CodexUsageRow(
-                day: "2026-08-01", model: "model-a", turnID: "one", eventIndex: 0,
-                input: 10, cached: 0, output: 2, knownCostNanos: 100, pricingMode: "standard"),
+                day: "2026-08-01",
+                model: "model-a",
+                turnID: "one",
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 2,
+                knownCostNanos: 100,
+                pricingMode: "standard"),
             CostUsageScanner.CodexUsageRow(
-                day: "2026-08-02", model: "model-b", turnID: "two", eventIndex: 0,
-                input: 3, cached: 0, output: 4, knownCostNanos: 200, pricingMode: "priority"),
+                day: "2026-08-02",
+                model: "model-b",
+                turnID: "two",
+                eventIndex: 0,
+                input: 3,
+                cached: 0,
+                output: 4,
+                knownCostNanos: 200,
+                pricingMode: "priority"),
             CostUsageScanner.CodexUsageRow(
-                day: "2026-08-01", model: "model-a", turnID: "three", eventIndex: 0,
-                input: 2, cached: 0, output: 3, knownCostNanos: 300, pricingMode: "standard"),
+                day: "2026-08-01",
+                model: "model-a",
+                turnID: "three",
+                eventIndex: 0,
+                input: 2,
+                cached: 0,
+                output: 3,
+                knownCostNanos: 300,
+                pricingMode: "standard"),
         ]
         var cache = CostUsageCache()
         cache.scanSinceKey = "2026-08-01"
@@ -260,7 +289,8 @@ struct CostUsageStoreTests {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         _ = store.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-02"))
 
         let aggregates = await store.fetchFileDayAggregates(path: path)
@@ -278,7 +308,8 @@ struct CostUsageStoreTests {
         let store = CostUsageStore(cacheRoot: fixture.root)
         let path = "/sessions/pricing-replacement.jsonl"
         let evidence = CostUsageScanner.CodexPricingEvidence(
-            pricingModel: "gpt-5.6-sol", pricingMode: "priority")
+            pricingModel: "gpt-5.6-sol",
+            pricingMode: "priority")
         var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [:])
         usage.parsedBytes = 50
         usage.codexScanFileId = "7:42"

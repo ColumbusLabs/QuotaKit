@@ -15,6 +15,7 @@ public enum XKiroProviderDescriptor {
         missingCredentialMessage: { _ in "Set an xKiro API key in Settings or XKIRO_API_KEY." },
         menuBarMetrics: .init(supported: [.automatic, .primary]),
         apiKeyField: .init(
-            id: "xkiro-api-key", title: "xKiro API key",
+            id: "xkiro-api-key",
+            title: "xKiro API key",
             subtitle: "Saved in QuotaKit's local config file. Or set XKIRO_API_KEY. Reads free-token usage only."))
 }

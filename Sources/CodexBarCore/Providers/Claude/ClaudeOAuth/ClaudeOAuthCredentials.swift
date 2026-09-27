@@ -287,6 +287,8 @@ public enum ClaudeOAuthCredentialsStore {
                 allowClaudeKeychainRepairWithoutPrompt: true).credentials
         }
 
+        // Keep the existing provider flow together; splitting it would obscure state transitions.
+        // swiftlint:disable cyclomatic_complexity
         func loadRecord(
             environment: [String: String],
             allowKeychainPrompt: Bool,
@@ -453,6 +455,8 @@ public enum ClaudeOAuthCredentialsStore {
                 throw ClaudeOAuthCredentialsStore.terminalMissingCredentialsError(environment: environment)
             }
         }
+
+        // swiftlint:enable cyclomatic_complexity
 
         private func prepareCachePolicy(environment: [String: String]) -> String {
             let profileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environment)

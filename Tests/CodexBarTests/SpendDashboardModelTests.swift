@@ -3,6 +3,7 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
+// swiftlint:disable:next type_body_length
 struct SpendDashboardModelTests {
     @Test
     func `daily ledger retains known subtotal beside unknown source cost`() throws {

@@ -171,17 +171,25 @@ struct PredictivePaceWarningTests {
     func `credential swap retires unresolved Claude predictive warning only`() {
         let reset = self.resetWindow(minutes: 300, resetsAt: 1_780_000_000)
         let unresolved = PredictivePaceWarningStateKey(
-            provider: .claude, accountDiscriminator: "claude-account:unknown",
-            window: .session, resetWindow: reset)
+            provider: .claude,
+            accountDiscriminator: "claude-account:unknown",
+            window: .session,
+            resetWindow: reset)
         let known = PredictivePaceWarningStateKey(
-            provider: .claude, accountDiscriminator: "claude-account:account-a",
-            window: .session, resetWindow: reset)
+            provider: .claude,
+            accountDiscriminator: "claude-account:account-a",
+            window: .session,
+            resetWindow: reset)
         let owner = PredictivePaceWarningStateKey(
-            provider: .claude, accountDiscriminator: "claude-oauth-owner:owner-a",
-            window: .session, resetWindow: reset)
+            provider: .claude,
+            accountDiscriminator: "claude-oauth-owner:owner-a",
+            window: .session,
+            resetWindow: reset)
         let codex = PredictivePaceWarningStateKey(
-            provider: .codex, accountDiscriminator: "codex-owner:account-a",
-            window: .session, resetWindow: reset)
+            provider: .codex,
+            accountDiscriminator: "codex-owner:account-a",
+            window: .session,
+            resetWindow: reset)
         var retained = PredictivePaceWarningNotificationLogic.retainingVerifiedKeysAfterClaudeCredentialSwap(
             [unresolved, known, owner, codex])
 

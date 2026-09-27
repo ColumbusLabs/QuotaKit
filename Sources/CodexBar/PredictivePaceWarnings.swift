@@ -266,8 +266,10 @@ extension UsageStore {
     private func reconcileClaudeQuotaWarningOwner(_ owner: String, account: String) {
         for (key, prior) in self.quotaWarningState where key.provider == .claude && key.accountDiscriminator == owner {
             let accountKey = QuotaWarningStateKey(
-                provider: key.provider, window: key.window,
-                accountDiscriminator: account, windowID: key.windowID)
+                provider: key.provider,
+                window: key.window,
+                accountDiscriminator: account,
+                windowID: key.windowID)
             if prior.observedAt >= (self.quotaWarningState[accountKey]?.observedAt ?? .distantPast) {
                 self.quotaWarningState[accountKey] = prior
             }

@@ -382,7 +382,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexRows: [CostUsageScanner.CodexUsageRow]?
     var codexNextUsageRowIndex: Int?
     /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
-    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]? = nil
+    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]?
     var codexPendingSourcePricing: [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence]?
     var codexPendingSourcePricingAnchor: CostUsageCodexTokenIndexAnchor?
     var codexStagedRecoveryRows: [CostUsageScanner.CodexUsageRow]?

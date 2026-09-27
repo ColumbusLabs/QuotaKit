@@ -6,6 +6,7 @@ import Testing
 
 @MainActor
 @Suite(.serialized)
+// swiftlint:disable:next type_body_length
 struct ProviderSettingsDescriptorTests {
     @Test(arguments: [UsageProvider.atlascloud, .vercel])
     func `balance providers keep API keys in their own config`(provider: UsageProvider) throws {

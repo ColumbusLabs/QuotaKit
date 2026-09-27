@@ -17,7 +17,8 @@ public enum PoeProviderDescriptor {
             menuCard: ProviderMenuCardPresentation(primaryDetailKind: .poeBalance),
             planRow: ProviderPlanRowPresentation(label: "Balance", stripsBalancePrefix: true)),
         apiKeyField: .init(
-            id: "poe-api-key", title: "API key",
+            id: "poe-api-key",
+            title: "API key",
             subtitle: "Stored in ~/.quotakit/config.json. Get your key from poe.com/api/keys.",
             placeholder: nil),
         showsAPIDetail: true,

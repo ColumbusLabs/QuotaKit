@@ -16,6 +16,7 @@ public enum VercelProviderDescriptor {
         environmentKey: "AI_GATEWAY_API_KEY",
         missingCredentialMessage: { _ in "Set a Vercel AI Gateway API key in Settings or AI_GATEWAY_API_KEY." },
         apiKeyField: .init(
-            id: "vercel-api-key", title: "Vercel AI Gateway API key",
+            id: "vercel-api-key",
+            title: "Vercel AI Gateway API key",
             subtitle: "Saved in QuotaKit's local config file. Or set AI_GATEWAY_API_KEY."))
 }
