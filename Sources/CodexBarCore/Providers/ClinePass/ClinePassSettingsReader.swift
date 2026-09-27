@@ -25,7 +25,7 @@ public enum ClinePassSettingsReader {
     {
         // Ambient test contexts must never discover the user's real Cline session.
         let pathKeys = ["CLINE_PROVIDER_SETTINGS_PATH", "CLINE_DATA_DIR", "CLINE_DIR", "HOME"]
-        guard !TestProcessSafety.isRunning || authFileURL != nil ||
+        guard !TestProcessSafety.isRunningUnderTests(environment: environment) || authFileURL != nil ||
             pathKeys.contains(where: { SettingsValue.cleaned(environment[$0]) != nil }) else { return nil }
         let file = authFileURL ?? self.providersFileURL(environment: environment)
         guard let data = try? Data(contentsOf: file) else { return nil }
