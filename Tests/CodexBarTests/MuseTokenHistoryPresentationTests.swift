@@ -38,22 +38,33 @@ struct MuseTokenHistoryPresentationTests {
     }
 
     @Test
-    func `incomplete only token days cannot create a cost metric`() {
+    func `unpriced token days expose tokens but cannot create a cost metric`() {
         let entry = CostUsageDailyReport.Entry(
             date: "2026-08-31",
-            inputTokens: nil,
-            outputTokens: nil,
-            totalTokens: nil,
+            inputTokens: 200,
+            outputTokens: 100,
+            totalTokens: 300,
             costUSD: nil,
             modelsUsed: nil,
             modelBreakdowns: [.init(
                 modelName: "unknown",
                 costUSD: nil,
-                totalTokens: nil)],
+                totalTokens: 300)],
             unmeteredRequestCount: 1)
         #expect(CostHistoryChartMenuView._availableMetricsForTesting(provider: .muse, daily: [entry]) == [.tokens])
         #expect(CostHistoryChartMenuView._defaultMetricForTesting(provider: .muse, daily: []) == .tokens)
         #expect(CostHistoryChartMenuView._chartValuesForTesting(provider: .muse, daily: [entry], metric: .cost).isEmpty)
+
+        let missingTokens = CostUsageDailyReport.Entry(
+            date: "2026-08-30",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: nil,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: nil,
+            unmeteredRequestCount: 1)
+        #expect(CostHistoryChartMenuView._availableMetricsForTesting(provider: .muse, daily: [missingTokens]).isEmpty)
     }
 
     @Test

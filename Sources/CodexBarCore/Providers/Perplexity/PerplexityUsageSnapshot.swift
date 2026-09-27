@@ -54,8 +54,12 @@ public struct PerplexityUsageSnapshot: Sendable {
     /// Infer plan name from recurring credit allotment.
     /// Free = 0, Pro = small pool (~500–1000), Max = 10,000+.
     public var planName: String? {
-        if self.recurringTotal <= 0 { return nil }
-        if self.recurringTotal < 5000 { return "Pro" }
+        if self.recurringTotal <= 0 {
+            return nil
+        }
+        if self.recurringTotal < 5000 {
+            return "Pro"
+        }
         return "Max"
     }
 
@@ -71,6 +75,18 @@ public struct PerplexityUsageSnapshot: Sendable {
 }
 
 extension PerplexityUsageSnapshot {
+    private static func creditDescription(used: Double, total: Double, unit: String) -> String? {
+        guard used.isFinite, total.isFinite else { return nil }
+        // Keep the existing rounded used count and truncated total count without
+        // converting API-sized Double values through Int, which traps above Int.max.
+        let usedCount = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), max(0, used.rounded()))
+        let totalCount = String(
+            format: "%.0f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            max(0, total.rounded(.towardZero)))
+        return "\(usedCount)/\(totalCount) \(unit)"
+    }
+
     public func toUsageSnapshot() -> UsageSnapshot {
         // Primary: recurring (monthly) credits
         let hasFallbackCredits = self.promoTotal > 0 || self.purchasedTotal > 0
@@ -102,8 +118,8 @@ extension PerplexityUsageSnapshot {
             ? min(100, max(0, self.promoUsed / self.promoTotal * 100))
             : 100.0
         var promoDesc = Self.creditDescription(used: self.promoUsed, total: self.promoTotal, unit: "bonus")
-        if let expiry = promoExpiration, let description = promoDesc {
-            promoDesc = "\(description) \u{00b7} exp. \(Self.promoExpiryFormatter.string(from: expiry))"
+        if let expiry = promoExpiration {
+            promoDesc = promoDesc.map { "\($0) \u{00b7} exp. \(Self.promoExpiryFormatter.string(from: expiry))" }
         }
         let secondary = RateWindow(
             usedPercent: promoPercent,
