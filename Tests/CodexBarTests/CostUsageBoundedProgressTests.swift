@@ -400,7 +400,8 @@ struct CostUsageBoundedProgressTests {
             options: &options,
             startingAt: 3)
 
-        #expect(converged.files.count == 601)
+        // Completed proof resumes normal retention; keep the changed old file and current file.
+        #expect(converged.files.count == 2)
         #expect(converged.files[changedPath]?.days.keys.contains("2026-05-10") == true)
         #expect(converged.days.keys.contains("2020-01-02") == false)
         #expect(converged.codexRetainedLookbackDays == 365)
