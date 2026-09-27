@@ -34,12 +34,12 @@ extension SettingsStore {
         if let value: Bool = try document.value("mergeIconsStacked") { self.mergeIconsStacked = value }
         if document.contains("mergeIconStackedTopProvider") {
             self.mergeIconStackedTopProviderRaw = try document
-                .value("mergeIconStackedTopProvider", as: String?.self)
+                .value("mergeIconStackedTopProvider", as: String?.self) ?? nil
         }
         if document.contains("mergeIconStackedBottomProvider") {
             self.mergeIconStackedBottomProviderRaw = try document.value(
                 "mergeIconStackedBottomProvider",
-                as: String?.self)
+                as: String?.self) ?? nil
         }
         if let value: Bool = try document.value("switcherShowsIcons") { self.switcherShowsIcons = value }
         if let value: String = try document.value("mergedOverviewLayout"),
