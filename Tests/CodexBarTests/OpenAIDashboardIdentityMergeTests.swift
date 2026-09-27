@@ -169,11 +169,12 @@ struct OpenAIDashboardIdentityMergeTests {
         #expect(parsed.accountID == nil)
         #expect(parsed.accountPlan == "Workspace B plan")
         #expect(parsed.balanceIsWorkspace == nil)
-        let paired = try #require(OpenAIDashboardFetcher.snapshotForUnpairedPage(
+        let result = try OpenAIDashboardFetcher.snapshotForUnpairedPage(
             apiData: self.apiData(balance: 42),
             verifiedSignedInEmail: "owner@example.com",
             pageSignedInEmail: scrape.signedInEmail,
-            previous: self.previous(email: "owner@example.com")))
+            previous: self.previous(email: "owner@example.com"))
+        let paired = try #require(result)
         #expect(paired.accountID == "workspace-a")
         #expect(paired.accountPlan == "business")
         #expect(paired.creditsRemaining == 42)

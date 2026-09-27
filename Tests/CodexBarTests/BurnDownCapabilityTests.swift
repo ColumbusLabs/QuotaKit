@@ -178,12 +178,13 @@ struct BurnDownCapabilityTests {
             let selection: BurnWindowChoice = intent.window
             #expect(provider.rawValue == value["provider"])
             #expect(selection.rawValue == value["window"])
-            let snapshot = try Self.snapshot(
-                provider: #require(provider.provider),
+            let resolvedProvider = try #require(provider.provider)
+            let snapshot = Self.snapshot(
+                provider: resolvedProvider,
                 primary: Self.window(minutes: 300),
                 secondary: Self.window(minutes: 10080))
             let state = try #require(try BurnDownState(
-                snapshot: snapshot, provider: #require(provider.provider), selection: selection))
+                snapshot: snapshot, provider: resolvedProvider, selection: selection))
             #expect(state.selectedWindow?.windowMinutes == (selection == .session ? 300 : 10080))
             #expect(state.combinedSelections == [.session, .weekly])
         }
