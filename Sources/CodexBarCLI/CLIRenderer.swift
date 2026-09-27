@@ -857,7 +857,7 @@ enum CLIRenderer {
         now: Date,
         lines: inout [String])
     {
-        if self.usesDetailBackedWindow(provider: provider) {
+        if ProviderDescriptorRegistry.descriptor(for: provider).metadata.usesDetailBackedWindow {
             if let reset = self.resetLineForDetailBackedWindow(window: window, style: context.resetStyle, now: now) {
                 lines.append(self.subtleLine(reset, useColor: context.useColor))
             }
@@ -874,10 +874,6 @@ enum CLIRenderer {
 
     private static func resetLine(for window: RateWindow, style: ResetTimeDisplayStyle, now: Date) -> String? {
         UsageFormatter.resetLine(for: window, style: style, now: now)
-    }
-
-    private static func usesDetailBackedWindow(provider: UsageProvider) -> Bool {
-        ProviderDescriptorRegistry.descriptor(for: provider).metadata.usesDetailBackedWindow
     }
 
     private static func resetLineForDetailBackedWindow(

@@ -207,7 +207,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,
-            .v0, .bifrost, .aixy, .raycast, .llmman, .manus, .mimo, .neuralwatt,
+            .v0, .bifrost, .aixy, .raycast, .llmman, .manus, .mimo, .neuralwatt, .abacus,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
