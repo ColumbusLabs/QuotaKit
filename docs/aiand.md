@@ -62,6 +62,10 @@ Notes:
 - If log rows ever disagree on currency, only rows matching the newest row's currency are summed.
 - API keys are organization-scoped: every key in the same organization reports the same org-wide spend.
 
+The bundled TypeScript plugin is authoritative on QuickJS and JavaScriptCore. Decimal strings are summed with exact
+integer arithmetic before the final display conversion. Empty windows explicitly declare `empty: true`, preserving a
+successful snapshot without guessing a currency or inventing a quota. Swift only supplies registration and credentials.
+
 ## CLI Usage
 
 ```bash

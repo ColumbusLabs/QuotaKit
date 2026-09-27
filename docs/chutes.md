@@ -46,6 +46,13 @@ All requests use `Authorization: Bearer cpk_...`. Subscription usage is required
 
 The provider prefers the rolling four-hour window as the primary meter and monthly subscription usage as the secondary meter. Accounts without a subscription can still show available pay-as-you-go quota data.
 
+Large quota amounts retain their percentage and description. Durations that cannot fit in whole minutes are omitted;
+recognized rolling and monthly windows keep their normal default duration.
+
+The bundled TypeScript plugin is authoritative on QuickJS and JavaScriptCore. Successful subscription payloads with
+no recognized usage fields remain valid no-data snapshots: the plugin declares `empty: true` and preserves any
+subscription identity, without inventing quota data. Swift only supplies registration, credentials, and validated API origins.
+
 ## CLI Usage
 
 ```bash

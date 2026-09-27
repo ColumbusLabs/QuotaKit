@@ -149,6 +149,10 @@
 "Cookie: …" = "Печиво: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Вартість";
+"Token history" = "Історія токенів";
+"Local token history · dollar costs unavailable" = "Локальна історія токенів · вартість у доларах недоступна";
+"Partial local history · recorded token subtotal" = "Неповна локальна історія · проміжна сума записаних токенів";
+"Local token history is unavailable or incomplete." = "Локальна історія токенів недоступна або неповна.";
 "Could not add Codex account" = "Не вдалося додати обліковий запис Codex";
 "Could not open Terminal for Gemini" = "Не вдалося відкрити термінал для Gemini";
 "Could not start claude /login" = "Не вдалося запустити claude /login";
@@ -1159,6 +1163,9 @@
 "Open MiMo Balance" = "Відкрийте MiMo Balance";
 "Open Moonshot Console" = "Відкрийте консоль Moonshot";
 "Open Ollama API Keys" = "Відкрийте ключі Ollama API";
+"Open llmman" = "Відкрити llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Зберігається в ~/.quotakit/config.json. Потрібен лише тоді, коли llmman serve вимагає API-ключі.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Адреса llmman serve. За замовчуванням http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Відкрийте платформу StepFun";
 "Open T3 Chat Settings" = "Відкрийте налаштування чату T3";
 "Open Volcengine Ark Console" = "Відкрийте консоль Volcengine Ark";

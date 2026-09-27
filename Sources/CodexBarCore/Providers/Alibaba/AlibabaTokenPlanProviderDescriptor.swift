@@ -19,6 +19,14 @@ public enum AlibabaTokenPlanProviderDescriptor {
         window?.windowMinutes == 5 * 60 ? "5-hour" : nil
     }
 
+    public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
+        // The generic rate window survives cache restoration; the typed Token Plan payload does not.
+        if snapshot.primary?.windowMinutes == 30 * 24 * 60 {
+            return "Monthly"
+        }
+        return self.primaryLabel(window: snapshot.primary)
+    }
+
     public static func secondaryLabel(window: RateWindow?) -> String? {
         window?.windowMinutes == 7 * 24 * 60 ? "7-day" : nil
     }
@@ -96,6 +104,13 @@ public enum AlibabaTokenPlanProviderDescriptor {
                 noDataMessage: { "Alibaba Token Plan cost summary is not supported." }),
             pace: .calendarMonthResetWindow,
             presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: Self.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel,
+                        secondary: Self.secondaryLabel(window: snapshot.secondary) ?? metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
+                },
                 primaryBindingQuotaLanes: [.secondary],
                 menuCard: ProviderMenuCardPresentation(showsPrimaryBalanceDescription: true)),
             fetchPlan: ProviderFetchPlan(

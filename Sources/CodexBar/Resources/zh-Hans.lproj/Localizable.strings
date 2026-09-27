@@ -152,6 +152,10 @@
 "Cookie: …" = "Cookie：…";
 "CopilotDeviceFlow" = "Copilot 设备流程";
 "Cost" = "费用";
+"Token history" = "Token 历史";
+"Local token history · dollar costs unavailable" = "本地 Token 历史 · 暂无美元费用";
+"Partial local history · recorded token subtotal" = "部分本地历史 · 已记录 Token 小计";
+"Local token history is unavailable or incomplete." = "本地 Token 历史不可用或不完整。";
 "Could not add Codex account" = "无法添加 Codex 账户";
 "Could not open Terminal for Gemini" = "无法为 Gemini 打开终端";
 "Could not start claude /login" = "无法启动 claude /login";
@@ -1134,6 +1138,9 @@
 "Open MiMo Balance" = "打开 MiMo 余额";
 "Open Moonshot Console" = "打开 Moonshot 控制台";
 "Open Ollama API Keys" = "打开 Ollama API 密钥";
+"Open llmman" = "打开 llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "存储在 ~/.quotakit/config.json 中。仅当 llmman serve 要求 API 密钥时才需要。";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "llmman serve 的地址。默认为 http://127.0.0.1:17434。";
 "Open StepFun Platform" = "打开 StepFun 平台";
 "Open T3 Chat Settings" = "打开 T3 Chat 设置";
 "Open Volcengine Ark Console" = "打开 Volcengine Ark 控制台";

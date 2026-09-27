@@ -279,7 +279,10 @@ enum SpendDashboardSource {
                         if UsageStore.tokenCostRequiresProviderSnapshot(baseline.provider) {
                             await store.refreshProvider(baseline.provider)
                         } else {
-                            await store.refreshSpendDashboardTokenUsageNow(for: baseline.provider, force: true)
+                            await store.refreshSpendDashboardTokenUsageNow(
+                                for: baseline.provider,
+                                force: true,
+                                bypassFailureCooldown: mode == .forceRefresh)
                         }
                     }
                 }

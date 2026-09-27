@@ -54,8 +54,12 @@ public struct PerplexityUsageSnapshot: Sendable {
     /// Infer plan name from recurring credit allotment.
     /// Free = 0, Pro = small pool (~500–1000), Max = 10,000+.
     public var planName: String? {
-        if self.recurringTotal <= 0 { return nil }
-        if self.recurringTotal < 5000 { return "Pro" }
+        if self.recurringTotal <= 0 {
+            return nil
+        }
+        if self.recurringTotal < 5000 {
+            return "Pro"
+        }
         return "Max"
     }
 
@@ -71,6 +75,22 @@ public struct PerplexityUsageSnapshot: Sendable {
 }
 
 extension PerplexityUsageSnapshot {
+    private static func creditDescription(used: Double, total: Double, unit: String) -> String? {
+        guard used.isFinite, total.isFinite else { return nil }
+        // Keep the existing rounded used count and truncated total count without
+        // converting API-sized Double values through Int, which traps above Int.max.
+        let roundedUsed = used.rounded()
+        let nonnegativeUsed = roundedUsed <= 0 ? 0.0 : roundedUsed
+        let truncatedTotal = total.rounded(.towardZero)
+        let nonnegativeTotal = truncatedTotal <= 0 ? 0.0 : truncatedTotal
+        let usedCount = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), nonnegativeUsed)
+        let totalCount = String(
+            format: "%.0f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            nonnegativeTotal)
+        return "\(usedCount)/\(totalCount) \(unit)"
+    }
+
     public func toUsageSnapshot() -> UsageSnapshot {
         // Primary: recurring (monthly) credits
         let hasFallbackCredits = self.promoTotal > 0 || self.purchasedTotal > 0
@@ -81,7 +101,8 @@ extension PerplexityUsageSnapshot {
                     usedPercent: primaryPercent,
                     windowMinutes: nil,
                     resetsAt: self.renewalDate,
-                    resetDescription: "\(Int(self.recurringUsed.rounded()))/\(Int(self.recurringTotal)) credits")
+                    resetDescription: Self.creditDescription(
+                        used: self.recurringUsed, total: self.recurringTotal, unit: "credits"))
             }
             if hasFallbackCredits {
                 // When recurring is absent but bonus/purchased credits remain, omit the fake 0/0 primary lane
@@ -100,9 +121,9 @@ extension PerplexityUsageSnapshot {
         let promoPercent = self.promoTotal > 0
             ? min(100, max(0, self.promoUsed / self.promoTotal * 100))
             : 100.0
-        var promoDesc = "\(Int(promoUsed.rounded()))/\(Int(self.promoTotal)) bonus"
+        var promoDesc = Self.creditDescription(used: self.promoUsed, total: self.promoTotal, unit: "bonus")
         if let expiry = promoExpiration {
-            promoDesc += " \u{00b7} exp. \(Self.promoExpiryFormatter.string(from: expiry))"
+            promoDesc = promoDesc.map { "\($0) \u{00b7} exp. \(Self.promoExpiryFormatter.string(from: expiry))" }
         }
         let secondary = RateWindow(
             usedPercent: promoPercent,
@@ -119,7 +140,8 @@ extension PerplexityUsageSnapshot {
             usedPercent: purchasedPercent,
             windowMinutes: nil,
             resetsAt: nil,
-            resetDescription: "\(Int(purchasedUsed.rounded()))/\(Int(self.purchasedTotal)) credits")
+            resetDescription: Self.creditDescription(
+                used: self.purchasedUsed, total: self.purchasedTotal, unit: "credits"))
 
         let identity = ProviderIdentitySnapshot(
             providerID: .perplexity,

@@ -164,9 +164,13 @@ extension CodexBarCLI {
     {
         let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         // Provider-specific by design: Codex cost is explicitly an API-equivalent local-session estimate.
-        let title = provider == .codex
-            ? "\(name) API-equivalent estimate (not billed)"
-            : "\(name) Cost (API-rate estimate)"
+        let title = if provider == .codex {
+            "\(name) API-equivalent estimate (not billed)"
+        } else if provider == .muse {
+            "\(name) Token History"
+        } else {
+            "\(name) Cost (API-rate estimate)"
+        }
         let header = Self.costHeaderLine(title, useColor: useColor)
         if groupBy == .project, provider == .codex {
             return Self.renderProjectCostText(header: header, snapshot: snapshot)

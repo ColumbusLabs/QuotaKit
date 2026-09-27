@@ -181,6 +181,20 @@ struct ProviderUsageView: View {
 
     private var usageMetricsSection: some View {
         VStack(spacing: 10) {
+            if self.provider.displayRateWindows.isEmpty,
+               let rows = self.provider.providerDetails?.first?.rows
+            {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Spacer(minLength: 12)
+                        Text(row.value)
+                            .monospacedDigit()
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
             ForEach(Array(self.provider.displayRateWindows.enumerated()), id: \.offset) { index, window in
                 let warning = self.provider.quotaWarning(forWindowIndex: index)
                 UsageCardView(

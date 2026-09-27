@@ -896,6 +896,29 @@ public struct SyncPerplexityCreditSummary: Codable, Sendable, Equatable {
     }
 }
 
+/// Small display-only detail groups for providers whose useful data is not a reset quota.
+public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
+    public struct Row: Codable, Sendable, Equatable {
+        public let label: String
+        public let value: String
+        public let secondaryValue: String?
+
+        public init(label: String, value: String, secondaryValue: String? = nil) {
+            self.label = label
+            self.value = value
+            self.secondaryValue = secondaryValue
+        }
+    }
+
+    public let title: String?
+    public let rows: [Row]
+
+    public init(title: String?, rows: [Row]) {
+        self.title = title
+        self.rows = rows
+    }
+}
+
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let providerID: String
@@ -1124,6 +1147,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// Optional so older Mac payloads and existing persisted snapshots decode unchanged.
     public let hyperBalance: SyncHyperBalance?
 
+    /// Display-only rows for Atlas Cloud, Vercel AI Gateway, and llmman.
+    /// Optional to preserve decoding of older Mac payloads and stored snapshots.
+    public let providerDetails: [SyncProviderDetailSection]?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty {
@@ -1182,7 +1209,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
         deepSeekUsage: SyncDeepSeekUsage? = nil,
         crossModelUsage: SyncCrossModelUsage? = nil,
-        hyperBalance: SyncHyperBalance? = nil)
+        hyperBalance: SyncHyperBalance? = nil,
+        providerDetails: [SyncProviderDetailSection]? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -1224,6 +1252,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepSeekUsage = deepSeekUsage
         self.crossModelUsage = crossModelUsage
         self.hyperBalance = hyperBalance
+        self.providerDetails = providerDetails
     }
 
     /// Backward-compatible decoder: old payloads without
@@ -1288,6 +1317,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
         self.crossModelUsage = try container.decodeIfPresent(SyncCrossModelUsage.self, forKey: .crossModelUsage)
         self.hyperBalance = try container.decodeIfPresent(SyncHyperBalance.self, forKey: .hyperBalance)
+        self.providerDetails = try container.decodeIfPresent([SyncProviderDetailSection].self, forKey: .providerDetails)
     }
 }
 

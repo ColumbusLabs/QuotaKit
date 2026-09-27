@@ -91,6 +91,8 @@ final class ProviderSnapshotModel {
     /// JSON-encoded `SyncHyperBalance` — opaque blob, decoded on read.
     /// Optional to keep existing local stores lightweight-migratable.
     var hyperBalanceData: Data?
+    /// JSON-encoded display-only detail rows for providers without quota windows.
+    var providerDetailsData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \UtilizationEntryModel.provider)
     var utilizationEntries: [UtilizationEntryModel] = []
@@ -113,6 +115,7 @@ final class ProviderSnapshotModel {
         codexResetCreditsData: Data? = nil,
         crossModelUsageData: Data? = nil,
         hyperBalanceData: Data? = nil,
+        providerDetailsData: Data? = nil,
         device: DeviceRecord? = nil)
     {
         self.compositeKey = Self.makeCompositeKey(
@@ -134,6 +137,7 @@ final class ProviderSnapshotModel {
         self.codexResetCreditsData = codexResetCreditsData
         self.crossModelUsageData = crossModelUsageData
         self.hyperBalanceData = hyperBalanceData
+        self.providerDetailsData = providerDetailsData
         self.device = device
     }
 

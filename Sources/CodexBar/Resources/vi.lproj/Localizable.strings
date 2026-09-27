@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Chi phí";
+"Token history" = "Lịch sử token";
+"Local token history · dollar costs unavailable" = "Lịch sử token cục bộ · chưa có chi phí bằng đô la";
+"Partial local history · recorded token subtotal" = "Lịch sử cục bộ một phần · tổng phụ token đã ghi nhận";
+"Local token history is unavailable or incomplete." = "Lịch sử token cục bộ không có hoặc chưa đầy đủ.";
 "Could not add Codex account" = "Không thể thêm tài khoản Codex";
 "Could not open Terminal for Gemini" = "Không thể mở Terminal cho Gemini";
 "Could not start claude /login" = "Không thể bắt đầu claude /đăng nhập";
@@ -1155,6 +1159,9 @@
 "Open MiMo Balance" = "Mở MiMo Balance";
 "Open Moonshot Console" = "Mở Bảng điều khiển Moonshot";
 "Open Ollama API Keys" = "Mở Ollama API Phím";
+"Open llmman" = "Mở llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Được lưu trong ~/.quotakit/config.json. Chỉ cần khi llmman serve yêu cầu khóa API.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Địa chỉ của llmman serve. Mặc định là http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Mở Nền tảng StepFun";
 "Open T3 Chat Settings" = "Mở Trò chuyện T3 Cài đặt";
 "Open Volcengine Ark Console" = "Mở Bảng điều khiển Volcengine Ark";

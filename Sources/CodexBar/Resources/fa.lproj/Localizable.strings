@@ -133,6 +133,10 @@
 "Cookie: …" = "کوکی: ...";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "هزینه";
+"Token history" = "تاریخچهٔ توکن‌ها";
+"Local token history · dollar costs unavailable" = "تاریخچهٔ محلی توکن‌ها · هزینه‌های دلاری در دسترس نیست";
+"Partial local history · recorded token subtotal" = "تاریخچهٔ محلی ناقص · جمع جزئی توکن‌های ثبت‌شده";
+"Local token history is unavailable or incomplete." = "تاریخچهٔ محلی توکن‌ها در دسترس نیست یا ناقص است.";
 "Could not add Codex account" = "نتوانستم حساب Codex اضافه کنم";
 "Could not open Terminal for Gemini" = "نتوانستم ترمینال را برای Gemini باز کنم";
 "Could not start claude /login" = "نتوانستم کلود را شروع /login";
@@ -1176,6 +1180,9 @@
 "Open MiMo Balance" = "تعادل باز MiMo";
 "Open Moonshot Console" = "کنسول Moonshot باز";
 "Open Ollama API Keys" = "کلیدهای باز Ollama API";
+"Open llmman" = "باز کردن llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "در ~/.quotakit/config.json ذخیره می‌شود. فقط زمانی لازم است که llmman serve به کلید API نیاز داشته باشد.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "نشانی llmman serve. پیش‌فرض: http://127.0.0.1:17434.";
 "Open StepFun Platform" = "پلتفرم StepFun باز";
 "Open T3 Chat Settings" = "تنظیمات باز T3 Chat";
 "Open Volcengine Ark Console" = "کنسول Open Volcengine Ark";

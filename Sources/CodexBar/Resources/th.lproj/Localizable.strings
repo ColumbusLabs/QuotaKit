@@ -133,6 +133,10 @@
 "Cookie: …" = "คุกกี้: ...";
 "CopilotDeviceFlow" = "โคไพลอตอุปกรณ์โฟลว์";
 "Cost" = "ราคา";
+"Token history" = "ประวัติโทเคน";
+"Local token history · dollar costs unavailable" = "ประวัติโทเคนในเครื่อง · ไม่มีข้อมูลค่าใช้จ่ายเป็นดอลลาร์";
+"Partial local history · recorded token subtotal" = "ประวัติในเครื่องบางส่วน · ยอดรวมย่อยของโทเคนที่บันทึก";
+"Local token history is unavailable or incomplete." = "ประวัติโทเคนในเครื่องไม่พร้อมใช้งานหรือไม่ครบถ้วน";
 "Could not add Codex account" = "ไม่สามารถเพิ่มบัญชี Codex ได้";
 "Could not open Terminal for Gemini" = "ไม่สามารถเปิดเทอร์มินัลสําหรับ Gemini";
 "Could not start claude /login" = "ไม่สามารถเริ่ม claude /login";
@@ -1176,6 +1180,9 @@
 "Open MiMo Balance" = "เปิดยอดคงเหลือ MiMo";
 "Open Moonshot Console" = "เปิดคอนโซล Moonshot";
 "Open Ollama API Keys" = "เปิดปุ่ม Ollama API";
+"Open llmman" = "เปิด llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "จัดเก็บใน ~/.quotakit/config.json จำเป็นเฉพาะเมื่อ llmman serve ต้องใช้คีย์ API";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "ที่อยู่ของ llmman serve ค่าเริ่มต้นคือ http://127.0.0.1:17434";
 "Open StepFun Platform" = "เปิดแพลตฟอร์ม StepFun";
 "Open T3 Chat Settings" = "เปิดการตั้งค่า T3 Chat";
 "Open Volcengine Ark Console" = "เปิดคอนโซล Volcengine Ark";

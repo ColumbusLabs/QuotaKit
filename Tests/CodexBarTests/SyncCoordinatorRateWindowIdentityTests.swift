@@ -1,8 +1,8 @@
-import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 extension SyncCoordinatorTests {
     private func makeRateWindowIdentitySettingsStore(suite: String) -> SettingsStore {
@@ -150,7 +150,23 @@ extension SyncCoordinatorTests {
     }
 
     @Test
-    func `qwen cloud legacy monthly window syncs as 30 day`() async throws {
+    func `alibaba monthly-only Personal usage syncs as Monthly`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = try AlibabaTokenPlanPersonalUsageParser.parse(
+            from: Data(#"{"per1MonthPercentage":0.25}"#.utf8),
+            subscriptionData: nil,
+            quotaConfigData: nil,
+            now: now).toUsageSnapshot()
+        let provider = try await self.syncedProvider(
+            .alibabatokenplan,
+            snapshot: snapshot,
+            suite: "SyncCoord-alibaba-personal-monthly")
+
+        #expect(provider.rateWindows.map(\.label) == ["Monthly"])
+    }
+
+    @Test
+    func `qwen cloud monthly window syncs as Monthly`() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let provider = try await self.syncedProvider(
             .qwencloud,
@@ -164,7 +180,7 @@ extension SyncCoordinatorTests {
                 updatedAt: now),
             suite: "SyncCoord-qwen-legacy-window-label")
 
-        #expect(provider.rateWindows.map(\.label) == ["30-day"])
+        #expect(provider.rateWindows.map(\.label) == ["Monthly"])
     }
 
     @Test

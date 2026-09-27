@@ -6,7 +6,7 @@
     <title>QuotaKit — every AI coding limit in your menu bar</title>
     <meta
       name="description"
-      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 67 providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, LiteLLM, and more."
+      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 87 providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, LiteLLM, Helmcode, v0, TypeSafe, and more."
     />
     <meta name="theme-color" content="#0a0a0c" />
     <link rel="canonical" href="https://columbus-labs.com/quotakit/mac" />
@@ -14,7 +14,7 @@
     <meta property="og:title" content="QuotaKit" />
     <meta
       property="og:description"
-      content="Track usage windows, credits, and resets across 67 AI coding providers from your macOS menu bar."
+      content="Track usage windows, credits, and resets across 87 AI coding providers from your macOS menu bar."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://columbus-labs.com/quotakit/mac" />
@@ -85,129 +85,270 @@
 
       <section class="providers" aria-labelledby="providers-h">
         <header class="section-head">
-          <h2 id="providers-h" data-i18n="providers.title">67 providers, one menu bar</h2>
-          <p data-i18n="providers.description">Popular providers become status items with their own usage windows, reset countdowns, charts, and provider menus.</p>
+          <h2 id="providers-h" data-i18n="providers.title">87 providers, one menu bar</h2>
+          <p data-i18n="providers.description">Track usage windows, balances, and spend wherever each provider makes them available.</p>
         </header>
         <ul class="grid">
-        <li><a class="provider" style="--brand:#49A3B0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codex.md">
+        <li data-provider="codex"><a class="provider" style="--brand:#49A3B0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codex.md">
           <img class="chip-logo no-bg" src="./logos/codex.svg" data-dark-src="./logos/codex-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codex</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#CC7C5E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/claude.md">
-          <img class="chip-logo" src="./logos/claude.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Claude</span><span class="auth">OAuth</span></span>
+        <li data-provider="openai"><a class="provider" style="--brand:#0F826E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/openai.md">
+          <img class="chip-logo no-bg" src="./logos/codex.svg" data-dark-src="./logos/codex-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenAI</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#1A1A1A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/cursor.md">
-          <img class="chip-logo" src="./logos/cursor.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Cursor</span><span class="auth">Cookies</span></span>
+        <li data-provider="azureopenai"><a class="provider" style="--brand:#0078D4" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/azure-openai.md">
+          <img class="chip-logo no-bg" src="./logos/codex.svg" data-dark-src="./logos/codex-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Azure OpenAI</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#3B82F6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/opencode.md">
-          <img class="chip-logo preserve-color" src="./logos/opencode.svg" data-dark-src="./logos/opencode-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenCode</span><span class="auth">Cookies + Go</span></span>
+        <li data-provider="claude"><a class="provider" style="--brand:#CC7C5E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/claude.md">
+          <img class="chip-logo monochrome" src="./logos/claude.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Claude</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF6A00" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/alibaba-coding-plan.md">
-          <img class="chip-logo" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba</span><span class="auth">Cookies</span></span>
+        <li data-provider="clinepass"><a class="provider" style="--brand:#61A3FA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/clinepass.md">
+          <img class="chip-logo monochrome" src="./logos/clinepass.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ClinePass</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF6A00" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/alibaba-token-plan.md">
-          <img class="chip-logo" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba Token</span><span class="auth">Cookies</span></span>
+        <li data-provider="cursor"><a class="provider" style="--brand:#1A1A1A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/cursor.md">
+          <img class="chip-logo monochrome" src="./logos/cursor.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Cursor</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#AB87EA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/gemini.md">
-          <img class="chip-logo" src="./logos/gemini.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Gemini</span><span class="auth">OAuth</span></span>
+        <li data-provider="opencode"><a class="provider" style="--brand:#3B82F6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/opencode.md">
+          <img class="chip-logo preserve-color" src="./logos/opencode.svg" data-dark-src="./logos/opencode-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenCode</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#60BA7E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/antigravity.md">
-          <img class="chip-logo" src="./logos/antigravity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Antigravity</span><span class="auth">Local</span></span>
+        <li data-provider="opencodego"><a class="provider" style="--brand:#3B82F6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/opencodego.md">
+          <img class="chip-logo monochrome" src="./logos/opencodego.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenCode Go</span><span class="auth">API key + Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF6B35" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/factory.md">
+        <li data-provider="alibaba"><a class="provider" style="--brand:#FF6A00" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/alibaba-coding-plan.md">
+          <img class="chip-logo monochrome" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="alibabatokenplan"><a class="provider" style="--brand:#FF6A00" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/alibaba-token-plan.md">
+          <img class="chip-logo monochrome" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba Token</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="qwencloud"><a class="provider" style="--brand:#615CED" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/qwen-cloud.md">
+          <img class="chip-logo monochrome" src="./logos/qwencloud.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Qwen Cloud</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="factory"><a class="provider" style="--brand:#FF6B35" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/factory.md">
           <img class="chip-logo no-bg" src="./logos/droid.svg" data-dark-src="./logos/droid-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Droid</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#A855F7" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/copilot.md">
-          <img class="chip-logo" src="./logos/copilot.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Copilot</span><span class="auth">Device flow</span></span>
+        <li data-provider="fireworks"><a class="provider" style="--brand:#F25B1C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/fireworks.md">
+          <img class="chip-logo monochrome" src="./logos/fireworks.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Fireworks</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#0F172A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/devin.md">
-          <img class="chip-logo" src="./logos/devin.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Devin</span><span class="auth">Bearer / Local</span></span>
+        <li data-provider="gemini"><a class="provider" style="--brand:#AB87EA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/gemini.md">
+          <img class="chip-logo monochrome" src="./logos/gemini.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Gemini</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#E85A6A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zai.md">
+        <li data-provider="antigravity"><a class="provider" style="--brand:#60BA7E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/antigravity.md">
+          <img class="chip-logo monochrome" src="./logos/antigravity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Antigravity</span><span class="auth">Local</span></span>
+        </a></li>
+        <li data-provider="copilot"><a class="provider" style="--brand:#A855F7" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/copilot.md">
+          <img class="chip-logo monochrome" src="./logos/copilot.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Copilot</span><span class="auth">Device flow</span></span>
+        </a></li>
+        <li data-provider="devin"><a class="provider" style="--brand:#0F172A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/devin.md">
+          <img class="chip-logo monochrome" src="./logos/devin.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Devin</span><span class="auth">Bearer / Local</span></span>
+        </a></li>
+        <li data-provider="devpass"><a class="provider" style="--brand:#2C7BE5" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/devpass.md">
+          <img class="chip-logo monochrome" src="./logos/devpass.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DevPass</span><span class="auth">CLI</span></span>
+        </a></li>
+        <li data-provider="zai"><a class="provider" style="--brand:#E85A6A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zai.md">
           <img class="chip-logo no-bg" src="./logos/zai.svg" data-dark-src="./logos/zai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">z.ai</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FE6060" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/minimax.md">
-          <img class="chip-logo" src="./logos/minimax.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">MiniMax</span><span class="auth">API key</span></span>
+        <li data-provider="minimax"><a class="provider" style="--brand:#FE6060" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/minimax.md">
+          <img class="chip-logo monochrome" src="./logos/minimax.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">MiniMax</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FE603C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi.md">
-          <img class="chip-logo" src="./logos/kimi.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi</span><span class="auth">Token</span></span>
+        <li data-provider="manus"><a class="provider" style="--brand:#34322D" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/manus.md">
+          <img class="chip-logo monochrome" src="./logos/manus.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Manus</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#4C00FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi-k2.md">
-          <img class="chip-logo" src="./logos/kimi-k2.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi K2</span><span class="auth">Legacy API</span></span>
+        <li data-provider="kimi"><a class="provider" style="--brand:#FE603C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi.md">
+          <img class="chip-logo monochrome" src="./logos/kimi.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi</span><span class="auth">Token</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#f8f676" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kilo.md">
+        <li data-provider="kilo"><a class="provider" style="--brand:#f8f676" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kilo.md">
           <img class="chip-logo no-bg" src="./logos/kilo.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kilo</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF9900;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kiro.md">
+        <li data-provider="kiro"><a class="provider" style="--brand:#FF9900" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kiro.md">
           <img class="chip-logo no-bg" src="./logos/kiro.svg" data-dark-src="./logos/kiro-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kiro</span><span class="auth">CLI</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#4285F4" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/vertexai.md">
-          <img class="chip-logo" src="./logos/vertex-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Vertex AI</span><span class="auth">gcloud</span></span>
+        <li data-provider="vertexai"><a class="provider" style="--brand:#4285F4" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/vertexai.md">
+          <img class="chip-logo monochrome" src="./logos/vertex-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Vertex AI</span><span class="auth">gcloud</span></span>
         </a></li>
-        <li><a class="provider logo-dark" style="--brand:#6366F1" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/augment.md">
-          <img class="chip-logo" src="./logos/augment.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Augment</span><span class="auth">CLI</span></span>
+        <li data-provider="augment"><a class="provider logo-dark" style="--brand:#6366F1" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/augment.md">
+          <img class="chip-logo monochrome" src="./logos/augment.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Augment</span><span class="auth">CLI</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#DC2626" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/amp.md">
-          <img class="chip-logo" src="./logos/amp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Amp</span><span class="auth">Cookies</span></span>
+        <li data-provider="jetbrains"><a class="provider" style="--brand:#FF3399" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/jetbrains.md">
+          <img class="chip-logo monochrome" src="./logos/jetbrains-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">JetBrains AI</span><span class="auth">Local</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#888888" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/ollama.md">
-          <img class="chip-logo" src="./logos/ollama.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Ollama</span><span class="auth">API key + Cookies</span></span>
+        <li data-provider="moonshot"><a class="provider" style="--brand:#205DEB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/moonshot.md">
+          <img class="chip-logo monochrome" src="./logos/kimi.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Moonshot</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#141414" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/synthetic.md">
+        <li data-provider="amp"><a class="provider" style="--brand:#DC2626" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/amp.md">
+          <img class="chip-logo monochrome" src="./logos/amp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Amp</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="t3chat"><a class="provider" style="--brand:#2563EB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/t3chat.md">
+          <img class="chip-logo monochrome" src="./logos/t3chat.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">T3 Chat</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="ollama"><a class="provider" style="--brand:#888888" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/ollama.md">
+          <img class="chip-logo monochrome" src="./logos/ollama.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Ollama</span><span class="auth">API key + Cookies</span></span>
+        </a></li>
+        <li data-provider="synthetic"><a class="provider" style="--brand:#141414" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/synthetic.md">
           <img class="chip-logo" src="./logos/synthetic.svg" data-dark-src="./logos/synthetic-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Synthetic</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF3399" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/jetbrains.md">
-          <img class="chip-logo" src="./logos/jetbrains-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">JetBrains AI</span><span class="auth">Local</span></span>
+        <li data-provider="openrouter"><a class="provider" style="--brand:#6467F2" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/openrouter.md">
+          <img class="chip-logo monochrome" src="./logos/openrouter.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenRouter</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#7B68EE" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/warp.md">
-          <img class="chip-logo" src="./logos/warp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Warp</span><span class="auth">API key</span></span>
+        <li data-provider="elevenlabs"><a class="provider" style="--brand:#EAEAE6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/elevenlabs.md">
+          <img class="chip-logo monochrome" src="./logos/elevenlabs.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ElevenLabs</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#EAEAE6;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/elevenlabs.md">
-          <img class="chip-logo" src="./logos/elevenlabs.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ElevenLabs</span><span class="auth">API key</span></span>
+        <li data-provider="warp"><a class="provider" style="--brand:#7B68EE" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/warp.md">
+          <img class="chip-logo monochrome" src="./logos/warp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Warp</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#6467F2" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/openrouter.md">
-          <img class="chip-logo" src="./logos/openrouter.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenRouter</span><span class="auth">API key</span></span>
+        <li data-provider="windsurf"><a class="provider" style="--brand:#34E8BB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/windsurf.md">
+          <img class="chip-logo monochrome" src="./logos/windsurf.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Windsurf</span><span class="auth">Token</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#4C89C0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/litellm.md">
-          <img class="chip-logo" src="./logos/litellm.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">LiteLLM</span><span class="auth">Virtual key</span></span>
+        <li data-provider="zed"><a class="provider" style="--brand:#084EFF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zed.md">
+          <img class="chip-logo monochrome" src="./logos/zed.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Zed</span><span class="auth">Local</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#20B2AA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/perplexity.md">
-          <img class="chip-logo" src="./logos/perplexity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Perplexity</span><span class="auth">Cookies</span></span>
+        <li data-provider="perplexity"><a class="provider" style="--brand:#20B2AA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/perplexity.md">
+          <img class="chip-logo monochrome" src="./logos/perplexity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Perplexity</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#38BDF8" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/abacus.md">
+        <li data-provider="mimo"><a class="provider" style="--brand:#FF6900" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/mimo.md">
+          <img class="chip-logo monochrome" src="./logos/mimo.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Xiaomi MiMo</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="doubao"><a class="provider" style="--brand:#3370FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/doubao.md">
+          <img class="chip-logo monochrome" src="./logos/doubao.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Doubao</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="sakana"><a class="provider" style="--brand:#2975DB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/sakana.md">
+          <img class="chip-logo monochrome" src="./logos/sakana.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Sakana AI</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="abacus"><a class="provider" style="--brand:#38BDF8" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/abacus.md">
           <img class="chip-logo no-bg" src="./logos/abacus-ai.png" data-dark-src="./logos/abacus-ai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Abacus AI</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF500F" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/mistral.md">
-          <img class="chip-logo" src="./logos/mistral.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Mistral</span><span class="auth">Cookies</span></span>
+        <li data-provider="mistral"><a class="provider" style="--brand:#FF500F" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/mistral.md">
+          <img class="chip-logo monochrome" src="./logos/mistral.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Mistral</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#527DF0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepseek.md">
-          <img class="chip-logo" src="./logos/deepseek.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepSeek</span><span class="auth">API key</span></span>
+        <li data-provider="deepseek"><a class="provider" style="--brand:#527DF0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepseek.md">
+          <img class="chip-logo monochrome" src="./logos/deepseek.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepSeek</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#2A3275" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepinfra.md">
-          <img class="chip-logo" src="./logos/deepinfra.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepInfra</span><span class="auth">API key</span></span>
+        <li data-provider="deepinfra"><a class="provider" style="--brand:#2A3275" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepinfra.md">
+          <img class="chip-logo monochrome" src="./logos/deepinfra.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepInfra</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#E25C2B" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/aiand.md">
-          <img class="chip-logo" src="./logos/aiand.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ai&amp;</span><span class="auth">API key</span></span>
-        </a></li>
-        <li><a class="provider" style="--brand:#FFFFFF;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/xai.md">
-          <img class="chip-logo" src="./logos/xai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">xAI</span><span class="auth">Management key</span></span>
-        </a></li>
-        <li><a class="provider" style="--brand:#2563EB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/providers.md#t3-chat">
-          <img class="chip-logo" src="./logos/t3chat.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">T3 Chat</span><span class="auth">Cookies</span></span>
-        </a></li>
-        <li><a class="provider" style="--brand:#44C800;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codebuff.md">
+        <li data-provider="codebuff"><a class="provider" style="--brand:#44C800" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codebuff.md">
           <img class="chip-logo no-bg" src="./logos/codebuff.png" data-dark-src="./logos/codebuff-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codebuff</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#26AD61" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/poe.md">
-          <img class="chip-logo" src="./logos/poe.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Poe</span><span class="auth">API key</span></span>
+        <li data-provider="crof"><a class="provider" style="--brand:#1833B0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/crof.md">
+          <img class="chip-logo monochrome" src="./logos/crof.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Crof</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#3184FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/chutes.md">
-          <img class="chip-logo" src="./logos/chutes.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Chutes</span><span class="auth">API key</span></span>
+        <li data-provider="venice"><a class="provider" style="--brand:#3399FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/venice.md">
+          <img class="chip-logo monochrome" src="./logos/venice.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Venice</span><span class="auth">API key + Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#10B981" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/qoder.md">
+        <li data-provider="commandcode"><a class="provider" style="--brand:#A04DFD" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/command-code.md">
+          <img class="chip-logo monochrome" src="./logos/commandcode.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Command Code</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="qoder"><a class="provider" style="--brand:#10B981" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/qoder.md">
           <img class="chip-logo no-bg" src="./logos/qoder.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Qoder</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#084EFF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zed.md">
-          <img class="chip-logo" src="./logos/zed.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Zed</span><span class="auth">Local</span></span>
+        <li data-provider="stepfun"><a class="provider" style="--brand:#2196F2" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/stepfun.md">
+          <img class="chip-logo monochrome" src="./logos/stepfun.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">StepFun</span><span class="auth">Token</span></span>
+        </a></li>
+        <li data-provider="bedrock"><a class="provider" style="--brand:#FF9900" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/bedrock.md">
+          <img class="chip-logo monochrome" src="./logos/bedrock.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">AWS Bedrock</span><span class="auth">AWS credentials</span></span>
+        </a></li>
+        <li data-provider="grok"><a class="provider" style="--brand:#10A37F" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/grok.md">
+          <img class="chip-logo monochrome" src="./logos/grok.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Grok</span><span class="auth">CLI</span></span>
+        </a></li>
+        <li data-provider="groq"><a class="provider" style="--brand:#F56844" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/groq.md">
+          <img class="chip-logo monochrome" src="./logos/groq.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Groq</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="llmproxy"><a class="provider" style="--brand:#24B47E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/llm-proxy.md">
+          <img class="chip-logo monochrome" src="./logos/llmproxy.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">LLM Proxy</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="litellm"><a class="provider" style="--brand:#4C89F0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/litellm.md">
+          <img class="chip-logo monochrome" src="./logos/litellm.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">LiteLLM</span><span class="auth">Virtual key</span></span>
+        </a></li>
+        <li data-provider="bifrost"><a class="provider" style="--brand:#6A5AE0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/bifrost.md">
+          <img class="chip-logo monochrome" src="./logos/bifrost.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Bifrost</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="deepgram"><a class="provider" style="--brand:#6467F2" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepgram.md">
+          <img class="chip-logo monochrome" src="./logos/deepgram.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Deepgram</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="poe"><a class="provider" style="--brand:#5D5CDE" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/poe.md">
+          <img class="chip-logo monochrome" src="./logos/poe.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Poe</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="chutes"><a class="provider" style="--brand:#3184FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/chutes.md">
+          <img class="chip-logo monochrome" src="./logos/chutes.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Chutes</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="neuralwatt"><a class="provider" style="--brand:#38D98C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/neuralwatt.md">
+          <img class="chip-logo monochrome" src="./logos/neuralwatt.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Neuralwatt</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="clawrouter"><a class="provider" style="--brand:#596EF6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/clawrouter.md">
+          <img class="chip-logo monochrome" src="./logos/clawrouter.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ClawRouter</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="longcat"><a class="provider" style="--brand:#FFD100" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/longcat.md">
+          <img class="chip-logo monochrome" src="./logos/longcat.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">LongCat</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="sub2api"><a class="provider" style="--brand:#2DC6D8" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/sub2api.md">
+          <img class="chip-logo monochrome" src="./logos/sub2api.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">sub2api</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="wayfinder"><a class="provider" style="--brand:#10A37F" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/wayfinder.md">
+          <img class="chip-logo monochrome" src="./logos/wayfinder.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Wayfinder</span><span class="auth">Local</span></span>
+        </a></li>
+        <li data-provider="zenmux"><a class="provider" style="--brand:#6C5CE7" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zenmux.md">
+          <img class="chip-logo monochrome" src="./logos/zenmux.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ZenMux</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="aiand"><a class="provider" style="--brand:#E25C2B" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/aiand.md">
+          <img class="chip-logo monochrome" src="./logos/aiand.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ai&amp;</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="zoommate"><a class="provider" style="--brand:#0B5CFF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zoommate.md">
+          <img class="chip-logo monochrome" src="./logos/zoommate.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ZoomMate</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="xai"><a class="provider" style="--brand:#8E8E93" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/xai.md">
+          <img class="chip-logo monochrome" src="./logos/xai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">xAI</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="notion"><a class="provider" style="--brand:#337EA9" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/notion.md">
+          <img class="chip-logo monochrome" src="./logos/notion.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Notion AI</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="ibmbob"><a class="provider" style="--brand:#0E61FA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/ibm-bob.md">
+          <img class="chip-logo monochrome" src="./logos/ibmbob.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">IBM Bob</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="gitkraken"><a class="provider" style="--brand:#3A73E8" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/gitkraken.md">
+          <img class="chip-logo monochrome" src="./logos/gitkraken.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">GitKraken AI</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="v0"><a class="provider" style="--brand:#111111" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/v0.md">
+          <img class="chip-logo monochrome" src="./logos/v0.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">v0</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="coderabbit"><a class="provider" style="--brand:#FF5C35" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/coderabbit.md">
+          <img class="chip-logo monochrome" src="./logos/coderabbit.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">CodeRabbit</span><span class="auth">CLI</span></span>
+        </a></li>
+        <li data-provider="huggingface"><a class="provider" style="--brand:#FFD21E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/huggingface.md">
+          <img class="chip-logo monochrome" src="./logos/huggingface.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Hugging Face</span><span class="auth">Token</span></span>
+        </a></li>
+        <li data-provider="replicate"><a class="provider" style="--brand:#000000" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/replicate.md">
+          <img class="chip-logo monochrome" src="./logos/replicate.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Replicate</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="hyper"><a class="provider" style="--brand:#7C3AED" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/hyper.md">
+          <img class="chip-logo monochrome" src="./logos/hyper.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Hyper</span><span class="auth">Local</span></span>
+        </a></li>
+        <li data-provider="aixy"><a class="provider" style="--brand:#123650" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/aixy.md">
+          <img class="chip-logo monochrome" src="./logos/aixy.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Aixy</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="xkiro"><a class="provider" style="--brand:#52C99B" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/xkiro.md">
+          <img class="chip-logo monochrome" src="./logos/xkiro.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">xKiro</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="raycast"><a class="provider" style="--brand:#FF6363" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/raycast.md">
+          <img class="chip-logo monochrome" src="./logos/raycast.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Raycast</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="helmcode"><a class="provider" style="--brand:#4934E1" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/helmcode.md">
+          <img class="chip-logo monochrome" src="./logos/helmcode.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Helmcode</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="typesafe"><a class="provider" style="--brand:#111111" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/typesafe.md">
+          <img class="chip-logo monochrome" src="./logos/typesafe.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">TypeSafe</span><span class="auth">Cookies</span></span>
+        </a></li>
+        <li data-provider="atlascloud"><a class="provider" style="--brand:#486BFF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/atlascloud.md">
+          <img class="chip-logo monochrome" src="./logos/atlascloud.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Atlas Cloud</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="vercel"><a class="provider" style="--brand:#111111" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/vercel.md">
+          <img class="chip-logo monochrome" src="./logos/vercel.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Vercel AI Gateway</span><span class="auth">API key</span></span>
+        </a></li>
+        <li data-provider="llmman"><a class="provider" style="--brand:#8D69DB" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/llmman.md">
+          <img class="chip-logo monochrome" src="./logos/llmman.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">llmman</span><span class="auth">Local</span></span>
+        </a></li>
+        <li data-provider="nous"><a class="provider" style="--brand:#D6A55C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/nous.md">
+          <img class="chip-logo monochrome" src="./logos/nous.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Nous Portal</span><span class="auth">Token</span></span>
+        </a></li>
+        <li data-provider="muse"><a class="provider" style="--brand:#0668E1" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/muse.md">
+          <img class="chip-logo monochrome" src="./logos/muse.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Muse Code</span><span class="auth">CLI</span></span>
         </a></li>
         <li><a class="provider add" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/provider.md">
           <span class="chip">+</span><span class="meta"><span class="name">Your provider</span><span class="auth">Authoring guide</span></span>

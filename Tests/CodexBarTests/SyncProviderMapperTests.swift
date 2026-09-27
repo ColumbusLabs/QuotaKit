@@ -1,12 +1,13 @@
-// swiftlint:disable multiline_arguments
-//
-// Scoped to this file: the native-usage fixtures pack several trailing
-// values per line so each model breakdown reads as one row. Re-enabled at EOF.
-import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+
+// swiftlint:disable multiline_arguments
+//
+// Scoped to this file: the native-usage fixtures pack several trailing
+// values per line so each model breakdown reads as one row. Re-enabled at EOF.
+@testable import CodexBarCore
 
 /// Unit tests for the provider→envelope mappers added for the iOS 1.9.0 /
 /// Mac 0.29.0 parity gap-fills (C / D / E / G). Each mapper is provider-gated
@@ -188,6 +189,17 @@ struct SyncProviderMapperTests {
     func `mapAlibabaTokenPlan: nil when alibaba usage is absent`() {
         #expect(SyncCoordinator.mapAlibabaTokenPlan(
             provider: .alibabatokenplan, snapshot: self.snapshot()) == nil)
+    }
+
+    @Test
+    func `mapAlibabaTokenPlan: monthly-only Personal usage keeps the generic window without an empty card`() throws {
+        let personal = try AlibabaTokenPlanPersonalUsageParser.parse(
+            from: Data(#"{"per1MonthPercentage":0.25}"#.utf8),
+            subscriptionData: nil,
+            quotaConfigData: nil,
+            now: Self.now).toUsageSnapshot()
+        #expect(personal.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(SyncCoordinator.mapAlibabaTokenPlan(provider: .alibabatokenplan, snapshot: personal) == nil)
     }
 
     @Test

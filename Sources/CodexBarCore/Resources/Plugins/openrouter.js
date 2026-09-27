@@ -44,7 +44,7 @@ defineProvider({
     let creditsStatus = null;
     let keyStatus = null;
     const managementKeyConfigured = Boolean(ctx.settings.getSecret("OPENROUTER_MANAGEMENT_API_KEY"));
-    const injectedOptionalTimeout = ctx.__codexbarOptionalRequestTimeoutSeconds;
+    const injectedOptionalTimeout = ctx.__quotaKitOptionalRequestTimeoutSeconds;
     const optionalRequestTimeoutSeconds =
       typeof injectedOptionalTimeout === "number" && Number.isFinite(injectedOptionalTimeout)
         ? injectedOptionalTimeout

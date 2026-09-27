@@ -650,6 +650,7 @@ public struct CursorStatusSnapshot: Sendable {
 public enum CursorStatusProbeError: LocalizedError, Sendable {
     case notLoggedIn
     case networkError(String)
+    case costRequestForbidden
     case parseFailed(String)
     case noSessionCookie
 
@@ -667,6 +668,8 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
             #endif
         case let .networkError(msg):
             "Cursor API error: \(msg)"
+        case .costRequestForbidden:
+            "Cursor API error: HTTP 403"
         case let .parseFailed(msg):
             "Could not parse Cursor usage: \(msg)"
         case .noSessionCookie:

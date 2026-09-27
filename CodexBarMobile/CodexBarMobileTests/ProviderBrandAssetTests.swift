@@ -26,7 +26,15 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "GitKraken AI") == "ProviderIcon-gitkraken")
         #expect(ProviderBrandAsset.assetName(for: "v0") == "ProviderIcon-v0")
         #expect(ProviderBrandAsset.assetName(for: "huggingface") == "ProviderIcon-huggingface")
+        #expect(ProviderBrandAsset.assetName(for: "bifrost") == "ProviderIcon-bifrost")
+        #expect(ProviderBrandAsset.assetName(for: "devpass") == "ProviderIcon-devpass")
         #expect(ProviderBrandAsset.assetName(for: "hyper") == "ProviderIcon-hyper")
+        #expect(ProviderBrandAsset.assetName(for: "aixy") == "ProviderIcon-aixy")
+        #expect(ProviderBrandAsset.assetName(for: "xkiro") == "ProviderIcon-xkiro")
+        #expect(ProviderBrandAsset.assetName(for: "raycast") == "ProviderIcon-raycast")
+        #expect(ProviderBrandAsset.assetName(for: "atlascloud") == "ProviderIcon-atlascloud")
+        #expect(ProviderBrandAsset.assetName(for: "vercel") == "ProviderIcon-vercel")
+        #expect(ProviderBrandAsset.assetName(for: "llmman") == "ProviderIcon-llmman")
     }
 
     @Test

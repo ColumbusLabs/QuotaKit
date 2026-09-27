@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct UsageStoreWidgetSnapshotTests {
@@ -1052,6 +1052,43 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
         #expect(entry.usageRows?.map(\.title) == ["Total", "Auto", "API"])
+    }
+
+    @Test(arguments: [false, true])
+    func `monthly-only Token Plan widget row uses Monthly`(qwen: Bool) async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-token-plan-monthly-\(qwen)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let payload = Data(#"{"per1MonthPercentage":0.25}"#.utf8)
+        let provider: UsageProvider = qwen ? .qwencloud : .alibabatokenplan
+        let snapshot = try qwen
+            ? QwenCloudUsageParser.parseUsageSnapshot(from: payload, now: now).toUsageSnapshot()
+            : AlibabaTokenPlanPersonalUsageParser.parse(
+                from: payload,
+                subscriptionData: nil,
+                quotaConfigData: nil,
+                now: now).toUsageSnapshot()
+        store._setSnapshotForTesting(snapshot, provider: provider)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+        store.persistWidgetSnapshot(reason: "token-plan-monthly-label-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == provider.instanceID })
+        #expect(entry.usageRows?.map(\.title) == ["Monthly"])
     }
 }
 

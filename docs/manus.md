@@ -29,7 +29,7 @@ The Manus provider tracks credit usage on [manus.im](https://manus.im) via brows
 
 1. In **Settings → Providers → Manus**, set Cookie source to **Manual**
 2. Open your browser DevTools on `manus.im`, copy the `Cookie:` header from any API request (must contain `session_id=...`)
-3. Paste the header into the cookie field in CodexBar
+3. Paste the header into the cookie field in QuotaKit
 
 ### Environment variables (CLI / headless)
 
@@ -44,13 +44,15 @@ A single API endpoint is fetched with a bearer token derived from the `session_i
 
 - `POST https://api.manus.im/user.v1.UserService/GetAvailableCredits` — returns credit fields including `totalCredits`, `freeCredits`, `periodicCredits`, `proMonthlyCredits`, `refreshCredits`, `maxRefreshCredits`, `nextRefreshTime`, and `refreshInterval`.
 
-Cookie domain: `manus.im`. Valid `session_id` cookies are cached in Keychain and reused until the session expires.
+Cookie domain: `manus.im`. The shared cookie broker reuses cached sessions, then visits browser profiles in order.
+Rejected sessions advance to the next candidate in the same refresh, followed by the environment token. Manual
+mode uses only the supplied cookie or bare token; Off disables all sources, including the environment fallback.
 
-The response parser tolerates both a direct object and common envelope shapes (`data` / `result` / `response` / `availableCredits`). Payloads missing all expected credit fields are rejected as a parse error rather than surfacing a misleading zero-credit snapshot.
+The bundled plugin runs on QuickJS and JavaScriptCore and tolerates both a direct object and common envelope shapes (`data` / `result` / `response` / `availableCredits`). The selected credits object must contain at least one credit field; empty, error-only, and timing-only objects are rejected rather than surfacing a misleading zero-credit snapshot. Sparse responses and explicit zero balances remain valid.
 
 ## Token accounts
 
-Manus supports multiple accounts via the standard token-account mechanism. Add entries to `~/.codexbar/config.json` (`tokenAccounts`) with the full `Cookie:` header (containing `session_id=...`), then switch between accounts from the menu.
+Manus supports multiple accounts via the standard token-account mechanism. Add entries to `~/.quotakit/config.json` (`tokenAccounts`) with the full `Cookie:` header (containing `session_id=...`), then switch between accounts from the menu.
 
 ## CLI
 
@@ -62,7 +64,7 @@ quotakit usage --provider manus --verbose
 
 ### "No Manus session token provided"
 
-Log in to [manus.im](https://manus.im) in a supported browser (Safari, Chrome, Firefox), then refresh CodexBar. Alternatively, set `MANUS_SESSION_TOKEN` or `MANUS_COOKIE`, or paste a cookie header in manual mode.
+Log in to [manus.im](https://manus.im) in a supported browser (Safari, Chrome, Firefox), then refresh QuotaKit. Alternatively, set `MANUS_SESSION_TOKEN` or `MANUS_COOKIE`, or paste a cookie header in manual mode.
 
 ### "Invalid Manus session token"
 

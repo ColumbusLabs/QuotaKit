@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 74 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 87 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -55,6 +55,8 @@ complete when the available scan window covers fewer days.
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
 | GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
+| Helmcode | Chrome or manual tenant cookies → Cloud/NaN model quotas and eligible premium tiers (`web`). |
+| TypeSafe | Chrome or manual console session → billing spend and credit balance (`web`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
@@ -104,6 +106,8 @@ complete when the available scan window covers fewer days.
 | ClawRouter | API key + optional base URL → `/v1/usage` monthly budget, spend, and routed-provider usage (`api`). |
 | Wayfinder | Local gateway URL → `/healthz`, `/v1/savings`, `/router/models`, `/metrics` for health, routing split, savings, and decision latency (`api`). |
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
+| DevPass | Regular LLM Gateway API key → plan credits, premium weekly usage, and all-time key spend (`api`). |
+| Bifrost | Virtual key + base URL → `/api/governance/virtual-keys/quota` budget and rate-limit usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
 | Neuralwatt | API key from config/env → `/v1/quota` subscription kWh usage and prepaid balance (`api`). |
@@ -114,6 +118,12 @@ complete when the available scan window covers fewer days.
 | Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |
 | Replicate | Cached or manually supplied `replicate.com` session cookie → billing page and user/organization invoice APIs (`web`). |
 | Charm Hyper | Chrome or manually saved `hyper.charm.land` session cookie, then API key fallback; explicit API mode skips cookies (`web`, `api`). |
+| Aixy | Project API key → key-scoped usage and applicable budgets (`api`). |
+| xKiro | API key → daily free-token allowance (`api`). |
+| Raycast | Chrome or manually supplied website session → monthly AI credits (`web`). |
+| Atlas Cloud | Account-wide available USD balance from a configured API key (`api`). |
+| Vercel AI Gateway | Team-wide USD credit balance and lifetime spend from a configured API key (`api`). |
+| llmman | Local daemon memory, loaded models, and stored models from a configured private-network endpoint (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -598,6 +608,19 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Accepts base URLs with or without a `/v1` suffix; management requests are sent to the proxy root.
 - Details: `docs/litellm.md`.
 
+## DevPass
+- Regular API key from config or `DEVPASS_API_KEY`. Reads the gateway key endpoint without browser cookies or inference calls.
+- Shows plan credits and premium weekly usage, with all-time key spend in details; pay-as-you-go keys show spend only.
+- Details: `docs/devpass.md`.
+
+## Bifrost
+- Virtual key from config or `BIFROST_API_KEY`; base URL from config `enterpriseHost` or `BIFROST_BASE_URL` (required).
+- Reads `/api/governance/virtual-keys/quota` with header `x-bf-vk: <virtual key>` — a self-service endpoint, no admin/master key.
+- Budgets are ordered by shortest reset cycle: shortest is the primary window, next is the secondary window, remaining budgets and rate limits appear as additional named windows.
+- An unlimited budget keeps reported spend visible without inventing a quota; absent budget rows do not imply zero spend.
+- A disabled key keeps showing remaining budgets/rate limits with an inactive-key marker rather than erroring, unless it has neither.
+- Details: `docs/bifrost.md`.
+
 ## Poe
 - API key from config or `POE_API_KEY`.
 - Reads the current point balance and recent points history from Poe's official usage API.
@@ -653,3 +676,14 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Details: `docs/replicate.md`.
 
 See also: `docs/provider.md` for architecture notes.
+
+## Nous Portal
+- Reuses a read-only Hermes Agent OAuth access token or `NOUS_PORTAL_ACCESS_TOKEN`; QuotaKit never rotates Hermes refresh tokens.
+- Shows monthly credits, top-up credits, plan identity, and reset time from the portal account endpoint.
+- OpenCodex ledger rows labeled `nous` appear in Usage & Spend when local log inclusion is enabled.
+- Details: `docs/nous.md`.
+
+## Muse Code
+- Reuses the Muse CLI OAuth login. Keychain reads use a no-prompt preflight and fail when access would require interaction.
+- Shows 5-hour and weekly subscription windows and local token history; dollar costs remain unavailable.
+- Details: `docs/muse.md`.

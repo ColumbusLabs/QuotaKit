@@ -347,16 +347,16 @@ struct StatusItemBalanceDisplayTests {
             provider: .deepinfra)
         let (store, controller) = self.makeStoreAndController(settings: settings)
         defer { controller.releaseStatusItemsForTesting() }
-        let snapshot = DeepInfraUsageSnapshot(
-            availableBalanceUSD: 12.34,
-            amountOwedUSD: 0,
-            currentMonthCostUSD: 1.25,
-            recentCostUSD: 1.25,
-            spendingLimitUSD: nil,
-            suspended: false,
-            suspendReason: nil,
-            updatedAt: Date())
-            .toUsageSnapshot()
+        let snapshot = UsageSnapshot(
+            primary: .init(
+                usedPercent: 0,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "$12.34 available · $1.25 spent this month"),
+            secondary: nil,
+            updatedAt: Date(),
+            identity: .init(providerID: .deepinfra, accountEmail: nil, accountOrganization: nil, loginMethod: nil),
+            dataConfidence: .exact)
 
         store._setSnapshotForTesting(snapshot, provider: .deepinfra)
         store._setErrorForTesting(nil, provider: .deepinfra)
@@ -367,16 +367,16 @@ struct StatusItemBalanceDisplayTests {
     @Test
     func `DeepInfra card shows balance text without an inferred percentage bar`() throws {
         let now = Date()
-        let snapshot = DeepInfraUsageSnapshot(
-            availableBalanceUSD: 95.81,
-            amountOwedUSD: 0,
-            currentMonthCostUSD: 3.94,
-            recentCostUSD: 3.94,
-            spendingLimitUSD: nil,
-            suspended: false,
-            suspendReason: nil,
-            updatedAt: now)
-            .toUsageSnapshot()
+        let snapshot = UsageSnapshot(
+            primary: .init(
+                usedPercent: 0,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "$95.81 available · $3.94 spent this month"),
+            secondary: nil,
+            updatedAt: now,
+            identity: .init(providerID: .deepinfra, accountEmail: nil, accountOrganization: nil, loginMethod: nil),
+            dataConfidence: .exact)
         let metadata = try #require(ProviderDefaults.metadata[.deepinfra])
 
         let model = UsageMenuCardView.Model.make(.init(
@@ -408,32 +408,32 @@ struct StatusItemBalanceDisplayTests {
 
     @Test
     func `menu bar display text marks DeepInfra amount owed`() {
-        let snapshot = DeepInfraUsageSnapshot(
-            availableBalanceUSD: 0,
-            amountOwedUSD: 2.75,
-            currentMonthCostUSD: 3,
-            recentCostUSD: 3,
-            spendingLimitUSD: nil,
-            suspended: false,
-            suspendReason: nil,
-            updatedAt: Date())
-            .toUsageSnapshot()
+        let snapshot = UsageSnapshot(
+            primary: .init(
+                usedPercent: 100,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "$2.75 owed · $3.00 spent this month"),
+            secondary: nil,
+            updatedAt: Date(),
+            identity: .init(providerID: .deepinfra, accountEmail: nil, accountOrganization: nil, loginMethod: nil),
+            dataConfidence: .exact)
 
         #expect(StatusItemController.deepInfraBalanceDisplayText(snapshot: snapshot) == "-$2.75")
     }
 
     @Test
     func `menu bar display text keeps DeepInfra balance when suspended`() {
-        let snapshot = DeepInfraUsageSnapshot(
-            availableBalanceUSD: 4,
-            amountOwedUSD: 0,
-            currentMonthCostUSD: 3,
-            recentCostUSD: 3,
-            spendingLimitUSD: nil,
-            suspended: true,
-            suspendReason: "Payment review",
-            updatedAt: Date())
-            .toUsageSnapshot()
+        let snapshot = UsageSnapshot(
+            primary: .init(
+                usedPercent: 100,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "Suspended: Payment review · $4.00 available · $3.00 spent this month"),
+            secondary: nil,
+            updatedAt: Date(),
+            identity: .init(providerID: .deepinfra, accountEmail: nil, accountOrganization: nil, loginMethod: nil),
+            dataConfidence: .exact)
 
         #expect(StatusItemController.deepInfraBalanceDisplayText(snapshot: snapshot) == "$4.00")
     }

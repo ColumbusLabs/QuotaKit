@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Kosten";
+"Token history" = "Token-Verlauf";
+"Local token history · dollar costs unavailable" = "Lokaler Token-Verlauf · Dollar-Kosten nicht verfügbar";
+"Partial local history · recorded token subtotal" = "Unvollständiger lokaler Verlauf · erfasste Token-Zwischensumme";
+"Local token history is unavailable or incomplete." = "Der lokale Token-Verlauf ist nicht verfügbar oder unvollständig.";
 "Could not add Codex account" = "Codex-Konto konnte nicht hinzugefügt werden";
 "Could not open Terminal for Gemini" = "Terminal für Gemini konnte nicht geöffnet werden";
 "Could not start claude /login" = "Claude /login konnte nicht gestartet werden";
@@ -1157,6 +1161,9 @@
 "Open MiMo Balance" = "Öffnen Sie MiMo Balance";
 "Open Moonshot Console" = "Öffnen Sie die Moonshot-Konsole";
 "Open Ollama API Keys" = "Öffnen Sie die Ollama-API-Schlüssel";
+"Open llmman" = "llmman öffnen";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Gespeichert in ~/.quotakit/config.json. Nur nötig, wenn llmman serve API-Schlüssel verlangt.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Adresse von llmman serve. Standard: http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Öffnen Sie die StepFun-Plattform";
 "Open T3 Chat Settings" = "Öffnen Sie die T3-Chat-Einstellungen";
 "Open Volcengine Ark Console" = "Öffnen Sie die Volcengine Ark-Konsole";
