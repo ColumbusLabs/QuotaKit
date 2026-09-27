@@ -7,6 +7,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Fixed
+- Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
+
 ### Added
 - Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.

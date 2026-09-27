@@ -101,6 +101,7 @@ Fetch behavior:
 - `POST https://cursor.com/api/dashboard/get-filtered-usage-events` (cookie-authenticated; requires a matching `Origin` for CSRF).
 - Pages of 1000 events (up to 200 pages), with exact page-boundary overlap removed before aggregation. Reaching the safety cap or otherwise receiving fewer events than Cursor reports fails the refresh instead of publishing a partial total.
 - The window start is snapped to the local day boundary so a 1-day window covers all of today and wider windows keep their full first day.
+- Pre-1970 window starts are clamped to the Unix epoch at the request boundary because Cursor rejects negative start timestamps. Unbounded and modern windows retain their existing request dates.
 
 Two totals are reported from the same events:
 - **API-rate estimate**: reported `tokenUsage.totalCents`, with an API-list-price fallback only when the field is missing or null. Fallbacks use the existing cached models.dev catalog or bundled rates at the event date, preserve Cursor's disjoint input/cache counters, and do not read native Codex custom pricing or refresh prices over the network. Reported zero remains zero; malformed, negative, nonfinite, or otherwise invalid costs stay unpriced and fail the same-model sum closed. Unknown models remain unpriced. Reported, estimated, and unpriced request counts remain visible even when a rejected cost invalidates a model total.
