@@ -85,9 +85,6 @@ public enum CopilotProviderDescriptor {
                     else { return .unhandled }
                     return .resolved(primary.usedPercent >= secondary.usedPercent ? primary : secondary)
                 },
-                switcherUsedPercentFallback: { snapshot in
-                    snapshot.detailRow(id: CopilotCreditDetailRows.seatRowID)?.progress?.usedPercent
-                },
                 menuCard: ProviderMenuCardPresentation(primaryDescriptionPlacement: .detailLeft)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
