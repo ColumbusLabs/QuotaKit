@@ -34,8 +34,9 @@ struct GrokRemainingResetsRoutingTests {
         #expect(selectedCookie.value == "sso=winning-session")
         #expect(result.usage.grokResetCredits?.expirations.count == 1)
         let encoded = try JSONEncoder().encode(result.usage)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("redemption-token"))
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("grokResetCredits"))
+        let json = try #require(String(bytes: encoded, encoding: .utf8))
+        #expect(!json.contains("redemption-token"))
+        #expect(!json.contains("grokResetCredits"))
     }
 
     @Test

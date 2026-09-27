@@ -64,16 +64,16 @@ struct GrokWebBillingFetcherTests {
         ]
         var attemptedHeaders: [String] = []
 
-        let result = try await GrokWebFetchStrategy.fetchFirstValidCookieSessionWithHeader(sessions) {
-            cookieHeader, _ in
-            attemptedHeaders.append(cookieHeader)
-            guard cookieHeader.contains("valid") else {
-                throw GrokWebBillingError.requestFailed(401, "stale")
+        let result = try await GrokWebFetchStrategy
+            .fetchFirstValidCookieSessionWithHeader(sessions) { cookieHeader, _ in
+                attemptedHeaders.append(cookieHeader)
+                guard cookieHeader.contains("valid") else {
+                    throw GrokWebBillingError.requestFailed(401, "stale")
+                }
+                return GrokWebBillingSnapshot(
+                    usedPercent: 12,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_000_000))
             }
-            return GrokWebBillingSnapshot(
-                usedPercent: 12,
-                resetsAt: Date(timeIntervalSince1970: 1_800_000_000))
-        }
 
         #expect(attemptedHeaders == ["sso=stale", "sso=valid"])
         #expect(result.2 == "sso=valid")

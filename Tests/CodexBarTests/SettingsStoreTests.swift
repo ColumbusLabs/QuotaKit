@@ -4,6 +4,7 @@ import Observation
 import Testing
 @testable import CodexBar
 
+// swiftlint:disable file_length
 @Suite(.serialized)
 @MainActor
 // swiftlint:disable:next type_body_length

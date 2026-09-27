@@ -148,11 +148,18 @@ extension StatusMenuTests {
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
         store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
-            sessionTokens: 10, sessionCostUSD: 2,
-            last30DaysTokens: 10, last30DaysCostUSD: 2,
+            sessionTokens: 10,
+            sessionCostUSD: 2,
+            last30DaysTokens: 10,
+            last30DaysCostUSD: 2,
             daily: [.init(
-                date: "2026-08-17", inputTokens: 5, outputTokens: 5,
-                totalTokens: 10, costUSD: 2, modelsUsed: nil, modelBreakdowns: nil)],
+                date: "2026-08-17",
+                inputTokens: 5,
+                outputTokens: 5,
+                totalTokens: 10,
+                costUSD: 2,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
             updatedAt: now), provider: .codex)
         let controller = StatusItemController(
             store: store,
