@@ -533,7 +533,7 @@ enum CLIRenderer {
         resetStyle: ResetTimeDisplayStyle,
         now: Date) -> CLICardMetric
     {
-        let detailBacked = self.usesDetailBackedWindow(provider: provider)
+        let detailBacked = ProviderDescriptorRegistry.descriptor(for: provider).metadata.usesDetailBackedWindow
         let reset = detailBacked
             ? self.resetLineForDetailBackedWindow(window: window, style: resetStyle, now: now)
             : self.resetLine(for: window, style: resetStyle, now: now)
