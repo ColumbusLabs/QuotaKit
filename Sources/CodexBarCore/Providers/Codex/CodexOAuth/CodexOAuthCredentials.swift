@@ -164,6 +164,9 @@ public enum CodexOAuthCredentialsStore {
         homeDirectory: URL?,
         allowExternalSources: Bool) throws -> CodexOAuthCredentials
     {
+        guard CodexCredentialFileAccess.permits(self.authFilePath(env: env, homeDirectory: homeDirectory)) else {
+            throw CodexOAuthCredentialsError.notFound
+        }
         do {
             return try self.loadNative(env: env, homeDirectory: homeDirectory)
         } catch let nativeError as CodexOAuthCredentialsError {
@@ -237,11 +240,12 @@ public enum CodexOAuthCredentialsStore {
     }
 
     private static func readAuthData(at url: URL) throws -> Data {
+        guard CodexCredentialFileAccess.permits(url) else { throw CodexOAuthCredentialsError.notFound }
         do {
             // Read once instead of checking existence first. Codex publishes auth.json atomically,
             // so a single read avoids a TOCTOU window and lets us distinguish a missing file from a
             // transiently unreadable/partially published one without logging credentials.
-            return try Data(contentsOf: url, options: [.mappedIfSafe])
+            return try CodexCredentialFileAccess.read(at: url, options: [.mappedIfSafe])
         } catch {
             let nsError = error as NSError
             let missingFile =
@@ -327,9 +331,11 @@ public enum CodexOAuthCredentialsStore {
             throw CodexOAuthCredentialsError.readOnlySource
         }
         let url = self.authFilePath(env: env)
+        guard CodexCredentialFileAccess.permits(url) else { throw CodexOAuthCredentialsError.notFound }
+        if try CodexCredentialFileAccess.substituteWriteForTesting(at: url) { return }
 
         var json: [String: Any] = [:]
-        if let data = try? Data(contentsOf: url),
+        if let data = try? CodexCredentialFileAccess.read(at: url),
            let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         {
             json = existing
@@ -355,8 +361,7 @@ public enum CodexOAuthCredentialsStore {
 
         let data = try JSONSerialization.data(
             withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
-        let directory = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try CodexCredentialFileAccess.createDirectory(forCredentialAt: url)
         try CredentialFileWriter.writePrivate(data, to: url)
     }
 
@@ -570,10 +575,13 @@ extension CodexOAuthCredentialsStore {
         homeDirectory: URL,
         allowExternalSources: Bool = false) throws -> CodexOAuthCredentials
     {
-        try self.loadForUsage(
-            env: env,
-            homeDirectory: homeDirectory,
-            allowExternalSources: allowExternalSources)
+        let scope = (CodexCredentialFileAccess.fixtureScope ?? .init()).including(root: homeDirectory)
+        return try CodexCredentialFileAccess.withFixtureScope(scope) {
+            try self.loadForUsage(
+                env: env,
+                homeDirectory: homeDirectory,
+                allowExternalSources: allowExternalSources)
+        }
     }
 
     static func _parseOpenCodeForTesting(data: Data) throws -> CodexOAuthCredentials {
@@ -585,6 +593,7 @@ extension CodexOAuthCredentialsStore {
         to url: URL,
         beforePublish: @escaping (URL) throws -> Void) throws
     {
+        guard CodexCredentialFileAccess.permits(url) else { throw CodexOAuthCredentialsError.notFound }
         try CredentialFileWriter.writePrivate(data, to: url, beforePublish: beforePublish)
     }
 }

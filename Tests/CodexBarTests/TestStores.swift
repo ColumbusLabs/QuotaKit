@@ -156,7 +156,9 @@ func testSettingsStore(
     suiteName: String,
     tokenAccountStore: any ProviderTokenAccountStoring = InMemoryTokenAccountStore(),
     config: CodexBarConfig? = nil,
-    userDefaults: UserDefaults? = nil) -> SettingsStore
+    userDefaults: UserDefaults? = nil,
+    keychainAccessPolicy: SettingsStoreKeychainAccessPolicy = .init(
+        setDisabled: { _ in }, isExplicitlyDisabled: { false })) -> SettingsStore
 {
     let isolatedSuiteName = "\(suiteName)-\(UUID().uuidString)"
     guard let defaults = userDefaults ?? UserDefaults(suiteName: isolatedSuiteName) else {
@@ -189,7 +191,8 @@ func testSettingsStore(
         augmentCookieStore: InMemoryCookieHeaderStore(),
         ampCookieStore: InMemoryCookieHeaderStore(),
         copilotTokenStore: InMemoryCopilotTokenStore(),
-        tokenAccountStore: tokenAccountStore)
+        tokenAccountStore: tokenAccountStore,
+        keychainAccessPolicy: keychainAccessPolicy)
 }
 
 #if os(macOS)
@@ -212,7 +215,7 @@ func withStatusItemControllerForTesting<T>(
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: account ?? AccountInfo(email: nil, plan: nil),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)
@@ -233,7 +236,7 @@ func withStatusItemControllerForTesting<T>(
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: account ?? AccountInfo(email: nil, plan: nil),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)

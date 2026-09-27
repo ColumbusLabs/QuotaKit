@@ -248,9 +248,9 @@ struct SpendDashboardCachedPresentationTests {
         #expect(SpendDashboardSource.codexCacheRoot(for: second).lastPathComponent == "second-cache")
     }
 
-    @Test
+    @Test(CodexCredentialFixtures())
     func `cached Codex totals reject an account rotation during hydration`() async throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("SpendDashboardCachedAuth-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: home) }

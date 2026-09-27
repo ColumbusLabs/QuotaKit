@@ -3,7 +3,7 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct CodexAccountPromotionExecutionTests {
     @Test
