@@ -207,7 +207,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,
-            .v0, .bifrost, .aixy, .raycast, .llmman,
+            .v0, .bifrost, .aixy, .raycast, .llmman, .manus, .mimo, .neuralwatt,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
@@ -2005,17 +2005,25 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBar/MenuCardView.swift",
             line: 1452,
             anchor: "if input.provider == .alibaba || input.provider == .alibabatokenplan,",
-            expectedProviderIDs: ["alibaba", "alibabatokenplan", "copilot", "crof", "manus", "perplexity", "zenmux"],
+            expectedProviderIDs: [
+                "alibaba",
+                "alibabatokenplan",
+                "copilot",
+                "crof",
+                "perplexity",
+                "synthetic",
+                "zenmux",
+            ],
             expectedReferenceCount: 8,
             expectedReferenceFingerprint: [
                 "alibaba@0",
                 "alibabatokenplan@0",
-                "manus@6",
-                "crof@12",
-                "copilot@18",
+                "crof@6",
+                "copilot@12",
+                "zenmux@12",
                 "zenmux@18",
-                "zenmux@24",
-                "perplexity@35",
+                "perplexity@29",
+                "synthetic@35",
             ],
             reason: "This exact renderer preserves Alibaba reset details and QuotaKit provider-specific weekly detail rows."),
         AllowedProviderConstruct(

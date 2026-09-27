@@ -888,12 +888,7 @@ enum CLIRenderer {
         // Some provider snapshots use resetDescription for non-reset detail.
         // Only render "Resets ..." when a concrete reset date exists.
         guard window.resetsAt != nil else { return nil }
-        let resetOnlyWindow = RateWindow(
-            usedPercent: window.usedPercent,
-            windowMinutes: window.windowMinutes,
-            resetsAt: window.resetsAt,
-            resetDescription: nil)
-        return UsageFormatter.resetLine(for: resetOnlyWindow, style: style, now: now)
+        return UsageFormatter.resetLine(for: window, style: style, now: now)
     }
 
     private static func detailLineForDetailBackedWindow(window: RateWindow) -> String? {
