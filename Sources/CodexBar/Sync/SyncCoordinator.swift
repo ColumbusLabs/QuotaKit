@@ -1926,7 +1926,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
