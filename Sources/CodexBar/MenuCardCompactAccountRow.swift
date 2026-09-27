@@ -29,6 +29,7 @@ struct MenuCardCompactAccountRowView: View {
             self.showsBestBadge = showsBestBadge
         }
 
+        @MainActor
         init(
             row: AccountMenuLayoutPlanner.CompactRow,
             hidePersonalInfo: Bool = false,
