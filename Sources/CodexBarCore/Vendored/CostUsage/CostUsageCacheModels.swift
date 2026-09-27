@@ -348,8 +348,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Fork-baseline and paginated continuation corrections require bounded reparsing of older files.
-    static let currentCodexParserRevision = 5
+    /// Paginated continuation corrections require bounded reparsing of older files.
+    static let currentCodexParserRevision = 4
 
     var mtimeUnixMs: Int64
     var size: Int64

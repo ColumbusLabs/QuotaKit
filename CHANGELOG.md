@@ -137,7 +137,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend: show ranked, titled Codex sessions with project context while honoring hidden personal information.
 - Cost history: keep 30-day CLI JSON totals accurate when a longer history is selected, read Priority traces on Linux, and apply the correct long-context boundary to OpenAI models recorded by Claude Code.
 - Usage & Spend: keep Codex conversation names, project paths, and each rollout's SQLite-home context in session history.
-- Codex costs: preserve inherited cumulative counters across direct forks and empty intermediate sessions (upstream #3524).
 
 - OpenCode Go: include recorded local token counts in daily and per-model history without inventing costs or treating missing counts as zero (upstream #4000).
 

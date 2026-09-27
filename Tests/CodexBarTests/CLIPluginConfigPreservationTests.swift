@@ -61,7 +61,7 @@ struct CLIPluginConfigPreservationTests {
         }
 
         var providersDirectory: URL {
-            self.directory.appendingPathComponent(".config/codexbar/providers")
+            self.directory.appendingPathComponent(".config/quotakit/providers")
         }
 
         init(discoveryFails: Bool = false) throws {

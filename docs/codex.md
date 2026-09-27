@@ -176,9 +176,6 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Scanner:
   - Native Codex logs parse `event_msg` token_count entries and `turn_context` model markers; when both are present,
     `turn_context` is authoritative for the model bucket.
-  - Direct forks preserve the inherited origin of cumulative counters, including empty intermediate sessions.
-    Repeated inherited snapshots contribute no new usage; descendants count only their own deltas. Changes to an
-    ancestor invalidate the descendant baseline, and parser revision 5 repairs cached files through bounded reparsing.
   - Paginated continuation files count only their owned usage when `history_base.thread_id` identifies an earlier
     page. Bounded scans retain the validated fork baseline and exact request index across restarts.
   - Excess cached request rows are replayed from unchanged source files. The previous ledger stays available during
