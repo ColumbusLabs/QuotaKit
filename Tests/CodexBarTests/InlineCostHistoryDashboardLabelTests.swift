@@ -5,6 +5,62 @@ import Testing
 
 struct InlineCostHistoryDashboardLabelTests {
     @Test
+    func `Codex cost chart keeps calendar slots and distinguishes unscanned days`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 15, hour: 12)))
+        let metadata = try #require(ProviderDefaults.metadata[.codex])
+
+        func points(scanIsPartial: Bool) throws -> [InlineUsageDashboardModel.Point] {
+            let snapshot = CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 3,
+                last30DaysTokens: 200,
+                last30DaysCostUSD: 7,
+                historyDays: 4,
+                historyScanIsPartial: scanIsPartial,
+                daily: [
+                    CostUsageDailyReport.Entry(
+                        date: "2026-07-12", inputTokens: 100, outputTokens: 0,
+                        totalTokens: 100, costUSD: 3, modelsUsed: [], modelBreakdowns: nil),
+                    CostUsageDailyReport.Entry(
+                        date: "2026-07-14", inputTokens: 10, outputTokens: 0,
+                        totalTokens: 10, costUSD: nil, modelsUsed: [], modelBreakdowns: nil),
+                    CostUsageDailyReport.Entry(
+                        date: "2026-07-15", inputTokens: 100, outputTokens: 0,
+                        totalTokens: 100, costUSD: 4, modelsUsed: [], modelBreakdowns: nil),
+                ],
+                updatedAt: now)
+            let model = UsageMenuCardView.Model.make(.init(
+                provider: .codex,
+                metadata: metadata,
+                snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+                credits: nil,
+                creditsError: nil,
+                dashboardError: nil,
+                tokenSnapshot: snapshot,
+                tokenError: nil,
+                account: AccountInfo(email: nil, plan: nil),
+                isRefreshing: false,
+                lastError: nil,
+                usageBarsShowUsed: false,
+                resetTimeDisplayStyle: .countdown,
+                tokenCostUsageEnabled: true,
+                showOptionalCreditsAndExtraUsage: true,
+                hidePersonalInfo: false,
+                costUsageBucketCalendar: calendar,
+                now: now))
+            return try #require(model.inlineUsageDashboard?.points)
+        }
+
+        let partial = try points(scanIsPartial: true)
+        #expect(partial.map(\.id) == ["2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15"])
+        #expect(partial.map(\.value) == [3, nil, nil, 4])
+        let complete = try points(scanIsPartial: false)
+        #expect(complete.map(\.value) == [3, 0, nil, 4])
+    }
+
+    @Test
     func `Antigravity renders cost windows and names the window's model-family scope`() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
