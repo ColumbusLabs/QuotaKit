@@ -1,4 +1,5 @@
 import CodexBarCore
+import Foundation
 
 extension UsageStore {
     enum SessionQuotaWindowSource: String {
