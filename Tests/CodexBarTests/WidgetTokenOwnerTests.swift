@@ -295,7 +295,7 @@ struct WidgetTokenOwnerTests {
                 }
             }
             let current = try #require(store.accountSnapshots[.claude]?.first)
-            #expect(current.snapshot == nil)
+            #expect((current.snapshot != nil) == preserves)
             #expect(current.fetchError != nil)
             let result = store.makeWidgetAccountEntries(now: self.measuredAt.addingTimeInterval(600))
             if preserves {

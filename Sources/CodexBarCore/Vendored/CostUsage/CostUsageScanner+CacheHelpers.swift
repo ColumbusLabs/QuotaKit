@@ -329,13 +329,16 @@ extension CostUsageScanner {
         self.codexFileUsageWithPricingMetadata(
             usage,
             range: context.range,
-            priorityTurns: context.resources.priorityTurns)
+            priorityTurns: context.resources.priorityTurns,
+            reclassifyModeTokens: Self.cachedCodexFileNeedsPriorityRescan(usage, context: context)
+                && usage.codexTurnIDs != nil)
     }
 
     static func codexFileUsageWithPricingMetadata(
         _ usage: CostUsageFileUsage,
         range: CostUsageDayRange,
-        priorityTurns: [String: CodexPriorityTurnMetadata]) -> CostUsageFileUsage
+        priorityTurns: [String: CodexPriorityTurnMetadata],
+        reclassifyModeTokens: Bool = false) -> CostUsageFileUsage
     {
         guard let rows = usage.codexRows, !rows.isEmpty else { return usage }
         var migratedRows: [CodexUsageRow] = []
@@ -359,12 +362,16 @@ extension CostUsageScanner {
         updated.codexPrioritySurchargeNanos = nil
         updated.codexStandardCostNanos = nil
         updated.codexPriorityCostNanos = nil
-        updated.codexStandardTokens = Self.mergeMissingIntMaps(
-            usage.codexStandardTokens,
-            modeTokens.standard)
-        updated.codexPriorityTokens = Self.mergeMissingIntMaps(
-            usage.codexPriorityTokens,
-            modeTokens.priority)
+        updated.codexStandardTokens = reclassifyModeTokens
+            ? Self.mergeIntMaps(
+                Self.intMapOutsideReportWindow(usage.codexStandardTokens, range: range),
+                modeTokens.standard)
+            : Self.mergeMissingIntMaps(usage.codexStandardTokens, modeTokens.standard)
+        updated.codexPriorityTokens = reclassifyModeTokens
+            ? Self.mergeIntMaps(
+                Self.intMapOutsideReportWindow(usage.codexPriorityTokens, range: range),
+                modeTokens.priority)
+            : Self.mergeMissingIntMaps(usage.codexPriorityTokens, modeTokens.priority)
         updated.codexCostCacheComplete = true
         updated.codexTurnIDs = Self.mergeCodexTurnIDs(usage.codexTurnIDs, rows: migratedRows)
         updated.codexRows = Self.codexRowsWithPricingMetadata(
@@ -722,6 +729,16 @@ extension CostUsageScanner {
         return filtered.isEmpty ? nil : filtered
     }
 
+    static func intMapOutsideReportWindow(
+        _ map: [String: [String: Int]]?,
+        range: CostUsageDayRange) -> [String: [String: Int]]?
+    {
+        let filtered = (map ?? [:]).filter {
+            !CostUsageDayRange.isInRange(dayKey: $0.key, since: range.sinceKey, until: range.untilKey)
+        }
+        return filtered.isEmpty ? nil : filtered
+    }
+
     // MARK: - File scan orchestration
 
     struct CodexFileMetadata {
@@ -1002,7 +1019,15 @@ extension CostUsageScanner {
         guard cached.codexReplacementScanPending != true else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
               !Self.codexFileNeedsSourceRowRecovery(cached, context: context) else { return false }
-        guard !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) else { return false }
+        if Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) {
+            guard let turnIDs = cached.codexTurnIDs,
+                  let rows = cached.codexRows,
+                  Self.codexFileDays(rows: rows) == cached.days,
+                  Set(turnIDs).intersection(context.changedPriorityTurnIDs).allSatisfy({
+                      context.resources.priorityTurns[$0] != nil
+                  })
+            else { return false }
+        }
         let sourcePricingForResume = Self.codexSourcePricingForScan(
             cached: cached, metadata: input.metadata, range: context.range, recoveringSourceRows: false)
         if cached.codexPendingSourcePricing?.isEmpty == false, sourcePricingForResume?.isEmpty != false {
@@ -1427,7 +1452,6 @@ extension CostUsageScanner {
             modeOwnershipMismatchGroups: [],
             requestPricingEvidenceGroups: [],
             incompletePricingEvidenceGroups: [],
-            authoritativeCostEvidenceGroups: [],
             priorityTurns: priorityTurns,
             modelsDevCatalog: catalog,
             modelsDevCacheRoot: modelsDevCacheRoot,
@@ -1451,9 +1475,6 @@ extension CostUsageScanner {
                 modelsDevCacheRoot: modelsDevCacheRoot,
                 customPricing: pricing.customPricing,
                 pricingResolver: pricing.pricingResolver))
-            for row in usage.codexRows ?? [] where (row.knownCostNanos ?? 0) != 0 {
-                pricing.authoritativeCostEvidenceGroups.insert(CodexDayModelKey(day: row.day, model: row.model))
-            }
             for row in reconciled.rows
                 where CostUsageDayRange.isInRange(
                     dayKey: row.day,

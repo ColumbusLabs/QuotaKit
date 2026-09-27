@@ -6548,16 +6548,18 @@ enum CostUsageScanner {
     {
         try context.checkCancellation?()
         let metadata = Self.codexFileMetadata(fileURL: fileURL)
-        if context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(fileURL))
+        let retainsRecoveryHistory = context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(fileURL))
             || (context.preserveUnavailableHistoryDuringRecovery
                 && cache.files[metadata.path].map {
                     Self.codexUnavailableHistoryNeedsRecovery($0, range: context.range)
                 } == true)
-            || cache.files[metadata.path]?.codexPendingSourcePricing != nil
-        {
-            guard metadata.fileId != nil, FileManager.default.isReadableFile(atPath: metadata.path) else {
-                return .deferred
-            }
+        if metadata.fileId == nil, !FileManager.default.fileExists(atPath: metadata.path) {
+            if retainsRecoveryHistory { return .deferred }
+            Self.dropCachedCodexFile(path: metadata.path, cached: cache.files[metadata.path], cache: &cache)
+            return .processed
+        }
+        guard metadata.fileId != nil, FileManager.default.isReadableFile(atPath: metadata.path) else {
+            return .deferred
         }
         defer {
             context.resources.cachePathAliasIndex.update(

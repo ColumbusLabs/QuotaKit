@@ -52,10 +52,14 @@ struct CostUsageStoreTests {
             expectedScanStamp: second.scanStamp,
             requireScanStamp: true)
         #expect(!saved.catchUpRequired)
+        #if DEBUG
+        // The save reads one baseline snapshot before comparing persisted content.
+        #expect(reads == 2)
+        #endif
         let third = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
         #expect(third.cache.files == second.cache.files)
         #if DEBUG
-        #expect(reads == 1)
+        #expect(reads == 2)
         #endif
         var otherCalendar = calendar
         otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
@@ -73,11 +77,15 @@ struct CostUsageStoreTests {
         var cache = CostUsageCache()
         cache.scanSinceKey = "2026-08-01"
         cache.scanUntilKey = "2026-08-03"
+        let currentPath = "/rollouts/current.jsonl"
+        cache.files[currentPath] = CostUsageFileUsage(mtimeUnixMs: 1000, size: 0, days: [:])
         _ = writer.syncSaveCodexCache(
             cache,
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"))
-        let stale = Self.file(path: "/rollouts/pruned-after-identical-save.jsonl", day: "2026-07-01")
+        var stale = Self.file(path: "/rollouts/pruned-after-identical-save.jsonl", day: "2026-07-01")
+        stale.scanState.detailsPayload = try #require(
+            await writer.fetchFile(path: currentPath)?.scanState.detailsPayload)
         #expect(await writer.upsertFile(stale))
 
         let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)

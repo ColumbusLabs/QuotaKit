@@ -63,7 +63,6 @@ extension CostUsageScanner {
         var modeOwnershipMismatchGroups: Set<CodexDayModelKey>
         var requestPricingEvidenceGroups: Set<CodexDayModelKey>
         var incompletePricingEvidenceGroups: Set<CodexDayModelKey>
-        var authoritativeCostEvidenceGroups: Set<CodexDayModelKey>
         var priorityTurns: [String: CodexPriorityTurnMetadata]
         var modelsDevCatalog: ModelsDevCatalog
         var modelsDevCacheRoot: URL?
@@ -148,8 +147,7 @@ extension CostUsageScanner {
                     || totalTokens.map { rowCost?.isTrusted(canonicalTotalTokens: $0) == true } == true)
             let aggregateCost = pricing.requestPricingEvidenceGroups.contains(group)
                 || pricing.incompletePricingEvidenceGroups.contains(group)
-                || (pricing.unresolvedRowGroups.contains(group)
-                    && pricing.authoritativeCostEvidenceGroups.contains(group))
+                || pricing.unresolvedRowGroups.contains(group)
                 || rowCost?.hasIncompletePricing == true
                 ? nil
                 : CostUsagePricing.codexAggregateCostUSD(

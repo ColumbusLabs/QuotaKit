@@ -6,6 +6,46 @@ import Testing
 
 struct CostUsageScannerCodexPriorityTests {
     @Test
+    func `priority repricing preserves mode tokens in scan margin days`() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let reportDay = calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 12))!
+        let range = CostUsageScanner.CostUsageDayRange(since: reportDay, until: reportDay, calendar: calendar)
+        let model = "gpt-5.5"
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 1, days: [:])
+        usage.codexRows = [
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-09-09",
+                model: model,
+                turnID: "prior",
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-09-10",
+                model: model,
+                turnID: "current",
+                eventIndex: 1,
+                input: 20,
+                cached: 0,
+                output: 0,
+                pricingMode: "priority"),
+        ]
+        usage.codexStandardTokens = [
+            "2026-09-09": [model: 10],
+            "2026-09-10": [model: 20],
+        ]
+
+        let updated = CostUsageScanner.codexFileUsageWithPricingMetadata(
+            usage, range: range, priorityTurns: [:], reclassifyModeTokens: true)
+
+        #expect(updated.codexStandardTokens?["2026-09-09"]?[model] == 10)
+        #expect(updated.codexStandardTokens?["2026-09-10"]?[model] == nil)
+        #expect(updated.codexPriorityTokens?["2026-09-10"]?[model] == 20)
+    }
+
+    @Test
     func `parses priority turn metadata without exposing request body`() {
         let body = "INFO thread_id=11111111-1111-1111-1111-111111111111 "
             + "turn.id=22222222-2222-2222-2222-222222222222 websocket request: "

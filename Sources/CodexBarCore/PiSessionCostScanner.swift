@@ -1201,7 +1201,11 @@ enum PiSessionCostScanner {
         guard let usage = message["usage"] as? [String: Any] else { return nil }
         var hasValidCounter = false
         var hasInvalidCounter = false
+        var hasBooleanCounter = false
         func read(_ value: Any?) -> Int {
+            if let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() {
+                hasBooleanCounter = true
+            }
             guard let count = Self.readNonNegativeInt(value) else {
                 hasInvalidCounter = true
                 return 0
@@ -1244,7 +1248,7 @@ enum PiSessionCostScanner {
                 ?? usage["tokenCount"]
                 ?? usage["token_count"]
                 ?? usage["tokens"])
-        guard hasValidCounter,
+        guard hasValidCounter, !hasBooleanCounter,
               let derivedTotal = CheckedSum.integers([input, cacheRead, cacheWrite, output])
         else { return nil }
         let totalTokens = max(directTotal, derivedTotal)

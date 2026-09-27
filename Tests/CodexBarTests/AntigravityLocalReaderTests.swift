@@ -91,7 +91,7 @@ struct AntigravityLocalReaderTests {
     }
 
     @Test
-    func `known model gets list price estimate while unknown model stays unpriced`() async throws {
+    func `known model keeps priced subtotal while unknown model leaves window spend unavailable`() async throws {
         let fixture = try Fixture()
         let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
         {
@@ -116,9 +116,12 @@ struct AntigravityLocalReaderTests {
 
         let snapshot = try await fixture.snapshot()
         let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
+        // The priced row remains useful, but the unpriced request prevents a complete window total.
+        #expect(snapshot.last30DaysCostUSD == nil)
         #expect(snapshot.sessionCostUSD == expected)
         #expect(snapshot.costProvenance == .listPriceEstimate)
+        #expect(snapshot.daily.first?.costUSD == expected)
+        #expect(snapshot.daily.first?.unpricedRequestCount == 1)
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.costUSD == expected)
         #expect(snapshot.daily.first?.modelBreakdowns?.last?.costUSD == nil)
         #expect(snapshot.summary(forLastDays: 30, calendar: Fixture.calendar).coverage

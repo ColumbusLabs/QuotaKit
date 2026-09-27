@@ -981,6 +981,7 @@ extension UsageStore {
         if provider == .codex {
             self.reconcileCodexWidgetAccountSnapshots(after: error)
         }
+        self.recordSelectedTokenAccountFailure(provider: provider, account: context.tokenAccount, error: error)
         self.lastFetchAttempts[provider.instanceID] = attempts
         self.invalidateWidgetUsageIfTerminalFailure(for: provider, after: error)
         self.recordStartupConnectivityRetryableFailure(error)
@@ -1635,6 +1636,36 @@ extension UsageStore {
             cached.account.id == account.id &&
                 cached.cacheKey == self.tokenAccountSnapshotCacheKey(provider: provider, account: account)
         }
+    }
+
+    private func recordSelectedTokenAccountFailure(
+        provider: UsageProvider,
+        account: ProviderTokenAccount?,
+        error: Error)
+    {
+        guard let account,
+              let selected = self.settings.effectiveSelectedTokenAccount(for: provider),
+              selected.id == account.id
+        else { return }
+        let prior = self.tokenAccountSnapshot(provider: provider, account: selected)
+        let retained = Self.shouldPreservePriorSnapshot(
+            after: error,
+            hadPriorData: prior?.snapshot != nil,
+            priorSnapshot: prior?.snapshot) ? prior : nil
+        let failed = TokenAccountUsageSnapshot(
+            account: selected,
+            snapshot: retained?.snapshot,
+            error: self.tokenAccountSnapshotErrorMessage(error),
+            sourceLabel: retained?.sourceLabel,
+            cacheKey: self.tokenAccountSnapshotCacheKey(provider: provider, account: selected),
+            fetchError: error)
+        var snapshots = self.accountSnapshots[provider.instanceID] ?? []
+        if let index = snapshots.firstIndex(where: { $0.account.id == selected.id }) {
+            snapshots[index] = failed
+        } else {
+            snapshots.append(failed)
+        }
+        self.accountSnapshots[provider.instanceID] = snapshots
     }
 
     private static func isClaudeUsageProbeTimeout(_ error: Error) -> Bool {

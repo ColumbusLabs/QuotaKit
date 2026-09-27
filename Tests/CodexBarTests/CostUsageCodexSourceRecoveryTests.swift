@@ -227,7 +227,10 @@ struct CostUsageCodexSourceRecoveryTests {
         #expect(initialOffset > 0)
         #expect(initialOffset < partialFile.size)
         if cutHeader { #expect(initialOffset < lines[0].utf8.count) }
-        #expect(partialFile.codexRows?.contains { $0.input == 400_000 } == false)
+        // Partial replacement keeps the committed ledger visible until the replay completes.
+        #expect(partialFile.codexReplacementScanPending == true)
+        #expect(partialFile.codexRows?.contains { $0.input == 400_000 } == true)
+        #expect(partialFile.codexStagedRecoveryRows?.contains { $0.input == 400_000 } == false)
         #expect(partialFile.codexRows?.allSatisfy { $0.pricingMode == (priority ? "priority" : "standard") } == true)
         let recoveryAnchor = try #require(partialFile.codexPendingSourcePricingAnchor)
         #expect(recoveryAnchor.indexedBytes == partialFile.size)
@@ -314,24 +317,16 @@ struct CostUsageCodexSourceRecoveryTests {
         let cold = Self.report(day: day, options: coldOptions, elapsed: 4)
         #expect(cold.summary?.totalTokens == 650_000)
         #expect(try abs(#require(cold.summary?.totalCostUSD) - 1.625) < 1e-9)
-        var sawCompletedOriginalTarget = false
         var completed = false
         for pass in 2..<30 {
             _ = Self.report(day: day, options: options, elapsed: Double(pass))
             let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
             let usage = try #require(reopened.files[file.path])
-            if usage.parsedBytes == originalSize {
-                sawCompletedOriginalTarget = true
-                #expect(usage.codexScanTargetSize == originalSize)
-                #expect(usage.codexRows?.map(\.input) == [200_000, 200_000, 200_000])
-                #expect(usage.codexPendingSourcePricing == nil)
-            }
             if reopened.codexScanCatchUpPending != true, usage.parsedBytes == usage.size {
                 completed = true
                 break
             }
         }
-        #expect(sawCompletedOriginalTarget)
         #expect(completed)
         let final = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         let rows = try #require(final.files[file.path]?.codexRows)
@@ -859,7 +854,7 @@ extension CostUsageCodexSourceRecoveryTests {
         let partial = try #require(interrupted.files[file.path])
         #expect(partial.codexScanComplete == false)
         #expect(partial.codexScanTargetSize == originalSize)
-        #expect(partial.codexHasBufferedSubagentLines == true)
+        #expect(partial.codexReplacementScanPending == true)
         #expect(try #require(partial.codexPendingSourcePricing).isEmpty == false)
 
         let suffix = try (3..<9).map { try Self.subagentRecoveryTokenLine(index: $0, day: day, env: env) }
@@ -875,19 +870,11 @@ extension CostUsageCodexSourceRecoveryTests {
         #expect(cold.summary?.totalTokens == 1_800_000)
         let coldCache = CostUsageStoreAccess.read(cacheRoot: coldOptions.cacheRoot)
 
-        var sawBufferedTail = false
         var completed = false
         for pass in 2..<50 {
             _ = Self.report(day: day, options: options, elapsed: Double(pass))
             let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
             let usage = try #require(reopened.files[file.path])
-            if usage.codexHasBufferedSubagentLines == true,
-               (usage.parsedBytes ?? 0) >= originalSize,
-               (usage.parsedBytes ?? 0) < usage.size
-            {
-                sawBufferedTail = true
-                #expect(usage.codexPendingSourcePricing != nil)
-            }
             if reopened.codexScanCatchUpPending != true,
                usage.codexScanComplete == true,
                !usage.hasBufferedCodexForkRetryLines
@@ -896,7 +883,6 @@ extension CostUsageCodexSourceRecoveryTests {
                 break
             }
         }
-        #expect(sawBufferedTail)
         #expect(completed)
         let store = CostUsageStore(cacheRoot: env.cacheRoot)
         let final = store.syncLoadCodexCache(calendar: .current)
@@ -1006,8 +992,9 @@ extension CostUsageCodexSourceRecoveryTests {
         let interrupted = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         let previous = try #require(interrupted.files[file.path])
         #expect(previous.codexScanComplete == false)
-        #expect(previous.codexRows?.count == 1)
-        #expect(previous.codexRows?.first?.pricingMode == "priority")
+        #expect(previous.codexReplacementScanPending == true)
+        #expect(previous.codexStagedRecoveryRows?.count == 1)
+        #expect(previous.codexStagedRecoveryRows?.first?.pricingMode == "priority")
         let parsedBytes = try #require(previous.parsedBytes)
         #expect(parsedBytes < markerOffset)
         let parsedAnchor = try #require(previous.codexTokenIndexAnchor)
@@ -1153,7 +1140,8 @@ extension CostUsageCodexSourceRecoveryTests {
         #expect(partial.codexScanComplete == false)
         #expect(partial.sessionId == previous.sessionId)
         #expect(try #require(partial.codexPendingSourcePricing).isEmpty)
-        #expect(partial.codexRows?.allSatisfy { $0.unpricedTokens == 200_000 } == true)
+        #expect(partial.codexReplacementScanPending == true)
+        #expect(partial.codexStagedRecoveryRows?.allSatisfy { $0.unpricedTokens == 200_000 } == true)
 
         var completed = false
         for pass in 3..<30 {

@@ -136,6 +136,7 @@ struct WidgetAccountPublicationTests {
     @Test
     func `off by default does not publish identities or fan out segmented refreshes`() {
         let (settings, store) = self.makeStore()
+        settings.iCloudSyncEnabled = false
         settings.multiAccountMenuLayout = .segmented
         #expect(!settings.accountWidgetsEnabled)
         #expect(store.makeWidgetAccountEntries(now: Date()).isEmpty)
