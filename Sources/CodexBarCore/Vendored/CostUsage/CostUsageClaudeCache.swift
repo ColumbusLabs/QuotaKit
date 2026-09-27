@@ -62,12 +62,23 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         let sourceInventory: [String: CostUsageClaudeFileStamp]
         let reportKey: CostUsageClaudeReportMemoKey
         let report: CostUsageDailyReport
+        let hasWindowScopedRows: Bool
+
+        func certifiesWindow(reportKey: CostUsageClaudeReportMemoKey, cache: CostUsageCache) -> Bool {
+            self.hasWindowScopedRows
+                && self.reportKey.cacheArtifactStamp == reportKey.cacheArtifactStamp
+                && self.reportKey.scanConfiguration == reportKey.scanConfiguration
+                && self.reportKey.scanSinceKey == reportKey.scanSinceKey
+                && self.reportKey.scanUntilKey == reportKey.scanUntilKey
+                && cache.scanSinceKey == reportKey.scanSinceKey
+                && cache.scanUntilKey == reportKey.scanUntilKey
+        }
     }
 
     static let shared = CostUsageClaudeReportMemo()
     static let persistedVersion = 1
     /// Bump when pricing, aliases, or report aggregation changes without new artifact stamps.
-    static let reportSemanticsVersion = 5
+    static let reportSemanticsVersion = 6
 
     private struct StoredEntry {
         let entry: Entry
@@ -82,6 +93,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         var report: CostUsageDailyReport
         var hourly: [CostUsageCodexPreviousReport.HourlyEntry]?
         var quotaSlices: [CostUsageCodexPreviousReport.QuotaSlice]?
+        var hasWindowScopedRows: Bool?
     }
 
     private let lock = NSLock()
@@ -111,10 +123,15 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         canonicalCachePath: String,
         sourceInventory: [String: CostUsageClaudeFileStamp],
         reportKey: CostUsageClaudeReportMemoKey,
-        report: CostUsageDailyReport)
+        report: CostUsageDailyReport,
+        hasWindowScopedRows: Bool = false)
     {
         let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
-        let entry = Entry(sourceInventory: sourceInventory, reportKey: reportKey, report: report)
+        let entry = Entry(
+            sourceInventory: sourceInventory,
+            reportKey: reportKey,
+            report: report,
+            hasWindowScopedRows: hasWindowScopedRows)
         self.lock.lock()
         self.installUnlocked(key: key, entry: entry)
         self.lock.unlock()
@@ -167,7 +184,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
                 data: envelope.report.data,
                 summary: envelope.report.summary,
                 hourly: (envelope.hourly ?? []).map(\.hourlyValue),
-                quotaSlices: (envelope.quotaSlices ?? []).map(\.timedValue)))
+                quotaSlices: (envelope.quotaSlices ?? []).map(\.timedValue)),
+            hasWindowScopedRows: envelope.hasWindowScopedRows == true)
     }
 
     private static func hasValidIncompleteCounts(_ report: CostUsageDailyReport) -> Bool {
@@ -184,7 +202,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
             reportKey: entry.reportKey,
             report: entry.report,
             hourly: entry.report.hourly.map(CostUsageCodexPreviousReport.HourlyEntry.init),
-            quotaSlices: entry.report.quotaSlices.map(CostUsageCodexPreviousReport.QuotaSlice.init))
+            quotaSlices: entry.report.quotaSlices.map(CostUsageCodexPreviousReport.QuotaSlice.init),
+            hasWindowScopedRows: entry.hasWindowScopedRows)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         guard let data = try? encoder.encode(envelope) else { return }
@@ -254,8 +273,13 @@ extension CostUsageScanner {
         self.claudeScanWorkRecorder?.record(work)
     }
 
-    static func evictClaudeReportMemoForTesting(provider: UsageProvider, cacheRoot: URL?) {
-        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
+    static func evictClaudeReportMemoForTesting(
+        provider: UsageProvider,
+        cacheRoot: URL?,
+        reportContext: CostUsageReportContext = .regular)
+    {
+        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(
+            provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
         let canonicalCachePath = cacheURL.standardizedFileURL.resolvingSymlinksInPath().path
         CostUsageClaudeReportMemo.shared.evict(
             provider: provider,
@@ -267,6 +291,9 @@ extension CostUsageScanner {
 /// Claude and Vertex retain their small transcript cache. Codex deliberately has no route
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
+    /// Cached transcript rows written before proxy-response identity deduplication need rebuilding.
+    private static let schemaVersion = 2
+
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return root.appendingPathComponent("CodexBar", isDirectory: true)
@@ -275,7 +302,11 @@ enum CostUsageClaudeCacheIO {
     // Provider-specific by design: Claude/Vertex cost caching still uses the legacy JSON artifact pending its own
     // migration (see #2760).
 
-    static func cacheFileURL(provider: UsageProvider, cacheRoot: URL? = nil) -> URL {
+    static func cacheFileURL(
+        provider: UsageProvider,
+        cacheRoot: URL? = nil,
+        reportContext: CostUsageReportContext = .regular) -> URL
+    {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
@@ -283,23 +314,25 @@ enum CostUsageClaudeCacheIO {
         case .vertexai: 6
         default: preconditionFailure("unsupported cost cache provider")
         }
+        let suffix = reportContext == .spendDashboard ? "-history" : ""
         return root
             .appendingPathComponent("cost-usage", isDirectory: true)
-            .appendingPathComponent("\(provider.rawValue)-v\(generation).json", isDirectory: false)
+            .appendingPathComponent("\(provider.rawValue)\(suffix)-v\(generation).json", isDirectory: false)
     }
 
     static func load(
         provider: UsageProvider,
         cacheRoot: URL? = nil,
+        reportContext: CostUsageReportContext = .regular,
         calendar: Calendar? = nil) -> CostUsageCache
     {
-        let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
+        let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
         guard let data = try? Data(contentsOf: url) else { return CostUsageCache() }
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheDecode)
         #endif
         guard let cache = try? JSONDecoder().decode(CostUsageCache.self, from: data),
-              cache.version == 1
+              cache.version == self.schemaVersion
         else { return CostUsageCache() }
         if let calendar, cache.timeZoneIdentifier != calendar.timeZone.identifier {
             return CostUsageCache()
@@ -311,11 +344,13 @@ enum CostUsageClaudeCacheIO {
         provider: UsageProvider,
         cache: CostUsageCache,
         cacheRoot: URL? = nil,
+        reportContext: CostUsageReportContext = .regular,
         calendar: Calendar = .current,
         checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> CostUsageClaudeFileStamp?
     {
-        let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
+        let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
         var cache = cache
+        cache.version = self.schemaVersion
         cache.timeZoneIdentifier = calendar.timeZone.identifier
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheEncode)

@@ -286,7 +286,8 @@ public struct CostUsageFetcher: Sendable {
         piWorkingDirectories: [URL] = [],
         piSessionProcessContexts: [PiSessionProcessContext] = [],
         bypassScannerDebounce: Bool,
-        calendar: Calendar? = nil) async throws -> CostUsageTokenResult
+        calendar: Calendar? = nil,
+        reportContext: CostUsageReportContext = .regular) async throws -> CostUsageTokenResult
     {
         return try await Self.loadTokenResult(
             provider: provider,
@@ -303,7 +304,8 @@ public struct CostUsageFetcher: Sendable {
             bypassScannerDebounce: bypassScannerDebounce,
             piWorkingDirectories: piWorkingDirectories,
             piSessionProcessContexts: piSessionProcessContexts,
-            scannerOptions: self.scannerOptions(calendar: calendar))
+            scannerOptions: self.scannerOptions(calendar: calendar),
+            reportContext: reportContext)
     }
 
     @available(*, deprecated, message: "Codex token-cost scans are uncapped; this limit is ignored.")
@@ -562,7 +564,8 @@ public struct CostUsageFetcher: Sendable {
         piScannerOptions overridePiScannerOptions: PiSessionCostScanner
             .Options? = nil,
         modelsDevClient: ModelsDevClient = ModelsDevClient(),
-        retryUnknownPricing: Bool = true) async throws -> CostUsageTokenResult
+        retryUnknownPricing: Bool = true,
+        reportContext: CostUsageReportContext? = nil) async throws -> CostUsageTokenResult
     {
         guard self.supportsTokenSnapshot(provider) else {
             throw CostUsageError.unsupportedProvider(provider)
@@ -838,7 +841,8 @@ public struct CostUsageFetcher: Sendable {
             shouldMergePiUsage: shouldMergePiUsage,
             scanOptions: scanOptions,
             environment: environment,
-            piOptions: piOptions)
+            piOptions: piOptions,
+            reportContext: reportContext)
         let scanResult = try await Self.loadLocalTokenScanResult(
             provider: provider,
             since: since,
@@ -872,7 +876,8 @@ public struct CostUsageFetcher: Sendable {
                 scannerOptions: options,
                 piScannerOptions: piOptions,
                 modelsDevClient: modelsDevClient,
-                retryUnknownPricing: false)
+                retryUnknownPricing: false,
+                reportContext: reportContext)
         }
 
         let snapshot = Self.tokenSnapshot(
@@ -930,6 +935,7 @@ public struct CostUsageFetcher: Sendable {
         let scanOptions: CostUsageScanner.Options
         let environment: [String: String]
         let piOptions: PiSessionCostScanner.Options
+        let reportContext: CostUsageReportContext?
     }
 
     private static func unavailableLocalSnapshot(
@@ -975,6 +981,7 @@ public struct CostUsageFetcher: Sendable {
                 until: now,
                 now: now,
                 options: scanOptions,
+                reportContext: options.reportContext,
                 checkCancellation: checkCancellation)
             try checkCancellation()
 
@@ -991,6 +998,7 @@ public struct CostUsageFetcher: Sendable {
                     until: now,
                     now: now,
                     options: fallback,
+                    reportContext: options.reportContext,
                     checkCancellation: checkCancellation)
                 try checkCancellation()
             }
