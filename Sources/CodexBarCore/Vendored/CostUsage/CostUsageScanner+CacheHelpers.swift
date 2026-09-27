@@ -373,11 +373,6 @@ extension CostUsageScanner {
         return updated.refreshingCodexWorkspaceUsageFingerprint()
     }
 
-    struct CodexPricingEvidence: Codable, Equatable {
-        var pricingModel: String?
-        var pricingMode: String?
-    }
-
     static func codexRowsWithPricingMetadata(
         _ rows: [CodexUsageRow],
         priorityTurns: [String: CodexPriorityTurnMetadata],
