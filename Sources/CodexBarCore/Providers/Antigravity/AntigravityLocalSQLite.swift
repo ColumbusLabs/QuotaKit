@@ -17,6 +17,7 @@ extension AntigravityLocalReader {
                 result.events.append(contentsOf: source.events)
                 result.isComplete = result.isComplete && source.isComplete
                 result.containsHistorySource = result.containsHistorySource || source.containsHistorySource
+                result.evidenceIsUnstable = result.evidenceIsUnstable || source.evidenceIsUnstable
             } catch ScanFailure.schemaExhausted {
                 // Schema-budget exhaustion is a soft limit: preserve rows already decoded from earlier
                 // databases. They are valid partial history and are more useful than an empty result when

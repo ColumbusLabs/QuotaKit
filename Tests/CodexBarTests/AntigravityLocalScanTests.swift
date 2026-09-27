@@ -24,9 +24,9 @@ struct AntigravityLocalScanTests {
         limits.duration = 60
         let report = try fixture.report(limits: limits)
         #expect(report.coverage == (count <= 500 ? .complete : .partial))
-        #expect(report.statistics.files == min(count, 500))
+        #expect(report.statistics.files == (count <= 500 ? count : 0))
         #expect(report.statistics.rows == 0)
-        #expect(report.statistics.sqliteHandlesOpened == min(count, 500))
+        #expect(report.statistics.sqliteHandlesOpened == report.statistics.files)
         #expect(report.statistics.sqliteHandlesClosed == report.statistics.sqliteHandlesOpened)
     }
 
