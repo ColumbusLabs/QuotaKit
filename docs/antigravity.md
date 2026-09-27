@@ -129,6 +129,9 @@ When the Antigravity 2.0 app is running:
 
 2. **Port discovery**
    - Command: `lsof -nP -iTCP -sTCP:LISTEN -a -p <pid>`.
+   - On Linux, a failed or empty `lsof` result falls back to process-owned socket inodes in
+     `/proc/<pid>/fd` and `/proc/<pid>/net/tcp{,6}`. Timeouts remain terminal, and an
+     unsuccessful fallback retains the original `lsof` diagnostic.
    - All listening ports are probed.
 
 3. **Connect port probe (HTTPS)**
@@ -178,6 +181,8 @@ Differences from the desktop local probe:
   session as before.
 - Readiness is endpoint-based: QuotaKit retries until one of the quota endpoints parses, because fresh `agy`
   processes can bind a port before the quota service is initialized.
+- If an attempted source returns a specific authentication, quota, or transport error, a later unavailable
+  local source does not replace that diagnostic.
 - App runtime uses a bounded warm session: `agy` is kept alive briefly after a refresh, then stopped on idle. CLI runtime
   tears it down immediately after the one-shot fetch.
 - Repeated endpoint failures force a relaunch instead of reusing a wedged process forever.
@@ -220,7 +225,8 @@ shared OAuth file can still be used as a fallback credential source.
 - Preferred quota summary UI:
   - Render `Gemini Session`, `Gemini Weekly`, `Claude + GPT Session`, and `Claude + GPT Weekly` as named windows.
   - Keep Antigravity's bucket description as reset prose; infer `windowMinutes` from the bucket ID/display name.
-  - Use the most constrained known bucket as the compact/menu-bar metric.
+  - Resolve session and weekly metrics independently from their known buckets, using the most constrained
+    bucket at each cadence. An unavailable bucket never appears as exhausted usage.
 - Legacy user-facing quota groups:
   - `Gemini` groups Gemini Pro and Gemini Flash text models.
   - `Claude + GPT` groups Claude text models and GPT/GPT-OSS text models.
@@ -242,6 +248,8 @@ shared OAuth file can still be used as a fallback credential source.
 - Antigravity exposes many model rows, but current local payloads show them collapsing into two real usage pools:
   Gemini and Claude/GPT. Detailed usage should not list every raw Gemini tier unless a future source exposes a genuinely
   distinct unknown or consumed quota window.
+- A remote model row that exactly mirrors its pool's remaining fraction and reset is omitted; a variant with
+  a distinct value or reset remains visible. Local model rows retain their own identities.
 - Some Antigravity local/CLI model config entries include reset metadata but omit `remainingFraction`. Those windows stay
   in `extraRateWindows` for reset context and are marked with `usageKnown: false`; clients should not render their
   `usedPercent` as a real exhausted quota.
@@ -381,7 +389,8 @@ and source-linked, not private captures or proof of live installation/UI behavio
 
 ## Constraints
 - Internal protocol; fields may change.
-- Requires `lsof` for local/CLI port detection.
+- On macOS, local/CLI port detection uses the process API or `lsof`. On Linux, it can recover from `lsof`
+  failure through process-owned `/proc` sockets.
 - Local HTTPS uses a self-signed cert; the probe allows insecure TLS only for loopback hosts.
 
 ## Key files
