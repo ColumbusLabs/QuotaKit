@@ -38,6 +38,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.
 - Copilot: show configured seat-credit progress in Automatic provider tabs when metered quotas are unavailable.
 - DeepSeek: retain balances through transport failures only for the matching live browser session.
 - Amp: restore Tier Agent and Orb usage, billing-period pace, and precise credit units.
