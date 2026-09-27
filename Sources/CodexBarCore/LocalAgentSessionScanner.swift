@@ -312,7 +312,7 @@ public struct LocalAgentSessionScanner: Sendable {
         DarwinProcessEnumerator.executablePath(pid: pid)
         #else
         _ = pid
-        nil
+        return nil
         #endif
     }
 
@@ -321,7 +321,7 @@ public struct LocalAgentSessionScanner: Sendable {
         DarwinProcessEnumerator.commandArguments(pid: pid)
         #else
         _ = pid
-        nil
+        return nil
         #endif
     }
 
