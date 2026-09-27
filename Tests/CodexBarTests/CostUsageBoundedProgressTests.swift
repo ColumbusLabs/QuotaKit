@@ -2,6 +2,8 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+// Bounded progress fixtures share one corpus and environment helper vocabulary.
+// swiftlint:disable file_length
 @Suite(.serialized)
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
@@ -405,6 +407,55 @@ struct CostUsageBoundedProgressTests {
         #expect(converged.codexActiveLookbackState == nil)
         #expect(converged.codexScanCatchUpPending == false)
         #expect(converged.codexScanInventoryPaths?.count == 2)
+    }
+
+    @Test
+    func `pending exact proof defers row and byte pruning until validation completes`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let historicalDay = try env.makeLocalNoon(year: 2020, month: 1, day: 2)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: 2)
+        try Self.writeSyntheticCorpus(env: env, day: currentDay, fileCount: 1)
+        var options = Self.boundedOptions(env: env)
+        options.maxCodexScanDurationPerRefresh = nil
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+
+        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(cache.files.count == 3)
+        cache.scanSinceKey = "2026-05-10"
+        cache.scanUntilKey = "2026-05-10"
+        cache.codexActiveLookbackState = try Self.completedLookbackState(
+            cache: cache, options: options, pendingFilePaths: [])
+        cache.codexScanInventoryPaths = nil
+        cache.codexScanCatchUpPending = true
+        let window = (sinceKey: "2026-05-10", untilKey: "2026-05-10")
+        let pending = await store.saveCodexCache(
+            cache,
+            calendar: options.calendar,
+            requestedScanWindow: window,
+            rowBudget: 1,
+            fileBudgetBytes: 1)
+        #expect(pending.deletedRows == 0)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.count == 3)
+
+        cache.codexActiveLookbackState = nil
+        cache.codexScanCatchUpPending = false
+        _ = await store.saveCodexCache(
+            cache,
+            calendar: options.calendar,
+            requestedScanWindow: window,
+            rowBudget: 1,
+            fileBudgetBytes: 1)
+        let retained = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(retained.files.count == 1)
+        #expect(retained.files.keys.first?.contains("/2026/05/10/") == true)
     }
 
     @Test

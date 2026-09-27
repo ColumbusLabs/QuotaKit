@@ -62,7 +62,10 @@ struct ClaudeSwapRichUsageFixture {
         try script.write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
         try Self.payload(activeNeedsRepair: activeNeedsRepair).write(to: executable.appendingPathExtension("json"))
-        let list = try await ClaudeSwapAccountReader.readAccountList(executablePath: executable.path)
+        // The fixture invokes only its own fake CLI through the explicit CLI path.
+        let list = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeSwapAccountReader.readAccountList(executablePath: executable.path)
+        }
         let arguments = try String(contentsOf: executable.appendingPathExtension("args"), encoding: .utf8)
         let accounts = ClaudeSwapAccountProjection.accountSnapshots(from: list, now: Self.now)
 

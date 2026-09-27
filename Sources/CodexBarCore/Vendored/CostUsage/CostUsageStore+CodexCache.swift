@@ -126,6 +126,10 @@ extension CostUsageStore {
         let budgetProtectionWindow = Self.budgetProtectionWindow(
             cache: cache,
             requestedScanWindow: requestedScanWindow)
+        // Exact validation can still find current-day appends in old partition files through
+        // their cached snapshots. Keep those rows until the bounded proof has finished.
+        let deferRetention = cache.codexActiveLookbackState != nil
+            && cache.codexScanCatchUpPending == true
         if skipIdenticalContent,
            Self.persistedContentMatches(
                previous: previous,
@@ -168,14 +172,20 @@ extension CostUsageStore {
 
             // Retention mutates the store, so run it only after the locked revalidation.
             // This prevents a stale scanner from pruning content committed by another process.
-            let retention = self.retainDayWindow(
-                sinceDay: budgetProtectionWindow.sinceKey,
-                untilDay: budgetProtectionWindow.untilKey,
-                calendar: calendar,
-                updateMetadata: false)
+            let retention = deferRetention
+                ? CostUsageStoreRetentionResult(
+                    deletedFiles: 0,
+                    deletedTokenSnapshots: 0,
+                    deletedFileDayAggregates: 0,
+                    deletedDayAggregates: 0)
+                : self.retainDayWindow(
+                    sinceDay: budgetProtectionWindow.sinceKey,
+                    untilDay: budgetProtectionWindow.untilKey,
+                    calendar: calendar,
+                    updateMetadata: false)
             let result = self.enforceBudgets(
-                maxRows: rowBudget,
-                maxFileBytes: fileBudgetBytes,
+                maxRows: deferRetention ? .max : rowBudget,
+                maxFileBytes: deferRetention ? .max : fileBudgetBytes,
                 requestedSinceDay: budgetProtectionWindow.sinceKey,
                 requestedUntilDay: budgetProtectionWindow.untilKey,
                 calendar: calendar)
@@ -266,11 +276,13 @@ extension CostUsageStore {
             _ = self.setMetadata(metadata)
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
-            _ = self.retainDayWindow(
-                sinceDay: budgetProtectionWindow.sinceKey,
-                untilDay: budgetProtectionWindow.untilKey,
-                calendar: calendar,
-                updateMetadata: false)
+            if !deferRetention {
+                _ = self.retainDayWindow(
+                    sinceDay: budgetProtectionWindow.sinceKey,
+                    untilDay: budgetProtectionWindow.untilKey,
+                    calendar: calendar,
+                    updateMetadata: false)
+            }
             return true
         }
         guard saved else {
@@ -284,8 +296,8 @@ extension CostUsageStore {
             calendar: calendar,
             reportWindow: reportWindow)
         let result = self.enforceBudgets(
-            maxRows: rowBudget,
-            maxFileBytes: fileBudgetBytes,
+            maxRows: deferRetention ? .max : rowBudget,
+            maxFileBytes: deferRetention ? .max : fileBudgetBytes,
             requestedSinceDay: budgetProtectionWindow.sinceKey,
             requestedUntilDay: budgetProtectionWindow.untilKey,
             calendar: calendar,
@@ -321,6 +333,8 @@ extension CostUsageStore {
         let budgetProtectionWindow = Self.budgetProtectionWindow(
             cache: cache,
             requestedScanWindow: requestedScanWindow)
+        let deferRetention = cache.codexActiveLookbackState != nil
+            && cache.codexScanCatchUpPending == true
         let previousMetadata = self.fetchMetadata()
         let aggregatePricing = self.aggregatePricingContext()
         let maintainsSparseVerifiedDays = previousMetadata.verifiedScanSinceDay == nil
@@ -433,11 +447,13 @@ extension CostUsageStore {
             _ = self.setMetadata(metadata)
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
-            _ = self.retainDayWindow(
-                sinceDay: budgetProtectionWindow.sinceKey,
-                untilDay: budgetProtectionWindow.untilKey,
-                calendar: calendar,
-                updateMetadata: false)
+            if !deferRetention {
+                _ = self.retainDayWindow(
+                    sinceDay: budgetProtectionWindow.sinceKey,
+                    untilDay: budgetProtectionWindow.untilKey,
+                    calendar: calendar,
+                    updateMetadata: false)
+            }
             return true
         }
         guard saved else {
@@ -451,8 +467,8 @@ extension CostUsageStore {
             calendar: calendar,
             reportWindow: reportWindow)
         let result = self.enforceBudgets(
-            maxRows: rowBudget,
-            maxFileBytes: fileBudgetBytes,
+            maxRows: deferRetention ? .max : rowBudget,
+            maxFileBytes: deferRetention ? .max : fileBudgetBytes,
             requestedSinceDay: budgetProtectionWindow.sinceKey,
             requestedUntilDay: budgetProtectionWindow.untilKey,
             calendar: calendar,
