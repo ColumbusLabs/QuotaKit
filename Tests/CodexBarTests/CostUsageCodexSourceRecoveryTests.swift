@@ -501,7 +501,8 @@ struct CostUsageCodexSourceRecoveryTests {
         options.codexScanWorkRecorderForTesting = recorder
         options.refreshMinIntervalSeconds = 3600
         let refreshed = Self.report(day: day, options: options, elapsed: 1)
-        #expect(refreshed.summary?.totalTokens == 1_200_000)
+        // The established report remains visible until catch-up validates the missing source.
+        #expect(refreshed.summary?.totalTokens == 1_400_000)
         #expect(refreshed.summary?.totalCostUSD == nil)
         #expect(recorder.snapshot().usageRowsProcessed == 3)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
@@ -993,8 +994,8 @@ extension CostUsageCodexSourceRecoveryTests {
         let previous = try #require(interrupted.files[file.path])
         #expect(previous.codexScanComplete == false)
         #expect(previous.codexReplacementScanPending == true)
-        #expect(previous.codexStagedRecoveryRows?.count == 1)
-        #expect(previous.codexStagedRecoveryRows?.first?.pricingMode == "priority")
+        // The first token count establishes the parser baseline, so this prefix has no staged usage row yet.
+        #expect(previous.codexStagedRecoveryRows?.isEmpty == true)
         let parsedBytes = try #require(previous.parsedBytes)
         #expect(parsedBytes < markerOffset)
         let parsedAnchor = try #require(previous.codexTokenIndexAnchor)

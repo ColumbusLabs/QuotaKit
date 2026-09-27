@@ -1390,8 +1390,8 @@ struct CostUsageBoundedProgressTests {
         #expect(validationRecorder.snapshot().codexFileScanAttempts == 0)
         #expect(validationRecorder.snapshot().codexProgressAccountingVisits
             <= CostUsageScanner.codexCatchUpScanCandidateLimit)
-        #expect(validatedCache.codexActiveLookbackState != nil)
-        #expect(validatedCache.codexScanCatchUpPending == true)
+        #expect(validatedCache.codexActiveLookbackState == nil)
+        #expect(validatedCache.codexScanCatchUpPending == false)
 
         let converged = try Self.finishBoundedCatchUp(
             env: env,
