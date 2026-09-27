@@ -144,7 +144,6 @@ extension UsageStore {
                self.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: provider)?
                    .snapshot?.historyCoverageIsEstablished == true
             {
-                self.spendDashboardTokenFailedTriggers[provider.instanceID] = trigger
                 return
             }
             self.lastSpendDashboardTokenFetchScope[provider.instanceID] = completedCostScopeSignature

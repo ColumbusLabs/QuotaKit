@@ -326,7 +326,8 @@ enum SpendDashboardSource {
         let piOwnsSource = providers.contains(.pi)
             && piBaseline != nil
             && piCurrent.publication?.snapshot != nil
-            && !(piBaseline?.shouldRefresh == true && piBaseline?.publicationRevision == piCurrent.revision)
+            && !(mode.shouldRefresh(hasPublication: piBaseline?.publication != nil)
+                && piBaseline?.publicationRevision == piCurrent.revision)
         var inputs: [SpendDashboardModel.ProviderInput] = []
         var unavailableSourceIDs: Set<String> = []
         var confirmedEmptySourceIDs: Set<String> = []

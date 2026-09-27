@@ -488,6 +488,18 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     /// the conditionals library; the layout stores only its identity.
     case conditional(id: UUID)
 
+    /// Both persisted reset tokens render the automatic semantic window.
+    var resetWindow: PercentWindow? {
+        switch self {
+        case .resetCountdown, .resetAbsolute: .automatic
+        default: nil
+        }
+    }
+
+    var resetIsAbsolute: Bool {
+        self == .resetAbsolute
+    }
+
     var selectedLane: MenuBarLayoutLane? {
         if case let .lanePercent(lane) = self { return lane }
         return nil
