@@ -43,11 +43,11 @@ enum ProviderPluginSnapshotMapper {
             throw ProviderPluginError.invalidSnapshot("fetchUsage must resolve to an object")
         }
 
-        var allowedKeys: Set<String> = [
+        var allowedKeys = Set([
             "primary", "secondary", "tertiary", "extraWindows", "cost", "costUsage", "details",
             "identity",
             "subscriptionRenewsAt", "subscriptionExpiresAt", "dataConfidence", "empty",
-        ]
+        ])
         if provider == UsageProvider.hyper.instanceID {
             allowedKeys.insert("hyperBalance")
         }
