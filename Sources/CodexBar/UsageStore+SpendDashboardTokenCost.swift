@@ -179,6 +179,8 @@ extension UsageStore {
                self.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: provider)?
                    .snapshot?.historyCoverageIsEstablished == true
             {
+                // Retry after a new regular publication, not on observation churn.
+                self.spendDashboardTokenFailedTriggers[provider.instanceID] = trigger
                 return
             }
             self.lastSpendDashboardTokenFetchScope[provider.instanceID] = completedCostScopeSignature

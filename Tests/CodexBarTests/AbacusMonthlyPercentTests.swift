@@ -83,7 +83,8 @@ struct AbacusMonthlyPercentTests {
         for (token, label): (MenuBarLayoutToken, String) in [
             (.percent(window: .session), "Credits %"),
             (.pace(window: .session), "Credits pace"),
-            (.resetCountdown, "Credits: Resets in"),
+            (.resetCountdown, "Resets in"),
+            (.windowResetCountdown(window: .session), "Credits: Resets in"),
         ] {
             let actual = token.editorLabel(provider: .abacus)
             proof.append(actual)

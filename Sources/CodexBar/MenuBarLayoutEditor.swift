@@ -1247,9 +1247,9 @@ extension MenuBarLayoutToken {
         return switch self {
         case .percent: L("%@ %@", localizedLabel, "%")
         case .pace: L("%@ %@", localizedLabel, L("display_mode_pace").lowercased())
-        case .windowResetCountdown(window: .weekly):
+        case .windowResetCountdown:
             L("%@: %@", localizedLabel, L("menu_bar_layout_token_resets_in"))
-        case .windowResetAbsolute(window: .weekly):
+        case .windowResetAbsolute:
             L("%@: %@", localizedLabel, L("menu_bar_layout_token_reset_at"))
         default: nil
         }
