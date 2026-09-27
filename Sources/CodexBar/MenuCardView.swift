@@ -1036,11 +1036,14 @@ extension UsageMenuCardView.Model {
             let section = pair.section
             let rows = section.rows.compactMap { row in
                 try? ProviderDetailSection.Row(
+                    id: row.id,
                     label: PersonalInfoRedactor.redactEmails(in: row.label, isEnabled: true) ?? row.label,
                     value: PersonalInfoRedactor.redactEmails(in: row.value, isEnabled: true) ?? row.value,
                     secondaryValue: PersonalInfoRedactor.redactEmails(
                         in: row.secondaryValue,
-                        isEnabled: true))
+                        isEnabled: true),
+                    progress: row.progress,
+                    usageValue: row.usageValue)
             }
             let chart = section.chart.flatMap { chart in
                 let points = chart.points.compactMap { point in
