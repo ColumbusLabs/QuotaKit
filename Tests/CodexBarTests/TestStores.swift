@@ -157,6 +157,7 @@ func testSettingsStore(
     tokenAccountStore: any ProviderTokenAccountStoring = InMemoryTokenAccountStore(),
     config: CodexBarConfig? = nil,
     userDefaults: UserDefaults? = nil,
+    prepareDefaults: ((UserDefaults) -> Void)? = nil,
     keychainAccessPolicy: SettingsStoreKeychainAccessPolicy = .init(
         setDisabled: { _ in }, isExplicitlyDisabled: { false })) -> SettingsStore
 {
@@ -167,6 +168,7 @@ func testSettingsStore(
     if userDefaults == nil {
         defaults.removePersistentDomain(forName: isolatedSuiteName)
     }
+    prepareDefaults?(defaults)
     let configStore = testConfigStore(suiteName: isolatedSuiteName)
     if let config {
         do {
@@ -255,4 +257,18 @@ func testPlanUtilizationHistoryStore(suiteName: String, reset: Bool = true) -> P
         try? FileManager.default.removeItem(at: url)
     }
     return PlanUtilizationHistoryStore(directoryURL: url)
+}
+
+@MainActor
+func testConfigWithAllProvidersDisabled() -> CodexBarConfig {
+    CodexBarConfig(providers: UsageProvider.allCases.map {
+        ProviderConfig(id: $0.instanceID, enabled: false)
+    })
+}
+
+@MainActor
+func enableTestProviders(_ providers: [UsageProvider], settings: SettingsStore) {
+    for provider in UsageProvider.allCases {
+        settings.updateProviderConfig(provider: provider) { $0.enabled = providers.contains(provider) }
+    }
 }

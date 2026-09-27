@@ -193,9 +193,7 @@ struct CostUsageCodexSourceRecoveryTests {
         if priority {
             var usage = try #require(canonical.files[file.path])
             usage.codexRows = usage.codexRows?.map { row in
-                var row = row
-                row.pricingMode = "priority"
-                return row
+                Self.withPricing(row, mode: "priority")
             }
             canonical.files[file.path] = usage
             #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: canonical).catchUpRequired)
@@ -642,10 +640,7 @@ struct CostUsageCodexSourceRecoveryTests {
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         var usage = try #require(cache.files[file.path])
         usage.codexRows = usage.codexRows?.map { row in
-            var row = row
-            row.pricingMode = "priority"
-            row.pricingModel = row.pricingModel ?? row.model
-            return row
+            Self.withPricing(row, model: row.pricingModel ?? row.model, mode: "priority")
         }
         usage.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision - 1
         let historicalRows = try #require(usage.codexRows)
@@ -768,6 +763,28 @@ struct CostUsageCodexSourceRecoveryTests {
             pricingMode: pricingMode)
     }
 
+    private static func withPricing(
+        _ row: CostUsageScanner.CodexUsageRow,
+        model: String? = nil,
+        mode: String? = nil) -> CostUsageScanner.CodexUsageRow
+    {
+        CostUsageScanner.CodexUsageRow(
+            day: row.day,
+            model: row.model,
+            rawModel: row.rawModel,
+            turnID: row.turnID,
+            eventIndex: row.eventIndex,
+            timestampUnixMs: row.timestampUnixMs,
+            input: row.input,
+            cached: row.cached,
+            output: row.output,
+            reasoning: row.reasoning,
+            knownCostNanos: row.knownCostNanos,
+            unpricedTokens: row.unpricedTokens,
+            pricingModel: model ?? row.pricingModel,
+            pricingMode: mode ?? row.pricingMode)
+    }
+
     private static func sourceLines(
         inputs: [Int],
         day: Date,
@@ -814,9 +831,7 @@ extension CostUsageCodexSourceRecoveryTests {
         var contaminated = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(contaminated.files[file.path]?.codexRows?.map(\.input) == [200_000, 200_000, 200_000])
         contaminated.files[file.path]?.codexRows = Self.contaminatedRows(day: day, pricingMode: "priority").map { row in
-            var row = row
-            row.pricingModel = "gpt-5.5"
-            return row
+            Self.withPricing(row, model: "gpt-5.5")
         }
         #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: contaminated).catchUpRequired)
 
@@ -828,7 +843,7 @@ extension CostUsageCodexSourceRecoveryTests {
         let partial = try #require(interrupted.files[file.path])
         #expect(partial.codexScanComplete == false)
         #expect(partial.codexScanTargetSize == originalSize)
-        #expect(partial.hasBufferedCodexSubagentLines)
+        #expect(partial.codexHasBufferedSubagentLines == true)
         #expect(try #require(partial.codexPendingSourcePricing).isEmpty == false)
 
         let suffix = try (3..<9).map { try Self.subagentRecoveryTokenLine(index: $0, day: day, env: env) }
@@ -850,7 +865,7 @@ extension CostUsageCodexSourceRecoveryTests {
             _ = Self.report(day: day, options: options, elapsed: Double(pass))
             let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
             let usage = try #require(reopened.files[file.path])
-            if usage.hasBufferedCodexSubagentLines,
+            if usage.codexHasBufferedSubagentLines == true,
                (usage.parsedBytes ?? 0) >= originalSize,
                (usage.parsedBytes ?? 0) < usage.size
             {
@@ -1075,9 +1090,7 @@ extension CostUsageCodexSourceRecoveryTests {
         _ = Self.report(day: day, options: options)
         var contaminated = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         contaminated.files[file.path]?.codexRows = Self.contaminatedRows(day: day, pricingMode: "priority").map { row in
-            var row = row
-            row.pricingModel = "gpt-5.5"
-            return row
+            Self.withPricing(row, model: "gpt-5.5")
         }
         #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: contaminated).catchUpRequired)
 

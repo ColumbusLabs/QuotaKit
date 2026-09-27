@@ -136,6 +136,7 @@ private final class QuotaNativeState {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: history,
             tokenError: nil,

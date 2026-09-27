@@ -551,7 +551,7 @@ struct CodexPaginatedHistoryAccountingTests {
         options: inout CostUsageScanner.Options) throws
     {
         var partial = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
-        #expect(partial.files[file.path]?.hasBufferedCodexUnresolvedForkLines == true)
+        #expect(partial.files[file.path]?.codexHasBufferedUnresolvedForkLines == true)
         let byteLimit = options.maxCodexSessionFileBytes
         // Hydration resolves the parent on a later refresh; stop immediately after replaying the first event.
         options.maxCodexSessionFileBytes = 16
@@ -577,7 +577,7 @@ struct CodexPaginatedHistoryAccountingTests {
         #expect(page.codexJSONLResumeState != nil)
         #expect(page.codexForkAccountingState?.inheritedTotals?.input == 1000)
         #expect(page.codexForkAccountingState?.metadata.sessionId == sessionID)
-        #expect(!page.hasBufferedCodexUnresolvedForkLines)
+        #expect(page.codexHasBufferedUnresolvedForkLines != true)
         options.maxCodexSessionFileBytes = byteLimit
         options.maxCodexScanBytesPerRefresh = byteLimit
     }

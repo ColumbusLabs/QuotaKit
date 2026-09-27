@@ -109,6 +109,7 @@ struct AntigravityQuotaWindowBoundaryTests {
                     updatedAt: self.now),
                 credits: nil,
                 creditsError: nil,
+                dashboard: nil,
                 dashboardError: nil,
                 tokenSnapshot: self.snapshot(),
                 tokenError: nil,

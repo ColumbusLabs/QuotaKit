@@ -24,9 +24,9 @@ extension VeniceUsageSourceTests {
     func `web source leaves saved API accounts passive until explicitly selected`() {
         let account = Self.account()
         let settings = testSettingsStore(
-            suiteName: #function, userDefaults: InMemoryUserDefaults(), config: Self.config(
-                account: account,
-                source: .api))
+            suiteName: #function,
+            config: Self.config(account: account, source: .api),
+            userDefaults: InMemoryUserDefaults())
         #expect(settings.effectiveSelectedTokenAccount(for: .venice)?.id == account.id)
         settings.veniceUsageDataSource = .web
         #expect(settings.effectiveSelectedTokenAccount(for: .venice) == nil)

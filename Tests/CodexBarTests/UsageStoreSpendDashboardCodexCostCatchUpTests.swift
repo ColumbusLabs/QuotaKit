@@ -762,3 +762,37 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         Issue.record("Timed out waiting for Spend Dashboard Codex cost catch-up")
     }
 }
+
+@MainActor
+private final class SpendDashboardPendingLoads<Value> {
+    private var pending: [CheckedContinuation<Value, any Error>] = []
+
+    func load() async throws -> Value {
+        try await withCheckedThrowingContinuation { continuation in
+            self.pending.append(continuation)
+        }
+    }
+
+    func waitForPendingCount(_ expected: Int) async throws {
+        for _ in 0..<1000 {
+            if self.pending.count == expected { return }
+            await Task.yield()
+        }
+        throw NSError(domain: "SpendDashboardPendingLoads", code: 1)
+    }
+
+    func resume(returning value: Value) {
+        guard !self.pending.isEmpty else {
+            Issue.record("No pending Spend Dashboard load to resume")
+            return
+        }
+        self.pending.removeFirst().resume(returning: value)
+    }
+
+    func close() {
+        for continuation in self.pending {
+            continuation.resume(throwing: CancellationError())
+        }
+        self.pending.removeAll()
+    }
+}

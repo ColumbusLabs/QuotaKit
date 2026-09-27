@@ -1404,7 +1404,7 @@ public struct CursorStatusProbe: Sendable {
     }
     #endif
 
-    private func fetchWithCookieHeader(
+    func fetchWithCookieHeader(
         _ cookieHeader: String,
         identityFallback: CursorSessionIdentity? = nil,
         deadline: Date? = nil) async throws -> CursorStatusSnapshot

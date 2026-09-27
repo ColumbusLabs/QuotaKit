@@ -62,7 +62,7 @@ struct ProviderSessionStoreFileTests {
             try? FileManager.default.removeItem(at: file)
         } }
         let cookie = try Self.cookie(value: "synthetic-default")
-        let cursor = CursorSessionStore()
+        let cursor = CursorSessionStore(fileURL: files[0])
         let augment = AugmentSessionStore()
         let factory = FactorySessionStore()
         let notion = NotionSessionStore()
@@ -75,7 +75,7 @@ struct ProviderSessionStoreFileTests {
             let permissions = try #require(attributes[.posixPermissions] as? NSNumber)
             #expect(permissions.intValue & 0o777 == 0o600)
         }
-        #expect(await CursorSessionStore().getCookies().map(\.value) == ["synthetic-default"])
+        #expect(await CursorSessionStore(fileURL: files[0]).getCookies().map(\.value) == ["synthetic-default"])
         #expect(await AugmentSessionStore().getCookies().map(\.value) == ["synthetic-default"])
         #expect(await FactorySessionStore().getCookies().map(\.value) == ["synthetic-default"])
         #expect(await NotionSessionStore().getSession()?.tokenV2 == "synthetic-notion")

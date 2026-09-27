@@ -23,8 +23,9 @@ struct PerplexityCreditPercentTests {
           "total_usage_cents": 9000
         }
         """
-        let snapshot = try PerplexityUsageFetcher._parseResponseForTesting(Data(json.utf8), now: self.now)
-            .toUsageSnapshot()
+        let snapshot = try PerplexityUsageSnapshot(
+            response: JSONDecoder().decode(PerplexityCreditsResponse.self, from: Data(json.utf8)),
+            now: self.now).toUsageSnapshot()
         let text = CLIRenderer.renderText(
             provider: .perplexity,
             snapshot: snapshot,
@@ -118,7 +119,6 @@ struct PerplexityCreditPercentTests {
         let automatic = MenuBarMetricWindowResolver.rateWindow(
             preference: .automatic, provider: provider, snapshot: snapshot, supportsAverage: false)
         return MenuBarLayoutRenderData(
-            provider: provider,
             iconKey: provider.rawValue,
             providerName: ProviderDefaults.metadata[provider]?.displayName,
             accountLabel: nil,
@@ -126,6 +126,7 @@ struct PerplexityCreditPercentTests {
             primary: MenuBarLayoutRenderWindow(snapshot.primary),
             secondary: MenuBarLayoutRenderWindow(snapshot.secondary),
             tertiary: MenuBarLayoutRenderWindow(snapshot.tertiary),
+            provider: provider,
             session: MenuBarLayoutRenderWindow(semantic.session),
             weekly: MenuBarLayoutRenderWindow(semantic.weekly),
             scopedWeekly: nil,

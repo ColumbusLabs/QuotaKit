@@ -29,7 +29,8 @@ struct UsageStorePiHistoryScopeTests {
                     outputTokens: 5,
                     totalTokens: 25,
                     costUSD: 0.25,
-                    modelsUsed: ["fictional-pi-model"])],
+                    modelsUsed: ["fictional-pi-model"],
+                    modelBreakdowns: nil)],
                 updatedAt: now.addingTimeInterval(-3600))
             return CostUsageTokenResult(snapshot: snapshot, accounting: .piOnly(scope: "synthetic-scope"))
         }
@@ -98,13 +99,17 @@ struct UsageStorePiHistoryScopeTests {
         let firstGeneration = store.piHistoryScopeGeneration
         let firstSignature = store.tokenSnapshotScopeSignature(for: .codex)
         let firstDashboardSignature = store.spendDashboardTokenSnapshotScopeSignature(for: .codex)
-        let originalPublication = store.tokenRefreshPublicationScope(
-            for: .codex,
-            historyDays: store.settings.costUsageHistoryDays,
-            costScopeSignature: firstSignature)
-        #expect(store.tokenRefreshPublicationDisposition(
-            provider: .codex,
-            scope: originalPublication) == .current)
+        let originalRevision = store.providerPublicationRevision(for: .codex)
+        let originalConfigRevision = store.settings.providerConfigRevision(for: .codex)
+        let originalPublicationIsCurrent = {
+            store.tokenRefreshPublicationIsCurrent(
+                provider: .codex,
+                publicationRevision: originalRevision,
+                providerConfigRevision: originalConfigRevision,
+                historyDays: store.settings.costUsageHistoryDays,
+                costScopeSignature: firstSignature)
+        }
+        #expect(originalPublicationIsCurrent())
 
         #expect(await store.refreshPiHistoryScope(for: .claude))
         #expect(store.piHistoryScopeGeneration == firstGeneration)
@@ -114,9 +119,7 @@ struct UsageStorePiHistoryScopeTests {
         await resolver.setFingerprint("scope-B")
         #expect(await store.refreshPiHistoryScope(for: .codex))
         #expect(store.piHistoryScopeGeneration == firstGeneration + 1)
-        #expect(store.tokenRefreshPublicationDisposition(
-            provider: .codex,
-            scope: originalPublication) == .scopeChanged)
+        #expect(!originalPublicationIsCurrent())
 
         await resolver.setFingerprint("scope-A")
         #expect(await store.refreshPiHistoryScope(for: .codex))
@@ -126,17 +129,14 @@ struct UsageStorePiHistoryScopeTests {
         #expect(store.tokenAccountingScopeIsCurrent(.piOnly(scope: "scope-A"), for: .codex))
         #expect(store.tokenSnapshotScopeSignature(for: .codex) != firstSignature)
         #expect(store.spendDashboardTokenSnapshotScopeSignature(for: .codex) != firstDashboardSignature)
-        #expect(store.tokenRefreshPublicationDisposition(
-            provider: .codex,
-            scope: originalPublication) == .scopeChanged)
+        #expect(!originalPublicationIsCurrent())
 
-        let currentPublication = store.tokenRefreshPublicationScope(
-            for: .codex,
-            historyDays: store.settings.costUsageHistoryDays,
-            costScopeSignature: store.tokenSnapshotScopeSignature(for: .codex))
-        #expect(store.tokenRefreshPublicationDisposition(
+        #expect(store.tokenRefreshPublicationIsCurrent(
             provider: .codex,
-            scope: currentPublication) == .current)
+            publicationRevision: store.providerPublicationRevision(for: .codex),
+            providerConfigRevision: store.settings.providerConfigRevision(for: .codex),
+            historyDays: store.settings.costUsageHistoryDays,
+            costScopeSignature: store.tokenSnapshotScopeSignature(for: .codex)))
     }
 
     private static func makeStore() -> UsageStore {

@@ -10,8 +10,8 @@ struct PiWidgetFreshnessTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let settings = testSettingsStore(
             suiteName: "PiWidgetFreshnessTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.costUsageEnabled = true
         let metadata = try #require(ProviderRegistry.shared.metadata[.pi])
         settings.setProviderEnabled(provider: .pi, metadata: metadata, enabled: true)

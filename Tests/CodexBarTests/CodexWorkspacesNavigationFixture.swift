@@ -23,10 +23,10 @@ struct CodexWorkspacesNavigationFixture {
         self.files = try CostUsageTestEnvironment()
         self.settings = testSettingsStore(
             suiteName: "CodexWorkspacesNavigationTests",
-            userDefaults: userDefaults,
             config: CodexBarConfig(providers: UsageProvider.allCases.map {
                 ProviderConfig(id: $0.instanceID, enabled: $0 == .codex)
             }),
+            userDefaults: userDefaults,
             prepareDefaults: {
                 // Isolation must precede SettingsStore's synchronous legacy migration.
                 $0.set(AppGroupSupport.migrationVersion, forKey: AppGroupSupport.migrationVersionKey)

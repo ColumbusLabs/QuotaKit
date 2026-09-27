@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexBar
 
@@ -131,10 +132,21 @@ struct KiloOrganizationRefreshTests {
                 settings: self.settings,
                 startupBehavior: .testing,
                 environmentBase: [:])
+            let settings = self.settings
             let context = ProviderSettingsContext(
                 provider: .kilo,
                 settings: self.settings,
                 store: store,
+                boolBinding: { keyPath in
+                    Binding(
+                        get: { settings[keyPath: keyPath] },
+                        set: { settings[keyPath: keyPath] = $0 })
+                },
+                stringBinding: { keyPath in
+                    Binding(
+                        get: { settings[keyPath: keyPath] },
+                        set: { settings[keyPath: keyPath] = $0 })
+                },
                 statusText: { _ in nil },
                 setStatusText: { _, _ in },
                 lastAppActiveRunAt: { _ in nil },

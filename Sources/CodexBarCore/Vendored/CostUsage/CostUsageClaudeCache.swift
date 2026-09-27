@@ -222,6 +222,7 @@ extension CostUsageScanner {
     enum ClaudeScanWork: Sendable {
         case cacheDecode
         case transcriptParse
+        case incrementalTranscriptParse
         case reconcile
         case cacheEncode
         case reprice
@@ -232,6 +233,7 @@ extension CostUsageScanner {
     struct ClaudeScanWorkMetrics: Equatable, Sendable {
         var cacheDecodes = 0
         var transcriptParses = 0
+        var incrementalTranscriptParses = 0
         var reconciliations = 0
         var cacheEncodes = 0
         var repricedRows = 0
@@ -251,6 +253,9 @@ extension CostUsageScanner {
             switch work {
             case .cacheDecode: self.metrics.cacheDecodes += 1
             case .transcriptParse: self.metrics.transcriptParses += 1
+            case .incrementalTranscriptParse:
+                self.metrics.transcriptParses += 1
+                self.metrics.incrementalTranscriptParses += 1
             case .reconcile: self.metrics.reconciliations += 1
             case .cacheEncode: self.metrics.cacheEncodes += 1
             case .reprice: self.metrics.repricedRows += 1

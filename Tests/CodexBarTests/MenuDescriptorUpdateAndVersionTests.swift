@@ -62,8 +62,8 @@ struct MenuDescriptorUpdateAndVersionTests {
     {
         let settings = testSettingsStore(
             suiteName: "MenuDescriptorUpdateAndVersionTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),

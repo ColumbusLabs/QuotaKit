@@ -667,7 +667,7 @@ extension CostUsageScanner {
                 && cached.claudeRows != nil
             if canIncremental {
                 #if DEBUG
-                Self.recordClaudeScanWork(.transcriptParse)
+                Self.recordClaudeScanWork(.incrementalTranscriptParse)
                 #endif
                 let delta = try Self.parseClaudeFileCancellable(
                     fileURL: url,

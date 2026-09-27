@@ -68,8 +68,8 @@ struct ClaudeSwapRichUsageFixture {
 
         let settings = testSettingsStore(
             suiteName: "ClaudeSwapRichUsageFixture",
-            userDefaults: InMemoryUserDefaults(),
             config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults(),
             prepareDefaults: { defaults in
                 defaults.set(AppGroupSupport.migrationVersion, forKey: AppGroupSupport.migrationVersionKey)
                 defaults.set(true, forKey: "debugDisableKeychainAccess")

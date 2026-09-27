@@ -4,7 +4,7 @@ import Testing
 
 struct CostUsageCodexResolverTests {
     @Test
-    func `memoized pricing preserves scalar costs across dates thresholds routes and overlays`() throws {
+    func `memoized pricing preserves request costs across dates thresholds routes and overlays`() throws {
         let catalog = try Self.catalog()
         let resolver = CostUsagePricing.CodexResolver(catalog: catalog)
         let models = [
@@ -30,17 +30,6 @@ struct CostUsageCodexResolverTests {
                         func costs(_ context: CostUsagePricing.CodexResolver?) -> [Double?] {
                             [
                                 CostUsagePricing.codexCostUSD(
-                                    model: model,
-                                    inputTokens: input,
-                                    cachedInputTokens: 120,
-                                    outputTokens: 30,
-                                    cacheWriteInputTokens: 50,
-                                    pricingDate: date,
-                                    modelsDevCatalog: catalog,
-                                    customPricing: overlay,
-                                    pricingResolver: context),
-                                CostUsagePricing.codexCostUSD(
-                                    aggregate: true,
                                     model: model,
                                     inputTokens: input,
                                     cachedInputTokens: 120,

@@ -172,7 +172,6 @@ extension CodexAccountScopedRefreshTests {
             error: nil)
         store.credits = credits
         store.lastCreditsSnapshot = credits
-        store.lastCreditsSnapshotOwnerGuard = store.lastCodexUsagePublicationGuard
         store.lastCreditsSnapshotAccountKey = email
         store.lastCreditsSource = .api
         return (store, settings, email, now)

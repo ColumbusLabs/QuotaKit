@@ -88,7 +88,11 @@ struct CLIPluginConfigPreservationTests {
 
         func run(_ arguments: [String]) async throws -> Data {
             let result = try await SubprocessRunner.run(
-                binary: TestBuildProducts.executableURL(named: "CodexBarCLI").path,
+                binary: URL(fileURLWithPath: #filePath)
+                    .deletingLastPathComponent()
+                    .deletingLastPathComponent()
+                    .deletingLastPathComponent()
+                    .appendingPathComponent(".build/debug/CodexBarCLI").path,
                 arguments: arguments,
                 environment: [
                     "PATH": "/usr/bin:/bin",

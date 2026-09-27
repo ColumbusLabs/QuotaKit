@@ -444,7 +444,12 @@ struct StatusItemControllerShutdownTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = merged
-        enableTestProviders(enabledProviders, settings: settings)
+        for (provider, metadata) in ProviderRegistry.shared.metadata {
+            settings.setProviderEnabled(
+                provider: provider,
+                metadata: metadata,
+                enabled: enabledProviders.contains(provider))
+        }
 
         let environment = Self.isolatedEnvironment()
         let fetcher = UsageFetcher(environment: environment)

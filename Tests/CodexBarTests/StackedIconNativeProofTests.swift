@@ -21,8 +21,8 @@ final class StackedIconNativeProofTests: XCTestCase {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let settings = testSettingsStore(
             suiteName: "StackedIconProof",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.mergeIcons = true
         settings.menuBarIconStyle = .iconAndPercent
         settings.usageBarsShowUsed = true

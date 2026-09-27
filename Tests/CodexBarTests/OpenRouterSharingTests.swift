@@ -136,3 +136,37 @@ private enum OpenRouterSharingFixture {
             calendar: calendar)
     }
 }
+
+private enum OpenRouterReasoningTestSupport {
+    static let now = Date(timeIntervalSince1970: 1_787_079_600)
+
+    static func snapshot(engine: ProviderPluginEngineKind, activityBody: String) async throws -> UsageSnapshot {
+        let runtime = try BundledPluginTestSupport.runtime(
+            "openrouter",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                let body = switch request.url?.path {
+                case let path? where path.hasSuffix("/activity"):
+                    activityBody
+                case let path? where path.hasSuffix("/key"):
+                    #"{"data":{"limit":20,"usage":5}}"#
+                default:
+                    #"{"data":{"total_credits":100,"total_usage":40}}"#
+                }
+                guard let url = request.url,
+                      let response = HTTPURLResponse(
+                          url: url,
+                          statusCode: 200,
+                          httpVersion: nil,
+                          headerFields: ["Content-Type": "application/json"])
+                else { throw URLError(.badURL) }
+                return (Data(body.utf8), response)
+            })
+        return try await runtime.fetchUsage(
+            secrets: [
+                OpenRouterSettingsReader.envKey: "fixture-key",
+                OpenRouterSettingsReader.managementAPIKeyEnvironmentKey: "fixture-management-key",
+            ],
+            now: self.now)
+    }
+}

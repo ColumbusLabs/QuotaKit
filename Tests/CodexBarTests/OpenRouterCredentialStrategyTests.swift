@@ -65,7 +65,7 @@ struct OpenRouterCredentialStrategyTests {
             #expect(error.localizedDescription.contains("API key field"))
             #expect(error.localizedDescription.contains("OPENROUTER_API_KEY"))
             #expect(outcome.attempts.count == 1)
-            #expect(outcome.attempts.first?.outcome == .failed)
+            #expect(outcome.attempts.first?.errorDescription != nil)
         }
     }
 

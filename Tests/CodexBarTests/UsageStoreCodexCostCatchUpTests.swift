@@ -31,13 +31,23 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test(arguments: [CodexCostCatchUpPowerSource.ac, .battery, .unknown])
-    func `app low power mode floors automatic catch-up decisions`(source: CodexCostCatchUpPowerSource) throws {
+    func `app low power mode preserves longer automatic catch-up delays`(source: CodexCostCatchUpPowerSource)
+        throws
+    {
         let store = try Self.makeStore(suite: "app-low-power-policy")
         let resources = (source, false, ProcessInfo.ThermalState.nominal)
         store.settings.backgroundWorkLowPowerModePreference = .on
         let decision = store.codexCostCatchUpDecision(
             mode: .automatic, previousActiveDuration: 0.1, resourceState: resources)
-        #expect(decision.action == .runAfter(1800))
+        // QuotaKit retains a two-second minimum active burst. With the upstream duty cycles,
+        // even a 100ms scan therefore schedules later than the app's 30-minute floor.
+        let expectedDelay: TimeInterval = switch source {
+        case .ac: 1998
+        case .battery: 9998
+        case .unknown: 3998
+        }
+        #expect(decision.action == .runAfter(expectedDelay))
+        #expect(expectedDelay >= BackgroundWorkPowerPolicy.lowPowerMinimumInterval)
         #expect(store.codexCostCatchUpDecision(
             mode: .accelerated, previousActiveDuration: 0.1, resourceState: resources).action == .runAfter(0))
         store.settings.backgroundWorkLowPowerModePreference = .off

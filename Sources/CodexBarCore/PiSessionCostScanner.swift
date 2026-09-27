@@ -18,6 +18,10 @@ private final class PiSessionISO8601FormatterBox: @unchecked Sendable {
 
 // swiftlint:disable:next type_body_length
 enum PiSessionCostScanner {
+    #if DEBUG
+    @TaskLocal static var sessionParseObserverForTesting: (@Sendable () -> Void)?
+    #endif
+
     struct Options {
         var piSessionsRoot: URL?
         var ompSessionsRoot: URL?
@@ -822,6 +826,7 @@ enum PiSessionCostScanner {
         return true
     }
 
+    // swiftlint:disable:next function_body_length
     private static func parsePiSessionFile(
         fileURL: URL,
         range: CostUsageScanner.CostUsageDayRange,
@@ -831,6 +836,10 @@ enum PiSessionCostScanner {
         pricingContext: ModelsDevPricingContext? = nil,
         checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> ParseResult
     {
+        #if DEBUG
+        self.sessionParseObserverForTesting?()
+        #endif
+
         var sessionID = initialSessionID
         var currentModelContext = initialModelContext
         var contributions: [String: [String: [String: PiPackedUsage]]] = [:]

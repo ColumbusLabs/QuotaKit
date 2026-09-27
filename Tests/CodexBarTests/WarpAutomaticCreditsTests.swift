@@ -40,7 +40,6 @@ struct WarpAutomaticCreditsTests {
         #expect(semantic.session == snapshot.primary)
         #expect(semantic.weekly == snapshot.secondary)
         let data = MenuBarLayoutRenderData(
-            provider: .warp,
             iconKey: "warp",
             providerName: "Warp",
             accountLabel: nil,
@@ -48,6 +47,7 @@ struct WarpAutomaticCreditsTests {
             primary: MenuBarLayoutRenderWindow(snapshot.primary),
             secondary: MenuBarLayoutRenderWindow(snapshot.secondary),
             tertiary: nil,
+            provider: .warp,
             session: MenuBarLayoutRenderWindow(semantic.session),
             weekly: MenuBarLayoutRenderWindow(semantic.weekly),
             scopedWeekly: nil,

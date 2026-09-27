@@ -249,7 +249,7 @@ struct KeychainCacheStoreTests {
         switch result {
         case .temporarilyUnavailable:
             #expect(true)
-        case .found, .missing, .invalid:
+        case .found, .missing, .interactionRequired, .invalid:
             #expect(Bool(false), "Expected temporary keychain lock to be retry-later")
         }
     }
@@ -276,7 +276,7 @@ struct KeychainCacheStoreTests {
             switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
             case .temporarilyUnavailable:
                 #expect(true)
-            case .found, .missing, .invalid:
+            case .found, .missing, .interactionRequired, .invalid:
                 #expect(Bool(false), "Expected override to run before test store")
             }
         }

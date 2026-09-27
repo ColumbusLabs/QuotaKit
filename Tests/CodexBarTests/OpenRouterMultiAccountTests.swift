@@ -355,8 +355,8 @@ struct OpenRouterMultiAccountTests {
     private static func makeSettings(suite: String) -> SettingsStore {
         testSettingsStore(
             suiteName: "\(suite)-\(UUID().uuidString)",
-            userDefaults: InMemoryUserDefaults(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+            tokenAccountStore: InMemoryTokenAccountStore(),
+            userDefaults: InMemoryUserDefaults())
     }
 
     private static func makeStore(

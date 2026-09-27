@@ -108,7 +108,10 @@ struct SpendDashboardLocalHistoryTests {
 
             controller.update(configuration: configuration)
             #expect(controller.publication.sources.first?.role == .localHistory)
-            try await SpendDashboardStateWait.until { !controller.isRefreshing }
+            for _ in 0..<1000 where controller.isRefreshing {
+                await Task.yield()
+            }
+            #expect(!controller.isRefreshing)
             let source = try #require(controller.publication.sources.first)
             #expect(source.provider == .pi)
             #expect(source.role == .localHistory)

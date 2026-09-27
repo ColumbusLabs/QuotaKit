@@ -159,7 +159,7 @@ struct CostUsageBoundedProgressTests {
             #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
                 + #"{"total_token_usage":{"input_tokens":50,"output_tokens":5}}}}"#,
         ]
-        let discoveredURL = try env.seedCodexSessionFile(
+        let discoveredURL = try env.writeCodexSessionFile(
             day: discoveredDay, filename: "discovered-history.jsonl", contents: lines.joined(separator: "\n") + "\n")
         options.maxCodexScanDurationPerRefresh = 60
         let until = newDay ? discoveredDay : day

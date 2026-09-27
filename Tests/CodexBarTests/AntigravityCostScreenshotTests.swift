@@ -149,6 +149,7 @@ final class AntigravityCostScreenshotTests: XCTestCase {
             snapshot: usage,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: tokens,
             tokenError: nil,

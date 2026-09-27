@@ -2219,6 +2219,44 @@ enum CostUsageScanner {
     struct ClaudeParseResult {
         let rows: [ClaudeUsageRow]
         let parsedBytes: Int64
+
+        /// The raw parser exposes rows; keep the packed view available to callers that
+        /// validate the legacy day/model projection independently of report caching.
+        var days: [String: [String: [Int]]] {
+            var days: [String: [String: [Int]]] = [:]
+            var overflowed: Set<String> = []
+            for row in self.rows {
+                let key = "\(row.dayKey)\u{0}\(row.model)"
+                guard !overflowed.contains(key) else { continue }
+                if row.isIncomplete == true {
+                    days[row.dayKey, default: [:]][row.model] =
+                        days[row.dayKey]?[row.model] ?? Array(repeating: 0, count: 8)
+                    continue
+                }
+                let delta = [
+                    row.input,
+                    row.cacheRead,
+                    row.cacheCreate,
+                    row.output,
+                    row.costNanos,
+                    1,
+                    (row.costPriced ?? (row.costNanos > 0)) ? 1 : 0,
+                    row.cacheCreate1h ?? 0,
+                ]
+                let previous = days[row.dayKey]?[row.model] ?? Array(repeating: 0, count: delta.count)
+                let summed = zip(previous, delta).compactMap { current, incoming -> Int? in
+                    let result = current.addingReportingOverflow(incoming)
+                    return result.overflow ? nil : result.partialValue
+                }
+                if summed.count != previous.count {
+                    overflowed.insert(key)
+                    days[row.dayKey]?.removeValue(forKey: row.model)
+                } else {
+                    days[row.dayKey, default: [:]][row.model] = summed
+                }
+            }
+            return days
+        }
     }
 
     enum ClaudePathRole: String, Codable, Equatable {

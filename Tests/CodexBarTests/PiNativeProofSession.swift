@@ -41,10 +41,10 @@ final class PiNativeProofSession {
         let defaults = InMemoryUserDefaults()
         let settings = testSettingsStore(
             suiteName: "PiNativeProof",
-            userDefaults: defaults,
             config: CodexBarConfig(providers: UsageProvider.allCases.map {
                 ProviderConfig(id: $0.instanceID, enabled: $0 == .claude || ($0 == .pi && piEnabled))
             }),
+            userDefaults: defaults,
             prepareDefaults: {
                 $0.set(AppGroupSupport.migrationVersion, forKey: AppGroupSupport.migrationVersionKey)
                 $0.set(true, forKey: "codexbar.legacySecretsMigrationCompleted")

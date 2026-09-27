@@ -28,7 +28,7 @@ struct DeepSeekTransportOwnershipTests {
         let owner = try #require(snapshot.deepseekPlatformBalanceOwner)
         #expect(owner.profileID == Fixture.candidateA.id)
         let copies = [
-            snapshot.with(details: []),
+            snapshot.with(extraRateWindows: []),
             snapshot.with(primary: snapshot.primary, secondary: nil),
             snapshot.withIdentity(snapshot.identity),
             snapshot.withAccountLabel("Renamed account", for: .deepseek),
