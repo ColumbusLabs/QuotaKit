@@ -6,10 +6,10 @@ import Testing
 
 struct CostUsageScannerCodexPriorityTests {
     @Test
-    func `priority repricing preserves mode tokens in scan margin days`() {
+    func `priority repricing preserves mode tokens in scan margin days`() throws {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let reportDay = calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 12))!
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let reportDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 12)))
         let range = CostUsageScanner.CostUsageDayRange(since: reportDay, until: reportDay, calendar: calendar)
         let model = "gpt-5.5"
         var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 1, days: [:])

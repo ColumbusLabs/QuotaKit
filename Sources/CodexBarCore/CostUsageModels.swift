@@ -674,7 +674,13 @@ public struct CostUsageDailyReport: Sendable, Codable {
                 return CostUsageCoverageCounts(priced: 1)
             }
             if (self.totalTokens ?? 0) > 0
-                || [self.inputTokens, self.outputTokens, self.cacheReadTokens, self.cacheCreationTokens]
+                || [
+                    self.inputTokens,
+                    self.outputTokens,
+                    self.cacheReadTokens,
+                    self.cacheCreationTokens,
+                    self.reasoningTokens,
+                ]
                 .contains(where: { ($0 ?? 0) > 0 })
             {
                 return CostUsageCoverageCounts(unpriced: 1)
@@ -1086,6 +1092,7 @@ extension CostUsageDailyReport {
             } == true
             let hasActivity = (entry.totalTokens ?? 0) > 0
                 || components.contains { ($0 ?? 0) > 0 }
+                || (entry.reasoningTokens ?? 0) > 0
                 || (entry.requestCount ?? 0) > 0
                 || (entry.costUSD ?? 0) > 0
                 || hasActiveBreakdown
@@ -1299,7 +1306,16 @@ extension CostUsageDailyReport {
         let hasUnpricedActivity = reports.lazy.flatMap(\.data).contains { entry in
             (entry.unpricedRequestCount ?? 0) > 0
                 || (entry.unmeteredRequestCount ?? 0) > 0
-                || (entry.costUSD == nil && ((entry.totalTokens ?? 0) > 0 || (entry.requestCount ?? 0) > 0))
+                || (entry.costUSD == nil && (
+                    (entry.totalTokens ?? 0) > 0
+                        || (entry.requestCount ?? 0) > 0
+                        || [
+                            entry.inputTokens,
+                            entry.outputTokens,
+                            entry.cacheReadTokens,
+                            entry.cacheCreationTokens,
+                            entry.reasoningTokens,
+                        ].contains { ($0 ?? 0) > 0 }))
         }
         return Summary(
             totalInputTokens: totals.tokenMix.inputTokens,

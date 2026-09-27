@@ -330,7 +330,7 @@ extension CostUsageScanner {
             usage,
             range: context.range,
             priorityTurns: context.resources.priorityTurns,
-            reclassifyModeTokens: Self.cachedCodexFileNeedsPriorityRescan(usage, context: context)
+            reclassifyModeTokens: self.cachedCodexFileNeedsPriorityRescan(usage, context: context)
                 && usage.codexTurnIDs != nil)
     }
 

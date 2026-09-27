@@ -824,6 +824,38 @@ extension CostUsageQuotaWeekLinuxTests {
     }
 
     @Test
+    func `reasoning only unpriced usage keeps merged window cost unavailable`() {
+        let merged = CostUsageDailyReport.merged([
+            CostUsageDailyReport(
+                data: [Self.entry(day: "2026-07-11", cost: 1, tokens: 100)],
+                summary: nil),
+            CostUsageDailyReport(
+                data: [.init(
+                    date: "2026-07-11",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    reasoningTokens: 50,
+                    totalTokens: nil,
+                    costUSD: nil,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                summary: nil),
+        ])
+
+        #expect(merged.data.first?.totalTokens == nil)
+        #expect(merged.summary?.totalTokens == 100)
+        #expect(merged.data.first?.costUSD == 1)
+        #expect(merged.data.first?.unpricedRequestCount == 1)
+        #expect(merged.summary?.totalCostUSD == nil)
+        let snapshot = CostUsageFetcher.tokenSnapshot(
+            from: merged,
+            now: Self.utcDate(year: 2026, month: 7, day: 11, hour: 12),
+            historyDays: 30,
+            calendar: Self.utcCalendar)
+        #expect(snapshot.last30DaysCostUSD == nil)
+    }
+
+    @Test
     func `priced daily subtotals leave incomplete window cost unavailable`() {
         let report = CostUsageDailyReport(
             data: [
