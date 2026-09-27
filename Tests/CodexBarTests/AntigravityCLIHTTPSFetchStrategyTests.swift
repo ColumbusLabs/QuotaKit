@@ -1084,6 +1084,84 @@ extension AntigravityCLIHTTPSFetchStrategyTests {
 
         #expect((result as? AntigravityStatusProbeError) == .apiError("OAuth credentials expired"))
     }
+
+    @Test(arguments: [AntigravityStatusProbeError.notRunning, .missingCSRFToken])
+    func `unavailable later source preserves attempted source failure`(current: AntigravityStatusProbeError) {
+        let earlier = AntigravityStatusProbeError.apiError("quota request rejected")
+        let resolved = AntigravityProviderDescriptor.resolveFallbackError(earlier, current)
+        #expect((resolved as? AntigravityStatusProbeError) == earlier)
+        let transport = URLError(.cannotConnectToHost)
+        let transportResolved = AntigravityProviderDescriptor.resolveFallbackError(transport, current)
+        #expect((transportResolved as? URLError)?.code == transport.code)
+    }
+
+    @Test(arguments: [AntigravityStatusProbeError.notRunning, .missingCSRFToken, .timedOut])
+    func `first failure and newly detected error remain authoritative`(current: AntigravityStatusProbeError) {
+        let first = AntigravityProviderDescriptor.resolveFallbackError(nil, current)
+        let detected = AntigravityProviderDescriptor.resolveFallbackError(
+            AntigravityStatusProbeError.notRunning, current)
+        #expect((first as? AntigravityStatusProbeError) == current)
+        #expect((detected as? AntigravityStatusProbeError) == current)
+    }
+}
+
+extension AntigravityCLIHTTPSFetchStrategyTests {
+    @Test
+    func `cli HTTPS retains the last pending port diagnostic until the readiness deadline`() async {
+        let attempts = AntigravityCLICounter()
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        let clock = AntigravityCLITestClock(date: start)
+        do {
+            _ = try await AntigravityCLIHTTPSFetchStrategy.waitForSnapshot(
+                pid: 123,
+                deadline: start.addingTimeInterval(5),
+                dependencies: AntigravityCLIHTTPSFetchStrategy.SnapshotWaitDependencies(
+                    pollIntervalNanoseconds: 0,
+                    listeningPorts: { _, _ in
+                        let attempt = attempts.increment()
+                        throw AntigravityPortDiscoveryPendingError(underlyingError:
+                            SubprocessRunnerError.nonZeroExit(code: 1, stderr: "namespace warning \(attempt)"))
+                    },
+                    drainOutput: { Data() },
+                    fetchSnapshot: { _ in
+                        Issue.record("Missing listeners must not fetch usage")
+                        throw AntigravityStatusProbeError.timedOut
+                    },
+                    now: { clock.now() }))
+            Issue.record("Expected the final port discovery diagnostic")
+        } catch let SubprocessRunnerError.nonZeroExit(code, stderr) {
+            #expect(attempts.value == 2)
+            #expect(code == 1)
+            #expect(stderr == "namespace warning 2")
+        } catch {
+            Issue.record("Expected the original diagnostic, got \(error)")
+        }
+    }
+
+    @Test
+    func `cli HTTPS retains endpoint readiness failure over a later port warning`() async {
+        let attempts = AntigravityCLICounter()
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        let clock = AntigravityCLITestClock(date: start)
+        await #expect(throws: AntigravityStatusProbeError.apiError("quota service warming")) {
+            try await AntigravityCLIHTTPSFetchStrategy.waitForSnapshot(
+                pid: 123,
+                deadline: start.addingTimeInterval(5),
+                dependencies: AntigravityCLIHTTPSFetchStrategy.SnapshotWaitDependencies(
+                    pollIntervalNanoseconds: 0,
+                    listeningPorts: { _, _ in
+                        if attempts.increment() == 1 { return [50080] }
+                        throw AntigravityPortDiscoveryPendingError(underlyingError:
+                            SubprocessRunnerError.nonZeroExit(code: 1, stderr: "namespace warning"))
+                    },
+                    drainOutput: { Data() },
+                    fetchSnapshot: { _ in
+                        throw AntigravityStatusProbeError.apiError("quota service warming")
+                    },
+                    now: { clock.now() }))
+        }
+        #expect(attempts.value == 2)
+    }
 }
 
 private struct AntigravityFallbackFixtureStrategy: ProviderFetchStrategy {

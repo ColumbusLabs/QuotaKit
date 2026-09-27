@@ -74,6 +74,10 @@ struct AntigravityQuotaSummaryTests {
         #expect(usage.primary?.remainingPercent.rounded() == 82)
         #expect(usage.secondary?.remainingPercent.rounded() == 64)
         #expect(usage.tertiary == nil)
+
+        let semantic = AntigravityProviderDescriptor.descriptor.presentation.semanticWindows(snapshot: usage)
+        #expect(semantic.session?.remainingPercent.rounded() == 73)
+        #expect(semantic.weekly?.remainingPercent.rounded() == 64)
     }
 
     @Test

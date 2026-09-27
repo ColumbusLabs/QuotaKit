@@ -93,6 +93,55 @@ struct ProcessPipeCaptureLinuxTests {
     }
 
     @Test
+    func `buffered pipe tail is drained before hangup completes`() throws {
+        let expected = Data(repeating: 0x5A, count: 256 * 1024)
+        let pipe = Pipe()
+        let capture = ProcessPipeCapture(pipe: pipe, maxBytes: expected.count)
+        capture.start()
+
+        try pipe.fileHandleForWriting.write(contentsOf: expected)
+        try pipe.fileHandleForWriting.close()
+        let captured = capture.finishSynchronously(timeout: 2)
+
+        #expect(captured == expected)
+        #expect(capture.reachedEOF)
+    }
+
+    @Test
+    func `silent open pipe stops promptly without claiming EOF`() throws {
+        let pipe = Pipe()
+        let capture = ProcessPipeCapture(pipe: pipe)
+        capture.start()
+
+        let startedAt = ContinuousClock.now
+        capture.stop()
+        let elapsed = startedAt.duration(to: .now)
+
+        #expect(elapsed < .milliseconds(500))
+        #expect(!capture.reachedEOF)
+        try pipe.fileHandleForWriting.close()
+    }
+
+    @Test
+    func `stop before start closes once and prevents a late reader`() throws {
+        let pipe = Pipe()
+        let capture = ProcessPipeCapture(pipe: pipe)
+
+        capture.stop()
+        capture.stop()
+        capture.start()
+
+        var writerPollDescriptor = pollfd(
+            fd: pipe.fileHandleForWriting.fileDescriptor,
+            events: 0,
+            revents: 0)
+        #expect(Glibc.poll(&writerPollDescriptor, 1, 0) == 1)
+        #expect(writerPollDescriptor.revents & Int16(POLLERR) != 0)
+        #expect(!capture.reachedEOF)
+        try pipe.fileHandleForWriting.close()
+    }
+
+    @Test
     func `Linux descriptor setup failure closes the read end immediately`() throws {
         let pipe = Pipe()
         let readFileDescriptor = pipe.fileHandleForReading.fileDescriptor
