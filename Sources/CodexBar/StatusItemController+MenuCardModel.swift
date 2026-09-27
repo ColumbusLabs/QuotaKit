@@ -117,7 +117,7 @@ extension StatusItemController {
             tokenError: tokenError,
             account: fallbackAccount,
             accountIsAuthoritative: accountOverride != nil,
-            planOverride: planOverride,
+            planOverride: planOverride.map { .label($0) } ?? .automatic,
             isRefreshing: self.store.shouldShowRefreshingMenuCardIndicator(for: target),
             // Provider-level errors can belong to a different account, so
             // override cards never inherit them (same rule as the snapshot,

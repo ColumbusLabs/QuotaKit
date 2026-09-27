@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
 - Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.
 - CLI: compare local Codex cost estimates with a trusted SSH host through separate bounded summaries.
