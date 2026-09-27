@@ -761,9 +761,7 @@ extension CostUsageScanner {
         let hasWindowScopedBaseline = priorMemo?.certifiesWindow(reportKey: reportKey, cache: cache) == true
         let needsWindowScopedRebuild = reportContext != nil && !hasWindowScopedBaseline
         let sourceInventoryChanged = priorMemo.map { $0.sourceInventory != sourceInventory } ?? false
-        let cacheArtifactChanged = priorMemo.map {
-            $0.reportKey.cacheArtifactStamp != cacheArtifactStamp
-        } ?? false
+        let cacheArtifactChanged = priorMemo.map { $0.reportKey.cacheArtifactStamp != cacheArtifactStamp } ?? false
         let scanConfigurationChanged = priorMemo.map {
             $0.reportKey.scanConfiguration != reportKey.scanConfiguration
         } ?? false

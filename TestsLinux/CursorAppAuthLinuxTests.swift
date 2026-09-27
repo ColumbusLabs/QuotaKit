@@ -75,7 +75,7 @@ struct CursorAppAuthLinuxTests {
     }
 
     @Test(arguments: [false, true])
-    func `app database authentication fetches Cursor and Grok Bot usage`(utf16: Bool) async throws {
+    func `app database authentication fetches Cursor Auto and API usage`(utf16: Bool) async throws {
         let fixture = try Self.makeDatabase(utf16: utf16)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let before = try Data(contentsOf: fixture.database)
@@ -87,14 +87,30 @@ struct CursorAppAuthLinuxTests {
 
         let snapshot = try await probe.fetch(allowCachedSessions: false).toUsageSnapshot()
 
-        #expect(snapshot.primary?.usedPercent == 30)
-        let bot = try #require(snapshot.extraRateWindows?.first)
+        #expect(snapshot.cursorRateWindowLayout == .autoAPI)
+        #expect(snapshot.primary?.usedPercent == 10)
+        #expect(snapshot.secondary?.usedPercent == 20)
+        #expect(try Data(contentsOf: fixture.database) == before)
+    }
+
+    @Test
+    func `Grok Bot endpoint maps its included allowance independently of the refresh race`() async throws {
+        let token = try Self.makeToken()
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: Self.transport(token: token),
+            appAuthStore: StubAppAuth(session: CursorAppAuthSession(accessToken: token)))
+        let (status, rawJSON) = try await probe.fetchSandUsage(
+            cookieHeader: "WorkosCursorSessionToken=test-user%3A%3A\(token)",
+            deadline: nil)
+        let bot = try #require(status.extraRateWindow(resetDescription: { _ in "Resets" }))
+
         #expect(bot.id == "cursor-grok-bot")
         #expect(bot.title == "Grok Bot")
         #expect(bot.window.usedPercent == 42)
         #expect(bot.window.windowMinutes == 10080)
         #expect(bot.window.resetsAt != nil)
-        #expect(try Data(contentsOf: fixture.database) == before)
+        #expect(rawJSON.contains("\"usagePercent\":42"))
     }
 
     @Test
@@ -107,7 +123,9 @@ struct CursorAppAuthLinuxTests {
 
         let snapshot = try await probe.fetch(allowCachedSessions: false).toUsageSnapshot()
 
-        #expect(snapshot.primary?.usedPercent == 30)
+        #expect(snapshot.cursorRateWindowLayout == .autoAPI)
+        #expect(snapshot.primary?.usedPercent == 10)
+        #expect(snapshot.secondary?.usedPercent == 20)
         #expect(snapshot.extraRateWindows == nil)
     }
 

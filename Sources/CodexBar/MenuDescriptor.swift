@@ -803,31 +803,6 @@ struct MenuDescriptor {
             metadata.supportsOpus)
     }
 
-    private static func cursorRateWindowLabels(
-        snapshot: UsageSnapshot,
-        fallbackPrimary: String,
-        fallbackSecondary: String) -> (primary: String, secondary: String)
-    {
-        switch snapshot.cursorRateWindowLayout {
-        case .requests:
-            ("Requests", fallbackSecondary)
-        case .plan:
-            ("Plan", fallbackSecondary)
-        case .apiOnly:
-            ("API", fallbackSecondary)
-        case .autoOnly:
-            ("Auto", fallbackSecondary)
-        case .autoAPI:
-            ("Auto", "API")
-        case .none:
-            (
-                snapshot.cursorRequests == nil && snapshot.detailRow(label: "Request quota") == nil
-                    ? fallbackPrimary
-                    : "Requests",
-                fallbackSecondary)
-        }
-    }
-
     private static func appendRateWindow(
         entries: inout [Entry],
         title: String,
@@ -863,6 +838,33 @@ struct MenuDescriptor {
         guard let match = regex.firstMatch(in: raw, options: [], range: range),
               let r = Range(match.range, in: raw) else { return nil }
         return String(raw[r])
+    }
+}
+
+extension MenuDescriptor {
+    private static func cursorRateWindowLabels(
+        snapshot: UsageSnapshot,
+        fallbackPrimary: String,
+        fallbackSecondary: String) -> (primary: String, secondary: String)
+    {
+        switch snapshot.cursorRateWindowLayout {
+        case .requests:
+            ("Requests", fallbackSecondary)
+        case .plan:
+            ("Plan", fallbackSecondary)
+        case .apiOnly:
+            ("API", fallbackSecondary)
+        case .autoOnly:
+            ("Auto", fallbackSecondary)
+        case .autoAPI:
+            ("Auto", "API")
+        case .none:
+            (
+                snapshot.cursorRequests == nil && snapshot.detailRow(label: "Request quota") == nil
+                    ? fallbackPrimary
+                    : "Requests",
+                fallbackSecondary)
+        }
     }
 }
 

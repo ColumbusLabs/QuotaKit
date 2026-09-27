@@ -98,7 +98,17 @@ struct CopilotLoginFlow {
 
                 guard let wasRefresh = await Self.storeLoginIfCurrent(
                     settings: settings, revision: revision, token: token, identity: identity, label: label)
-                else { return }
+                else {
+                    if !Task.isCancelled, settings.providerConfigRevision(for: .copilot) == revision {
+                        let err = NSAlert()
+                        err.messageText = L("Could Not Identify GitHub Account")
+                        err.informativeText = L(
+                            "QuotaKit could not safely match this login to an existing account. " +
+                                "Please remove the old account and try again.")
+                        err.runModal()
+                    }
+                    return
+                }
 
                 let success = NSAlert()
                 success.messageText = wasRefresh ? L("Token Refreshed") : L("Account Added")
@@ -123,21 +133,24 @@ struct CopilotLoginFlow {
         token: String,
         identity: CopilotUsageFetcher.GitHubUserIdentity?,
         label: String,
-        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount) async
-            -> CopilotUsageFetcher.GitHubUserIdentity? = { account in
-                try? await CopilotUsageFetcher.fetchGitHubIdentity(token: account.token)
+        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount, String?) async
+            -> CopilotUsageFetcher.GitHubUserIdentity? = { account, enterpriseHost in
+                try? await CopilotUsageFetcher.fetchGitHubIdentity(
+                    token: account.token, enterpriseHost: enterpriseHost)
             }) async -> Bool?
     {
         guard settings.providerConfigRevision(for: .copilot) == revision else { return nil }
-        let issuer = CopilotUsageFetcher.apiHost(enterpriseHost: settings.copilotEnterpriseHost)
-        let matchedExisting = await Self.matchExistingAccount(
+        let enterpriseHost = settings.copilotEnterpriseHost
+        let issuer = CopilotUsageFetcher.apiHost(enterpriseHost: enterpriseHost)
+        let match = await Self.resolveExistingAccount(
             existingAccounts: settings.tokenAccounts(for: .copilot),
             identity: identity,
             label: label,
-            issuer: issuer,
+            host: LoginHost(issuer: issuer, enterpriseHost: enterpriseHost),
             legacyIdentityResolver: legacyIdentityResolver)
         guard !Task.isCancelled,
               settings.providerConfigRevision(for: .copilot) == revision,
+              case let .resolved(matchedExisting) = match,
               identity != nil || issuer == "api.github.com" && settings.tokenAccounts(for: .copilot).isEmpty
         else { return nil }
         let externalIdentifier = identity.map { Self.externalIdentifier(for: $0, issuer: issuer) }
@@ -168,37 +181,86 @@ struct CopilotLoginFlow {
         identity: CopilotUsageFetcher.GitHubUserIdentity?,
         label: String,
         issuer: String = "api.github.com",
-        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount) async
-            -> CopilotUsageFetcher.GitHubUserIdentity? = { account in
-                try? await CopilotUsageFetcher.fetchGitHubIdentity(token: account.token)
+        enterpriseHost: String? = nil,
+        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount, String?) async
+            -> CopilotUsageFetcher.GitHubUserIdentity? = { account, enterpriseHost in
+                try? await CopilotUsageFetcher.fetchGitHubIdentity(
+                    token: account.token, enterpriseHost: enterpriseHost)
             }) async -> ProviderTokenAccount?
     {
-        guard let identity, !existingAccounts.isEmpty else { return nil }
-        let stableIdentifier = self.externalIdentifier(for: identity, issuer: issuer)
+        switch await self.resolveExistingAccount(
+            existingAccounts: existingAccounts,
+            identity: identity,
+            label: label,
+            host: LoginHost(issuer: issuer, enterpriseHost: enterpriseHost),
+            legacyIdentityResolver: legacyIdentityResolver)
+        {
+        case let .resolved(account): account
+        case .ambiguous: nil
+        }
+    }
+
+    private enum AccountMatch {
+        case resolved(ProviderTokenAccount?)
+        case ambiguous
+    }
+
+    private struct LoginHost {
+        let issuer: String
+        let enterpriseHost: String?
+    }
+
+    private static func resolveExistingAccount(
+        existingAccounts: [ProviderTokenAccount],
+        identity: CopilotUsageFetcher.GitHubUserIdentity?,
+        label: String,
+        host: LoginHost,
+        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount, String?) async
+            -> CopilotUsageFetcher.GitHubUserIdentity?) async -> AccountMatch
+    {
+        guard let identity, !existingAccounts.isEmpty else { return .resolved(nil) }
+        let stableIdentifier = self.externalIdentifier(for: identity, issuer: host.issuer)
         let login = self.normalizedGitHubLogin(identity.login)
 
         if let byID = existingAccounts.first(where: { account in
             self.normalizedExternalIdentifier(account.externalIdentifier) == stableIdentifier
         }) {
-            return byID
+            return .resolved(byID)
         }
 
-        // Hostless legacy identifiers belong to the existing public-GitHub path.
-        guard issuer == "api.github.com" else { return nil }
+        if host.issuer != "api.github.com" {
+            // An unscoped account may belong to another host. Only its saved token can prove
+            // which Enterprise issuer and user it represents. An unresolved token or multiple
+            // matches leave storage ambiguous, so do not add a duplicate or overwrite either.
+            guard let enterpriseHost = host.enterpriseHost, !enterpriseHost.isEmpty else { return .ambiguous }
+            var matched: ProviderTokenAccount?
+            var unresolved = false
+            for account in existingAccounts where account.externalIdentifier == nil {
+                guard let resolved = await legacyIdentityResolver(account, enterpriseHost) else {
+                    unresolved = true
+                    continue
+                }
+                if resolved.id == identity.id {
+                    guard matched == nil else { return .ambiguous }
+                    matched = account
+                }
+            }
+            return unresolved ? .ambiguous : .resolved(matched)
+        }
 
         // Previous PR revisions stored GitHub login in externalIdentifier. Keep matching those
         // accounts case-insensitively, then write back the stable ID on update.
         if let byLegacyLogin = existingAccounts.first(where: { account in
             self.normalizedGitHubLogin(account.externalIdentifier) == login
         }) {
-            return byLegacyLogin
+            return .resolved(byLegacyLogin)
         }
 
         var labelFallback: ProviderTokenAccount?
         for account in existingAccounts where account.externalIdentifier == nil {
-            if let resolvedIdentity = await legacyIdentityResolver(account) {
+            if let resolvedIdentity = await legacyIdentityResolver(account, nil) {
                 if resolvedIdentity.id == identity.id {
-                    return account
+                    return .resolved(account)
                 }
             } else if labelFallback == nil,
                       self.displayLabelPrefix(account.label) == self.displayLabelPrefix(label)
@@ -206,7 +268,7 @@ struct CopilotLoginFlow {
                 labelFallback = account
             }
         }
-        return labelFallback
+        return .resolved(labelFallback)
     }
 
     static func externalIdentifier(
