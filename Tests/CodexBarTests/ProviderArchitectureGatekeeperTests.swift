@@ -162,7 +162,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 12_947_235_697_479_554_530)
+        // Manus now uses its canonical #34322D brand color. Keep the remaining legacy colors pinned.
+        #expect(widgetFingerprint == 8_195_206_927_078_944_894)
         #expect(burnDownFingerprint == 5_804_198_528_457_499_526)
     }
 
