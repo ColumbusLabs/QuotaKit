@@ -23,8 +23,8 @@ struct MistralWidgetSnapshotTests {
         let environment = ["HOME": root.path, "CODEX_HOME": root.appendingPathComponent("codex").path]
         let settings = testSettingsStore(
             suiteName: suite,
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings._test_codexReconciliationEnvironment = environment
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual

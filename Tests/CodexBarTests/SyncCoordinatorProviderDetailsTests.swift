@@ -26,7 +26,7 @@ struct SyncCoordinatorProviderDetailsTests {
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        let details = [
+        let details = try [
             ProviderDetailSection(title: "Muse Code subscription", rows: [
                 .init(label: "Plan", value: "Muse Code Power Usage"),
             ]),

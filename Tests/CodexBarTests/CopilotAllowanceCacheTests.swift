@@ -222,8 +222,8 @@ final class CopilotAllowanceFixture {
     init() {
         self.settings = testSettingsStore(
             suiteName: "CopilotAllowanceFixture",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         self.store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
