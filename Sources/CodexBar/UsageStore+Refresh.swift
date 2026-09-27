@@ -1533,6 +1533,18 @@ extension UsageStore {
                     (context.claudeUsesConsumerAutoPipeline ||
                         Self.isClaudeCLIRateLimitFailure(error) ||
                         isTerminalClaudeCLIParseFailure))
+            if provider == .deepseek,
+               Self.shouldRetireUnverifiedDeepSeekBalance(
+                   after: error,
+                   priorSnapshot: self.snapshots[provider.instanceID])
+            {
+                self.invalidateGenericWidgetUsage(for: provider)
+                self.snapshots.removeValue(forKey: provider.instanceID)
+                self.lastKnownResetSnapshots.removeValue(forKey: provider.instanceID)
+                self.lastSourceLabels.removeValue(forKey: provider.instanceID)
+                self.clearProviderDerivedTokenSnapshot(for: provider)
+                self.clearDeepSeekProfileTransition()
+            }
             let shouldSurface = restoredClaudeHistory ||
                 self.failureGates[provider.instanceID]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
