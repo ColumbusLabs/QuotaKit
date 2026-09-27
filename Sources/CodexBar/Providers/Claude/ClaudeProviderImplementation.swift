@@ -99,7 +99,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 id: "claude-workspace-spend",
                 title: "Show workspace spend",
                 subtitle: "Break down Admin API spend by workspace over the last 30 days.",
-                binding: context.binding(\.claudeWorkspaceSpendEnabled),
+                binding: context.boolBinding(\.claudeWorkspaceSpendEnabled),
                 statusText: nil,
                 actions: [],
                 isVisible: nil,
