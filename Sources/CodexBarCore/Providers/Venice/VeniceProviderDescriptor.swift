@@ -103,7 +103,7 @@ public enum VeniceProviderDescriptor {
         .apiToken(
             strategyID: "venice.api",
             resolveToken: { ProviderTokenResolver.token(for: .venice, environment: $0) },
-            missingCredentialsError: { VeniceUsageError.missingCredentials },
+            missingCredentialsError: { VeniceAPIUsageError.missingCredentials },
             loadUsage: { apiKey, _ in
                 try await VeniceUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
             })

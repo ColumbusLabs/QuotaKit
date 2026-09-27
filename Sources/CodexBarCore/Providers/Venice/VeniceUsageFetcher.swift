@@ -136,7 +136,7 @@ public struct VeniceUsageSnapshot: Sendable {
 
 // MARK: - Errors
 
-public enum VeniceUsageError: LocalizedError, Sendable {
+public enum VeniceAPIUsageError: LocalizedError, Sendable {
     case missingCredentials
     case networkError(String)
     case apiError(String)
@@ -168,7 +168,7 @@ public struct VeniceUsageFetcher: Sendable {
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> VeniceUsageSnapshot
     {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw VeniceUsageError.missingCredentials
+            throw VeniceAPIUsageError.missingCredentials
         }
 
         var request = URLRequest(url: self.balanceURL)
@@ -180,7 +180,7 @@ public struct VeniceUsageFetcher: Sendable {
         let response = try await transport.response(for: request)
         guard response.statusCode == 200 else {
             Self.log.error("Venice API returned \(response.statusCode)")
-            throw VeniceUsageError.apiError("HTTP \(response.statusCode)")
+            throw VeniceAPIUsageError.apiError("HTTP \(response.statusCode)")
         }
 
         return try Self.parseSnapshot(data: response.data)
@@ -195,7 +195,7 @@ public struct VeniceUsageFetcher: Sendable {
         do {
             decoded = try JSONDecoder().decode(VeniceBalanceResponse.self, from: data)
         } catch {
-            throw VeniceUsageError.parseFailed(error.localizedDescription)
+            throw VeniceAPIUsageError.parseFailed(error.localizedDescription)
         }
 
         return VeniceUsageSnapshot(
