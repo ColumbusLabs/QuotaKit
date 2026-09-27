@@ -144,8 +144,7 @@ extension UsageStore {
             externalIdentifier: account.externalIdentifier,
             usageScope: account.usageScope,
             organizationID: account.organizationID,
-            workspaceID: account.workspaceID,
-            seatCreditEntitlement: account.seatCreditEntitlement)
+            workspaceID: account.workspaceID)
         return self.tokenAccountSnapshotCacheKey(provider: provider, account: scoped)
     }
 
