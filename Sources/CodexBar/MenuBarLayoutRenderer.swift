@@ -189,9 +189,10 @@ struct MenuBarLayoutResetText: Hashable {
     let absolute: String?
 
     init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider?, now: Date) {
-        let metadata = ProviderDescriptorRegistry.descriptor(for: provider ?? .codex).metadata
+        let metadata = provider.map { ProviderDescriptorRegistry.descriptor(for: $0).metadata }
         // Balance-only providers keep their documented legacy reset-token balance aliases.
-        let fallback = metadata.usesDetailBackedWindow && !metadata.balanceOnly ? nil : window?.resetDescription
+        let fallback = metadata?.usesDetailBackedWindow == true && metadata?.balanceOnly == false
+            ? nil : window?.resetDescription
         self.countdown = window?.resetsAt
             .map { UsageFormatter.resetCountdownDescription(from: $0, now: now) } ?? fallback
         self.absolute = window?.resetsAt.map { UsageFormatter.resetDescription(from: $0, now: now) } ?? fallback
@@ -943,7 +944,8 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider ?? .codex)
+        guard let provider = data.provider else { return nil }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
         return descriptor.presentation.primarySemanticWindow == .session
