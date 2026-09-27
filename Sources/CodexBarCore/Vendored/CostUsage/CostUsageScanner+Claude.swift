@@ -160,7 +160,7 @@ extension CostUsageScanner {
                 providerFilter: providerFilter,
                 startOffset: startOffset,
                 pricingResolver: pricingResolver,
-                checkCancellation: nil)) ?? ClaudeParseResult(days: [:], rows: [], parsedBytes: startOffset)
+                checkCancellation: nil)) ?? ClaudeParseResult(rows: [], parsedBytes: startOffset)
     }
 
     static func parseClaudeFileCancellable(
@@ -171,24 +171,6 @@ extension CostUsageScanner {
         pricingResolver: CostUsagePricing.ClaudeResolver,
         checkCancellation: CancellationCheck? = nil) throws -> ClaudeParseResult
     {
-        func add(dayKey: String, model: String, tokens: ClaudeTokens, days: inout [String: [String: [Int]]]) {
-            guard CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
-            else { return }
-            let normModel = pricingResolver.normalize(model)
-            var dayModels = days[dayKey] ?? [:]
-            var packed = dayModels[normModel] ?? [0, 0, 0, 0, 0, 0, 0, 0]
-            packed[0] = (packed[safe: 0] ?? 0) + tokens.input
-            packed[1] = (packed[safe: 1] ?? 0) + tokens.cacheRead
-            packed[2] = (packed[safe: 2] ?? 0) + tokens.cacheCreate
-            packed[3] = (packed[safe: 3] ?? 0) + tokens.output
-            packed[4] = (packed[safe: 4] ?? 0) + tokens.costNanos
-            packed[5] = (packed[safe: 5] ?? 0) + 1
-            packed[6] = (packed[safe: 6] ?? 0) + (tokens.costPriced ? 1 : 0)
-            packed[7] = (packed[safe: 7] ?? 0) + tokens.cacheCreate1h
-            dayModels[normModel] = packed
-            days[dayKey] = dayModels
-        }
-
         func toInt(_ v: Any?) -> Int {
             if let n = v as? NSNumber {
                 return n.intValue
@@ -333,21 +315,7 @@ extension CostUsageScanner {
         }
 
         let rows = keyedRows.keys.sorted().compactMap { keyedRows[$0] } + unkeyedRows
-        var days: [String: [String: [Int]]] = [:]
-        for row in rows {
-            if row.isIncomplete == true { continue }
-            let tokens = ClaudeTokens(
-                input: row.input,
-                cacheRead: row.cacheRead,
-                cacheCreate: row.cacheCreate,
-                cacheCreate1h: row.cacheCreate1h ?? 0,
-                output: row.output,
-                costNanos: row.costNanos,
-                costPriced: row.costPriced ?? (row.costNanos > 0))
-            add(dayKey: row.dayKey, model: row.model, tokens: tokens, days: &days)
-        }
-
-        return ClaudeParseResult(days: days, rows: rows, parsedBytes: parsedBytes)
+        return ClaudeParseResult(rows: rows, parsedBytes: parsedBytes)
     }
 
     private static func claudeOneHourCacheCreationTokens(usage: ClaudeJSONObject, total: Int) -> Int {
