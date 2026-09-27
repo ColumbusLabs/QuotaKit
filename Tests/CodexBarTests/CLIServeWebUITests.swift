@@ -28,7 +28,8 @@ struct CLIServeWebUITests {
         }
         """)
         context.evaluateScript(String(self.html[start.lowerBound..<end.lowerBound]))
-        context.evaluateScript("const rendered = renderWindow({label: 'Session', usedPercent: 25, remainingPercent: 75});")
+        context
+            .evaluateScript("const rendered = renderWindow({label: 'Session', usedPercent: 25, remainingPercent: 75});")
         #expect(context.exception == nil)
         let expected = showUsed ? 25 : 75
         #expect(context.evaluateScript("rendered.children[0].children[0].text")?.toString() ==
@@ -58,7 +59,8 @@ struct CLIServeWebUITests {
         }
         """)
         context.evaluateScript(String(self.html[start.lowerBound..<end.lowerBound]))
-        context.evaluateScript("const rendered = renderWindow({label: 'Session', usedPercent: 25, remainingPercent: 75});")
+        context
+            .evaluateScript("const rendered = renderWindow({label: 'Session', usedPercent: 25, remainingPercent: 75});")
         #expect(context.exception == nil)
         let expected = choice == "remaining" ? 75 : 25
         #expect(context.evaluateScript("rendered.children[0].children[0].text")?.toString() ==

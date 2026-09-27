@@ -135,7 +135,7 @@ struct DevinSessionImporterTests {
         try Self.writeLog(entries, to: directory)
 
         let session = try DevinSessionImporter.session(
-            from: try DevinSessionImporter.readLocalStorage(from: directory),
+            from: DevinSessionImporter.readLocalStorage(from: directory),
             sourceLabel: "Synthetic Chrome")
 
         #expect(session?.accessToken == (hasDevinSession ? currentToken : nil))
@@ -208,7 +208,7 @@ struct DevinSessionImporterTests {
         ], to: directory)
 
         let session = try DevinSessionImporter.session(
-            from: try DevinSessionImporter.readLocalStorage(from: directory),
+            from: DevinSessionImporter.readLocalStorage(from: directory),
             sourceLabel: "Synthetic Chrome")
 
         #expect(session?.accessToken == currentToken)

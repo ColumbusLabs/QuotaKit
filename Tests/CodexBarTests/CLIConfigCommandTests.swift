@@ -313,7 +313,8 @@ struct CLIConfigCommandTests {
         let redactedOutput = try #require(String(data: redactedData, encoding: .utf8))
         #expect(redactedJSON is [String: Any])
         #expect(redactedData.count > 64 * 1024)
-        #expect(redactedOutput.contains(String(repeating: "Fixture account ", count: 8192).trimmingCharacters(in: .whitespaces)))
+        #expect(redactedOutput
+            .contains(String(repeating: "Fixture account ", count: 8192).trimmingCharacters(in: .whitespaces)))
         #expect(redactedOutput.contains("[REDACTED]"))
         for secret in secrets {
             #expect(!redactedOutput.contains(secret))

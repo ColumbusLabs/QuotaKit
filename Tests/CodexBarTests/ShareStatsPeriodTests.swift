@@ -66,6 +66,5 @@ struct ShareStatsPeriodTests {
         let renderedDay = calendar.dateComponents([.year, .month, .day], from: renderedDate)
         #expect(renderedDay == DateComponents(year: 2026, month: month, day: day))
         #expect(ShareStatsFormatting.text(payload).contains("Data through \(label)"))
-
     }
 }

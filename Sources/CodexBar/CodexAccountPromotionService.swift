@@ -100,7 +100,7 @@ struct CodexAccountPromotionResult: Equatable {
     let displacedLiveDisposition: DisplacedLiveDisposition
     let didMutateLiveAuth: Bool
     let resultingActiveSource: CodexActiveSource
-    var daemonRestartNote: String? = nil
+    var daemonRestartNote: String?
 }
 
 enum CodexAccountPromotionError: Error, Equatable {

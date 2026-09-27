@@ -27,7 +27,7 @@ struct CodexOAuthRequestTests {
             Issue.record("Expected an authenticated request failure")
         } catch CodexOAuthFetchError.unauthorized {
             #expect(status == 401)
-        } catch CodexOAuthFetchError.serverError(let code, let body) {
+        } catch let CodexOAuthFetchError.serverError(code, body) {
             #expect(status == 403)
             #expect(code == 403)
             #expect(body == "permission denied")

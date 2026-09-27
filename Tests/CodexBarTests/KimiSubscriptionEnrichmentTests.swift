@@ -74,7 +74,6 @@ struct KimiSubscriptionEnrichmentTests {
         let plan = KimiEnrichmentLatch()
         let task = Task {
             try await KimiUsageFetcher.fetchUsage(
-
                 authToken: "fixture-web-token",
                 transport: Self.transport(plan: plan),
                 subscriptionGrace: .seconds(30))

@@ -243,7 +243,9 @@ enum SpendDashboardDetailSection: Hashable, Identifiable {
     case projects
     case sessions
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var title: String {
         switch self {
@@ -268,7 +270,9 @@ enum SpendDashboardTrendSection: Hashable, Identifiable {
     case daily
     case hourly
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var title: String {
         switch self {

@@ -701,8 +701,7 @@ extension CodexBarCLI {
         if let raw = values.options["days"]?.last, let days = Int(raw) {
             return .rolling(days: max(1, min(365, days)))
         }
-        let period = values.options["period"]?.last.flatMap(CostReportingPeriod.init(rawValue:)) ?? saved
-        return period
+        return values.options["period"]?.last.flatMap(CostReportingPeriod.init(rawValue:)) ?? saved
     }
 
     static func decodeCostIncludePiSessions(from values: ParsedValues) -> Bool {

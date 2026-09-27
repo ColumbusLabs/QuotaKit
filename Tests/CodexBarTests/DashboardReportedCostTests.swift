@@ -64,12 +64,12 @@ struct DashboardReportedCostTests {
         DashboardSnapshotBuilder.makeSnapshot(
             usagePayloads: [ProviderPayload(
                 provider: .openrouter, account: nil, version: nil, source: "api", status: nil,
-                usage: UsageSnapshot(primary: nil, secondary: nil, costUsage: history, updatedAt: Self.now),
+                usage: UsageSnapshot(primary: nil, secondary: nil, costUsage: history, updatedAt: self.now),
                 credits: nil, antigravityPlanInfo: nil, openaiDashboard: nil, error: nil)],
             costPayloads: local.map { [$0] } ?? [],
             config: CodexBarConfig(providers: [ProviderConfig(id: .openrouter, enabled: true)]),
             identityMode: .redacted,
-            generatedAt: Self.now,
+            generatedAt: self.now,
             refreshInterval: 60,
             codexBarVersion: nil)
     }

@@ -287,7 +287,7 @@ public struct CostUsageFetcher: Sendable {
         calendar: Calendar? = nil,
         reportContext: CostUsageReportContext = .regular) async throws -> CostUsageTokenResult
     {
-        return try await Self.loadTokenResult(
+        try await Self.loadTokenResult(
             provider: provider,
             environment: environment,
             now: now,
@@ -1621,14 +1621,14 @@ public struct CostUsageFetcher: Sendable {
                     environment: environment,
                     processContexts: processContexts)
                 let piResult = PiSessionCostScanner.loadCachedDailyReportResult(
-                   provider: .codex,
-                   since: since,
-                   until: until,
-                   now: now,
-                   cacheRoot: options.cacheRoot,
-                   calendar: options.calendar,
-                   options: piOptions,
-                   allowEstablishedEmpty: true)
+                    provider: .codex,
+                    since: since,
+                    until: until,
+                    now: now,
+                    cacheRoot: options.cacheRoot,
+                    calendar: options.calendar,
+                    options: piOptions,
+                    allowEstablishedEmpty: true)
                 piHistoryIsComplete = piResult?.isComplete == true && piResult?.scopeFingerprint != nil
                 if let piResult, let scope = piResult.scopeFingerprint {
                     accounting = nativeSnapshot.map { .includesPi(scope: scope, native: $0) }
@@ -2500,6 +2500,5 @@ public struct CostUsageFetcher: Sendable {
         }
     }
 }
-
 
 // swiftlint:enable file_length

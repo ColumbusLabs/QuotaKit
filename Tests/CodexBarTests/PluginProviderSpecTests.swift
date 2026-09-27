@@ -88,7 +88,9 @@ struct PluginProviderSpecTests {
             .appendingPathComponent("Fixtures/plugin-provider-specs.json")
         let fixtureData = try Data(contentsOf: golden)
         let fixtureObject = try JSONSerialization.jsonObject(with: fixtureData)
-        let normalizedFixture = try JSONSerialization.data(withJSONObject: fixtureObject, options: [.prettyPrinted, .sortedKeys])
+        let normalizedFixture = try JSONSerialization.data(
+            withJSONObject: fixtureObject,
+            options: [.prettyPrinted, .sortedKeys])
         #expect(data == normalizedFixture)
     }
 

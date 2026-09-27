@@ -36,7 +36,6 @@ enum DevinSessionImporter {
         let sourceLabel: String
     }
 
-
     static func importSessions(
         browserDetection: BrowserDetection,
         candidates: [ChromiumLocalStorageDiscovery.Candidate]? = nil,
@@ -205,7 +204,6 @@ enum DevinSessionImporter {
     }
 
     static func readLocalStorage(from levelDBURL: URL, logger: ((String) -> Void)? = nil) throws -> [String: String] {
-
         let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
             for: self.storageOrigin,
             in: levelDBURL,
