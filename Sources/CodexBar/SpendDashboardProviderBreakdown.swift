@@ -26,6 +26,14 @@ struct SpendProviderBreakdown: Identifiable, Equatable {
     let hasPartialModelHistory: Bool
     let modelCount: Int
 
+    var costIsLowerBound: Bool {
+        self.subscriptions.contains(where: \.costIsLowerBound)
+    }
+
+    var tokensAreLowerBound: Bool {
+        self.subscriptions.contains(where: \.tokensAreLowerBound)
+    }
+
     var id: String {
         self.provider.rawValue
     }
@@ -70,7 +78,8 @@ func spendDashboardProviderBreakdowns(
             totalTokens: totalTokens,
             totalCost: totalCost,
             incompleteRequestCount: incompleteRequestCount,
-            hasPartialTokens: incompleteRequestCount > 0 || tokens.count < subscriptions.count ||
+            hasPartialTokens: subscriptions.contains(where: \.tokensAreLowerBound)
+                || incompleteRequestCount > 0 || tokens.count < subscriptions.count ||
                 (totalTokens == nil && !tokens.isEmpty),
             hasPartialCost: subscriptions.contains(where: \.hasPartialCost)
                 || incompleteRequestCount > 0 || costs.count < subscriptions.count ||
@@ -100,15 +109,19 @@ func spendDashboardBreakdownMetricText(
     currencyCode: String,
     hasPartialCost: Bool = false,
     hasPartialTokens: Bool = false,
-    incompleteRequestCount: Int = 0) -> String
+    incompleteRequestCount: Int = 0,
+    costIsLowerBound: Bool = false,
+    tokensAreLowerBound: Bool = false) -> String
 {
     let costText = cost.map {
         let formatted = UsageFormatter.currencyString($0, currencyCode: currencyCode)
-        return hasPartialCost ? "~\(formatted)" : formatted
+        return costIsLowerBound ? spendDashboardLowerBoundText(formatted, isLowerBound: true)
+            : hasPartialCost ? "~\(formatted)" : formatted
     }
     let tokenText = tokens.map {
         let formatted = L("%@ tokens", UsageFormatter.tokenCountString($0))
-        return hasPartialTokens ? "~\(formatted)" : formatted
+        return tokensAreLowerBound ? spendDashboardLowerBoundText(formatted, isLowerBound: true)
+            : hasPartialTokens ? "~\(formatted)" : formatted
     }
     let components = [costText, tokenText].compactMap(\.self)
     return (components.isEmpty ? "—" : components.joined(separator: " · "))
@@ -161,7 +174,9 @@ struct SpendProviderBreakdownRows: View {
                     currencyCode: self.group.currencyCode,
                     hasPartialCost: breakdown.hasPartialCost,
                     hasPartialTokens: breakdown.hasPartialTokens,
-                    incompleteRequestCount: breakdown.incompleteRequestCount))
+                    incompleteRequestCount: breakdown.incompleteRequestCount,
+                    costIsLowerBound: breakdown.costIsLowerBound,
+                    tokensAreLowerBound: breakdown.tokensAreLowerBound))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(breakdown.totalCost == nil && breakdown.totalTokens == nil ? .secondary : .primary)
                     .monospacedDigit()
@@ -187,7 +202,9 @@ struct SpendProviderBreakdownRows: View {
                             tokens: row.totalTokens,
                             currencyCode: self.group.currencyCode,
                             hasPartialCost: row.hasPartialCost,
-                            incompleteRequestCount: row.incompleteRequestCount))
+                            incompleteRequestCount: row.incompleteRequestCount,
+                            costIsLowerBound: row.costIsLowerBound,
+                            tokensAreLowerBound: row.tokensAreLowerBound))
                             .foregroundStyle(row.totalCost == nil && row.totalTokens == nil ? .secondary : .primary)
                             .monospacedDigit()
                     }

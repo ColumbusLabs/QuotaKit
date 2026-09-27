@@ -764,7 +764,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
 }
 
 @MainActor
-private final class SpendDashboardPendingLoads<Value> {
+private final class SpendDashboardPendingLoads<Value: Sendable> {
     private var pending: [CheckedContinuation<Value, any Error>] = []
 
     func load() async throws -> Value {

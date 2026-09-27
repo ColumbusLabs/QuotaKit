@@ -238,7 +238,8 @@ struct DeepSeekTransportOwnershipTests {
         let prior = try await Fixture.project(Fixture.successfulResolution(
             candidate: Fixture.candidateA,
             cache: .init()))
-        let error = await ProviderTransportRegressionSupport.captureFailure {
+        var capturedError: (any Error)?
+        do {
             _ = try await DeepSeekProviderDescriptor._loadPlatformUsageForTesting(
                 context: Fixture.context(),
                 resolutionJoinGrace: .zero,
@@ -248,7 +249,10 @@ struct DeepSeekTransportOwnershipTests {
                         try? await Task.sleep(for: .seconds(30))
                         return .init(profiles: [], selectedSummary: nil, detailedUsageState: .unavailable)
                     }))
+        } catch {
+            capturedError = error
         }
+        let error = try #require(capturedError)
         #expect(error is DeepSeekPlatformTransportError)
         #expect(!UsageStore.shouldPreservePriorSnapshot(after: error, hadPriorData: true, priorSnapshot: prior))
         #expect(UsageStore.isStartupConnectivityRetryableError(error))
