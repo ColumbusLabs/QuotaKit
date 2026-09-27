@@ -325,8 +325,12 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
     }
 
     private func redactedError(_ error: Error, secrets: Dictionary<String, String>.Values) -> Error {
-        if error is CancellationError { return CancellationError() }
-        if let error = error as? URLError { return URLError(error.code) }
+        if error is CancellationError {
+            return CancellationError()
+        }
+        if let error = error as? URLError {
+            return URLError(error.code)
+        }
         var message = error.localizedDescription
         for secret in secrets where !secret.isEmpty {
             message = message.replacingOccurrences(of: secret, with: "<redacted>")
@@ -388,7 +392,9 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
         // Retire failed workers before a resumed caller can request another fetch.
         beforeResume()
         let continuation = self.continuation
-        if continuation == nil { self.pendingResult = result }
+        if continuation == nil {
+            self.pendingResult = result
+        }
         self.continuation = nil
         self.lock.unlock()
         continuation?.resume(with: result)
@@ -707,7 +713,6 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             }
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = timeZone
-            let now = Date()
             let start = calendar.startOfDay(for: now)
             var candidate = calendar.date(byAdding: .hour, value: Int(rawHour), to: start)!
             if candidate <= now {
@@ -997,7 +1002,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     {
         if let error = redactionValues.transportErrors.error(for: JavaScriptCorePluginValue(
             value,
-            keyEnumerator: self.keyEnumerator)) { return error }
+            keyEnumerator: self.keyEnumerator))
+        {
+            return error
+        }
         let message = redactionValues.redact(self.message(from: value))
         if let classified = ProviderPluginClassifiedFailureParser.error(from: message) {
             return classified

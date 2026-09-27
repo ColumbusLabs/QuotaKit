@@ -79,11 +79,15 @@ extension PerplexityUsageSnapshot {
         guard used.isFinite, total.isFinite else { return nil }
         // Keep the existing rounded used count and truncated total count without
         // converting API-sized Double values through Int, which traps above Int.max.
-        let usedCount = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), max(0, used.rounded()))
+        let roundedUsed = used.rounded()
+        let nonnegativeUsed = roundedUsed <= 0 ? 0.0 : roundedUsed
+        let truncatedTotal = total.rounded(.towardZero)
+        let nonnegativeTotal = truncatedTotal <= 0 ? 0.0 : truncatedTotal
+        let usedCount = String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), nonnegativeUsed)
         let totalCount = String(
             format: "%.0f",
             locale: Locale(identifier: "en_US_POSIX"),
-            max(0, total.rounded(.towardZero)))
+            nonnegativeTotal)
         return "\(usedCount)/\(totalCount) \(unit)"
     }
 
