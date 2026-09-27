@@ -7,49 +7,6 @@ import Musl
 #endif
 import Foundation
 
-private actor ClaudeCLISessionOperationGate {
-    private struct Waiter {
-        let id: UUID
-        let continuation: CheckedContinuation<Bool, Never>
-    }
-
-    private var ownerID: UUID?
-    private var waiters: [Waiter] = []
-
-    func acquire(id: UUID, rejectIfCancelled: Bool) async -> Bool {
-        if rejectIfCancelled, Task.isCancelled {
-            return false
-        }
-        guard self.ownerID != nil else {
-            self.ownerID = id
-            return true
-        }
-        return await withCheckedContinuation { continuation in
-            self.waiters.append(Waiter(id: id, continuation: continuation))
-        }
-    }
-
-    func cancel(id: UUID) {
-        if self.ownerID == id {
-            return
-        }
-        guard let index = self.waiters.firstIndex(where: { $0.id == id }) else { return }
-        let waiter = self.waiters.remove(at: index)
-        waiter.continuation.resume(returning: false)
-    }
-
-    func release(id: UUID) {
-        guard self.ownerID == id else { return }
-        guard !self.waiters.isEmpty else {
-            self.ownerID = nil
-            return
-        }
-        let waiter = self.waiters.removeFirst()
-        self.ownerID = waiter.id
-        waiter.continuation.resume(returning: true)
-    }
-}
-
 actor ClaudeCLISession {
     static let shared = ClaudeCLISession()
     private static let log = CodexBarLog.logger(LogCategories.provider(.claude, scope: "cli"))
@@ -121,7 +78,7 @@ actor ClaudeCLISession {
     private var processGroup: pid_t?
     private var sessionIdentity: SessionIdentity?
     private var startedAt: Date?
-    private let operationGate = ClaudeCLISessionOperationGate()
+    private let operationGate = AsyncOperationGate()
     private let workingDirectory: URL?
 
     init(workingDirectory: URL? = nil) {
