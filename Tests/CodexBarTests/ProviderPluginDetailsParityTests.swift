@@ -80,7 +80,7 @@ struct ProviderPluginDetailsParityTests {
         let chinaStrategies = await descriptor.fetchPlan.pipeline.resolveStrategies(chinaContext)
         let globalStrategies = await descriptor.fetchPlan.pipeline.resolveStrategies(globalContext)
 
-        #expect(chinaStrategies.map(\.id) == ["zai.js"])
+        #expect(chinaStrategies.map(\.id) == ["zai.js", "zai.api"])
         #expect(await chinaStrategies[0].isAvailable(chinaContext))
         #expect(globalStrategies.map(\.id) == ["zai.js", "zai.api"])
         #expect(await globalStrategies[0].isAvailable(globalContext) == false)
