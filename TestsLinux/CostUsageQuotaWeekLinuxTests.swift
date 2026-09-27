@@ -783,7 +783,7 @@ extension CostUsageQuotaWeekLinuxTests {
     }
 
     @Test(arguments: ["total", "input", "output", "cacheRead", "cacheCreation"])
-    func `merged daily cost retains known subtotal when a source omits its price`(component: String) throws {
+    func `merged daily cost retains priced row but leaves incomplete total unavailable`(component: String) throws {
         let merged = CostUsageDailyReport.merged([
             CostUsageDailyReport(
                 data: [Self.entry(day: "2026-07-11", cost: 1, tokens: 100)],
@@ -807,7 +807,7 @@ extension CostUsageQuotaWeekLinuxTests {
         #expect(merged.data.first?.costUSD == 1)
         #expect(merged.data.first?.unpricedRequestCount == 1)
         #expect(merged.summary?.totalTokens == 300)
-        #expect(merged.summary?.totalCostUSD == 1)
+        #expect(merged.summary?.totalCostUSD == nil)
 
         let persisted = try JSONDecoder().decode(CostUsageDailyReport.self, from: JSONEncoder().encode(merged))
         #expect(persisted.data == merged.data)
@@ -817,22 +817,32 @@ extension CostUsageQuotaWeekLinuxTests {
             historyDays: 30,
             calendar: Self.utcCalendar)
         #expect(snapshot.last30DaysTokens == 300)
-        #expect(snapshot.last30DaysCostUSD == 1)
+        #expect(snapshot.last30DaysCostUSD == nil)
         let current = snapshot.quotaWeekSummaries(
             resetAt: Self.utcDate(year: 2026, month: 7, day: 18, hour: 0), calendar: Self.utcCalendar).first
         #expect(current?.costIsComplete == false)
     }
 
     @Test
-    func `priced daily subtotals survive explicit unpriced coverage across days`() {
+    func `priced daily subtotals leave incomplete window cost unavailable`() {
         let report = CostUsageDailyReport(
             data: [
                 .init(
-                    date: "2026-07-10", inputTokens: nil, outputTokens: nil,
-                    totalTokens: 100, costUSD: 1, modelsUsed: nil, modelBreakdowns: nil),
+                    date: "2026-07-10",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 100,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
                 .init(
-                    date: "2026-07-11", inputTokens: nil, outputTokens: nil,
-                    totalTokens: 200, costUSD: 2, modelsUsed: nil, modelBreakdowns: nil,
+                    date: "2026-07-11",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 200,
+                    costUSD: 2,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil,
                     unpricedRequestCount: 1),
             ],
             summary: nil)
@@ -842,7 +852,7 @@ extension CostUsageQuotaWeekLinuxTests {
             historyDays: 30,
             calendar: Self.utcCalendar)
 
-        #expect(snapshot.last30DaysCostUSD == 3)
+        #expect(snapshot.last30DaysCostUSD == nil)
         let current = snapshot.quotaWeekSummaries(
             resetAt: Self.utcDate(year: 2026, month: 7, day: 18, hour: 0), calendar: Self.utcCalendar).first
         #expect(current?.costIsComplete == false)
