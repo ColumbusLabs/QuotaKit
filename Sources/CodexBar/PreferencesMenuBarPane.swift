@@ -90,7 +90,7 @@ struct MenuBarPane: View {
                 SettingsMenuPicker(
                     selection: self.$settings.switcherRowsOption,
                     options: MenuBarSettingsMenuOptions.switcherRows,
-                    label: { Text(L("switcher_rows_title")) },
+                    label: { SettingsRowLabel(L("switcher_rows_title")) },
                     optionLabel: { option in
                         Text(option.label)
                     })
