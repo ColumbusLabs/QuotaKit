@@ -112,6 +112,17 @@ struct AccountIdentityComputerTests {
     // MARK: - Non-Tier-A providers
 
     @Test
+    func `Pi without stable account identity uses the legacy sync bucket`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .pi,
+            accountEmail: "label@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
+        #expect(AccountIdentityComputer.compute(provider: .pi, identity: identity) == nil)
+        #expect(AccountIdentityComputer.compute(provider: .pi, identity: nil) == nil)
+    }
+
+    @Test
     func `Non-Tier-A providers return nil — fall to legacy per-device bucket on iOS`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [

@@ -84,7 +84,7 @@ public enum AccountIdentityComputer {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .notion,
              .fireworks, .ibmbob, .gitkraken, .v0, .coderabbit, .huggingface, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
