@@ -2177,7 +2177,6 @@ enum CostUsageScanner {
     }
 
     struct ClaudeParseResult {
-        let days: [String: [String: [Int]]]
         let rows: [ClaudeUsageRow]
         let parsedBytes: Int64
     }

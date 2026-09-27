@@ -28,6 +28,7 @@ Local cost scanners preserve that scope when selecting a catalog:
 
 - Bare Codex/OpenAI model IDs use provider id `openai`; approved provider-qualified routes stay on their route, and unknown prefixes remain unpriced.
 - Recognizable bare Claude-session model families use their first-party vendor catalog, including Anthropic, OpenAI, Google, Moonshot/Kimi, MiniMax, and DeepSeek.
+- Claude's documented Kimi Code `k3[1m]` alias may use the `kimi-for-coding/k3` rate only after exact Kimi Code lookups fail. It never borrows another provider's rate.
 - Other bare Claude-session IDs are priced only when exactly one selected first-party catalog matches. Ambiguous cross-vendor matches remain unpriced.
 - Provider-qualified Claude-session IDs stay on an approved explicit route and never fall through to another vendor.
 - Vertex AI Claude logs: models.dev provider id `google-vertex-anthropic`
@@ -43,6 +44,8 @@ perToken = modelsDevCost / 1_000_000
 ```
 
 When models.dev includes `cost.context_over_200k`, CodexBar parses those values as the above-200k-token pricing lane and converts them with the same per-1M-token rule.
+
+The bundled GPT-6 Astra fallback uses the published Standard rates, switching the entire request to long-context rates above 272,000 input tokens. Fast mode doubles the applicable rates, including the long-context lane.
 
 ## Custom pricing overlay
 

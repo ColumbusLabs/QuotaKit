@@ -68,6 +68,7 @@ extension CostUsageScanner {
         var modelsDevCatalog: ModelsDevCatalog
         var modelsDevCacheRoot: URL?
         var customPricing: CostUsageCustomPricing
+        var pricingResolver: CostUsagePricing.CodexResolver
     }
 
     static func unmeteredForkReportEntry(day: String, unmetered: Int) -> CostUsageDailyReport.Entry? {
@@ -131,7 +132,8 @@ extension CostUsageScanner {
                 priorityTurns: pricing.priorityTurns,
                 modelsDevCatalog: pricing.modelsDevCatalog,
                 modelsDevCacheRoot: pricing.modelsDevCacheRoot,
-                customPricing: pricing.customPricing)
+                customPricing: pricing.customPricing,
+                pricingResolver: pricing.pricingResolver)
             let group = CodexDayModelKey(day: day, model: model)
             // A combined token counter can overflow while each source class and its supplied
             // monetary amount remain valid. Never replace authoritative dollars with repricing.
@@ -157,7 +159,8 @@ extension CostUsageScanner {
                     outputTokens: output,
                     modelsDevCatalog: pricing.modelsDevCatalog,
                     modelsDevCacheRoot: pricing.modelsDevCacheRoot,
-                    customPricing: pricing.customPricing)
+                    customPricing: pricing.customPricing,
+                    pricingResolver: pricing.pricingResolver)
             let cost = rowCostIsTrusted
                 ? rowCost?.totalCostUSD ?? aggregateCost
                 : aggregateCost

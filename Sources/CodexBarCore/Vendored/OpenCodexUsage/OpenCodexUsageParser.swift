@@ -340,24 +340,17 @@ public enum OpenCodexUsageParser {
     }
 
     private static func nonnegativeInt(_ value: Any?) -> Int? {
-        guard let value else { return nil }
-        if let number = value as? Int {
-            if let boxed = value as? NSNumber,
-               CFGetTypeID(boxed) == CFBooleanGetTypeID()
-            {
-                return nil
-            }
-            return number >= 0 ? number : nil
-        }
         guard let boxed = value as? NSNumber else { return nil }
         guard CFGetTypeID(boxed) != CFBooleanGetTypeID() else { return nil }
+        // Preserve exact integer payloads without trusting NSNumber's clamping `as? Int` bridge.
+        if let integer = Int(boxed.stringValue) {
+            return integer >= 0 ? integer : nil
+        }
         let number = boxed.doubleValue
-        guard number.isFinite,
-              number >= 0,
-              number < Double(Int.max),
-              number.rounded(.towardZero) == number
+        guard number >= 0, number.rounded(.towardZero) == number,
+              let integer = Int(exactly: number)
         else { return nil }
-        return Int(number)
+        return integer >= 0 ? integer : nil
     }
 
     private static func prefixDigest(
