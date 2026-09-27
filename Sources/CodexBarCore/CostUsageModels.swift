@@ -326,6 +326,12 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         Self.entry(in: self.daily, forLocalDayContaining: self.updatedAt, calendar: calendar)
     }
 
+    public func incompleteRequestCount(forLastDays requestedDays: Int, calendar: Calendar = .current) -> Int {
+        let entries = CostReportingPeriod.rolling(days: max(1, requestedDays)).entries(
+            self.daily, now: self.updatedAt, calendar: calendar)
+        return CostUsageIncompleteRequests.sum(entries.map(\.incompleteRequestCount))
+    }
+
     public func summary(forLastDays requestedDays: Int, calendar: Calendar = .current) -> CostUsageWindowSummary {
         let days = max(1, requestedDays)
         let entries = CostReportingPeriod.rolling(days: days).entries(

@@ -208,7 +208,7 @@ extension CodexBarCLI {
             return Self.renderSessionCostText(header: header, snapshot: snapshot)
         }
 
-        let todayIncomplete = snapshot.summary(forLastDays: 1, calendar: calendar).incompleteRequestCount
+        let todayIncomplete = snapshot.incompleteRequestCount(forLastDays: 1, calendar: calendar)
         let incomplete = CostUsageIncompleteRequests.sum(snapshot.daily.map(\.incompleteRequestCount))
         let unpriced = snapshot.daily.reduce(0) { $0 + max(0, $1.unpricedRequestCount ?? 0) }
         let todayCost = snapshot.sessionCostUSD
