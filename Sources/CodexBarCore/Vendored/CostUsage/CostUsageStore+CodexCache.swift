@@ -97,6 +97,8 @@ extension CostUsageStore {
     }
 
     @discardableResult
+    // Keep the existing stateful flow together; splitting it would obscure ordering.
+    // swiftlint:disable function_body_length
     func saveCodexCache(
         _ cache: CostUsageCache,
         calendar: Calendar,
@@ -297,6 +299,8 @@ extension CostUsageStore {
         }
         return result
     }
+
+    // swiftlint:enable function_body_length
 
     /// Persists one bounded scanner pass without reconstructing the complete event ledger. The
     /// caller supplies the explicit working set that was hydrated before scanning. Manifest,
@@ -593,8 +597,8 @@ extension CostUsageStore {
         var interleavedTotals: Bool?
         var replacementScanColdStart: Bool?
         var parserRevision: Int?
-        var hasExactUsageRowIndex: Bool? = nil
-        var forkAccountingState: CostUsageScanner.CodexForkAccountingState? = nil
+        var hasExactUsageRowIndex: Bool?
+        var forkAccountingState: CostUsageScanner.CodexForkAccountingState?
     }
 
     private struct StoredPriorityState: Codable {

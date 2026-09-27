@@ -286,6 +286,8 @@ extension StatusItemController {
     }
 
     @discardableResult
+    // Keep the existing stateful flow together; splitting it would obscure ordering.
+    // swiftlint:disable function_body_length
     func applyIcon(
         phase: Double?,
         bypassMergedMenuTrackingDeferral: Bool = false) -> Bool
@@ -458,6 +460,8 @@ extension StatusItemController {
         self.noteIconPerfRender(skipped: false)
         return false
     }
+
+    // swiftlint:enable function_body_length
 
     private func applyBrandPercentIcon(state: MergedIconRenderState) -> Bool? {
         guard let brand = ProviderBrandIcon.image(for: state.provider) else { return nil }

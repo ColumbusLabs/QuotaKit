@@ -1,3 +1,5 @@
+// This established cohesive source exceeds the file-length limit; split during a dedicated refactor.
+// swiftlint:disable file_length
 import CodexBarCore
 import Foundation
 

@@ -17,7 +17,8 @@ public enum ClinePassProviderDescriptor {
         environmentAliases: ["CLINEPASS_API_KEY"],
         presentation: ProviderUsagePresentation(primaryBindingQuotaLanes: [.secondary, .tertiary]),
         apiKeyField: .init(
-            id: "clinepass-api-key", title: "API key",
+            id: "clinepass-api-key",
+            title: "API key",
             subtitle: "Stored in ~/.quotakit/config.json. Paste a ClinePass API key.",
             placeholder: "ClinePass API key..."),
         showsAPIDetail: true,

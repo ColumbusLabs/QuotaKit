@@ -16,7 +16,8 @@ public enum MuseUsageError: LocalizedError, Sendable, Equatable {
         case .keychainAccessDisabled:
             "Muse Code login is stored in Keychain. Enable Keychain access in QuotaKit Settings, then refresh."
         case .keychainUnavailable:
-            "Muse Code Keychain access is unavailable without showing a prompt. Check Keychain access, then refresh QuotaKit."
+            "Muse Code Keychain access is unavailable without showing a prompt. "
+                + "Check Keychain access, then refresh QuotaKit."
         case let .parseFailed(message):
             "Could not parse Muse Code login: \(message)"
         }

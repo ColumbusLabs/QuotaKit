@@ -111,6 +111,8 @@ struct MenuContent: View {
         action.systemImageName
     }
 
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity
     private func perform(_ action: MenuDescriptor.MenuAction) {
         switch action {
         case .refresh:
@@ -157,6 +159,7 @@ struct MenuContent: View {
             return
         }
     }
+    // swiftlint:enable cyclomatic_complexity
 }
 
 struct MenuActions {

@@ -7,7 +7,7 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
     public let loginMethod: String?
     public let accountID: String?
     /// Live-only verified ownership for saved-account widgets; never changes sync or hook identity.
-    public private(set) var widgetAccountOwnerID: String? = nil
+    public private(set) var widgetAccountOwnerID: String?
 
     private enum CodingKeys: String, CodingKey {
         case providerID, accountEmail, accountOrganization, loginMethod, accountID

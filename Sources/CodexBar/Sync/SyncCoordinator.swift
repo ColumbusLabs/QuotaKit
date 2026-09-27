@@ -623,6 +623,8 @@ final class SyncCoordinator {
         return SyncMultiAccountList(accounts: entries, activeIndex: activeIndex)
     }
 
+    // Keep the existing stateful flow together; splitting it would obscure ordering.
+    // swiftlint:disable function_body_length
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -827,6 +829,8 @@ final class SyncCoordinator {
             hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot),
             providerDetails: Self.mapProviderDetails(provider: provider, snapshot: snapshot))
     }
+
+    // swiftlint:enable function_body_length
 
     private static func mapProviderDetails(
         provider: UsageProvider,

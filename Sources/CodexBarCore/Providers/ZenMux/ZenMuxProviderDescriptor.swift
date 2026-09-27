@@ -26,7 +26,8 @@ public enum ZenMuxProviderDescriptor {
             return ["INCLUDE_PAYG": includePayg ? "1" : "0"]
         },
         apiKeyField: .init(
-            id: "zenmux-management-api-key", title: "Management API key",
+            id: "zenmux-management-api-key",
+            title: "Management API key",
             subtitle: "Stored in ~/.quotakit/config.json. Standard ZenMux inference API keys are not supported.",
             placeholder: "ZenMux management key…",
             action: ("zenmux-open-management", "Open ZenMux Management", "https://zenmux.ai/platform/management")),

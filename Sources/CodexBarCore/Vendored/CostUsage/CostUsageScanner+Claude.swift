@@ -12,8 +12,12 @@ extension CostUsageScanner {
     {
         guard let reportContext, provider == .claude || provider == .vertexai else {
             return try self.loadDailyReportCancellable(
-                provider: provider, since: since, until: until, now: now,
-                options: options, checkCancellation: checkCancellation)
+                provider: provider,
+                since: since,
+                until: until,
+                now: now,
+                options: options,
+                checkCancellation: checkCancellation)
         }
         try checkCancellation?()
         var filtered = options

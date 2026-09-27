@@ -600,7 +600,8 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
                     credentials: browserCredentials,
                     preferTrailingAuthenticationFailure: true)
                 return GrokWebBillingResult(
-                    snapshot: snapshot, sourceLabel: cached.sourceLabel,
+                    snapshot: snapshot,
+                    sourceLabel: cached.sourceLabel,
                     authContext: .cookie(cached.cookieHeader))
             } catch {
                 guard Self.isCookieAuthenticationFailure(error) else { throw error }

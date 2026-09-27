@@ -234,7 +234,8 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                 for source in sources where !source.records.isEmpty {
                     let cookies = Self.cookiesForRequest(
                         BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin),
-                        domain: domain, provider: provider)
+                        domain: domain,
+                        provider: provider)
                     let rawHeader = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
                     if let header = CookieHeaderNormalizer.normalize(rawHeader) {
                         sessions.append((header, source.label))

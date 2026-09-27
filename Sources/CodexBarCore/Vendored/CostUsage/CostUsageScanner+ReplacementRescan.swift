@@ -177,7 +177,9 @@ extension CostUsageScanner {
         let recoveringSourceRows = context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL))
             || Self.codexFileNeedsSourceRowRecovery(cached, context: context)
         var sourcePricing = Self.codexSourcePricingForScan(
-            cached: cached, metadata: input.metadata, range: context.range,
+            cached: cached,
+            metadata: input.metadata,
+            range: context.range,
             recoveringSourceRows: recoveringSourceRows)
         if context.dropDeferredCodexRows { sourcePricing = nil }
         let sourceAnchor = Self.codexSourcePricingAnchor(

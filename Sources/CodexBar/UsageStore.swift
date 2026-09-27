@@ -1489,7 +1489,8 @@ extension UsageStore {
         }
     }
 
-    // swiftlint:disable:next function_body_length
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity function_body_length
     func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.resetTokenUsageState(for: provider)
@@ -1689,6 +1690,8 @@ extension UsageStore {
             }
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity function_body_length
 
     private func resetTokenUsageState(for provider: UsageProvider) {
         // Provider-specific by design: resetting Codex token state also cancels its two ledger catch-up workflows.

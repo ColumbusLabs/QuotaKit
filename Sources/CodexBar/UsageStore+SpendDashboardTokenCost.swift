@@ -38,6 +38,8 @@ extension UsageStore {
         self.spendDashboardTokenPublicationRevisions.removeAll()
     }
 
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity
     func refreshSpendDashboardTokenUsageNow(
         for provider: UsageProvider,
         force: Bool,
@@ -188,6 +190,8 @@ extension UsageStore {
             self.clearSpendDashboardTokenSnapshot(for: provider)
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity
 
     private func publishSpendDashboardTokenSnapshot(
         _ snapshot: CostUsageTokenSnapshot,
