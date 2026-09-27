@@ -24,6 +24,7 @@ struct ClaudeSwapWidgetSnapshotTests {
         """#.write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
         settings.claudeSwapExecutablePath = executable.path
+        #expect(!settings.accountWidgetsEnabled)
         store._setSnapshotForTesting(self.usage(100), provider: .claude)
         var publications: [WidgetSnapshot] = []
         store._test_widgetSnapshotSaveOverride = { publications.append($0) }
@@ -45,12 +46,15 @@ struct ClaudeSwapWidgetSnapshotTests {
                 },
             ])
             try data.write(to: URL(fileURLWithPath: executable.path + ".json"))
-            await store.refreshClaudeSwapAccounts()
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await store.refreshClaudeSwapAccounts()
+            }
             await store.widgetSnapshotPersistTask?.value
             #expect(publications.count == activeSlot)
             let entry = publications.last?.entries.first { $0.provider == .claude }
             #expect(entry?.primary?.usedPercent == Double(activeSlot * 20))
             #expect(entry?.quotaOwnerKey?.hasPrefix("claude/swap:\(activeSlot):") == true)
+            #expect(publications.last?.accounts.isEmpty == true)
         }
 
         store.clearClaudeSwapAccountState()

@@ -117,28 +117,29 @@ struct BurnDownCapabilityTests {
     }
 
     @Test
-    func `Cursor cycle timing names and independent subquotas use the snapshot`() throws {
-        let total = Self.window(minutes: 43200, used: 25)
-        let cursor = Self.window(minutes: 43200, used: 100)
-        let thirdParty = Self.window(minutes: 43200, used: 10)
-        let snapshot = Self.snapshot(provider: .cursor, primary: total, secondary: cursor, tertiary: thirdParty)
+    func `Cursor cycle timing keeps independent Auto and API subquotas`() throws {
+        let auto = Self.window(minutes: 43200, used: 25)
+        let api = Self.window(minutes: 43200, used: 100)
+        let snapshot = Self.snapshot(provider: .cursor, primary: auto, secondary: api, rows: [
+            .init(id: "primary", title: "Auto", percentLeft: 75),
+            .init(id: "secondary", title: "API", percentLeft: 0),
+        ])
         let state = try #require(BurnDownState(snapshot: snapshot, provider: .cursor, selection: .primary))
-        #expect(state.availableSelections == [.primary, .secondary, .tertiary])
-        #expect(state.combinedSelections.map { state.title(for: $0) } == ["Total", "Cursor"])
-        #expect(state.title(for: .tertiary) == "Third Party")
-        #expect(state.selectedWindow == total)
-        #expect(state.window(for: .secondary) == cursor)
-        #expect(state.window(for: .tertiary) == thirdParty)
+        #expect(state.availableSelections == [.primary, .secondary])
+        #expect(state.combinedSelections.map { state.title(for: $0) } == ["Auto", "API"])
+        #expect(state.selectedWindow == auto)
+        #expect(state.window(for: .secondary) == api)
+        #expect(state.window(for: .tertiary) == nil)
         #expect(state.window(for: .session) == nil)
         #expect(state.window(for: .weekly) == nil)
         #expect(!state.blankPrimaryChart)
         #expect(burnWindowLabel(43200) == "30-day limit")
-        let reset = try #require(total.resetsAt)
+        let reset = try #require(auto.resetsAt)
         let axis = burnAxisDateRange(effectiveResetAt: reset, windowMinutes: 43200, now: reset)
         #expect(axis.reset.timeIntervalSince(axis.start) == 43200 * 60)
 
         let renamed = try #require(BurnDownState(
-            snapshot: Self.snapshot(provider: .cursor, primary: total, rows: [
+            snapshot: Self.snapshot(provider: .cursor, primary: auto, rows: [
                 .init(id: "primary", title: "Requests", percentLeft: 75),
             ]),
             provider: .cursor,

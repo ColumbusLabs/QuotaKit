@@ -44,7 +44,9 @@ struct ClaudeSwapSwitchErrorTimingTests {
         #expect(account.canActivate)
         #expect(ClaudeSwapAccountMenuDisplay.actionLabel(
             for: account, switchingAccountID: nil, switchInFlight: false) == L("Re-authenticate"))
-        fixture.store.switchClaudeSwapAccount(account.id)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            fixture.store.switchClaudeSwapAccount(account.id)
+        }
         let task = try #require(fixture.store.claudeSwapTransientState.task)
         await task.value
         #expect(gate.entered)
