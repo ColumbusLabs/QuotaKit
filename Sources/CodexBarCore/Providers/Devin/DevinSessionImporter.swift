@@ -198,21 +198,6 @@ enum DevinSessionImporter {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func chromeLocalStorageCandidates(browserDetection: BrowserDetection) -> [LocalStorageCandidate] {
-        let installedBrowsers = self.localStorageBrowsers(browserDetection: browserDetection)
-        let roots = ChromiumProfileLocator
-            .roots(for: installedBrowsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())
-            .map { (url: $0.url, labelPrefix: $0.labelPrefix) }
-
-        var candidates: [LocalStorageCandidate] = []
-        for root in roots {
-            candidates.append(contentsOf: self.chromeProfileLocalStorageDirs(
-                root: root.url,
-                labelPrefix: root.labelPrefix))
-        }
-        return candidates
-    }
-
     static func localStorageBrowsers(browserDetection: BrowserDetection) -> [Browser] {
         let order = ProviderDefaults.metadata[.devin]?.browserCookieOrder ?? ChromiumLocalStorageDiscovery
             .defaultBrowsers

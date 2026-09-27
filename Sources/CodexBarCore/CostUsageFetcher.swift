@@ -130,8 +130,7 @@ public struct CostUsageFetcher: Sendable {
         includeProjectAndSessionBreakdowns: Bool = true,
         requireCompleteHistory: Bool = false,
         calendar: Calendar? = nil,
-        environment: [String: String] = ProcessInfo.processInfo.environment,
-        piScannerOptions: PiSessionCostScanner.Options? = nil) async -> CachedCodexTokenSnapshotResult?
+        environment: [String: String] = ProcessInfo.processInfo.environment) async -> CachedCodexTokenSnapshotResult?
     {
         await Self.loadCachedCodexTokenSnapshotResult(
             now: now,
@@ -142,8 +141,7 @@ public struct CostUsageFetcher: Sendable {
             includeProjectAndSessionBreakdowns: includeProjectAndSessionBreakdowns,
             requireCompleteHistory: requireCompleteHistory,
             scannerOptions: self.scannerOptions(calendar: calendar),
-            environment: environment,
-            piScannerOptions: piScannerOptions)
+            environment: environment)
     }
 
     package func loadCachedCodexTokenSnapshotForScopedHome(
@@ -936,19 +934,6 @@ public struct CostUsageFetcher: Sendable {
         let environment: [String: String]
         let piOptions: PiSessionCostScanner.Options
         let reportContext: CostUsageReportContext?
-    }
-
-    private static func unavailableLocalSnapshot(
-        now: Date,
-        historyDays: Int,
-        calendar: Calendar) -> CostUsageTokenSnapshot
-    {
-        self.tokenSnapshot(
-            from: CostUsageDailyReport(data: [], summary: nil),
-            now: now,
-            historyDays: historyDays,
-            calendar: calendar,
-            historyCoverageIsEstablished: false)
     }
 
     private static func unavailableLocalSnapshot(
