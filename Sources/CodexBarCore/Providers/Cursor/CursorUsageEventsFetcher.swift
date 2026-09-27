@@ -445,7 +445,8 @@ struct CursorUsageEventsFetcher: Sendable {
             body: FilteredUsageRequest(
                 page: page,
                 pageSize: self.pageSize,
-                startDate: Self.millisString(since),
+                // Cursor rejects pre-epoch start dates; keep an unbounded or modern window intact.
+                startDate: Self.millisString(since.map { max($0, Date(timeIntervalSince1970: 0)) }),
                 endDate: Self.millisString(until)))
         let (data, response) = try await self.transport.data(for: request)
         try Self.validate(response)
