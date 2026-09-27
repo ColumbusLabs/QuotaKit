@@ -63,7 +63,7 @@ struct ClaudeOAuthCredentialsStoreIsolatedSecurityCLITests {
     }
 
     @Test
-    func `explicit QuotaKit CLI can read isolated security CLI keychain while other access is disabled`() {
+    func `explicit QuotaKit CLI user action can read isolated security CLI keychain while other access is disabled`() {
         let mcpOnlyPayload = Data(#"{"mcpOAuth":{"plugin:test":{"accessToken":"synthetic"}}}"#.utf8)
         let environment = [
             KeychainAccessGate.disableAccessEnvironmentKey: "1",
@@ -75,7 +75,7 @@ struct ClaudeOAuthCredentialsStoreIsolatedSecurityCLITests {
                 ClaudeOAuthCredentialsStore
                     .withSecurityCLIReadOverrideForTesting(.data(mcpOnlyPayload)) {
                         ClaudeOAuthCredentialsStore.isMcpOAuthOnlyClaudeKeychainPayloadPresent(
-                            interaction: .background,
+                            interaction: .userInitiated,
                             readStrategy: .securityCLIExperimental,
                             keychainAccessDisabled: true,
                             environment: environment)
@@ -83,11 +83,22 @@ struct ClaudeOAuthCredentialsStoreIsolatedSecurityCLITests {
             }
             #expect(isMcpOnly)
 
+            let blockedBackgroundRead = ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(mcpOnlyPayload)) {
+                    ClaudeOAuthCredentialsStore.isMcpOAuthOnlyClaudeKeychainPayloadPresent(
+                        interaction: .background,
+                        readStrategy: .securityCLIExperimental,
+                        keychainAccessDisabled: true,
+                        environment: environment)
+                }
+            }
+            #expect(!blockedBackgroundRead)
+
             let blockedWithoutIsolatedKeychain = ClaudeOpaqueOperationContext.withExplicitCLIAccess {
                 ClaudeOAuthCredentialsStore
                     .withSecurityCLIReadOverrideForTesting(.data(mcpOnlyPayload)) {
                         ClaudeOAuthCredentialsStore.isMcpOAuthOnlyClaudeKeychainPayloadPresent(
-                            interaction: .background,
+                            interaction: .userInitiated,
                             readStrategy: .securityCLIExperimental,
                             keychainAccessDisabled: true,
                             environment: [KeychainAccessGate.disableAccessEnvironmentKey: "1"])

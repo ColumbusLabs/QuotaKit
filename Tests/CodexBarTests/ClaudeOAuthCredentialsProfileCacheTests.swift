@@ -103,7 +103,9 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
                     try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(mode) {
                         // QuotaKit permits Claude Keychain freshness reads only for an explicit user action.
                         let interaction: ProviderInteraction = switch scenario {
-                        case .adopt, .codexbarOwner: .userInitiated
+                        case .adopt, .codexbarOwner, .unchangedFingerprint,
+                             .expiredFile, .expiredFileUnchangedFingerprint,
+                             .cacheUnavailableDuringPreviousRepair: .userInitiated
                         default: .background
                         }
                         try ProviderInteractionContext.$current.withValue(interaction) {
