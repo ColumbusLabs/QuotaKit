@@ -375,13 +375,12 @@ struct CostUsageBoundedProgressTests {
         try handle.seekToEnd()
         try handle.write(contentsOf: Data((appendedRow + "\n").utf8))
         try handle.close()
-        try FileManager.default.setAttributes([.modificationDate: currentDay.addingTimeInterval(2)],
-                                              ofItemAtPath: historicalURLs[0].path)
+        try FileManager.default.setAttributes(
+            [.modificationDate: currentDay.addingTimeInterval(2)],
+            ofItemAtPath: historicalURLs[0].path)
         // Start a fresh exact proof after the append, regardless of an earlier page cursor.
         narrowed.codexActiveLookbackState = try Self.completedLookbackState(
             cache: narrowed, options: options, pendingFilePaths: [])
-        narrowed.codexScanInventoryPaths = nil
-        narrowed.codexScanCatchUpPending = true
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: narrowed)
 
         // swiftlint:disable multiline_arguments

@@ -7483,12 +7483,13 @@ enum CostUsageScanner {
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         // Keep an unfinished discovery queue on its original wider scan range when a
         // dashboard requests a narrower report of the same roots and ending day.
-        let scanRange: CostUsageDayRange = if !options.forceRescan,
-                                              cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
-                                              cache.scanUntilKey == range.scanUntilKey,
-                                              let pending = cache.codexActiveLookbackState,
-                                              pending.rootPaths == Self.codexSessionsRoots(options: options)
-                                                  .map(Self.codexResolvedPath).sorted()
+        let scanRange: CostUsageDayRange
+        if !options.forceRescan,
+           cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+           cache.scanUntilKey == range.scanUntilKey,
+           let pending = cache.codexActiveLookbackState,
+           pending.rootPaths == Self.codexSessionsRoots(options: options)
+               .map(Self.codexResolvedPath).sorted()
         {
             // The requested window has one day of scan padding on each side. Preserve
             // unfinished discovery within the maximum 365-day lookback, but do not let
@@ -7499,9 +7500,9 @@ enum CostUsageScanner {
                 to: Self.parseDayKey(range.untilKey, calendar: range.calendar) ?? now)
                 .map { CostUsageDayRange.dayKey(from: $0, calendar: range.calendar) }
                 ?? pending.scanSinceKey
-            range.retainingScanStart(max(pending.scanSinceKey, oldestRetainedScanDay))
+            scanRange = range.retainingScanStart(max(pending.scanSinceKey, oldestRetainedScanDay))
         } else {
-            range
+            scanRange = range
         }
         let plan = Self.makeCodexRefreshPlan(cache: cache, range: scanRange, now: now, nowMs: nowMs, options: options)
         let previousReport = Self.codexPreviousReportCandidate(
