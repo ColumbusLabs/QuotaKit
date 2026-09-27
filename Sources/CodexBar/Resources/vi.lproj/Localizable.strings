@@ -1070,9 +1070,9 @@
 "Source" = "Nguồn";
 "State" = "Trạng thái";
 "Unavailable" = "Không có sẵn";
-"Weekly" = "Không phát hiện được";
+"Weekly" = "Hàng tuần";
 "Weekly quota" = "Không phát hiện được";
-"not detected" = "hàng tuần";
+"not detected" = "Không phát hiện được";
 "Estimated from local Codex logs for the selected account." = "Được ước tính từ nhật ký Codex cục bộ cho tài khoản đã chọn.";
 "minimax_usage_amount_format" = "Mức sử dụng : %@ / %@";
 "minimax_used_percent_format" = "Đã sử dụng %@";
@@ -1636,3 +1636,5 @@
 "Checking for updates…" = "Đang kiểm tra bản cập nhật…";
 "Updating with Homebrew…" = "Đang cập nhật bằng Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Cập nhật bằng Homebrew không thành công. Bạn có thể chạy lệnh này trong Terminal:";
+"claude_limited_usage_detail" = "Thông tin sử dụng ít chi tiết";
+"%@ weekly" = "%@ hàng tuần";

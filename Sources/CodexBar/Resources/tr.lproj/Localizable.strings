@@ -1637,3 +1637,5 @@
 "Checking for updates…" = "Güncellemeler denetleniyor…";
 "Updating with Homebrew…" = "Homebrew ile güncelleniyor…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew güncellemesi başarısız oldu. Bunun yerine bu komutu Terminal'de çalıştırabilirsiniz:";
+"claude_limited_usage_detail" = "Kullanım ayrıntıları sınırlı";
+"%@ weekly" = "%@ haftalık";

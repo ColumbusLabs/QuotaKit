@@ -9,6 +9,12 @@ read_when:
 
 # Claude provider
 
+Claude Web distinguishes Cloudflare challenges from expired sessions. The menu directs a
+challenged account to Claude provider settings for an OAuth source or network change while
+keeping cached cookies and the last successful usage. A successful CLI quota read can offer
+account actions even when optional identity fields are absent. Restored percentage-only history
+shows a neutral limited-detail note, and model-scoped weekly labels are localized in the menu.
+
 Claude supports three usage data paths plus local cost usage. The main provider pipeline uses runtime-specific
 automatic selection, but the codebase still has multiple active Claude `.auto` decision sites while the refactor is
 pending. For the exact current-state parity contract, see

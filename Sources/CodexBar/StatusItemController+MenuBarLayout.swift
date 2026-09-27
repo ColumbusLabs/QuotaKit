@@ -181,6 +181,7 @@ extension StatusItemController {
             self.store.weeklyPace(
                 provider: provider,
                 window: $0,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: now)
         }
         let runsOut = pace
@@ -213,15 +214,21 @@ extension StatusItemController {
             automaticText: provider == .mistral && automatic == nil
                 ? Self.mistralSpendDisplayText(snapshot: snapshot)
                 : nil,
-            sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.session, now: now),
+            sessionPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: windows.session,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                now: now),
             weeklyPace: self.store.menuBarLayoutPaceText(
                 provider: provider,
                 window: windows.weekly,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: now,
                 minimumElapsedPercent: 1),
             automaticPace: self.store.menuBarLayoutPaceText(
                 provider: provider,
                 window: windows.automatic,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: now),
             runsOut: runsOut,
             balance: MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot),
@@ -231,15 +238,18 @@ extension StatusItemController {
                 sessionPaceDelta: self.store.menuBarLayoutPaceDelta(
                     provider: provider,
                     window: windows.session,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
                     now: now),
                 weeklyPaceDelta: self.store.menuBarLayoutPaceDelta(
                     provider: provider,
                     window: windows.weekly,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
                     now: now,
                     minimumElapsedPercent: 1),
                 automaticPaceDelta: self.store.menuBarLayoutPaceDelta(
                     provider: provider,
                     window: windows.automatic,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
                     now: now),
                 runsOutMinutes: pace?.etaSeconds.map { Int(($0 / 60).rounded()) },
                 balanceRemainingUSD: balanceAmounts.remaining,

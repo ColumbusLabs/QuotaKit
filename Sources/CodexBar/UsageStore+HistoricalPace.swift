@@ -8,11 +8,14 @@ extension UsageStore {
     func weeklyPace(
         provider: UsageProvider,
         window: RateWindow,
+        dataConfidence: UsageDataConfidence? = nil,
         now: Date = .init(),
         minimumExpectedPercent: Double = 3,
         minimumElapsedPercent: Double? = nil) -> UsagePace?
     {
-        guard window.remainingPercent > 0 else { return nil }
+        let confidence = dataConfidence ?? self.presentationSnapshot(for: provider)?.dataConfidence ?? .unknown
+        guard ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: confidence),
+              window.remainingPercent > 0 else { return nil }
         let resolved: UsagePace?
         let elapsedWindow: RateWindow
         let workDays = self.settings.weeklyProgressWorkDays
@@ -66,6 +69,7 @@ extension UsageStore {
     func menuBarLayoutPaceText(
         provider: UsageProvider,
         window: RateWindow?,
+        dataConfidence: UsageDataConfidence? = nil,
         now: Date = .init(),
         minimumExpectedPercent: Double = 3,
         minimumElapsedPercent: Double? = nil)
@@ -76,6 +80,7 @@ extension UsageStore {
                 self.weeklyPace(
                     provider: provider,
                     window: $0,
+                    dataConfidence: dataConfidence,
                     now: now,
                     minimumExpectedPercent: minimumExpectedPercent,
                     minimumElapsedPercent: minimumElapsedPercent)
@@ -88,6 +93,7 @@ extension UsageStore {
     func menuBarLayoutPaceDelta(
         provider: UsageProvider,
         window: RateWindow?,
+        dataConfidence: UsageDataConfidence? = nil,
         now: Date = .init(),
         minimumExpectedPercent: Double = 3,
         minimumElapsedPercent: Double? = nil)
@@ -98,6 +104,7 @@ extension UsageStore {
                 self.weeklyPace(
                     provider: provider,
                     window: $0,
+                    dataConfidence: dataConfidence,
                     now: now,
                     minimumExpectedPercent: minimumExpectedPercent,
                     minimumElapsedPercent: minimumElapsedPercent)

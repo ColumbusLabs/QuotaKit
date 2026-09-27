@@ -1647,3 +1647,5 @@
 "Checking for updates…" = "正在检查更新…";
 "Updating with Homebrew…" = "正在通过 Homebrew 更新…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 更新失败。你也可以在终端中运行此命令：";
+"claude_limited_usage_detail" = "用量详情有限";
+"%@ weekly" = "%@ 每周";

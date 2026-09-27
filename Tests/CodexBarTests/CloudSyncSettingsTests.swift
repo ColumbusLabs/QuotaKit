@@ -128,8 +128,9 @@ struct CloudSyncSettingsTests {
         try await Task.sleep(for: .milliseconds(150))
 
         let ownWrite = Data("{\"value\":2}".utf8)
-        watcher.noteAppWrite(data: ownWrite)
-        try ownWrite.write(to: url, options: .atomic)
+        try ConfigFileWatcher.withAppWrite(ownWrite, watcher: watcher) {
+            try ownWrite.write(to: url, options: .atomic)
+        }
         try await Task.sleep(for: .milliseconds(350))
         #expect(changes.value == 0)
 
@@ -137,6 +138,36 @@ struct CloudSyncSettingsTests {
         try await Task.sleep(for: .milliseconds(500))
         watcher.stop()
         #expect(changes.value >= 1)
+    }
+
+    @Test
+    func `external config edit may restore previously app written contents`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("config.json")
+        let original = Data("a".utf8)
+        let external = Data("b".utf8)
+        try original.write(to: url, options: .atomic)
+        let values = WatchedConfigValues()
+        let watcher = ConfigFileWatcher(fileURL: url) {
+            if let data = try? Data(contentsOf: url) { values.append(data) }
+        }
+        defer { watcher.stop() }
+        try ConfigFileWatcher.withAppWrite(original, watcher: watcher) {
+            try original.write(to: url, options: .atomic)
+        }
+        watcher.start()
+        for _ in 0..<100 where !values.snapshot.contains(external) {
+            try external.write(to: url, options: .atomic)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(values.snapshot.contains(external))
+        try original.write(to: url, options: .atomic)
+        for _ in 0..<100 where !values.snapshot.contains(original) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(values.snapshot.contains(original))
     }
 
     @Test

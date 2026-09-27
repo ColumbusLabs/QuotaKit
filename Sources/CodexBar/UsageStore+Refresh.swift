@@ -1642,6 +1642,12 @@ extension UsageStore {
         if case ClaudeWebAPIFetcher.FetchError.unauthorized = error {
             return true
         }
-        return error.localizedDescription == ClaudeWebAPIFetcher.FetchError.unauthorized.localizedDescription
+        if case ClaudeWebAPIFetcher.FetchError.cloudflareChallenge = error {
+            return true
+        }
+        return [
+            ClaudeWebAPIFetcher.FetchError.unauthorized.localizedDescription,
+            ClaudeWebAPIFetcher.FetchError.cloudflareChallenge.localizedDescription,
+        ].contains(error.localizedDescription)
     }
 }

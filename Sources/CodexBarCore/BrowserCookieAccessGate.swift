@@ -95,7 +95,7 @@ public enum BrowserCookieAccessGate {
         guard browser.usesKeychainForCookieDecryption else { return true }
         guard !KeychainAccessGate.isDisabled else { return false }
         guard ProviderInteractionContext.current == .userInitiated else {
-            return self.shouldAttemptInBackground(browser, now: now)
+            return self.shouldAttemptInBackground(browser)
         }
         if self.deniedBrowsersForTesting?.contains(browser) == true {
             return self.isExplicitRetryAllowed(for: browser)
@@ -312,15 +312,9 @@ public enum BrowserCookieAccessGate {
     /// grants access (an explicit `.allowed`), a scheduled refresh can read cookies without any prompt,
     /// so background usage stays in sync instead of only updating when the menu is opened. Anything else
     /// — interaction required, not found, or a query failure — keeps the no-surprise boundary and skips.
-    /// An active per-browser or Chromium-family denial cooldown is still honored.
-    private static func shouldAttemptInBackground(_ browser: Browser, now: Date) -> Bool {
+    /// A current grant can recover background refresh without clearing the user-initiated denial cooldown.
+    private static func shouldAttemptInBackground(_ browser: Browser) -> Bool {
         if self.deniedBrowsersForTesting?.contains(browser) == true {
-            return false
-        }
-        if self.hasActiveDenialCooldown(for: browser, now: now) {
-            self.log.debug(
-                "Skipping background Chromium cookie import; denial cooldown active",
-                metadata: ["browser": browser.displayName])
             return false
         }
         guard self.chromiumKeychainAccessIsAllowed(for: browser) else {
@@ -333,22 +327,6 @@ public enum BrowserCookieAccessGate {
             "Background Chromium cookie import allowed by no-UI Keychain preflight",
             metadata: ["browser": browser.displayName])
         return true
-    }
-
-    /// Read-only check for an active per-browser or Chromium-family denial cooldown. Mirrors the
-    /// suppression window enforced on the user-initiated path without mutating persisted state, so a
-    /// scheduled refresh stays side-effect free.
-    private static func hasActiveDenialCooldown(for browser: Browser, now: Date) -> Bool {
-        self.lock.withLock { state in
-            self.loadIfNeeded(&state)
-            if let blockedUntil = state.deniedUntilByBrowser[browser.rawValue], blockedUntil > now {
-                return true
-            }
-            if let familyBlockedUntil = state.chromiumFamilyDeniedUntil, familyBlockedUntil > now {
-                return true
-            }
-            return false
-        }
     }
 
     /// Returns true only when the no-UI Safe Storage preflight explicitly reports `.allowed` for one of

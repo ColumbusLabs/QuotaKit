@@ -1638,3 +1638,5 @@
 "Checking for updates…" = "Memeriksa pembaruan…";
 "Updating with Homebrew…" = "Memperbarui dengan Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Pembaruan Homebrew gagal. Anda dapat menjalankan perintah ini di Terminal:";
+"claude_limited_usage_detail" = "Rincian penggunaan terbatas";
+"%@ weekly" = "%@ mingguan";

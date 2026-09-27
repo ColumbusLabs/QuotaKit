@@ -1639,3 +1639,5 @@
 "Checking for updates…" = "กำลังตรวจหาอัปเดต…";
 "Updating with Homebrew…" = "กำลังอัปเดตด้วย Homebrew…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "อัปเดตผ่าน Homebrew ไม่สำเร็จ คุณสามารถเรียกใช้คำสั่งนี้ใน Terminal แทนได้:";
+"claude_limited_usage_detail" = "รายละเอียดการใช้งานมีจำกัด";
+"%@ weekly" = "%@ รายสัปดาห์";

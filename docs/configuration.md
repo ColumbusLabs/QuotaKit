@@ -8,6 +8,10 @@ read_when:
 
 # Configuration
 
+The Mac config watcher reconciles atomic replacements and in-place edits when rearming. App
+writes update its observed-content baseline only after a successful save; an external edit that
+restores previously app-written contents is still applied and queued for sync.
+
 QuotaKit reads a single JSON config file for CLI and app provider settings.
 API keys, manual cookie headers, source selection, ordering, and token accounts live here. Keychain is still used for runtime cookie caches, browser Safe Storage access, and provider OAuth/device-flow credentials where those flows require it.
 

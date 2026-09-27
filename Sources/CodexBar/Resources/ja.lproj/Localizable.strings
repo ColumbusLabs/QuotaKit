@@ -1635,3 +1635,5 @@
 "Checking for updates…" = "アップデートを確認中…";
 "Updating with Homebrew…" = "Homebrew でアップデート中…";
 "Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew でのアップデートに失敗しました。代わりにターミナルで次のコマンドを実行できます:";
+"claude_limited_usage_detail" = "使用量の詳細情報は限られています";
+"%@ weekly" = "%@（週間）";

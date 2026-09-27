@@ -24,6 +24,10 @@ After you acknowledge the Claude OAuth explanation, QuotaKit does not repeat tha
 cooldown only applies to QuotaKit's explanatory alert: macOS can still show its own Keychain authorization prompt,
 and the Claude **Never prompt** and global **Disable Keychain access** settings remain in effect.
 
+Scheduled browser-cookie refresh uses a noninteractive Safe Storage preflight. A current allowed
+result can resume background refresh after a prior denial; interactive or failed preflight results
+remain blocked, and the user-initiated denial cooldown is preserved.
+
 ## If the prompt appears after uninstalling QuotaKit
 
 Deleting `QuotaKit.app` prevents a new process from launching from that bundle, but it does not terminate a process
