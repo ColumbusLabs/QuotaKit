@@ -1631,3 +1631,11 @@
 "section_widgets" = "الأدوات";
 "account_widgets_title" = "تحديث الحسابات للأدوات";
 "account_widgets_description" = "اختر حسابًا في كل أداة Account Usage. يتم تحديث ما يصل إلى ستة حسابات لكل مزوّد.";
+"Managed by Homebrew" = "تتم إدارته بواسطة Homebrew";
+"Copy update command" = "نسخ أمر التحديث";
+"Update to %@" = "التحديث إلى %@";
+"QuotaKit %@ is available" = "QuotaKit %@ متاح";
+"QuotaKit is up to date" = "QuotaKit محدَّث";
+"Checking for updates…" = "جارٍ البحث عن تحديثات…";
+"Updating with Homebrew…" = "جارٍ التحديث عبر Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "فشل التحديث عبر Homebrew. يمكنك تشغيل هذا الأمر في Terminal بدلاً من ذلك:";

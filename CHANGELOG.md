@@ -38,6 +38,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Updates: recognize Homebrew-installed QuotaKit, offer its cask update from About and the menu, and reopen Sparkle's staged install UI from manual checks.
+- Sharing: preserve the reporting timezone and final included day, use singular subscription captions, and retain recognized gateway model families.
 - Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
 - OpenRouter: explain the required API key field when only a separate Management API key is configured.
 - Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.

@@ -1596,3 +1596,11 @@
 "section_widgets" = "위젯";
 "account_widgets_title" = "위젯의 계정을 최신 상태로 유지";
 "account_widgets_description" = "각 Account Usage 위젯에서 계정을 선택하세요. 제공업체당 최대 6개 계정을 새로 고칩니다.";
+"Managed by Homebrew" = "Homebrew로 관리됨";
+"Copy update command" = "업데이트 명령 복사";
+"Update to %@" = "%@(으)로 업데이트";
+"QuotaKit %@ is available" = "QuotaKit %@ 사용 가능";
+"QuotaKit is up to date" = "QuotaKit가 최신 버전입니다";
+"Checking for updates…" = "업데이트 확인 중…";
+"Updating with Homebrew…" = "Homebrew로 업데이트 중…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 업데이트에 실패했습니다. 대신 터미널에서 이 명령을 실행할 수 있습니다:";

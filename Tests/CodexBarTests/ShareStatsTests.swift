@@ -5,6 +5,11 @@ import Testing
 @testable import CodexBar
 
 struct ShareStatsTests {
+    @Test(arguments: [(0, "0 subscriptions"), (1, "1 subscription"), (2, "2 subscriptions"), (12, "12 subscriptions")])
+    func `subscription captions use the singular only for one subscription`(_ scenario: (Int, String)) {
+        #expect(ShareStatsFormatting.subscriptionSummary(count: scenario.0) == scenario.1)
+    }
+
     @Test
     func `descriptor share plan labels preserve the legacy central table`() throws {
         var fingerprint: UInt64 = 1_469_598_103_934_665_603
