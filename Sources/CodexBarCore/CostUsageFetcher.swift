@@ -951,6 +951,19 @@ public struct CostUsageFetcher: Sendable {
             historyCoverageIsEstablished: false)
     }
 
+    private static func unavailableLocalSnapshot(
+        now: Date,
+        historyDays: Int,
+        calendar: Calendar) -> CostUsageTokenSnapshot
+    {
+        self.tokenSnapshot(
+            from: CostUsageDailyReport(data: [], summary: nil),
+            now: now,
+            historyDays: historyDays,
+            calendar: calendar,
+            historyCoverageIsEstablished: false)
+    }
+
     private static func loadLocalTokenScanResult(
         provider: UsageProvider,
         since: Date,

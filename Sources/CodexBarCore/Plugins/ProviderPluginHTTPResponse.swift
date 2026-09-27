@@ -329,7 +329,7 @@ enum ProviderPluginHTTPResponse {
         }
         let code = error is CancellationError ? URLError.cancelled : (error as? URLError)?.code
         if let code {
-            payload["__codexbarTransportError"] = transportErrors?.record(code)
+            payload["__quotakitTransportError"] = transportErrors?.record(code)
             payload["transportCode"] = code.rawValue
             payload["transportClass"] = switch code {
             case .timedOut: "timeout"
@@ -358,7 +358,7 @@ enum ProviderPluginHTTPResponse {
         }
 
         func error(for value: any ProviderPluginValue) -> Error? {
-            guard let token = value.property("__codexbarTransportError"), token.isString,
+            guard let token = value.property("__quotakitTransportError"), token.isString,
                   let code = self.lock.withLock({ self.codes[token.stringValue()] })
             else { return nil }
             return code == .cancelled ? CancellationError() : URLError(code)

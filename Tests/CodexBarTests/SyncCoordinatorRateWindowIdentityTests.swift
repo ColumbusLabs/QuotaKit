@@ -1,8 +1,8 @@
-@testable import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 extension SyncCoordinatorTests {
     private func makeRateWindowIdentitySettingsStore(suite: String) -> SettingsStore {

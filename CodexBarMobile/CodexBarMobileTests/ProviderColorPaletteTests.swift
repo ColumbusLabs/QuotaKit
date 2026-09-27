@@ -31,7 +31,7 @@ struct ProviderColorPaletteTests {
             ("copilot", 168 / 255, 85 / 255, 247 / 255),
             ("zai", 232 / 255, 90 / 255, 106 / 255),
             ("minimax", 239 / 255, 68 / 255, 68 / 255),
-            ("manus", 63 / 255, 58 / 255, 50 / 255),
+            ("manus", 52 / 255, 50 / 255, 45 / 255),
             ("kimi", 244 / 255, 63 / 255, 94 / 255),
             ("kimik2", 76 / 255, 0, 255 / 255),
             ("kilo", 242 / 255, 112 / 255, 39 / 255),
@@ -42,7 +42,7 @@ struct ProviderColorPaletteTests {
             ("moonshot", 32 / 255, 93 / 255, 235 / 255),
             ("notion", 51 / 255, 126 / 255, 169 / 255),
             ("amp", 220 / 255, 38 / 255, 38 / 255),
-            ("t3chat", 219 / 255, 39 / 255, 119 / 255),
+            ("t3chat", 245 / 255, 102 / 255, 71 / 255),
             ("ollama", 136 / 255, 136 / 255, 136 / 255),
             ("synthetic", 42 / 255, 42 / 255, 42 / 255),
             ("warp", 147 / 255, 139 / 255, 180 / 255),
@@ -83,6 +83,9 @@ struct ProviderColorPaletteTests {
             ("zoommate", 64 / 255, 176 / 255, 255 / 255),
             ("v0", 17 / 255, 17 / 255, 17 / 255),
             ("xai", 142 / 255, 142 / 255, 160 / 255),
+            ("nous", 214 / 255, 165 / 255, 92 / 255),
+            ("muse", 6 / 255, 104 / 255, 225 / 255),
+            ("pi", 124 / 255, 58 / 255, 237 / 255),
             ("huggingface", 1, 210 / 255, 30 / 255),
             ("replicate", 160 / 255, 160 / 255, 160 / 255),
         ]
@@ -168,6 +171,15 @@ private let knownDistinctProviders = [
     "zenmux", "zoommate", "xai", "replicate", "hyper", "bifrost", "devpass",
 ]
 
+/// These pairs retain their providers' published brand colors. The mobile palette mirrors
+/// the Mac descriptors; a small channel distance here is intentional, not an alias collision.
+private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
+    ["opencodego", "bifrost"]: 0.04,
+    ["moonshot", "devpass"]: 0.04,
+    ["manus", "synthetic"]: 0.04,
+    ["t3chat", "groq"]: 0.015,
+]
+
 private func expectDistinctColors(
     providers: [String],
     color: (String) -> ProviderColorPalette.RawColor)
@@ -181,7 +193,8 @@ private func expectDistinctColors(
             let delta = abs(leftColor.red - rightColor.red)
                 + abs(leftColor.green - rightColor.green)
                 + abs(leftColor.blue - rightColor.blue)
-            #expect(delta > 0.10, "\(left) and \(right) must stay visually distinct (delta: \(delta))")
+            let minimumDistance = closeBrandColorMinimumDistances[[left, right]] ?? 0.10
+            #expect(delta > minimumDistance, "\(left) and \(right) must stay visually distinct (delta: \(delta))")
         }
     }
 }

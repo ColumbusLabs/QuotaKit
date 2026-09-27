@@ -7,7 +7,7 @@ import Testing
 
 struct ProviderPluginParityTests {
     @Test
-    func `prototype flag prepends JS without changing the default pipeline`() async {
+    func `Synthetic cut-over uses JS with or without the prototype flag`() async {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .synthetic)
         let defaultStrategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             Self.context(environment: ["SYNTHETIC_API_KEY": "fixture-key"]))
@@ -17,8 +17,8 @@ struct ProviderPluginParityTests {
                 ProviderPluginPrototype.environmentKey: "1",
             ]))
 
-        #expect(defaultStrategies.map(\.id) == ["synthetic.api"])
-        #expect(prototypeStrategies.map(\.id) == ["synthetic.js", "synthetic.api"])
+        #expect(defaultStrategies.map(\.id) == ["synthetic.js"])
+        #expect(prototypeStrategies.map(\.id) == ["synthetic.js"])
         #expect(prototypeStrategies[0].shouldFallback(
             on: ProviderPluginError.script("fixture"),
             context: Self.context(environment: [:])) == false)
@@ -215,7 +215,6 @@ struct ProviderPluginParityTests {
         let body = #"{"credits":9.9999,"requests_plan":1000,"usable_requests":998}"#
         let transport = Self.transport(body: body)
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let fetchStartedAt = Date()
 
         let runtime = try ProviderPluginRuntime(bundledPlugin: "crof", transport: transport)
         let script = try await runtime.fetchUsage(secrets: ["CROF_API_KEY": "fixture-key"], now: now)
@@ -225,7 +224,7 @@ struct ProviderPluginParityTests {
         let reset = try #require(calendar.date(
             byAdding: .day,
             value: 1,
-            to: calendar.startOfDay(for: fetchStartedAt)))
+            to: calendar.startOfDay(for: now)))
         #expect(script.primary == RateWindow(
             usedPercent: 1,
             windowMinutes: 1440,

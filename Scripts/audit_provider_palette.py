@@ -16,6 +16,7 @@ PROVIDER_RE = re.compile(r"id:\s*\.(?P<id>[A-Za-z0-9_]+)")
 COLOR_RE = re.compile(
     r"ProviderColor\(\s*red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)"
 )
+HEX_COLOR_RE = re.compile(r"ProviderColor\(\s*hex:\s*0x(?P<hex>[0-9A-Fa-f]{6})\s*\)")
 MOBILE_ENTRY_RE = re.compile(
     r'\(\s*\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\s*\)'
 )
@@ -69,8 +70,16 @@ def mac_colors() -> dict[str, tuple[float, float, float]]:
         text = path.read_text(encoding="utf-8")
         provider = PROVIDER_RE.search(text)
         color = COLOR_RE.search(text)
-        if provider and color:
+        hex_color = HEX_COLOR_RE.search(text)
+        if provider and color and (not hex_color or color.start() < hex_color.start()):
             colors[provider.group("id")] = parse_color(color)
+        elif provider and hex_color:
+            rgb = int(hex_color.group("hex"), 16)
+            colors[provider.group("id")] = (
+                ((rgb >> 16) & 0xFF) / 255,
+                ((rgb >> 8) & 0xFF) / 255,
+                (rgb & 0xFF) / 255,
+            )
     return colors
 
 

@@ -254,7 +254,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         workerStackSizeBytes: Int = QuickJSRuntimeLimits.nativeStackSizeBytes) throws -> QuickJSProviderPluginEngine
     {
         let worker = QuickJSSerialWorker(
-            name: "CodexBar QuickJS provider plugin",
+            name: "QuotaKit QuickJS provider plugin",
             stackSizeBytes: workerStackSizeBytes)
         return try worker.sync {
             guard let runtime = JS_NewRuntime() else {

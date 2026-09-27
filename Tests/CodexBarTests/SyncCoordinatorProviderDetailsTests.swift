@@ -1,8 +1,8 @@
-@testable import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 @Suite(.serialized)
@@ -10,7 +10,7 @@ struct SyncCoordinatorProviderDetailsTests {
     @Test
     func `detail-only balance is published without inventing quota windows`() async throws {
         let suite = "SyncCoordinatorProviderDetailsTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = SettingsStore(
             userDefaults: defaults,
@@ -48,7 +48,7 @@ struct SyncCoordinatorProviderDetailsTests {
     @Test
     func `plugin detail rows survive Mac mapping into per-provider iPhone records`() async throws {
         let suite = "SyncCoordinatorPluginDetailsTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = SettingsStore(
             userDefaults: defaults,
@@ -62,9 +62,9 @@ struct SyncCoordinatorProviderDetailsTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
         for provider in providers {
-            settings.setProviderEnabled(
+            try settings.setProviderEnabled(
                 provider: provider,
-                metadata: try #require(ProviderDefaults.metadata[provider]),
+                metadata: #require(ProviderDefaults.metadata[provider]),
                 enabled: true)
             store._setSnapshotForTesting(
                 UsageSnapshot(

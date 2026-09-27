@@ -75,7 +75,7 @@ struct ProviderPluginEndpointPolicyTests {
     private static func plugin(policy: ProviderPluginEndpoint.Policy) -> String {
         """
         defineProvider({
-          id: "synthetic",
+          id: "llmproxy",
           name: "Fixture",
           endpoints: [{ setting: "BASE_URL", policy: "\(policy.rawValue)" }],
           settings: [{ key: "BASE_URL", title: "Base URL", type: "plain" }],

@@ -1,7 +1,7 @@
-@testable import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 struct AlibabaTokenPlanMenuCardModelTests {
     @Test
