@@ -63,7 +63,6 @@ extension CodexBarCLI {
 }
 
 struct ConfigPreferencesOptions: CommanderParsable {
-    @OptionGroup var common: CLICommonOptions
     @Option(name: .long("file"), help: "Preferences JSON path; export defaults to stdout")
     var file: String?
     @Option(name: .long("defaults-domain"), help: "macOS defaults domain (default: com.columbuslabs.quotakit.mac)")
