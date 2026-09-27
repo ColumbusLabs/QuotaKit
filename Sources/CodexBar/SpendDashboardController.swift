@@ -279,6 +279,7 @@ enum SpendDashboardSource {
             return (
                 provider: provider,
                 publicationRevision: captured.revision,
+                hasPublication: captured.publication != nil,
                 trigger: store.spendDashboardTokenRefreshTrigger(for: provider),
                 shouldRefresh: shouldRefresh)
         }
@@ -337,7 +338,7 @@ enum SpendDashboardSource {
         let piOwnsSource = providers.contains(.pi)
             && piBaseline != nil
             && piCurrent.publication?.snapshot != nil
-            && !(mode.shouldRefresh(hasPublication: piBaseline?.publication != nil)
+            && !(mode.shouldRefresh(hasPublication: piBaseline?.hasPublication ?? false)
                 && piBaseline?.publicationRevision == piCurrent.revision)
         var inputs: [SpendDashboardModel.ProviderInput] = []
         var unavailableSourceIDs: Set<String> = []
