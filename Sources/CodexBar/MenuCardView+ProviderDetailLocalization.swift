@@ -49,6 +49,14 @@ extension UsageMenuCardView.Model {
         _ row: ProviderDetailSection.Row,
         provider: UsageProvider) -> String?
     {
+        // Localize Amp's static Tier copy while leaving provider-supplied amounts canonical.
+        if provider == .amp {
+            switch row.secondaryValue {
+            case "For agent and orb usage": return L("For agent and orb usage")
+            case "a1.small-equivalent hours": return L("a1.small-equivalent hours")
+            default: return row.secondaryValue
+            }
+        }
         // Provider-specific by design: only OpenRouter's key-cap disclosure is localizable copy;
         // other values are provider data.
         guard provider == .openrouter,

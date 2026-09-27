@@ -62,6 +62,10 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
 - Reset dates are not provided by the API.
 - Plan label from `copilotPlan`.
 
+## Seat credit progress in provider tabs
+
+A configured seat AI credit allowance supplies a progress ratio for the provider tab in Automatic mode when no metered quota window is available. The bar follows the used or remaining display preference. Explicit metric selections keep their existing meaning; a missing allowance leaves the progress bar absent. The allowance remains a local display preference and does not set a GitHub billing limit.
+
 ## Key files
 - `Sources/CodexBarCore/Providers/Copilot/CopilotUsageFetcher.swift`
 - `Sources/CodexBarCore/Providers/Copilot/CopilotDeviceFlow.swift`

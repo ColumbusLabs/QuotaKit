@@ -41,8 +41,46 @@ extension UsageStore {
             activeAccountObservation: activeAccountObservation)
     }
 
-    nonisolated static func shouldPreservePriorSnapshot(after error: Error, hadPriorData: Bool) -> Bool {
+    nonisolated static func errorIsCancellation(_ error: any Error) -> Bool {
+        let transportError = self.underlyingProviderTransportError(error)
+        if transportError is CancellationError {
+            return true
+        }
+        if let urlError = transportError as? URLError, urlError.code == .cancelled {
+            return true
+        }
+        let message = transportError.localizedDescription
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return message == "cancelled" || message.contains("cancellationerror")
+            || message.contains("cancelled")
+    }
+
+    nonisolated static func hasMatchingDeepSeekBalanceOwner(
+        after error: Error,
+        priorSnapshot: UsageSnapshot?) -> Bool
+    {
+        guard let error = error as? DeepSeekPlatformTransportError else { return true }
+        // A validated Chrome profile does not prove that it supplied the previously published balance.
+        guard let owner = error.owner else { return false }
+        return priorSnapshot?.deepseekPlatformBalanceOwner == owner
+    }
+
+    nonisolated static func shouldSuppressProviderCancellation(
+        _ error: Error,
+        priorSnapshot: UsageSnapshot?) -> Bool
+    {
+        guard self.hasMatchingDeepSeekBalanceOwner(after: error, priorSnapshot: priorSnapshot) else { return false }
+        return self.errorIsCancellation(error)
+    }
+
+    nonisolated static func shouldPreservePriorSnapshot(
+        after error: Error,
+        hadPriorData: Bool,
+        priorSnapshot: UsageSnapshot? = nil) -> Bool
+    {
         guard hadPriorData else { return false }
+        guard self.hasMatchingDeepSeekBalanceOwner(after: error, priorSnapshot: priorSnapshot) else { return false }
         if self.errorIsCancellation(error) {
             return true
         }

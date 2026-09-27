@@ -20,6 +20,7 @@ read_when:
 - Primary window: rolling 5-hour usage (`rollingUsage.usagePercent`, `rollingUsage.resetInSec`).
 - Secondary window: optional weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
 - Resets computed as `now + resetInSec`.
+- The menu layout editor offers the Monthly tertiary percentage before a usage snapshot arrives.
 
 ## Using OpenCode with Codex or OpenAI
 

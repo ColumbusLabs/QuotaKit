@@ -162,6 +162,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let deepseekUsage: DeepSeekUsageSummary?
     public let deepseekDetailedUsageState: DeepSeekDetailedUsageState
     public let deepseekPlatformProfiles: [DeepSeekPlatformProfile]
+    /// Live-only ownership proof; decoded usage cannot authorize browser balance retention.
+    public let deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner?
     public let opencodegoUsage: OpenCodeGoUsageSnapshot?
     public let mimoUsage: MiMoUsageSnapshot?
     public let openRouterUsage: OpenRouterUsageSnapshot?
@@ -266,6 +268,7 @@ public struct UsageSnapshot: Codable, Sendable {
         deepseekUsage: DeepSeekUsageSummary? = nil,
         deepseekDetailedUsageState: DeepSeekDetailedUsageState = .notRequested,
         deepseekPlatformProfiles: [DeepSeekPlatformProfile] = [],
+        deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner? = nil,
         opencodegoUsage: OpenCodeGoUsageSnapshot? = nil,
         mimoUsage: MiMoUsageSnapshot? = nil,
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
@@ -320,6 +323,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekUsage = deepseekUsage
         self.deepseekDetailedUsageState = deepseekDetailedUsageState
         self.deepseekPlatformProfiles = deepseekPlatformProfiles
+        self.deepseekPlatformBalanceOwner = deepseekPlatformBalanceOwner
         self.opencodegoUsage = opencodegoUsage
         self.mimoUsage = mimoUsage
         self.openRouterUsage = openRouterUsage
@@ -409,6 +413,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekUsage = nil // Not persisted, fetched fresh each time
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
         self.deepseekPlatformProfiles = [] // Live-only browser profile catalog
+        self.deepseekPlatformBalanceOwner = nil // Live-only balance ownership
         self.opencodegoUsage = nil // Not persisted, fetched fresh each time
         self.mimoUsage = try? container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
         self.openRouterUsage = try? container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
@@ -533,14 +538,7 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public func automaticPerplexityWindow() -> RateWindow? {
-        let fallbackWindows = self.orderedPerplexityFallbackWindows()
-        guard let primary = self.primary else {
-            return fallbackWindows.first
-        }
-        if primary.remainingPercent > 0 || fallbackWindows.isEmpty {
-            return primary
-        }
-        return fallbackWindows.first
+        self.orderedPerplexityDisplayWindows().first
     }
 
     public func orderedPerplexityDisplayWindows() -> [RateWindow] {
@@ -692,6 +690,7 @@ public struct UsageSnapshot: Codable, Sendable {
             deepseekUsage: deepseekUsage.resolving(self.deepseekUsage),
             deepseekDetailedUsageState: deepseekDetailedUsageState.resolving(self.deepseekDetailedUsageState),
             deepseekPlatformProfiles: deepseekPlatformProfiles.resolving(self.deepseekPlatformProfiles),
+            deepseekPlatformBalanceOwner: self.deepseekPlatformBalanceOwner,
             opencodegoUsage: self.opencodegoUsage,
             mimoUsage: self.mimoUsage,
             openRouterUsage: self.openRouterUsage,

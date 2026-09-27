@@ -115,15 +115,34 @@ When Cursor rejects a cost request with HTTP 403, ordinary menu and spend-dashbo
 ## Snapshot mapping
 - Primary/secondary: QuotaKit's explicit Cursor layout stores request, Auto, API, or plan-fallback lanes according to the `cursorRateWindowLayout` discriminator.
 - Tertiary: unused for current QuotaKit Cursor snapshots; older synced snapshots remain backward-compatible.
-- Extra: Grok Bot usage from `get-sand-usage-status` when the account has a paid allowance or an unexpired trial. The current `includedLimitZero` field takes precedence over the older allowance flag. Exhausted active trials remain visible; missing, malformed, or expired trial dates do not grant an allowance.
-- Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout;
-  unknown or synthetic placeholder windows are not offered as tokens.
+- Extra: Grok Bot usage from `get-sand-usage-status` when the account has a paid allowance or an unexpired trial. The current `includedLimitZero` field takes precedence over the older allowance flag. Exhausted active trials remain visible; missing, malformed, or expired trial dates do not grant an allowance. Grok Bot is not the semantic weekly window, so monthly Auto pace stays on its own bar. Paid 7-day Grok Bot extras show weekly pace; trial extras remain unpaced.
+- Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout; unknown or synthetic placeholder windows are not offered as tokens.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
 - Reset: billing cycle end date for monthly bars; paid Grok Bot uses `nextResetTimestampUtc`, even if a trial-expiry field is also present. Trial-only allowances have no recurring reset or duration because trial expiration does not replenish quota.
 
 ## Key files
 - `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe.swift`
+- `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe+UsageSummary.swift` (summary projection)
+- `Sources/CodexBarCore/Providers/Cursor/CursorTeamSpend.swift` (verified member budget)
 - `Sources/CodexBarCore/Providers/Cursor/CursorSandUsage.swift` (Grok Bot weekly included usage)
 - `Sources/CodexBar/CursorLoginRunner.swift` (login flow)
 - `Sources/CodexBar/Providers/Cursor/CursorLoginFlow.swift` (menu integration)
 - `Sources/CodexBar/CursorLoginBrowserRouter.swift` (browser routing and selection)
+
+### Enterprise and Business member budgets
+
+For team plans with a fresh nonempty email from `/api/auth/me`, the usage probe also checks `/api/dashboard/teams` and
+`/api/dashboard/get-team-spend`. It prefers `portal-selected-team-id` over `team_id`,
+verifies the selection against the authenticated account's teams, and uses a sole
+team when no selection cookie is present (including Cursor.app authentication).
+Multiple teams without a selection remain on the usage-summary fallback.
+
+The authenticated member's `overallSpendCents` and `effectivePerUserLimitDollars`
+(or `monthlyLimitDollars` when the effective limit is absent) drive the primary
+percentage and plan dollars. Missing spend or non-positive limits are not treated
+as a zero-usage budget. Other members' data is not included in debug output.
+The optional lookup shares a ten-second deadline and the configured request timeout, with at most twenty pages of
+fifty members. It requires consistent page-count metadata, full intermediate pages, and the complete page set before accepting one
+matching member. Missing completion metadata, duplicate matches, or unavailable, invalid, or incomplete responses
+preserve usage-summary behavior. Billing dates and extra/on-demand charges remain sourced from usage-summary;
+team response dates and other members' details are not retained. Caller cancellation still stops the fetch.

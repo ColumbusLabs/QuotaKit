@@ -39,6 +39,17 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 - Antigravity: resolve session and weekly quota independently, retain distinct model rows and actionable fallback errors, and recover Linux port discovery after `lsof` failures.
+- Cursor: use a verified selected-team member budget for Enterprise and Business usage, with summary fallback.
+- OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.
+- Copilot: show configured seat-credit progress in Automatic provider tabs when metered quotas are unavailable.
+- DeepSeek: retain balances through transport failures only for the matching live browser session.
+- Amp: restore Tier Agent and Orb usage, billing-period pace, and precise credit units.
+- Cursor: keep monthly Auto pace separate from the Grok Bot weekly allowance.
+- Abacus: show monthly credits and provider labels in menu layout percentages and pace.
+- Perplexity: restore credit-pool percentages and CLI amounts while keeping credit descriptions out of reset clocks.
+- Abacus: retain credit amounts beside real billing reset dates in CLI output.
+- Warp: show the active monthly or add-on credit pool across menu surfaces.
+- Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.
 - Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
 - OpenRouter: explain the required API key field when only a separate Management API key is configured.
 - Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.

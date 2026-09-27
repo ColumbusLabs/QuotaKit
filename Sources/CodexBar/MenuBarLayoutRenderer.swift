@@ -187,14 +187,13 @@ struct MenuBarLayoutResetText: Hashable {
     let countdown: String?
     let absolute: String?
 
-    init(window: MenuBarLayoutRenderWindow?, now: Date) {
-        if let resetsAt = window?.resetsAt {
-            self.countdown = UsageFormatter.resetCountdownDescription(from: resetsAt, now: now)
-            self.absolute = UsageFormatter.resetDescription(from: resetsAt, now: now)
-        } else {
-            self.countdown = window?.resetDescription
-            self.absolute = window?.resetDescription
-        }
+    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider, now: Date) {
+        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+        // Balance-only providers keep their documented legacy reset-token balance aliases.
+        let fallback = metadata.usesDetailBackedWindow && !metadata.balanceOnly ? nil : window?.resetDescription
+        self.countdown = window?.resetsAt
+            .map { UsageFormatter.resetCountdownDescription(from: $0, now: now) } ?? fallback
+        self.absolute = window?.resetsAt.map { UsageFormatter.resetDescription(from: $0, now: now) } ?? fallback
     }
 }
 
@@ -268,7 +267,7 @@ final class MenuBarLayoutRenderer {
         options: MenuBarLayoutRenderOptions)
         -> MenuBarLayoutRenderedTitle
     {
-        let resetText = MenuBarLayoutResetText(window: data.automatic, now: options.now)
+        let resetText = MenuBarLayoutResetText(window: data.automatic, provider: data.provider, now: options.now)
         // Evaluate each conditional exactly once per render: the outcome is both a cache-key component
         // and what the token resolver needs, so re-testing per placement would only duplicate work.
         let outcomes = Dictionary(
@@ -556,17 +555,11 @@ final class MenuBarLayoutRenderer {
                 value,
                 accessibilityText: L("Usage bar, %d of 3 filled", filled),
                 attributes: style.attributes)
-        case .resetCountdown:
+        case .resetCountdown, .resetAbsolute:
+            let text = MenuBarLayoutResetText(window: data.automatic, provider: data.provider, now: options.now)
             return self.resetToken(
-                data.automatic?.resetsAt.map { UsageFormatter.resetCountdownDescription(from: $0, now: options.now) }
-                    ?? data.automatic?.resetDescription,
-                unavailableLabel: L("Reset countdown unavailable"),
-                attributes: style.attributes)
-        case .resetAbsolute:
-            return self.resetToken(
-                data.automatic?.resetsAt.map { UsageFormatter.resetDescription(from: $0, now: options.now) }
-                    ?? data.automatic?.resetDescription,
-                unavailableLabel: L("Reset time unavailable"),
+                item.resetIsAbsolute ? text.absolute : text.countdown,
+                unavailableLabel: item.resetIsAbsolute ? L("Reset time unavailable") : L("Reset countdown unavailable"),
                 attributes: style.attributes)
         case .runsOut, .runsOutCompact:
             let isCompact = item == .runsOutCompact
@@ -630,8 +623,9 @@ final class MenuBarLayoutRenderer {
         let accessibilityPrefix: String
         switch window {
         case .session:
-            prefix = Self.sessionPrefix(rateWindow)
-            accessibilityPrefix = L("Session")
+            prefix = self.primaryLabel(data: data).flatMap(\.first).map { String($0).uppercased() }
+                ?? Self.sessionPrefix(rateWindow)
+            accessibilityPrefix = self.primaryLabel(data: data) ?? L("Session")
         case .weekly:
             accessibilityPrefix = data.laneLabels.secondary
             prefix = String(accessibilityPrefix.prefix(1)).uppercased()
@@ -881,13 +875,24 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData) -> String
     {
         switch percentWindow {
-        case .session: L("menu_bar_layout_token_session_pace")
+        case .session: L("%@ %@", self.primaryLabel(data: data) ?? L("Session"), L("display_mode_pace").lowercased())
         case .weekly: L("%@ %@", data.laneLabels.secondary, L("display_mode_pace").lowercased())
         case .scopedWeekly: L("menu_bar_layout_token_weekly_pace")
         case .automatic: L("menu_bar_layout_token_auto_pace")
         }
     }
 
+    private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
+        guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
+        return descriptor.presentation.primarySemanticWindow == .session
+            ? data.laneLabels.primary : data.laneLabels.secondary
+    }
+
+    private static func secondaryLabel(data: MenuBarLayoutRenderData) -> String? {
+        PercentWindow.weekly.providerLabel(provider: data.provider)
+    }
     private static func sessionPrefix(_ window: MenuBarLayoutRenderWindow?) -> String {
         guard let minutes = window?.windowMinutes, minutes > 0 else { return "S" }
         guard minutes.isMultiple(of: 60) else { return "\(minutes)m" }

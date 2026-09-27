@@ -1194,14 +1194,14 @@ extension MenuBarLayoutToken {
     }
 
     private func providerEditorLabel(provider: UsageProvider?) -> String? {
-        guard let provider,
-              let secondaryLabel = ProviderDescriptorRegistry.descriptor(for: provider).presentation
-                  .menuBarLayoutSecondaryLabel
-        else { return nil }
-        let localizedLabel = L(secondaryLabel)
+        let window: PercentWindow? = switch self {
+        case let .percent(window), let .pace(window): window
+        default: nil
+        }
+        guard let localizedLabel = window?.providerLabel(provider: provider) else { return nil }
         return switch self {
-        case .percent(window: .weekly): L("%@ %@", localizedLabel, "%")
-        case .pace(window: .weekly): L("%@ %@", localizedLabel, L("display_mode_pace").lowercased())
+        case .percent: L("%@ %@", localizedLabel, "%")
+        case .pace: L("%@ %@", localizedLabel, L("display_mode_pace").lowercased())
         default: nil
         }
     }
