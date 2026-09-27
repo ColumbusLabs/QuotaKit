@@ -39,7 +39,6 @@ struct CrofPluginGoldenTests {
         {"credits":10.0,"requests_plan":1000,"usable_requests":998}
         """
         let now = Date(timeIntervalSince1970: 1_777_800_000)
-        let fetchStartedAt = Date()
         let snapshot = try await Self.fetch(json, now: now)
 
         var calendar = Calendar(identifier: .gregorian)
@@ -47,7 +46,7 @@ struct CrofPluginGoldenTests {
         let reset = try #require(calendar.date(
             byAdding: .day,
             value: 1,
-            to: calendar.startOfDay(for: fetchStartedAt)))
+            to: calendar.startOfDay(for: now)))
         #expect(snapshot.primary == RateWindow(
             usedPercent: 1,
             windowMinutes: 1440,

@@ -43,14 +43,15 @@ enum ProviderPluginSnapshotMapper {
             throw ProviderPluginError.invalidSnapshot("fetchUsage must resolve to an object")
         }
 
-        try self.object(
-            value,
-            allowed: [
-                "primary", "secondary", "tertiary", "extraWindows", "cost", "costUsage", "details",
-                "identity",
-                "subscriptionRenewsAt", "subscriptionExpiresAt", "dataConfidence", "empty",
-            ],
-            path: "usage")
+        var allowedKeys: Set<String> = [
+            "primary", "secondary", "tertiary", "extraWindows", "cost", "costUsage", "details",
+            "identity",
+            "subscriptionRenewsAt", "subscriptionExpiresAt", "dataConfidence", "empty",
+        ]
+        if provider == UsageProvider.hyper.instanceID {
+            allowedKeys.insert("hyperBalance")
+        }
+        try self.object(value, allowed: allowedKeys, path: "usage")
 
         let primary = try self.window(value, property: "primary")
         let secondary = try self.window(value, property: "secondary")
