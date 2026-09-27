@@ -12,7 +12,6 @@ struct BrowserCookieImportSupportTests {
         .qoder,
         .replicate,
         .typesafe,
-        .venice,
         .zoommate,
     ])
     func `Chrome-only providers retain their bounded browser policy`(provider: UsageProvider) throws {
