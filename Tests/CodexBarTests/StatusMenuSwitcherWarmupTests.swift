@@ -8,14 +8,14 @@ import XCTest
 /// switch attaches cached, pre-laid-out rows (flicker fix follow-up).
 @MainActor
 final class StatusMenuSwitcherWarmupTests: XCTestCase {
-    private func makeController() -> (controller: StatusItemController, menu: NSMenu) {
+    private func makeController(statusChecksEnabled: Bool = false) -> (controller: StatusItemController, menu: NSMenu) {
         StatusItemController.menuCardRenderingEnabled = false
         StatusItemController.setMenuRefreshEnabledForTesting(false)
         let settings = testSettingsStore(
             suiteName: "StatusMenuSwitcherWarmupTests",
             tokenAccountStore: InMemoryTokenAccountStore())
         settings.providerDetectionCompleted = true
-        settings.statusChecksEnabled = false
+        settings.statusChecksEnabled = statusChecksEnabled
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         let registry = ProviderRegistry.shared
@@ -60,6 +60,20 @@ final class StatusMenuSwitcherWarmupTests: XCTestCase {
         for (_, entry) in caches {
             XCTAssertFalse(entry.items.isEmpty)
         }
+    }
+
+    func test_statusSubmenuUsesExplicitProviderWhileMeasuringDetachedMenus() {
+        let (controller, _) = self.makeController(statusChecksEnabled: true)
+        defer { controller.releaseStatusItemsForTesting() }
+        let section = MenuDescriptor.Section(entries: [.action(L("Status Page"), .statusPage)])
+
+        let claudeMenu = NSMenu()
+        controller.addActionableSections([section], to: claudeMenu, width: 320, provider: .claude)
+        XCTAssertNotNil(claudeMenu.items.first?.submenu)
+
+        let grokMenu = NSMenu()
+        controller.addActionableSections([section], to: grokMenu, width: 320, provider: .grok)
+        XCTAssertNil(grokMenu.items.first?.submenu)
     }
 
     func test_warmupDoesNotAddFlexibleProviderPadding() {
