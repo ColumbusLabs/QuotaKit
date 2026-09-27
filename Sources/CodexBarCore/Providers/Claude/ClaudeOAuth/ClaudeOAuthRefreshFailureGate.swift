@@ -27,7 +27,6 @@ public enum ClaudeOAuthRefreshFailureGate {
     }
 
     private struct State {
-        var loaded = false
         var terminalFailureCount = 0
         var transientFailureCount = 0
         var isTerminalBlocked = false
@@ -126,7 +125,7 @@ public enum ClaudeOAuthRefreshFailureGate {
     public static func resetForTesting() {
         self.lock.withLock { lockedState in
             lockedState.profiles.removeAll()
-            let defaults = UserDefaults.standard
+            let defaults = ClaudeOAuthKeychainPromptPreference.userDefaults(or: .standard)
             for key in self.persistedKeys {
                 defaults.removeObject(forKey: key)
             }
@@ -151,10 +150,9 @@ public enum ClaudeOAuthRefreshFailureGate {
         #endif
 
         return self.withState(environment: environment) { state, profileIdentifier in
-            let didMigrate = self.loadIfNeeded(
+            let didMigrate = self.reloadPersistedState(
                 &state,
                 profileIdentifier: profileIdentifier,
-                environment: environment,
                 now: now)
             if didMigrate {
                 self.persist(state, profileIdentifier: profileIdentifier)
@@ -225,10 +223,9 @@ public enum ClaudeOAuthRefreshFailureGate {
         now: Date = Date()) -> BlockStatus?
     {
         self.withState(environment: environment) { state, profileIdentifier in
-            if self.loadIfNeeded(
+            if self.reloadPersistedState(
                 &state,
                 profileIdentifier: profileIdentifier,
-                environment: environment,
                 now: now)
             {
                 self.persist(state, profileIdentifier: profileIdentifier)
@@ -249,10 +246,9 @@ public enum ClaudeOAuthRefreshFailureGate {
         refreshTokenHash: String? = nil)
     {
         self.withState(environment: environment) { state, profileIdentifier in
-            _ = self.loadIfNeeded(
+            _ = self.reloadPersistedState(
                 &state,
                 profileIdentifier: profileIdentifier,
-                environment: environment,
                 now: now)
             state.terminalFailureCount += 1
             state.isTerminalBlocked = true
@@ -271,10 +267,9 @@ public enum ClaudeOAuthRefreshFailureGate {
         refreshTokenHash: String? = nil)
     {
         self.withState(environment: environment) { state, profileIdentifier in
-            _ = self.loadIfNeeded(
+            _ = self.reloadPersistedState(
                 &state,
                 profileIdentifier: profileIdentifier,
-                environment: environment,
                 now: now)
 
             // Keep terminal blocking monotonic for the lineage that failed: once we know auth is
@@ -309,10 +304,9 @@ public enum ClaudeOAuthRefreshFailureGate {
         environment: [String: String] = ProcessInfo.processInfo.environment)
     {
         self.withState(environment: environment) { state, profileIdentifier in
-            _ = self.loadIfNeeded(
+            _ = self.reloadPersistedState(
                 &state,
                 profileIdentifier: profileIdentifier,
-                environment: environment,
                 now: Date())
             self.resetState(&state)
             self.persist(state, profileIdentifier: profileIdentifier)
@@ -377,15 +371,13 @@ public enum ClaudeOAuthRefreshFailureGate {
         base + self.profileKeySeparator + profileIdentifier
     }
 
-    private static func loadIfNeeded(
+    private static func reloadPersistedState(
         _ state: inout State,
         profileIdentifier: String,
-        environment _: [String: String],
         now: Date) -> Bool
     {
-        state.loaded = true
         var didMutate = false
-        let defaults = UserDefaults.standard
+        let defaults = ClaudeOAuthKeychainPromptPreference.userDefaults(or: .standard)
         let defaultProfileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(
             environment: ProcessInfo.processInfo.environment)
         let scopedKey: (String) -> String = { self.profileKey($0, profileIdentifier: profileIdentifier) }
@@ -465,7 +457,7 @@ public enum ClaudeOAuthRefreshFailureGate {
     }
 
     private static func persist(_ state: State, profileIdentifier: String) {
-        let defaults = UserDefaults.standard
+        let defaults = ClaudeOAuthKeychainPromptPreference.userDefaults(or: .standard)
         let key: (String) -> String = { self.profileKey($0, profileIdentifier: profileIdentifier) }
         defaults.set(state.terminalFailureCount, forKey: key(self.failureCountKey))
         defaults.set(state.isTerminalBlocked, forKey: key(self.terminalBlockedKey))
