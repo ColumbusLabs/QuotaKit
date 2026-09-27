@@ -22,8 +22,8 @@ struct CostUsagePerformanceGateTests {
     func `time limited codex catch-up bounds oversized active day discovery`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
-        CostUsageScanner.resetCodexDirectoryCursorsForTesting()
-        defer { CostUsageScanner.resetCodexDirectoryCursorsForTesting() }
+        CostUsageScanner.resetCodexDirectoryCursorsForTesting(under: env.root)
+        defer { CostUsageScanner.resetCodexDirectoryCursorsForTesting(under: env.root) }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = 1500
         let candidateLimit = CostUsageScanner.codexCatchUpScanCandidateLimit
@@ -63,7 +63,7 @@ struct CostUsagePerformanceGateTests {
         #expect(firstCache.files.count == candidateLimit)
         #expect(firstCache.codexScanCatchUpPending == true)
 
-        CostUsageScanner.resetCodexDirectoryCursorsForTesting()
+        CostUsageScanner.resetCodexDirectoryCursorsForTesting(under: env.root)
         options.maxCodexScanDurationPerRefresh = 1
         let relaunchedRecorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = relaunchedRecorder
@@ -641,6 +641,20 @@ struct CostUsagePerformanceGateTests {
         let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let cachedUsage = try #require(cache.files.values.first { !($0.codexRows?.isEmpty ?? true) })
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        #expect(catalog.pricing(providerID: "openai", modelID: model) != nil)
+        #expect(CostUsagePricing.codexCostUSD(
+            model: model,
+            inputTokens: 100,
+            cachedInputTokens: 20,
+            outputTokens: 10,
+            modelsDevCatalog: catalog) != nil)
+        #expect(cachedUsage.codexRows?.allSatisfy {
+            CostUsageScanner.codexResolvedCostUSD(
+                for: $0,
+                modelsDevCatalog: catalog,
+                modelsDevCacheRoot: nil) != nil
+        } == true)
+        #expect(CostUsageScanner.codexCanonicalPricingRows(cachedUsage).unresolvedGroups.isEmpty)
         #expect(!CostUsageScanner.needsCodexPricingMetadata(cachedUsage, range: range))
         var catalogLoadCount = 0
         let report = CostUsageScanner.buildCodexReportFromCache(
@@ -1001,7 +1015,7 @@ struct CostUsagePerformanceGateTests {
         #expect(status.pending)
         var progressStates = [(pending: status.pending, key: status.progressKey)]
         for _ in 0..<12 where status.pending {
-            status = try await fetcher.advanceCodexScanCatchUp(now: day, historyDays: 1)
+            status = try await fetcher.advanceCodexScanCatchUp(now: day, historyDays: 1).value
             progressStates.append((pending: status.pending, key: status.progressKey))
         }
         #if DEBUG

@@ -47,6 +47,13 @@ extension SettingsStore {
 
     func ensureClaudeCookieLoaded() {}
 
+    var claudeWorkspaceSpendEnabled: Bool {
+        get { self.configSnapshot.providerConfig(for: .claude)?.claudeWorkspaceSpendEnabled ?? false }
+        set {
+            self.updateProviderConfig(provider: .claude) { $0.claudeWorkspaceSpendEnabled = newValue }
+        }
+    }
+
     var claudeAdminAPIKey: String {
         get { self.configSnapshot.providerConfig(for: .claude)?.sanitizedAPIKey ?? "" }
         set {

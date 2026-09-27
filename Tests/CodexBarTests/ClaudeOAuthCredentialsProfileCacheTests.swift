@@ -55,6 +55,7 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
     enum FreshnessScenario: CaseIterable {
         case adopt, customProfile, codexbarOwner, environmentOwner, consentDenied, keychainDisabled, neverPrompt
         case userActionOnly, cooldown, unchangedFingerprint, unreadable, malformed, expiredReplacement
+        case expiredFile, expiredFileUnchangedFingerprint, cacheUnavailableDuringPreviousRepair
         case filePrecedence, environmentPrecedence
     }
 
@@ -71,6 +72,9 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
         let fresh = self.makeCredentialsData(
             accessToken: "fresh-default-test-token",
             expiresAt: Date(timeIntervalSinceNow: scenario == .expiredReplacement ? -60 : 3600))
+        if scenario == .expiredFile || scenario == .expiredFileUnchangedFingerprint {
+            try expired.write(to: root.appendingPathComponent(".credentials.json"))
+        }
         if scenario == .filePrecedence {
             try self.makeCredentialsData(accessToken: "file-test-token")
                 .write(to: root.appendingPathComponent(".credentials.json"))
@@ -83,7 +87,8 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
         let newFingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
             modifiedAt: 2, createdAt: 1, persistentRefHash: "new-test-item")
         let fingerprints = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprintStore(
-            fingerprint: scenario == .unchangedFingerprint ? newFingerprint : oldFingerprint)
+            fingerprint: scenario == .unchangedFingerprint || scenario == .expiredFileUnchangedFingerprint
+                ? newFingerprint : oldFingerprint)
         let keychain = ClaudeOAuthCredentialsStore.ClaudeKeychainOverrideStore(
             data: scenario == .unreadable ? nil : (scenario == .malformed ? Data("invalid".utf8) : fresh),
             fingerprint: newFingerprint)
@@ -98,7 +103,9 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
                     try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(mode) {
                         // QuotaKit permits Claude Keychain freshness reads only for an explicit user action.
                         let interaction: ProviderInteraction = switch scenario {
-                        case .adopt, .codexbarOwner: .userInitiated
+                        case .adopt, .codexbarOwner, .unchangedFingerprint,
+                             .expiredFile, .expiredFileUnchangedFingerprint,
+                             .cacheUnavailableDuringPreviousRepair: .userInitiated
                         default: .background
                         }
                         try ProviderInteractionContext.$current.withValue(interaction) {
@@ -123,6 +130,29 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
                                                     : (scenario == .environmentOwner ? .environment : .claudeCLI),
                                                 historyOwnerIdentifier: oldHistory,
                                                 profileIdentifier: profile))
+                                        if scenario == .cacheUnavailableDuringPreviousRepair {
+                                            // A silent repair can observe the live token while the cache is locked.
+                                            // Drop only its memory cache to simulate the next app session.
+                                            try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                                                let repaired = try KeychainCacheStore
+                                                    .withLoadFailureStatusOverrideForTesting(
+                                                        errSecInteractionNotAllowed)
+                                                    {
+                                                        try ClaudeOAuthCredentialsStore.loadRecord(
+                                                            environment: environment,
+                                                            allowKeychainPrompt: false,
+                                                            respectKeychainPromptCooldown: true)
+                                                    }
+                                                #expect(repaired.credentials.accessToken == "fresh-default-test-token")
+                                            }
+                                            #expect(fingerprints.fingerprint == newFingerprint)
+                                            switch KeychainCacheStore.load(
+                                                key: key, as: ClaudeOAuthCredentialsStore.CacheEntry.self)
+                                            {
+                                            case let .found(entry): #expect(entry.data == expired)
+                                            default: Issue.record("Expected the unavailable cache to remain intact")
+                                            }
+                                        }
                                         let record = KeychainAccessGate.withTaskOverrideForTesting(
                                             scenario == .keychainDisabled)
                                         {
@@ -133,7 +163,9 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
                                                 allowClaudeKeychainRepairWithoutPrompt: false)
                                         }
                                         switch scenario {
-                                        case .adopt, .codexbarOwner:
+                                        case .adopt, .codexbarOwner, .unchangedFingerprint,
+                                             .expiredFile, .expiredFileUnchangedFingerprint,
+                                             .cacheUnavailableDuringPreviousRepair:
                                             let adopted = try #require(record)
                                             #expect(adopted.credentials.accessToken == "fresh-default-test-token")
                                             #expect(adopted.owner == .claudeCLI)
@@ -431,7 +463,7 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
                         #expect(entry.owner == .codexbar)
                         #expect(entry.historyOwnerIdentifier == historyOwnerIdentifier)
                         #expect(entry.profileIdentifier == historicalProfileIdentifier)
-                    case .missing, .invalid, .temporarilyUnavailable:
+                    case .missing, .invalid, .interactionRequired, .temporarilyUnavailable:
                         Issue.record("Expected the legacy default cache to be migrated to its profile key")
                     }
                 }
@@ -707,7 +739,7 @@ struct ClaudeOAuthCredentialsProfileCacheTests {
             case let .found(entry):
                 #expect(entry.profileIdentifier == self.profileIdentifier(environment: environment))
                 #expect(try ClaudeOAuthCredentials.parse(data: entry.data).accessToken == "file-token")
-            case .missing, .invalid, .temporarilyUnavailable:
+            case .missing, .invalid, .interactionRequired, .temporarilyUnavailable:
                 Issue.record("Expected the custom profile file to populate its own cache entry")
             }
         }

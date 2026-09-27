@@ -169,7 +169,7 @@ private struct SettingsSidebarAboutRow: View {
 }
 
 @MainActor
-private struct SettingsSidebarProviderRow: View {
+struct SettingsSidebarProviderRow: View {
     let provider: UsageProvider
     @Bindable var store: UsageStore
     @Binding var isEnabled: Bool
@@ -189,7 +189,7 @@ private struct SettingsSidebarProviderRow: View {
             }
 
             if self.isEnabled, self.store.statusChecksEnabled {
-                SettingsSidebarStatusDot(indicator: self.store.statusIndicator(for: self.provider))
+                SettingsSidebarStatusDot(indicator: self.store.status(for: self.provider)?.indicator)
             }
         }
         .opacity(self.isEnabled ? 1 : 0.62)
@@ -202,8 +202,22 @@ private struct SettingsSidebarProviderRow: View {
     }
 
     private var accessibilityLabel: String {
-        let name = self.store.metadata(for: self.provider).displayName
-        return self.isEnabled ? name : "\(name) — \(L("Disabled"))"
+        Self.accessibilityLabel(
+            name: self.store.metadata(for: self.provider).displayName,
+            isEnabled: self.isEnabled,
+            statusChecksEnabled: self.store.statusChecksEnabled,
+            indicator: self.store.status(for: self.provider)?.indicator)
+    }
+
+    nonisolated static func accessibilityLabel(
+        name: String,
+        isEnabled: Bool,
+        statusChecksEnabled: Bool,
+        indicator: ProviderStatusIndicator?) -> String
+    {
+        guard isEnabled else { return "\(name) — \(L("Disabled"))" }
+        guard statusChecksEnabled else { return name }
+        return "\(name) — \(SettingsSidebarStatusDot.statusDescription(for: indicator))"
     }
 }
 
@@ -230,18 +244,23 @@ private struct SettingsSidebarBrandIcon: View {
     }
 }
 
-private struct SettingsSidebarStatusDot: View {
-    let indicator: ProviderStatusIndicator
+struct SettingsSidebarStatusDot: View {
+    let indicator: ProviderStatusIndicator?
 
     var body: some View {
         Circle()
             .fill(self.statusColor)
             .frame(width: 6, height: 6)
+            .help(Self.statusDescription(for: self.indicator))
             .accessibilityHidden(true)
     }
 
+    nonisolated static func statusDescription(for indicator: ProviderStatusIndicator?) -> String {
+        L("Provider service status: %@", (indicator ?? .unknown).label)
+    }
+
     private var statusColor: Color {
-        switch self.indicator {
+        switch self.indicator ?? .none {
         case .none: .green
         case .minor: .yellow
         case .major: .orange

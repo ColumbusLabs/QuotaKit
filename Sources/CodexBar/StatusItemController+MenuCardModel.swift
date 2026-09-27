@@ -117,7 +117,7 @@ extension StatusItemController {
             tokenError: tokenError,
             account: fallbackAccount,
             accountIsAuthoritative: accountOverride != nil,
-            planOverride: planOverride,
+            planOverride: planOverride.map { .label($0) } ?? .automatic,
             isRefreshing: self.store.shouldShowRefreshingMenuCardIndicator(for: target),
             // Provider-level errors can belong to a different account, so
             // override cards never inherit them (same rule as the snapshot,
@@ -161,7 +161,16 @@ extension StatusItemController {
             paceVisible: self.settings.paceVisible,
             usesLiveSubtitle: surface == .liveCard,
             preferredCurrencyCode: self.settings.preferredCurrencyCode,
-            now: now)
+            costUsageBucketCalendar: self.settings.costUsageBucketCalendar,
+            now: now,
+            observedWeeklyResets: ProviderDescriptorRegistry.descriptor(for: target)
+                .presentation.menuCard.showsQuotaWeekCost
+                ? self.store.weeklyQuotaWindowResetObservations(
+                    for: target,
+                    snapshot: snapshot,
+                    historySelection: historySelectionOverride,
+                    usesLiveAccount: surface == .liveCard)
+                : [])
         return UsageMenuCardView.Model.make(input).applyingUsageItemVisibility(
             hiddenItemIDs: self.settings.hiddenUsageItemIDs(for: target))
     }
@@ -221,10 +230,18 @@ extension StatusItemController {
         let weeklyPace = if let codexProjection,
                             let weekly = codexProjection.rateWindow(for: .weekly)
         {
-            self.store.weeklyPace(provider: target, window: weekly, now: now)
+            self.store.weeklyPace(
+                provider: target,
+                window: weekly,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                now: now)
         } else {
             paceWindow.flatMap { window in
-                self.store.weeklyPace(provider: target, window: window, now: now)
+                self.store.weeklyPace(
+                    provider: target,
+                    window: window,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                    now: now)
             }
         }
         let forecast: SessionEquivalentForecast? = if let codexProjection,

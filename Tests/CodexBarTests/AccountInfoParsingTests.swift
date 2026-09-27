@@ -19,7 +19,9 @@ struct AccountInfoParsingTests {
         try data.write(to: authURL)
 
         let fetcher = UsageFetcher(environment: ["CODEX_HOME": tmp.path])
-        let account = fetcher.loadAccountInfo()
+        let account = CodexCredentialFileAccess.withFixtureScope(.init(files: [authURL])) {
+            fetcher.loadAccountInfo()
+        }
         #expect(account.email == "user@example.com")
         #expect(account.plan == "pro")
     }
@@ -40,7 +42,9 @@ struct AccountInfoParsingTests {
         try data.write(to: authURL)
 
         let fetcher = UsageFetcher(environment: ["CODEX_HOME": tmp.path])
-        let account = fetcher.loadAccountInfo()
+        let account = CodexCredentialFileAccess.withFixtureScope(.init(files: [authURL])) {
+            fetcher.loadAccountInfo()
+        }
         #expect(account.email == "user@example.com")
         #expect(account.plan == "pro")
     }

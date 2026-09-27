@@ -263,13 +263,16 @@ enum CostUsageCodexReportProjectionBuilder {
                 latest[id] = (path, usage)
             }
         }
+        let projectPathResolver = CostUsageScanner.CodexCanonicalProjectPathResolver()
         return latest.compactMap { id, value in
             let report = self.report(
                 aggregates: (aggregatesByPath[value.0] ?? []).map(\.aggregate),
                 cache: self.cache(cache, paths: [value.0]), range: range, cacheRoot: cacheRoot)
             guard !report.data.isEmpty else { return nil }
             let requestCounts = report.data.compactMap(\.requestCount)
-            return CostUsageSessionBreakdown(
+            let projectPath = value.1.canonicalProjectPath
+                ?? projectPathResolver.canonicalProjectPath(for: value.1.projectPath)
+            var session = CostUsageSessionBreakdown(
                 sessionID: id, lastActivity: Date(timeIntervalSince1970: Double(value.1.mtimeUnixMs) / 1000),
                 inputTokens: report.summary?.totalInputTokens,
                 cachedInputTokens: report.summary?.cacheReadTokens,
@@ -278,7 +281,12 @@ enum CostUsageCodexReportProjectionBuilder {
                 totalTokens: report.summary?.totalTokens,
                 requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
                 costUSD: report.summary?.totalCostUSD,
-                modelBreakdowns: self.mergedModelBreakdowns(report.data) ?? [])
+                modelBreakdowns: self.mergedModelBreakdowns(report.data) ?? [],
+                projectPath: projectPath,
+                projectName: projectPath.map { self.projectName($0) },
+                title: value.1.codexSession?.title)
+            session.workingDirectory = value.1.projectPath
+            return session
         }.sorted { lhs, rhs in
             if lhs.lastActivity != rhs.lastActivity {
                 return lhs.lastActivity > rhs.lastActivity

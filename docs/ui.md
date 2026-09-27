@@ -8,9 +8,12 @@ read_when:
 # UI & icon
 
 ## Settings
+- General → Default terminal supports installed Terminal, iTerm, Ghostty, and stable Warp. Terminal is the default and fallback. Warp launches target its app directly and use owner-only temporary tab configs, removed after one minute; interrupted-launch leftovers are cleaned on the next app start.
 - Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
 
 ## Menu bar
+- Overview offers Share Usage Snapshot when its Usage & Spend summary has shareable data. The local preview uses the same spend sources, hidden-source choices, calendar, and currency as that summary; Copy Image exports PNG and TIFF without uploading anything.
+- Shared snapshots name the last included reporting day in the dashboard's timezone, use a singular caption for one subscription, and keep recognized public model families behind one gateway namespace. A partial model history is labeled as partial.
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
 - Stacked switcher provider labels remain on one line so row content stays aligned.
@@ -25,6 +28,7 @@ read_when:
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
 - Overview spend uses the native menu background rather than an extra accent tint.
 - Overview row order follows provider order; selecting a row jumps to that provider detail card.
+- Menu → Overview layout offers Detailed (default) and Compact. Compact keeps provider/account headers and labeled quota bars, omits their reset/detail lines and supplemental sections, and retains detail-only providers. Select a provider for its full card. Visibility choices and the shared Usage & Spend summary continue to apply.
 - The global open-menu keyboard shortcut toggles the currently tracked menu closed before opening a new one.
 - Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
   palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
@@ -51,6 +55,15 @@ behind it, `0%` on pace. Each pace token reads its own window, so `Weekly pace` 
 `Runs out`, which always estimates from the weekly (or automatic) lane. A pace token renders an en dash while pace is
 unavailable, including the first 3% of a window; see [Pace tracking](#pace-tracking).
 
+Enable **Color Pace Indicator** under **Menu Bar → Icon** to show usage behind pace in green and usage ahead of pace
+in red. The setting defaults off and colors Session, Weekly, and Auto pace in both the menu bar and layout preview.
+Zero and unavailable pace stay neutral. Stale colors dim, and high-contrast rendering uses the system label color.
+
+The Time palette also offers explicit Session and Weekly reset countdowns and clocks. The existing Resets in and Reset
+at tokens retain automatic-window behavior. Conditional branches can use the same explicit reset tokens. Layouts save
+V4 data and older-readable V3, V2, and legacy projections that omit explicit reset tokens so older app versions can
+still load supported tokens.
+
 Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
 uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
@@ -58,6 +71,15 @@ derive their first layout from the prior style, display mode, metric, and reset 
 untouched for downgrade safety, while a saved token layout takes precedence.
 Custom layout saves keep older-readable projections so a downgrade can still load the layout; provider-specific
 named percentages are omitted from those older projections without removing the rest of the layout.
+Provider settings also offer a simple percent-window picker when the menu bar uses Icon and Percent and the provider
+supports multiple windows. It writes a provider layout override while keeping custom mixed-window layouts visible as
+Custom in the picker.
+
+For Abacus, explicitly selecting Credits keeps the monthly allowance visible. With 250 of 1,000 credits used, it
+shows `C 75%` remaining (or `C 25%` with Show usage as used). Its billing window and reset date still drive pacing;
+Automatic keeps its existing percentage. Credits labels also apply to editor tokens, conditional metrics and pace
+accessibility.
+
 
 ## Icon rendering
 - 18×18 template image.
@@ -76,8 +98,14 @@ named percentages are omitted from those older projections without removing the 
 - Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the
   active request, and the existing row geometry remains fixed through success or failure.
 - Codex credits can add a separate “Buy Credits…” menu action.
+- Shared stats retain complete providers' model history when another provider is incomplete and mark the
+  resulting model list as partial. A selected day never presents its models as a full-window ranking.
 - Claude capped Extra Usage follows the used/remaining fill preference; spending amounts and “% used” copy stay unchanged.
 - Codex OpenAI web extras: code review remaining and usage breakdown render when dashboard data is attached.
+- Codex and Claude cost cards: a Recent windows list under the daily bars shows each quota window's
+  range, cost, and tokens (Current window, Previous window, N windows ago), split at official and banked resets.
+  Inferred boundaries are labeled estimated; incomplete local subtotals show ≥ and a partial-estimate note.
+  Without weekly reset metadata, the existing calendar cost history remains visible.
 - Token accounts: optional account switcher bar or stacked account cards (up to 6) when multiple manual tokens exist.
 - Provider storage usage is opt-in from Advanced settings. When enabled, overview rows and provider detail cards can show
   local provider-owned storage totals, with a submenu for path breakdowns and copyable paths.

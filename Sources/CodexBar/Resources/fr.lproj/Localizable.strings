@@ -243,6 +243,7 @@
 "No cost history data." = "Aucune donnée historique des coûts.";
 "No data available" = "Aucune donnée disponible";
 "No data yet" = "Aucune donnée pour l'instant";
+"Workspaces" = "Espaces de travail";
 "No enabled providers available for Overview." = "Aucun fournisseur activé disponible pour la présentation.";
 "No providers selected" = "Aucun fournisseur sélectionné";
 "No token accounts yet." = "Aucun compte symbolique pour l'instant.";
@@ -496,6 +497,7 @@
 "cost_summary_style_inline_help" = "Affiche le résumé des coûts directement dans le menu principal.";
 "cost_summary_style_submenu_help" = "Affiche plutôt le sous-menu Coût détaillé.";
 "cost_summary_style_both_help" = "Affiche le résumé du menu principal et le sous-menu Coût détaillé.";
+"Month to date" = "Depuis le début du mois";
 "cost_history_window_title" = "Fenêtre d'historique";
 "cost_history_window_help" = "Définit le nombre de jours de journaux d'utilisation locaux affichés dans le menu.";
 "cost_history_days_title" = "Fenêtre d'historique : %d jours";
@@ -615,6 +617,12 @@
 "cost_summary_off" = "Désactivé";
 "merge_icons_title" = "Fusionner les icônes";
 "merge_icons_subtitle" = "Utilisez une seule icône de barre de menu avec un sélecteur de fournisseur.";
+"merged_icon_style_title" = "Style d'icône combinée";
+"merged_icon_style_subtitle" = "Le sélecteur bascule entre les fournisseurs un par un ; Empilé affiche deux fournisseurs à la fois, chacun sur sa ligne.";
+"merged_icon_style_switcher" = "Sélecteur";
+"merged_icon_style_stacked" = "Empilé";
+"merge_icon_stacked_top_provider_title" = "Ligne du haut";
+"merge_icon_stacked_bottom_provider_title" = "Ligne du bas";
 "show_most_used_provider_title" = "Afficher le fournisseur le plus utilisé";
 "show_most_used_provider_subtitle" = "La barre de menu affiche automatiquement le fournisseur le plus proche de sa limite de débit.";
 "display_mode_title" = "Mode d'affichage";
@@ -883,6 +891,12 @@
 "usage_percent_suffix_used" = "utilisé";
 "Store multiple DeepSeek API keys." = "Stockez plusieurs clés API DeepSeek.";
 "This week" = "Cette semaine";
+"Current window" = "Fenêtre actuelle";
+"Last week" = "La semaine dernière";
+"%d weeks ago" = "il y a %d semaines";
+"Previous window" = "Fenêtre précédente";
+"%d windows ago" = "il y a %d fenêtres";
+"Recent windows" = "Fenêtres récentes";
 "Week" = "Semaine";
 "Month" = "Mois";
 "Models" = "Modèles";
@@ -1348,6 +1362,8 @@
 "Tracked tokens" = "Jetons suivis";
 "Subscriptions" = "Abonnements";
 "By subscription" = "Par abonnement";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Aucun historique au niveau des modèles";
 "Daily estimated spend" = "Dépenses quotidiennes estimées";
 "Hourly estimated spend" = "Dépenses horaires estimées";
@@ -1444,6 +1460,33 @@
 "%d more accounts ready" = "%d comptes supplémentaires prêts";
 "Shows the hidden accounts" = "Affiche les comptes masqués";
 "%@ remaining" = "%@ restant";
+"codex_workspaces_cost_unavailable" = "Coût indisponible";
+"codex_workspaces_elevated_usage" = "Utilisation supérieure";
+"codex_workspaces_estimated_cost_short" = "Coût estimé";
+"codex_workspaces_estimated_cost_value" = "estim. %@";
+"codex_workspaces_estimated_local_logs" = "Estimation basée sur les journaux Codex locaux";
+"codex_workspaces_failed_read_logs" = "Impossible de lire les journaux Codex";
+"codex_workspaces_high_usage" = "Utilisation élevée";
+"codex_workspaces_indexing_local_logs" = "Indexation des journaux Codex locaux…";
+"codex_workspaces_indexing_projects" = "Indexation des projets…";
+"codex_workspaces_local_codex_chat" = "Discussion Codex locale";
+"codex_workspaces_model" = "Modèle";
+"codex_workspaces_no_local_usage" = "Aucune utilisation locale de Codex pour le moment";
+"codex_workspaces_no_sessions" = "Aucune session dans cet espace de travail";
+"codex_workspaces_normal_usage" = "Utilisation normale";
+"codex_workspaces_partial_data" = "Données partielles";
+"codex_workspaces_refresh_usage_data" = "Actualiser les données d'utilisation";
+"codex_workspaces_retry" = "Réessayer";
+"codex_workspaces_saving_project_index" = "Enregistrement de l'index des projets…";
+"codex_workspaces_scanning_logs" = "Analyse des journaux Codex…";
+"codex_workspaces_session" = "Session";
+"codex_workspaces_session_count" = "Sessions: %@";
+"codex_workspaces_sessions" = "Sessions";
+"codex_workspaces_started" = "Démarrée";
+"codex_workspaces_title" = "Espaces de travail";
+"codex_workspaces_token_count_accessibility" = "%@ jetons";
+"codex_workspaces_tokens" = "Jetons";
+"codex_workspaces_top_model" = "Modèle principal";
 "Finish now" = "Terminer maintenant";
 "Continue in background" = "Continuer en arrière-plan";
 "(%d%% risk)" = "(%d%% risque d'épuisement)";
@@ -1460,6 +1503,7 @@
 "More" = "Plus";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Installer…";
 "Install plugin" = "Installer l’extension";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Copie un fichier JavaScript ou TypeScript dans le répertoire des extensions.";
@@ -1562,3 +1606,29 @@
 "Restore Defaults" = "Rétablir les valeurs par défaut";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Choisissez les lignes d’utilisation affichées dans le menu de ce fournisseur, l’aperçu des réglages et la vue d’ensemble.";
 "%@ (unavailable)" = "%@ (indisponible)";
+"overview_layout_title" = "Disposition de la vue d’ensemble";
+"overview_layout_subtitle" = "Choisissez la quantité d’informations affichée dans la vue d’ensemble.";
+"overview_layout_detailed" = "Détaillée";
+"overview_layout_compact" = "Compact";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Sous-total estimé (%@) : %@";
+"Excluded requests with missing final usage: %d" = "Requêtes exclues sans données d’utilisation finales : %d";
+"antigravity_cost_estimate_hint" = "Usage local × tarifs API publics · ni frais ni crédits Antigravity";
+"antigravity_quota_window_note" = "Le coût de la fenêtre couvre tous les modèles · la fenêtre affichée est la famille la plus contrainte";
+"antigravity_no_priced_token_history" = "Aucun historique de tokens Antigravity tarifé n'est disponible.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Partager l’aperçu de l’utilisation…";
+"Usage snapshot unavailable" = "Aperçu de l’utilisation indisponible";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit n’a pas pu préparer un aperçu de l’utilisation à partager. Actualisez Utilisation et dépenses, puis réessayez.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Actualiser les comptes pour les widgets";
+"account_widgets_description" = "Choisissez un compte dans chaque widget Account Usage. Actualise jusqu’à six comptes par fournisseur.";
+"claude_limited_usage_detail" = "Détails d’utilisation limités";
+"%@ weekly" = "%@ hebdomadaire";
+
+"Color Pace Indicator" = "Colorer le rythme";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Vert si la consommation est inférieure au rythme prévu (réserve) ; rouge si elle est supérieure (risque d’épuisement anticipé).";

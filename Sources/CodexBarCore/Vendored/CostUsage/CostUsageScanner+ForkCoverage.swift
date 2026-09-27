@@ -1,6 +1,20 @@
 import Foundation
 
 extension CostUsageScanner {
+    static func canResumeCodexForkAccounting(
+        _ cached: CostUsageFileUsage,
+        context: CodexFileScanContext) throws -> Bool
+    {
+        guard let parentID = cached.forkedFromId,
+              let saved = cached.codexForkAccountingState,
+              !saved.metadata.isSubagentThread,
+              saved.metadata.sessionId == cached.sessionId,
+              saved.metadata.forkedFromId == parentID,
+              let dependency = cached.forkBaselineDependencyKey
+        else { return false }
+        return try dependency == context.resources.inheritedResolver.currentDependencyKey(for: parentID)
+    }
+
     /// Missing-parent forks stay out of priced totals. Count them as unmetered so Spend
     /// coverage can show the gap instead of silently dropping the session.
     static func unresolvedForkUnmeteredCounts(
@@ -46,14 +60,15 @@ extension CostUsageScanner {
     struct CodexReportDayPricingContext {
         var rowsByDayModel: [String: [String: [CodexUsageRow]]]
         var unresolvedRowGroups: Set<CodexDayModelKey>
+        var unresolvedPersistedRowGroups: Set<CodexDayModelKey>
         var modeOwnershipMismatchGroups: Set<CodexDayModelKey>
-        var priorityEvidenceGroups: Set<CodexDayModelKey>
+        var requestPricingEvidenceGroups: Set<CodexDayModelKey>
         var incompletePricingEvidenceGroups: Set<CodexDayModelKey>
-        var authoritativeCostEvidenceGroups: Set<CodexDayModelKey>
         var priorityTurns: [String: CodexPriorityTurnMetadata]
         var modelsDevCatalog: ModelsDevCatalog
         var modelsDevCacheRoot: URL?
         var customPricing: CostUsageCustomPricing
+        var pricingResolver: CostUsagePricing.CodexResolver
     }
 
     static func unmeteredForkReportEntry(day: String, unmetered: Int) -> CostUsageDailyReport.Entry? {
@@ -81,10 +96,10 @@ extension CostUsageScanner {
         if modelNames.isEmpty {
             return Self.unmeteredForkReportEntry(day: day, unmetered: unmetered)
         }
-        var dayInput = 0
-        var dayCacheRead = 0
-        var dayOutput = 0
-        var dayReasoning = 0
+        var dayInput = CostUsageDailyReport.OptionalCountAccumulator(0)
+        var dayCacheRead = CostUsageDailyReport.OptionalCountAccumulator(0)
+        var dayOutput = CostUsageDailyReport.OptionalCountAccumulator(0)
+        var dayReasoning = CostUsageDailyReport.OptionalCountAccumulator(0)
         var dayRequestCount = 0
         var dayUnpricedRequestCount = 0
         var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
@@ -97,17 +112,17 @@ extension CostUsageScanner {
             let input = packed[safe: 0] ?? 0
             let cached = packed[safe: 1] ?? 0
             let output = packed[safe: 2] ?? 0
-            let totalTokens = input + output
+            let totalTokens = CheckedSum.integers([input, output])
             let rows = pricing.rowsByDayModel[day]?[model] ?? []
-            let reasoning = rows.compactMap(\.reasoning).reduce(0, +)
+            let reasoning = CheckedSum.integers(rows.compactMap(\.reasoning))
             let requestCount = rows.count
             let unpricedRequestCount = rows.count { ($0.unpricedTokens ?? 0) > 0 }
 
-            dayInput += input
-            dayCacheRead += cached
-            dayOutput += output
-            if reasoning > 0 {
-                dayReasoning += reasoning
+            dayInput.add(input)
+            dayCacheRead.add(cached)
+            dayOutput.add(output)
+            for row in rows {
+                dayReasoning.add(row.reasoning)
             }
             dayRequestCount += requestCount
             dayUnpricedRequestCount += unpricedRequestCount
@@ -117,15 +132,23 @@ extension CostUsageScanner {
                 priorityTurns: pricing.priorityTurns,
                 modelsDevCatalog: pricing.modelsDevCatalog,
                 modelsDevCacheRoot: pricing.modelsDevCacheRoot,
-                customPricing: pricing.customPricing)
+                customPricing: pricing.customPricing,
+                pricingResolver: pricing.pricingResolver)
             let group = CodexDayModelKey(day: day, model: model)
+            // A combined token counter can overflow while each source class and its supplied
+            // monetary amount remain valid. Never replace authoritative dollars with repricing.
+            let authoritativeOverflowCost = totalTokens == nil && !rows.isEmpty
+                && rows.allSatisfy { $0.knownCostNanos != nil && ($0.unpricedTokens ?? 0) == 0 }
+                && CheckedSum.integers(rows.map(\.input)) == input
+                && CheckedSum.integers(rows.map(\.cached)) == cached
+                && CheckedSum.integers(rows.map(\.output)) == output
             let rowCostIsTrusted = !pricing.unresolvedRowGroups.contains(group)
                 && !pricing.modeOwnershipMismatchGroups.contains(group)
-                && rowCost?.isTrusted(canonicalTotalTokens: totalTokens) == true
-            let aggregateCost = pricing.priorityEvidenceGroups.contains(group)
+                && (authoritativeOverflowCost
+                    || totalTokens.map { rowCost?.isTrusted(canonicalTotalTokens: $0) == true } == true)
+            let aggregateCost = pricing.requestPricingEvidenceGroups.contains(group)
                 || pricing.incompletePricingEvidenceGroups.contains(group)
-                || (pricing.unresolvedRowGroups.contains(group)
-                    && pricing.authoritativeCostEvidenceGroups.contains(group))
+                || pricing.unresolvedPersistedRowGroups.contains(group)
                 || rowCost?.hasIncompletePricing == true
                 ? nil
                 : CostUsagePricing.codexAggregateCostUSD(
@@ -149,7 +172,7 @@ extension CostUsageScanner {
                     inputTokens: input,
                     outputTokens: output,
                     cacheReadTokens: cached > 0 ? cached : nil,
-                    reasoningTokens: reasoning > 0 ? reasoning : nil,
+                    reasoningTokens: reasoning.flatMap { $0 > 0 ? $0 : nil },
                     standardCostUSD: hasModeSplit ? rowCost?.optionalStandardCostUSD : nil,
                     priorityCostUSD: hasModeSplit ? rowCost?.optionalPriorityCostUSD : nil,
                     standardTokens: hasModeSplit ? rowCost?.optionalStandardTokens : nil,
@@ -160,14 +183,16 @@ extension CostUsageScanner {
             }
         }
 
-        let dayTotal = dayInput + dayOutput
-        let entryCost = dayCostSeen ? dayCost : nil
+        var dayTokens = dayInput
+        dayTokens.merge(dayOutput)
+        let dayTotal = dayTokens.value
+        let entryCost = dayCostSeen && dayCost.isFinite ? dayCost : nil
         return CostUsageDailyReport.Entry(
             date: day,
-            inputTokens: dayInput,
-            outputTokens: dayOutput,
-            cacheReadTokens: dayCacheRead > 0 ? dayCacheRead : nil,
-            reasoningTokens: dayReasoning > 0 ? dayReasoning : nil,
+            inputTokens: dayInput.value,
+            outputTokens: dayOutput.value,
+            cacheReadTokens: dayCacheRead.value.flatMap { $0 > 0 ? $0 : nil },
+            reasoningTokens: dayReasoning.value.flatMap { $0 > 0 ? $0 : nil },
             totalTokens: dayTotal,
             requestCount: dayRequestCount > 0 ? dayRequestCount : nil,
             costUSD: entryCost,
@@ -175,7 +200,7 @@ extension CostUsageScanner {
             modelBreakdowns: Self.sortedModelBreakdowns(breakdown),
             unpricedRequestCount: dayUnpricedRequestCount > 0
                 ? dayUnpricedRequestCount
-                : (entryCost == nil && dayTotal > 0 ? 1 : nil),
+                : (entryCost == nil && (dayTotal ?? 1) > 0 ? 1 : nil),
             unmeteredRequestCount: unmetered > 0 ? unmetered : nil)
     }
 }

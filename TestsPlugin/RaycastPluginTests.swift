@@ -220,13 +220,20 @@ struct RaycastPluginTests {
 
     @Test(arguments: BundledPluginTestSupport.engines)
     func `rejected candidates advance within the same refresh`(engine: ProviderPluginEngineKind) async throws {
-        let sessions = SessionTrace(headers: ["csrf_token=only", "__raycast_session=rejected-fixture-session", Self.fixtureCookie])
+        let sessions = SessionTrace(headers: [
+            "csrf_token=only",
+            "__raycast_session=rejected-fixture-session",
+            Self.fixtureCookie,
+        ])
         let runtime = try BundledPluginTestSupport.runtime(
             "raycast", engine: engine,
             transport: ProviderHTTPTransportHandler { request in
                 let header = request.value(forHTTPHeaderField: "Cookie") ?? ""
                 sessions.request(header)
-                return try Self.response(request, body: Self.credits, status: header.contains("rejected-fixture-session") ? 401 : 200)
+                return try Self.response(
+                    request,
+                    body: Self.credits,
+                    status: header.contains("rejected-fixture-session") ? 401 : 200)
             })
         let usage = try await runtime.fetchUsage(
             cookieSessionResolver: { domain, _ in

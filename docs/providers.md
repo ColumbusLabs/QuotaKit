@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 87 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 88 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -17,7 +17,9 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, `cli`,
 
 Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Settings → Providers.
 Some browser cookie imports are cached in Keychain and reused until the session is invalid. API keys, manual cookie
-headers, source selection, provider ordering, and token accounts are stored in `~/.quotakit/config.json`.
+headers, source selection, provider ordering, and token accounts are stored in the resolved config file.
+New installs use `~/.quotakit/config.json`; see [CLI configuration](cli-configuration.md) for
+`XDG_CONFIG_HOME` and `QUOTAKIT_CONFIG` overrides and legacy path handling.
 
 ## Usage & Spend settings
 
@@ -36,10 +38,18 @@ adds or ranks amounts across currencies.
 The page also shows token mix (input / output / cache / reasoning), priced/unpriced/unmetered/estimated coverage,
 sessions, Codex projects, and a 365-day token heatmap. A heatmap day with no coverage is a gap, not zero activity,
 and is not clickable. Custom list-price overlays are documented in `docs/model-pricing.md`.
+Usage details group each provider's account or local-history sources with its model rows. The first six models
+show by default, and **Show all** reveals the rest. Projects and sessions share a detail selector; daily and
+hourly charts share a trend selector when hourly history exists. The daily ledger remains below either chart mode and
+lists local calendar days, active providers, tracked tokens, requests, and estimated spend for the shared covered
+window. Proven zero days remain zero; unknown amounts stay unavailable and known partial subtotals carry an approximate
+marker. A selected day can be cleared from the summary. The expanded data-controls section contains source selection,
+the cost-tracking options, and JSON/share exports.
 
 OpenCodex `~/.opencodex/usage.jsonl` is an opt-in, read-only spend source (off by default). It is not a quota
-Provider. When both OpenCodex logs and native Codex sessions are present they stay on separate rows; merging would
-double-count the same traffic. An optional toggle can hide native Codex while OpenCodex data is present. Export JSON
+Provider. When both OpenCodex logs and native Codex sessions are present they stay as separate sources under the
+Codex provider group; merging would double-count the same traffic. An optional toggle can hide native Codex while
+OpenCodex data is present. Export JSON
 emits the currently aggregated model (provenance, mix, coverage).
 
 The view stays local and does not upload usage history. Refreshes retain the last successful model if a replacement
@@ -65,7 +75,7 @@ complete when the available scan window covers fewer days.
 | Alibaba Token Plan | Signed-in Bailian CLI (`cli`) → subscription summary API via browser or manual cookies (`web`). |
 | Qwen Cloud | Qwen Cloud 5-hour/weekly Token Plan APIs via browser or manual cookies (`web`). |
 | Droid/Factory | API key (`FACTORY_API_KEY` / config) → web cookies → stored tokens → local storage → WorkOS cookies (`auto`, `api`, `web`). |
-| Devin | Chrome localStorage session or manual Bearer token → daily and weekly quota API (`web`). |
+| Devin | Chromium localStorage session or manual Bearer token → daily and weekly quota API (`web`). |
 | z.ai | API token from config/env → quota API (`api`). |
 | Manus | Browser `session_id` cookie (auto/manual/env) → credits API (`web`). |
 | MiniMax | Manual/browser session via Coding Plan web path (`web`), or Coding Plan API token (`api`). |
@@ -127,7 +137,7 @@ complete when the available scan window covers fewer days.
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
-- Web dashboard (optional, off by default): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
+- Web dashboard (optional, off by default): `https://chatgpt.com/codex/cloud/settings/analytics#usage` via WebView + browser cookies.
 - Battery saver toggle (currently off by default): reduces routine OpenAI web refreshes but still allows explicit manual refreshes.
 - CLI RPC default: `codex ... app-server` JSON-RPC (`account/read`, `account/rateLimits/read`).
 - CLI PTY: manual diagnostics/parser coverage only; automatic refresh does not launch bare Codex TUI.
@@ -170,7 +180,7 @@ complete when the available scan window covers fewer days.
 - Details: `docs/zai.md`.
 
 ## Devin
-- Automatic auth reads the current `auth1_session` token and organization metadata from Chrome localStorage.
+- Automatic auth reads the current `auth1_session` token and organization metadata from supported Chromium browsers' localStorage.
 - Manual auth accepts the `Authorization: Bearer ...` value from an app.devin.ai request.
 - Usage endpoint: `GET /api/<internal-org-id>/billing/quota/usage`.
 - Shows daily and weekly quota percentages with their reset timestamps.
@@ -229,7 +239,7 @@ complete when the available scan window covers fewer days.
 - Web API via browser cookies (`cursor.com` + `cursor.sh`).
 - Fallbacks: a legacy stored session, then Cursor.app local auth.
 - Add Account and Switch Account open Cursor's authenticator in a supported browser; Switch Account prefers stable account IDs and falls back to normalized email when IDs are unavailable. QuotaKit uses the supported system HTTPS handler when possible and otherwise asks the user to choose an eligible supported browser.
-- Grok Bot weekly included usage is a fourth Cursor card bar from `POST /api/dashboard/get-sand-usage-status` (same session). Accounts without a Bot allowance omit the bar.
+- Grok Bot included or trial usage appears as a named extra bar from `POST /api/dashboard/get-sand-usage-status` (same session). Paid 7-day allowances show weekly pace on that bar.
 - Status: Statuspage.io (Cursor).
 - Details: `docs/cursor.md`.
 
@@ -687,3 +697,8 @@ See also: `docs/provider.md` for architecture notes.
 - Reuses the Muse CLI OAuth login. Keychain reads use a no-prompt preflight and fail when access would require interaction.
 - Shows 5-hour and weekly subscription windows and local token history; dollar costs remain unavailable.
 - Details: `docs/muse.md`.
+## Pi
+- Reads local Pi and OMP transcripts for token history and API-rate cost estimates; no credentials are needed.
+- When enabled as its own spend source, shared Codex and Claude views exclude the same Pi rows from combined totals.
+- Incomplete or unsupported transcript evidence remains unavailable rather than becoming zero.
+- Details: `docs/pi.md`.

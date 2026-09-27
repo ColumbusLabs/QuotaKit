@@ -269,8 +269,11 @@ struct ProvidersPane: View {
         }
 
         let result = await self.codexAccountPromotionCoordinator.promote(managedAccountID: managedAccountID)
-        if case let .failure(error) = result {
+        switch result {
+        case let .failure(error):
             self.codexAccountsNotice = CodexAccountsSectionNotice(text: error.message, tone: .warning)
+        case let .success(promotion):
+            self.codexAccountsNotice = promotion.daemonRestartNote.map { .init(text: $0, tone: .warning) }
         }
     }
 
@@ -576,10 +579,18 @@ struct ProvidersPane: View {
         let weeklyPace = if let codexProjection,
                             let weekly = codexProjection.rateWindow(for: .weekly)
         {
-            self.store.weeklyPace(provider: provider, window: weekly, now: now)
+            self.store.weeklyPace(
+                provider: provider,
+                window: weekly,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                now: now)
         } else {
             paceWindow.flatMap { window in
-                self.store.weeklyPace(provider: provider, window: window, now: now)
+                self.store.weeklyPace(
+                    provider: provider,
+                    window: window,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                    now: now)
             }
         }
         let input = UsageMenuCardView.Model.Input(
@@ -617,7 +628,12 @@ struct ProvidersPane: View {
             workDaysPerWeek: self.settings.weeklyProgressWorkDays,
             workdayTickAppearance: self.settings.workdayTickAppearance,
             paceVisible: self.settings.paceVisible,
-            now: now)
+            costUsageBucketCalendar: self.settings.costUsageBucketCalendar,
+            now: now,
+            observedWeeklyResets: ProviderDescriptorRegistry.descriptor(for: provider)
+                .presentation.menuCard.showsQuotaWeekCost
+                ? self.store.weeklyQuotaWindowResetObservations(for: provider, snapshot: snapshot)
+                : [])
         return UsageMenuCardView.Model.make(input)
     }
 

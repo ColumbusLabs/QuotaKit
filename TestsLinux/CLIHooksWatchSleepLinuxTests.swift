@@ -77,7 +77,9 @@ struct CLIHooksWatchSleepLinuxTests {
         let elapsedSeconds = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1e9
 
         #expect(!completed)
-        #expect(elapsedSeconds < 2)
+        // The 0.15s config change must interrupt the 10s interval; allow scheduler
+        // headroom on loaded Linux CI runners (observed just over 2s on both architectures).
+        #expect(elapsedSeconds < 5)
     }
 
     @Test

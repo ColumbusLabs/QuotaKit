@@ -230,10 +230,34 @@ struct CursorUsageEventsFetcherTests {
         #expect(Self.approxEqual(event.tokenUsage?.totalCents, 12.5))
     }
 
+    @Test
+    func `page decoding accepts the literal empty query response`() throws {
+        let page = try JSONDecoder().decode(CursorUsageEventsPage.self, from: Data("{}".utf8))
+
+        #expect(page.totalUsageEventsCount == 0)
+        #expect(page.usageEventsDisplay.isEmpty)
+    }
+
+    @Test(arguments: [0, 2])
+    func `page decoding preserves the query count on omitted empty arrays`(count: Int) throws {
+        let json = #"{"totalUsageEventsCount":\#(count)}"#
+        let page = try JSONDecoder().decode(CursorUsageEventsPage.self, from: Data(json.utf8))
+        #expect(page.totalUsageEventsCount == count)
+        #expect(page.usageEventsDisplay.isEmpty)
+    }
+
     @Test(arguments: [
-        #"{"totalUsageEventsCount":0}"#,
         #"{"totalUsageEventsCount":0,"usageEventsDisplay":{}}"#,
         #"{"error":"temporarily unavailable"}"#,
+        #"{"usageEventsDisplay":null}"#,
+        #"{"unknown":null}"#,
+        #"{"totalUsageEventsCount":0,"error":"unavailable"}"#,
+        #"{"totalUsageEventsCount":null}"#,
+        #"{"totalUsageEventsCount":"Infinity"}"#,
+        #"{"totalUsageEventsCount":true}"#,
+        #"{"totalUsageEventsCount":-1}"#,
+        "[]",
+        "null",
     ])
     func `page decoding rejects missing or malformed event arrays`(json: String) {
         #expect(throws: DecodingError.self) {
@@ -344,14 +368,14 @@ struct CursorUsageEventsFetcherTests {
                 totalCents: 100),
             Self.event(
                 timestampMS: 1_700_000_001_000,
-                model: "gpt-5",
+                model: "fixture-unpriced",
                 input: 7,
                 totalCents: nil),
         ]
 
         let report = CursorUsageEventsFetcher.makeDailyReport(from: events, calendar: Self.utcCalendar)
         let priced = report.data[0].modelBreakdowns?.first { $0.modelName == "claude-4.5-sonnet" }
-        let unpriced = report.data[0].modelBreakdowns?.first { $0.modelName == "gpt-5" }
+        let unpriced = report.data[0].modelBreakdowns?.first { $0.modelName == "fixture-unpriced" }
 
         #expect(report.data.count == 1)
         #expect(Self.approxEqual(report.data[0].costUSD, 1.0))
@@ -403,7 +427,7 @@ struct CursorUsageEventsFetcherTests {
                 totalCents: 100),
             Self.event(
                 timestampMS: 1_700_172_800_000,
-                model: "gpt-5",
+                model: "fixture-unpriced",
                 input: 7,
                 totalCents: nil),
         ]

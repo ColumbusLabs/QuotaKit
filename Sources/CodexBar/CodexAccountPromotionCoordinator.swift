@@ -13,6 +13,7 @@ final class CodexAccountPromotionCoordinator {
     weak var managedAccountCoordinator: ManagedCodexAccountCoordinator?
     private(set) var isAuthenticatingLiveAccount = false
     private(set) var isPromotingSystemAccount = false
+    private(set) var daemonRestartNote: String?
     private(set) var userFacingError: CodexSystemAccountPromotionUserFacingError?
 
     init(
@@ -45,10 +46,12 @@ final class CodexAccountPromotionCoordinator {
         }
 
         self.isPromotingSystemAccount = true
+        self.daemonRestartNote = nil
         defer { self.isPromotingSystemAccount = false }
 
         do {
             let result = try await self.service.promoteManagedAccount(id: managedAccountID)
+            self.daemonRestartNote = result.daemonRestartNote
             return .success(result)
         } catch {
             let mapped = Self.mapUserFacingError(error)

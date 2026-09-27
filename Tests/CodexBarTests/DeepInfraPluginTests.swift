@@ -186,7 +186,5 @@ struct DeepInfraPluginTests {
 
 private actor DeepInfraRequestRecorder {
     private(set) var values: [URLRequest] = []
-    func append(_ request: URLRequest) {
-        self.values.append(request)
-    }
+    func append(_ request: URLRequest) { self.values.append(request) }
 }

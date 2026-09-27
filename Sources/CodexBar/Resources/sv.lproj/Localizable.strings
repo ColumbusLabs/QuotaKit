@@ -244,6 +244,7 @@
 "No credits history data." = "Ingen kredithistorik.";
 "No data available" = "Inga data tillgängliga";
 "No data yet" = "Inga data än";
+"Workspaces" = "Arbetsytor";
 "No enabled providers available for Overview." = "Inga aktiverade leverantörer är tillgängliga för översikten.";
 "No providers selected" = "Inga leverantörer valda";
 "No token accounts yet." = "Inga tokenkonton än.";
@@ -496,6 +497,7 @@
 "cost_summary_style_inline_help" = "Visar kostnadssammanfattningen direkt i huvudmenyn.";
 "cost_summary_style_submenu_help" = "Visar den detaljerade Kostnad-undermenyn i stället.";
 "cost_summary_style_both_help" = "Visar både huvudmenyns sammanfattning och den detaljerade Kostnad-undermenyn.";
+"Month to date" = "Sedan månadens början";
 "cost_history_window_title" = "Historikfönster";
 "cost_history_window_help" = "Anger hur många dagar med lokala användningsloggar som visas i menyn.";
 "cost_history_days_title" = "Historikfönster: %d dagar";
@@ -614,6 +616,12 @@
 "cost_summary_off" = "Av";
 "merge_icons_title" = "Slå ihop ikoner";
 "merge_icons_subtitle" = "Använd en enda menyradsikon med leverantörsväxlare.";
+"merged_icon_style_title" = "Kombinerad ikonstil";
+"merged_icon_style_subtitle" = "Växlaren växlar mellan leverantörer en i taget; Staplad visar två leverantörer samtidigt, en rad var.";
+"merged_icon_style_switcher" = "Växlare";
+"merged_icon_style_stacked" = "Staplad";
+"merge_icon_stacked_top_provider_title" = "Övre raden";
+"merge_icon_stacked_bottom_provider_title" = "Nedre raden";
 "show_most_used_provider_title" = "Visa mest använda leverantör";
 "show_most_used_provider_subtitle" = "Menyraden visar automatiskt leverantören som ligger närmast sin gräns.";
 "display_mode_title" = "Visningsläge";
@@ -882,6 +890,12 @@
 "usage_percent_suffix_used" = "förbrukat";
 "Store multiple DeepSeek API keys." = "Spara flera DeepSeek-API-nycklar.";
 "This week" = "Den här veckan";
+"Current window" = "Aktuellt fönster";
+"Last week" = "Förra veckan";
+"%d weeks ago" = "för %d veckor sedan";
+"Previous window" = "Föregående fönster";
+"%d windows ago" = "för %d fönster sedan";
+"Recent windows" = "Senaste fönster";
 "Week" = "Vecka";
 "Month" = "Månad";
 "Models" = "Modeller";
@@ -1347,6 +1361,8 @@
 "Tracked tokens" = "Spårade token";
 "Subscriptions" = "Abonnemang";
 "By subscription" = "Per abonnemang";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Ingen historik på modellnivå";
 "Daily estimated spend" = "Uppskattade dagliga utgifter";
 "Hourly estimated spend" = "Uppskattade utgifter per timme";
@@ -1443,6 +1459,33 @@
 "%d more accounts ready" = "%d konton till är redo";
 "Shows the hidden accounts" = "Visar de dolda kontona";
 "%@ remaining" = "%@ kvar";
+"codex_workspaces_cost_unavailable" = "Kostnaden är inte tillgänglig";
+"codex_workspaces_elevated_usage" = "Förhöjd användning";
+"codex_workspaces_estimated_cost_short" = "Ber. kostnad";
+"codex_workspaces_estimated_cost_value" = "ber. %@";
+"codex_workspaces_estimated_local_logs" = "Beräknat från lokala Codex-loggar";
+"codex_workspaces_failed_read_logs" = "Det gick inte att läsa Codex-loggar";
+"codex_workspaces_high_usage" = "Hög användning";
+"codex_workspaces_indexing_local_logs" = "Indexerar lokala Codex-loggar…";
+"codex_workspaces_indexing_projects" = "Indexerar projekt…";
+"codex_workspaces_local_codex_chat" = "Lokal Codex-chatt";
+"codex_workspaces_model" = "Modell";
+"codex_workspaces_no_local_usage" = "Ingen lokal Codex-användning ännu";
+"codex_workspaces_no_sessions" = "Inga sessioner i den här arbetsytan";
+"codex_workspaces_normal_usage" = "Normal användning";
+"codex_workspaces_partial_data" = "Partiella data";
+"codex_workspaces_refresh_usage_data" = "Uppdatera användningsdata";
+"codex_workspaces_retry" = "Försök igen";
+"codex_workspaces_saving_project_index" = "Sparar projektindex…";
+"codex_workspaces_scanning_logs" = "Söker igenom Codex-loggar…";
+"codex_workspaces_session" = "Session";
+"codex_workspaces_session_count" = "Sessioner: %@";
+"codex_workspaces_sessions" = "Sessioner";
+"codex_workspaces_started" = "Startad";
+"codex_workspaces_title" = "Arbetsytor";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_tokens" = "Token";
+"codex_workspaces_top_model" = "Främsta modell";
 "Finish now" = "Slutför nu";
 "Continue in background" = "Fortsätt i bakgrunden";
 "(%d%% risk)" = "(%d %% risk att ta slut)";
@@ -1459,6 +1502,7 @@
 "More" = "Mer";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Installera…";
 "Install plugin" = "Installera plugin";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Kopierar en JavaScript- eller TypeScript-fil till pluginmappen.";
@@ -1562,3 +1606,29 @@
 "Restore Defaults" = "Återställ standardvärden";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Välj vilka användningsrader som visas i den här leverantörens meny, förhandsvisningen i Inställningar och Översikt.";
 "%@ (unavailable)" = "%@ (inte tillgänglig)";
+"overview_layout_title" = "Översiktslayout";
+"overview_layout_subtitle" = "Välj hur mycket information som visas i översikten.";
+"overview_layout_detailed" = "Detaljerad";
+"overview_layout_compact" = "Kompakt";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Uppskattad delsumma (%@): %@";
+"Excluded requests with missing final usage: %d" = "Uteslutna förfrågningar utan slutliga användningsdata: %d";
+"antigravity_cost_estimate_hint" = "Lokal användning × publika API-priser · inte Antigravity-avgifter eller krediter";
+"antigravity_quota_window_note" = "Fönsterkostnaden omfattar alla modeller · fönstret som visas är den mest begränsade familjen";
+"antigravity_no_priced_token_history" = "Ingen prissatt Antigravity-tokenhistorik tillgänglig.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Dela användningsöversikt…";
+"Usage snapshot unavailable" = "Användningsöversikt är inte tillgänglig";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kunde inte förbereda en delbar användningsöversikt. Uppdatera Användning och utgifter och försök igen.";
+
+/* Account widgets */
+"section_widgets" = "Widgetar";
+"account_widgets_title" = "Håll konton uppdaterade för widgetar";
+"account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";
+"claude_limited_usage_detail" = "Begränsade användningsdetaljer";
+"%@ weekly" = "%@ per vecka";
+
+"Color Pace Indicator" = "Färglägg förbrukningstakten";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grönt när förbrukningen ligger under förväntad takt (reserv); rött när den ligger över (risk att kvoten tar slut i förtid).";

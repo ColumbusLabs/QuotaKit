@@ -27,7 +27,12 @@ public enum ClaudeProviderDescriptor {
         browserSupportExemption: { sourceMode, _, _ in sourceMode == .auto })
     private static let credentials = ProviderCredentialAdapter(
         supportsAPIKeyOverride: true,
-        environmentProjections: [.apiKey(ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey)],
+        environmentProjections: [
+            .apiKey(ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey),
+            ProviderCredentialEnvironmentProjection(
+                key: ClaudeAdminAPISettingsReader.workspaceSpendEnvironmentKey,
+                value: { $0.claudeWorkspaceSpendEnabled.map(String.init) }),
+        ],
         tokenResolver: { kind, environment, _ in
             guard kind == .primary,
                   let token = ClaudeAdminAPISettingsReader.apiKey(environment: environment)
@@ -211,7 +216,8 @@ public enum ClaudeProviderDescriptor {
                     costVisibilityResolver: { context in
                         context.showOptionalUsage || context.snapshot?.loginMethod(for: .claude) == "Admin API"
                     },
-                    supportsInlineTokenCostDashboard: true),
+                    supportsInlineTokenCostDashboard: true,
+                    showsQuotaWeekCost: true),
                 optionalDetails: ProviderOptionalDetailsPresentation(
                     costSummaryTitles: ["Usage summary", "Cost items"])),
             fetchPlan: ProviderFetchPlan(
@@ -496,12 +502,13 @@ private struct ClaudePlannedFetchStrategy: ProviderFetchStrategy {
 struct ClaudeAdminAPIFetchStrategy: ProviderFetchStrategy {
     let id: String = "claude.admin-api"
     let kind: ProviderFetchKind = .apiToken
-    let usageFetcher: @Sendable (String) async throws -> ClaudeAdminAPIUsageSnapshot
+    let usageFetcher: @Sendable (String, Bool) async throws -> ClaudeAdminAPIUsageSnapshot
 
     init(
-        usageFetcher: @escaping @Sendable (String) async throws -> ClaudeAdminAPIUsageSnapshot = { apiKey in
-            try await ClaudeAdminAPIUsageFetcher.fetchUsage(apiKey: apiKey)
-        })
+        usageFetcher: @escaping @Sendable (String, Bool) async throws
+            -> ClaudeAdminAPIUsageSnapshot = { apiKey, enabled in
+                try await ClaudeAdminAPIUsageFetcher.fetchUsage(apiKey: apiKey, workspaceSpendEnabled: enabled)
+            })
     {
         self.usageFetcher = usageFetcher
     }
@@ -519,7 +526,8 @@ struct ClaudeAdminAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw ClaudeAdminAPISettingsError.missingToken
         }
-        let usage = try await self.usageFetcher(apiKey)
+        let usage = try await self.usageFetcher(
+            apiKey, context.env[ClaudeAdminAPISettingsReader.workspaceSpendEnvironmentKey] == "true")
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "admin-api")
@@ -701,7 +709,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             manualCookieHeader: webEnrichmentAccess.manualCookieHeader,
             webOrganizationID: context.settings?.claude?.organizationID,
             webExtrasTimeout: context.webTimeout,
-            includePrepaidBalance: includePrepaidBalance)
+            includePrepaidBalance: includePrepaidBalance,
+            includeAccountIdentity: context.includeAccountIdentity)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return ProviderFetchResult(
             usage: Self.snapshot(from: usage),
@@ -751,7 +760,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             providerID: .claude,
             accountEmail: usage.accountEmail,
             accountOrganization: usage.accountOrganization,
-            loginMethod: usage.loginMethod)
+            loginMethod: usage.loginMethod,
+            widgetAccountOwnerID: usage.accountID)
         let primary = usage.primaryWindowKind == .spendLimit ? nil : usage.primary
         return UsageSnapshot(
             primary: primary,
@@ -930,7 +940,8 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
                 useWebExtras: false,
                 manualCookieHeader: Self.manualCookieHeader(from: context),
                 webOrganizationID: context.settings?.claude?.organizationID,
-                includePrepaidBalance: context.includeOptionalUsage)
+                includePrepaidBalance: context.includeOptionalUsage,
+                includeAccountIdentity: context.includeAccountIdentity)
             return try await fetcher.loadLatestUsage(model: "sonnet")
         }
         let race = BoundedTaskJoin(sourceTask: sourceTask)

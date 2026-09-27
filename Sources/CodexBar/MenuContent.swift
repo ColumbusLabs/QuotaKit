@@ -17,7 +17,8 @@ struct MenuContent: View {
             store: self.store,
             settings: self.settings,
             account: self.account,
-            updateReady: self.updater.updateStatus.isUpdateReady)
+            updateReady: self.updater.updateStatus.isUpdateReady,
+            canCheckForUpdates: self.updater.isAvailable)
 
         VStack(alignment: .leading, spacing: 8) {
             ForEach(Array(descriptor.sections.enumerated()), id: \.offset) { index, section in
@@ -110,6 +111,8 @@ struct MenuContent: View {
         action.systemImageName
     }
 
+    // Keep the existing provider flow together; splitting it would obscure state transitions.
+    // swiftlint:disable cyclomatic_complexity
     private func perform(_ action: MenuDescriptor.MenuAction) {
         switch action {
         case .refresh:
@@ -118,6 +121,8 @@ struct MenuContent: View {
             self.actions.refreshAugmentSession()
         case .installUpdate:
             self.actions.installUpdate()
+        case .checkForUpdates:
+            self.updater.checkForUpdates(nil)
         case .dashboard:
             self.actions.openDashboard()
         case .statusPage:
@@ -138,8 +143,12 @@ struct MenuContent: View {
             if let urlObj = URL(string: url) {
                 NSWorkspace.shared.open(urlObj)
             }
+        case .openCodexWorkspaces:
+            CodexWorkspacesPresenter.shared.present(store: self.store, settings: self.settings)
         case .settings:
             self.actions.openSettings()
+        case let .providerSettings(provider):
+            self.actions.openProviderSettings(provider)
         case .about:
             self.actions.openAbout()
         case .quit:
@@ -150,6 +159,7 @@ struct MenuContent: View {
             return
         }
     }
+    // swiftlint:enable cyclomatic_complexity
 }
 
 struct MenuActions {
@@ -163,6 +173,7 @@ struct MenuActions {
     let switchAccount: (UsageProvider) -> Void
     let openTerminal: (String) -> Void
     let openSettings: () -> Void
+    let openProviderSettings: (UsageProvider) -> Void
     let openAbout: () -> Void
     let quit: () -> Void
     let copyError: (String) -> Void

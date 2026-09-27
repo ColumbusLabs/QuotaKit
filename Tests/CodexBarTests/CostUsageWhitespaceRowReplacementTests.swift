@@ -87,8 +87,10 @@ struct CostUsageWhitespaceRowReplacementTests {
             let partial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
             let started = try #require(partial.files[firstPath])
             #expect(started.codexScanComplete == false)
-            #expect(started.hasCurrentCodexParser)
-            #expect(started.codexRows?.contains { $0.input == 200 } == false)
+            // The old generation stays committed while the replacement parser is partial.
+            #expect(!started.hasCurrentCodexParser)
+            #expect(started.codexReplacementScanPending == true)
+            #expect(started.codexRows?.contains { $0.input == 200 } == true)
             #expect(partial.files[otherPath]?.codexRows?.map(\.input) == [50])
         }
         options.maxCodexScanBytesPerRefresh = 512 * 1024 * 1024

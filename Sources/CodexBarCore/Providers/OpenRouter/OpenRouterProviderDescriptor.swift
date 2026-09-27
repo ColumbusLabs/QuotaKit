@@ -124,13 +124,18 @@ public enum OpenRouterProviderDescriptor {
                     id: "openrouter.js",
                     provider: .openrouter,
                     bundledPlugin: "openrouter",
-                    secretKey: OpenRouterSettingsReader.envKey,
                     sourceLabel: "api",
                     validateContext: { context in
+                        guard self.credentials.resolveToken(environment: context.env) != nil else {
+                            throw ProviderFetchClassifiedError(
+                                kind: .missingCredential,
+                                message: OpenRouterSettingsError.missingToken.localizedDescription)
+                        }
                         try OpenRouterSettingsReader.validateEndpointOverrides(environment: context.env)
                     },
                     resolveValues: { context in
-                        self.scriptValues(environment: context.env, settings: context.settings)
+                        // Keep the strategy available so missing keys receive actionable guidance.
+                        self.scriptValues(environment: context.env, settings: context.settings) ?? .init()
                     },
                     isEnabled: { _ in true })]
             }))
@@ -170,7 +175,8 @@ public enum OpenRouterSettingsError: LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .missingToken:
-            "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings."
+            "Enter a regular API key or a Management API key in the API key field, or set OPENROUTER_API_KEY. "
+                + "In Settings, the optional Management API key field does not replace it."
         case let .invalidEndpointOverride(key):
             "OpenRouter endpoint override \(key) must use HTTPS or a bare host."
         }

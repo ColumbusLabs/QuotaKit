@@ -15,7 +15,9 @@ extension UsageMenuCardView.Model {
         let tokenError: String?
         let account: AccountInfo
         let accountIsAuthoritative: Bool
-        let planOverride: String?
+        let planOverride: PlanOverride
+        let planEmphasis: PlanEmphasis
+        let lastKnownUsageCapturedAt: Date?
         let isRefreshing: Bool
         let lastError: String?
         let limitsAvailability: UsageLimitsAvailability?
@@ -44,7 +46,9 @@ extension UsageMenuCardView.Model {
         let paceVisible: Bool
         let usesLiveSubtitle: Bool
         let preferredCurrencyCode: String
+        let costUsageBucketCalendar: Calendar
         let now: Date
+        let observedWeeklyResets: [CostUsageQuotaResetObservation]
 
         init(
             provider: UsageProvider,
@@ -59,7 +63,9 @@ extension UsageMenuCardView.Model {
             tokenError: String?,
             account: AccountInfo,
             accountIsAuthoritative: Bool = false,
-            planOverride: String? = nil,
+            planOverride: PlanOverride = .automatic,
+            planEmphasis: PlanEmphasis = .none,
+            lastKnownUsageCapturedAt: Date? = nil,
             isRefreshing: Bool,
             lastError: String?,
             limitsAvailability: UsageLimitsAvailability? = nil,
@@ -86,7 +92,9 @@ extension UsageMenuCardView.Model {
             paceVisible: Bool = true,
             usesLiveSubtitle: Bool = false,
             preferredCurrencyCode: String = "auto",
-            now: Date)
+            costUsageBucketCalendar: Calendar = .current,
+            now: Date,
+            observedWeeklyResets: [CostUsageQuotaResetObservation] = [])
         {
             self.provider = provider
             self.metadata = metadata
@@ -101,6 +109,8 @@ extension UsageMenuCardView.Model {
             self.account = account
             self.accountIsAuthoritative = accountIsAuthoritative
             self.planOverride = planOverride
+            self.planEmphasis = planEmphasis
+            self.lastKnownUsageCapturedAt = lastKnownUsageCapturedAt
             self.isRefreshing = isRefreshing
             self.lastError = lastError
             self.limitsAvailability = limitsAvailability
@@ -127,7 +137,9 @@ extension UsageMenuCardView.Model {
             self.paceVisible = paceVisible
             self.usesLiveSubtitle = usesLiveSubtitle
             self.preferredCurrencyCode = preferredCurrencyCode
+            self.costUsageBucketCalendar = costUsageBucketCalendar
             self.now = now
+            self.observedWeeklyResets = observedWeeklyResets
         }
     }
 }

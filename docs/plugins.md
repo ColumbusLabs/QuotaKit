@@ -16,6 +16,24 @@ Plugins are local files only. QuotaKit has no plugin catalog, does not download 
 resolve imports. A plugin cannot use Node, browser globals, subprocesses, local files, databases, OAuth, WebViews, or
 arbitrary native APIs. The maximum source size is 1 MiB.
 
+App refreshes are scoped to the installed plugin runtime and its fetch settings. Disabling, removing, reloading, or
+reconfiguring a plugin prevents an older refresh from publishing usage or errors. A replacement refresh waits for retired
+work to finish and reads the current configuration when its fetch starts. Display-only preferences do not invalidate usage.
+
+## Bundled API-key provider registration
+
+For a bundled plugin with a simple API-key configuration, declare a public `PluginProviderSpec` named `spec` in its
+provider-owned `*ProviderDescriptor.swift` file, then expose `descriptor = Self.spec.makeDescriptor()`. The spec owns
+metadata, branding, environment-key aliases, the API-key field, and optional presentation and script-settings overrides;
+the bundled script still owns requests and parsing. See `XKiroProviderDescriptor` for a minimal example and
+`ZenMuxProviderDescriptor` for optional usage settings.
+
+Run `Scripts/regenerate-provider-manifests.sh` after wiring the provider. A spec with an `apiKeyField` and no separate
+app implementation registers `PluginAPIKeyProviderImplementation(spec: ...)` in the existing provider order. Preserve
+the provider's availability and detail-line policies explicitly. Providers with extra fields or token-account behavior
+can share the descriptor builder while retaining their app implementation, as GitKraken and DeepInfra do. Keep native
+credential discovery and cookie/session handling outside this API-key-only building block.
+
 ## Minimal plugin
 
 ```js
@@ -54,6 +72,7 @@ defineProvider({
 - `name`: trimmed display name, 1–80 UTF-8 bytes.
 - `icon` (optional): `{monogram, tint}`. `monogram` is 1–3 characters; `tint` is `#RRGGBB`. The fallback is the first
   letter of `name` with a neutral tint. File/SVG icons are not supported.
+- `topLevel` (optional): set to `true` to give an enabled plugin its own provider-switcher tab. The default is `false`.
 - `endpoints`: 1–16 declared network origins. A fixed endpoint is a normalized HTTPS origin such as
   `https://api.example.com` (no path, query, fragment, or user info). A settings-derived endpoint is
   `{setting: "BASE_URL", policy: "https"}`, `"https-or-loopback-http"`, or
@@ -251,6 +270,9 @@ Transpile failures appear as that plugin's Settings error.
 4. For loopback, IP-literal, or `.local` origins, type every normalized origin exactly before approval.
 5. Enter manifest settings and enable the plugin. Its refresh result appears in its generic menu card.
 
+QuotaKit serializes replacement refreshes for each plugin. Results from an older request are discarded when the
+plugin is disabled, reconfigured, removed, or reloaded; a later refresh reads the current settings when it begins.
+
 Approval records live outside plugin files under `~/Library/Application Support/QuotaKit/plugin-approvals.json`. A
 change to instance ID, normalized origins, auth mode/header, secure setting names, capabilities, or cookie domains
 invalidates approval before the next request. There is no bulk approval or import path.
@@ -260,6 +282,13 @@ Bifrost's bundled plugin uses a configured HTTPS or private-network HTTP gateway
 `quotakit plugins list` shows locally discovered plugins. `quotakit plugins fetch <id>` displays the same approval
 fields and can approve only from an interactive terminal; redirected/headless input fails closed. Browser-cookie plugins
 are app-only and fail closed in the CLI.
+
+Every CLI command discovers user plugins before loading config, so `config providers` and `config dump` include
+installed plugins. Unrelated app and CLI config writes preserve unavailable plugin records, including settings and
+secrets, in their original positions. Missing files, discovery failures, and platforms without the plugin runtime do
+not delete saved data. `config providers` labels these entries as `plugin (not loaded)`. Their opaque fields are
+redacted in `config dump` unless `--show-secrets` is explicitly requested.
+After discovery, entries using an unsupported future config format remain unchanged if an edit would lose data.
 
 Delete from Settings with **Delete…**. QuotaKit removes the plugin file, matching TypeScript cache output, approval,
 per-instance settings and secrets, and per-instance usage history. Invalid plugin files are listed with their validation
@@ -277,3 +306,15 @@ surfaces (status feeds, token accounts, OAuth, browser automation, storage probe
 specific payloads). Rendering is limited to generic snapshots and declarative details. There are no remote catalogs,
 downloaded plugins/assets, custom SVGs, imports, arbitrary local I/O, or compatibility fallback from an unknown ID to a
 built-in provider.
+
+## Provider switcher tabs
+
+Set `topLevel: true` in the manifest to give an enabled plugin its own tab when **Merge Icons** is enabled. The tab uses
+the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins using the original
+appended-card placement. With Merge Icons disabled, plugins retain appended-card placement.
+
+A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
+enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
+refreshes update visible plugin cards, and repeated requests for the same plugin share its in-flight refresh.
+Overview continues to summarize built-in providers. This setting changes placement only: it grants no additional host
+capabilities and does not change network approval.

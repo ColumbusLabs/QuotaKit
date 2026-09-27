@@ -118,7 +118,7 @@ if [[ "$path_count" -eq 0 ]]; then
 fi
 
 macos_test_filter=""
-macos_shard_indexes='[0,1]'
+macos_shard_indexes='[0,1,2,3]'
 if [[ "$settings_appearance_changed" == true ]] && ! grep -Eq \
   '^[[:space:]]*(struct|final class|class)[[:space:]]+SettingsWindowAppearanceTests[[:space:]:{]' \
   "${repository_root}/Tests/CodexBarTests/SettingsWindowAppearanceTests.swift"

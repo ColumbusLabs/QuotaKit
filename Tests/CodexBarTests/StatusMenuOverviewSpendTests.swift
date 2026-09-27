@@ -135,8 +135,52 @@ extension StatusMenuTests {
         #expect(controller.overviewSpendDashboardModel(providers: [.codex], now: now).groups.first?.totalCost == 4)
     }
 
+    @Test(arguments: ["codex", "codex:account", "claude:hidden"])
+    func `initial overview waits for source filtering before sharing`(hiddenSource: String) {
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
+        }
+        let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
+        store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
+            sessionTokens: 10,
+            sessionCostUSD: 2,
+            last30DaysTokens: 10,
+            last30DaysCostUSD: 2,
+            daily: [.init(
+                date: "2026-08-17",
+                inputTokens: 5,
+                outputTokens: 5,
+                totalTokens: 10,
+                costUSD: 2,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
+            updatedAt: now), provider: .codex)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: UsageFetcher().loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        #expect(store.spendDashboardPublication.configuration == nil)
+        #expect(controller.overviewShareStatsPayload(now: now)?.currencies.first?.estimatedCost == 2)
+        settings.spendDashboardHiddenSourceIDs = [hiddenSource]
+        #expect(controller.overviewShareStatsPayload(now: now) == nil)
+        let model = controller.overviewSpendDashboardModel(providers: [.codex], now: now)
+        #expect(model.groups.isEmpty)
+        #expect(controller.makeOverviewShareStatsMenuItem(model: model) == nil)
+    }
+
     @Test
-    func `overview consumes shared publication without starting a loader`() {
+    func `overview consumes shared publication without starting a loader`() throws {
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -213,6 +257,11 @@ extension StatusMenuTests {
         #expect(model.groups.first?.totalCost == 12)
         #expect(controller.overviewSpendSubscriptionCount(providers: providers) == 3)
 
+        settings.spendDashboardHiddenSourceIDs = ["codex:second"]
+        let sharePayload = try #require(controller.overviewShareStatsPayload(now: now))
+        #expect(Set(sharePayload.providers.map(\.providerName)) == ["codex:first", "claude"])
+        #expect(sharePayload.currencies.first?.estimatedCost == 9)
+
         guard let claudeMetadata = ProviderRegistry.shared.metadata[.claude] else {
             Issue.record("Claude metadata missing")
             return
@@ -220,6 +269,26 @@ extension StatusMenuTests {
         settings.setProviderEnabled(provider: .claude, metadata: claudeMetadata, enabled: false)
         let staleOwnerModel = controller.overviewSpendDashboardModel(providers: providers, now: now)
         #expect(staleOwnerModel.groups.isEmpty)
+    }
+
+    @Test
+    func `overview fallback excludes pi local history from subscription count`() {
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.costUsageEnabled = true
+        let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: UsageFetcher().loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        #expect(store.spendDashboardPublication.configuration == nil)
+        #expect(controller.overviewSpendSubscriptionCount(providers: [.claude, .pi]) == 1)
     }
 
     @Test
@@ -385,6 +454,13 @@ extension StatusMenuTests {
         #expect(Set(overviewRows) == Set(scopes.visible.map { "overviewRow-\($0.rawValue)" }))
         #expect(overviewRows.count == 6)
         #expect(ids.contains("overviewSpendSummary"))
+        #expect(ids.contains("overviewShareStats"))
+        let shareItem = try #require(menu.items.first {
+            ($0.representedObject as? String) == "overviewShareStats"
+        })
+        #expect(shareItem.title == "Share Usage Snapshot…")
+        #expect(shareItem.image != nil)
+        #expect(shareItem.action == #selector(StatusItemController.presentOverviewShareStats))
         #expect(Set(model.groups.first?.providers.map(\.provider) ?? []) == Set(pricedProviders))
         #expect(abs((model.groups.first?.totalCost ?? -1) - 85) < 1e-9)
         #expect(summary.primarySpendText == "~$85.00")
@@ -464,6 +540,9 @@ extension StatusMenuTests {
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
-        return menu.items.contains { ($0.representedObject as? String) == "overviewSpendSummary" }
+        let hasSpendSummary = menu.items.contains { ($0.representedObject as? String) == "overviewSpendSummary" }
+        let hasShareAction = menu.items.contains { ($0.representedObject as? String) == "overviewShareStats" }
+        #expect(hasShareAction == hasSpendSummary)
+        return hasSpendSummary
     }
 }

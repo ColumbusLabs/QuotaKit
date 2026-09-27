@@ -23,6 +23,9 @@ extension SettingsStore {
     /// stay passive until the user explicitly selects one again.
     func effectiveSelectedTokenAccount(for provider: UsageProvider) -> ProviderTokenAccount? {
         let support = TokenAccountSupportCatalog.support(for: provider)
+        if support?.passiveSourceModes.contains(self.providerConfig(for: provider)?.source ?? .auto) == true {
+            return nil
+        }
         if support?.selectedAccountRequiresManualCookieSource == true,
            (self.providerConfig(for: provider)?.cookieSource ?? .auto) == .auto
         {
@@ -281,8 +284,9 @@ extension SettingsStore {
     func openTokenAccountsFile() {
         do {
             let data = try self.configStore.encodedData(for: self.config)
-            self.configFileWatcher?.noteAppWrite(data: data)
-            try self.configStore.saveEncodedData(data)
+            try ConfigFileWatcher.withAppWrite(data, watcher: self.configFileWatcher) {
+                try self.configStore.saveEncodedData(data)
+            }
         } catch {
             CodexBarLog.logger(LogCategories.tokenAccounts).error("Failed to persist config: \(error)")
             return

@@ -243,6 +243,7 @@
 "No cost history data." = "Không có dữ liệu lịch sử chi phí.";
 "No data available" = "Không có dữ liệu";
 "No data yet" = "Chưa có dữ liệu";
+"Workspaces" = "Không gian làm việc";
 "No enabled providers available for Overview." = "Không có nhà cung cấp nào được bật cho Tổng quan.";
 "No providers selected" = "Chưa có nhà cung cấp nào được chọn";
 "No token accounts yet." = "Chưa có tài khoản token.";
@@ -492,6 +493,7 @@
 "cost_summary_style_inline_help" = "Hiển thị tóm tắt chi phí trực tiếp trong menu chính.";
 "cost_summary_style_submenu_help" = "Thay vào đó hiển thị menu con Chi phí chi tiết.";
 "cost_summary_style_both_help" = "Hiển thị cả tóm tắt menu chính và menu con Chi phí chi tiết.";
+"Month to date" = "Từ đầu tháng đến nay";
 "cost_history_window_title" = "Cửa sổ lịch sử";
 "cost_history_window_help" = "Đặt số ngày nhật ký sử dụng cục bộ xuất hiện trong menu.";
 "cost_history_days_title" = "Cửa sổ lịch sử: %d ngày";
@@ -611,6 +613,12 @@
 "cost_summary_off" = "Tắt";
 "merge_icons_title" = "Hợp nhất các biểu tượng";
 "merge_icons_subtitle" = "Sử dụng một biểu tượng thanh menu duy nhất với trình chuyển đổi Nhà cung cấp.";
+"merged_icon_style_title" = "Kiểu biểu tượng kết hợp";
+"merged_icon_style_subtitle" = "Bộ chuyển đổi lần lượt hiển thị từng nhà cung cấp; Xếp chồng hiển thị hai nhà cung cấp cùng lúc, mỗi nhà cung cấp một dòng.";
+"merged_icon_style_switcher" = "Bộ chuyển đổi";
+"merged_icon_style_stacked" = "Xếp chồng";
+"merge_icon_stacked_top_provider_title" = "Dòng trên";
+"merge_icon_stacked_bottom_provider_title" = "Dòng dưới";
 "show_most_used_provider_title" = "Hiển thị Nhà cung cấp";
 "show_most_used_provider_subtitle" = "thanh menu được sử dụng nhiều nhất tự động hiển thị Nhà cung cấp gần nhất với giới hạn tốc độ của nó.";
 "display_mode_title" = "Chế độ hiển thị";
@@ -879,6 +887,12 @@
 "usage_percent_suffix_used" = "đã sử dụng";
 "Store multiple DeepSeek API keys." = "Lưu trữ nhiều khóa DeepSeek API.";
 "This week" = "Tuần này";
+"Current window" = "Cửa sổ hiện tại";
+"Last week" = "Tuần trước";
+"%d weeks ago" = "%d tuần trước";
+"Previous window" = "Cửa sổ trước";
+"%d windows ago" = "%d cửa sổ trước";
+"Recent windows" = "Cửa sổ gần đây";
 "Week" = "Tuần";
 "Month" = "Tháng";
 "Models" = "Mô hình";
@@ -1056,9 +1070,9 @@
 "Source" = "Nguồn";
 "State" = "Trạng thái";
 "Unavailable" = "Không có sẵn";
-"Weekly" = "Không phát hiện được";
+"Weekly" = "Hàng tuần";
 "Weekly quota" = "Không phát hiện được";
-"not detected" = "hàng tuần";
+"not detected" = "Không phát hiện được";
 "Estimated from local Codex logs for the selected account." = "Được ước tính từ nhật ký Codex cục bộ cho tài khoản đã chọn.";
 "minimax_usage_amount_format" = "Mức sử dụng : %@ / %@";
 "minimax_used_percent_format" = "Đã sử dụng %@";
@@ -1349,6 +1363,8 @@
 "Tracked tokens" = "Token được theo dõi";
 "Subscriptions" = "Gói đăng ký";
 "By subscription" = "Theo gói đăng ký";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Không có lịch sử theo mô hình";
 "Daily estimated spend" = "Chi tiêu ước tính hằng ngày";
 "Hourly estimated spend" = "Chi tiêu ước tính theo giờ";
@@ -1445,6 +1461,33 @@
 "%d more accounts ready" = "Thêm %d tài khoản đã sẵn sàng";
 "Shows the hidden accounts" = "Hiển thị các tài khoản bị ẩn";
 "%@ remaining" = "Còn lại %@";
+"codex_workspaces_cost_unavailable" = "Không có dữ liệu chi phí";
+"codex_workspaces_elevated_usage" = "Mức sử dụng tăng";
+"codex_workspaces_estimated_cost_short" = "Chi phí ước tính";
+"codex_workspaces_estimated_cost_value" = "Ước tính %@";
+"codex_workspaces_estimated_local_logs" = "Ước tính từ nhật ký Codex cục bộ";
+"codex_workspaces_failed_read_logs" = "Không thể đọc nhật ký Codex";
+"codex_workspaces_high_usage" = "Mức sử dụng cao";
+"codex_workspaces_indexing_local_logs" = "Đang lập chỉ mục nhật ký Codex cục bộ…";
+"codex_workspaces_indexing_projects" = "Đang lập chỉ mục dự án…";
+"codex_workspaces_local_codex_chat" = "Cuộc trò chuyện Codex cục bộ";
+"codex_workspaces_model" = "Mô hình";
+"codex_workspaces_no_local_usage" = "Chưa có dữ liệu sử dụng Codex cục bộ";
+"codex_workspaces_no_sessions" = "Không có phiên nào trong không gian làm việc này";
+"codex_workspaces_normal_usage" = "Mức sử dụng bình thường";
+"codex_workspaces_partial_data" = "Dữ liệu một phần";
+"codex_workspaces_refresh_usage_data" = "Làm mới dữ liệu sử dụng";
+"codex_workspaces_retry" = "Thử lại";
+"codex_workspaces_saving_project_index" = "Đang lưu chỉ mục dự án…";
+"codex_workspaces_scanning_logs" = "Đang quét nhật ký Codex…";
+"codex_workspaces_session" = "Phiên";
+"codex_workspaces_session_count" = "Phiên: %@";
+"codex_workspaces_sessions" = "Phiên";
+"codex_workspaces_started" = "Đã bắt đầu";
+"codex_workspaces_title" = "Không gian làm việc";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_tokens" = "Token";
+"codex_workspaces_top_model" = "Mô hình hàng đầu";
 "Finish now" = "Hoàn tất ngay";
 "Continue in background" = "Tiếp tục trong nền";
 "(%d%% risk)" = "(%d %% rủi ro cạn kiệt)";
@@ -1461,6 +1504,7 @@
 "More" = "Nhiều";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Cài đặt…";
 "Install plugin" = "Cài đặt plugin";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Sao chép tệp JavaScript hoặc TypeScript vào thư mục plugin.";
@@ -1564,3 +1608,29 @@
 "Restore Defaults" = "Khôi phục mặc định";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Chọn các hàng sử dụng xuất hiện trong menu của nhà cung cấp này, bản xem trước Cài đặt và Tổng quan.";
 "%@ (unavailable)" = "%@ (không khả dụng)";
+"overview_layout_title" = "Bố cục Tổng quan";
+"overview_layout_subtitle" = "Chọn lượng thông tin hiển thị trong Tổng quan.";
+"overview_layout_detailed" = "Chi tiết";
+"overview_layout_compact" = "Gọn";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Tổng phụ ước tính (%@): %@";
+"Excluded requests with missing final usage: %d" = "Yêu cầu bị loại trừ do thiếu dữ liệu sử dụng cuối cùng: %d";
+"antigravity_cost_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải phí hay tín dụng Antigravity";
+"antigravity_quota_window_note" = "Chi phí cửa sổ bao gồm mọi mô hình · cửa sổ hiển thị là nhóm bị giới hạn nhất";
+"antigravity_no_priced_token_history" = "Không có lịch sử token Antigravity được định giá.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
+"Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";
+
+/* Account widgets */
+"section_widgets" = "Tiện ích";
+"account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
+"account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";
+"claude_limited_usage_detail" = "Thông tin sử dụng ít chi tiết";
+"%@ weekly" = "%@ hàng tuần";
+
+"Color Pace Indicator" = "Tô màu nhịp sử dụng";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Xanh khi mức sử dụng chậm hơn nhịp dự kiến (còn dư); đỏ khi nhanh hơn (nguy cơ hết hạn mức sớm).";

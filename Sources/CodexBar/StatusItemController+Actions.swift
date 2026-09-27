@@ -184,12 +184,13 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             originatingMenuInteractionGeneration: originatingMenuInteractionGeneration)
     }
 
-    private func startManualRefresh(
+    func startManualRefresh(
         for provider: ProviderInstanceID?,
         originatingMenuID: ObjectIdentifier?,
         originatingMenuInteractionGeneration: Int?)
     {
         let firstPartyProvider = provider?.firstPartyProvider
+        let tracksFirstPartyCards = provider == nil || firstPartyProvider != nil
         let scope: ManualRefreshScope = provider.map(ManualRefreshScope.provider) ?? .global
         let scopedRefreshInFlight = provider.map { self.store.refreshingProviders.contains($0) }
             ?? !self.store.refreshingProviders.isEmpty
@@ -206,7 +207,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
               !scopedRefreshInFlight
         else { return }
 
-        let frozenModels = self.frozenManualRefreshMenuCardModels()
+        let frozenModels = tracksFirstPartyCards ? self.frozenManualRefreshMenuCardModels() : [:]
         let viewportRestoreRequests = self.armManualRefreshViewportRestoreRequests(
             originatingMenuID: originatingMenuID,
             originatingMenuInteractionGeneration: originatingMenuInteractionGeneration)
@@ -215,7 +216,9 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             var completed = false
             defer {
                 self.manualRefreshTasks[scope] = nil
-                self.menuCardRefreshMonitor.endManualRefresh(for: firstPartyProvider)
+                if tracksFirstPartyCards {
+                    self.menuCardRefreshMonitor.endManualRefresh(for: firstPartyProvider)
+                }
                 self.updatePersistentRefreshItemsEnabled()
                 if completed {
                     self.scheduleCompletedManualRefreshViewportRestore(viewportRestoreRequests)
@@ -239,6 +242,12 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                     for: provider,
                     refreshOpenMenusWhenComplete: true,
                     interaction: .userInitiated)
+            } else if let provider {
+                await self.withProviderInteraction(.userInitiated) {
+                    await self.store.refreshUserPlugin(provider)
+                    guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                    self.refreshOpenMenusAfterUserPluginRefresh(provider)
+                }
             } else {
                 await self.performStoreRefresh(
                     enrichmentMode: .forcedBackground,
@@ -249,16 +258,21 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             completed = true
         }
         self.manualRefreshTasks[scope] = task
-        self.menuCardRefreshMonitor.beginManualRefresh(frozenModels: frozenModels, provider: firstPartyProvider)
+        if tracksFirstPartyCards {
+            self.menuCardRefreshMonitor.beginManualRefresh(frozenModels: frozenModels, provider: firstPartyProvider)
+        }
         self.updatePersistentRefreshItemsEnabled()
     }
 
-    private func manualRefreshProvider(for menu: NSMenu?) -> ProviderInstanceID? {
+    func manualRefreshProvider(for menu: NSMenu?) -> ProviderInstanceID? {
         guard let menu else { return nil }
         if self.shouldMergeIcons {
             guard self.mergedMenu == nil || menu === self.mergedMenu else { return nil }
-            guard !self.isMergedOverviewSelected(in: menu) else { return nil }
-            return self.resolvedMenuProvider()?.instanceID
+            let enabledProviders = self.store.enabledFirstPartyProvidersForDisplay()
+            if let selection = self.resolvedMergedMenuSelection(enabledProviders: enabledProviders) {
+                return selection.instanceID
+            }
+            return self.resolvedMenuProvider(enabledProviders: enabledProviders)?.instanceID
         }
         return self.menuProviders[ObjectIdentifier(menu)]
     }
@@ -338,6 +352,10 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
     @objc func installUpdate() {
         self.updater.installUpdate()
+    }
+
+    @objc func checkForUpdates() {
+        self.updater.checkForUpdates(nil)
     }
 
     @objc func openDashboard() {
@@ -576,6 +594,16 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         self.openSettings(pane: nil)
     }
 
+    @objc func showProviderSettings(_ sender: NSMenuItem) {
+        guard let rawProvider = sender.representedObject as? String,
+              let provider = UsageProvider(rawValue: rawProvider)
+        else {
+            self.menuLogger.error("Provider settings action is missing a valid provider")
+            return
+        }
+        self.openSettings(pane: .provider(provider.instanceID))
+    }
+
     @objc func showSettingsAbout() {
         self.openSettings(pane: .about)
     }
@@ -662,46 +690,20 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
     func openTerminal(command: String) {
         let terminal = self.settings.terminalApp
-
-        if terminal != .terminal, !terminal.isInstalled {
-            CodexBarLog.logger(LogCategories.terminal).warning(
-                "\(terminal.label) is not installed, falling back to Terminal.app",
-                metadata: ["terminal": terminal.rawValue])
-            Self.openTerminalInDefaultTerminal(command: command)
-            return
-        }
-
-        if Self.executeAppleScript(terminal.appleScript(command: command)) {
-            return
-        }
-        guard terminal != .terminal else { return }
-
-        CodexBarLog.logger(LogCategories.terminal).warning(
-            "\(terminal.label) AppleScript failed, falling back to Terminal.app",
-            metadata: ["terminal": terminal.rawValue])
-        Self.openTerminalInDefaultTerminal(command: command)
-    }
-
-    private static func openTerminalInDefaultTerminal(command: String) {
-        self.executeAppleScript(TerminalApp.terminal.appleScript(command: command))
-    }
-
-    /// Executes an AppleScript and returns `true` on success, `false` on failure.
-    @discardableResult
-    private static func executeAppleScript(_ source: String) -> Bool {
-        if let appleScript = NSAppleScript(source: source) {
-            var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
-            if let error {
+        Task { @MainActor in
+            switch await TerminalLauncher().launch(terminal, command: command) {
+            case .selected:
+                break
+            case .fallback:
+                CodexBarLog.logger(LogCategories.terminal).warning(
+                    "\(terminal.label) launch failed, fell back to Terminal.app",
+                    metadata: ["terminal": terminal.rawValue])
+            case .failed:
                 CodexBarLog.logger(LogCategories.terminal).error(
-                    "Failed to execute AppleScript",
-                    metadata: ["error": String(describing: error)])
-                return false
+                    "Failed to open terminal",
+                    metadata: ["terminal": terminal.rawValue])
             }
-            return true
         }
-        CodexBarLog.logger(LogCategories.terminal).error("Failed to compile AppleScript")
-        return false
     }
 
     private func resolvedShortcutProvider() -> UsageProvider {

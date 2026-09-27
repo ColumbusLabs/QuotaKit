@@ -208,6 +208,45 @@ struct GrokMenuCardModelTests {
         #expect(!lines.contains(where: { $0.hasPrefix("Credits:") }))
     }
 
+    @Test
+    func `Grok reset credits follow optional usage and section visibility`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let metadata = try #require(ProviderDefaults.metadata[.grok])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            grokResetCredits: GrokRateLimitResetCreditsSnapshot(
+                expirations: [now.addingTimeInterval(86400)], updatedAt: now),
+            updatedAt: now)
+        func model(showOptionalUsage: Bool) -> UsageMenuCardView.Model {
+            UsageMenuCardView.Model.make(.init(
+                provider: .grok,
+                metadata: metadata,
+                snapshot: snapshot,
+                credits: nil,
+                creditsError: nil,
+                dashboard: nil,
+                dashboardError: nil,
+                tokenSnapshot: nil,
+                tokenError: nil,
+                account: AccountInfo(email: nil, plan: nil),
+                isRefreshing: false,
+                lastError: nil,
+                usageBarsShowUsed: false,
+                resetTimeDisplayStyle: .countdown,
+                tokenCostUsageEnabled: false,
+                showOptionalCreditsAndExtraUsage: showOptionalUsage,
+                hidePersonalInfo: false,
+                now: now))
+        }
+        let visible = model(showOptionalUsage: true)
+        #expect(visible.codexResetCredits?.text == "1 available")
+        #expect(visible.usageItemDescriptors.contains { $0.id == .codexResetCredits })
+        #expect(visible.applyingUsageItemVisibility(hiddenItemIDs: [.codexResetCredits])
+            .codexResetCredits == nil)
+        #expect(model(showOptionalUsage: false).codexResetCredits == nil)
+    }
+
     private static func date(_ value: String) throws -> Date {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]

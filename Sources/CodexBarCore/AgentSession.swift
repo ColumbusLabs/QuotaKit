@@ -149,6 +149,22 @@ struct DirectoryMetadataScanBudget {
         clock() < self.deadline
     }
 
+    func compactMapWhileTimeRemains<Result>(
+        _ urls: [URL],
+        clock: () -> Date = Date.init,
+        transform: (URL) -> Result?) -> [Result]
+    {
+        var results: [Result] = []
+        for url in urls {
+            // Enumeration already charged the entry count; enrichment shares its deadline.
+            guard self.hasTimeRemaining(clock: clock) else { break }
+            if let result = transform(url) {
+                results.append(result)
+            }
+        }
+        return results
+    }
+
     private mutating func entries(
         in directory: URL,
         fileManager: FileManager,
@@ -168,6 +184,7 @@ struct DirectoryMetadataScanBudget {
             guard let url = enumerator.nextObject() as? URL else { break }
             self.remainingEntryCount -= 1
             self.didVisitEntry?()
+            guard self.hasTimeRemaining(clock: clock) else { break }
             let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
             entries.append((url, isDirectory))
         }
@@ -182,6 +199,8 @@ public struct AgentProcessRecord: Equatable, Sendable {
     public let command: String
     public let executablePath: String?
     public let arguments: [String]?
+    /// Only Pi root selectors; nil means unavailable and an empty map means a known empty selection.
+    public let piSelectorEnvironment: [String: String]?
 
     public init(
         pid: Int32,
@@ -189,7 +208,8 @@ public struct AgentProcessRecord: Equatable, Sendable {
         startedAt: Date?,
         command: String,
         executablePath: String? = nil,
-        arguments: [String]? = nil)
+        arguments: [String]? = nil,
+        piSelectorEnvironment: [String: String]? = nil)
     {
         self.pid = pid
         self.ppid = ppid
@@ -197,6 +217,7 @@ public struct AgentProcessRecord: Equatable, Sendable {
         self.command = command
         self.executablePath = executablePath
         self.arguments = arguments
+        self.piSelectorEnvironment = PiProcessEnvironment.filtered(piSelectorEnvironment)
     }
 
     public var executableBasename: String {
@@ -242,7 +263,7 @@ public enum AgentPSOutputParser {
                 return !self.isObviousPiFamilyHelper(record.command)
             }
             if basename == AgentSession.Provider.codex.rawValue {
-                let arguments = self.arguments(record.command)
+                let arguments = self.arguments(record)
                 return self.isCodexAgentExecutable(record.command) &&
                     !arguments.contains("app-server") &&
                     !arguments.contains("--help") &&
@@ -280,7 +301,7 @@ public enum AgentPSOutputParser {
     }
 
     public static func piDialect(for record: AgentProcessRecord) -> AgentSession.Dialect? {
-        let tokens = record.command.split(whereSeparator: \ .isWhitespace).map(String.init)
+        let tokens = [record.executableBasename] + self.arguments(record)
         guard let firstToken = tokens.first else { return nil }
 
         let firstBasename = URL(fileURLWithPath: firstToken).lastPathComponent.lowercased()
@@ -327,6 +348,13 @@ public enum AgentPSOutputParser {
                 .standardizedFileURL.path,
         ])
         return allowedPaths.contains(URL(fileURLWithPath: executablePath).standardizedFileURL.path)
+    }
+
+    private static func arguments(_ record: AgentProcessRecord) -> [String] {
+        if let arguments = record.arguments {
+            return Array(arguments.dropFirst())
+        }
+        return self.arguments(record.command)
     }
 
     private static func arguments(_ command: String) -> [String] {

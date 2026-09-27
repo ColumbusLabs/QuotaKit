@@ -177,6 +177,8 @@ struct GeneralPane: View {
                 }
             }
 
+            PreferencesTransferSection(settings: self.settings)
+
             Section {
                 LabeledContent(L("open_menu_shortcut_title")) {
                     OpenMenuShortcutRecorder()
@@ -184,10 +186,15 @@ struct GeneralPane: View {
             } header: {
                 Text(L("section_keyboard_shortcut"))
             } footer: {
-                Button(L("quit_app")) { NSApp.terminate(nil) }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.top, 8)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(String(format: L("version_format"), AppVersion.displayString))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L("quit_app")) { NSApp.terminate(nil) }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 8)
             }
         }
         .formStyle(.grouped)

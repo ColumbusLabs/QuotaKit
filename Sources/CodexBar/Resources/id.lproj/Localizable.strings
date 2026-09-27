@@ -228,6 +228,7 @@
 "No cost history data." = "Tidak ada data riwayat biaya.";
 "No data available" = "Tidak ada data tersedia";
 "No data yet" = "Belum ada data";
+"Workspaces" = "Ruang Kerja";
 "No enabled providers available for Overview." = "Tidak ada penyedia aktif untuk Ikhtisar.";
 "No providers selected" = "Tidak ada penyedia dipilih";
 "No token accounts yet." = "Belum ada akun token.";
@@ -483,6 +484,7 @@
 "cost_summary_style_inline_help" = "Menampilkan ringkasan biaya langsung di menu utama.";
 "cost_summary_style_submenu_help" = "Menampilkan submenu Biaya terperinci sebagai gantinya.";
 "cost_summary_style_both_help" = "Menampilkan ringkasan menu utama dan submenu Biaya terperinci.";
+"Month to date" = "Bulan ini hingga kini";
 "cost_history_window_title" = "Jendela riwayat";
 "cost_history_window_help" = "Menentukan berapa hari log penggunaan lokal yang ditampilkan di menu.";
 "cost_history_days_title" = "Jendela riwayat: %d hari";
@@ -623,6 +625,12 @@
 "cost_summary_off" = "Mati";
 "merge_icons_title" = "Gabung Ikon";
 "merge_icons_subtitle" = "Gunakan satu ikon menu bar dengan pengalih penyedia.";
+"merged_icon_style_title" = "Gaya ikon gabungan";
+"merged_icon_style_subtitle" = "Switcher berpindah antar penyedia satu per satu; Bertumpuk menampilkan dua penyedia sekaligus, masing-masing satu baris.";
+"merged_icon_style_switcher" = "Switcher";
+"merged_icon_style_stacked" = "Bertumpuk";
+"merge_icon_stacked_top_provider_title" = "Baris atas";
+"merge_icon_stacked_bottom_provider_title" = "Baris bawah";
 "show_most_used_provider_title" = "Tampilkan penyedia paling sering digunakan";
 "show_most_used_provider_subtitle" = "Menu bar otomatis menampilkan penyedia yang paling dekat batas penggunaannya.";
 "display_mode_title" = "Mode tampilan";
@@ -891,6 +899,12 @@
 "usage_percent_suffix_used" = "terpakai";
 "Store multiple DeepSeek API keys." = "Simpan beberapa kunci API DeepSeek.";
 "This week" = "Minggu ini";
+"Current window" = "Jendela saat ini";
+"Last week" = "Minggu lalu";
+"%d weeks ago" = "%d minggu lalu";
+"Previous window" = "Jendela sebelumnya";
+"%d windows ago" = "%d jendela lalu";
+"Recent windows" = "Jendela terbaru";
 "Week" = "Minggu";
 "Month" = "Bulan";
 "Models" = "Model";
@@ -1352,6 +1366,8 @@
 "Tracked tokens" = "Token yang dilacak";
 "Subscriptions" = "Langganan";
 "By subscription" = "Berdasarkan langganan";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Tidak ada riwayat tingkat model";
 "Daily estimated spend" = "Perkiraan pengeluaran harian";
 "Hourly estimated spend" = "Perkiraan pengeluaran per jam";
@@ -1448,6 +1464,33 @@
 "%d more accounts ready" = "%d akun lainnya siap";
 "Shows the hidden accounts" = "Menampilkan akun yang disembunyikan";
 "%@ remaining" = "%@ tersisa";
+"codex_workspaces_title" = "Ruang Kerja";
+"codex_workspaces_estimated_local_logs" = "Diperkirakan dari log Codex lokal";
+"codex_workspaces_no_local_usage" = "Belum ada penggunaan Codex lokal";
+"codex_workspaces_tokens" = "Token";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_estimated_cost_short" = "Estimasi biaya";
+"codex_workspaces_estimated_cost_value" = "Diperkirakan %@";
+"codex_workspaces_sessions" = "Sesi";
+"codex_workspaces_session_count" = "Sesi: %@";
+"codex_workspaces_top_model" = "Model teratas";
+"codex_workspaces_local_codex_chat" = "Obrolan Codex lokal";
+"codex_workspaces_indexing_local_logs" = "Mengindeks log Codex lokal…";
+"codex_workspaces_failed_read_logs" = "Gagal membaca log Codex";
+"codex_workspaces_scanning_logs" = "Memindai log Codex…";
+"codex_workspaces_indexing_projects" = "Mengindeks proyek…";
+"codex_workspaces_saving_project_index" = "Menyimpan indeks proyek…";
+"codex_workspaces_cost_unavailable" = "Biaya tidak tersedia";
+"codex_workspaces_refresh_usage_data" = "Segarkan data penggunaan";
+"codex_workspaces_retry" = "Coba lagi";
+"codex_workspaces_partial_data" = "Data sebagian";
+"codex_workspaces_high_usage" = "Penggunaan tinggi";
+"codex_workspaces_elevated_usage" = "Penggunaan meningkat";
+"codex_workspaces_normal_usage" = "Penggunaan normal";
+"codex_workspaces_no_sessions" = "Tidak ada sesi di ruang kerja ini";
+"codex_workspaces_session" = "Sesi";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Dimulai";
 "Finish now" = "Selesaikan sekarang";
 "Continue in background" = "Lanjutkan di latar belakang";
 "(%d%% risk)" = "(%d%% risiko habis)";
@@ -1464,6 +1507,7 @@
 "More" = "Banyak";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Pasang…";
 "Install plugin" = "Pasang plugin";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Menyalin file JavaScript atau TypeScript ke direktori plugin.";
@@ -1566,3 +1610,29 @@
 "Restore Defaults" = "Pulihkan Default";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Pilih baris penggunaan yang muncul di menu penyedia ini, pratinjau Pengaturan, dan Ringkasan.";
 "%@ (unavailable)" = "%@ (tidak tersedia)";
+"overview_layout_title" = "Tata letak Ikhtisar";
+"overview_layout_subtitle" = "Pilih seberapa banyak informasi yang ditampilkan Ikhtisar.";
+"overview_layout_detailed" = "Terperinci";
+"overview_layout_compact" = "Ringkas";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Subtotal perkiraan (%@): %@";
+"Excluded requests with missing final usage: %d" = "Permintaan yang dikecualikan karena data penggunaan akhir tidak tersedia: %d";
+"antigravity_cost_estimate_hint" = "Penggunaan lokal × harga API publik · bukan tagihan atau kredit Antigravity";
+"antigravity_quota_window_note" = "Biaya jendela mencakup semua model · jendela yang ditampilkan adalah keluarga paling terbatas";
+"antigravity_no_priced_token_history" = "Tidak ada riwayat token Antigravity berharga yang tersedia.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Bagikan ringkasan penggunaan…";
+"Usage snapshot unavailable" = "Ringkasan penggunaan tidak tersedia";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit tidak dapat menyiapkan ringkasan penggunaan untuk dibagikan. Segarkan Penggunaan & pengeluaran, lalu coba lagi.";
+
+/* Account widgets */
+"section_widgets" = "Widget";
+"account_widgets_title" = "Perbarui akun untuk widget";
+"account_widgets_description" = "Pilih akun di setiap widget Account Usage. Memperbarui hingga enam akun per penyedia.";
+"claude_limited_usage_detail" = "Rincian penggunaan terbatas";
+"%@ weekly" = "%@ mingguan";
+
+"Color Pace Indicator" = "Warnai laju penggunaan";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Hijau saat penggunaan lebih lambat dari laju perkiraan (cadangan); merah saat lebih cepat (risiko kuota habis lebih awal).";

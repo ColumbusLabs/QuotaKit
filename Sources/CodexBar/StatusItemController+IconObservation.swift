@@ -8,7 +8,12 @@ extension StatusItemController {
         let visibleProviders = self.store.enabledProvidersForDisplay().map(\.rawValue).sorted().joined(separator: ",")
         let providerSignatures: String
         let primaryProvider: UsageProvider?
-        if mergeIcons {
+        if let stackedProviders = self.stackedMergeIconProvidersIfActive() {
+            primaryProvider = stackedProviders.top
+            providerSignatures = [stackedProviders.top, stackedProviders.bottom]
+                .map { self.providerStoreIconObservationSignature(for: $0, showBrandPercent: showBrandPercent) }
+                .joined(separator: "||")
+        } else if mergeIcons {
             let primary = self.primaryProviderForUnifiedIcon()
             primaryProvider = primary
             providerSignatures = self.providerStoreIconObservationSignature(
@@ -67,6 +72,9 @@ extension StatusItemController {
         let layoutConditionalWindowSignature = showBrandPercent
             ? self.storedMenuBarLayoutConditionalWindowSignature(for: provider, snapshot: snapshot)
             : nil
+        let layoutResetSignature = showBrandPercent
+            ? self.storedMenuBarLayoutResetSignature(for: provider, snapshot: snapshot)
+            : nil
 
         return [
             provider.rawValue,
@@ -89,7 +97,25 @@ extension StatusItemController {
             "layoutLanes=\(layoutLaneSignature ?? "nil")",
             "layoutExtras=\(layoutExtraSignature ?? "nil")",
             "layoutCondWindows=\(layoutConditionalWindowSignature ?? "nil")",
+            "layoutResets=\(layoutResetSignature ?? "nil")",
         ].joined(separator: "|")
+    }
+
+    private func storedMenuBarLayoutResetSignature(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
+        guard !resolution.usesLegacyRendering else { return nil }
+        let selections = Set(resolution.layout
+            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals).compactMap(\.resetWindow))
+        guard !selections.isEmpty else { return nil }
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
+        var hasher = Hasher()
+        for selection in PercentWindow.allCases where selections.contains(selection) {
+            let window = windows.resetWindow(selection, snapshot: snapshot)
+            hasher.combine(selection)
+            hasher.combine(window?.resetsAt)
+            hasher.combine(window?.resetDescription)
+        }
+        return String(hasher.finalize())
     }
 
     private func storedMenuBarLayoutAccountSignature(
@@ -97,7 +123,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering,
               resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
                   .contains(.accountLabel),
@@ -110,7 +136,7 @@ extension StatusItemController {
     }
 
     private func storedMenuBarLayoutCostSignature(for provider: UsageProvider) -> String? {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
@@ -135,7 +161,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let showsBalance = resolution.layout
             .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
@@ -165,7 +191,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
@@ -175,10 +201,17 @@ extension StatusItemController {
                 guard case let .pace(window) = token else { return nil }
                 return window
             })
-        if metrics.contains(.sessionPace) { paceWindows.insert(.session) }
-        if metrics.contains(.weeklyPace) { paceWindows.insert(.weekly) }
-        if metrics.contains(.automaticPace) { paceWindows.insert(.automatic) }
-        let needsRunsOut = metrics.contains(.runsOutIn)
+        if metrics.contains(.sessionPace) {
+            paceWindows.insert(.session)
+        }
+        if metrics.contains(.weeklyPace) {
+            paceWindows.insert(.weekly)
+        }
+        if metrics.contains(.automaticPace) {
+            paceWindows.insert(.automatic)
+        }
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let needsRunsOut = metrics.contains(.runsOutIn) || tokens.contains(.runsOut) || tokens.contains(.runsOutCompact)
         guard !paceWindows.isEmpty || needsRunsOut else { return nil }
 
         let now = Date()
@@ -195,13 +228,18 @@ extension StatusItemController {
                 let pace = self.store.menuBarLayoutPaceText(
                     provider: provider,
                     window: window,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
                     now: now,
                     minimumElapsedPercent: percentWindow == .weekly ? 1 : nil)
                 return "\(percentWindow.rawValue)=\(pace ?? "nil")"
             }
         if needsRunsOut {
             let runsOutMinutes = (windows.weekly ?? windows.automatic)
-                .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
+                .flatMap { self.store.weeklyPace(
+                    provider: provider,
+                    window: $0,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                    now: now) }
                 .flatMap(\.etaSeconds)
                 .map { Int(($0 / 60).rounded()) }
             components.append("runsOut=\(runsOutMinutes.map { String($0) } ?? "nil")")
@@ -221,7 +259,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         // `selectedLanes` never walks conditional branches, so read the flattened tokens instead: a
@@ -270,7 +308,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
             .filter(\.readsRateWindow)

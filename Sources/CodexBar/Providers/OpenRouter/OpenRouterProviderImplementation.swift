@@ -45,9 +45,9 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "openrouter-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.quotakit/config.json. "
-                    + "Get your key from openrouter.ai/settings/keys and set a key spending limit "
-                    + "there to enable API key quota tracking.",
+                subtitle: "Required. Enter a regular API key or a Management API key here. "
+                    + "Stored in ~/.quotakit/config.json. Set a key spending limit at "
+                    + "openrouter.ai/settings/keys to enable API key quota tracking.",
                 kind: .secure,
                 placeholder: "sk-or-v1-...",
                 binding: context.providerConfigBinding(.apiKey),
@@ -67,7 +67,8 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "openrouter-management-api-key",
                 title: "Management API key",
-                subtitle: "Optional. Enables exact 30-day account spend from OpenRouter Activity.",
+                subtitle: "Optional additional Activity key. It does not replace the required API key field. "
+                    + "Enables exact 30-day account spend from OpenRouter Activity.",
                 kind: .secure,
                 placeholder: "sk-or-v1-...",
                 binding: context.providerConfigSecretBinding(

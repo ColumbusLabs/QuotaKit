@@ -55,7 +55,11 @@ profiles after rejected credentials. Manual mode stays exclusive and never falls
 - **Purchased**: on-demand purchased credits.
 - **Renewal**: recurring credits use the renewal timestamp when the API returns one.
 
-Purchased credits do not reset, so the menu displays that balance without a reset prefix.
+The menu-bar percent picker can explicitly show **Credits** or **Bonus credits**, including when the API reports no duration. These choices use the actual credit pools without inventing a session or weekly cadence. Automatic keeps the existing recurring → purchased → bonus consumption order.
+
+Purchased and bonus credits do not reset, so their balances remain details in menus and CLI output. Layout reset-time tokens require an actual reset date for credit-detail windows; amounts never stand in for a reset clock.
+
+Large finite credit counts retain their whole-number descriptions; nonfinite aggregate counts omit the description.
 
 ## CLI Usage
 

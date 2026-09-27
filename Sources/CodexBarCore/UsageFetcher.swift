@@ -162,6 +162,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let deepseekUsage: DeepSeekUsageSummary?
     public let deepseekDetailedUsageState: DeepSeekDetailedUsageState
     public let deepseekPlatformProfiles: [DeepSeekPlatformProfile]
+    /// Live-only ownership proof; decoded usage cannot authorize browser balance retention.
+    public let deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner?
     public let opencodegoUsage: OpenCodeGoUsageSnapshot?
     public let mimoUsage: MiMoUsageSnapshot?
     public let openRouterUsage: OpenRouterUsageSnapshot?
@@ -174,6 +176,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let bedrockUsage: BedrockUsageSnapshot?
     public let groqConsoleUsage: GroqConsoleUsageSnapshot?
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
+    /// Live-only display inventory; redemption token identifiers never enter the snapshot.
+    public let grokResetCredits: GrokRateLimitResetCreditsSnapshot?
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
     public let deepgramUsage: DeepgramUsageSnapshot?
@@ -264,6 +268,7 @@ public struct UsageSnapshot: Codable, Sendable {
         deepseekUsage: DeepSeekUsageSummary? = nil,
         deepseekDetailedUsageState: DeepSeekDetailedUsageState = .notRequested,
         deepseekPlatformProfiles: [DeepSeekPlatformProfile] = [],
+        deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner? = nil,
         opencodegoUsage: OpenCodeGoUsageSnapshot? = nil,
         mimoUsage: MiMoUsageSnapshot? = nil,
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
@@ -276,6 +281,7 @@ public struct UsageSnapshot: Codable, Sendable {
         bedrockUsage: BedrockUsageSnapshot? = nil,
         groqConsoleUsage: GroqConsoleUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
+        grokResetCredits: GrokRateLimitResetCreditsSnapshot? = nil,
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
         deepgramUsage: DeepgramUsageSnapshot? = nil,
@@ -317,6 +323,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekUsage = deepseekUsage
         self.deepseekDetailedUsageState = deepseekDetailedUsageState
         self.deepseekPlatformProfiles = deepseekPlatformProfiles
+        self.deepseekPlatformBalanceOwner = deepseekPlatformBalanceOwner
         self.opencodegoUsage = opencodegoUsage
         self.mimoUsage = mimoUsage
         self.openRouterUsage = openRouterUsage
@@ -329,6 +336,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.bedrockUsage = bedrockUsage
         self.groqConsoleUsage = groqConsoleUsage
         self.codexResetCredits = codexResetCredits
+        self.grokResetCredits = grokResetCredits
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
         self.deepgramUsage = deepgramUsage
@@ -360,6 +368,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.replacing(codexResetCredits: .value(resetCredits))
     }
 
+    public func withGrokResetCredits(_ resetCredits: GrokRateLimitResetCreditsSnapshot?) -> UsageSnapshot {
+        self.replacing(grokResetCredits: .value(resetCredits))
+    }
+
     public func withSubscriptionMetadata(expiresAt: Date?, renewsAt: Date?) -> UsageSnapshot {
         self.replacing(
             subscriptionExpiresAt: .value(expiresAt),
@@ -374,6 +386,10 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func with(tertiary: RateWindow?) -> UsageSnapshot {
         self.replacing(tertiary: .value(tertiary))
+    }
+
+    public func with(providerCost: ProviderCostSnapshot?) -> UsageSnapshot {
+        self.replacing(providerCost: .value(providerCost))
     }
 
     public init(from decoder: Decoder) throws {
@@ -397,6 +413,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekUsage = nil // Not persisted, fetched fresh each time
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
         self.deepseekPlatformProfiles = [] // Live-only browser profile catalog
+        self.deepseekPlatformBalanceOwner = nil // Live-only balance ownership
         self.opencodegoUsage = nil // Not persisted, fetched fresh each time
         self.mimoUsage = try? container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
         self.openRouterUsage = try? container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
@@ -415,6 +432,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.codexResetCredits = try? container.decodeIfPresent(
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
+        self.grokResetCredits = nil // Refresh live; do not persist redemption inventory.
         self.claudeAdminAPIUsage = try? container.decodeIfPresent(
             ClaudeAdminAPIUsageSnapshot.self,
             forKey: .claudeAdminAPIUsage)
@@ -520,14 +538,7 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public func automaticPerplexityWindow() -> RateWindow? {
-        let fallbackWindows = self.orderedPerplexityFallbackWindows()
-        guard let primary = self.primary else {
-            return fallbackWindows.first
-        }
-        if primary.remainingPercent > 0 || fallbackWindows.isEmpty {
-            return primary
-        }
-        return fallbackWindows.first
+        self.orderedPerplexityDisplayWindows().first
     }
 
     public func orderedPerplexityDisplayWindows() -> [RateWindow] {
@@ -650,11 +661,13 @@ public struct UsageSnapshot: Codable, Sendable {
         secondary: Replacement<RateWindow?> = .unchanged,
         tertiary: Replacement<RateWindow?> = .unchanged,
         extraRateWindows: Replacement<[NamedRateWindow]?> = .unchanged,
+        providerCost: Replacement<ProviderCostSnapshot?> = .unchanged,
         details: Replacement<[ProviderDetailSection]> = .unchanged,
         deepseekUsage: Replacement<DeepSeekUsageSummary?> = .unchanged,
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
         codexResetCredits: Replacement<CodexRateLimitResetCreditsSnapshot?> = .unchanged,
+        grokResetCredits: Replacement<GrokRateLimitResetCreditsSnapshot?> = .unchanged,
         subscriptionExpiresAt: Replacement<Date?> = .unchanged,
         subscriptionRenewsAt: Replacement<Date?> = .unchanged,
         identity: Replacement<ProviderIdentitySnapshot?> = .unchanged,
@@ -667,7 +680,7 @@ public struct UsageSnapshot: Codable, Sendable {
             extraRateWindows: extraRateWindows.resolving(self.extraRateWindows),
             kiroUsage: self.kiroUsage,
             ampUsage: self.ampUsage,
-            providerCost: self.providerCost,
+            providerCost: providerCost.resolving(self.providerCost),
             costUsage: self.costUsage,
             details: details.resolving(self.details),
             hyperBalance: self.hyperBalance,
@@ -677,6 +690,7 @@ public struct UsageSnapshot: Codable, Sendable {
             deepseekUsage: deepseekUsage.resolving(self.deepseekUsage),
             deepseekDetailedUsageState: deepseekDetailedUsageState.resolving(self.deepseekDetailedUsageState),
             deepseekPlatformProfiles: deepseekPlatformProfiles.resolving(self.deepseekPlatformProfiles),
+            deepseekPlatformBalanceOwner: self.deepseekPlatformBalanceOwner,
             opencodegoUsage: self.opencodegoUsage,
             mimoUsage: self.mimoUsage,
             openRouterUsage: self.openRouterUsage,
@@ -689,6 +703,7 @@ public struct UsageSnapshot: Codable, Sendable {
             bedrockUsage: self.bedrockUsage,
             groqConsoleUsage: self.groqConsoleUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
+            grokResetCredits: grokResetCredits.resolving(self.grokResetCredits),
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
@@ -1445,13 +1460,13 @@ public struct UsageFetcher: Sendable {
                     }
                 },
                 accountOrganization: nil,
-                loginMethod: account?.account.flatMap { details in
+                loginMethod: rateLimitsPlan ?? account?.account.flatMap { details in
                     if case let .chatgpt(_, plan) = details {
                         plan
                     } else {
                         nil
                     }
-                } ?? rateLimitsPlan)
+                })
             let credits = Self.makeCredits(from: limits, rateLimitsByLimitId: limitsResponse.rateLimitsByLimitId)
             let resetCredits = Self.makeResetCredits(from: limitsResponse.rateLimitResetCredits)
             let shouldReturnUnavailableUsage = credits == nil || rateLimitsPlan != nil
@@ -1594,6 +1609,9 @@ public struct UsageFetcher: Sendable {
     {
         let updatedAt = Date()
         let balance = limits.credits.map { self.parseCredits($0.balance) }
+        // `parseCredits` substitutes 0 for a missing or unparseable string, so the raw field decides
+        // whether the balance was actually read.
+        let balanceWasRead = limits.credits.map { $0.balance.flatMap(Double.init) != nil } ?? false
         let creditLimit = self.codexCreditLimit(
             from: limits,
             rateLimitsByLimitId: rateLimitsByLimitId,
@@ -1603,7 +1621,9 @@ public struct UsageFetcher: Sendable {
             remaining: balance ?? 0,
             events: [],
             updatedAt: updatedAt,
-            codexCreditLimit: creditLimit)
+            codexCreditLimit: creditLimit,
+            // A cap-only response omits the balance entirely; that placeholder zero is unread, not spent.
+            balanceReadSucceeded: balanceWasRead)
     }
 
     private static func makeResetCredits(

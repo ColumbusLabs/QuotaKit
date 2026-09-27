@@ -228,6 +228,7 @@
 "No cost history data." = "Maliyet geçmişi verisi yok.";
 "No data available" = "Kullanılabilir veri yok";
 "No data yet" = "Henüz veri yok";
+"Workspaces" = "Çalışma Alanları";
 "No enabled providers available for Overview." = "Genel Bakış için etkin sağlayıcı yok.";
 "No providers selected" = "Sağlayıcı seçilmedi";
 "No token accounts yet." = "Henüz token hesabı yok.";
@@ -481,6 +482,7 @@
 "cost_summary_style_inline_help" = "Maliyet özetini doğrudan ana menüde gösterir.";
 "cost_summary_style_submenu_help" = "Bunun yerine ayrıntılı Maliyet alt menüsünü gösterir.";
 "cost_summary_style_both_help" = "Hem ana menü özetini hem de ayrıntılı Maliyet alt menüsünü gösterir.";
+"Month to date" = "Ay başından bugüne";
 "cost_history_window_title" = "Geçmiş penceresi";
 "cost_history_window_help" = "Menüde kaç günlük yerel kullanım günlüğünün gösterileceğini belirler.";
 "cost_history_days_title" = "Geçmiş penceresi: %d gün";
@@ -621,6 +623,12 @@
 "cost_summary_off" = "Kapalı";
 "merge_icons_title" = "Simgeleri birleştir";
 "merge_icons_subtitle" = "Sağlayıcı seçicili tek bir menü çubuğu simgesi kullan.";
+"merged_icon_style_title" = "Birleşik simge stili";
+"merged_icon_style_subtitle" = "Değiştirici sağlayıcılar arasında tek tek geçiş yapar; Yığılmış ise iki sağlayıcıyı aynı anda, her biri kendi satırında gösterir.";
+"merged_icon_style_switcher" = "Değiştirici";
+"merged_icon_style_stacked" = "Yığılmış";
+"merge_icon_stacked_top_provider_title" = "Üst satır";
+"merge_icon_stacked_bottom_provider_title" = "Alt satır";
 "show_most_used_provider_title" = "En çok kullanılan sağlayıcıyı göster";
 "show_most_used_provider_subtitle" = "Menü çubuğu, kota sınırına en yakın sağlayıcıyı otomatik olarak gösterir.";
 "display_mode_title" = "Görünüm modu";
@@ -885,6 +893,12 @@
 "usage_percent_suffix_used" = "kullanıldı";
 "Store multiple DeepSeek API keys." = "Birden fazla DeepSeek API anahtarı depolayın.";
 "This week" = "Bu hafta";
+"Current window" = "Geçerli pencere";
+"Last week" = "Geçen hafta";
+"%d weeks ago" = "%d hafta önce";
+"Previous window" = "Önceki pencere";
+"%d windows ago" = "%d pencere önce";
+"Recent windows" = "Son pencereler";
 "Week" = "Hafta";
 "Month" = "Ay";
 "Models" = "Modeller";
@@ -1350,6 +1364,8 @@
 "Tracked tokens" = "İzlenen tokenlar";
 "Subscriptions" = "Abonelikler";
 "By subscription" = "Aboneliğe göre";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Model düzeyinde geçmiş yok";
 "Daily estimated spend" = "Günlük tahmini harcama";
 "Hourly estimated spend" = "Saatlik tahmini harcama";
@@ -1446,6 +1462,33 @@
 "%d more accounts ready" = "%d hesap daha hazır";
 "Shows the hidden accounts" = "Gizli hesapları gösterir";
 "%@ remaining" = "%@ kaldı";
+"codex_workspaces_title" = "Çalışma Alanları";
+"codex_workspaces_estimated_local_logs" = "Yerel Codex günlüklerinden tahmin edildi";
+"codex_workspaces_no_local_usage" = "Henüz yerel Codex kullanımı yok";
+"codex_workspaces_tokens" = "Tokenlar";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_estimated_cost_short" = "Tahm. maliyet";
+"codex_workspaces_estimated_cost_value" = "tahm. %@";
+"codex_workspaces_sessions" = "Oturumlar";
+"codex_workspaces_session_count" = "Oturumlar: %@";
+"codex_workspaces_top_model" = "En çok kullanılan model";
+"codex_workspaces_local_codex_chat" = "Yerel Codex sohbeti";
+"codex_workspaces_indexing_local_logs" = "Yerel Codex günlükleri dizine ekleniyor…";
+"codex_workspaces_failed_read_logs" = "Codex günlükleri okunamadı";
+"codex_workspaces_scanning_logs" = "Codex günlükleri taranıyor…";
+"codex_workspaces_indexing_projects" = "Projeler dizine ekleniyor…";
+"codex_workspaces_saving_project_index" = "Proje dizini kaydediliyor…";
+"codex_workspaces_cost_unavailable" = "Maliyet kullanılamıyor";
+"codex_workspaces_refresh_usage_data" = "Kullanım verilerini yenile";
+"codex_workspaces_retry" = "Tekrar dene";
+"codex_workspaces_partial_data" = "Kısmi veriler";
+"codex_workspaces_high_usage" = "Yüksek kullanım";
+"codex_workspaces_elevated_usage" = "Artmış kullanım";
+"codex_workspaces_normal_usage" = "Normal kullanım";
+"codex_workspaces_no_sessions" = "Bu çalışma alanında oturum yok";
+"codex_workspaces_session" = "Oturum";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Başlatıldı";
 "Finish now" = "Şimdi tamamla";
 "Continue in background" = "Arka planda devam et";
 "(%d%% risk)" = "(%d%% tükenme riski)";
@@ -1462,6 +1505,7 @@
 "More" = "Daha fazla";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Yükle…";
 "Install plugin" = "Eklenti yükle";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Bir JavaScript veya TypeScript dosyasını eklentiler dizinine kopyalar.";
@@ -1565,3 +1609,29 @@
 "Restore Defaults" = "Varsayılanları Geri Yükle";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
 "%@ (unavailable)" = "%@ (kullanılamıyor)";
+"overview_layout_title" = "Genel Bakış düzeni";
+"overview_layout_subtitle" = "Genel Bakış’ın ne kadar bilgi göstereceğini seçin.";
+"overview_layout_detailed" = "Ayrıntılı";
+"overview_layout_compact" = "Kompakt";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Tahmini ara toplam (%@): %@";
+"Excluded requests with missing final usage: %d" = "Nihai kullanım verileri eksik olduğu için hariç tutulan istekler: %d";
+"antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
+"antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
+"antigravity_no_priced_token_history" = "Fiyatlandırılmış Antigravity token geçmişi yok.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";
+
+/* Account widgets */
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
+"claude_limited_usage_detail" = "Kullanım ayrıntıları sınırlı";
+"%@ weekly" = "%@ haftalık";
+
+"Color Pace Indicator" = "Kullanım hızını renklendir";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";

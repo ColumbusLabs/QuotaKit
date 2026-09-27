@@ -7,6 +7,101 @@ import Testing
 @Suite(.serialized)
 struct UsageStoreCodexCostCatchUpTests {
     @Test
+    func `automatic sleep uses active scan duration instead of awaited latency`() async throws {
+        let store = try Self.makeStore(suite: "active-duration")
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        var sleeps: [TimeInterval] = []
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            .init(pending: true, progressKey: "pending")
+        }
+        store._test_codexCostCatchUpActiveDuration = 2
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            try await Task.sleep(for: .milliseconds(20))
+            return .init(pending: true, progressKey: "progressed")
+        }
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            sleeps.append(delay)
+            if sleeps.count == 2 { throw CancellationError() }
+        }
+        store.startCodexCostCatchUpIfNeeded()
+        let task = try #require(store.codexCostCatchUpTask)
+        await task.value
+        #expect(sleeps == [1998, 1998])
+    }
+
+    @Test(arguments: [CodexCostCatchUpPowerSource.ac, .battery, .unknown])
+    func `app low power mode preserves longer automatic catch-up delays`(source: CodexCostCatchUpPowerSource)
+        throws
+    {
+        let store = try Self.makeStore(suite: "app-low-power-policy")
+        let resources = (source, false, ProcessInfo.ThermalState.nominal)
+        store.settings.backgroundWorkLowPowerModePreference = .on
+        let decision = store.codexCostCatchUpDecision(
+            mode: .automatic, previousActiveDuration: 0.1, resourceState: resources)
+        // QuotaKit retains a two-second minimum active burst. With the upstream duty cycles,
+        // even a 100ms scan therefore schedules later than the app's 30-minute floor.
+        let expectedDelay: TimeInterval = switch source {
+        case .ac: 1998
+        case .battery: 9998
+        case .unknown: 3998
+        }
+        #expect(decision.action == .runAfter(expectedDelay))
+        #expect(expectedDelay >= BackgroundWorkPowerPolicy.lowPowerMinimumInterval)
+        #expect(store.codexCostCatchUpDecision(
+            mode: .accelerated, previousActiveDuration: 0.1, resourceState: resources).action == .runAfter(0))
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        #expect(store.codexCostCatchUpDecision(
+            mode: .automatic, previousActiveDuration: 0.1, resourceState: resources)
+            == CodexCostCatchUpPolicy().decision(for: .init(
+                mode: .automatic,
+                previousActiveDuration: 0.1,
+                powerSource: source,
+                lowPowerModeEnabled: false,
+                thermalState: .nominal)))
+        store.settings.backgroundWorkLowPowerModePreference = .on
+        #expect(store.codexCostCatchUpDecision(
+            mode: .automatic,
+            previousActiveDuration: nil,
+            resourceState: (.ac, false, .nominal)).action == .runAfter(1998))
+        #expect(store.codexCostCatchUpDecision(
+            mode: .automatic,
+            previousActiveDuration: 0.1,
+            resourceState: (source, true, .nominal)).action == .pause(60, .lowPower))
+        #expect(store.codexCostCatchUpDecision(
+            mode: .automatic,
+            previousActiveDuration: 0.1,
+            resourceState: (source, true, .serious)).action == .pause(60, .thermal))
+    }
+
+    @Test(arguments: [CodexCostCatchUpMode.automatic, .accelerated])
+    func `app low power preference reaches successive catch-up passes`(mode: CodexCostCatchUpMode) async throws {
+        let store = try Self.makeStore(suite: "app-low-power-worker")
+        store.settings.backgroundWorkLowPowerModePreference = .on
+        var sleeps: [TimeInterval] = []
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "pending")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "progressed")
+        }
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            sleeps.append(delay)
+            if sleeps.count == 2 { throw CancellationError() }
+        }
+        store.startCodexCostCatchUpIfNeeded(mode: mode)
+        let task = try #require(store.codexCostCatchUpTask)
+        await task.value
+        #expect(sleeps.count == 2)
+        if mode == .automatic {
+            #expect(sleeps.allSatisfy { $0 >= 1800 })
+        } else {
+            #expect(sleeps == [0, 0])
+        }
+    }
+
+    @Test
     func `combined low power and thermal pressure publishes thermal pause without scanning`() async throws {
         let store = try Self.makeStore(suite: "combined-thermal-pause")
         var advanceCount = 0
@@ -273,7 +368,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(advanceCount == 2)
         #expect(statusLoadCount == 2)
         #expect(snapshotLoadCount == 3)
-        #expect(sleepDurations.first == 8)
+        #expect(sleepDurations.first == 1998)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 3)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 3)
         #expect(store.tokenError(for: .codex) == nil)
@@ -380,6 +475,45 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(snapshotLoadCount == 4)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 99)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
+    }
+
+    @Test(arguments: [false, true])
+    func `terminal pauses coalesce same scope refresh and allow explicit resume`(throwsError: Bool) async throws {
+        let store = try Self.makeStore(suite: "terminal-queued-restart-\(throwsError)")
+        defer { store.cancelCodexCostCatchUp() }
+        store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
+        var statusLoadCount = 0
+        var advanceCount = 0
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            statusLoadCount += 1
+            return .init(pending: true, progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { [weak store] _, _, _ in
+            advanceCount += 1
+            if advanceCount == 1 {
+                store?.startCodexCostCatchUpIfNeeded(afterRefreshing: .codex)
+                #expect(store?.codexCostCatchUpRestartRequested == false)
+            }
+            if throwsError {
+                throw NSError(domain: "SyntheticCatchUp", code: 1)
+            }
+            return .init(pending: true, progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        #expect(statusLoadCount == 1)
+        #expect(advanceCount == (throwsError ? 1 : 3))
+        #expect(store.codexCostCatchUpActivity?.phase == .paused)
+        #expect(!store.codexCostCatchUpRestartRequested)
+
+        store.startAcceleratedCodexCostCatchUp()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(statusLoadCount == 2)
+        #expect(advanceCount == (throwsError ? 2 : 6))
     }
 
     @Test
@@ -685,7 +819,8 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     private static func makeStore(suite: String) throws -> UsageStore {
-        let settings = testSettingsStore(suiteName: "UsageStoreCodexCostCatchUpTests-\(suite)")
+        let settings = testSettingsStore(
+            suiteName: "UsageStoreCodexCostCatchUpTests-\(suite)", userDefaults: InMemoryUserDefaults())
         settings.costUsageEnabled = true
         settings.costUsageHistoryDays = 30
         let metadata = try #require(ProviderRegistry.shared.metadata[.codex])

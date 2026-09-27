@@ -9,7 +9,7 @@ import Testing
 struct MenuCardClaudeSwapAccountTests {
     private func makeModel(
         hidePersonalInfo: Bool,
-        planOverride: String? = nil,
+        planOverride: UsageMenuCardView.Model.PlanOverride = .automatic,
         additionalRateWindows: [NamedRateWindow] = []) throws -> UsageMenuCardView.Model
     {
         let now = Date(timeIntervalSince1970: 1_782_000_000)
@@ -62,9 +62,16 @@ struct MenuCardClaudeSwapAccountTests {
 
     @Test
     func `claude swap action overrides adapter login method`() throws {
-        let model = try self.makeModel(hidePersonalInfo: false, planOverride: "Switch Account...")
+        let model = try self.makeModel(hidePersonalInfo: false, planOverride: .label("Switch Account..."))
 
         #expect(model.planText == "Switch Account...")
+    }
+
+    @Test
+    func `an explicit absent plan cannot fall back to the adapter login method`() throws {
+        let model = try self.makeModel(hidePersonalInfo: false, planOverride: .label(nil))
+
+        #expect(model.planText == nil)
     }
 
     @Test
@@ -77,7 +84,7 @@ struct MenuCardClaudeSwapAccountTests {
         let secondary = try #require(model.metrics.first(where: { $0.id == "secondary" }))
         #expect(secondary.percent == 60)
         let scoped = try #require(model.metrics.first(where: { $0.id == "claude-weekly-scoped-fable" }))
-        #expect(scoped.title == "Fable only")
+        #expect(scoped.title == "Fable weekly")
         #expect(scoped.percent == 80)
         #expect(scoped.detailLeftText == "6% in reserve")
         #expect(scoped.pacePercent != nil)

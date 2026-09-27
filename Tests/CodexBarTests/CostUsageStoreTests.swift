@@ -12,6 +12,401 @@ import CSQLite3
 // swiftlint:disable file_length
 
 struct CostUsageStoreTests {
+    @Test
+    func `unchanged Codex scan reuses one decoded snapshot`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+
+        #if DEBUG
+        var reads = 0
+        CostUsageStore.snapshotReadForTesting = { url in
+            if url == writer.databaseURL { reads += 1 }
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
+        #endif
+        let first = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        let second = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(first.store === second.store)
+        #expect(first.scanStamp != nil)
+        #expect(second.cache.files == first.cache.files)
+        #if DEBUG
+        #expect(reads == 1)
+        #endif
+        let saved = CostUsageStoreAccess.save(
+            store: second.store,
+            cache: second.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            skipIdenticalContent: true,
+            expectedScanStamp: second.scanStamp,
+            requireScanStamp: true)
+        #expect(!saved.catchUpRequired)
+        #if DEBUG
+        // The save reads one baseline snapshot before comparing persisted content.
+        #expect(reads == 2)
+        #endif
+        let third = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(third.cache.files == second.cache.files)
+        #if DEBUG
+        #expect(reads == 2)
+        #endif
+        var otherCalendar = calendar
+        otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let otherZone = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: otherCalendar)
+        #expect(otherZone.cache.files.isEmpty)
+    }
+
+    @Test
+    func `identical save does not retain a snapshot pruned by SQLite`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-03"
+        let currentPath = "/rollouts/current.jsonl"
+        cache.files[currentPath] = CostUsageFileUsage(mtimeUnixMs: 1000, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"))
+        var stale = Self.file(path: "/rollouts/pruned-after-identical-save.jsonl", day: "2026-07-01")
+        stale.scanState.detailsPayload = try #require(
+            await writer.fetchFile(path: currentPath)?.scanState.detailsPayload)
+        #expect(await writer.upsertFile(stale))
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(loaded.cache.files[stale.path] != nil)
+        let saved = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: loaded.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            requireScanStamp: true)
+        #expect(!saved.catchUpRequired)
+        #expect(saved.deletedRows == 0)
+        let reloaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(reloaded.store === loaded.store)
+        #expect(reloaded.cache.files[stale.path] == nil)
+    }
+
+    @Test
+    func `external Codex save invalidates scan and rejects stale receipt`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        let stale = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+
+        cache.files["/sessions/b.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 2, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        let refused = CostUsageStoreAccess.save(
+            store: stale.store,
+            cache: stale.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            expectedScanStamp: stale.scanStamp,
+            requireScanStamp: true)
+        #expect(refused.catchUpRequired)
+        let fresh = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(fresh.cache.files["/sessions/b.jsonl"] != nil)
+    }
+
+    @Test
+    func `scanner store retention stays bounded by cache root`() throws {
+        let fixtures = try (0..<5).map { _ in try StoreFixture() }
+        defer { fixtures.forEach { $0.remove() } }
+        let calendar = Calendar(identifier: .gregorian)
+        let first = CostUsageStoreAccess.load(cacheRoot: fixtures[0].root, calendar: calendar)
+        for fixture in fixtures.dropFirst() {
+            _ = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        }
+        let reloaded = CostUsageStoreAccess.load(cacheRoot: fixtures[0].root, calendar: calendar)
+        #expect(first.store !== reloaded.store)
+    }
+
+    @Test
+    func `changed Codex file writes stay bounded as unchanged files grow`() async throws {
+        func changedSaveWrites(fileCount: Int) async throws -> Int {
+            let fixture = try StoreFixture()
+            defer { fixture.remove() }
+            let store = CostUsageStore(cacheRoot: fixture.root)
+            var cache = CostUsageCache()
+            cache.scanSinceKey = "2026-08-01"
+            cache.scanUntilKey = "2026-08-01"
+            cache.files = Dictionary(uniqueKeysWithValues: (0..<fileCount).map { index in
+                ("/sessions/\(index).jsonl", CostUsageFileUsage(
+                    mtimeUnixMs: 1000,
+                    size: 0,
+                    days: [:]))
+            })
+            _ = store.syncSaveCodexCache(
+                cache,
+                calendar: .current,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+            var changed = store.syncLoadCodexCache(calendar: .current)
+            changed.lastScanUnixMs += 1000
+            changed.files["/sessions/0.jsonl"]?.lastModel = "test-model"
+            let before = await store.persistenceWriteMetricsForTesting()
+            let result = store.syncSaveCodexCache(
+                changed,
+                calendar: .current,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                skipIdenticalContent: true)
+            let after = await store.persistenceWriteMetricsForTesting()
+            #expect(!result.catchUpRequired)
+            #expect(store.syncLoadCodexCache(calendar: .current).files == changed.files)
+            return after.rows - before.rows
+        }
+
+        let small = try await changedSaveWrites(fileCount: 2)
+        let large = try await changedSaveWrites(fileCount: 12)
+        #expect(large <= small + 5)
+    }
+
+    @Test
+    func `full save refreshes unchanged file aggregates after pricing changes`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/pricing.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3,
+            knownCostNanos: 1200,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        cache.codexPricingKey = "pricing-v1"
+        let scanWindow = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: scanWindow)
+
+        let original = try #require(await store.fetchFileDayAggregates(path: path).first)
+        var stale = original
+        stale.standardResolvedCostNanos = 999
+        #expect(await store.replaceFileDayAggregates(path: path, aggregates: [stale]))
+
+        var repriced = store.syncLoadCodexCache(calendar: calendar)
+        let unchangedUsage = repriced.files[path]
+        repriced.codexPricingKey = "pricing-v2"
+        let result = store.syncSaveCodexCache(
+            repriced,
+            calendar: calendar,
+            requestedScanWindow: scanWindow,
+            skipIdenticalContent: true)
+
+        #expect(!result.catchUpRequired)
+        #expect(store.syncLoadCodexCache(calendar: calendar).files[path] == unchangedUsage)
+        #expect(await store.fetchFileDayAggregates(path: path) == [original])
+    }
+
+    @Test
+    func `stable cursor persists changed pricing evidence in usage rows`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/repriced.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 0, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 3,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 3,
+            pricingMode: "priority")]
+        cache.files[path] = usage
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+
+        #expect(store.syncLoadCodexCache(calendar: calendar).files[path]?.codexRows?.first?.pricingMode == "priority")
+    }
+
+    @Test
+    func `file aggregates keep event details with their day and model`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/grouped-history.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: [
+                "2026-08-01": ["model-a": [12, 0, 5]],
+                "2026-08-02": ["model-b": [3, 0, 4]],
+            ])
+        usage.codexScanComplete = true
+        usage.codexRows = [
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-01",
+                model: "model-a",
+                turnID: "one",
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 2,
+                knownCostNanos: 100,
+                pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-02",
+                model: "model-b",
+                turnID: "two",
+                eventIndex: 0,
+                input: 3,
+                cached: 0,
+                output: 4,
+                knownCostNanos: 200,
+                pricingMode: "priority"),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-08-01",
+                model: "model-a",
+                turnID: "three",
+                eventIndex: 0,
+                input: 2,
+                cached: 0,
+                output: 3,
+                knownCostNanos: 300,
+                pricingMode: "standard"),
+        ]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-02"
+        cache.files[path] = usage
+        cache.days = usage.days
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        _ = store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-02"))
+
+        let aggregates = await store.fetchFileDayAggregates(path: path)
+        #expect(aggregates.map(\.day) == ["2026-08-01", "2026-08-02"])
+        #expect(aggregates.map(\.requestCount) == [2, 1])
+        #expect(aggregates.map(\.authoritativeCostNanos) == [400, 200])
+        #expect(aggregates.map(\.standardTokens) == [17, 0])
+        #expect(aggregates.map(\.priorityTokens) == [0, 7])
+    }
+
+    @Test
+    func `pending Codex pricing survives a staged replacement reload`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/pricing-replacement.jsonl"
+        let evidence = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: "gpt-5.6-sol",
+            pricingMode: "priority")
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [:])
+        usage.parsedBytes = 50
+        usage.codexScanFileId = "7:42"
+        usage.codexScanTargetSize = 100
+        usage.codexScanComplete = false
+        usage.codexReplacementScanPending = true
+        usage.codexPendingPricing = ["request-key": evidence]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+
+        let result = store.syncSaveCodexCache(
+            cache,
+            calendar: .current,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        #expect(!result.catchUpRequired)
+        let restored = store.syncLoadCodexCache(calendar: .current)
+        #expect(restored.files[path]?.codexPendingPricing == ["request-key": evidence])
+        #expect(restored.files[path]?.codexReplacementScanPending == true)
+    }
+
+    @Test
+    func `rescan rows retain observed model and tier when fresh trace omits them`() {
+        let row = CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "test-model",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3)
+        let evidence = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: "test-priced-model", pricingMode: "priority")
+        let classified = CostUsageScanner.codexRowsWithPricingMetadata(
+            [row],
+            priorityTurns: [:],
+            preservingPricingFrom: { _ in evidence })
+
+        #expect(classified.first?.pricingModel == evidence.pricingModel)
+        #expect(classified.first?.pricingMode == evidence.pricingMode)
+    }
+
     /// The store actor runs on a custom DispatchQueue-backed `SerialExecutor`, and its
     /// `sync*` bridges hand work to the actor from inside `queue.sync`. Getting that handoff
     /// wrong takes the app down on launch with "Incorrect actor executor assumption", so the
@@ -1431,6 +1826,12 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "7c53241287d9fe21",
+            "4c666659fa05e700",
+            "1dfdbe376483ff0c",
+            "fd299eccf5e46671",
+            "8214dde4d869b323",
+            "6fd5257bc1319193",
             "154f5c0cc5ea50d3",
             "606a690018e2845e",
             "91a311c1117c5d33",

@@ -1,5 +1,4 @@
 import CodexBarCore
-import Darwin
 import Foundation
 
 @MainActor
@@ -41,50 +40,20 @@ struct SettingsStoreCodexAccountReconciliationSnapshotLoader: CodexAccountReconc
 struct DefaultCodexAuthMaterialReader: CodexAuthMaterialReading {
     func readAuthData(homeURL: URL) throws -> Data? {
         let authFileURL = CodexAccountPromotionService.authFileURL(for: homeURL)
-        guard FileManager.default.fileExists(atPath: authFileURL.path) else {
+        guard CodexCredentialFileAccess.fileExists(at: authFileURL) else {
             return nil
         }
-        return try Data(contentsOf: authFileURL)
+        return try CodexCredentialFileAccess.read(at: authFileURL)
     }
 }
 
 struct DefaultCodexLiveAuthSwapper: CodexLiveAuthSwapping {
     func swapLiveAuthData(_ data: Data, liveHomeURL: URL) throws {
-        try FileManager.default.createDirectory(at: liveHomeURL, withIntermediateDirectories: true)
-
         let liveAuthURL = CodexAccountPromotionService.authFileURL(for: liveHomeURL)
-        let stagedAuthURL = liveHomeURL.appendingPathComponent(
-            "auth.json.codexbar-staged-\(UUID().uuidString)",
-            isDirectory: false)
-
-        do {
-            try data.write(to: stagedAuthURL)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: NSNumber(value: Int16(0o600))],
-                ofItemAtPath: stagedAuthURL.path)
-            try self.renameItem(at: stagedAuthURL, to: liveAuthURL)
-        } catch {
-            try? FileManager.default.removeItem(at: stagedAuthURL)
-            throw error
-        }
-    }
-
-    private func renameItem(at sourceURL: URL, to destinationURL: URL) throws {
-        let sourcePath = sourceURL.path
-        let destinationPath = destinationURL.path
-
-        let result = sourcePath.withCString { sourceFS in
-            destinationPath.withCString { destinationFS in
-                rename(sourceFS, destinationFS)
-            }
-        }
-
-        guard result == 0 else {
-            throw NSError(
-                domain: NSPOSIXErrorDomain,
-                code: Int(errno),
-                userInfo: [NSFilePathErrorKey: destinationPath])
-        }
+        guard CodexCredentialFileAccess.permits(liveAuthURL) else { throw CodexOAuthCredentialsError.notFound }
+        if try CodexCredentialFileAccess.substituteWriteForTesting(at: liveAuthURL) { return }
+        try CodexCredentialFileAccess.createDirectory(forCredentialAt: liveAuthURL)
+        try CredentialFileWriter.writePrivate(data, to: liveAuthURL)
     }
 }
 
@@ -131,6 +100,7 @@ struct CodexAccountPromotionResult: Equatable {
     let displacedLiveDisposition: DisplacedLiveDisposition
     let didMutateLiveAuth: Bool
     let resultingActiveSource: CodexActiveSource
+    var daemonRestartNote: String?
 }
 
 enum CodexAccountPromotionError: Error, Equatable {
@@ -157,6 +127,7 @@ final class CodexAccountPromotionService {
     private let liveAuthSwapper: any CodexLiveAuthSwapping
     private let activeSourceWriter: any CodexActiveSourceWriting
     private let accountScopedRefresher: any CodexAccountScopedRefreshing
+    private let daemon: CodexAppServerDaemon
     private let baseEnvironment: [String: String]
     private let fileManager: FileManager
 
@@ -170,6 +141,7 @@ final class CodexAccountPromotionService {
         liveAuthSwapper: any CodexLiveAuthSwapping,
         activeSourceWriter: any CodexActiveSourceWriting,
         accountScopedRefresher: any CodexAccountScopedRefreshing,
+        daemon: CodexAppServerDaemon = CodexAppServerDaemon(),
         baseEnvironment: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default)
     {
@@ -182,6 +154,7 @@ final class CodexAccountPromotionService {
         self.liveAuthSwapper = liveAuthSwapper
         self.activeSourceWriter = activeSourceWriter
         self.accountScopedRefresher = accountScopedRefresher
+        self.daemon = daemon
         self.baseEnvironment = baseEnvironment
         self.fileManager = fileManager
     }
@@ -242,6 +215,8 @@ final class CodexAccountPromotionService {
         }
 
         self.activeSourceWriter.writeCodexActiveSource(.liveSystem)
+        let daemonRestartNote = await self.daemon.restartIfRunning(
+            homeURL: context.live.homeURL, environment: self.baseEnvironment)
         await self.accountScopedRefresher.refreshCodexAccountScopedState(allowDisabled: true)
 
         return CodexAccountPromotionResult(
@@ -249,7 +224,8 @@ final class CodexAccountPromotionService {
             outcome: .promoted,
             displacedLiveDisposition: executionResult.displacedLiveDisposition,
             didMutateLiveAuth: true,
-            resultingActiveSource: .liveSystem)
+            resultingActiveSource: .liveSystem,
+            daemonRestartNote: daemonRestartNote)
     }
 
     nonisolated static func authFileURL(for homeURL: URL) -> URL {

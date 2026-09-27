@@ -48,6 +48,7 @@ enum CodexBarCLI {
         do {
             let invocation = try program.resolve(argv: argv)
             Self.bootstrapLogging(path: invocation.path, values: invocation.parsedValues)
+            UserProviderPluginRegistry.refresh()
             switch invocation.path {
             case ["cards"], ["usage"]:
                 await self.runUsageDisplay(path: invocation.path, values: invocation.parsedValues)
@@ -255,6 +256,7 @@ enum CodexBarCLI {
                         abstract: "Store a provider API key",
                         discussion: nil,
                         signature: configSetAPIKeySignature),
+                    Self.preferencesCommandDescriptor(),
                 ],
                 defaultSubcommandName: "validate"),
             Self.hooksCommandDescriptor(),

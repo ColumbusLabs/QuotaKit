@@ -535,7 +535,7 @@ struct DevinUsageFetcherTests {
     }
 
     @Test
-    func `automatic local storage import does not fall back beyond Chrome`() throws {
+    func `automatic local storage import discovers Brave without Chrome`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temp) }
 
@@ -546,7 +546,7 @@ struct DevinUsageFetcherTests {
 
         #expect(detection.hasUsableProfileData(.brave))
         #expect(!detection.hasUsableProfileData(.chrome))
-        #expect(DevinSessionImporter.localStorageBrowsers(browserDetection: detection).isEmpty)
+        #expect(DevinSessionImporter.localStorageBrowsers(browserDetection: detection) == [.brave])
     }
     #endif
 }

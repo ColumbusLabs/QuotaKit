@@ -146,6 +146,7 @@ struct SpendDashboardTokenProvenanceTests {
             return loadCount == 1 ? Self.tokenSnapshot(cost: 4) : Self.emptyTokenSnapshot()
         }
         await store.refreshTokenUsageNow(for: .bedrock, force: true)
+        store._setSpendDashboardTokenSnapshotForTesting(Self.tokenSnapshot(cost: 4), for: .bedrock)
         let controller = Self.dashboardController(settings: settings, store: store, now: now)
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
@@ -160,7 +161,7 @@ struct SpendDashboardTokenProvenanceTests {
         #expect(store.tokenSnapshot(for: .bedrock)?.last30DaysCostUSD == 4)
         let publication = store.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: .bedrock)
         #expect(publication?.snapshot == nil)
-        #expect(publication?.publicationRevision == 1)
+        #expect(publication?.publicationRevision == 2)
     }
 
     @Test
@@ -172,6 +173,7 @@ struct SpendDashboardTokenProvenanceTests {
             return Self.emptyTokenSnapshot()
         }
         await store.refreshTokenUsageNow(for: .bedrock, force: true)
+        store._setSpendDashboardTokenSnapshotForTesting(nil, for: .bedrock)
         let publicationRevision = store.tokenSnapshotPublicationRevision(for: .bedrock)
         let controller = Self.dashboardController(settings: settings, store: store, now: Self.fixtureNow)
 

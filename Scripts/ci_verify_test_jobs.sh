@@ -9,6 +9,7 @@ macos_test_result="${4:-}"
 macos_tests_deferred="${5:-}"
 ios_tests_required="${6:-}"
 ios_test_result="${7:-}"
+linux_build_result="${8-<missing>}"
 
 if [[ "$lint_result" != "success" ]]; then
   printf 'lint job finished with %s\n' "${lint_result:-<empty>}" >&2
@@ -17,6 +18,11 @@ fi
 
 if [[ "$changes_result" != "success" ]]; then
   printf 'changes job finished with %s\n' "${changes_result:-<empty>}" >&2
+  exit 1
+fi
+
+if [[ "$linux_build_result" != "success" ]]; then
+  printf 'build-linux-cli matrix finished with %s; expected success\n' "${linux_build_result:-<empty>}" >&2
   exit 1
 fi
 

@@ -2,10 +2,13 @@ extension StatusItemController {
     func widgetDisplaySettingsSignature() -> String {
         [
             "enabled=\(self.store.enabledProvidersForDisplay().map(\.rawValue).joined(separator: ","))",
+            "accounts=\(self.settings.accountWidgetsEnabled)",
+            "privacy=\(self.settings.hidePersonalInfo)",
             "showUsed=\(self.settings.usageBarsShowUsed ? "1" : "0")",
             "optional=\(self.settings.showOptionalCreditsAndExtraUsage ? "1" : "0")",
             "costEnabled=\(self.settings.costUsageEnabled ? "1" : "0")",
             "codexLocalCost=\(self.settings.codexLocalSessionCostLedgerEnabled ? "1" : "0")",
+            "claudeScopedWeekly=\(self.settings.claudeModelScopedWeeklyUsageVisible ? "1" : "0")",
         ].joined(separator: "|")
     }
 

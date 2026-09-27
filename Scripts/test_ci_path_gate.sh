@@ -15,11 +15,14 @@ workflow = pathlib.Path(sys.argv[1]).read_text()
 lint_job = re.search(r"(?ms)^  lint:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
 if lint_job is None or "runs-on: macos-26" not in lint_job.group("body"):
     raise SystemExit("lint job must run on macos-26")
-if re.search(r"(?m)^  build-linux(?:-musl)?-cli:", workflow):
-    raise SystemExit("Linux build-only CI jobs must remain removed")
+if not re.search(r"(?m)^  build-linux-cli:", workflow):
+    raise SystemExit("Linux CLI matrix is required")
 aggregate = re.search(r"(?ms)^  lint-build-test:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
-if aggregate is None or "build-linux" in aggregate.group("body") or "linux-musl" in aggregate.group("body"):
-    raise SystemExit("aggregate CI gate must not depend on removed Linux jobs")
+if aggregate is None:
+    raise SystemExit("missing aggregate CI gate")
+body = aggregate.group("body")
+if "      - build-linux-cli\n" not in body or '"${{ needs.build-linux-cli.result }}"' not in body:
+    raise SystemExit("aggregate CI gate must require Linux CLI matrix result")
 PY
 
 assert_gate() {
@@ -108,28 +111,28 @@ assert_macos_selection 'SettingsWindowAppearanceTests|SpendActivityHeatmapTests'
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_macos_selection SettingsWindowAppearanceTests '[0]' mapped-source-only \
   $'M\tSources/CodexBar/PreferencesView.swift'
-assert_macos_selection '' '[0,1]' mac-app-entrypoint \
+assert_macos_selection '' '[0,1,2,3]' mac-app-entrypoint \
   $'M\tSources/CodexBar/App.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' widget-persistence \
+assert_macos_selection '' '[0,1,2,3]' widget-persistence \
   $'M\tSources/CodexBar/UsageStore+WidgetSnapshot.swift' \
   $'M\tTests/CodexBarTests/WidgetEmptyProjectionTests.swift'
-assert_macos_selection '' '[0,1]' nested-sync-source \
+assert_macos_selection '' '[0,1,2,3]' nested-sync-source \
   $'M\tSources/CodexBar/Sync/SyncCoordinator.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' provider-registry \
+assert_macos_selection '' '[0,1,2,3]' provider-registry \
   $'M\tSources/CodexBarCore/ProviderRegistry.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
-assert_macos_selection '' '[0,1]' civil-day-test-with-source-fallback \
+assert_macos_selection '' '[0,1,2,3]' civil-day-test-with-source-fallback \
   $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift' \
   $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
   $'M\tSources/CodexBarCore/ProviderRegistry.swift'
-assert_macos_selection '' '[0,1]' unmapped-test-file \
+assert_macos_selection '' '[0,1,2,3]' unmapped-test-file \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
-assert_macos_selection '' '[0,1]' unrelated-test-suite \
+assert_macos_selection '' '[0,1,2,3]' unrelated-test-suite \
   $'M\tSources/CodexBar/PreferencesView.swift' \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
-assert_macos_selection '' '[0,1]' ci-workflow \
+assert_macos_selection '' '[0,1,2,3]' ci-workflow \
   $'M\t.github/workflows/ci.yml' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_gate false docs-site $'M\tdocs/index.html' $'M\tdocs/site.css' $'M\tdocs/site.js' \
@@ -268,10 +271,10 @@ if [[ -s "$ios_unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success false true success >/dev/null
-"$verify" success success false skipped false false skipped >/dev/null
-"$verify" success success true success false false skipped >/dev/null
-"$verify" success success false skipped false true success >/dev/null
+"$verify" success success true success false true success >/dev/null success
+"$verify" success success false skipped false false skipped >/dev/null success
+"$verify" success success true success false false skipped >/dev/null success
+"$verify" success success false skipped false true success >/dev/null success
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -280,16 +283,21 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped false true success
-assert_verify_fails success success true skipped true true success
-assert_verify_fails success success false skipped true true success
-assert_verify_fails success success true success true true success
-assert_verify_fails success success false success false true success
-assert_verify_fails success success "" skipped false true success
-assert_verify_fails failure success true success false true success
-assert_verify_fails success failure true success false true success
-assert_verify_fails success success true success false true skipped
-assert_verify_fails success success true success false false success
-assert_verify_fails success success true success false "" skipped
+assert_verify_fails success success true skipped false true success success
+assert_verify_fails success success true skipped true true success success
+assert_verify_fails success success false skipped true true success success
+assert_verify_fails success success true success true true success success
+assert_verify_fails success success false success false true success success
+assert_verify_fails success success "" skipped false true success success
+assert_verify_fails failure success true success false true success success
+assert_verify_fails success failure true success false true success success
+assert_verify_fails success success true success false true skipped success
+assert_verify_fails success success true success false false success success
+assert_verify_fails success success true success false "" skipped success
+
+for linux_result in failure cancelled skipped "" unknown; do
+  assert_verify_fails success success true success false true success "$linux_result"
+done
+assert_verify_fails success success true success false true success
 
 printf 'CI path gate tests passed.\n'

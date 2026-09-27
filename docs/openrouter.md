@@ -18,7 +18,7 @@ Get an API key from [OpenRouter Settings](https://openrouter.ai/settings/keys), 
 export OPENROUTER_API_KEY="sk-or-v1-..."
 ```
 
-The optional `OPENROUTER_MANAGEMENT_API_KEY` is a separate credential used only for the account Activity API. It is sent only to `openrouter.ai`; it is never forwarded to a configured API proxy. A management key configured as `OPENROUTER_API_KEY` can also access Activity when the official Current Key response identifies it as a management key. A separately configured management key takes precedence for Activity; the selected API key continues to provide account credits and current-key usage.
+The optional `OPENROUTER_MANAGEMENT_API_KEY` does not replace the required API key field. It is a separate credential used only for the account Activity API. It is sent only to `openrouter.ai`; it is never forwarded to a configured API proxy. A management key configured as `OPENROUTER_API_KEY` can also access Activity when the official Current Key response identifies it as a management key. A separately configured management key takes precedence for Activity; the selected API key continues to provide account credits and current-key usage.
 
 CLI configuration:
 
@@ -41,6 +41,8 @@ When there is no configured key cap, the inline PAYG summary uses the most speci
 Activity history includes aggregate token, request, and distinct model counts. Reasoning-token counts are kept separate from completion tokens, while total tokens remain prompt plus completion. Invalid, negative, non-finite, unsafe-integer, or overflowing values do not publish partial history. Deprecated `rate_limit` metadata is ignored.
 
 The dashboard action opens [OpenRouter Activity](https://openrouter.ai/activity). If optional credits or Activity data cannot be fetched, available key usage is preserved and the affected detail shows an unavailable diagnostic. If all usable data sources fail, the provider fetch reports an error.
+
+Shared usage cards group recognized gateway model identifiers such as `openai/gpt-4o` under public family labels such as “GPT,” with usage attributed to OpenRouter. Raw namespaces and model names are omitted; shared rankings disclose partial model history.
 
 ## CLI usage
 

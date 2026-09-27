@@ -64,17 +64,19 @@ struct GrokWebBillingFetcherTests {
         ]
         var attemptedHeaders: [String] = []
 
-        let result = try await GrokWebFetchStrategy.fetchFirstValidCookieSession(sessions) { cookieHeader, _ in
-            attemptedHeaders.append(cookieHeader)
-            guard cookieHeader.contains("valid") else {
-                throw GrokWebBillingError.requestFailed(401, "stale")
+        let result = try await GrokWebFetchStrategy
+            .fetchFirstValidCookieSessionWithHeader(sessions) { cookieHeader, _ in
+                attemptedHeaders.append(cookieHeader)
+                guard cookieHeader.contains("valid") else {
+                    throw GrokWebBillingError.requestFailed(401, "stale")
+                }
+                return GrokWebBillingSnapshot(
+                    usedPercent: 12,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_000_000))
             }
-            return GrokWebBillingSnapshot(
-                usedPercent: 12,
-                resetsAt: Date(timeIntervalSince1970: 1_800_000_000))
-        }
 
         #expect(attemptedHeaders == ["sso=stale", "sso=valid"])
+        #expect(result.2 == "sso=valid")
         #expect(result.0.usedPercent == 12)
         #expect(result.1 == "Chrome Profile 2")
     }
@@ -423,7 +425,9 @@ struct GrokWebBillingFetcherTests {
 
     @Test
     func `web strategy applies settings tier when billing used the auth file`() async throws {
-        let result = try await GrokWebFetchStrategy().fetch(
+        var strategy = GrokWebFetchStrategy()
+        strategy.loadCredentials = { _ in .success(Self.credentials) }
+        let result = try await strategy.fetch(
             Self.webContext(grokHome: nil),
             webBilling: { _ in
                 (

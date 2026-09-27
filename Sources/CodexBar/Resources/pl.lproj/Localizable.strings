@@ -228,6 +228,7 @@
 "No cost history data." = "Brak danych historii kosztów.";
 "No data available" = "Brak dostępnych danych";
 "No data yet" = "Brak danych";
+"Workspaces" = "Obszary robocze";
 "No enabled providers available for Overview." = "Brak włączonych dostawców dostępnych dla Przeglądu.";
 "No providers selected" = "Nie wybrano dostawców";
 "No token accounts yet." = "Brak jeszcze kont tokenów.";
@@ -483,6 +484,7 @@
 "cost_summary_style_inline_help" = "Pokazuje podsumowanie kosztów bezpośrednio w menu głównym.";
 "cost_summary_style_submenu_help" = "Zamiast tego pokazuje szczegółowe podmenu Koszt.";
 "cost_summary_style_both_help" = "Pokazuje podsumowanie w menu głównym i szczegółowe podmenu Koszt.";
+"Month to date" = "Od początku miesiąca";
 "cost_history_window_title" = "Zakres historii";
 "cost_history_window_help" = "Ustawia, ile dni lokalnych dzienników użycia pokazać w menu.";
 "cost_history_days_title" = "Zakres historii: %d dni";
@@ -623,6 +625,12 @@
 "cost_summary_off" = "Wyłączone";
 "merge_icons_title" = "Scal ikony";
 "merge_icons_subtitle" = "Używaj jednej ikony paska menu z przełącznikiem dostawcy.";
+"merged_icon_style_title" = "Styl połączonej ikony";
+"merged_icon_style_subtitle" = "Przełącznik pokazuje dostawców po kolei; Ułożone w stosie pokazuje dwóch dostawców naraz, każdy w osobnym wierszu.";
+"merged_icon_style_switcher" = "Przełącznik";
+"merged_icon_style_stacked" = "Ułożone w stosie";
+"merge_icon_stacked_top_provider_title" = "Górny wiersz";
+"merge_icon_stacked_bottom_provider_title" = "Dolny wiersz";
 "show_most_used_provider_title" = "Pokaż najczęściej używanego dostawcę";
 "show_most_used_provider_subtitle" = "Pasek menu automatycznie pokazuje dostawcę najbliżej limitu.";
 "display_mode_title" = "Tryb wyświetlania";
@@ -891,6 +899,12 @@
 "usage_percent_suffix_used" = "wykorzystano";
 "Store multiple DeepSeek API keys." = "Przechowuj wiele kluczy API DeepSeek.";
 "This week" = "Ten tydzień";
+"Current window" = "Bieżące okno";
+"Last week" = "Zeszły tydzień";
+"%d weeks ago" = "%d tyg. temu";
+"Previous window" = "Poprzednie okno";
+"%d windows ago" = "%d okna temu";
+"Recent windows" = "Ostatnie okna";
 "Week" = "Tydzień";
 "Month" = "Miesiąc";
 "Models" = "Modele";
@@ -1352,6 +1366,8 @@
 "Tracked tokens" = "Śledzone tokeny";
 "Subscriptions" = "Subskrypcje";
 "By subscription" = "Według subskrypcji";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Brak historii na poziomie modeli";
 "Daily estimated spend" = "Szacowane dzienne wydatki";
 "Hourly estimated spend" = "Szacowane wydatki godzinowe";
@@ -1448,6 +1464,33 @@
 "%d more accounts ready" = "Jeszcze %d kont gotowych";
 "Shows the hidden accounts" = "Pokazuje ukryte konta";
 "%@ remaining" = "Pozostało %@";
+"codex_workspaces_title" = "Obszary robocze";
+"codex_workspaces_estimated_local_logs" = "Oszacowano na podstawie lokalnych dzienników Codex";
+"codex_workspaces_no_local_usage" = "Brak lokalnego użycia Codex";
+"codex_workspaces_tokens" = "Tokeny";
+"codex_workspaces_token_count_accessibility" = "%@ tokenów";
+"codex_workspaces_estimated_cost_short" = "Szac. koszt";
+"codex_workspaces_estimated_cost_value" = "szac. %@";
+"codex_workspaces_sessions" = "Sesje";
+"codex_workspaces_session_count" = "Sesje: %@";
+"codex_workspaces_top_model" = "Najczęstszy model";
+"codex_workspaces_local_codex_chat" = "Lokalny czat Codex";
+"codex_workspaces_indexing_local_logs" = "Indeksowanie lokalnych dzienników Codex…";
+"codex_workspaces_failed_read_logs" = "Nie udało się odczytać dzienników Codex";
+"codex_workspaces_scanning_logs" = "Skanowanie dzienników Codex…";
+"codex_workspaces_indexing_projects" = "Indeksowanie projektów…";
+"codex_workspaces_saving_project_index" = "Zapisywanie indeksu projektów…";
+"codex_workspaces_cost_unavailable" = "Koszt niedostępny";
+"codex_workspaces_refresh_usage_data" = "Odśwież dane użycia";
+"codex_workspaces_retry" = "Spróbuj ponownie";
+"codex_workspaces_partial_data" = "Dane częściowe";
+"codex_workspaces_high_usage" = "Wysokie użycie";
+"codex_workspaces_elevated_usage" = "Podwyższone użycie";
+"codex_workspaces_normal_usage" = "Normalne użycie";
+"codex_workspaces_no_sessions" = "Brak sesji w tym obszarze roboczym";
+"codex_workspaces_session" = "Sesja";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Rozpoczęto";
 "Finish now" = "Zakończ teraz";
 "Continue in background" = "Kontynuuj w tle";
 "(%d%% risk)" = "(%d%% ryzyka wyczerpania)";
@@ -1464,6 +1507,7 @@
 "More" = "Więcej";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Zainstaluj…";
 "Install plugin" = "Zainstaluj wtyczkę";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Kopiuje plik JavaScript lub TypeScript do katalogu wtyczek.";
@@ -1566,3 +1610,29 @@
 "Restore Defaults" = "Przywróć domyślne";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wybierz wiersze użycia wyświetlane w menu tego dostawcy, podglądzie ustawień i przeglądzie.";
 "%@ (unavailable)" = "%@ (niedostępne)";
+"overview_layout_title" = "Układ Przeglądu";
+"overview_layout_subtitle" = "Wybierz, ile informacji ma wyświetlać Przegląd.";
+"overview_layout_detailed" = "Szczegółowy";
+"overview_layout_compact" = "Kompaktowy";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Szacowana suma częściowa (%@): %@";
+"Excluded requests with missing final usage: %d" = "Wykluczone żądania bez końcowych danych o użyciu: %d";
+"antigravity_cost_estimate_hint" = "Lokalne użycie × publiczne ceny API · to nie opłaty ani kredyty Antigravity";
+"antigravity_quota_window_note" = "Koszt okna obejmuje wszystkie modele · pokazane okno to najbardziej ograniczona rodzina";
+"antigravity_no_priced_token_history" = "Brak wycenionej historii tokenów Antigravity.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Udostępnij podsumowanie użycia…";
+"Usage snapshot unavailable" = "Podsumowanie użycia niedostępne";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit nie może przygotować podsumowania użycia do udostępnienia. Odśwież Zużycie i wydatki, a następnie spróbuj ponownie.";
+
+/* Account widgets */
+"section_widgets" = "Widżety";
+"account_widgets_title" = "Aktualizuj konta dla widżetów";
+"account_widgets_description" = "Wybierz konto w każdym widżecie Account Usage. Odświeża do sześciu kont na dostawcę.";
+"claude_limited_usage_detail" = "Mniej szczegółowe dane o zużyciu";
+"%@ weekly" = "%@ tygodniowo";
+
+"Color Pace Indicator" = "Koloruj tempo zużycia";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Zielony, gdy zużycie jest wolniejsze od oczekiwanego (rezerwa); czerwony, gdy jest szybsze (ryzyko wcześniejszego wyczerpania limitu).";

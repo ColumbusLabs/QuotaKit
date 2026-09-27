@@ -325,8 +325,8 @@ extension UsageMenuCardView.Model {
         }
 
         if input.provider == .claude, input.snapshot?.dataConfidence == .percentOnly {
-            // CLI-scraped usage carries rendered percentages only; label the reduced fidelity honestly.
-            return [L("Usage via Claude CLI (limited detail)")] + subscriptionNotes
+            // Both CLI scraping and restored history carry percentages without full usage detail.
+            return [L("claude_limited_usage_detail")] + subscriptionNotes
         }
 
         // Provider-specific by design: OpenCode Go local quota windows need an explicit authority warning.
@@ -362,6 +362,10 @@ extension UsageMenuCardView.Model {
             self.inlineUsageDashboard != nil ||
             self.codexResetCredits != nil ||
             self.placeholder != nil
+    }
+
+    func showsOverviewSupplementalContent(compact: Bool) -> Bool {
+        !compact || self.metrics.isEmpty
     }
 
     var creditsOnlyInlineUsageDashboard: Bool {
@@ -409,6 +413,7 @@ extension UsageMenuCardView.Model {
               self.usageNotes == candidate.usageNotes,
               self.providerDetails == candidate.providerDetails,
               (self.openAIAPIUsage == nil) == (candidate.openAIAPIUsage == nil),
+              self.creditsShowProgress == candidate.creditsShowProgress,
               Self.hasCompatibleCreditsLayout(
                   currentText: self.creditsText,
                   currentRemaining: self.creditsRemaining,
@@ -479,12 +484,16 @@ extension UsageMenuCardView.Model {
             current.valueStyle == candidate.valueStyle &&
                 current.kpis.count == candidate.kpis.count &&
                 current.points.count == candidate.points.count &&
+                current.quotaWindows.count == candidate.quotaWindows.count &&
                 current.detailLines.count == candidate.detailLines.count &&
                 zip(current.kpis, candidate.kpis).allSatisfy {
                     $0.title == $1.title && $0.emphasis == $1.emphasis
                 } &&
                 zip(current.points, candidate.points).allSatisfy {
                     $0.id == $1.id && $0.label == $1.label
+                } &&
+                zip(current.quotaWindows, candidate.quotaWindows).allSatisfy {
+                    $0.title == $1.title && $0.range == $1.range && $0.note == $1.note
                 }
         default:
             false
@@ -620,9 +629,12 @@ extension UsageMenuCardView.Model {
                 var consumedLabels: Set<String> = []
                 if let balance = section.rows.first(where: { $0.label == "Balance" }) {
                     try rows.append(ProviderDetailSection.Row(
+                        id: balance.id,
                         label: L("Balance"),
                         value: balance.value,
-                        secondaryValue: balance.secondaryValue))
+                        secondaryValue: balance.secondaryValue,
+                        progress: balance.progress,
+                        usageValue: balance.usageValue))
                     consumedLabels.insert(balance.label)
                 }
                 for period in [
@@ -987,9 +999,15 @@ extension UsageMenuCardView.Model {
             } else {
                 L("Unavailable")
             }
-            let title = input.provider == .doubao && namedWindow.id.contains("-team-")
-                ? "\(L(namedWindow.title)) (\(L("Team")))"
-                : L(namedWindow.title)
+            // Keep canonical model titles in data and localize the complete weekly phrase in the menu.
+            let title = if input.provider == .claude, namedWindow.id.hasPrefix("claude-weekly-scoped-") {
+                String(format: L("%@ weekly"), namedWindow.title.replacingOccurrences(
+                    of: #"\s+only\s*$"#, with: "", options: [.regularExpression, .caseInsensitive]))
+            } else if input.provider == .doubao, namedWindow.id.contains("-team-") {
+                "\(L(namedWindow.title)) (\(L("Team")))"
+            } else {
+                L(namedWindow.title)
+            }
             // Provider-specific by design: Kiro overage remaining copy is unique to that extra window.
             let detailLeftText: String? = if usageKnown {
                 Self.kiroOverageRemainingDetail(
@@ -1094,10 +1112,13 @@ extension UsageMenuCardView.Model {
         window: RateWindow,
         input: Input) -> PaceDetail?
     {
-        if provider == .claude, window.windowMinutes != 10080 {
+        // Provider-specific by design: extra-window pacing covers Codex, Claude, Antigravity, and Cursor 7-day extras.
+        if provider == .claude || provider == .cursor, window.windowMinutes != 10080 {
             return nil
         }
-        guard provider == .codex || provider == .claude || provider == .antigravity else { return nil }
+        guard provider == .codex || provider == .claude || provider == .antigravity || provider == .cursor else {
+            return nil
+        }
         switch window.windowMinutes {
         case 300:
             return self.sessionPaceDetail(

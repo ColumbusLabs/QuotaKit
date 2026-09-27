@@ -125,6 +125,11 @@ extension CLIServeWebUI {
           font-size: 12px;
         }
 
+        .display-preferences {
+          justify-content: flex-start;
+          margin-bottom: 16px;
+        }
+
         .badge {
           display: none;
           padding: 3px 8px;
@@ -142,11 +147,13 @@ extension CLIServeWebUI {
         }
 
         button,
-        input {
+        input,
+        select {
           font: inherit;
         }
 
-        button {
+        button,
+        select {
           border: 1px solid var(--line);
           border-radius: 8px;
           background: var(--surface);
@@ -160,7 +167,8 @@ extension CLIServeWebUI {
         }
 
         button:focus-visible,
-        input:focus-visible {
+        input:focus-visible,
+        select:focus-visible {
           outline: 2px solid #49a3b0;
           outline-offset: 2px;
         }
@@ -585,6 +593,15 @@ extension CLIServeWebUI {
           </div>
         </header>
 
+        <div class="meta display-preferences">
+          <label for="usage-display">Usage display</label>
+          <select id="usage-display">
+            <option value="server">Follow server</option>
+            <option value="used">Used</option>
+            <option value="remaining">Remaining</option>
+          </select>
+        </div>
+
         <section id="auth" class="notice" aria-labelledby="auth-title">
           <h2 id="auth-title">This server requires a dashboard token</h2>
           <p>Enter the bearer token configured for this QuotaKit server.</p>
@@ -609,9 +626,11 @@ extension CLIServeWebUI {
 
         const tokenKey = "quotakit.dashboardToken";
         const snapshotKey = "quotakit.lastSnapshot";
+        const usageDisplayKey = "quotakit.dashboard.usageDisplay";
         const providerIconURLs = __PROVIDER_ICON_URLS__;
         const state = {
           snapshot: null,
+          usageDisplay: storedUsageDisplay(),
           timer: null,
           fetching: false,
           fillPromise: null,
@@ -633,8 +652,31 @@ extension CLIServeWebUI {
           stale: document.getElementById("stale"),
           token: document.getElementById("token"),
           tokenForm: document.getElementById("token-form"),
+          usageDisplay: document.getElementById("usage-display"),
           version: document.getElementById("version")
         };
+
+        function storedUsageDisplay() {
+          try {
+            const value = localStorage.getItem(usageDisplayKey);
+            return value === "used" || value === "remaining" ? value : "server";
+          } catch (_) {
+            return "server";
+          }
+        }
+
+        function changeUsageDisplay() {
+          const value = elements.usageDisplay.value;
+          state.usageDisplay = value === "used" || value === "remaining" ? value : "server";
+          elements.usageDisplay.value = state.usageDisplay;
+          try {
+            if (state.usageDisplay === "server") localStorage.removeItem(usageDisplayKey);
+            else localStorage.setItem(usageDisplayKey, state.usageDisplay);
+          } catch (_) {
+            // The selection still applies for this page when storage is unavailable or full.
+          }
+          if (state.snapshot) renderProviders(state.snapshot);
+        }
 
         function storedToken() {
           try {
@@ -773,18 +815,21 @@ extension CLIServeWebUI {
         function renderWindow(window) {
           const item = node("div", "window");
           const head = node("div", "window-head");
-          const label = node(
-            "span",
-            "window-label",
-            `${window.label || "Usage"} · ${percent(window.usedPercent)} used`
-          );
-          head.append(label);
+          const showUsed = state.usageDisplay === "server"
+            ? Boolean(state.snapshot && state.snapshot.host && state.snapshot.host.usageBarsShowUsed)
+            : state.usageDisplay === "used";
+          const pct = showUsed
+            ? window.usedPercent
+            : (window.remainingPercent ?? (100 - finiteNumber(window.usedPercent)));
+          const suffix = showUsed ? "used" : "left";
+          head.append(node("span", "window-label",
+            `${window.label || "Usage"} · ${percent(pct)} ${suffix}`));
           const reset = resetTime(window.resetAt);
           if (reset) head.append(node("span", "window-time", reset));
 
           const track = node("div", "track");
           const fill = node("div", "fill");
-          const width = Math.min(100, Math.max(0, finiteNumber(window.usedPercent)));
+          const width = Math.min(100, Math.max(0, finiteNumber(pct)));
           fill.style.width = `${width}%`;
           track.setAttribute("role", "progressbar");
           track.setAttribute("aria-label", "Usage window");
@@ -971,11 +1016,14 @@ extension CLIServeWebUI {
             const unit = provider.credits.unit ? ` ${provider.credits.unit}` : "";
             metrics.append(metric("Remaining", `${amount(provider.credits.remaining)}${unit}`));
           }
-          if (provider.cost?.todayUSD !== null && provider.cost?.todayUSD !== undefined) {
-            metrics.append(metric("Today", dollars(provider.cost.todayUSD)));
-          }
-          if (provider.cost?.last30DaysUSD !== null && provider.cost?.last30DaysUSD !== undefined) {
-            metrics.append(metric("Last 30 days", dollars(provider.cost.last30DaysUSD)));
+          appendCostSummary(card, provider, metrics);
+          return card;
+        }
+
+        function appendCostSummary(card, provider, metrics = node("div", "metrics")) {
+          for (const [label, key] of [["Today", "todayUSD"], ["Last 30 days", "last30DaysUSD"]]) {
+            const value = provider.cost?.[key];
+            if (value !== null && value !== undefined) metrics.append(metric(label, dollars(value)));
           }
           if (metrics.childElementCount) card.append(metrics);
 
@@ -984,7 +1032,6 @@ extension CLIServeWebUI {
             const chart = renderCostChart(history);
             if (chart) card.append(chart);
           }
-          return card;
         }
 
         function updateFreshness() {
@@ -1010,6 +1057,11 @@ extension CLIServeWebUI {
           elements.error.classList.remove("visible");
           elements.signOut.classList.toggle("visible", Boolean(storedToken()));
 
+          renderProviders(snapshot);
+          updateFreshness();
+        }
+
+        function renderProviders(snapshot) {
           const providers = Array.isArray(snapshot.providers) ? [...snapshot.providers] : [];
           providers.sort((left, right) => {
             return finiteNumber(left.display?.sortKey) - finiteNumber(right.display?.sortKey);
@@ -1027,14 +1079,16 @@ extension CLIServeWebUI {
               group.append(node("h2", "group-title", `${provider.name || provider.id} accounts`));
               const grid = node("div", "grid");
               for (const account of accounts) grid.append(renderAccountCard(provider, account));
-              if (provider.accountsError) grid.append(node("p", "error-message", provider.accountsError));
+              const summary = node("article", "card");
+              summary.style.setProperty("--accent", accentColor(provider.display?.accentColor));
+              summary.append(node("h3", "provider-name", `${provider.name || provider.id} local spend`));
+              appendCostSummary(summary, provider);
+              if (summary.childElementCount > 1) grid.append(summary);
               group.append(grid);
+              if (provider.error) group.append(node("p", "error-message",
+                `Provider data: ${provider.error.message || "Provider data is unavailable."}`));
+              if (provider.accountsError) group.append(node("p", "error-message", provider.accountsError));
               sections.push(group);
-              const activeAccount = accounts.find(account => account.active === true);
-              const activeHasUsableWindows = activeAccount && visibleWindows(activeAccount.windows).length > 0;
-              const hasAmbientSummary = visibleWindows(provider.windows).length > 0 ||
-                provider.cost || provider.credits || provider.status;
-              if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider);
             } else {
               rest.push(provider);
             }
@@ -1049,7 +1103,6 @@ extension CLIServeWebUI {
           }
           if (!sections.length) sections.push(node("div", "empty", "No providers are configured."));
           elements.providers.replaceChildren(...sections);
-          updateFreshness();
         }
 
         function showTokenForm() {
@@ -1243,6 +1296,9 @@ extension CLIServeWebUI {
             scheduleRefresh();
           }
         }
+
+        elements.usageDisplay.value = state.usageDisplay;
+        elements.usageDisplay.addEventListener("change", changeUsageDisplay);
 
         elements.tokenForm.addEventListener("submit", event => {
           event.preventDefault();

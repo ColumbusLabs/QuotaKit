@@ -254,9 +254,10 @@ extension StatusItemController {
             let cachedPayload = cachedHosting.rowPayload
             self.replantMenuCardRowPayload(cachedPayload, into: liveHosting)
             self.replantMenuCardRowPayload(livePayload, into: cachedHosting)
-            let liveFrame = liveHosting.frame
-            liveHosting.frame = cachedHosting.frame
-            cachedHosting.frame = liveFrame
+            let liveSize = liveHosting.intrinsicContentSize
+            let cachedSize = cachedHosting.intrinsicContentSize
+            liveHosting.applyMeasuredSize(width: cachedSize.width, height: cachedSize.height)
+            cachedHosting.applyMeasuredSize(width: liveSize.width, height: liveSize.height)
             self.swapMenuItemMetadataKeepingViews(liveItem, cachedItem)
             return
         }

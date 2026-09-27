@@ -1,9 +1,6 @@
 import Foundation
 
 #if os(macOS)
-import AppKit
-import UserNotifications
-
 /// Manages automatic session keepalive for Augment to prevent cookie expiration.
 ///
 /// This actor monitors cookie expiration and proactively refreshes the session
@@ -27,11 +24,32 @@ public final class AugmentSessionKeepalive {
     // MARK: - State
 
     private var timerTask: Task<Void, Never>?
+    private var refreshTasks: [UUID: Task<Void, Never>] = [:]
+    private var lifecycle = UUID()
+    private var stopped = false
+    private let dependencies: AugmentKeepaliveDependencies
+    #if DEBUG
+    var _test_timerTask: Task<Void, Never>? {
+        self.timerTask
+    }
+
+    var _test_consecutiveFailures: Int {
+        self.consecutiveFailures
+    }
+
+    var _test_isRefreshing: Bool {
+        self.isRefreshing
+    }
+    #endif
     private var lastRefreshAttempt: Date?
     private var lastSuccessfulRefresh: Date?
-    private var isRefreshing = false
+    private var isRefreshing: Bool {
+        !self.refreshTasks.isEmpty
+    }
+
     private let logger: ((String) -> Void)?
     private var onSessionRecovered: (() async -> Void)?
+    private let onLoginRequired: (() -> Void)?
 
     /// Track consecutive failures to stop retrying after too many failures
     private var consecutiveFailures = 0
@@ -40,13 +58,33 @@ public final class AugmentSessionKeepalive {
 
     // MARK: - Initialization
 
-    public init(logger: ((String) -> Void)? = nil, onSessionRecovered: (() async -> Void)? = nil) {
+    public convenience init(
+        logger: ((String) -> Void)? = nil,
+        onSessionRecovered: (() async -> Void)? = nil,
+        onLoginRequired: (() -> Void)? = nil)
+    {
+        self.init(
+            dependencies: .live,
+            logger: logger,
+            onSessionRecovered: onSessionRecovered,
+            onLoginRequired: onLoginRequired)
+    }
+
+    init(
+        dependencies: AugmentKeepaliveDependencies,
+        logger: ((String) -> Void)? = nil,
+        onSessionRecovered: (() async -> Void)? = nil,
+        onLoginRequired: (() -> Void)? = nil)
+    {
+        self.dependencies = dependencies
         self.logger = logger
         self.onSessionRecovered = onSessionRecovered
+        self.onLoginRequired = onLoginRequired
     }
 
     deinit {
         self.timerTask?.cancel()
+        self.refreshTasks.values.forEach { $0.cancel() }
     }
 
     // MARK: - Public API
@@ -57,6 +95,8 @@ public final class AugmentSessionKeepalive {
             self.log("Keepalive already running")
             return
         }
+        self.stopped = false
+        let lifecycle = self.lifecycle
 
         self.log("🚀 Starting Augment session keepalive")
         self.log(
@@ -69,21 +109,28 @@ public final class AugmentSessionKeepalive {
             "   - Min refresh interval: \(Int(self.minRefreshInterval))s "
                 + "(\(Self.durationDescription(seconds: self.minRefreshInterval)))")
 
-        self.timerTask = Task.detached(priority: .utility) { [weak self] in
+        let sleep = self.dependencies.sleep
+        let interval = self.checkInterval
+        self.timerTask = Task(priority: .utility) { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(self?.checkInterval ?? 300))
-                await self?.checkAndRefreshIfNeeded()
+                do { try await sleep(.seconds(interval)) } catch { return }
+                guard self?.canRun(lifecycle) == true else { return }
+                await self?.checkAndRefreshIfNeeded(lifecycle: lifecycle)
             }
         }
 
         self.log("✅ Keepalive timer started successfully")
     }
 
-    /// Stop the automatic session keepalive timer
+    /// Stop the timer and invalidate all work from this lifecycle.
     public func stop() {
         self.log("Stopping Augment session keepalive")
+        self.stopped = true
+        self.lifecycle = UUID()
         self.timerTask?.cancel()
         self.timerTask = nil
+        self.refreshTasks.values.forEach { $0.cancel() }
+        self.refreshTasks.removeAll()
     }
 
     /// Manually trigger a session refresh (bypasses rate limiting)
@@ -94,7 +141,16 @@ public final class AugmentSessionKeepalive {
 
     // MARK: - Private Implementation
 
-    private func checkAndRefreshIfNeeded() async {
+    private func canRun(_ lifecycle: UUID) -> Bool {
+        !self.stopped && self.lifecycle == lifecycle && !Task.isCancelled
+    }
+
+    private func requireActive(_ lifecycle: UUID) throws {
+        guard self.canRun(lifecycle) else { throw CancellationError() }
+    }
+
+    private func checkAndRefreshIfNeeded(lifecycle: UUID) async {
+        guard self.canRun(lifecycle) else { return }
         guard !self.isRefreshing else {
             self.log("Refresh already in progress, skipping check")
             return
@@ -119,15 +175,15 @@ public final class AugmentSessionKeepalive {
         }
 
         // Check if cookies are about to expire
-        let shouldRefresh = await self.shouldRefreshSession()
+        let shouldRefresh = self.shouldRefreshSession()
         if shouldRefresh {
             await self.performRefresh(forced: false)
         }
     }
 
-    private func shouldRefreshSession() async -> Bool {
+    private func shouldRefreshSession() -> Bool {
         do {
-            let session = try AugmentCookieImporter.importSession(logger: self.logger)
+            let session = try self.dependencies.importSession(self.logger)
 
             self.log("📊 Cookie Status Check:")
             self.log("   Total cookies: \(session.cookies.count)")
@@ -189,10 +245,27 @@ public final class AugmentSessionKeepalive {
         }
     }
 
-    private func performRefresh(forced: Bool) async {
-        self.isRefreshing = true
+    func performRefresh(forced: Bool) async {
+        let lifecycle = self.lifecycle
+        guard self.canRun(lifecycle) else { return }
+        let id = UUID()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.refreshTasks.removeValue(forKey: id) }
+            guard self.canRun(lifecycle) else { return }
+            await self.performRefreshPass(forced: forced, lifecycle: lifecycle)
+        }
+        self.refreshTasks[id] = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func performRefreshPass(forced: Bool, lifecycle: UUID) async {
+        guard self.canRun(lifecycle) else { return }
         self.lastRefreshAttempt = Date()
-        defer { self.isRefreshing = false }
 
         self.log(forced ? "Performing forced session refresh..." : "Performing automatic session refresh...")
 
@@ -205,18 +278,18 @@ public final class AugmentSessionKeepalive {
 
         do {
             // Step 1: Ping the session endpoint to trigger cookie refresh
-            let refreshed = try await self.pingSessionEndpoint()
+            let refreshed = try await self.pingSessionEndpoint(lifecycle: lifecycle)
+            guard self.canRun(lifecycle) else { return }
 
             if refreshed {
                 // Step 2: Re-import cookies from browser
-                try await Task.sleep(for: .seconds(1)) // Brief delay for browser to update cookies
-                let newSession = try AugmentCookieImporter.importSession(logger: self.logger)
+                try await self.dependencies.sleep(.seconds(1)) // Brief delay for browser to update cookies
+                guard self.canRun(lifecycle) else { return }
+                let newSession = try self.dependencies.importSession(self.logger)
 
-                await AugmentSessionStore.shared.setCookies(newSession.cookies)
-                CookieHeaderCache.store(
-                    provider: .augment,
-                    cookieHeader: newSession.cookieHeader,
-                    sourceLabel: newSession.sourceLabel)
+                await self.dependencies.storeCookies(newSession.cookies)
+                guard self.canRun(lifecycle) else { return }
+                self.dependencies.cacheSession(newSession)
 
                 self.log(
                     "✅ Session refresh successful - imported \(newSession.cookies.count) cookies " +
@@ -237,6 +310,7 @@ public final class AugmentSessionKeepalive {
                 self.checkIfShouldGiveUp()
             }
         } catch AugmentSessionKeepaliveError.sessionExpired {
+            guard self.canRun(lifecycle) else { return }
             self.log("🔐 Session expired - attempting automatic recovery...")
             self.consecutiveFailures += 1
 
@@ -244,11 +318,12 @@ public final class AugmentSessionKeepalive {
                 self.log("❌ Too many consecutive failures (\(self.consecutiveFailures)) - giving up")
                 self.log("   User must manually log in to Augment and click 'Refresh Session'")
                 self.hasGivenUp = true
-                self.notifyUserLoginRequired()
+                self.notifyUserLoginRequired(lifecycle: lifecycle)
             } else {
-                await self.attemptSessionRecovery()
+                await self.attemptSessionRecovery(lifecycle: lifecycle)
             }
         } catch {
+            guard self.canRun(lifecycle), !(error is CancellationError) else { return }
             self.log("✗ Session refresh failed: \(error.localizedDescription)")
             self.consecutiveFailures += 1
             self.checkIfShouldGiveUp()
@@ -260,36 +335,36 @@ public final class AugmentSessionKeepalive {
             self.log("❌ Too many consecutive failures (\(self.consecutiveFailures)) - giving up")
             self.log("   User must manually log in to Augment and click 'Refresh Session'")
             self.hasGivenUp = true
-            self.notifyUserLoginRequired()
         }
     }
 
     /// Attempt to recover from an expired session by triggering browser re-authentication
-    private func attemptSessionRecovery() async {
+    private func attemptSessionRecovery(lifecycle: UUID) async {
+        guard self.canRun(lifecycle) else { return }
         self.log("🔄 Attempting automatic session recovery...")
         self.log("   Strategy: Open Augment dashboard to trigger browser re-auth")
 
         #if os(macOS)
         // Open the Augment dashboard in the default browser
         // This will trigger the browser to re-authenticate if the user is still logged in
-        if let url = URL(string: "https://app.augmentcode.com") {
-            _ = await MainActor.run {
-                NSWorkspace.shared.open(url)
-            }
+        do {
+            self.dependencies.openDashboard()
             self.log("   ✅ Opened Augment dashboard in browser")
             self.log("   ⏳ Waiting 5 seconds for browser to re-authenticate...")
 
             // Wait for browser to potentially re-authenticate
-            try? await Task.sleep(for: .seconds(5))
+            do { try await self.dependencies.sleep(.seconds(5)) } catch { return }
+            guard self.canRun(lifecycle) else { return }
 
             // Try to import cookies again
             do {
-                let newSession = try AugmentCookieImporter.importSession(logger: self.logger)
+                let newSession = try self.dependencies.importSession(self.logger)
                 self.log("   ✅ Session recovery successful - imported \(newSession.cookies.count) cookies")
                 self.lastSuccessfulRefresh = Date()
 
                 // Verify the session is actually valid by pinging the API
-                let isValid = try await self.pingSessionEndpoint()
+                let isValid = try await self.pingSessionEndpoint(lifecycle: lifecycle)
+                guard self.canRun(lifecycle) else { return }
                 if isValid {
                     self.log("   ✅ Session verified - recovery complete!")
                     // Notify UsageStore to refresh Augment usage
@@ -299,12 +374,13 @@ public final class AugmentSessionKeepalive {
                     }
                 } else {
                     self.log("   ⚠️ Session imported but not yet valid - may need manual login")
-                    self.notifyUserLoginRequired()
+                    self.notifyUserLoginRequired(lifecycle: lifecycle)
                 }
             } catch {
+                guard self.canRun(lifecycle), !(error is CancellationError) else { return }
                 self.log("   ✗ Session recovery failed: \(error.localizedDescription)")
                 self.log("   ℹ️ User needs to manually log in to Augment")
-                self.notifyUserLoginRequired()
+                self.notifyUserLoginRequired(lifecycle: lifecycle)
             }
         }
         #else
@@ -312,60 +388,22 @@ public final class AugmentSessionKeepalive {
         #endif
     }
 
-    /// Notify the user that they need to log in to Augment
-    private func notifyUserLoginRequired() {
-        #if os(macOS)
-        self.log("📢 Sending notification: Augment session expired")
-
-        Task {
-            let center = UNUserNotificationCenter.current()
-
-            // Request authorization if needed
-            do {
-                let granted = try await center.requestAuthorization(options: [.alert, .sound])
-                guard granted else {
-                    self.log("⚠️ Notification permission denied")
-                    return
-                }
-            } catch {
-                self.log("✗ Failed to request notification permission: \(error)")
-                return
-            }
-
-            // Create notification content
-            let content = UNMutableNotificationContent()
-            content.title = "Augment Session Expired"
-            content.body = "Please log in to app.augmentcode.com to restore your session."
-            content.sound = .default
-
-            // Create trigger (deliver immediately)
-            let request = UNNotificationRequest(
-                identifier: "augment-session-expired-\(UUID().uuidString)",
-                content: content,
-                trigger: nil)
-
-            // Deliver notification
-            do {
-                try await center.add(request)
-                self.log("✅ Notification delivered successfully")
-            } catch {
-                self.log("✗ Failed to deliver notification: \(error)")
-            }
-        }
-        #endif
+    private func notifyUserLoginRequired(lifecycle: UUID) {
+        guard self.canRun(lifecycle) else { return }
+        self.onLoginRequired?()
     }
 
     /// Ping Augment's session endpoint to trigger cookie refresh
-    private func pingSessionEndpoint() async throws -> Bool {
+    private func pingSessionEndpoint(lifecycle: UUID) async throws -> Bool {
+        try self.requireActive(lifecycle)
         // Try to get current cookies first
-        let currentSession = try? AugmentCookieImporter.importSession(logger: self.logger)
+        let currentSession = try? self.dependencies.importSession(self.logger)
         guard let cookieHeader = currentSession?.cookieHeader else {
             self.log("No cookies available for session ping")
             return false
         }
 
         self.log("🔄 Attempting session refresh...")
-        self.log("   Cookies being sent: \(cookieHeader.prefix(100))...")
 
         // Try multiple endpoints - Augment might use different auth patterns
         let endpoints = [
@@ -377,6 +415,7 @@ public final class AugmentSessionKeepalive {
         var receivedUnauthorized = false
 
         for (index, urlString) in endpoints.enumerated() {
+            try self.requireActive(lifecycle)
             self.log("   Trying endpoint \(index + 1)/\(endpoints.count): \(urlString)")
 
             guard let sessionURL = URL(string: urlString) else { continue }
@@ -388,7 +427,8 @@ public final class AugmentSessionKeepalive {
             request.setValue("https://app.augmentcode.com", forHTTPHeaderField: "Referer")
 
             do {
-                let (data, response) = try await ProviderHTTPClient.shared.data(for: request)
+                let (data, response) = try await self.dependencies.send(request)
+                try self.requireActive(lifecycle)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     self.log("   ✗ Invalid response type")
@@ -396,11 +436,6 @@ public final class AugmentSessionKeepalive {
                 }
 
                 self.log("   Response: HTTP \(httpResponse.statusCode)")
-
-                // Log Set-Cookie headers if present
-                if let setCookies = httpResponse.allHeaderFields["Set-Cookie"] as? String {
-                    self.log("   Set-Cookie headers received: \(setCookies.prefix(100))...")
-                }
 
                 if httpResponse.statusCode == 200 {
                     // Check if we got a valid session response
@@ -417,9 +452,6 @@ public final class AugmentSessionKeepalive {
                         }
                     } else {
                         self.log("   ⚠️ 200 OK but response is not JSON")
-                        if let responseText = String(data: data, encoding: .utf8) {
-                            self.log("   Response text: \(responseText.prefix(200))...")
-                        }
                         continue
                     }
                 } else if httpResponse.statusCode == 401 {
@@ -435,6 +467,7 @@ public final class AugmentSessionKeepalive {
                     continue
                 }
             } catch {
+                guard self.canRun(lifecycle), !(error is CancellationError) else { throw CancellationError() }
                 self.log("   ✗ Request failed: \(error.localizedDescription)")
                 continue
             }

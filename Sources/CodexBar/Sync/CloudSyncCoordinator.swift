@@ -13,6 +13,7 @@ final class CloudSyncCoordinator {
     private var localFileConfigObserver: NSObjectProtocol?
     private var snapshotObserver: NSObjectProtocol?
     private var accountObserver: NSObjectProtocol?
+    private var preferencesImportObserver: NSObjectProtocol?
     private var resumeTask: Task<Void, Never>?
     private var observedEnabled: Bool
 
@@ -31,10 +32,19 @@ final class CloudSyncCoordinator {
             initialConfiguration: settings.configSnapshot,
             initialPreferences: settings.syncedPreferences,
             initialIncludeSecrets: settings.macFleetSyncIncludeSecrets)
+        self.state.removeDeviceHandler = { [weak self] deviceID in
+            await self?.engine.removeDevice(deviceID)
+        }
     }
 
     func start() {
         self.observeSettings()
+        self.preferencesImportObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name(PreferencesDocument.importNotification), object: nil, queue: .main)
+        { [weak self] _ in
+            MainActor.assumeIsolated { self?.settings.consumePendingPreferencesImport() }
+        }
+        self.settings.consumePendingPreferencesImport()
         self.configObserver = NotificationCenter.default.addObserver(
             forName: .codexbarProviderConfigDidChange,
             object: self.settings,
@@ -89,6 +99,10 @@ final class CloudSyncCoordinator {
     }
 
     func stop() {
+        if let preferencesImportObserver {
+            DistributedNotificationCenter.default().removeObserver(preferencesImportObserver)
+            self.preferencesImportObserver = nil
+        }
         if let configObserver {
             NotificationCenter.default.removeObserver(configObserver)
         }

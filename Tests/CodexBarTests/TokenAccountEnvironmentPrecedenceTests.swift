@@ -163,7 +163,7 @@ struct ZaiTokenAccountEnvironmentPrecedenceTests {
     }
 }
 
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct TokenAccountEnvironmentPrecedenceTests {
     @Test
@@ -614,7 +614,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
 
     @Test
     func `codex all accounts selection exposes configured accounts and scopes CLI homes`() throws {
-        let root = FileManager.default.temporaryDirectory
+        let root = CodexCredentialFixtures.root
             .appendingPathComponent("codex-cli-all-accounts-\(UUID().uuidString)", isDirectory: true)
         let ambientHome = root.appendingPathComponent("ambient", isDirectory: true)
         let firstHome = root.appendingPathComponent("first", isDirectory: true)
@@ -720,7 +720,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
 
     @Test
     func `codex CLI ignores relative profile homes`() throws {
-        let root = FileManager.default.temporaryDirectory
+        let root = CodexCredentialFixtures.root
             .appendingPathComponent("codex-cli-relative-profile-\(UUID().uuidString)", isDirectory: true)
         let ambientHome = root.appendingPathComponent("ambient", isDirectory: true)
         let managedStoreURL = root.appendingPathComponent("managed-codex-accounts.json")
@@ -1133,7 +1133,7 @@ extension TokenAccountEnvironmentPrecedenceTests {
     }
 
     fileprivate static func makeTempCodexHome(email: String, plan: String, accountId: String) -> URL {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-known-owner-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         let credentials = CodexOAuthCredentials(

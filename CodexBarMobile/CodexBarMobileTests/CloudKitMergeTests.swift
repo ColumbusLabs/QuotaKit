@@ -759,6 +759,33 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Pi local session costs from two Macs are summed without account identity`() throws {
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "pi", name: "Pi", lastUpdated: self.olderDate,
+                sessionCost: 1.25,
+                daily: [SyncDailyPoint(dayKey: "2026-09-27", costUSD: 1.25, totalTokens: 100)]),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "pi", name: "Pi", lastUpdated: self.newerDate,
+                sessionCost: 2.50,
+                daily: [SyncDailyPoint(dayKey: "2026-09-27", costUSD: 2.50, totalTokens: 200)]),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        #expect(merged.providers.count == 1)
+        let pi = try #require(merged.providers.first)
+        #expect(pi.providerID == "pi")
+        let cost = try #require(pi.costSummary)
+        #expect(cost.sessionCostUSD == 3.75)
+        #expect(cost.last30DaysCostUSD == 3.75)
+        #expect(cost.last30DaysTokens == 300)
+        #expect(cost.daily.count == 1)
+        #expect(cost.daily.first?.costUSD == 3.75)
+    }
+
+    @Test
     func `Account-level provider cost is NOT summed (takes newest)`() throws {
         let daily = [SyncDailyPoint(dayKey: "2024-01-15", costUSD: 5.00, totalTokens: 50000)]
 

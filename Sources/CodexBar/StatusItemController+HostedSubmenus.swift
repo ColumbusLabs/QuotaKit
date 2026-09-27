@@ -105,12 +105,12 @@ extension StatusItemController {
     func attachStatusComponentsSubmenuIfNeeded(
         to item: NSMenuItem,
         action: MenuDescriptor.MenuAction,
-        menu: NSMenu,
+        provider: UsageProvider?,
         width: CGFloat)
     {
         guard action == .statusPage,
-              let statusProvider = self.menuProvider(for: menu) ?? self.lastMenuProvider?.firstPartyProvider,
-              let submenu = self.makeStatusComponentsSubmenu(provider: statusProvider, width: width)
+              let provider,
+              let submenu = self.makeStatusComponentsSubmenu(provider: provider, width: width)
         else { return }
         item.action = nil
         item.submenu = submenu
@@ -502,7 +502,7 @@ extension StatusItemController {
             totalCostUSD: tokenSnapshot.last30DaysCostUSD,
             currencyCode: displayConversion.currencyCode,
             costMultiplier: displayConversion.multiplier,
-            historyDays: tokenSnapshot.historyDays,
+            historyDays: tokenSnapshot.displayHistoryDays(calendar: self.settings.costUsageBucketCalendar),
             historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],

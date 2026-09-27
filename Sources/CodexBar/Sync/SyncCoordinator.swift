@@ -623,6 +623,8 @@ final class SyncCoordinator {
         return SyncMultiAccountList(accounts: entries, activeIndex: activeIndex)
     }
 
+    // Keep the existing stateful flow together; splitting it would obscure ordering.
+    // swiftlint:disable function_body_length
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -645,6 +647,7 @@ final class SyncCoordinator {
                 label: labels.primary,
                 window: codexProjection?.rateWindow(for: .session) ?? p,
                 role: provider == .cursor ? .weekly : .session,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         if let s = snapshot?.secondary {
@@ -653,6 +656,7 @@ final class SyncCoordinator {
                 label: labels.secondary,
                 window: codexProjection?.rateWindow(for: .weekly) ?? s,
                 role: .weekly,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
@@ -661,6 +665,7 @@ final class SyncCoordinator {
                 label: labels.tertiary,
                 window: t,
                 role: .other,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
@@ -671,6 +676,7 @@ final class SyncCoordinator {
                 label: extra.title,
                 window: extra.window,
                 role: .other,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
 
@@ -824,6 +830,8 @@ final class SyncCoordinator {
             providerDetails: Self.mapProviderDetails(provider: provider, snapshot: snapshot))
     }
 
+    // swiftlint:enable function_body_length
+
     private static func mapProviderDetails(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
@@ -909,7 +917,11 @@ final class SyncCoordinator {
         {
             return nil
         }
-        if provider == .opencode, let providerCost, providerCost.limit <= 0 {
+        if provider == .opencode || provider == .codex,
+           let providerCost,
+           providerCost.limit <= 0
+        {
+            // A standalone Codex workspace credit pool is a balance, not a $0 budget.
             return nil
         }
         return providerCost.map { pc in
@@ -1056,6 +1068,7 @@ final class SyncCoordinator {
         label: String?,
         window: RateWindow,
         role: SyncPaceWindowRole,
+        dataConfidence: UsageDataConfidence,
         now: Date) -> SyncRateWindow
     {
         SyncRateWindow(
@@ -1064,7 +1077,9 @@ final class SyncCoordinator {
             windowMinutes: window.windowMinutes,
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
-            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now),
+            pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
+                ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
+                : nil,
             identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window, role: role))
     }
 
@@ -1911,7 +1926,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

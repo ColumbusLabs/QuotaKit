@@ -4,6 +4,7 @@ import Observation
 import Testing
 @testable import CodexBar
 
+// swiftlint:disable file_length
 @Suite(.serialized)
 @MainActor
 // swiftlint:disable:next type_body_length
@@ -1206,6 +1207,19 @@ struct SettingsStoreTests {
         #expect(store.openAIWebBatterySaverEnabled == false)
         #expect(defaults.bool(forKey: "openAIWebBatterySaverEnabled") == false)
         #expect(store.codexCookieSource == .off)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
+    }
+
+    @Test
+    func `inferred browser denial persists before a generated config can imply consent`() {
+        let defaults = InMemoryUserDefaults()
+        #expect(!SettingsStore.initializeOpenAIWebAccessPreference(
+            userDefaults: defaults, config: CodexBarConfig(providers: []), hadExistingConfig: false))
+        #expect(defaults.object(forKey: "openAIWebAccessEnabled") as? Bool == false)
+        #expect(!SettingsStore.initializeOpenAIWebAccessPreference(
+            userDefaults: defaults,
+            config: CodexBarConfig(providers: [ProviderConfig(id: .codex)]),
+            hadExistingConfig: true))
     }
 
     @Test
@@ -1233,13 +1247,12 @@ struct SettingsStoreTests {
         #expect(store.codexCookieSource == .auto)
     }
 
-    @Test
-    func `imports legacy open AI web access defaults key`() throws {
-        let suite = "SettingsStoreTests-openai-web-legacy-key"
+    @Test(arguments: ["openAIWebAccess", "openAIWebAccessEnabled"])
+    func `explicit browser denial wins over saved auto cookies in CLI config`(preferenceKey: String) throws {
+        let suite = "SettingsStoreTests-openai-web-denial-\(preferenceKey)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
-        defaults.removeObject(forKey: "openAIWebAccessEnabled")
-        defaults.set(false, forKey: "openAIWebAccess")
+        defaults.set(false, forKey: preferenceKey)
         defaults.set(false, forKey: "debugDisableKeychainAccess")
         let configStore = testConfigStore(suiteName: suite)
         try configStore.save(CodexBarConfig(providers: [
@@ -1254,6 +1267,12 @@ struct SettingsStoreTests {
 
         #expect(store.openAIWebAccessEnabled == false)
         #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == false)
+        #expect(store.codexCookieSource == .off)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
+
+        store.openAIWebAccessEnabled = true
+        #expect(store.codexCookieSource == .auto)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .auto)
     }
 
     @Test
@@ -1361,6 +1380,39 @@ struct SettingsStoreTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         #expect(reloaded.codexSparkUsageVisible == false)
+    }
+
+    @Test
+    func `Claude model scoped widget usage defaults on persists and refreshes only menus`() async throws {
+        let suite = "SettingsStoreTests-claude-model-scoped-widget-usage-visible"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(store.claudeModelScopedWeeklyUsageVisible)
+        let backgroundRevision = store.backgroundWorkSettingsRevision
+        let menuDidChange = ObservationFlag()
+        withObservationTracking {
+            _ = store.menuObservationToken
+        } onChange: {
+            menuDidChange.set()
+        }
+        store.claudeModelScopedWeeklyUsageVisible = false
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        #expect(store.backgroundWorkSettingsRevision == backgroundRevision)
+        #expect(menuDidChange.get())
+
+        let reloaded = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        #expect(reloaded.claudeModelScopedWeeklyUsageVisible == false)
     }
 
     @Test

@@ -243,6 +243,7 @@
 "No cost history data." = "Geen kostengeschiedenisgegevens.";
 "No data available" = "Geen gegevens beschikbaar";
 "No data yet" = "Nog geen gegevens";
+"Workspaces" = "Werkruimten";
 "No enabled providers available for Overview." = "Er zijn geen ingeschakelde providers beschikbaar voor Overzicht.";
 "No providers selected" = "Geen aanbieders geselecteerd";
 "No token accounts yet." = "Nog geen tokenaccounts.";
@@ -496,6 +497,7 @@
 "cost_summary_style_inline_help" = "Toont het kostenoverzicht rechtstreeks in het hoofdmenu.";
 "cost_summary_style_submenu_help" = "Toont in plaats daarvan het gedetailleerde Kosten-submenu.";
 "cost_summary_style_both_help" = "Toont zowel het hoofdmenu-overzicht als het gedetailleerde Kosten-submenu.";
+"Month to date" = "Deze maand tot nu toe";
 "cost_history_window_title" = "Geschiedenisvenster";
 "cost_history_window_help" = "Stelt in hoeveel dagen lokale gebruikslogboeken in het menu verschijnen.";
 "cost_history_days_title" = "Geschiedenisvenster: %d dagen";
@@ -615,6 +617,12 @@
 "cost_summary_off" = "Uit";
 "merge_icons_title" = "Pictogrammen samenvoegen";
 "merge_icons_subtitle" = "Gebruik één menubalkpictogram met een providerwisselaar.";
+"merged_icon_style_title" = "Gecombineerde pictogramstijl";
+"merged_icon_style_subtitle" = "Wisselaar doorloopt providers één voor één; Gestapeld toont twee providers tegelijk, elk op een eigen regel.";
+"merged_icon_style_switcher" = "Wisselaar";
+"merged_icon_style_stacked" = "Gestapeld";
+"merge_icon_stacked_top_provider_title" = "Bovenste rij";
+"merge_icon_stacked_bottom_provider_title" = "Onderste rij";
 "show_most_used_provider_title" = "Toon meest gebruikte provider";
 "show_most_used_provider_subtitle" = "De menubalk toont automatisch de aanbieder die het dichtst bij de tarieflimiet zit.";
 "display_mode_title" = "Weergavemodus";
@@ -883,6 +891,12 @@
 "usage_percent_suffix_used" = "gebruikt";
 "Store multiple DeepSeek API keys." = "Bewaar meerdere DeepSeek API-sleutels.";
 "This week" = "Deze week";
+"Current window" = "Huidig venster";
+"Last week" = "Vorige week";
+"%d weeks ago" = "%d weken geleden";
+"Previous window" = "Vorig venster";
+"%d windows ago" = "%d vensters geleden";
+"Recent windows" = "Recente vensters";
 "Week" = "Week";
 "Month" = "Maand";
 "Models" = "Modellen";
@@ -1348,6 +1362,8 @@
 "Tracked tokens" = "Bijgehouden tokens";
 "Subscriptions" = "Abonnementen";
 "By subscription" = "Per abonnement";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Geen geschiedenis op modelniveau";
 "Daily estimated spend" = "Geschatte dagelijkse uitgaven";
 "Hourly estimated spend" = "Geschatte uitgaven per uur";
@@ -1444,6 +1460,33 @@
 "%d more accounts ready" = "%d extra accounts gereed";
 "Shows the hidden accounts" = "Toont de verborgen accounts";
 "%@ remaining" = "%@ resterend";
+"codex_workspaces_cost_unavailable" = "Kosten niet beschikbaar";
+"codex_workspaces_elevated_usage" = "Verhoogd gebruik";
+"codex_workspaces_estimated_cost_short" = "Gesch. kosten";
+"codex_workspaces_estimated_cost_value" = "geschat %@";
+"codex_workspaces_estimated_local_logs" = "Geschat op basis van lokale Codex-logbestanden";
+"codex_workspaces_failed_read_logs" = "Codex-logbestanden konden niet worden gelezen";
+"codex_workspaces_high_usage" = "Hoog gebruik";
+"codex_workspaces_indexing_local_logs" = "Lokale Codex-logbestanden indexeren…";
+"codex_workspaces_indexing_projects" = "Projecten indexeren…";
+"codex_workspaces_local_codex_chat" = "Lokale Codex-chat";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_no_local_usage" = "Nog geen lokaal Codex-gebruik";
+"codex_workspaces_no_sessions" = "Geen sessies in deze werkruimte";
+"codex_workspaces_normal_usage" = "Normaal gebruik";
+"codex_workspaces_partial_data" = "Gedeeltelijke gegevens";
+"codex_workspaces_refresh_usage_data" = "Gebruiksgegevens vernieuwen";
+"codex_workspaces_retry" = "Opnieuw proberen";
+"codex_workspaces_saving_project_index" = "Projectindex opslaan…";
+"codex_workspaces_scanning_logs" = "Codex-logbestanden scannen…";
+"codex_workspaces_session" = "Sessie";
+"codex_workspaces_session_count" = "Sessies: %@";
+"codex_workspaces_sessions" = "Sessies";
+"codex_workspaces_started" = "Gestart";
+"codex_workspaces_title" = "Werkruimten";
+"codex_workspaces_token_count_accessibility" = "%@ tokens";
+"codex_workspaces_tokens" = "Tokens";
+"codex_workspaces_top_model" = "Topmodel";
 "Finish now" = "Nu voltooien";
 "Continue in background" = "Doorgaan op de achtergrond";
 "(%d%% risk)" = "(%d%% uitlooprisico)";
@@ -1460,6 +1503,7 @@
 "More" = "Meer";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Installeren…";
 "Install plugin" = "Plug-in installeren";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Kopieert een JavaScript- of TypeScript-bestand naar de map met plug-ins.";
@@ -1562,3 +1606,29 @@
 "Restore Defaults" = "Standaardinstellingen herstellen";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Kies welke gebruiksrijen worden weergegeven in het menu van deze provider, het instellingenvoorbeeld en het overzicht.";
 "%@ (unavailable)" = "%@ (niet beschikbaar)";
+"overview_layout_title" = "Overzichtsindeling";
+"overview_layout_subtitle" = "Kies hoeveel informatie het overzicht toont.";
+"overview_layout_detailed" = "Gedetailleerd";
+"overview_layout_compact" = "Compact";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Geschat subtotaal (%@): %@";
+"Excluded requests with missing final usage: %d" = "Uitgesloten verzoeken zonder definitieve gebruiksgegevens: %d";
+"antigravity_cost_estimate_hint" = "Lokaal gebruik × publieke API-prijzen · geen Antigravity-kosten of -tegoeden";
+"antigravity_quota_window_note" = "Vensterkosten omvatten alle modellen · getoond venster is de meest beperkte familie";
+"antigravity_no_priced_token_history" = "Geen geprijsde Antigravity-tokengeschiedenis beschikbaar.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Gebruiksoverzicht delen…";
+"Usage snapshot unavailable" = "Gebruiksoverzicht niet beschikbaar";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kon geen deelbaar gebruiksoverzicht maken. Vernieuw Gebruik en uitgaven en probeer het opnieuw.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Accounts voor widgets actueel houden";
+"account_widgets_description" = "Kies een account in elke Account Usage-widget. Werkt maximaal zes accounts per aanbieder bij.";
+"claude_limited_usage_detail" = "Beperkte gebruiksdetails";
+"%@ weekly" = "%@ wekelijks";
+
+"Color Pace Indicator" = "Gebruikstempo kleuren";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Groen als het verbruik achterloopt op het verwachte tempo (reserve); rood als het voorloopt (risico op vroegtijdige uitputting).";

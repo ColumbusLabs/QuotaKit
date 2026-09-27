@@ -101,17 +101,13 @@ struct ManusPluginTests {
         var headers: [String]
         var attempts: [String] = []
 
-        init(_ headers: [String]) {
-            self.headers = headers
-        }
+        init(_ headers: [String]) { self.headers = headers }
 
         func next() -> ProviderPluginCookieSession? {
             guard !self.headers.isEmpty else { return nil }
             return .init(header: self.headers.removeFirst(), source: "fixture", origin: "https://manus.im")
         }
 
-        func record(_ token: String) {
-            self.attempts.append(token)
-        }
+        func record(_ token: String) { self.attempts.append(token) }
     }
 }

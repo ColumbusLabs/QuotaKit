@@ -243,6 +243,7 @@
 "No cost history data." = "Sem dados de histórico de custos.";
 "No data available" = "Nenhum dado disponível";
 "No data yet" = "Ainda sem dados";
+"Workspaces" = "Espaços de trabalho";
 "No enabled providers available for Overview." = "Nenhum provedor ativado disponível para Visão geral.";
 "No providers selected" = "Nenhum provedor selecionado";
 "No token accounts yet." = "Ainda sem contas de token.";
@@ -493,6 +494,7 @@
 "cost_summary_style_inline_help" = "Mostra o resumo de custos diretamente no menu principal.";
 "cost_summary_style_submenu_help" = "Mostra o submenu Custo detalhado em vez disso.";
 "cost_summary_style_both_help" = "Mostra o resumo no menu principal e o submenu Custo detalhado.";
+"Month to date" = "Mês até agora";
 "cost_history_window_title" = "Janela do histórico";
 "cost_history_window_help" = "Define quantos dias de logs de uso locais aparecem no menu.";
 "cost_history_days_title" = "Janela do histórico: %d dias";
@@ -612,6 +614,12 @@
 "cost_summary_off" = "Desativado";
 "merge_icons_title" = "Mesclar Ícones";
 "merge_icons_subtitle" = "Usa um único ícone na barra de menus com alternador de provedores.";
+"merged_icon_style_title" = "Estilo de ícone combinado";
+"merged_icon_style_subtitle" = "O alternador percorre os provedores um de cada vez; Empilhado mostra dois provedores ao mesmo tempo, cada um em uma linha.";
+"merged_icon_style_switcher" = "Alternador";
+"merged_icon_style_stacked" = "Empilhado";
+"merge_icon_stacked_top_provider_title" = "Linha superior";
+"merge_icon_stacked_bottom_provider_title" = "Linha inferior";
 "show_most_used_provider_title" = "Mostrar provedor mais usado";
 "show_most_used_provider_subtitle" = "A barra de menus mostra automaticamente o provedor mais próximo do limite de taxa.";
 "display_mode_title" = "Modo de exibição";
@@ -880,6 +888,12 @@
 "usage_percent_suffix_used" = "usado";
 "Store multiple DeepSeek API keys." = "Armazena várias chaves de API do DeepSeek.";
 "This week" = "Esta semana";
+"Current window" = "Janela atual";
+"Last week" = "Semana passada";
+"%d weeks ago" = "%d semanas atrás";
+"Previous window" = "Janela anterior";
+"%d windows ago" = "%d janelas atrás";
+"Recent windows" = "Janelas recentes";
 "Week" = "Semana";
 "Month" = "Mês";
 "Models" = "Modelos";
@@ -1349,6 +1363,8 @@
 "Tracked tokens" = "Tokens acompanhados";
 "Subscriptions" = "Assinaturas";
 "By subscription" = "Por assinatura";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Sem histórico por modelo";
 "Daily estimated spend" = "Gasto diário estimado";
 "Hourly estimated spend" = "Gasto horário estimado";
@@ -1445,6 +1461,33 @@
 "%d more accounts ready" = "Mais %d contas prontas";
 "Shows the hidden accounts" = "Mostra as contas ocultas";
 "%@ remaining" = "%@ restante";
+"codex_workspaces_cost_unavailable" = "Custo indisponível";
+"codex_workspaces_elevated_usage" = "Uso elevado";
+"codex_workspaces_estimated_cost_short" = "Custo estimado";
+"codex_workspaces_estimated_cost_value" = "estim. %@";
+"codex_workspaces_estimated_local_logs" = "Estimado com base nos registros locais do Codex";
+"codex_workspaces_failed_read_logs" = "Não foi possível ler os registros do Codex";
+"codex_workspaces_high_usage" = "Uso alto";
+"codex_workspaces_indexing_local_logs" = "Indexando registros locais do Codex…";
+"codex_workspaces_indexing_projects" = "Indexando projetos…";
+"codex_workspaces_local_codex_chat" = "Chat local do Codex";
+"codex_workspaces_model" = "Modelo";
+"codex_workspaces_no_local_usage" = "Ainda não há uso local do Codex";
+"codex_workspaces_no_sessions" = "Não há sessões neste espaço de trabalho";
+"codex_workspaces_normal_usage" = "Uso normal";
+"codex_workspaces_partial_data" = "Dados parciais";
+"codex_workspaces_refresh_usage_data" = "Atualizar dados de uso";
+"codex_workspaces_retry" = "Tentar novamente";
+"codex_workspaces_saving_project_index" = "Salvando o índice de projetos…";
+"codex_workspaces_scanning_logs" = "Verificando registros do Codex…";
+"codex_workspaces_session" = "Sessão";
+"codex_workspaces_session_count" = "Sessões: %@";
+"codex_workspaces_sessions" = "Sessões";
+"codex_workspaces_started" = "Iniciada";
+"codex_workspaces_title" = "Espaços de trabalho";
+"codex_workspaces_token_count_accessibility" = "%@ tokens";
+"codex_workspaces_tokens" = "Tokens";
+"codex_workspaces_top_model" = "Modelo principal";
 "Finish now" = "Concluir agora";
 "Continue in background" = "Continuar em segundo plano";
 "(%d%% risk)" = "(%d%% de risco de esgotar)";
@@ -1461,6 +1504,7 @@
 "More" = "Mais";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Instalar…";
 "Install plugin" = "Instalar plugin";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Copia um arquivo JavaScript ou TypeScript para o diretório de plugins.";
@@ -1563,3 +1607,29 @@
 "Restore Defaults" = "Restaurar padrões";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Escolha quais linhas de uso aparecem no menu deste provedor, na prévia dos Ajustes e na Visão geral.";
 "%@ (unavailable)" = "%@ (indisponível)";
+"overview_layout_title" = "Layout da Visão geral";
+"overview_layout_subtitle" = "Escolha quanta informação a Visão geral mostra.";
+"overview_layout_detailed" = "Detalhado";
+"overview_layout_compact" = "Compacto";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Subtotal estimado (%@): %@";
+"Excluded requests with missing final usage: %d" = "Solicitações excluídas sem dados finais de uso: %d";
+"antigravity_cost_estimate_hint" = "Uso local × preços públicos da API · não são cobranças ou créditos da Antigravity";
+"antigravity_quota_window_note" = "O custo da janela cobre todos os modelos · a janela exibida é a família mais restrita";
+"antigravity_no_priced_token_history" = "Nenhum histórico de tokens da Antigravity com preço disponível.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Compartilhar resumo de uso…";
+"Usage snapshot unavailable" = "Resumo de uso indisponível";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "O QuotaKit não conseguiu preparar um resumo de uso para compartilhar. Atualize Uso e gastos e tente novamente.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Manter as contas atualizadas para os widgets";
+"account_widgets_description" = "Escolha uma conta em cada widget Account Usage. Atualiza até seis contas por provedor.";
+"claude_limited_usage_detail" = "Detalhes de uso limitados";
+"%@ weekly" = "%@ semanal";
+
+"Color Pace Indicator" = "Colorir o ritmo";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verde quando o uso está abaixo do ritmo previsto (reserva); vermelho quando está acima (risco de esgotar a cota antes da hora).";

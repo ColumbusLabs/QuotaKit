@@ -4,7 +4,7 @@ public enum CopilotProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
     private static let credentials = ProviderCredentialAdapter.apiKey(
         environmentKey: "COPILOT_API_TOKEN",
-        resolve: { ProviderConfig.clean($0["COPILOT_API_TOKEN"]) },
+        resolve: { SettingsValue.cleaned($0["COPILOT_API_TOKEN"]) },
         tokenAccountSupport: TokenAccountSupport(
             title: "GitHub accounts",
             subtitle: "Sign in with multiple GitHub accounts via OAuth.",
@@ -40,8 +40,11 @@ public enum CopilotProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 sharePlanLabels: [
-                    "free": "Free", "individual": "Individual", "pro": "Individual",
-                    "business": "Business", "enterprise": "Enterprise",
+                    "free": "Free",
+                    "individual": "Individual",
+                    "pro": "Individual",
+                    "business": "Business",
+                    "enterprise": "Enterprise",
                 ],
                 debugLogUnavailableMessage: "Copilot debug log not yet implemented",
                 browserCookieOrder: BrowserCookieImportSupport.chromeOnly(

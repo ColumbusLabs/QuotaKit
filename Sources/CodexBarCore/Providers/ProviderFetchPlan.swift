@@ -25,6 +25,8 @@ public struct ProviderFetchContext: Sendable {
     public let sourceMode: ProviderSourceMode
     public let includeCredits: Bool
     public let includeOptionalUsage: Bool
+    /// Requests verified ownership for account-scoped publication without enabling browser enrichment.
+    public let includeAccountIdentity: Bool
     /// Whether this fetch should wait for optional usage data (such as prepaid balances) to
     /// complete instead of bounding it with the short optional join grace. Usage-snapshot
     /// reads enable this; guard and diagnostic commands keep the bounded join so a slow
@@ -65,6 +67,7 @@ public struct ProviderFetchContext: Sendable {
         sourceMode: ProviderSourceMode,
         includeCredits: Bool,
         includeOptionalUsage: Bool = true,
+        includeAccountIdentity: Bool = false,
         requiresOptionalUsageCompleteness: Bool = false,
         webTimeout: TimeInterval,
         webDebugDumpHTML: Bool,
@@ -88,6 +91,7 @@ public struct ProviderFetchContext: Sendable {
         self.sourceMode = sourceMode
         self.includeCredits = includeCredits
         self.includeOptionalUsage = includeOptionalUsage
+        self.includeAccountIdentity = includeAccountIdentity
         self.requiresOptionalUsageCompleteness = requiresOptionalUsageCompleteness
         self.webTimeout = webTimeout
         self.webDebugDumpHTML = webDebugDumpHTML
@@ -127,6 +131,8 @@ public struct ProviderFetchResult: Sendable {
     public let sourceLabel: String
     public let strategyID: String
     public let strategyKind: ProviderFetchKind
+    /// Optional provider data that can finish after the primary usage result is published.
+    public let supplementalUsageTask: Task<ProviderSupplementalUsageUpdate, Never>?
     /// True when the Codex OAuth strategy already attempted reset-credit enrichment with its
     /// winning in-memory credential snapshot. Generic enrichment must not reload auth.json after
     /// that attempt fails, or it could attach another account's credits to this usage result.
@@ -164,6 +170,7 @@ public struct ProviderFetchResult: Sendable {
         sourceLabel: String,
         strategyID: String,
         strategyKind: ProviderFetchKind,
+        supplementalUsageTask: Task<ProviderSupplementalUsageUpdate, Never>? = nil,
         codexResetCreditsAttempted: Bool = false,
         codexPATCredentialOwner: CodexPATCredentialOwner? = nil,
         fireworksDiscoveredAccountSlug: String? = nil,
@@ -182,6 +189,7 @@ public struct ProviderFetchResult: Sendable {
         self.sourceLabel = sourceLabel
         self.strategyID = strategyID
         self.strategyKind = strategyKind
+        self.supplementalUsageTask = supplementalUsageTask
         self.codexResetCreditsAttempted = codexResetCreditsAttempted
         self.codexPATCredentialOwner = codexPATCredentialOwner
         self.fireworksDiscoveredAccountSlug = fireworksDiscoveredAccountSlug
@@ -204,6 +212,7 @@ public struct ProviderFetchResult: Sendable {
             sourceLabel: self.sourceLabel,
             strategyID: self.strategyID,
             strategyKind: self.strategyKind,
+            supplementalUsageTask: self.supplementalUsageTask,
             codexResetCreditsAttempted: self.codexResetCreditsAttempted,
             codexMonthlyLimitEnrichmentFailed: true,
             diagnostic: self.diagnostic,
@@ -214,6 +223,10 @@ public struct ProviderFetchResult: Sendable {
             claudeOAuthKeychainCredentialAbsent: self.claudeOAuthKeychainCredentialAbsent,
             claudeOAuthKeychainCredentialUnavailable: self.claudeOAuthKeychainCredentialUnavailable)
     }
+}
+
+public enum ProviderSupplementalUsageUpdate: Sendable {
+    case grokResetCredits(GrokRateLimitResetCreditsSnapshot?)
 }
 
 public struct ProviderFetchAttempt: Sendable {
@@ -318,6 +331,7 @@ extension ProviderFetchStrategy {
         credits: CreditsSnapshot? = nil,
         dashboard: OpenAIDashboardSnapshot? = nil,
         sourceLabel: String,
+        supplementalUsageTask: Task<ProviderSupplementalUsageUpdate, Never>? = nil,
         diagnostic: String? = nil,
         fireworksDiscoveredAccountSlug: String? = nil) -> ProviderFetchResult
     {
@@ -328,6 +342,7 @@ extension ProviderFetchStrategy {
             sourceLabel: sourceLabel,
             strategyID: self.id,
             strategyKind: self.kind,
+            supplementalUsageTask: supplementalUsageTask,
             fireworksDiscoveredAccountSlug: fireworksDiscoveredAccountSlug,
             diagnostic: diagnostic)
     }

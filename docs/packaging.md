@@ -9,6 +9,7 @@ read_when:
 
 ## Scripts
 - `Scripts/package_app.sh`: builds host arch by default; set `ARCHES="arm64 x86_64"` for universal. Verifies slices.
+- Identity-signed release packaging requires the local QuotaKit provisioning profile. The package script decodes its team ID and refuses to embed a profile from a different signing team, which would fail at launch despite a valid signature.
 - `Scripts/compile_and_run.sh`: uses host arch; pass `--release-universal` or `--release-arches="arm64 x86_64"` for release packaging.
 - `Scripts/sign-and-notarize.sh`: signs, notarizes, staples, and creates the DMG, ZIP, and dSYM ZIP (accepts `ARCHES` for universal).
 - `Scripts/make_appcast.sh`: wrapper around the shared `mac-release make-appcast` helper; app metadata comes from `.mac-release.env`.

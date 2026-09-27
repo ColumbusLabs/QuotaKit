@@ -10,12 +10,23 @@ IFS= read -r -d '' FAKE_SWIFT_SCRIPT <<'EOF' || true
 set -euo pipefail
 
 printf '%s\n' "$*" >> "${FAKE_SWIFT_LOG}"
+if [[ "$*" == "build --show-bin-path" ]]; then
+  printf '%s\n' "${FAKE_SWIFT_BIN_PATH:?}"
+  exit 0
+fi
 if [[ "$*" == "test list" ]]; then
   if [[ "${FAKE_SWIFT_MODE:-success}" == "list_fail" ]]; then
     sleep 0.25
     printf 'test-list stdout marker\n'
     printf 'test-list stderr marker\n' >&2
     exit 42
+  fi
+  if [[ "${FAKE_SWIFT_MODE:-success}" == "list_sparkle_fail_once" && ! -f "${FAKE_SWIFT_STATE}" ]]; then
+    printf 'failed\n' > "${FAKE_SWIFT_STATE}"
+    printf 'Library not loaded: @rpath/Sparkle.framework/Versions/B/Sparkle\n' >&2
+    printf 'tried: %s/PackageFrameworks/Sparkle.framework/Versions/B/Sparkle\n' \
+      "${FAKE_SWIFT_BIN_PATH:?}" >&2
+    exit 1
   fi
   printf '%s\n' \
     "CodexBarTests.Alpha/test_one()" \
@@ -122,12 +133,14 @@ if required_not_deferred not in job:
     raise SystemExit("swift-test-macos must skip only required tests explicitly deferred for drafts")
 if "shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}" not in job:
     raise SystemExit("swift-test-macos must use the validated path gate shard indexes")
-if not re.search(r"(?m)^\s+shard-count:\s+\[2\]\s*$", job):
-    raise SystemExit("swift-test-macos shard-count must be [2]")
+if not re.search(r"(?m)^\s+shard-count:\s+\[4\]\s*$", job):
+    raise SystemExit("swift-test-macos shard-count must be [4]")
 if "CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-index to Scripts/test.sh")
 if "CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-count to Scripts/test.sh")
+if "CODEXBAR_TEST_KEEP_GOING=1" not in job:
+    raise SystemExit("swift-test-macos broad test must continue after failed groups")
 if "swift test --filter \"$CODEXBAR_TEST_FILTER\"" not in job:
     raise SystemExit("swift-test-macos must run the selected focused suites")
 PY
@@ -171,6 +184,29 @@ grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Isolated selection retries | `0` |' "${GITHUB_STEP_SUMMARY}"
 [[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+
+reset_case keep-going
+export FAKE_SWIFT_MODE=group_always_fail
+set +e
+CODEXBAR_TEST_GROUP_SIZE=4 \
+  CODEXBAR_TEST_SUITE_TIMEOUT=10 \
+  CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
+  CODEXBAR_TEST_KEEP_GOING=1 \
+  "${ROOT_DIR}/Scripts/test.sh" \
+    --swift-command /bin/bash \
+    --swift-command-arg=-c \
+    --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+    --swift-command-arg=fake-swift \
+    > "${TEMP_DIR}/keep-going.log" 2>&1
+keep_going_status=$?
+set -e
+[[ "${keep_going_status}" -eq 1 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 4 ]]
+grep -Fq '| First-pass failed groups | `3` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq 'Group 1/3 (exit 1): CodexBarTests.Alpha' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 2/3 (exit 1):' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 3/3 (exit 1):' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-0
 export FAKE_SWIFT_MODE=success
@@ -246,7 +282,25 @@ set -e
 [[ "${list_failure_status}" -ne 0 ]]
 grep -Fq "test-list stdout marker" "${TEMP_DIR}/list-failure.log"
 grep -Fq "test-list stderr marker" "${TEMP_DIR}/list-failure.log"
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 1 ]]
 grep -Eq -- '- Discovery seconds: 0\.[1-9]' "${TEMP_DIR}/list-failure.log"
 grep -Fq '| Discovered selections | `0` |' "${GITHUB_STEP_SUMMARY}"
+
+reset_case sparkle-recovery
+export FAKE_SWIFT_MODE=list_sparkle_fail_once
+export FAKE_SWIFT_BIN_PATH="${TEMP_DIR}/sparkle-bin"
+mkdir -p \
+  "${FAKE_SWIFT_BIN_PATH}/Sparkle.framework/Versions/B" \
+  "${FAKE_SWIFT_BIN_PATH}/Wrong.framework" \
+  "${FAKE_SWIFT_BIN_PATH}/PackageFrameworks"
+touch "${FAKE_SWIFT_BIN_PATH}/Sparkle.framework/Versions/B/Sparkle"
+ln -s ../Wrong.framework "${FAKE_SWIFT_BIN_PATH}/PackageFrameworks/Sparkle.framework"
+run_harness --group-size 1 --limit-groups 1 --timeout 10 > "${TEMP_DIR}/sparkle-recovery.log"
+[[ "$(readlink "${FAKE_SWIFT_BIN_PATH}/PackageFrameworks/Sparkle.framework")" == "../Sparkle.framework" ]]
+[[ "$(grep -c '^test list$' "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+[[ "$(grep -c '^build --show-bin-path$' "${FAKE_SWIFT_LOG}")" -eq 1 ]]
+grep -Fq "Recovered SwiftPM Sparkle test runtime; retrying discovery once." \
+  "${TEMP_DIR}/sparkle-recovery.log"
+unset FAKE_SWIFT_BIN_PATH
 
 echo "Swift test sharding tests passed."

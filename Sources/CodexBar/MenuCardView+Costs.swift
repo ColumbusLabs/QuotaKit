@@ -113,7 +113,7 @@ extension UsageMenuCardView.Model {
             isClaudeAdminAPI
         case .clawRouter:
             (cost?.limit ?? 0) <= 0
-        case .generic, .hidden, .extraUsageBalance, .zenBalance, .pointsBalance, .prepaidCredits,
+        case .generic, .hidden, .extraUsageBalance, .creditsUsage, .zenBalance, .pointsBalance, .prepaidCredits,
              .payAsYouGoBalance:
             false
         }
@@ -148,10 +148,10 @@ extension UsageMenuCardView.Model {
             return nil
         }
         if let credits {
-            if let creditLimit = credits.codexCreditLimit {
-                return UsageFormatter.creditsString(from: creditLimit.remaining)
+            if let remaining = credits.displayRemaining {
+                return UsageFormatter.creditsString(from: remaining)
             }
-            return UsageFormatter.creditsString(from: credits.remaining)
+            return "\(L("Credits")) · \(L("Balance")): \(L("Unavailable"))"
         }
         if let error, !error.isEmpty {
             return error.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -160,15 +160,34 @@ extension UsageMenuCardView.Model {
     }
 
     static func creditsProgressPercent(credits: CreditsSnapshot?) -> Double? {
-        credits?.codexCreditLimit?.remainingPercent
+        guard credits?.hasWorkspaceBalance != true else { return nil }
+        if let limit = credits?.codexCreditLimit { return limit.remainingPercent }
+        guard let balance = credits?.displayRemaining, let scale = self.fallbackCreditsScale(credits: credits) else {
+            return nil
+        }
+        return min(100, max(0, balance / scale * 100))
     }
 
     static func creditsScaleText(credits: CreditsSnapshot?) -> String? {
-        guard let limit = credits?.codexCreditLimit else { return nil }
-        return L("of %@", UsageFormatter.creditsNumberString(from: limit.limit))
+        guard credits?.hasWorkspaceBalance != true else { return nil }
+        if let limit = credits?.codexCreditLimit {
+            return L("of %@", UsageFormatter.creditsNumberString(from: limit.limit))
+        }
+        guard let scale = self.fallbackCreditsScale(credits: credits) else { return nil }
+        let number = Int(exactly: scale).map(UsageFormatter.tokenCountString)
+            ?? UsageFormatter.creditsNumberString(from: scale)
+        return "\(number) \(L("tokens"))"
+    }
+
+    private static func fallbackCreditsScale(credits: CreditsSnapshot?) -> Double? {
+        guard let balance = credits?.remaining, balance.isFinite else { return nil }
+        let maximum = max(balance, credits?.codexCreditLimit?.limit ?? 0)
+        let exponent = maximum > 0 ? floor(log10(maximum)) + 1 : 0
+        return min(Double.greatestFiniteMagnitude, pow(10, exponent))
     }
 
     static func codexCreditLimitDetail(credits: CreditsSnapshot?, now: Date) -> String? {
+        guard credits?.hasWorkspaceBalance != true else { return nil }
         guard let limit = credits?.codexCreditLimit else { return nil }
         var parts = [
             L("%@ used", UsageFormatter.creditsNumberString(from: limit.used)),
@@ -223,8 +242,16 @@ extension UsageMenuCardView.Model {
                 preferredCurrency: preferredCurrencyCode,
                 providerCurrency: snapshot.currencyCode)
         } ?? "—"
-        let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
-        let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
+        let fallbackTokens: Int? = {
+            var sum = 0
+            for t in snapshot.daily.compactMap(\.totalTokens) {
+                let (res, of) = sum.addingReportingOverflow(t)
+                if of { return nil }
+                sum = res
+            }
+            return sum > 0 ? sum : nil
+        }()
+        let monthTokensValue = snapshot.last30DaysTokens ?? fallbackTokens
         let monthTokens = monthTokensValue.map { UsageFormatter.tokenCountString($0) }
         let windowLabel = if let historyLabel = snapshot.historyLabel {
             historyLabel
@@ -315,7 +342,7 @@ extension UsageMenuCardView.Model {
     }
 
     static func tokenHistoryCoverageHint(_ snapshot: CostUsageTokenSnapshot) -> String? {
-        guard !snapshot.historyCoverageIsEstablished else { return nil }
+        guard !snapshot.historyIsFullyScanned else { return nil }
         return snapshot.last30DaysTokens != nil || snapshot.sessionTokens != nil
             ? L("Partial local history · recorded token subtotal")
             : L("Local token history is unavailable or incomplete.")
@@ -503,6 +530,10 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
+        if style == .creditsUsage {
+            return Self.creditsUsageSection(cost: cost, percentStyle: percentStyle)
+        }
+
         if style == .claude {
             if isClaudeAdminAPI {
                 let spend = formatCost(cost.used)
@@ -600,6 +631,38 @@ extension UsageMenuCardView.Model {
             percentLine: String(format: L("%.0f%% used"), min(100, max(0, percentUsed))),
             balanceLine: nil,
             personalSpendLine: personalSpendLine)
+    }
+
+    private static func creditsUsageSection(
+        cost: ProviderCostSnapshot,
+        percentStyle: PercentStyle) -> ProviderCostSection?
+    {
+        if cost.limit <= 0 {
+            guard let balance = cost.balance else { return nil }
+            return ProviderCostSection(
+                title: L("Extra usage"),
+                percentUsed: nil,
+                spendLine: "\(L("Balance")): \(UsageFormatter.creditsNumberString(from: balance))",
+                percentLine: nil,
+                presentation: .inlineValue,
+                showsInProviderDetails: false)
+        }
+
+        let used = UsageFormatter.creditsNumberString(from: cost.used)
+        let limit = UsageFormatter.creditsNumberString(from: cost.limit)
+        let percentUsed = Self.clamped((cost.used / cost.limit) * 100)
+        let periodLabel = Self.localizedPeriodLabel(cost.period ?? "This month")
+        let balanceLine = cost.balance.map {
+            "\(L("Balance")): \(UsageFormatter.creditsNumberString(from: $0))"
+        }
+        return ProviderCostSection(
+            title: L("Extra usage"),
+            percentUsed: percentUsed,
+            spendLine: "\(periodLabel): \(used) / \(limit)",
+            percentLine: String(format: L("%.0f%% used"), min(100, max(0, percentUsed))),
+            balanceLine: balanceLine,
+            showsInProviderDetails: false,
+            percentStyle: percentStyle)
     }
 
     private static func localizedPeriodLabel(_ label: String) -> String {

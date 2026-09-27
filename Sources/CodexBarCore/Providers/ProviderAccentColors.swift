@@ -2,7 +2,7 @@ import Foundation
 
 /// User overrides for the provider brand colors.
 ///
-/// `~/.codexbar/config.json` is the source of truth, and it reaches the app and the `codexbar serve`
+/// `~/.quotakit/config.json` is the source of truth, and it reaches the app and the `quotakit serve`
 /// dashboard directly. The sandboxed widget cannot read that file, so the app mirrors the resolved
 /// map into the App Group defaults for it.
 ///

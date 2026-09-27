@@ -39,23 +39,25 @@ public struct OpenCodexTokenUsage: Sendable, Equatable {
     }
 
     public var resolvedTotalTokens: Int? {
-        if let totalTokens {
-            return totalTokens
+        self.resolvedTotalCount.value
+    }
+
+    var tokenMix: CostUsageTokenMix {
+        CostUsageTokenMix(
+            inputTokens: self.inputTokens,
+            outputTokens: self.outputTokens,
+            cacheReadTokens: self.cacheReadTokens,
+            cacheCreationTokens: self.cacheCreationInputTokens,
+            reasoningTokens: self.reasoningOutputTokens)
+    }
+
+    var resolvedTotalCount: CostUsageDailyReport.OptionalCountAccumulator {
+        if let totalTokens { return .init(totalTokens) }
+        var count = CostUsageDailyReport.OptionalCountAccumulator()
+        for value in [self.inputTokens, self.outputTokens, self.cacheReadTokens, self.cacheCreationInputTokens] {
+            count.add(value)
         }
-        let parts = [
-            self.inputTokens,
-            self.outputTokens,
-            self.cacheReadTokens,
-            self.cacheCreationInputTokens,
-        ].compactMap(\.self)
-        guard !parts.isEmpty else { return nil }
-        var total = 0
-        for part in parts {
-            let (next, overflow) = total.addingReportingOverflow(part)
-            guard !overflow else { return nil }
-            total = next
-        }
-        return total
+        return count
     }
 
     private static func nonnegative(_ value: Int?) -> Int? {
@@ -101,7 +103,12 @@ public struct OpenCodexUsageEntry: Sendable, Equatable {
     }
 
     public var resolvedTotalTokens: Int? {
-        self.totalTokens ?? self.usage?.resolvedTotalTokens
+        self.resolvedTotalCount.value
+    }
+
+    var resolvedTotalCount: CostUsageDailyReport.OptionalCountAccumulator {
+        if let totalTokens { return .init(totalTokens) }
+        return self.usage?.resolvedTotalCount ?? .init()
     }
 
     public var displayAccountLabel: String {

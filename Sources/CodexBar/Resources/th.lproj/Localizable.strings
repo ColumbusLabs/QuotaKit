@@ -228,6 +228,7 @@
 "No cost history data." = "ไม่มีข้อมูลประวัติค่าใช้จ่าย";
 "No data available" = "ไม่มีข้อมูล";
 "No data yet" = "ยังไม่มีข้อมูล";
+"Workspaces" = "พื้นที่ทำงาน";
 "No enabled providers available for Overview." = "ไม่มีผู้ให้บริการที่เปิดใช้งานสําหรับภาพรวม";
 "No providers selected" = "ไม่มีผู้ให้บริการที่เลือก";
 "No token accounts yet." = "ยังไม่มีบัญชีโทเค็น";
@@ -481,6 +482,7 @@
 "cost_summary_style_inline_help" = "แสดงสรุปค่าใช้จ่ายในเมนูหลักโดยตรง";
 "cost_summary_style_submenu_help" = "แสดงเมนูย่อยค่าใช้จ่ายแบบละเอียดแทน";
 "cost_summary_style_both_help" = "แสดงทั้งสรุปในเมนูหลักและเมนูย่อยค่าใช้จ่ายแบบละเอียด";
+"Month to date" = "ตั้งแต่ต้นเดือนจนถึงวันนี้";
 "cost_history_window_title" = "กรอบเวลาประวัติ";
 "cost_history_window_help" = "กำหนดจำนวนวันของบันทึกการใช้งานในเครื่องที่จะแสดงในเมนู";
 "cost_history_days_title" = "กรอบเวลาประวัติ: %d วัน";
@@ -621,6 +623,12 @@
 "cost_summary_off" = "ปิด";
 "merge_icons_title" = "ผสานไอคอน";
 "merge_icons_subtitle" = "ใช้ไอคอนแถบเมนูเดียวกับตัวสลับผู้ให้บริการ";
+"merged_icon_style_title" = "รูปแบบไอคอนรวม";
+"merged_icon_style_subtitle" = "ตัวสลับจะวนแสดงผู้ให้บริการทีละราย ส่วนแบบซ้อนจะแสดงผู้ให้บริการสองรายพร้อมกัน รายละแถว";
+"merged_icon_style_switcher" = "ตัวสลับ";
+"merged_icon_style_stacked" = "แบบซ้อน";
+"merge_icon_stacked_top_provider_title" = "แถวบน";
+"merge_icon_stacked_bottom_provider_title" = "แถวล่าง";
 "show_most_used_provider_title" = "แสดงผู้ให้บริการที่ใช้บ่อยที่สุด";
 "show_most_used_provider_subtitle" = "แถบเมนูจะแสดงผู้ให้บริการที่ใกล้เคียงกับขีดจํากัดอัตรามากที่สุดโดยอัตโนมัติ";
 "display_mode_title" = "โหมดการแสดงผล";
@@ -889,6 +897,12 @@
 "usage_percent_suffix_used" = "ใช้แล้ว";
 "Store multiple DeepSeek API keys." = "จัดเก็บปุ่ม DeepSeek API หลายปุ่ม";
 "This week" = "สัปดาห์นี้";
+"Current window" = "หน้าต่างปัจจุบัน";
+"Last week" = "สัปดาห์ที่แล้ว";
+"%d weeks ago" = "%d สัปดาห์ที่แล้ว";
+"Previous window" = "หน้าต่างก่อน";
+"%d windows ago" = "%d หน้าต่างที่แล้ว";
+"Recent windows" = "หน้าต่างล่าสุด";
 "Week" = "สัปดาห์";
 "Month" = "เดือน";
 "Models" = "โมเดล";
@@ -1352,6 +1366,8 @@
 "Tracked tokens" = "โทเค็นที่ติดตาม";
 "Subscriptions" = "การสมัครสมาชิก";
 "By subscription" = "แยกตามการสมัครสมาชิก";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "ไม่มีประวัติระดับโมเดล";
 "Daily estimated spend" = "ค่าใช้จ่ายรายวันโดยประมาณ";
 "Hourly estimated spend" = "ค่าใช้จ่ายรายชั่วโมงโดยประมาณ";
@@ -1448,6 +1464,33 @@
 "%d more accounts ready" = "มีอีก %d บัญชีพร้อมใช้งาน";
 "Shows the hidden accounts" = "แสดงบัญชีที่ซ่อนอยู่";
 "%@ remaining" = "เหลือ %@";
+"codex_workspaces_estimated_cost_short" = "ค่าใช้จ่ายโดยประมาณ";
+"codex_workspaces_estimated_cost_value" = "ประมาณ %@";
+"codex_workspaces_estimated_local_logs" = "ประมาณจากบันทึก Codex ในเครื่อง";
+"codex_workspaces_failed_read_logs" = "อ่านบันทึก Codex ไม่สำเร็จ";
+"codex_workspaces_indexing_local_logs" = "กำลังสร้างดัชนีบันทึก Codex ในเครื่อง…";
+"codex_workspaces_indexing_projects" = "กำลังสร้างดัชนีโปรเจ็กต์…";
+"codex_workspaces_local_codex_chat" = "แชท Codex ในเครื่อง";
+"codex_workspaces_no_local_usage" = "ยังไม่มีข้อมูลการใช้งาน Codex ในเครื่อง";
+"codex_workspaces_saving_project_index" = "กำลังบันทึกดัชนีโปรเจ็กต์…";
+"codex_workspaces_scanning_logs" = "กำลังสแกนบันทึก Codex…";
+"codex_workspaces_session_count" = "เซสชัน: %@";
+"codex_workspaces_sessions" = "เซสชัน";
+"codex_workspaces_title" = "พื้นที่ทำงาน";
+"codex_workspaces_tokens" = "โทเค็น";
+"codex_workspaces_token_count_accessibility" = "%@ โทเค็น";
+"codex_workspaces_top_model" = "โมเดลยอดนิยม";
+"codex_workspaces_cost_unavailable" = "ไม่มีข้อมูลค่าใช้จ่าย";
+"codex_workspaces_refresh_usage_data" = "รีเฟรชข้อมูลการใช้งาน";
+"codex_workspaces_retry" = "ลองอีกครั้ง";
+"codex_workspaces_partial_data" = "ข้อมูลบางส่วน";
+"codex_workspaces_high_usage" = "การใช้งานสูง";
+"codex_workspaces_elevated_usage" = "การใช้งานสูงกว่าปกติ";
+"codex_workspaces_normal_usage" = "การใช้งานปกติ";
+"codex_workspaces_no_sessions" = "ไม่มีเซสชันในพื้นที่ทำงานนี้";
+"codex_workspaces_session" = "เซสชัน";
+"codex_workspaces_model" = "โมเดล";
+"codex_workspaces_started" = "เริ่มเมื่อ";
 "Finish now" = "เสร็จสิ้นตอนนี้";
 "Continue in background" = "ทำต่อในเบื้องหลัง";
 "(%d%% risk)" = "(%d%% ความเสี่ยงในการหมด)";
@@ -1464,6 +1507,7 @@
 "More" = "มาก";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "ติดตั้ง…";
 "Install plugin" = "ติดตั้งปลั๊กอิน";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "คัดลอกไฟล์ JavaScript หรือ TypeScript ไปยังโฟลเดอร์ปลั๊กอิน";
@@ -1567,3 +1611,29 @@
 "Restore Defaults" = "คืนค่าเริ่มต้น";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "เลือกแถวการใช้งานที่จะแสดงในเมนูของผู้ให้บริการนี้ ตัวอย่างการตั้งค่า และภาพรวม";
 "%@ (unavailable)" = "%@ (ไม่พร้อมใช้งาน)";
+"overview_layout_title" = "เค้าโครงภาพรวม";
+"overview_layout_subtitle" = "เลือกปริมาณข้อมูลที่จะแสดงในภาพรวม";
+"overview_layout_detailed" = "แบบละเอียด";
+"overview_layout_compact" = "กะทัดรัด";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "ยอดรวมย่อยโดยประมาณ (%@): %@";
+"Excluded requests with missing final usage: %d" = "คำขอที่ไม่นับรวมเนื่องจากไม่มีข้อมูลการใช้งานขั้นสุดท้าย: %d";
+"antigravity_cost_estimate_hint" = "การใช้งานในเครื่อง × ราคา API สาธารณะ · ไม่ใช่ค่าบริการหรือเครดิตของ Antigravity";
+"antigravity_quota_window_note" = "ค่าใช้จ่ายของหน้าต่างครอบคลุมทุกโมเดล · หน้าต่างที่แสดงคือกลุ่มที่จำกัดมากที่สุด";
+"antigravity_no_priced_token_history" = "ไม่มีประวัติโทเคน Antigravity ที่คิดราคาไว้";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "แชร์ภาพรวมการใช้งาน…";
+"Usage snapshot unavailable" = "ภาพรวมการใช้งานไม่พร้อมใช้งาน";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit ไม่สามารถเตรียมภาพรวมการใช้งานสำหรับแชร์ได้ รีเฟรชการใช้งานและค่าใช้จ่ายแล้วลองอีกครั้ง";
+
+/* Account widgets */
+"section_widgets" = "วิดเจ็ต";
+"account_widgets_title" = "อัปเดตบัญชีสำหรับวิดเจ็ต";
+"account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";
+"claude_limited_usage_detail" = "รายละเอียดการใช้งานมีจำกัด";
+"%@ weekly" = "%@ รายสัปดาห์";
+
+"Color Pace Indicator" = "แสดงสีอัตราการใช้งาน";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "สีเขียวเมื่อใช้งานช้ากว่าอัตราที่คาดไว้ (มีโควตาสำรอง) สีแดงเมื่อเร็วกว่า (เสี่ยงหมดโควตาก่อนเวลา)";

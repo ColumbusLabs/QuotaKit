@@ -92,5 +92,6 @@ public enum ProviderManifest {
         LLMManProviderDescriptor.descriptor,
         NousProviderDescriptor.descriptor,
         MuseProviderDescriptor.descriptor,
+        PiProviderDescriptor.descriptor,
     ]
 }

@@ -19,7 +19,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             tokens: 42)
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.refreshMinIntervalSeconds = 0
 
         #if DEBUG
@@ -59,7 +60,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let fileURL = try env.writeCodexSessionFile(day: now, filename: "projected.jsonl", contents: "{}\n")
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(
             since: now,
             until: now,
@@ -196,7 +198,10 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let day = "2026-04-08"
         let fileURL = try env.writeCodexSessionFile(day: now, filename: "mixed.jsonl", contents: "{}\n")
-        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
         // swiftlint:disable multiline_arguments
@@ -255,7 +260,10 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 7, day: 29)
         let day = "2026-07-29"
         let fileURL = try env.writeCodexSessionFile(day: now, filename: "pricing-parity.jsonl", contents: "{}\n")
-        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
         let historicalTimestamp = try Int64(#require(ISO8601DateFormatter().date(
@@ -331,7 +339,10 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 8, day: 8)
         let day = "2026-08-08"
         let fileURL = try env.writeCodexSessionFile(day: now, filename: "cached-only.jsonl", contents: "{}\n")
-        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
         // swiftlint:disable multiline_arguments
@@ -392,7 +403,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         var cache = CostUsageCache()
         cache.scanSinceKey = "2026-04-06"
         cache.scanUntilKey = "2026-04-08"
@@ -444,7 +456,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         var cache = CostUsageCache()
         cache.scanSinceKey = "2026-04-08"
         cache.scanUntilKey = "2026-04-08"
@@ -472,7 +485,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let scanTime = now.addingTimeInterval(-60)
         var cache = CostUsageCache()
         cache.lastScanUnixMs = Int64(scanTime.timeIntervalSince1970 * 1000)
@@ -518,6 +532,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             calendar: calendar)
         var cache = CostUsageCache()
         cache.lastScanUnixMs = Int64(beforeMidnight.timeIntervalSince1970 * 1000)
@@ -554,7 +569,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         var cache = CostUsageCache()
         cache.lastScanUnixMs = Int64(now.addingTimeInterval(-60).timeIntervalSince1970 * 1000)
         cache.scanSinceKey = "2026-04-07"
@@ -584,7 +600,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let line = CostUsageScanner.CodexBufferedFastLine(
             lineIndex: 1,
             ordinal: nil,
@@ -632,16 +649,20 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
 
         #expect(cached?.sessionTokens == 42)
@@ -670,13 +691,15 @@ struct CostUsageFetcherCacheSnapshotTests {
             tokens: 42)
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.refreshMinIntervalSeconds = 0
 
         let established = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 365,
+            allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
         let establishedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -711,6 +734,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: appendedAt,
             historyDays: 30,
+            allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
         let pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -761,7 +785,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let oldDay = try env.makeLocalNoon(year: 2026, month: 2, day: 7)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let wideSince = try #require(options.calendar.date(byAdding: .day, value: -364, to: now))
         let wideRange = CostUsageScanner.CostUsageDayRange(
             since: wideSince,
@@ -863,7 +888,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let since = try #require(options.calendar.date(byAdding: .day, value: -29, to: now))
         let range = CostUsageScanner.CostUsageDayRange(
             since: since,
@@ -1024,7 +1050,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         try FileManager.default.setAttributes([.modificationDate: olderDay], ofItemAtPath: olderURL.path)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(
             since: options.calendar.date(byAdding: .day, value: -29, to: now) ?? now,
             until: now,
@@ -1147,7 +1174,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{}\n")
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let range = CostUsageScanner.CostUsageDayRange(
             since: verifiedDay,
             until: verifiedDay,
@@ -1230,6 +1258,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             maxCodexScanBytesPerRefresh: 64 * 1024,
             useCodexCatchUpWorkingSet: true)
         options.refreshMinIntervalSeconds = 0
@@ -1374,6 +1403,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             useCodexCatchUpWorkingSet: true)
         options.refreshMinIntervalSeconds = 0
 
@@ -1487,6 +1517,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             useCodexCatchUpWorkingSet: true)
         options.refreshMinIntervalSeconds = 0
         _ = CostUsageScanner.loadDailyReport(
@@ -1562,6 +1593,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             useCodexCatchUpWorkingSet: true)
         options.refreshMinIntervalSeconds = 0
         _ = CostUsageScanner.loadDailyReport(
@@ -1638,7 +1670,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             ofItemAtPath: historicalUncachedURL.path)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
         let resumedMetadata = CostUsageScanner.codexFileMetadata(fileURL: resumedURL)
 
@@ -1695,7 +1728,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{}\n")
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
 
@@ -1744,7 +1778,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{\"indexed\":true}\n")
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let indexedMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
 
@@ -1800,7 +1835,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{}\n")
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
 
@@ -1859,7 +1895,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             ofItemAtPath: adjacentURL.path)
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
 
@@ -1918,11 +1955,14 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -1933,6 +1973,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: hydratedAt,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
 
         #expect(cached?.snapshot.updatedAt == scanTime)
@@ -1956,7 +1997,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let piOptions = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -1965,6 +2007,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
             scannerOptions: options,
             piScannerOptions: piOptions)
@@ -1981,7 +2024,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: hydratedAt,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.snapshot.sessionTokens == 207)
         #expect(cached?.snapshot.updatedAt == oldestScanTime)
@@ -1999,7 +2043,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let piOptions = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -2008,6 +2053,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
             scannerOptions: options,
             piScannerOptions: piOptions)
@@ -2019,7 +2065,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: day.addingTimeInterval(50 * 60),
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.snapshot.sessionTokens == 165)
         #expect(cached?.snapshot.updatedAt == piScanTime)
@@ -2027,7 +2074,7 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
-    func `cached codex token snapshot keeps native scan time when pi cache lacks one`() async throws {
+    func `cached codex token snapshot excludes unmeasured Pi cache and retains native scan time`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
@@ -2042,7 +2089,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let piOptions = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -2051,6 +2099,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
             scannerOptions: options,
             piScannerOptions: piOptions)
@@ -2065,14 +2114,18 @@ struct CostUsageFetcherCacheSnapshotTests {
             timeIntervalSince1970: TimeInterval(nativeCache.lastScanUnixMs) / 1000)
 
         let hydratedAt = day.addingTimeInterval(50 * 60)
-        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: hydratedAt,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
-        #expect(cached?.sessionTokens == 207)
-        #expect(cached?.updatedAt == nativeScanTime)
-        #expect(cached?.updatedAt != hydratedAt)
+        #expect(cached?.snapshot.sessionTokens == 42)
+        #expect(cached?.snapshot.historyCoverageIsEstablished == false)
+        #expect(cached?.accounting == .nativeOnly)
+        #expect(cached?.lastRefreshAt == nil)
+        #expect(cached?.snapshot.updatedAt == nativeScanTime)
+        #expect(cached?.snapshot.updatedAt != hydratedAt)
     }
 
     @Test
@@ -2090,21 +2143,26 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         let expanded = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 7,
+            includePiSessions: false,
             scannerOptions: options)
         let managed = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             codexHomePath: env.codexHomeRoot.path,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
         let scopedFetcher = CostUsageFetcher(scannerOptions: options)
         let allowedManaged = await scopedFetcher.loadCachedCodexTokenSnapshotResult(
@@ -2133,16 +2191,20 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         let current = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
         #expect(current?.projects.count == 1)
 
@@ -2153,6 +2215,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         let legacy = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
         #expect(legacy?.sessionTokens == 42)
         #expect(legacy?.projects.isEmpty == true)
@@ -2173,11 +2236,14 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -2187,6 +2253,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
+            includePiSessions: false,
             scannerOptions: options)
 
         #expect(cached == nil)
@@ -2208,7 +2275,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let piOptions = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -2217,6 +2285,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
             scannerOptions: options,
             piScannerOptions: piOptions)
@@ -2224,7 +2293,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 207)
         #expect(cached?.last30DaysTokens == 207)
@@ -2255,7 +2325,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             historyDays: 1,
             scannerOptions: CostUsageScanner.Options(
                 codexSessionsRoot: env.codexSessionsRoot,
-                cacheRoot: env.cacheRoot))
+                cacheRoot: env.cacheRoot,
+                codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite")),
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 165)
         #expect(cached?.last30DaysTokens == 165)
@@ -2277,7 +2349,8 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         let piOptions = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -2286,6 +2359,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
             scannerOptions: options,
             piScannerOptions: piOptions)
@@ -2297,7 +2371,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 165)
         #expect(cached?.last30DaysTokens == 165)
@@ -2327,14 +2402,17 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.calendar = losAngeles
         options.refreshMinIntervalSeconds = 0
         _ = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: day,
             historyDays: 1,
+            allowPricingRefresh: false,
             refreshPricingInBackground: false,
+            includePiSessions: false,
             scannerOptions: options)
 
         let fetcher = CostUsageFetcher(scannerOptions: options)
@@ -2351,7 +2429,9 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(pinned?.snapshot.costProvenance == .listPriceEstimate)
         #expect(travelled == nil)
     }
+}
 
+extension CostUsageFetcherCacheSnapshotTests {
     @discardableResult
     private static func writeCodexSessionFile(
         homeRoot: URL,

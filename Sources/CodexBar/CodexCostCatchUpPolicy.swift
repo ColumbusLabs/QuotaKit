@@ -113,13 +113,12 @@ struct CodexCostCatchUpPolicy: Sendable {
         }
 
         let dutyCycle = switch input.powerSource {
-        case .ac: 0.20
-        case .battery: 0.05
-        case .unknown: 0.15
+        case .ac: 0.001
+        case .battery: 0.0002
+        case .unknown: 0.0005
         }
-        // A very short pass still incurs parser/database setup and allocator churn. Treat it as
-        // the configured burst duration so a continuously growing tail cannot collapse the
-        // automatic retry delay to zero (or a few milliseconds) and spin indefinitely.
+        // Even a tiny scan incurs parser and database setup. Keep QuotaKit's minimum burst
+        // duration so a growing tail cannot schedule near-zero automatic retries.
         let activeDuration = max(
             Self.automaticBurstDuration,
             max(0, input.previousActiveDuration ?? Self.automaticBurstDuration))

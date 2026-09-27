@@ -73,10 +73,34 @@ struct CLICostTests {
             groupBy: .project,
             format: .text,
             includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .codex,
+            selectedProviders: [.codex, .pi],
+            groupBy: .none,
+            format: .text,
+            includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .codex,
+            selectedProviders: [.codex, .pi],
+            groupBy: .none,
+            format: .json,
+            includePiSessions: true))
         #expect(CodexBarCLI.costIncludePiSessions(
             provider: .claude,
             groupBy: .session,
             format: .text,
+            includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .claude,
+            selectedProviders: [.claude, .pi],
+            groupBy: .none,
+            format: .json,
+            includePiSessions: true))
+        #expect(CodexBarCLI.costIncludePiSessions(
+            provider: .claude,
+            selectedProviders: [.claude],
+            groupBy: .none,
+            format: .json,
             includePiSessions: true))
     }
 
@@ -432,6 +456,29 @@ struct CLICostTests {
         #expect(output.contains("Last 90 days: $9.99 · \(historyText) tokens"))
         #expect(output.contains("cache read/write tokens"))
         #expect(output.contains("Claude Code /status"))
+    }
+
+    @Test
+    func `Claude cost text labels priced subtotals with unpriced requests`() {
+        let entry = CostUsageDailyReport.Entry(
+            date: "2026-07-01",
+            inputTokens: 30,
+            outputTokens: 3,
+            totalTokens: 33,
+            costUSD: 1,
+            modelsUsed: ["fixture/priced", "fixture/unpriced"],
+            modelBreakdowns: nil,
+            unpricedRequestCount: 1)
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 33,
+            sessionCostUSD: 1,
+            last30DaysTokens: 33,
+            last30DaysCostUSD: nil,
+            daily: [entry],
+            updatedAt: Date(timeIntervalSince1970: 1_782_864_000))
+
+        let output = CodexBarCLI.renderCostText(provider: .claude, snapshot: snapshot, useColor: false)
+        #expect(output.contains("Partial estimate: 1 recorded request had no price."))
     }
 
     @Test

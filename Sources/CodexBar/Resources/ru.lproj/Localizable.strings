@@ -245,6 +245,7 @@
 "No cost history data." = "Нет истории расходов.";
 "No data available" = "Нет доступных данных";
 "No data yet" = "Данных пока нет";
+"Workspaces" = "Рабочие пространства";
 "No enabled providers available for Overview." = "Нет включённых провайдеров для обзора.";
 "No providers selected" = "Провайдеры не выбраны";
 "No token accounts yet." = "Токен-аккаунтов пока нет.";
@@ -497,6 +498,7 @@
 "cost_summary_style_inline_help" = "Показывает сводку затрат прямо в главном меню.";
 "cost_summary_style_submenu_help" = "Вместо этого отображается подробное подменю «Стоимость».";
 "cost_summary_style_both_help" = "Показывает как сводку главного меню, так и подробное подменю «Стоимость».";
+"Month to date" = "С начала месяца";
 "cost_history_window_title" = "Окно истории";
 "cost_history_window_help" = "Задаёт, за сколько дней показывать локальные журналы использования в меню.";
 "cost_history_days_title" = "Окно истории: %d дней";
@@ -616,6 +618,12 @@
 "cost_summary_off" = "Выкл.";
 "merge_icons_title" = "Объединять значки";
 "merge_icons_subtitle" = "Использовать один значок в строке меню с переключателем провайдеров.";
+"merged_icon_style_title" = "Стиль объединённого значка";
+"merged_icon_style_subtitle" = "Переключатель показывает провайдеров по очереди; Стопка показывает двух провайдеров одновременно, каждый в своей строке.";
+"merged_icon_style_switcher" = "Переключатель";
+"merged_icon_style_stacked" = "Стопка";
+"merge_icon_stacked_top_provider_title" = "Верхняя строка";
+"merge_icon_stacked_bottom_provider_title" = "Нижняя строка";
 "show_most_used_provider_title" = "Показывать провайдера с наибольшим использованием";
 "show_most_used_provider_subtitle" = "В строке меню автоматически отображается провайдер, ближайший к лимиту.";
 "display_mode_title" = "Режим отображения";
@@ -884,6 +892,12 @@
 "usage_percent_suffix_used" = "использовано";
 "Store multiple DeepSeek API keys." = "Хранить несколько API-ключей DeepSeek.";
 "This week" = "На этой неделе";
+"Current window" = "Текущее окно";
+"Last week" = "Прошлая неделя";
+"%d weeks ago" = "%d нед. назад";
+"Previous window" = "Предыдущее окно";
+"%d windows ago" = "%d окн. назад";
+"Recent windows" = "Недавние окна";
 "Week" = "неделя";
 "Month" = "Месяц";
 "Models" = "Модели";
@@ -1350,6 +1364,8 @@
 "Tracked tokens" = "Отслеживаемые токены";
 "Subscriptions" = "Подписки";
 "By subscription" = "По подпискам";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Нет истории по моделям";
 "Daily estimated spend" = "Предполагаемые ежедневные расходы";
 "Hourly estimated spend" = "Предполагаемые почасовые расходы";
@@ -1446,6 +1462,33 @@
 "%d more accounts ready" = "Ещё %d учётных записей готовы";
 "Shows the hidden accounts" = "Показывает скрытые учётные записи";
 "%@ remaining" = "Осталось %@";
+"codex_workspaces_cost_unavailable" = "Стоимость недоступна";
+"codex_workspaces_elevated_usage" = "Повышенное использование";
+"codex_workspaces_estimated_cost_short" = "Оцен. стоимость";
+"codex_workspaces_estimated_cost_value" = "оцен. %@";
+"codex_workspaces_estimated_local_logs" = "Оценка по локальным журналам Codex";
+"codex_workspaces_failed_read_logs" = "Не удалось прочитать журналы Codex";
+"codex_workspaces_high_usage" = "Высокое использование";
+"codex_workspaces_indexing_local_logs" = "Индексирование локальных журналов Codex…";
+"codex_workspaces_indexing_projects" = "Индексирование проектов…";
+"codex_workspaces_local_codex_chat" = "Локальный чат Codex";
+"codex_workspaces_model" = "Модель";
+"codex_workspaces_no_local_usage" = "Локальных данных об использовании Codex пока нет";
+"codex_workspaces_no_sessions" = "В этом рабочем пространстве нет сеансов";
+"codex_workspaces_normal_usage" = "Обычное использование";
+"codex_workspaces_partial_data" = "Частичные данные";
+"codex_workspaces_refresh_usage_data" = "Обновить данные об использовании";
+"codex_workspaces_retry" = "Повторить попытку";
+"codex_workspaces_saving_project_index" = "Сохранение индекса проектов…";
+"codex_workspaces_scanning_logs" = "Сканирование журналов Codex…";
+"codex_workspaces_session" = "Сеанс";
+"codex_workspaces_session_count" = "Сеансы: %@";
+"codex_workspaces_sessions" = "Сеансы";
+"codex_workspaces_started" = "Начат";
+"codex_workspaces_title" = "Рабочие пространства";
+"codex_workspaces_token_count_accessibility" = "%@ токенов";
+"codex_workspaces_tokens" = "Токены";
+"codex_workspaces_top_model" = "Основная модель";
 "Finish now" = "Завершить сейчас";
 "Continue in background" = "Продолжить в фоновом режиме";
 "(%d%% risk)" = "(%d%% риск исчерпания)";
@@ -1462,6 +1505,7 @@
 "More" = "Больше";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "Установить…";
 "Install plugin" = "Установить плагин";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "Копирует файл JavaScript или TypeScript в каталог плагинов.";
@@ -1564,3 +1608,29 @@
 "Restore Defaults" = "Восстановить настройки по умолчанию";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Выберите, какие строки использования отображаются в меню этого провайдера, в предпросмотре настроек и в обзоре.";
 "%@ (unavailable)" = "%@ (недоступно)";
+"overview_layout_title" = "Макет обзора";
+"overview_layout_subtitle" = "Выберите, сколько информации показывать в обзоре.";
+"overview_layout_detailed" = "Подробный";
+"overview_layout_compact" = "Компактный";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "Оценка подытога (%@): %@";
+"Excluded requests with missing final usage: %d" = "Исключённые запросы без итоговых данных об использовании: %d";
+"antigravity_cost_estimate_hint" = "Локальное использование × публичные цены API · это не счета и не кредиты Antigravity";
+"antigravity_quota_window_note" = "Стоимость окна включает все модели · показано окно самого ограниченного семейства";
+"antigravity_no_priced_token_history" = "Нет оценённой истории токенов Antigravity.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поделиться сводкой использования…";
+"Usage snapshot unavailable" = "Сводка использования недоступна";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit не удалось подготовить сводку использования для отправки. Обновите раздел «Использование и расходы» и повторите попытку.";
+
+/* Account widgets */
+"section_widgets" = "Виджеты";
+"account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
+"account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";
+"claude_limited_usage_detail" = "Ограниченная детализация использования";
+"%@ weekly" = "%@ за неделю";
+
+"Color Pace Indicator" = "Цветовая индикация темпа";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелёный — расход ниже ожидаемого темпа (есть запас); красный — выше (риск досрочного исчерпания квоты).";

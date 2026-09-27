@@ -25,6 +25,18 @@ On the default loopback bind, `/usage` and `/cost` are unchanged and unauthentic
 
 The browser keeps the last successfully merged snapshot in localStorage under `quotakit.lastSnapshot` and paints that data immediately on the next load, preserving the identity detail served by the configured mode. It then fetches the config-only shell and streams concurrent per-provider snapshot updates into the page as they finish. Signing out clears both the token and cached snapshot.
 
+Usage labels and bar widths follow the app's **Usage bars fill** preference through `host.usageBarsShowUsed`: `true`
+shows used percentages; `false` shows remaining percentages. On macOS the server reads the preference for each request,
+so changes apply without restarting `serve`. The default is remaining when no preference exists, including on Linux;
+older browser-cached snapshots without this field also use remaining. Earlier web dashboards always showed used
+percentages. The numeric `usedPercent` and `remainingPercent` fields retain their existing meanings.
+
+The **Usage display** control defaults to **Follow server**. **Used** and **Remaining** override labels and bar widths
+only in this browser, persisted under `quotakit.dashboard.usageDisplay` in localStorage. Choosing **Follow server**
+removes the override. Unknown values or unavailable storage fall back to the server preference on load; if saving
+fails, selections still work for the current page. Warning and critical levels always use consumption, regardless
+of display mode. This preference does not change the API payload, identity policy, or provider data.
+
 The UI does not change the transport threat model: `quotakit serve` is plain HTTP. Off-loopback, a token typed into the page transits the network in cleartext like every other request unless a TLS-terminating reverse proxy protects the connection.
 
 ## One-shot command semantics
@@ -40,6 +52,7 @@ The UI does not change the transport threat model: `quotakit serve` is plain HTT
 - `--timeout <seconds>` accepts `0...86400` and defaults to `30`; `0` disables the command deadline.
 - The one-shot payload reports `host.refreshIntervalSeconds` as `0` because it has no response cache.
   `staleAfterSeconds` keeps the schema's 180-second minimum.
+- Both transports include the fill preference in host metadata; one-shot snapshots resolve it when collected.
 
 ## Configuring the token
 
@@ -119,6 +132,8 @@ Content-Type: application/json; charset=utf-8
 Snapshot requests share the serve cache and coordination machinery used by `/usage` and `/cost`:
 
 - Responses are cached for `--refresh-interval` seconds, keyed by the loaded provider config, so toggling providers does not require a restart.
+- Dashboard response keys also include the resolved identity mode and usage-bar fill preference, preventing a cached
+  response for the other mode from overriding current host metadata.
 - Concurrent cache misses coalesce into one fetch; `--request-timeout` bounds each request with `504 Gateway Timeout`.
 - Slow builds keep running past the request deadline; the finished result is committed to the response cache and handed to any same-config request already waiting, so a 504 first load self-heals on retry (the built-in web UI retries automatically).
 - Authorization is checked before the cache, so unauthenticated requests can neither warm nor read it.
@@ -147,7 +162,8 @@ real account emails.
   "host": {
     "quotaKitVersion": "0.32.4.12",
     "codexBarVersion": "0.32.4.12",
-    "refreshIntervalSeconds": 60
+    "refreshIntervalSeconds": 60,
+    "usageBarsShowUsed": false
   },
   "providers": [
     {
@@ -202,6 +218,8 @@ whenever claude-swap reports an email, independently of whether that account's u
 the dashboard identity mode: redacted by default, or full with `--identity full`.
 A failure limited to one account stays in that account's `error`; a failure of the whole adapter sets `accountsError`
 while leaving the ambient Claude row intact.
+The web dashboard shows local spend totals and the daily chart once within a provider's account group. Account cards
+retain their own usage and errors; ambient credits are not presented as a shared account balance.
 
 ```json
 {
@@ -247,7 +265,9 @@ while leaving the ambient Claude row intact.
 - `staleAfterSeconds`: Client-side staleness hint.
 - `host.quotaKitVersion`: QuotaKit version when available.
 - `host.codexBarVersion`: Compatibility alias for upstream dashboard clients.
-- `host.refreshIntervalSeconds`: Server response cache interval.
+- `host.refreshIntervalSeconds`: HTTP response cache interval, or `0` for the one-shot command.
+- `host.usageBarsShowUsed`: Display hint for usage labels and bar widths (`true`: used; `false`: remaining). Defaults
+  to false when the app preference is absent. This is an additive schema-v1 field; raw quota percentages do not change.
 - `providers[].id`: Provider identifier.
 - `providers[].name`: Provider display name.
 - `providers[].enabled`: Whether the provider is enabled in QuotaKit config.
@@ -263,7 +283,10 @@ while leaving the ambient Claude row intact.
   menu, which hides an untouched Antigravity model family. Only the producer can set this: a zero `usedPercent` also
    stands for a lane whose usage the provider never reported, and the payload does not carry that distinction.
 - `providers[].credits`: Remaining credits or balance when available.
-- `providers[].cost`: Local cost data when available.
+- `providers[].cost`: Local cost data when available, otherwise provider-reported 30-day USD history.
+  Reported history preserves a known zero and leaves `todayUSD` null because completed UTC days are not
+  necessarily local Today. Other currencies or window lengths remain unavailable; local cost retains precedence.
+  Optional incomplete-request counts mark excluded usage without inventing a dollar amount.
 - `providers[].display`: UI hints for ordering and coloring.
 - `providers[].error`: Provider error payload when the latest fetch failed.
 - `providers[].updatedAt`: Best-known update timestamp for the provider row.

@@ -22,7 +22,7 @@ struct CLIProviderCredentialGuidanceTests {
     }
 
     @Test(arguments: [
-        (UsageProvider.gitkraken, GitKrakenProviderDescriptor.tokenKey),
+        (UsageProvider.gitkraken, GitKrakenProviderDescriptor.spec.environmentKey),
         (UsageProvider.v0, V0SettingsReader.apiKeyEnvironmentKey),
     ])
     func `configured tokens do not turn unavailable strategies into missing credential errors`(

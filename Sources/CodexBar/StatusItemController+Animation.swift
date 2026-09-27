@@ -33,6 +33,12 @@ extension StatusItemController {
         2.7 / StatusItemController.loadingAnimationFPS
     private nonisolated static let loadingAnimationMaxContinuousDuration: TimeInterval = 30.0
     func needsMenuBarIconAnimation() -> Bool {
+        // Stacked rows always render through the layout-token path (`applyStoredStackedMenuBarLayoutIfNeeded`
+        // requires `menuBarShowsBrandIconWithPercent`), which has no phase-driven blink/wiggle/tilt/morph
+        // rendering — scheduling the 30 FPS driver here would only burn CPU for frames that never change.
+        if self.stackedMergeIconProvidersIfActive() != nil {
+            return false
+        }
         if self.shouldMergeIcons {
             let primaryProvider = self.primaryProviderForUnifiedIcon()
             return self.shouldAnimate(provider: primaryProvider)
@@ -55,6 +61,14 @@ extension StatusItemController {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
+        // Stacked rows render exclusively through the layout-token path, which — like the loading
+        // animation `needsMenuBarIconAnimation()` already excludes stacked mode from — never consumes
+        // blinkAmounts/wiggleAmounts/tiltAmounts. Starting the blink task here would just wake and redraw
+        // on a timer for a frame that can never show it.
+        if self.stackedMergeIconProvidersIfActive() != nil {
+            self.stopBlinking()
+            return
+        }
         // During the loading animation, blink ticks can overwrite the animated menu bar icon and cause flicker.
         if self.needsMenuBarIconAnimation() {
             self.stopBlinking()
@@ -272,6 +286,8 @@ extension StatusItemController {
     }
 
     @discardableResult
+    // Keep the existing stateful flow together; splitting it would obscure ordering.
+    // swiftlint:disable function_body_length
     func applyIcon(
         phase: Double?,
         bypassMergedMenuTrackingDeferral: Bool = false) -> Bool
@@ -290,6 +306,12 @@ extension StatusItemController {
         let resolverStyle = self.store.style(for: primaryProvider)
         let snapshot = self.store.menuBarSnapshot(for: primaryProvider.instanceID)
         let warningFlash = self.quotaWarningFlashActive(provider: primaryProvider)
+
+        if let rows = self.stackedMergeIconProvidersIfActive(),
+           let stackedResult = self.applyStoredStackedMenuBarLayoutIfNeeded(top: rows.top, bottom: rows.bottom)
+        {
+            return stackedResult
+        }
 
         if let layoutResult = self.applyStoredUnifiedMenuBarLayoutIfNeeded(
             provider: primaryProvider,
@@ -438,6 +460,8 @@ extension StatusItemController {
         self.noteIconPerfRender(skipped: false)
         return false
     }
+
+    // swiftlint:enable function_body_length
 
     private func applyBrandPercentIcon(state: MergedIconRenderState) -> Bool? {
         guard let brand = ProviderBrandIcon.image(for: state.provider) else { return nil }
@@ -1083,7 +1107,11 @@ extension StatusItemController {
                 combinedLanes: combinedLanes,
                 percentWindow: percentWindow)
             pace = paceWindow.flatMap { window in
-                self.store.weeklyPace(provider: provider, window: window, now: now)
+                self.store.weeklyPace(
+                    provider: provider,
+                    window: window,
+                    dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                    now: now)
             }
         case .resetTime:
             return MenuBarDisplayText.displayText(
@@ -1372,16 +1400,11 @@ extension StatusItemController {
     /// here rather than scheduling whichever lane happened to drive the icon.
     func menuBarDisplayedResetDates(for provider: UsageProvider, now: Date) -> [Date] {
         let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
-        let layoutResolution = self.settings.menuBarLayoutResolution(for: provider)
+        let layoutResolution = self.renderedMenuBarLayoutResolution(for: provider)
         if !layoutResolution.usesLegacyRendering,
            self.settings.menuBarIconStyle == .iconAndPercent
         {
-            let showsReset = layoutResolution.layout
-                .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
-                .contains { $0 == .resetCountdown || $0 == .resetAbsolute }
-            guard showsReset else { return [] }
-            let window = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now).automatic
-            return window?.resetsAt.map { [$0] } ?? []
+            return self.menuBarLayoutResetDates(for: provider, now: now)
         }
         let mode = self.settings.menuBarDisplayMode
 

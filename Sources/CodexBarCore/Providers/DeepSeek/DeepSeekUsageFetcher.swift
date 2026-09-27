@@ -135,6 +135,7 @@ public struct DeepSeekUsageSnapshot: Sendable {
     public let usageSummary: DeepSeekUsageSummary?
     public let detailedUsageState: DeepSeekDetailedUsageState
     public let platformProfiles: [DeepSeekPlatformProfile]
+    public let platformBalanceOwner: DeepSeekPlatformBalanceOwner?
     public let updatedAt: Date
 
     public init(
@@ -147,6 +148,7 @@ public struct DeepSeekUsageSnapshot: Sendable {
         usageSummary: DeepSeekUsageSummary? = nil,
         detailedUsageState: DeepSeekDetailedUsageState? = nil,
         platformProfiles: [DeepSeekPlatformProfile] = [],
+        platformBalanceOwner: DeepSeekPlatformBalanceOwner? = nil,
         updatedAt: Date)
     {
         self.hasBalance = hasBalance
@@ -158,6 +160,7 @@ public struct DeepSeekUsageSnapshot: Sendable {
         self.usageSummary = usageSummary
         self.detailedUsageState = detailedUsageState ?? (usageSummary == nil ? .notRequested : .available)
         self.platformProfiles = platformProfiles
+        self.platformBalanceOwner = platformBalanceOwner
         self.updatedAt = updatedAt
     }
 
@@ -204,8 +207,24 @@ public struct DeepSeekUsageSnapshot: Sendable {
             details: details,
             deepseekDetailedUsageState: self.detailedUsageState,
             deepseekPlatformProfiles: self.platformProfiles,
+            deepseekPlatformBalanceOwner: self.platformBalanceOwner,
             updatedAt: self.updatedAt,
             identity: identity)
+    }
+
+    func withPlatformBalanceOwner(_ owner: DeepSeekPlatformBalanceOwner?) -> DeepSeekUsageSnapshot {
+        DeepSeekUsageSnapshot(
+            hasBalance: self.hasBalance,
+            isAvailable: self.isAvailable,
+            currency: self.currency,
+            totalBalance: self.totalBalance,
+            grantedBalance: self.grantedBalance,
+            toppedUpBalance: self.toppedUpBalance,
+            usageSummary: self.usageSummary,
+            detailedUsageState: self.detailedUsageState,
+            platformProfiles: self.platformProfiles,
+            platformBalanceOwner: self.hasBalance ? owner : nil,
+            updatedAt: self.updatedAt)
     }
 
     private static func detailSections(_ usage: DeepSeekUsageSummary) -> [ProviderDetailSection] {
@@ -228,13 +247,19 @@ public struct DeepSeekUsageSnapshot: Sendable {
         for category in usage.categoryBreakdown {
             rows.append(.makeRow(label: Self.categoryLabel(category.category), value: category.tokens.formatted()))
         }
-        return [.makeSection(
+        var sections = [ProviderDetailSection.makeSection(
             title: "Detailed usage",
             rows: rows,
             chart: usage.daily.isEmpty ? nil : .makeChart(
                 title: "Daily tokens",
                 unit: "tokens",
                 points: usage.daily.map { ($0.date, Double($0.totalTokens)) }))]
+        if !usage.modelCosts.isEmpty {
+            sections.append(.makeSection(
+                title: "Spend",
+                rows: usage.modelCosts.map { .makeRow(label: $0.model, value: cost($0.cost)) }))
+        }
+        return sections
     }
 
     private static func categoryLabel(_ category: DeepSeekUsageCategory) -> String {

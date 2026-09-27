@@ -68,9 +68,7 @@ private final class TypeSafeRedirectServer: @unchecked Sendable {
         }
     }
 
-    func stop() {
-        self.listener.cancel()
-    }
+    func stop() { self.listener.cancel() }
 }
 
 private final class TypeSafeRedirectConnection: @unchecked Sendable {

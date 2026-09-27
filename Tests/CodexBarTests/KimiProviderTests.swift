@@ -683,8 +683,9 @@ struct KimiUsageResponseParsingTests {
         """
 
         let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
-        #expect(snapshot.weekly.limit == "2048")
-        #expect(snapshot.weekly.used == "375")
+        #expect(snapshot.weekly?.limit == "2048")
+        #expect(snapshot.weekly?.used == "375")
+
         #expect(snapshot.rateLimit?.limit == "200")
         #expect(snapshot.rateLimit?.used == "19")
 
@@ -779,10 +780,10 @@ struct KimiUsageResponseParsingTests {
 
         let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
 
-        #expect(snapshot.weekly.limit == "1000")
-        #expect(snapshot.weekly.used == "40")
-        #expect(snapshot.weekly.remaining == "960")
-        #expect(snapshot.weekly.resetTime == "2026-01-09T15:23:13Z")
+        #expect(snapshot.weekly?.limit == "1000")
+        #expect(snapshot.weekly?.used == "40")
+        #expect(snapshot.weekly?.remaining == "960")
+        #expect(snapshot.weekly?.resetTime == "2026-01-09T15:23:13Z")
         #expect(snapshot.rateLimit?.limit == "100")
         #expect(snapshot.rateLimit?.used == nil)
         #expect(snapshot.rateLimit?.remaining == "99")
@@ -790,6 +791,26 @@ struct KimiUsageResponseParsingTests {
         #expect(snapshot.toUsageSnapshot().primary?.windowMinutes == KimiProviderDescriptor.weeklyWindowMinutes)
         #expect(snapshot.toUsageSnapshot().secondary?.windowMinutes == 300)
         #expect(snapshot.toUsageSnapshot().secondary?.resetDescription == "Rate: 1/100 per 5 hours")
+    }
+
+    @Test(arguments: [
+        ("9223372036854775807", "9223372036854775807"),
+        ("9223372036854775808", "9.223372036854776e+18"),
+        ("-9223372036854775808", "-9223372036854775808"),
+        ("1e20", "1e+20"),
+        ("40.5", "40.5"),
+    ])
+    func `decodes numeric usage at integer boundaries`(number: String, expected: String) throws {
+        let json = """
+        {"limit": \(number), "used": \(number), "remaining": \(number), "reset_at": \(number)}
+        """
+
+        let detail = try JSONDecoder().decode(KimiUsageDetail.self, from: Data(json.utf8))
+
+        #expect(detail.limit == expected)
+        #expect(detail.used == expected)
+        #expect(detail.remaining == expected)
+        #expect(detail.resetTime == expected)
     }
 
     @Test

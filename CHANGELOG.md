@@ -8,20 +8,83 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Menu bar layouts can show explicit Session or Weekly reset countdowns and clocks, including conditional branches.
+- Optional pace colors show reserve in green and early exhaustion risk in red.
+- Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
+- Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
+- Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.
+- CLI: compare local Codex cost estimates with a trusted SSH host through separate bounded summaries.
+- Overview: share a local usage snapshot using the same visible spend sources, calendar, and currency as the summary.
+- Menu bar: choose a stacked merged icon with two provider rows, automatic or explicit provider choices, and preserved layout settings.
+- Agent sessions: opt-in Stay Awake holds the Mac awake while a local agent process is live, then releases it automatically.
+- Notifications: opt-in, account-scoped credential expiry alerts use shared delivery, including Augment keepalive.
+- Provider plugins: show opted-in plugins as switcher tabs with scoped refresh, while retaining standalone plugin cards.
+- Hooks: opt-in `usage_updated` events after successful Mac or CLI watcher refreshes, with account-scoped throttling and quota-window metadata.
+- Venice: show subscription credits through an explicit browser Web source, accepting Venice auth and Clerk session cookies.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
 
 - Provider plugins: bounded persistent storage and Sakana billing plugin.
 
+- LiteLLM: optionally show per-model token and request activity for the last 30 days while retaining personal and team budgets.
+- Claude Admin API: optionally show 30-day workspace spend while retaining organization totals.
+
+- Mac preferences: export and import portable display and notification settings without accounts, credentials, or consent.
+- Provider switcher: customize local navigation and selection shortcuts.
+
+- Mac fleet sync: remove stale Macs and their usage snapshots from the iCloud Sync pane.
+
+- Codex and Claude local cost history now lines up with observed weekly quota resets, including exact reset-day usage and explicit partial estimates.
+- Cost history: choose a calendar month-to-date reporting period or the available 365-day horizon across Mac menus, Usage & Spend, CLI, HTTP, and widgets.
+- Pi and OMP local token history as a separate usage and spend source, with scoped cache validation and duplicate-free combined totals.
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
+- Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
+- Menu bar: offer a per-provider percent window choice, keep cached menu card heights stable, and scope warmed status submenus to their provider.
+- OpenCode Go local quota estimates no longer produce pace forecasts in Mac menus, the CLI, or iPhone sync.
+- Browser cookie refresh resumes after a current noninteractive Safe Storage grant, while explicit denial cooldowns remain in place.
+- Claude Web identifies Cloudflare challenges without treating them as expired sessions, and opens Claude provider settings for recovery.
+- Claude restored-history details use a source-neutral note; successful identity-free CLI quota reads retain account actions; model-scoped weekly labels are localized.
+- MiMo local usage skips malformed session rows before request deduplication.
+- Codex OAuth and PAT distinguish HTTP 403 permission failures from HTTP 401 authentication failures.
+- Config file watching observes external edits across atomic replacements and app writes.
+- Antigravity: resolve session and weekly quota independently, retain distinct model rows and actionable fallback errors, and recover Linux port discovery after `lsof` failures.
+- Cursor: use a verified selected-team member budget for Enterprise and Business usage, with summary fallback.
+- OpenCode Go: expose the Monthly percentage in the menu layout editor before usage data arrives.
+- DeepSeek: retain balances through transport failures only for the matching live browser session.
+- Amp: restore Tier Agent and Orb usage, billing-period pace, and precise credit units.
+- Cursor: keep monthly Auto pace separate from the Grok Bot weekly allowance.
+- Abacus: show monthly credits and provider labels in menu layout percentages and pace.
+- Perplexity: restore credit-pool percentages and CLI amounts while keeping credit descriptions out of reset clocks.
+- Abacus: retain credit amounts beside real billing reset dates in CLI output.
+- Warp: show the active monthly or add-on credit pool across menu surfaces.
+- Manus, MiMo, and Neuralwatt: keep quota details beside actual reset dates in menus and CLI output.
+- Updates: recognize Homebrew-installed QuotaKit and reopen Sparkle's staged install UI from manual checks.
+- Sharing: preserve the reporting timezone and final included day, use singular subscription captions, and retain recognized gateway model families.
+- Claude and Vertex local cost history: deduplicate proxy responses without request IDs, isolate dashboard and regular report windows, and keep representable totals when oversized rows overflow.
+- Menu bar: keep stable status-item identities through recovery removal after updates while preserving saved icon positions.
+- OpenRouter: explain the required API key field when only a separate Management API key is configured.
+- Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.
+- Cursor costs: estimate omitted event costs from cached model prices and retain priced, estimated, and unpriced request coverage.
+- Kimi: parse Code API ratio quota pools, reconcile zero placeholders with matching counts, preserve absent weekly quota, and show monthly Total usage.
+- Grok: use the JSON-RPC method-not-found code for team billing fallback, even when CLI error wording changes.
+- Cursor: show current paid and unexpired trial Grok Bot allowances without treating trial expiry as a recurring reset.
 
+
+- Provider plugins: discard results from disabled, reconfigured, removed, or reloaded plugins and keep refresh activity tied to the current request.
+- Security: preserve browser-cookie denial across restarts and CLI configuration, and stage credential writes privately before atomic replacement (reported in #3986). Thanks @bo-vavrik!
 - Cursor costs: pause automatic menu and spend-dashboard retries for six hours after HTTP 403 while allowing explicit refresh and account-change recovery (#3910, #3918).
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 
 ### Improved
+- Usage & Spend initially lays out the newest 30 daily ledger rows; Show all reveals the full selected range.
+- Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
+- Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.
+
+- Usage & Spend groups accounts, local-history sources, and all model rows under each provider. Compact detail and day/hour selectors retain partial-cost warnings and local calendar boundaries. A daily ledger remains visible in either chart mode, while an expanded data-controls section keeps source selection, privacy context, and exports together.
 
 - Manus and T3 Chat: retrieve browser usage through bundled plugins.
 
@@ -39,6 +102,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Chutes: move quota retrieval to the bundled provider plugin.
 
+- Codex cost storage avoids rewriting unchanged session files when another file updates.
+- Claude cost reports restore compatible cached results across app launches.
+- Claude and Vertex cost caches avoid rewriting identical history JSON after an unchanged rescan.
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
 
 ### Fixed
@@ -59,6 +125,29 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - MiniMax: discover browser storage across the shared Chromium catalog.
 
+- Provider plugins: preserve unavailable plugin settings and secrets across app and CLI config writes.
+
+- Security: preserve explicit browser cookie denial for CLI refresh and stage credential files with owner-only permissions before writing.
+
+- Mistral: count consumed tokens covered by plans across API, Le Chat, and Vibe Code billing categories (#3963).
+- Grok: classify unavailable billing RPC methods by JSON-RPC code so team history survives wording changes (#3947).
+- Codex: prefer the fresh CLI usage response plan over cached account metadata after a subscription change (#3389).
+- Merged cost reports retain priced and unpriced request coverage from each source.
+- Codex cost history retains observed pricing model and service tier when a bounded session rescan outlives its trace evidence.
+- Usage & Spend: show ranked, titled Codex sessions with project context while honoring hidden personal information.
+- Cost history: keep 30-day CLI JSON totals accurate when a longer history is selected, read Priority traces on Linux, and apply the correct long-context boundary to OpenAI models recorded by Claude Code.
+- Usage & Spend: keep Codex conversation names, project paths, and each rollout's SQLite-home context in session history.
+
+- OpenCode Go: include recorded local token counts in daily and per-model history without inventing costs or treating missing counts as zero (upstream #4000).
+
+- Antigravity: retain quota history when the provider omits reset cadence, including replenishment within an hour.
+- Antigravity: skip foreign SQLite databases without inventing empty history.
+- Antigravity: preserve history around UUID-less bookkeeping steps without assigning uncertain dates.
+- Antigravity: match local token-history timestamps by turn ID and preserve valid history around reordered steps.
+- Codex costs: recover excess cached request rows from validated session files while retaining supported historical pricing through bounded scans.
+- Codex costs: count paginated continuation usage once and retain its fork baseline and request index across cached resumes.
+- Codex: keep background credits and plan-history tasks owned by their current refresh, and restart a verified running app-server daemon after promoting a managed account to the system home.
+- Mac fleet sync: continue watching config changes after atomic file replacement during watcher startup or callbacks.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.
@@ -68,6 +157,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Overview: choose Detailed or Compact in Menu settings, with labeled usage bars, the existing provider navigation, and useful details for providers without quota bars (#2616). Thanks @Zihao-Qi!
+- Widgets: improve quota readability with shared responsive tiles, full provider names, and visible secondary allowances (upstream #3137).
+- Widgets: pin verified saved accounts in a dedicated QuotaKit Account Usage widget, with opt-in refresh and privacy-aware labels (upstream #3585).
+- Claude widgets: show verified model-specific weekly quota rows by default, with a Claude setting to hide only those widget rows.
 - Replicate: show current-month billing spend and optional credit balance from a saved or browser session, with labeled account support and iPhone spend sync.
 - Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
@@ -78,10 +171,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.
 - Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
 - Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.
+- Widgets: offer Burn Down for compatible provider quotas, including Devin daily/weekly and Cursor billing cycles, with accurate labels and preserved Codex/Claude selections (#3097). Thanks @thatlev!
+- Codex: add a debug-only local Workspaces project and session inspector that follows source, history, and privacy settings and cancels loads when closed. Thanks @AmrMohamad!
 
 ### Fixed
 
 - Menu bar: prevent blank status-item slots after normal quit while preserving saved icon positions. Thanks to the upstream reporter and verifier, @mymatejackson and @giuseppebisemi.
+- Providers: prevent crashes on oversized Kimi, Chutes, MiniMax, and Perplexity usage values or durations while preserving usable quota data.
 - Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.
 - OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.

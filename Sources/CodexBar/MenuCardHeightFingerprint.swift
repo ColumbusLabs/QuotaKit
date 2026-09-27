@@ -13,10 +13,13 @@ extension UsageMenuCardView.Model {
             MenuCardHeightFingerprint.field("name", self.providerName),
             MenuCardHeightFingerprint.field("email", self.email),
             MenuCardHeightFingerprint.field("subtitle", self.subtitleText),
+            MenuCardHeightFingerprint.field("lastKnownUsage", self.lastKnownUsageText),
             "subtitleStyle=\(self.subtitleStyle.heightFingerprint)",
             MenuCardHeightFingerprint.field("plan", self.planText),
+            "planEmphasized=\(self.planEmphasis.isEmphasized)",
             MenuCardHeightFingerprint.field("placeholder", self.placeholder),
             MenuCardHeightFingerprint.field("credits", self.creditsText),
+            "creditsShowProgress=\(self.creditsShowProgress)",
             "creditsRemaining=\(self.creditsRemaining.map(String.init(describing:)) ?? "nil")",
             MenuCardHeightFingerprint.field("creditsHint", self.creditsHintText),
             MenuCardHeightFingerprint.field("creditsCopy", self.creditsHintCopyText),
@@ -169,7 +172,19 @@ extension InlineUsageDashboardModel {
             self.valueStyle.heightFingerprint,
             MenuCardHeightFingerprint.join(self.kpis.map(\.heightFingerprint)),
             MenuCardHeightFingerprint.join(self.points.map(\.heightFingerprint)),
+            MenuCardHeightFingerprint.join(self.quotaWindows.map(\.heightFingerprint)),
             MenuCardHeightFingerprint.join(self.detailLines.map { MenuCardHeightFingerprint.field("detail", $0) }),
+        ])
+    }
+}
+
+extension InlineUsageDashboardModel.QuotaWindow {
+    fileprivate var heightFingerprint: String {
+        MenuCardHeightFingerprint.join([
+            MenuCardHeightFingerprint.field("qwTitle", self.title),
+            MenuCardHeightFingerprint.field("qwRange", self.range),
+            MenuCardHeightFingerprint.field("qwValue", self.value),
+            MenuCardHeightFingerprint.field("qwNote", self.note),
         ])
     }
 }

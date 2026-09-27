@@ -38,12 +38,14 @@ struct MenuDescriptor {
 
     enum MenuActionSystemImage: String {
         case installUpdate = "arrow.down.circle"
+        case checkForUpdates = "arrow.triangle.2.circlepath.circle"
         case refresh = "arrow.clockwise"
         case dashboard = "chart.xyaxis.line"
         case statusPage = "waveform.path.ecg"
         case changelog = "list.bullet.rectangle"
         case addAccount = "plus"
         case systemAccount = "person.crop.circle"
+        case workspaces = "folder"
         case switchAccount = "key"
         case openTerminal = "terminal"
         case loginToProvider = "arrow.right.square"
@@ -61,6 +63,7 @@ struct MenuDescriptor {
 
     enum MenuAction: Equatable {
         case installUpdate
+        case checkForUpdates
         case refresh
         case refreshAugmentSession
         case dashboard
@@ -72,7 +75,9 @@ struct MenuDescriptor {
         case switchAccount(UsageProvider)
         case openTerminal(command: String)
         case loginToProvider(url: String)
+        case openCodexWorkspaces
         case settings
+        case providerSettings(UsageProvider)
         case about
         case quit
         case copyError(String)
@@ -89,7 +94,11 @@ struct MenuDescriptor {
         managedCodexAccountCoordinator: ManagedCodexAccountCoordinator? = nil,
         codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator? = nil,
         updateReady: Bool,
+        canCheckForUpdates: Bool = false,
+        versionText: String = AppVersion.shortVersion,
         includeContextualActions: Bool = true,
+        codexWorkspacesMenuEnabled: Bool = false,
+        isKeepingAwake: Bool = false,
         agentSessionsEnabled: Bool = false,
         agentSessionLabelStyle: AgentSessionLabelStyle = .project,
         localAgentSessions: [AgentSession] = [],
@@ -133,15 +142,21 @@ struct MenuDescriptor {
         }
 
         if includeContextualActions {
+            let codexActionContext = CodexActionContext(
+                managedAccountCoordinator: managedCodexAccountCoordinator,
+                accountPromotionCoordinator: codexAccountPromotionCoordinator,
+                workspacesMenuEnabled: codexWorkspacesMenuEnabled)
             let actions = Self.actionsSection(
                 for: provider,
                 store: store,
                 account: account,
-                managedCodexAccountCoordinator: managedCodexAccountCoordinator,
-                codexAccountPromotionCoordinator: codexAccountPromotionCoordinator)
+                codexActionContext: codexActionContext)
             if !actions.entries.isEmpty {
                 sections.append(actions)
             }
+        }
+        if isKeepingAwake {
+            sections.append(Section(entries: [.text("Stay Awake: local agent session is live", .secondary)]))
         }
         if agentSessionsEnabled {
             sections.append(Self.agentSessionsSection(
@@ -150,7 +165,10 @@ struct MenuDescriptor {
                 labelStyle: agentSessionLabelStyle,
                 now: now))
         }
-        sections.append(Self.metaSection(updateReady: updateReady))
+        sections.append(Self.metaSection(
+            updateReady: updateReady,
+            canCheckForUpdates: canCheckForUpdates,
+            versionText: versionText))
 
         return MenuDescriptor(sections: sections)
     }
@@ -238,6 +256,8 @@ struct MenuDescriptor {
             let resetStyle = settings.resetTimeDisplayStyle
             let labels = Self.rateWindowLabels(provider: provider, metadata: meta, snapshot: snap)
             let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
+            let paceVisible = settings.paceVisible && ProviderDescriptorRegistry.descriptor(for: provider).pace
+                .allowsPace(dataConfidence: snap.dataConfidence)
             if let primary = snap.primary {
                 let primaryDetail = primary.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let primaryDescriptionIsDetail = presentation.menu.usesPrimaryDescriptionAsDetail(snapshot: snap)
@@ -271,14 +291,14 @@ struct MenuDescriptor {
                 {
                     entries.append(.text(primaryDetail, .secondary))
                 }
-                if settings.paceVisible,
+                if paceVisible,
                    presentation.menu.showsPrimaryWeeklyPace,
                    let pace = store.weeklyPace(provider: provider, window: primary)
                 {
                     let paceSummary = UsagePaceText.weeklySummary(provider: provider, pace: pace)
                     entries.append(.text(paceSummary, .secondary))
                 }
-                if settings.paceVisible,
+                if paceVisible,
                    let paceSummary = UsagePaceText.sessionSummary(provider: provider, window: primary)
                 {
                     entries.append(.text(paceSummary, .secondary))
@@ -311,7 +331,7 @@ struct MenuDescriptor {
                 {
                     entries.append(.text(detail, .secondary))
                 }
-                if settings.paceVisible,
+                if paceVisible,
                    let pace = store.weeklyPace(provider: provider, window: weekly)
                 {
                     let paceSummary = UsagePaceText.weeklySummary(provider: provider, pace: pace)
@@ -563,12 +583,17 @@ struct MenuDescriptor {
         return nil
     }
 
+    private struct CodexActionContext {
+        let managedAccountCoordinator: ManagedCodexAccountCoordinator?
+        let accountPromotionCoordinator: CodexAccountPromotionCoordinator?
+        let workspacesMenuEnabled: Bool
+    }
+
     private static func actionsSection(
         for provider: UsageProvider?,
         store: UsageStore,
         account: AccountInfo,
-        managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?,
-        codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?) -> Section
+        codexActionContext: CodexActionContext) -> Section
     {
         var entries: [Entry] = []
         let targetProvider = provider ?? store.enabledFirstPartyProviders().first
@@ -606,8 +631,9 @@ struct MenuDescriptor {
                 store: store,
                 settings: store.settings,
                 account: fallbackAccount,
-                managedCodexAccountCoordinator: managedCodexAccountCoordinator,
-                codexAccountPromotionCoordinator: codexAccountPromotionCoordinator)
+                managedCodexAccountCoordinator: codexActionContext.managedAccountCoordinator,
+                codexAccountPromotionCoordinator: codexActionContext.accountPromotionCoordinator,
+                codexWorkspacesMenuEnabled: codexActionContext.workspacesMenuEnabled)
             ProviderCatalog.implementation(for: targetProvider)?
                 .appendActionMenuEntries(context: actionContext, entries: &entries)
         }
@@ -629,15 +655,22 @@ struct MenuDescriptor {
         return Section(entries: entries)
     }
 
-    private static func metaSection(updateReady: Bool) -> Section {
+    static func metaSection(
+        updateReady: Bool,
+        canCheckForUpdates: Bool = false,
+        versionText: String = AppVersion.shortVersion) -> Section
+    {
         var entries: [Entry] = []
         if updateReady {
             entries.append(.action(L("Update ready, restart now?"), .installUpdate))
+        } else if canCheckForUpdates {
+            entries.append(.action(L("Check for Updates…"), .checkForUpdates))
         }
+        let aboutLabel = L("About CodexBar") + (versionText.isEmpty ? "" : " (v\(versionText))")
         entries.append(contentsOf: [
             .action(L("Refresh"), .refresh),
             .action(L("Settings..."), .settings),
-            .action(L("About CodexBar"), .about),
+            .action(aboutLabel, .about),
             .action(L("Quit"), .quit),
         ])
         return Section(entries: entries)
@@ -679,6 +712,19 @@ struct MenuDescriptor {
         if target == .claude,
            snapshot?.identity(for: .claude) != nil,
            snapshot?.hasRateLimitWindows == true
+        {
+            return true
+        }
+        // A final successful CLI quota read may omit optional account identity.
+        // Restored history and failed refreshes cannot establish a signed-in account.
+        if target == .claude,
+           snapshot?.hasRateLimitWindows == true,
+           store.error(for: .claude) == nil,
+           store.lastSourceLabels[UsageProvider.claude.instanceID] == "claude",
+           let attempt = store.fetchAttempts(for: .claude).last,
+           attempt.kind == .cli,
+           attempt.wasAvailable,
+           attempt.errorDescription == nil
         {
             return true
         }
@@ -828,7 +874,8 @@ extension MenuDescriptor.MenuAction {
     var systemImageName: String? {
         switch self {
         case .installUpdate: MenuDescriptor.MenuActionSystemImage.installUpdate.rawValue
-        case .settings: MenuDescriptor.MenuActionSystemImage.settings.rawValue
+        case .checkForUpdates: MenuDescriptor.MenuActionSystemImage.checkForUpdates.rawValue
+        case .settings, .providerSettings: MenuDescriptor.MenuActionSystemImage.settings.rawValue
         case .about: MenuDescriptor.MenuActionSystemImage.about.rawValue
         case .quit: MenuDescriptor.MenuActionSystemImage.quit.rawValue
         case .refresh: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
@@ -842,6 +889,7 @@ extension MenuDescriptor.MenuAction {
         case .switchAccount: MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
         case .openTerminal: MenuDescriptor.MenuActionSystemImage.openTerminal.rawValue
         case .loginToProvider: MenuDescriptor.MenuActionSystemImage.loginToProvider.rawValue
+        case .openCodexWorkspaces: MenuDescriptor.MenuActionSystemImage.workspaces.rawValue
         case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
         case .focusAgentSession:
             nil

@@ -42,7 +42,9 @@ For the console request, QuotaKit forwards only the `csrftoken` and `ory_session
 
 ## Display
 
-- API spend is computed locally from the billing usage response's token counts and pricing table.
+- API spend is computed from billed units (`value_paid`, falling back to `value`) and the pricing table. Token totals
+  and daily buckets use consumed units (`value`, falling back to `value_paid`), so plan-covered usage still counts.
+- Token totals include API completions, Le Chat, and Vibe Code completions from the billing usage response.
 - Daily usage buckets feed the inline usage dashboard.
 - The provider card can show credit balance when the credits endpoint returns it.
 - The optional **Monthly Plan** window shows Vibe usage percentage and reset time when the console endpoint is

@@ -64,9 +64,8 @@ struct CostHistoryChartMenuView: View {
     /// Multiplier applied to source-currency amounts at display time so labels can render
     /// in the user's preferred currency while chart geometry stays in source values.
     private let costMultiplier: Double
-    private let historyDays: Int
     private let historyCoverageIsEstablished: Bool
-    private let windowLabel: String?
+    private let windowLabel: String
     private let projects: [CostUsageProjectBreakdown]
     private let sessions: [CostUsageSessionBreakdown]
     private let hidePersonalInfo: Bool
@@ -93,9 +92,8 @@ struct CostHistoryChartMenuView: View {
         self.totalCostUSD = totalCostUSD
         self.currencyCode = currencyCode
         self.costMultiplier = costMultiplier
-        self.historyDays = max(1, min(365, historyDays))
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
-        self.windowLabel = windowLabel
+        self.windowLabel = windowLabel.map { L($0) } ?? Self.windowLabel(days: max(1, historyDays))
         self.projects = projects
         self.sessions = sessions
         self.hidePersonalInfo = hidePersonalInfo
@@ -169,9 +167,8 @@ struct CostHistoryChartMenuView: View {
                         AxisTick().foregroundStyle(Color.clear)
                         if let date = value.as(Date.self) {
                             AxisValueLabel(anchor: ChartAxisLabelLayout.barCenteredAnchor) {
-                                Text(date, format: .dateTime.month(.abbreviated).day())
-                                    .font(.caption2)
-                                    .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                                ChartAxisLabelLayout.dateLabel(
+                                    Text(date, format: .dateTime.month(.abbreviated).day()))
                             }
                         }
                     }
@@ -314,7 +311,7 @@ struct CostHistoryChartMenuView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(
                         format: L("Est. total (%@): %@"),
-                        self.windowLabel ?? Self.windowLabel(days: self.historyDays),
+                        self.windowLabel,
                         self.costString(total)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -433,7 +430,7 @@ struct CostHistoryChartMenuView: View {
         let visibleCount = min(self.sessions.count, Self.maxVisibleSessionRows)
         return VStack(alignment: .leading, spacing: Self.sessionRowSpacing) {
             HStack {
-                Text(L("Conversations (%@)", self.windowLabel ?? Self.windowLabel(days: self.historyDays)))
+                Text(L("Conversations (%@)", self.windowLabel))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -467,7 +464,9 @@ struct CostHistoryChartMenuView: View {
     private func sessionRow(_ session: CostUsageSessionBreakdown) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(L("Session %@", Self.shortSessionID(session.sessionID)))
+                Text(self.hidePersonalInfo
+                    ? L("Session %@", Self.shortSessionID(session.sessionID))
+                    : session.title ?? L("Session %@", Self.shortSessionID(session.sessionID)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -492,7 +491,7 @@ struct CostHistoryChartMenuView: View {
         .accessibilityElement(children: .combine)
     }
 
-    static func shortSessionID(_ sessionID: String) -> String {
+    nonisolated static func shortSessionID(_ sessionID: String) -> String {
         let trimmed = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 12 else { return trimmed }
         return "\(trimmed.prefix(4))...\(trimmed.suffix(8))"

@@ -90,6 +90,7 @@ extension ProviderInstanceID {
     public static let llmman = UsageProvider.llmman.instanceID
     public static let nous = UsageProvider.nous.instanceID
     public static let muse = UsageProvider.muse.instanceID
+    public static let pi = UsageProvider.pi.instanceID
 }
 
 // swiftformat:enable sortDeclarations

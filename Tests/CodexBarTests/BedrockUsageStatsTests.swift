@@ -4,6 +4,27 @@ import Testing
 
 @Suite(.serialized)
 struct BedrockUsageStatsTests {
+    @Test(arguments: ["9.223372036854776e18", "1e40"])
+    func `cloudwatch rejects unrepresentable totals without trapping`(literal: String) async throws {
+        let transport = ProviderHTTPTransportHandler { request in
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: nil, headerFields: nil))
+            let body = """
+            {"MetricDataResults":[{"Id":"inputTokens","StatusCode":"Complete","Values":[\(literal)]}]}
+            """
+            return (Data(body.utf8), response)
+        }
+        await #expect(throws: BedrockUsageError.cloudWatchParseFailed("invalid metric total")) {
+            try await BedrockCloudWatchUsageFetcher.fetch(
+                credentials: Self.testCredentials,
+                region: "us-east-1",
+                now: Date(timeIntervalSince1970: 1_750_000_000),
+                endpointOverride: "https://cloudwatch.test",
+                transport: transport)
+        }
+    }
+
     @Test
     func `to usage snapshot with budget shows primary window`() {
         let snapshot = BedrockUsageSnapshot(
@@ -331,14 +352,15 @@ struct BedrockUsageStatsTests {
             return responses.next(url: url)
         }
 
-        let snapshot = try await CostUsageFetcher().loadTokenSnapshot(
-            provider: .bedrock,
-            environment: [
-                BedrockSettingsReader.accessKeyIDKey: "AKIATEST",
-                BedrockSettingsReader.secretAccessKeyKey: "testSecret",
-                BedrockSettingsReader.apiURLKey: "https://bedrock.test",
-            ],
-            now: Date(timeIntervalSince1970: 1_765_324_800))
+        let snapshot = try await CostUsageFetcher(calendar: CostUsageBucketTimeZone.calendar(identifier: "UTC"))
+            .loadTokenSnapshot(
+                provider: .bedrock,
+                environment: [
+                    BedrockSettingsReader.accessKeyIDKey: "AKIATEST",
+                    BedrockSettingsReader.secretAccessKeyKey: "testSecret",
+                    BedrockSettingsReader.apiURLKey: "https://bedrock.test",
+                ],
+                now: Date(timeIntervalSince1970: 1_765_324_800))
 
         #expect(snapshot.last30DaysCostUSD == 7.25)
         #expect(snapshot.sessionCostUSD == 7.25)

@@ -168,6 +168,43 @@ struct PredictivePaceWarningTests {
     }
 
     @Test
+    func `credential swap retires unresolved Claude predictive warning only`() {
+        let reset = self.resetWindow(minutes: 300, resetsAt: 1_780_000_000)
+        let unresolved = PredictivePaceWarningStateKey(
+            provider: .claude,
+            accountDiscriminator: "claude-account:unknown",
+            window: .session,
+            resetWindow: reset)
+        let known = PredictivePaceWarningStateKey(
+            provider: .claude,
+            accountDiscriminator: "claude-account:account-a",
+            window: .session,
+            resetWindow: reset)
+        let owner = PredictivePaceWarningStateKey(
+            provider: .claude,
+            accountDiscriminator: "claude-oauth-owner:owner-a",
+            window: .session,
+            resetWindow: reset)
+        let codex = PredictivePaceWarningStateKey(
+            provider: .codex,
+            accountDiscriminator: "codex-owner:account-a",
+            window: .session,
+            resetWindow: reset)
+        var retained = PredictivePaceWarningNotificationLogic.retainingVerifiedKeysAfterClaudeCredentialSwap(
+            [unresolved, known, owner, codex])
+
+        #expect(!retained.contains(unresolved))
+        #expect(retained.contains(known))
+        #expect(retained.contains(owner))
+        #expect(retained.contains(codex))
+        // A new unresolved account with the same reset can raise its own warning.
+        #expect(PredictivePaceWarningNotificationLogic.recordObservation(
+            key: unresolved,
+            pace: self.pace(willLastToReset: false, etaSeconds: 60),
+            notifiedKeys: &retained))
+    }
+
+    @Test
     func `new reset window identity is independent and prunes expired sibling key`() {
         var notifiedKeys: Set<PredictivePaceWarningStateKey> = []
         let oldKey = PredictivePaceWarningStateKey(

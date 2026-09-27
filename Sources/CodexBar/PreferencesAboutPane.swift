@@ -62,8 +62,9 @@ struct AboutPane: View {
                 }
             } else {
                 Section {
-                    Text(self.updater.unavailableReason ?? L("updates_unavailable"))
-                        .foregroundStyle(.secondary)
+                    AboutUpdatesUnavailableView(reason: self.updater.unavailableReason ?? L("updates_unavailable"))
+                } header: {
+                    Text(L("section_updates"))
                 }
             }
 
@@ -154,6 +155,17 @@ struct AboutPane: View {
     private func openProjectHome() {
         guard let url = URL(string: "https://github.com/ColumbusLabs/QuotaKit") else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+@MainActor
+struct AboutUpdatesUnavailableView: View {
+    let reason: String
+
+    var body: some View {
+        Text(self.reason)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
     }
 }
 

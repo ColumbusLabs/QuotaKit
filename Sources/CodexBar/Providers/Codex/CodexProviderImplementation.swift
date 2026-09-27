@@ -236,11 +236,17 @@ struct CodexProviderImplementation: ProviderImplementation {
               context.metadata.supportsCredits
         else { return }
 
-        if let credits = context.store.credits {
-            let remaining = credits.codexCreditLimit?.remaining ?? credits.remaining
-            entries.append(.text(
-                String(format: L("credits_remaining"), UsageFormatter.creditsString(from: remaining)),
-                .primary))
+        if let credits = CodexExtraUsageCost.creditsForDisplay(
+            context.store.credits,
+            attached: context.snapshot?.providerCost)
+        {
+            if let remaining = credits.displayRemaining {
+                entries.append(.text(
+                    String(format: L("credits_remaining"), UsageFormatter.creditsString(from: remaining)),
+                    .primary))
+            } else {
+                entries.append(.text("\(L("Credits")) · \(L("Balance")): \(L("Unavailable"))", .secondary))
+            }
             if let limit = credits.codexCreditLimit {
                 var parts = [
                     L("%@ used", UsageFormatter.creditsNumberString(from: limit.used)),
@@ -270,8 +276,16 @@ struct CodexProviderImplementation: ProviderImplementation {
 
     @MainActor
     func appendActionMenuEntries(context: ProviderMenuActionContext, entries: inout [ProviderMenuEntry]) {
+        if context.codexWorkspacesMenuEnabled {
+            entries.append(.action(L("Workspaces"), .openCodexWorkspaces))
+        }
+
         let projection = context.settings.codexVisibleAccountProjection
         guard !projection.visibleAccounts.isEmpty else { return }
+
+        if let note = context.codexAccountPromotionCoordinator?.daemonRestartNote {
+            entries.append(.text(note, .secondary))
+        }
 
         let isInteractionBlocked = context.codexAccountPromotionCoordinator?.isInteractionBlocked() ?? false
 

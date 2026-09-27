@@ -77,6 +77,41 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `claude and codex token ownership follows visible pi cost source`() throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-claude-pi-ownership")
+        settings.costUsageEnabled = true
+        let store = Self.makeUsageStore(settings: settings)
+        let metadata = ProviderRegistry.shared.metadata
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(metadata[.claude]),
+            enabled: true)
+        try settings.setProviderEnabled(
+            provider: .pi,
+            metadata: #require(metadata[.pi]),
+            enabled: false)
+
+        let fallbackSignature = store.tokenSnapshotScopeSignature(for: .claude)
+        #expect(store.shouldIncludePiSessionsInTokenSnapshot(for: .claude))
+        #expect(store.shouldIncludePiSessionsInTokenSnapshot(for: .codex))
+        #expect(fallbackSignature.contains("|piRows=fallback"))
+        let codexFallbackSignature = store.tokenSnapshotScopeSignature(for: .codex)
+        #expect(codexFallbackSignature.contains("|piRows=fallback"))
+
+        try settings.setProviderEnabled(
+            provider: .pi,
+            metadata: #require(metadata[.pi]),
+            enabled: true)
+
+        #expect(!store.shouldIncludePiSessionsInTokenSnapshot(for: .claude))
+        #expect(fallbackSignature != store.tokenSnapshotScopeSignature(for: .claude))
+        #expect(!store.shouldIncludePiSessionsInTokenSnapshot(for: .codex))
+        #expect(codexFallbackSignature != store.tokenSnapshotScopeSignature(for: .codex))
+        #expect(store.tokenSnapshotScopeSignature(for: .codex).contains("|piRows=owned"))
+        #expect(store.shouldIncludePiSessionsInTokenSnapshot(for: .pi))
+    }
+
+    @Test
     func `cursor manual cost refresh rejects an empty cookie without falling back`() async throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-cursor-manual-cost")
         settings.costUsageEnabled = true
@@ -268,7 +303,7 @@ struct UsageStoreCoverageTests {
         #expect(model.metrics.allSatisfy { $0.pacePercent == nil })
         #expect(model.creditsText == nil)
         #expect(model.providerDetails.first?.rows.map(\.label) == [
-            "Individual credits", "Workspace billing@example.test",
+            "Individual", "Workspace billing@example.test",
         ])
         #expect(model.creditsRemaining == nil)
 
@@ -330,10 +365,10 @@ struct UsageStoreCoverageTests {
         #expect(menuLines.contains { $0.hasPrefix("Amp Free:") })
     }
 
-    @Test
+    @Test(CodexCredentialFixtures())
     func `account info caches codex auth parsing until config revision changes`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-account-info-cache")
-        let home = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let home = CodexCredentialFixtures.root.appendingPathComponent(
             "usage-store-account-info-\(UUID().uuidString)",
             isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }

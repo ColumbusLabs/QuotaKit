@@ -131,15 +131,15 @@ struct ClaudeDailyRoutinesMenuCardTests {
             "Session",
             "Weekly",
             "Sonnet",
-            "Fable only",
+            "Fable weekly",
             "Daily Routines",
         ])
 
         let providerHiddenModel = visibleModel.applyingUsageItemVisibility(
             hiddenItemIDs: [.metric("claude-routines")])
-        #expect(providerHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable only"])
+        #expect(providerHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable weekly"])
 
         let globalHiddenModel = makeModel(showOptionalUsage: false)
-        #expect(globalHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable only"])
+        #expect(globalHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable weekly"])
     }
 }

@@ -53,9 +53,9 @@ struct SpendDashboardControllerTests {
         #expect(contexts.first?.includePiSessions == false)
     }
 
-    @Test
+    @Test(CodexCredentialFixtures())
     func `Codex auth rotation invalidates stale spend while retaining unrelated providers`() async throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent(
                 "SpendDashboardControllerTests-auth-rotation-\(UUID().uuidString)",
                 isDirectory: true)
@@ -332,7 +332,7 @@ struct SpendDashboardControllerTests {
             settings: settings,
             startupBehavior: .testing,
             environmentBase: [:])
-        store.publishConfirmedEmptyTokenSnapshot(for: .claude)
+        store._setSpendDashboardTokenSnapshotForTesting(nil, for: .claude)
 
         let request = await SpendDashboardSource.makeRequest(
             settings: settings,
@@ -739,7 +739,7 @@ struct SpendDashboardControllerTests {
     }
 
     @Test
-    func `range selection persists only supported windows`() throws {
+    func `range selection persists the shared reporting period`() throws {
         let suite = "SpendDashboardControllerTests-days"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -752,18 +752,16 @@ struct SpendDashboardControllerTests {
                     force: mode.forcesLoader)
             })
 
-        #expect(controller.selectedDays == 30)
-        controller.selectDays(7)
-        #expect(controller.selectedDays == 7)
-        #expect(defaults.integer(forKey: "settingsSpendDashboardDays") == 7)
-        controller.selectDays(SpendDashboardSource.scanDays)
-        #expect(controller.selectedDays == SpendDashboardSource.scanDays)
-        #expect(defaults.integer(forKey: "settingsSpendDashboardDays") == SpendDashboardSource.scanDays)
-        controller.selectDays(9)
-        #expect(controller.selectedDays == 30)
-        controller.selectDays(90)
-        #expect(controller.selectedDays == 90)
-        #expect(defaults.integer(forKey: "settingsSpendDashboardDays") == 90)
+        #expect(controller.selectedPeriod == .rolling(days: 30))
+        controller.selectPeriod(.rolling(days: 7))
+        #expect(defaults.string(forKey: "settingsSpendDashboardPeriod") == "rolling:7")
+        controller.selectPeriod(.allTime)
+        #expect(defaults.string(forKey: "settingsSpendDashboardPeriod") == "all")
+        controller.selectPeriod(.monthToDate)
+        #expect(controller.selectedPeriod == .monthToDate)
+        #expect(defaults.string(forKey: "settingsSpendDashboardPeriod") == "month-to-date")
+        controller.selectPeriod(.rolling(days: 90))
+        #expect(controller.selectedPeriod == .rolling(days: 90))
     }
 
     private nonisolated static let fixtureNow = Date(timeIntervalSince1970: 1_784_179_200)
@@ -891,6 +889,78 @@ struct SpendDashboardControllerTests {
             try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for controller state")
+    }
+}
+
+@MainActor
+extension SpendDashboardControllerTests {
+    @Test
+    func `capture keeps inclusive claude totals when pi source is absent`() async throws {
+        let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-pi-absent-projection")
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .claude)
+        }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let inclusive = Self.input(provider: .claude, cost: 9).snapshot
+        let native = Self.input(provider: .claude, cost: 4).snapshot
+        store._setSpendDashboardTokenSnapshotForTesting(
+            inclusive,
+            for: .claude,
+            accounting: .includesPi(scope: "pi-scope", native: native))
+
+        let request = await SpendDashboardSource.makeRequest(
+            settings: settings,
+            store: store,
+            mode: .captureOnly)
+
+        let captured = try #require(request.capturedInputs.first)
+        #expect(request.capturedInputs.count == 1)
+        #expect(captured.provider == .claude)
+        #expect(captured.snapshot.last30DaysCostUSD == inclusive.last30DaysCostUSD)
+    }
+
+    @Test
+    func `hidden pi source still owns pi rows in the claude projection`() async throws {
+        let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-pi-hidden-projection")
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(
+                provider: provider,
+                metadata: metadata,
+                enabled: provider == .claude || provider == .pi)
+        }
+        settings.spendDashboardHiddenSourceIDs = [UsageProvider.pi.rawValue]
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let inclusive = Self.input(provider: .claude, cost: 9).snapshot
+        let native = Self.input(provider: .claude, cost: 4).snapshot
+        let pi = Self.input(provider: .pi, cost: 5).snapshot
+        store._setSpendDashboardTokenSnapshotForTesting(
+            inclusive,
+            for: .claude,
+            accounting: .includesPi(scope: "pi-scope", native: native))
+        store._setSpendDashboardTokenSnapshotForTesting(pi, for: .pi)
+
+        let request = await SpendDashboardSource.makeRequest(
+            settings: settings,
+            store: store,
+            mode: .captureOnly)
+
+        let claude = try #require(request.capturedInputs.first { $0.provider == .claude })
+        #expect(request.configuration.hiddenSourceIDs == [UsageProvider.pi.rawValue])
+        #expect(claude.snapshot.last30DaysCostUSD == native.last30DaysCostUSD)
     }
 }
 

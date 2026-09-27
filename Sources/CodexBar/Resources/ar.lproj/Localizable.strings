@@ -228,6 +228,7 @@
 "No cost history data." = "بيانات تاريخ مجانية.";
 "No data available" = "لا توجد بيانات متاحة";
 "No data yet" = "لا توجد بيانات حتى الآن";
+"Workspaces" = "مساحات العمل";
 "No enabled providers available for Overview." = "لا يوجد مزودون مفعلون متاحون للنظرة العامة.";
 "No providers selected" = "لم يتم اختيار أي مقدمي خدمة";
 "No token accounts yet." = "لا توجد حسابات رمزية حتى الآن.";
@@ -481,6 +482,7 @@
 "cost_summary_style_inline_help" = "يعرض ملخص التكلفة مباشرة في القائمة الرئيسية.";
 "cost_summary_style_submenu_help" = "يعرض بدلاً من ذلك قائمة التكلفة الفرعية التفصيلية.";
 "cost_summary_style_both_help" = "يعرض ملخص القائمة الرئيسية وقائمة التكلفة الفرعية التفصيلية.";
+"Month to date" = "من بداية الشهر حتى الآن";
 "cost_history_window_title" = "نافذة التاريخ";
 "cost_history_window_help" = "يحدد عدد أيام سجلات الاستخدام المحلية التي تظهر في القائمة.";
 "cost_history_days_title" = "نافذة التاريخ: %d أيام";
@@ -621,6 +623,12 @@
 "cost_summary_off" = "إيقاف";
 "merge_icons_title" = "أيقونات الدمج";
 "merge_icons_subtitle" = "استخدم أيقونة شريط قائمة واحدة مع محول المزود.";
+"merged_icon_style_title" = "نمط الأيقونة المدمجة";
+"merged_icon_style_subtitle" = "يتنقل المبدّل بين المزوّدين واحدًا تلو الآخر؛ يعرض المكدّس مزوّدين في آن واحد، كل منهما في صف.";
+"merged_icon_style_switcher" = "المبدّل";
+"merged_icon_style_stacked" = "مكدّس";
+"merge_icon_stacked_top_provider_title" = "الصف العلوي";
+"merge_icon_stacked_bottom_provider_title" = "الصف السفلي";
 "show_most_used_provider_title" = "عرض المزود الأكثر استخداما";
 "show_most_used_provider_subtitle" = "شريط القوائم يعرض تلقائيا مزود الخدمة الأقرب إلى حد السعر.";
 "display_mode_title" = "وضع العرض";
@@ -889,6 +897,12 @@
 "usage_percent_suffix_used" = "مستخدم";
 "Store multiple DeepSeek API keys." = "خزن عدة مفاتيح DeepSeek API.";
 "This week" = "هذا الأسبوع";
+"Current window" = "النافذة الحالية";
+"Last week" = "الأسبوع الماضي";
+"%d weeks ago" = "قبل %d أسابيع";
+"Previous window" = "النافذة السابقة";
+"%d windows ago" = "قبل %d نوافذ";
+"Recent windows" = "النوافذ الأخيرة";
 "Week" = "الأسبوع";
 "Month" = "الشهر";
 "Models" = "النماذج";
@@ -1352,6 +1366,8 @@
 "Tracked tokens" = "الرموز المتتبعة";
 "Subscriptions" = "الاشتراكات";
 "By subscription" = "حسب الاشتراك";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "لا يوجد سجل على مستوى النموذج";
 "Daily estimated spend" = "الإنفاق اليومي التقديري";
 "Hourly estimated spend" = "الإنفاق الساعي التقديري";
@@ -1448,6 +1464,33 @@
 "%d more accounts ready" = "%d حسابات إضافية جاهزة";
 "Shows the hidden accounts" = "يعرض الحسابات المخفية";
 "%@ remaining" = "متبقٍ %@";
+"codex_workspaces_estimated_cost_short" = "التكلفة المقدّرة";
+"codex_workspaces_estimated_cost_value" = "مقدّر %@";
+"codex_workspaces_estimated_local_logs" = "تقدير من سجلات Codex المحلية";
+"codex_workspaces_failed_read_logs" = "تعذّرت قراءة سجلات Codex";
+"codex_workspaces_indexing_local_logs" = "جارٍ فهرسة سجلات Codex المحلية…";
+"codex_workspaces_indexing_projects" = "جارٍ فهرسة المشاريع…";
+"codex_workspaces_local_codex_chat" = "دردشة Codex محلية";
+"codex_workspaces_no_local_usage" = "لا يوجد استخدام محلي لـ Codex حتى الآن";
+"codex_workspaces_saving_project_index" = "جارٍ حفظ فهرس المشاريع…";
+"codex_workspaces_scanning_logs" = "جارٍ فحص سجلات Codex…";
+"codex_workspaces_session_count" = "الجلسات: %@";
+"codex_workspaces_sessions" = "الجلسات";
+"codex_workspaces_title" = "مساحات العمل";
+"codex_workspaces_tokens" = "الرموز";
+"codex_workspaces_token_count_accessibility" = "%@ من الرموز";
+"codex_workspaces_top_model" = "النموذج الأكثر استخدامًا";
+"codex_workspaces_cost_unavailable" = "التكلفة غير متاحة";
+"codex_workspaces_refresh_usage_data" = "تحديث بيانات الاستخدام";
+"codex_workspaces_retry" = "أعد المحاولة";
+"codex_workspaces_partial_data" = "بيانات جزئية";
+"codex_workspaces_high_usage" = "استخدام مرتفع";
+"codex_workspaces_elevated_usage" = "استخدام أعلى من المعتاد";
+"codex_workspaces_normal_usage" = "استخدام عادي";
+"codex_workspaces_no_sessions" = "لا توجد جلسات في مساحة العمل هذه";
+"codex_workspaces_session" = "جلسة";
+"codex_workspaces_model" = "النموذج";
+"codex_workspaces_started" = "بدأ";
 "Finish now" = "إنهاء الآن";
 "Continue in background" = "المتابعة في الخلفية";
 "(%d%% risk)" = "(%d%% خطر الانتهاء)";
@@ -1464,6 +1507,7 @@
 "More" = "أكثر";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "تثبيت…";
 "Install plugin" = "تثبيت إضافة";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "ينسخ ملف JavaScript أو TypeScript إلى مجلد الإضافات.";
@@ -1567,3 +1611,29 @@
 "Restore Defaults" = "استعادة الإعدادات الافتراضية";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "اختر صفوف الاستخدام التي تظهر في قائمة هذا المزوّد ومعاينة الإعدادات والنظرة العامة.";
 "%@ (unavailable)" = "%@ (غير متوفر)";
+"overview_layout_title" = "تخطيط النظرة العامة";
+"overview_layout_subtitle" = "اختر مقدار المعلومات التي تعرضها النظرة العامة.";
+"overview_layout_detailed" = "مفصل";
+"overview_layout_compact" = "مضغوط";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "الإجمالي الفرعي التقديري (%@): %@";
+"Excluded requests with missing final usage: %d" = "الطلبات المستبعدة لعدم توفر بيانات الاستخدام النهائية: %d";
+"antigravity_cost_estimate_hint" = "الاستخدام المحلي × أسعار واجهة البرمجة العامة · ليست رسوم أو أرصدة Antigravity";
+"antigravity_quota_window_note" = "تكلفة النافذة تشمل كل النماذج · النافذة المعروضة هي الفئة الأكثر تقييدًا";
+"antigravity_no_priced_token_history" = "لا يتوفر سجل رموز Antigravity مُسعّر.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "مشاركة ملخص الاستخدام…";
+"Usage snapshot unavailable" = "ملخص الاستخدام غير متاح";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "تعذر على QuotaKit إعداد ملخص استخدام قابل للمشاركة. حدّث الاستخدام والإنفاق ثم حاول مرة أخرى.";
+
+/* Account widgets */
+"section_widgets" = "الأدوات";
+"account_widgets_title" = "تحديث الحسابات للأدوات";
+"account_widgets_description" = "اختر حسابًا في كل أداة Account Usage. يتم تحديث ما يصل إلى ستة حسابات لكل مزوّد.";
+"claude_limited_usage_detail" = "تفاصيل الاستخدام محدودة";
+"%@ weekly" = "%@ أسبوعيًا";
+
+"Color Pace Indicator" = "تلوين وتيرة الاستخدام";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "أخضر عندما يكون الاستخدام أبطأ من الوتيرة المتوقعة (احتياطي)؛ وأحمر عندما يكون أسرع (خطر النفاد مبكرًا).";

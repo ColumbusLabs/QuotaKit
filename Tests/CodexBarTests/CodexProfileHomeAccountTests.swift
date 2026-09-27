@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 struct CodexProfileHomeAccountTests {
     @MainActor
     private static func makeSettings(suite: String) throws -> SettingsStore {
@@ -24,10 +24,10 @@ struct CodexProfileHomeAccountTests {
     func `settings store discovers configured codex profile homes`() throws {
         let suite = "CodexProfileHomeAccountTests-discovery"
         let settings = try Self.makeSettings(suite: suite)
-        let missingLiveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let missingLiveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
-        let profileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let profileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         try Self.writeCodexAuthFile(
@@ -69,7 +69,7 @@ struct CodexProfileHomeAccountTests {
     func `provider registry scopes selected codex profile home`() throws {
         let suite = "CodexProfileHomeAccountTests-routing"
         let settings = try Self.makeSettings(suite: suite)
-        let profileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let profileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         try Self.writeCodexAuthFile(
@@ -190,7 +190,9 @@ struct CodexProfileHomeAccountTests {
         #expect(fixture.store.tokenSnapshot(for: .codex) == profileBSnapshot)
         #expect(completedModel.tokenUsage?.sessionLine.contains("$34") == true)
         #expect(completedModel.tokenUsage?.sessionLine.contains("$12") == false)
-        #expect(completedModel.inlineUsageDashboard?.points.map(\.value) == [34])
+        let completedPoints = try #require(completedModel.inlineUsageDashboard?.points)
+        #expect(completedPoints.first { $0.id == profileBSnapshot.daily[0].date }?.value == 34)
+        #expect(completedPoints.compactMap(\.value).reduce(0, +) == 34)
         #expect(completedModel.inlineUsageDashboard?.detailLines
             .contains { $0.contains("fictional-profile-b") } == true)
         #expect(completedModel.inlineUsageDashboard?.detailLines
@@ -218,7 +220,9 @@ struct CodexProfileHomeAccountTests {
         #expect(fixture.store.tokenSnapshot(for: .codex) == ambientSnapshot)
         #expect(fixture.store.tokenSnapshotForCurrentProviderConfig(for: .codex)?.snapshot == ambientSnapshot)
         #expect(model.tokenUsage?.sessionLine.contains("$56") == true)
-        #expect(model.inlineUsageDashboard?.points.map(\.value) == [56])
+        let points = try #require(model.inlineUsageDashboard?.points)
+        #expect(points.first { $0.id == ambientSnapshot.daily[0].date }?.value == 56)
+        #expect(points.compactMap(\.value).reduce(0, +) == 56)
 
         await fixture.store.widgetSnapshotPersistTask?.value
         fixture.store._setSnapshotForTesting(
@@ -236,10 +240,10 @@ struct CodexProfileHomeAccountTests {
     func `removed profile home falls back without routing stale path`() throws {
         let suite = "CodexProfileHomeAccountTests-stale-routing"
         let settings = try Self.makeSettings(suite: suite)
-        let missingLiveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let missingLiveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
-        let removedProfileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let removedProfileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         settings._test_codexReconciliationEnvironment = ["CODEX_HOME": missingLiveHome.path]
@@ -277,10 +281,10 @@ struct CodexProfileHomeAccountTests {
     func `external config removal immediately invalidates profile routing caches`() throws {
         let suite = "CodexProfileHomeAccountTests-external-removal"
         let settings = try Self.makeSettings(suite: suite)
-        let missingLiveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let missingLiveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
-        let profileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let profileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         try Self.writeCodexAuthFile(
@@ -349,10 +353,10 @@ struct CodexProfileHomeAccountTests {
     func `unreadable configured profile home remains selected and routed`() throws {
         let suite = "CodexProfileHomeAccountTests-unreadable-routing"
         let settings = try Self.makeSettings(suite: suite)
-        let missingLiveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let missingLiveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
-        let unreadableProfileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let unreadableProfileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         settings._test_codexReconciliationEnvironment = ["CODEX_HOME": missingLiveHome.path]
@@ -385,10 +389,10 @@ struct CodexProfileHomeAccountTests {
     func `profile without verified email refuses open A I cookie import`() async throws {
         let suite = "CodexProfileHomeAccountTests-missing-web-email"
         let settings = try Self.makeSettings(suite: suite)
-        let missingLiveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let missingLiveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
-        let unreadableProfileHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let unreadableProfileHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         settings._test_codexReconciliationEnvironment = ["CODEX_HOME": missingLiveHome.path]
@@ -430,7 +434,7 @@ struct CodexProfileHomeAccountTests {
     func `profile home matching live home resolves to visible live account`() throws {
         let suite = "CodexProfileHomeAccountTests-live-duplicate"
         let settings = try Self.makeSettings(suite: suite)
-        let liveHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let liveHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         let liveAccount = ObservedSystemCodexAccount(
@@ -460,7 +464,7 @@ struct CodexProfileHomeAccountTests {
     func `profile home matching managed home resolves to visible managed account`() throws {
         let suite = "CodexProfileHomeAccountTests-managed-duplicate"
         let settings = try Self.makeSettings(suite: suite)
-        let managedHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+        let managedHome = CodexCredentialFixtures.root.appendingPathComponent(
             UUID().uuidString,
             isDirectory: true)
         let managedAccount = ManagedCodexAccount(
@@ -512,7 +516,7 @@ struct CodexProfileHomeAccountTests {
         settings.costUsageEnabled = true
         settings.costSummaryDisplayStyle = .both
         settings.codexLocalSessionCostLedgerEnabled = localLedgerEnabled
-        let root = FileManager.default.temporaryDirectory
+        let root = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let firstHome = root.appendingPathComponent("profile-a", isDirectory: true)
         let secondHome = root.appendingPathComponent("profile-b", isDirectory: true)
@@ -555,13 +559,17 @@ struct CodexProfileHomeAccountTests {
     }
 
     private static func costSnapshot(cost: Double, tokens: Int, model: String) -> CostUsageTokenSnapshot {
-        CostUsageTokenSnapshot(
+        let updatedAt = Date()
+        let calendar = CostUsageBucketTimeZone.calendar(identifier: nil)
+        let day = calendar.dateComponents([.year, .month, .day], from: updatedAt)
+        let dayKey = String(format: "%04d-%02d-%02d", day.year ?? 0, day.month ?? 0, day.day ?? 0)
+        return CostUsageTokenSnapshot(
             sessionTokens: tokens,
             sessionCostUSD: cost,
             last30DaysTokens: tokens,
             last30DaysCostUSD: cost,
             daily: [CostUsageDailyReport.Entry(
-                date: "2026-08-21",
+                date: dayKey,
                 inputTokens: tokens / 2,
                 outputTokens: tokens / 2,
                 totalTokens: tokens,
@@ -571,7 +579,7 @@ struct CodexProfileHomeAccountTests {
                     modelName: model,
                     costUSD: cost,
                     totalTokens: tokens)])],
-            updatedAt: Date())
+            updatedAt: updatedAt)
     }
 
     private static func writeCodexAuthFile(

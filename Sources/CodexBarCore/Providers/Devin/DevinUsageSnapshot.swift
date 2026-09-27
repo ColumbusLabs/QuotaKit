@@ -3,20 +3,33 @@ import Foundation
 
 public enum DevinUsageError: LocalizedError, Sendable {
     case noSession
+    case browserStorageUnreadable
     case missingOrganization
     case invalidCredentials
     case apiError(String)
     case parseFailed(String)
 
+    private static let manualAuthHelp =
+        "Manual auth: Settings → Providers → Devin → Auth source → Manual (app), " +
+        "or cookieSource=manual in your CLI config (default ~/.quotakit/config.json). " +
+        "Setup: https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/devin.md#manual-auth"
+
     public var errorDescription: String? {
         switch self {
         case .noSession:
-            "No Devin browser session found. Please log in to app.devin.ai or paste a Bearer token."
+            "No Devin session found. Sign in to app.devin.ai in a supported Chromium browser on macOS, " +
+                "then open Usage & Limits. " +
+                Self.manualAuthHelp
+        case .browserStorageUnreadable:
+            "Could not read Chromium local storage for Devin. Reopen your browser and try again. " + Self.manualAuthHelp
         case .missingOrganization:
-            "No Devin organization was found. Open an app.devin.ai/org/... page " +
-                "or set the organization in Devin settings."
+            "No Devin organization was found. For automatic auth, open the organization's Usage page " +
+                "in your browser. " +
+                "For manual auth, set Organization to the internal org-... or org_... ID from a successful quota " +
+                "request's x-cog-org-id header."
         case .invalidCredentials:
-            "Devin session token is invalid or expired."
+            "Devin rejected the session token (invalid or expired). Sign in again or replace the token. " +
+                Self.manualAuthHelp
         case let .apiError(message):
             "Devin API error: \(message)"
         case let .parseFailed(message):

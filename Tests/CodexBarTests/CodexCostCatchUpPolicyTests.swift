@@ -10,7 +10,7 @@ struct CodexCostCatchUpPolicyTests {
     }
 
     @Test
-    func `automatic mode targets twenty percent duty cycle on AC power`() {
+    func `automatic mode targets one tenth percent duty cycle on AC power`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,
             previousActiveDuration: 2,
@@ -18,11 +18,11 @@ struct CodexCostCatchUpPolicyTests {
             lowPowerModeEnabled: false,
             thermalState: .nominal))
 
-        #expect(decision == .init(action: .runAfter(8), targetDutyCycle: 0.2))
+        #expect(decision == .init(action: .runAfter(1998), targetDutyCycle: 0.001))
     }
 
     @Test
-    func `automatic mode targets fifteen percent duty cycle for unknown power`() {
+    func `automatic mode targets five hundredths percent duty cycle for unknown power`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,
             previousActiveDuration: 2,
@@ -34,12 +34,12 @@ struct CodexCostCatchUpPolicyTests {
             Issue.record("Expected automatic catch-up to schedule another pass")
             return
         }
-        #expect(abs(delay - (34.0 / 3.0)) < 0.000_001)
-        #expect(decision.targetDutyCycle == 0.15)
+        #expect(abs(delay - 3998) < 0.000_001)
+        #expect(decision.targetDutyCycle == 0.0005)
     }
 
     @Test
-    func `automatic mode targets five percent duty cycle on battery`() {
+    func `automatic mode targets two hundredths percent duty cycle on battery`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,
             previousActiveDuration: 2,
@@ -51,8 +51,8 @@ struct CodexCostCatchUpPolicyTests {
             Issue.record("Expected automatic battery catch-up to schedule another pass")
             return
         }
-        #expect(abs(delay - 38) < 0.000_001)
-        #expect(decision.targetDutyCycle == 0.05)
+        #expect(abs(delay - 9998) < 0.000_001)
+        #expect(decision.targetDutyCycle == 0.0002)
     }
 
     @Test
@@ -64,7 +64,7 @@ struct CodexCostCatchUpPolicyTests {
             lowPowerModeEnabled: false,
             thermalState: .nominal))
 
-        #expect(decision == .init(action: .runAfter(8), targetDutyCycle: 0.2))
+        #expect(decision == .init(action: .runAfter(1998), targetDutyCycle: 0.001))
     }
 
     @Test

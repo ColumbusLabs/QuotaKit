@@ -23,7 +23,6 @@ approval is still required. The installer uses absolute system tools, clears the
 requesting approval, and stops on installation failure. The in-app installer is separate and uses Foundation symlinks.
 
 ### Release tarball install (macOS/Linux)
-- Homebrew formula (Linux today): `brew install steipete/tap/quotakit`.
 - Download release tarballs from GitHub Releases:
   - macOS: `QuotaKitCLI-v<tag>-macos-arm64.tar.gz`, `QuotaKitCLI-v<tag>-macos-x86_64.tar.gz`
   - Linux (glibc): `QuotaKitCLI-v<tag>-linux-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-x86_64.tar.gz`
@@ -65,11 +64,19 @@ See `docs/configuration.md` for the schema.
      `--format text|json`, and treats `toon` like any other unrecognized value.
 - `quotakit cost` prints token cost usage for Claude, Codex, and Cursor.
   - Claude and Codex are scanned from local session logs without web/CLI access.
+  - [Pi](pi.md) reads supported Pi/OMP local assistant history. Selecting Pi alongside Claude/Codex keeps those providers native-only so combined totals count each source once.
+  - Muse Code reads bounded local session logs and reports recorded token history without credentials, provider requests, or invented dollar costs. Partial and unavailable history remain distinct from measured zero (see [Muse Code](muse.md)).
+  - Antigravity reads supported local token history without provider CLI or credential access. Known models receive API-price estimates from the pricing catalog, which may be refreshed from public models.dev data over the network; unknown models remain unpriced. These estimates are not Antigravity charges or credit deductions. Unsupported timestamps leave history unavailable. An incomplete scan still reports the rows it decoded, with every total marked a lower bound (see `docs/antigravity.md`). The same provider selection applies to `serve /cost` and dashboard cost collection.
+    Text output labels priced results as local estimates and token-only results as token history, and distinguishes unavailable or lower-bound history from a complete period with no recorded usage.
   - Cursor is fetched from the cookie-authenticated cursor.com dashboard API (macOS only; see `docs/cursor.md`) and honors the configured cookie source: a non-empty Manual header is required and forwarded, while Off fails explicitly instead of silently omitting Cursor.
   - `--format text|json` (default: text). `--json` includes the same cost concepts as Settings → Usage & Spend (token mix, `provenance`, coverage), but it is not the dashboard Export JSON schema. CLI places mix fields under each provider's `totals` and emits `provenance`/`coverage` on that provider object; Export JSON nests `tokenMix`, `provenance`, and `coverage` under `groups[]`.
   - OpenCodex appears as a separate `opencodex` payload only when **Include OpenCodex usage logs** is on in Settings. That payload does not invent `projects` (OpenCodex logs have no workspace path).
   - `--refresh` ignores cached scans.
   - `--provider-native-only` is experimental and excludes pi and OMP session mirrors from Claude and Codex history.
+  - `--provider codex --remote <ssh-host>` produces one manual report with separate local and remote summaries. Histories are never added together, since sessions can overlap across machines. SSH uses the host's existing trusted configuration and noninteractive authentication, without agent or port forwarding. It requires an already trusted host key and a remote CLI supporting `--summary-only`.
+  - `--provider codex --format json --summary-only` emits a one-element, versioned summary array with no account identity, project paths, model rows, or session content. Schema version 1 retains `updatedAt`, `bucketTimeZone`, `historyDays`, `currencyCode`, `historyCoverageIsEstablished`, and separate `today`/`history` totals with optional `totalTokens`/`costUSD`, incomplete-request counts, coverage categories, and provenance. Missing totals remain unavailable.
+  - Host reports always scan native Codex history only. `--days` and `--refresh` apply on both hosts; the local `--period` or saved period resolves to a day count before the remote request. Each host retains its own calendar and pricing. Both modes reject `--group-by`; `--remote` and `--summary-only` cannot be combined. Ordinary `cost` output remains compatible.
+  - Remote capture is bounded to 16 KiB per stream during execution, with a 60-second client process timeout. Unsupported versions, invalid totals, overflow, and unexpected output fail closed. Remote failure retains a successful local row and exits nonzero; JSON remains one document. Ctrl-C and termination signals cancel collection and await local SSH subprocess cleanup. The remote scanner follows its SSH server's disconnect behavior and may finish after the client exits.
 - `quotakit cards` prints a one-shot usage snapshot as a responsive terminal card grid.
   - Reuses the same provider, source, account, credits, and status flags as `quotakit usage`.
   - Account lines and plan badges are included in the card grid by default.
@@ -99,6 +106,9 @@ See `docs/configuration.md` for the schema.
   - `--output <path>` atomically writes the snapshot to a file (`0644`) instead of stdout — staged in the destination directory, fsync'd, then renamed over the target so readers never observe a partial document. The parent directory must already exist (it is not created), and stdout stays silent on success.
   - Starts no HTTP server and requires no dashboard bearer token. See `docs/dashboard-api.md` for the shared payload contract.
 - `quotakit serve` starts a foreground HTTP server for usage and cost JSON, a token-gated dashboard snapshot, and a built-in web UI at `/`.
+  - Web usage bars follow the app's **Usage bars fill** setting, read per request on macOS. Dashboard snapshots from
+    both `serve` and `quotakit dashboard` expose it as `host.usageBarsShowUsed`. An absent setting defaults to remaining
+    percentages, including on Linux; earlier web dashboards always showed used percentages. Quota values are unchanged.
   - `--host <host>` accepts `localhost` or an IPv4 address and defaults to `127.0.0.1`; `localhost` is normalized to `127.0.0.1`. Binding a non-loopback host requires a dashboard token **and** `--allow-plain-http` (see `docs/dashboard-api.md` for the threat model).
   - `--port <port>` defaults to `8080`.
   - `--refresh-interval <seconds>` defaults to `60` and controls the in-memory response cache TTL.
@@ -164,15 +174,20 @@ See `docs/configuration.md` for the schema.
   commands run directly without a shell and receive `QUOTAKIT_*` variables (plus legacy `CODEXBAR_*` aliases) and JSON on stdin. `--format json` and
   `--json-only` return structured per-rule results. See
   `docs/configuration.md#external-event-hooks` for the event, payload, timeout, and security contract.
+- The macOS app and `hooks watch` emit `usage_updated` after a successful current refresh, throttled to at most
+  one attempt per 600 seconds for each provider/account. Its primary and secondary positional quota windows include
+  their cadence in minutes. Synthetic placeholder windows are omitted.
 - `quotakit hooks watch` polls enabled providers and fires matching hooks on real quota and status transitions.
   Without it, hook rules only ever fire from the macOS app, so a headless install can configure hooks that never run.
   - `--interval <seconds>`: poll period. Default `300`, minimum `60`; a smaller value is rejected rather than
     clamped, because each tick fetches every selected provider.
   - `--provider <id>`: restrict to one provider; repeatable. Defaults to every enabled provider.
-  - `--format json`/`--json`/`--pretty`: emit each fired event as JSON.
+  - `--format json`/`--json`/`--pretty`: emit each attempted event as JSON, excluding throttled candidates.
   - Events are edge-triggered against the previous poll, so a condition that merely persists (a saturated window,
     an ongoing outage) does not re-fire every tick. State is in-memory only: a restart re-establishes baselines and
-    the first poll of any lane fires nothing.
+    the first poll establishes each lane's transition baseline. A successful first poll can immediately attempt
+    `usage_updated`. Repeated attempts within 600 seconds are dropped, including after command failure; no latest-value
+    queue or trailing delivery is scheduled. Private account throttle keys are never included in event payloads.
   - Run `watch` as one continuous process. Repeated one-shot invocations cannot preserve transition baselines or event
     rate limits between polls.
   - Runs read-only, like `quotakit guard`: it never prompts for credentials. A failed refresh reports
@@ -197,9 +212,10 @@ payloads include the visible account label in `account`.
 
 ### Cost JSON payload
 `quotakit cost --format json` emits an array of payloads (one per provider).
+- `reportingPeriod` and `historyLabel` identify the selected rolling window, calendar month to date, or available 365-day history. `--days` overrides `--period` and the saved Mac selection.
 - `provider`, `source` (`local` for Claude/Codex log scans, `web` for Cursor dashboard data), `updatedAt`
 - `sessionTokens`, `sessionCostUSD`
-- `last30DaysTokens`, `last30DaysCostUSD`
+- `last30DaysTokens`, `last30DaysCostUSD`: with histories longer than 30 days, these cover the latest 30 local calendar dates ending at `updatedAt`; an empty window stays unknown. Shorter histories retain their available window totals.
 - `historyCoverageIsEstablished`: `false` while a bounded Codex scan still has catch-up work pending; `true` once the requested history is covered.
 - Cursor only: `meteredCostUSD` — what Cursor's plan actually deducts over the window, alongside the API-rate estimate in `last30DaysCostUSD`.
 - `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)
@@ -216,6 +232,8 @@ quotakit --format json --pretty   # machine output
 quotakit --format json --provider both
 quotakit cost                     # local cost usage (default 30-day window + today)
 quotakit cost --days 90           # choose a 1...365 day cost window
+quotakit cost --period month-to-date # use the pinned cost calendar month
+quotakit cost --period all        # use the available 365-day horizon
 quotakit cost --provider codex --group-by project
 quotakit cost --provider claude --format json --pretty
 quotakit cost --provider cursor   # Cursor dashboard cost (API-rate + Cursor-metered)

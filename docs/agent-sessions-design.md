@@ -55,6 +55,20 @@ Pi-family discovery uses one bounded scanner. Plain pi reads version-3 session h
 - `quotakit sessions focus <id>` — macOS only: focus the session's terminal window (see Focus). Exit 1 if id unknown, 2 if focus failed.
 - Follows existing `CLI*Command.swift` conventions. Works on Linux for listing (ps/proc paths guarded), focus is Darwin-only.
 
+## Stay Awake
+
+Settings → Menu → Agent Sessions includes **Stay Awake**, off by default and local to this Mac.
+It independently enables local scanning every 30 seconds without enabling the Agent Sessions menu or
+remote discovery. QuotaKit holds one `PreventUserIdleSystemSleep` assertion while the local scanner reports
+at least one positive session PID. Idle processes waiting for a prompt count; remote sessions and file-only
+rollouts do not. The menu says “Stay Awake: local agent session is live” while the assertion is held.
+
+The assertion is released when the next scan sees no process-backed sessions, immediately when the toggle
+is turned off, or when QuotaKit quits. Stale scan completions cannot acquire it after disabling or shutdown.
+macOS also releases the process-owned assertion if the app crashes. A failed acquisition is retried on the
+next scan. Stay Awake can use battery power; it does not prevent display sleep, explicit sleep, or lid-close
+sleep and cannot wake a sleeping Mac. This version has no timer, grace period, or always-on mode.
+
 ## Remote hosts (CodexBarCore + app)
 
 `RemoteSessionFetcher`:

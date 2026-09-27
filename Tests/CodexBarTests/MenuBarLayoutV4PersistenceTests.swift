@@ -5,6 +5,57 @@ import Testing
 
 struct MenuBarLayoutV4PersistenceTests {
     @Test
+    func `explicit reset windows remain only in V4 and older decoders read projections`() throws {
+        let layout = MenuBarLayout(lines: [[
+            .icon,
+            .resetCountdown,
+            .windowResetCountdown(window: .session),
+            .windowResetAbsolute(window: .weekly),
+        ]])
+        let blobs = try MenuBarLayoutPersistence.encoded(layout)
+        let decoder = JSONDecoder()
+
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.current) == layout)
+        let older = MenuBarLayout(lines: [[.icon, .resetCountdown]])
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.v3) == older)
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.released) == older)
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.legacy) == older)
+        #expect(try decoder.decode(PreResetLayout.self, from: blobs.v3).lines == [[.icon, .resetCountdown]])
+        #expect(throws: DecodingError.self) {
+            try decoder.decode(PreResetLayout.self, from: blobs.current)
+        }
+        #expect(MenuBarLayoutPersistence.preferredLayout(
+            current: layout,
+            v3: layout.v3Compatible(),
+            released: layout.releasedCompatible(),
+            legacy: layout.legacyCompatible()) == layout)
+    }
+
+    @Test
+    func `explicit reset conditional is omitted from older projections`() throws {
+        let readable = Self.conditional(name: "Automatic", thenToken: .resetCountdown)
+        let explicit = Self.conditional(
+            name: "Weekly",
+            thenToken: .windowResetAbsolute(window: .weekly))
+        let library = [readable, explicit]
+        let blobs = try MenuBarLayoutPersistence.encodedLibrary(library)
+        let decoder = JSONDecoder()
+
+        #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.current) == library)
+        #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.v3) == [readable])
+        #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.released) == [readable])
+        #expect(try decoder.decode([PreResetConditional].self, from: blobs.v3).map(\.id) == [readable.id])
+        #expect(throws: DecodingError.self) {
+            try decoder.decode([PreResetConditional].self, from: blobs.current)
+        }
+        #expect(MenuBarLayoutPersistence.preferredLibrary(
+            current: library,
+            v3: [readable],
+            released: [readable],
+            legacy: MenuBarLayoutPersistence.legacyCompatibleLibrary([readable])) == library)
+    }
+
+    @Test
     func `V4 named extras are omitted from V3 and V2 projections`() throws {
         let layout = MenuBarLayout(lines: [[
             .icon,
@@ -187,4 +238,22 @@ private enum PreExtraMenuBarLayoutToken: Codable, Equatable {
 
 private struct PreExtraMenuBarLayout: Codable, Equatable {
     let lines: [[PreExtraMenuBarLayoutToken]]
+}
+
+/// Frozen pre-feature V3 token surface: unknown reset cases must throw on decode.
+private enum PreResetToken: Codable, Equatable {
+    case icon
+    case resetCountdown
+    case resetAbsolute
+    case hidden
+}
+
+private struct PreResetLayout: Decodable {
+    let lines: [[PreResetToken]]
+}
+
+private struct PreResetConditional: Decodable {
+    let id: UUID
+    let thenToken: PreResetToken
+    let elseToken: PreResetToken
 }

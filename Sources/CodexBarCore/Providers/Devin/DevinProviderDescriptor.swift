@@ -1,13 +1,12 @@
 import Foundation
-import SweetCookieKit
 
 public enum DevinProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
-    /// Devin sessions are normally in Chrome; explicit selection handles other browsers.
+    /// Local storage does not need Chromium Safe Storage cookie decryption.
     private static var browserCookieOrder: BrowserCookieImportOrder? {
         #if os(macOS)
-        [.chrome]
+        ChromiumLocalStorageDiscovery.defaultBrowsers
         #else
         nil
         #endif

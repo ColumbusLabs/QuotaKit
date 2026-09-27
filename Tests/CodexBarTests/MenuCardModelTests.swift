@@ -314,7 +314,8 @@ struct ProviderInlineDashboardModelTests {
             now: now))
 
         #expect(model.inlineUsageDashboard?.kpis.first?.value == "€1.50")
-        #expect(model.inlineUsageDashboard?.points.first?.accessibilityValue == "2023-11-14: €1.50")
+        #expect(model.inlineUsageDashboard?.points.first?.id == "2023-11-14")
+        #expect(model.inlineUsageDashboard?.points.first?.accessibilityValue.contains("€1.50 · 150 tokens") == true)
         #expect(model.inlineUsageDashboard?.detailLines.contains("Top model: mistral-large") == true)
     }
 

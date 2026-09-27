@@ -1493,6 +1493,26 @@ extension CostUsagePricingTests {
         #expect(unknownRoute == nil)
     }
 
+    @Test
+    func `Claude Code uses bundled OpenAI long context boundary with catalog rates`() throws {
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data("""
+        {"openai":{"id":"openai","models":{"gpt-5.4":{"id":"gpt-5.4","cost":{
+          "input":2,"output":4,"cache_read":0.25,"cache_write":3,
+          "context_over_200k":{"input":7,"output":11,"cache_read":0.5,"cache_write":9}
+        }}}}}
+        """.utf8))
+        for (tokens, rate) in [(250_000, 2e-6), (280_000, 7e-6)] {
+            let cost = try #require(CostUsagePricing.claudeCostUSD(
+                model: "gpt-5.4",
+                inputTokens: tokens,
+                cacheReadInputTokens: 0,
+                cacheCreationInputTokens: 0,
+                outputTokens: 0,
+                modelsDevCatalog: catalog))
+            #expect(cost == Double(tokens) * rate)
+        }
+    }
+
     private static func seedModelsDevCache(_ json: String) throws -> URL {
         let root = try Self.cacheRoot()
         let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(json.utf8))

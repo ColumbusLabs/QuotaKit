@@ -12,6 +12,10 @@ read_when:
 
 ## Background
 
+Authenticated Codex OAuth and PAT requests treat HTTP 401 as an authentication failure. HTTP
+403 preserves the status and response body as a permission/server error, so Auto mode does not
+mistake a denied endpoint for an expired credential and switch to CLI recovery.
+
 Currently, CodexBar fetches Codex usage by:
 1. Running `codex` CLI in PTY mode
 2. Sending `/status` command

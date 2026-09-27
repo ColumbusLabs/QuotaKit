@@ -193,6 +193,22 @@ extension CostUsageStore {
         }
     }
 
+    /// Attach the stamp only after the read transaction commits. A concurrent writer must not
+    /// let a decoded older snapshot borrow a newer stamp.
+    func readStampedCodexScanSnapshot() -> (snapshot: CostUsageStoreSnapshot, stamp: CodexScanStamp)? {
+        self.withDatabase(default: nil) { database in
+            guard let before = self.currentCodexScanStamp() else { return nil }
+            #if DEBUG
+            Self.snapshotReadForTesting?(self.databaseURL)
+            #endif
+            let snapshot = try Self.inReadTransaction(database) {
+                try Self.readSnapshot(database)
+            }
+            guard let after = self.currentCodexScanStamp(), before == after else { return nil }
+            return (snapshot, after)
+        }
+    }
+
     /// Reads from the caller's current transaction. The save path uses this after acquiring
     /// its writer lock so content identity and the following write share one SQLite snapshot.
     func readSnapshotInCurrentTransaction() -> CostUsageStoreSnapshot {

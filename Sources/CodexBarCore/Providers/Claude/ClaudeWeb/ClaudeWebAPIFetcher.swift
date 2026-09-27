@@ -60,51 +60,8 @@ enum ClaudeWebSessionKeyImport {
     }
 }
 
-private actor ClaudeWebBrowserFetchGate {
-    private struct Waiter {
-        let id: UUID
-        let continuation: CheckedContinuation<Bool, Never>
-    }
-
-    private var ownerID: UUID?
-    private var waiters: [Waiter] = []
-
-    func acquire(id: UUID) async -> Bool {
-        if Task.isCancelled {
-            return false
-        }
-        guard self.ownerID != nil else {
-            self.ownerID = id
-            return true
-        }
-        return await withCheckedContinuation { continuation in
-            self.waiters.append(Waiter(id: id, continuation: continuation))
-        }
-    }
-
-    func cancel(id: UUID) {
-        if self.ownerID == id {
-            return
-        }
-        guard let index = self.waiters.firstIndex(where: { $0.id == id }) else { return }
-        let waiter = self.waiters.remove(at: index)
-        waiter.continuation.resume(returning: false)
-    }
-
-    func release(id: UUID) {
-        guard self.ownerID == id else { return }
-        guard !self.waiters.isEmpty else {
-            self.ownerID = nil
-            return
-        }
-        let waiter = self.waiters.removeFirst()
-        self.ownerID = waiter.id
-        waiter.continuation.resume(returning: true)
-    }
-}
-
 private enum ClaudeWebBrowserFetchSerialization {
-    private static let gate = ClaudeWebBrowserFetchGate()
+    private static let gate = AsyncOperationGate()
 
     static func run<T>(_ operation: () async throws -> T) async throws -> T {
         let id = UUID()
@@ -175,6 +132,7 @@ public enum ClaudeWebAPIFetcher {
         case networkError(Error)
         case invalidResponse
         case unauthorized
+        case cloudflareChallenge
         case serverError(statusCode: Int)
         case noOrganization
         case organizationNotFound(String)
@@ -193,6 +151,10 @@ public enum ClaudeWebAPIFetcher {
                 "Invalid response from Claude API."
             case .unauthorized:
                 "Sign in to claude.ai (or refresh Claude cookies) to load usage data."
+            case .cloudflareChallenge:
+                "claude.ai is behind a Cloudflare challenge, often caused by VPN or datacenter networks. " +
+                    "Re-authenticating will not help. Switch Claude Usage source to OAuth in Settings " +
+                    "(Usage credits balance will be unavailable), or try a different network."
             case let .serverError(code):
                 "Claude API error: HTTP \(code)"
             case .noOrganization:
@@ -620,14 +582,10 @@ extension ClaudeWebAPIFetcher {
 
         logger?("Organizations API status: \(httpResponse.statusCode)")
 
-        switch httpResponse.statusCode {
-        case 200:
+        if httpResponse.statusCode == 200 {
             return try self.parseOrganizationResponse(data, targetOrganizationID: targetOrganizationID)
-        case 401, 403:
-            throw FetchError.unauthorized
-        default:
-            throw FetchError.serverError(statusCode: httpResponse.statusCode)
         }
+        throw self.fetchError(response: httpResponse, data: data)
     }
 
     private static func fetchUsageData(
@@ -652,14 +610,35 @@ extension ClaudeWebAPIFetcher {
 
         logger?("Usage API status: \(httpResponse.statusCode)")
 
-        switch httpResponse.statusCode {
-        case 200:
+        if httpResponse.statusCode == 200 {
             return try self.parseUsageResponse(data, logger: logger)
-        case 401, 403:
-            throw FetchError.unauthorized
-        default:
-            throw FetchError.serverError(statusCode: httpResponse.statusCode)
         }
+        throw self.fetchError(response: httpResponse, data: data)
+    }
+
+    private static func fetchError(response: HTTPURLResponse, data: Data) -> FetchError {
+        switch response.statusCode {
+        case 401:
+            .unauthorized
+        case 403 where self.isCloudflareChallenge(response: response, data: data):
+            .cloudflareChallenge
+        case 403:
+            .unauthorized
+        default:
+            .serverError(statusCode: response.statusCode)
+        }
+    }
+
+    private static func isCloudflareChallenge(response: HTTPURLResponse, data: Data) -> Bool {
+        if response.value(forHTTPHeaderField: "cf-mitigated")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare("challenge") == .orderedSame
+        {
+            return true
+        }
+
+        guard let bodyPrefix = String(bytes: data.prefix(64 * 1024), encoding: .utf8) else { return false }
+        return bodyPrefix.localizedCaseInsensitiveContains("Just a moment")
     }
 
     private static func parseUsageResponse(_ data: Data, logger: ((String) -> Void)? = nil) throws -> WebUsageData {
@@ -1443,18 +1422,9 @@ extension ClaudeWebAPIFetcher {
         // unconditionally denied. Only if that attempt itself comes back empty do we surface the original,
         // more informative cached-auth error instead of a misleading "no session key found" — mirroring the
         // equivalent Ollama recovery in `OllamaStatusFetchStrategy.fetchAutomatic`.
+        let sessionInfo: SessionKeyInfo
         do {
-            let sessionInfo = try extractSessionKeyInfo(browserDetection: browserDetection, logger: log)
-            log("Found session key (\(sessionInfo.cookieCount) cookies)")
-
-            return try await self.fetchUsage(
-                using: sessionInfo,
-                options: options,
-                logger: log,
-                cachePersistence: CachePersistence(
-                    sourceLabel: sessionInfo.sourceLabel,
-                    expectedObservation: cacheObservation,
-                    persistInitialSessionKey: true))
+            sessionInfo = try self.extractSessionKeyInfo(browserDetection: browserDetection, logger: log)
         } catch {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
@@ -1464,6 +1434,17 @@ extension ClaudeWebAPIFetcher {
             }
             throw error
         }
+        log("Found session key (\(sessionInfo.cookieCount) cookies)")
+
+        // Recovery found a new session: report that request's failure, not the invalidated cookie's error.
+        return try await self.fetchUsage(
+            using: sessionInfo,
+            options: options,
+            logger: log,
+            cachePersistence: CachePersistence(
+                sourceLabel: sessionInfo.sourceLabel,
+                expectedObservation: cacheObservation,
+                persistInitialSessionKey: true))
     }
 }
 #endif

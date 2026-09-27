@@ -359,9 +359,9 @@ struct UtilizationAggregateView: View {
             }
             .navigationTitle(Text("Subscription Utilization"))
             #if !os(macOS)
-                .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
             #endif
-                .background(self.theme.canvas)
+            .background(self.theme.canvas)
         }
 
         private static func shareRow(_ row: UtilizationProviderShare) -> some View {

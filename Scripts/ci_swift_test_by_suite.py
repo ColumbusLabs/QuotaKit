@@ -4,14 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
+from pathlib import Path
 import re
 import signal
 import subprocess
 import sys
 import time
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,7 @@ class RunStats:
     timed_out_groups: int = 0
     recovered_groups: int = 0
     isolated_selection_retries: int = 0
+    failed_groups: list[str] = field(default_factory=list)
 
     def summary_rows(self) -> list[tuple[str, str]]:
         shard = "none"
@@ -81,6 +84,11 @@ def parse_args() -> argparse.Namespace:
         help="fail immediately when a group exits without timing out",
     )
     parser.add_argument("--list-only", action="store_true")
+    parser.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="run remaining groups after failures, then exit nonzero",
+    )
     parser.add_argument("--swift-command", default="swift")
     parser.add_argument("--swift-command-arg", action="append", default=[])
     return parser.parse_args()
@@ -102,17 +110,86 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
         return 124
 
 
+def is_missing_sparkle_runtime_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    output = f"{result.stdout}\n{result.stderr}"
+    return (
+        "Library not loaded: @rpath/Sparkle.framework/Versions/B/Sparkle" in output
+        and "PackageFrameworks/Sparkle.framework" in output
+    )
+
+
+def valid_sparkle_runtime(path: Path) -> bool:
+    return path.is_dir() and any(
+        (path / "Versions" / version / "Sparkle").is_file()
+        for version in ("Current", "B")
+    )
+
+
+def sparkle_runtime_matches_source(destination: Path, source: Path) -> bool:
+    if not destination.is_symlink():
+        return False
+    try:
+        return destination.resolve(strict=True) == source.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+
+
+def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
+    result = subprocess.run(
+        [*swift_command, "build", "--show-bin-path"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return False
+
+    bin_dir = Path(lines[0])
+    if not bin_dir.is_absolute():
+        bin_dir = Path.cwd() / bin_dir
+    source = bin_dir / "Sparkle.framework"
+    if not valid_sparkle_runtime(source):
+        return False
+
+    package_frameworks = bin_dir / "PackageFrameworks"
+    package_frameworks.mkdir(parents=True, exist_ok=True)
+    destination = package_frameworks / "Sparkle.framework"
+    lock_path = package_frameworks / ".sparkle-runtime.lock"
+    with lock_path.open("a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        if sparkle_runtime_matches_source(destination, source):
+            return True
+        if destination.exists() and not destination.is_symlink():
+            return valid_sparkle_runtime(destination)
+
+        temporary = package_frameworks / f".Sparkle.framework.{os.getpid()}.{time.time_ns()}"
+        try:
+            temporary.symlink_to(Path("..") / "Sparkle.framework", target_is_directory=True)
+            os.replace(temporary, destination)
+        except IsADirectoryError:
+            return valid_sparkle_runtime(destination)
+        finally:
+            if temporary.is_symlink():
+                temporary.unlink()
+        return sparkle_runtime_matches_source(destination, source)
+
+
 def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
     command = [*swift_command, "test", "list"]
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as error:
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
+        if repair_sparkle_test_runtime(swift_command):
+            print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
+            result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
         print(f"+ {swift_command[0]} test list", flush=True)
-        if error.stdout:
-            print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
-        if error.stderr:
-            print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
-        raise
+        if result.stdout:
+            print(result.stdout, end="" if result.stdout.endswith("\n") else "\n", flush=True)
+        if result.stderr:
+            print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
+        result.check_returncode()
     selections: set[TestSelection] = set()
     unknown: list[str] = []
     for line in result.stdout.splitlines():
@@ -163,12 +240,21 @@ def append_github_summary(stats: RunStats) -> None:
             safe_value = value.replace("|", "\\|")
             summary.write(f"| {field} | `{safe_value}` |\n")
         summary.write("\n")
+        if stats.failed_groups:
+            summary.write("Failed groups:\n\n")
+            for group in stats.failed_groups:
+                summary.write(f"- {group}\n")
+            summary.write("\n")
 
 
 def print_timing_summary(stats: RunStats) -> None:
     print("Swift test timing summary:", flush=True)
     for field, value in stats.summary_rows():
         print(f"- {field}: {value}", flush=True)
+    if stats.failed_groups:
+        print("Failed groups:", flush=True)
+        for group in stats.failed_groups:
+            print(f"- {group}", flush=True)
 
 
 def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection]]:
@@ -322,34 +408,33 @@ def main() -> int:
             group_timed_out = group_result == 124
             if group_timed_out:
                 stats.timed_out_groups += 1
-            if len(group) == 1:
-                result = group_result
-                return result
-
-            if group_result != 124:
-                if not args.retry_non_timeout_failures:
-                    result = group_result
-                    return result
-
+            if len(group) > 1 and not group_timed_out and args.retry_non_timeout_failures:
                 stats.full_group_retries += 1
                 print(f"Group {group_index} failed with exit code {group_result}; retrying group once", flush=True)
                 retry_result = run_group(group, args.timeout, swift_command)
                 if retry_result == 0:
                     stats.recovered_groups += 1
                     continue
-                if retry_result != 124:
-                    result = retry_result
-                    return result
-                group_timed_out = True
-                stats.timed_out_groups += 1
+                group_result = retry_result
+                if retry_result == 124:
+                    group_timed_out = True
+                    stats.timed_out_groups += 1
 
-            print(f"Group {group_index} timed out; retrying selections one at a time", flush=True)
-            retry_result = retry_selections_individually(group, args.timeout, swift_command, stats)
-            if retry_result != 0:
-                result = retry_result
+            if len(group) > 1 and group_timed_out:
+                print(f"Group {group_index} timed out; retrying selections one at a time", flush=True)
+                group_result = retry_selections_individually(group, args.timeout, swift_command, stats)
+                if group_result == 0:
+                    stats.recovered_groups += 1
+                    continue
+
+            stats.failed_groups.append(
+                f"Group {group_index}/{len(suite_groups)} (exit {group_result}): "
+                + ", ".join(suite.name for suite in group)
+            )
+            if result == 0:
+                result = group_result
+            if not args.keep_going:
                 return result
-            if group_timed_out:
-                stats.recovered_groups += 1
 
         return result
     finally:

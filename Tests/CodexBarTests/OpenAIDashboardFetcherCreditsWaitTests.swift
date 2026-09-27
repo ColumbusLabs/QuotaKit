@@ -349,9 +349,10 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     }
 
     @Test
-    func `api merge prefers the page derived plan over the generic api plan`() {
+    func `scoped API merge does not inherit an unproven page plan`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],
@@ -360,6 +361,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             accountPlan: "Pro 5x",
             updatedAt: Date(timeIntervalSince1970: 1))
         let apiData = OpenAIDashboardFetcher.DashboardAPIData(
+            accountID: "workspace-fixture",
             primaryLimit: RateWindow(usedPercent: 12, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondaryLimit: nil,
             extraRateWindows: [],
@@ -370,11 +372,11 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         let snapshot = OpenAIDashboardFetcher.snapshotByMergingAPI(
             apiData: apiData,
             verifiedEmail: "user@example.com",
-            subscription: nil,
+            subscriptionResult: .unavailable,
             previous: previous,
             updatedAt: Date(timeIntervalSince1970: 2))
 
-        #expect(snapshot.accountPlan == "Pro 5x")
+        #expect(snapshot.accountPlan == "pro")
     }
 
     @Test
@@ -418,7 +420,8 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     @Test
     func `api snapshot keeps previous credits history and overwrites live usage`() {
         let previous = OpenAIDashboardSnapshot(
-            signedInEmail: "old@example.com",
+            signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
             codeReviewRemainingPercent: 81,
             creditEvents: [
                 CreditEvent(date: Date(timeIntervalSince1970: 1_700_000_000), service: "Codex", creditsUsed: 2),
@@ -440,6 +443,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             creditsRemaining: 10,
             updatedAt: Date(timeIntervalSince1970: 1))
         let apiData = OpenAIDashboardFetcher.DashboardAPIData(
+            accountID: "workspace-fixture",
             primaryLimit: RateWindow(usedPercent: 44, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondaryLimit: nil,
             extraRateWindows: [],
@@ -452,20 +456,20 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
 
         let snapshot = OpenAIDashboardFetcher.snapshotByMergingAPI(
             apiData: apiData,
-            verifiedEmail: "new@example.com",
-            subscription: subscription,
+            verifiedEmail: "user@example.com",
+            subscriptionResult: .success(subscription),
             previous: previous,
             updatedAt: Date(timeIntervalSince1970: 2))
 
-        #expect(snapshot.signedInEmail == "new@example.com")
+        #expect(snapshot.signedInEmail == "user@example.com")
         #expect(snapshot.primaryLimit?.usedPercent == 44)
         #expect(snapshot.creditsRemaining == 7.5)
         #expect(snapshot.accountPlan == "pro")
-        #expect(snapshot.creditEvents.count == 1)
-        #expect(snapshot.dailyBreakdown.count == 1)
-        #expect(snapshot.usageBreakdown.count == 1)
-        #expect(snapshot.codeReviewRemainingPercent == 81)
-        #expect(snapshot.creditsPurchaseURL == "https://chatgpt.com/checkout")
+        #expect(snapshot.creditEvents.isEmpty)
+        #expect(snapshot.dailyBreakdown.isEmpty)
+        #expect(snapshot.usageBreakdown.isEmpty)
+        #expect(snapshot.codeReviewRemainingPercent == nil)
+        #expect(snapshot.creditsPurchaseURL == nil)
         #expect(snapshot.subscriptionRenewsAt != nil)
         #expect(
             snapshot.updatedAt == Date(timeIntervalSince1970: 2),
@@ -476,6 +480,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     func `subscription replacement clears the mutually exclusive previous date`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],
@@ -484,6 +489,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             subscriptionRenewsAt: Date(timeIntervalSince1970: 1_800_000_000),
             updatedAt: Date(timeIntervalSince1970: 1))
         let apiData = OpenAIDashboardFetcher.DashboardAPIData(
+            accountID: "workspace-fixture",
             primaryLimit: nil,
             secondaryLimit: nil,
             extraRateWindows: [],
@@ -497,7 +503,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         let snapshot = OpenAIDashboardFetcher.snapshotByMergingAPI(
             apiData: apiData,
             verifiedEmail: "user@example.com",
-            subscription: subscription,
+            subscriptionResult: .success(subscription),
             previous: previous,
             updatedAt: Date(timeIntervalSince1970: 2))
 
@@ -509,6 +515,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     func `page field subscription replacement clears the mutually exclusive previous date`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],
@@ -518,6 +525,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             updatedAt: Date(timeIntervalSince1970: 1))
         let incoming = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],
@@ -532,9 +540,41 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         let snapshot = OpenAIDashboardFetcher.fillingMissingPageFields(
             incoming,
             from: previous,
-            subscription: subscription)
+            subscriptionResult: .success(subscription))
 
         #expect(snapshot.subscriptionExpiresAt != nil)
+        #expect(snapshot.subscriptionRenewsAt == nil)
+    }
+
+    @Test
+    func `successful empty subscription response clears stale dates`() {
+        let previous = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            accountID: "workspace-fixture",
+            codeReviewRemainingPercent: nil,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [],
+            creditsPurchaseURL: nil,
+            subscriptionRenewsAt: Date(timeIntervalSince1970: 1_800_000_000),
+            updatedAt: Date(timeIntervalSince1970: 1))
+        let apiData = OpenAIDashboardFetcher.DashboardAPIData(
+            accountID: "workspace-fixture",
+            primaryLimit: nil,
+            secondaryLimit: nil,
+            extraRateWindows: [],
+            creditsRemaining: nil,
+            codexCreditLimit: nil,
+            accountPlan: nil)
+
+        let snapshot = OpenAIDashboardFetcher.snapshotByMergingAPI(
+            apiData: apiData,
+            verifiedEmail: "user@example.com",
+            subscriptionResult: .success(nil),
+            previous: previous,
+            updatedAt: Date(timeIntervalSince1970: 2))
+
+        #expect(snapshot.subscriptionExpiresAt == nil)
         #expect(snapshot.subscriptionRenewsAt == nil)
     }
 
@@ -542,6 +582,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     func `empty scrape keeps previous page history`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "keep@example.com",
+            accountID: nil,
             codeReviewRemainingPercent: 70,
             creditEvents: [
                 CreditEvent(date: Date(timeIntervalSince1970: 1_700_000_000), service: "Codex", creditsUsed: 3),
@@ -563,7 +604,8 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             subscriptionRenewsAt: Date(timeIntervalSince1970: 1_800_000_000),
             updatedAt: Date(timeIntervalSince1970: 1))
         let incoming = OpenAIDashboardSnapshot(
-            signedInEmail: nil,
+            signedInEmail: "keep@example.com",
+            accountID: nil,
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],

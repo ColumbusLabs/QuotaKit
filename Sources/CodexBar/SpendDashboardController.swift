@@ -102,6 +102,7 @@ struct SpendDashboardLoadRequest: Sendable {
     let codexHistoryDays: Int
     let now: Date
     let force: Bool
+    let independentRefreshPending: Bool
 
     init(
         configuration: SpendDashboardConfiguration,
@@ -111,7 +112,8 @@ struct SpendDashboardLoadRequest: Sendable {
         codexRequests: [CodexSpendScanRequest],
         codexHistoryDays: Int = SpendDashboardSource.scanDays,
         now: Date,
-        force: Bool)
+        force: Bool,
+        independentRefreshPending: Bool = false)
     {
         self.configuration = configuration
         self.capturedInputs = capturedInputs
@@ -121,6 +123,7 @@ struct SpendDashboardLoadRequest: Sendable {
         self.codexHistoryDays = max(1, min(SpendDashboardSource.scanDays, codexHistoryDays))
         self.now = now
         self.force = force
+        self.independentRefreshPending = independentRefreshPending
     }
 }
 
@@ -175,8 +178,8 @@ enum SpendDashboardSource {
     typealias CodexCacheRootResolver = @Sendable (CodexSpendScanRequest) -> URL
 
     static let activityDays = 365
-    /// Local spend scan window. Matches token-activity depth so 7d / 30d / All share one snapshot.
-    static let scanDays = activityDays
+    /// Scan available logs once; display periods and the activity heatmap project this history.
+    static let scanDays = 365
 
     /// Codex history-horizon policy (#160). One authority answering how many
     /// Codex history days a dashboard operation actually requires.
@@ -266,12 +269,21 @@ enum SpendDashboardSource {
 
         let providerBaselines = initialProviders.filter { $0 != .codex }.map { provider in
             let captured = self.capturedTokenPublication(store: store, provider: provider)
+            let shouldRefresh: Bool = if mode == .refreshMissing,
+                                         UsageStore.usesSpendDashboardIndependentTokenSnapshot(provider)
+            {
+                store.spendDashboardTokenRefreshNeeded(for: provider)
+            } else {
+                mode.shouldRefresh(hasPublication: captured.publication != nil)
+            }
             return (
                 provider: provider,
-                publication: captured.publication,
-                publicationRevision: captured.revision)
+                publicationRevision: captured.revision,
+                hasPublication: captured.publication != nil,
+                trigger: store.spendDashboardTokenRefreshTrigger(for: provider),
+                shouldRefresh: shouldRefresh)
         }
-        let baselinesToRefresh = providerBaselines.filter { mode.shouldRefresh(hasPublication: $0.publication != nil) }
+        let baselinesToRefresh = providerBaselines.filter(\.shouldRefresh)
         if !baselinesToRefresh.isEmpty {
             await withTaskGroup(of: Void.self) { group in
                 for baseline in baselinesToRefresh {
@@ -319,6 +331,15 @@ enum SpendDashboardSource {
                 force: mode.forcesLoader)
         }
 
+        // A native projection is disjoint from the inclusive Claude/Codex publication while
+        // Pi owns the same rows, even when the Pi input is hidden from the chart.
+        let piBaseline = providerBaselines.first { $0.provider == .pi }
+        let piCurrent = self.capturedTokenPublication(store: store, provider: .pi)
+        let piOwnsSource = providers.contains(.pi)
+            && piBaseline != nil
+            && piCurrent.publication?.snapshot != nil
+            && !(mode.shouldRefresh(hasPublication: piBaseline?.hasPublication ?? false)
+                && piBaseline?.publicationRevision == piCurrent.revision)
         var inputs: [SpendDashboardModel.ProviderInput] = []
         var unavailableSourceIDs: Set<String> = []
         var confirmedEmptySourceIDs: Set<String> = []
@@ -345,7 +366,7 @@ enum SpendDashboardSource {
                 unavailableSourceIDs.insert(provider.rawValue)
                 continue
             }
-            let shouldRefresh = mode.shouldRefresh(hasPublication: baseline.publication != nil)
+            let shouldRefresh = baseline.shouldRefresh
             let current = self.capturedTokenPublication(store: store, provider: provider)
             guard let currentPublication = current.publication else {
                 unavailableSourceIDs.insert(provider.rawValue)
@@ -358,7 +379,8 @@ enum SpendDashboardSource {
             guard let snapshot = self.dashboardTokenSnapshot(
                 store: store,
                 provider: provider,
-                publication: currentPublication)
+                publication: currentPublication,
+                piOwnsSource: piOwnsSource)
             else {
                 confirmedEmptySourceIDs.insert(provider.rawValue)
                 continue
@@ -366,7 +388,10 @@ enum SpendDashboardSource {
             inputs.append(SpendDashboardModel.ProviderInput(
                 provider: provider,
                 displayName: store.metadata(for: provider).displayName,
-                snapshot: snapshot))
+                snapshot: snapshot,
+                // Provider-specific by design: Pi reports local history rather than a subscription feed.
+                sourceKind: provider == .pi ? .localHistory : .native,
+                accounting: currentPublication.accounting))
         }
         return SpendDashboardLoadRequest(
             configuration: configuration,
@@ -376,7 +401,15 @@ enum SpendDashboardSource {
             codexRequests: codexRequests,
             codexHistoryDays: codexHistoryDays,
             now: captureNow,
-            force: mode.forcesLoader)
+            force: mode.forcesLoader,
+            independentRefreshPending: providers.contains { provider in
+                guard UsageStore.usesSpendDashboardIndependentTokenSnapshot(provider),
+                      !store.spendDashboardTokenRefreshInFlight.contains(provider.instanceID),
+                      store.spendDashboardTokenRefreshNeeded(for: provider)
+                else { return false }
+                return mode == .captureOnly || providerBaselines.first { $0.provider == provider }?.trigger !=
+                    store.spendDashboardTokenRefreshTrigger(for: provider)
+            })
     }
 
     static func load(_ request: SpendDashboardLoadRequest) async -> SpendDashboardLoadResult {
@@ -769,6 +802,12 @@ enum SpendDashboardSource {
             }
             return "\(provider.rawValue):snapshot:\(current.publicationRevision):\(current.semanticFingerprint ?? "")"
         }
+        for provider in providers where UsageStore.usesSpendDashboardIndependentTokenSnapshot(provider) {
+            let trigger = store.spendDashboardTokenRefreshTrigger(for: provider)
+            let inFlight = store.spendDashboardTokenRefreshInFlight.contains(provider.instanceID)
+            revisions.append(
+                "independent-trigger-\(provider.rawValue):\(trigger.regularPublicationRevision):\(inFlight)")
+        }
         return revisions
     }
 
@@ -806,7 +845,8 @@ enum SpendDashboardSource {
     private static func dashboardTokenSnapshot(
         store: UsageStore,
         provider: UsageProvider,
-        publication: CurrentProviderConfigTokenPublication) -> CostUsageTokenSnapshot?
+        publication: CurrentProviderConfigTokenPublication,
+        piOwnsSource: Bool) -> CostUsageTokenSnapshot?
     {
         // Provider-specific by design: Grok's catalog input is the local session scan, even when
         // the remote billing snapshot is missing.
@@ -825,6 +865,17 @@ enum SpendDashboardSource {
         {
             return derived
         }
+        // An inclusive publication can predate Pi becoming a separate source.
+        // Project its retained native portion while the replacement refresh is pending,
+        // so the combined rows stay disjoint throughout that transition.
+        // Provider-specific by design: Claude and Codex publications expose a native projection when Pi is
+        // accounted for separately in the combined dashboard.
+        if piOwnsSource,
+           provider == .claude || provider == .codex,
+           case let .includesPi(_, native) = publication.accounting
+        {
+            return native
+        }
         return publication.snapshot
     }
 
@@ -837,12 +888,7 @@ enum SpendDashboardSource {
     {
         if UsageStore.usesSpendDashboardIndependentTokenSnapshot(provider) {
             let revision = store.spendDashboardTokenSnapshotPublicationRevision(for: provider)
-            if let spend = store.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: provider) {
-                return (spend, revision)
-            }
-            return (
-                store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider),
-                revision)
+            return (store.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: provider), revision)
         }
         return (
             store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider),
@@ -1047,14 +1093,18 @@ final class SpendDashboardController {
     private(set) var failedSourceCount = 0
     private(set) var generation: UInt64 = 0
     private(set) var configuration: SpendDashboardConfiguration?
-    private(set) var selectedDays: Int
+    private(set) var selectedPeriod: CostReportingPeriod
+    var selectedDays: Int {
+        self.selectedPeriod.days(now: self.nowProvider(), calendar: self.configuration?.bucketCalendar ?? .current)
+    }
+
     private(set) var selectedDay: Date?
     /// Ephemeral visibility flag for #160 history demand. See
     /// `activeRequestedHistoryDays`: the persisted `selectedDays` preference
     /// must never widen background collection unless this is true.
     private(set) var isHistoryDemandActive = false
 
-    private static let daysDefaultsKey = "settingsSpendDashboardDays"
+    private static let periodDefaultsKey = "settingsSpendDashboardPeriod"
     private let userDefaults: UserDefaults
     private let requestBuilder: RequestBuilder
     private let cachedLoader: CachedLoader?
@@ -1103,7 +1153,13 @@ final class SpendDashboardController {
             counters: modelDerivationCounters,
             supportsAsynchronousBuilds: true)
         self.modelDerivationCounters = modelDerivationCounters
-        self.selectedDays = Self.normalizedDays(userDefaults.integer(forKey: Self.daysDefaultsKey))
+        let legacyDays = userDefaults.object(forKey: "settingsSpendDashboardDays") as? Int
+        let migratedDays = [7, 30, 90, 365].contains(legacyDays ?? 30) ? legacyDays ?? 30 : 30
+        self.selectedPeriod = userDefaults.string(forKey: Self.periodDefaultsKey)
+            .flatMap(CostReportingPeriod.init(rawValue:))
+            ?? (migratedDays == 365 ? .allTime : CostReportingPeriod.migrated(
+                rawValue: nil,
+                legacyDays: migratedDays))
     }
 
     func update(configuration: SpendDashboardConfiguration, force: Bool = false) {
@@ -1268,6 +1324,8 @@ final class SpendDashboardController {
         self.rebuildModel()
     }
 
+    // Keep the load and reconciliation state machine together while preserving its transition order.
+    // swiftlint:disable:next cyclomatic_complexity
     private func handleBuiltRequest(
         _ request: SpendDashboardLoadRequest,
         startedWith startConfiguration: SpendDashboardConfiguration,
@@ -1406,6 +1464,7 @@ final class SpendDashboardController {
                     ($0, ReconciliationObservation.confirmedEmpty)
                 }))
             self.startLoad(configuration: latestConfiguration, phase: .reconciling(outcome))
+            return
 
         case let .reconciling(outcome):
             let reconciled = Self.merge(outcome: outcome, capture: request)
@@ -1416,6 +1475,9 @@ final class SpendDashboardController {
                 confirmedEmptySourceIDs: reconciled.confirmedEmptySourceIDs,
                 desiredConfiguration: self.configuration ?? request.configuration)
             self.loadLivenessCounters.completedResultsApplied &+= 1
+        }
+        if request.independentRefreshPending, let configuration = self.configuration {
+            self.startLoad(configuration: configuration, phase: .ordinary)
         }
     }
 
@@ -1558,10 +1620,14 @@ final class SpendDashboardController {
     }
 
     func selectDays(_ days: Int) {
-        let days = Self.normalizedDays(days)
-        guard days != self.selectedDays else { return }
-        self.selectedDays = days
-        self.userDefaults.set(days, forKey: Self.daysDefaultsKey)
+        let normalized = [7, 30, 90, 365].contains(days) ? days : 30
+        self.selectPeriod(normalized == 365 ? .allTime : .rolling(days: normalized))
+    }
+
+    func selectPeriod(_ period: CostReportingPeriod) {
+        guard period != self.selectedPeriod else { return }
+        self.selectedPeriod = period
+        self.userDefaults.set(period.rawValue, forKey: Self.periodDefaultsKey)
         self.rebuildModel(publish: false)
     }
 
@@ -1631,11 +1697,22 @@ final class SpendDashboardController {
             } else {
                 .unavailable
             }
+            // Provider-specific by design: Pi remains local history while its snapshot is loading,
+            // unavailable, or confirmed empty, when no ProviderInput is available yet.
+            let role: SpendSourcePublication.Role = if provider == .pi {
+                .localHistory
+            } else {
+                switch input?.sourceKind {
+                case .openCodex: .enrichment
+                case .localHistory: .localHistory
+                case .native, nil: .subscription
+                }
+            }
             return SpendSourcePublication(
                 id: sourceID,
                 provider: provider,
                 displayName: input?.displayName ?? self.displayName(for: sourceID, provider: provider),
-                role: input?.sourceKind == .openCodex ? .enrichment : .subscription,
+                role: role,
                 state: state)
         }
         if self.configuration?.openCodexUsageLogsEnabled == true,
@@ -1692,6 +1769,7 @@ final class SpendDashboardController {
     {
         var ids: [String] = []
         for providerID in self.configuration?.providerIDs ?? [] {
+            // Provider-specific by design: source ordering expands the fixed Codex account namespace.
             if providerID == UsageProvider.codex.rawValue {
                 ids.append(contentsOf: (self.configuration?.codexAccountIdentities ?? []).compactMap { identity in
                     guard let separator = identity.lastIndex(of: "|") else { return nil }
@@ -1749,7 +1827,8 @@ final class SpendDashboardController {
             modelProviderName: input.modelProviderName,
             snapshot: input.snapshot,
             tokenActivityCache: input.tokenActivityCache,
-            sourceKind: input.sourceKind)
+            sourceKind: input.sourceKind,
+            accounting: input.accounting)
     }
 
     /// True source ownership/scope identity (#159). Only data-identity and
@@ -1865,12 +1944,6 @@ final class SpendDashboardController {
             return ("codex:\(accountID)", identity)
         })
     }
-
-    private static let supportedDayRanges = [7, 30, 90, SpendDashboardSource.scanDays]
-
-    private static func normalizedDays(_ value: Int) -> Int {
-        self.supportedDayRanges.contains(value) ? value : 30
-    }
 }
 
 extension SpendDashboardController {
@@ -1890,6 +1963,7 @@ extension SpendDashboardController {
             inputs: self.loadedInputs,
             inputRevision: self.loadedInputsRevision,
             requestedDays: self.selectedDays,
+            reportingPeriod: self.selectedPeriod,
             now: self.loadedAt,
             calendar: calendar,
             preferredCurrencyCode: configuration?.preferredCurrencyCode ?? "auto",

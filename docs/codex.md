@@ -40,8 +40,11 @@ Usage source picker:
 - `additional_rate_limits[]` (model-specific limits such as GPT-5.3-Codex-Spark) map to named
   `UsageSnapshot.extraRateWindows` entries. Spark uses stable `codex-spark` / `codex-spark-weekly` ids and
   `Codex Spark 5-hour` / `Codex Spark Weekly` titles. When the field is absent, the snapshot is unchanged.
-- Preferences → Providers → Codex → Show Codex Spark usage hides only the Spark rows in menus and the provider
-  preview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
+- Preferences → Providers → Codex → Visible usage items lets you hide individual Spark rows in menus, the Settings
+  preview, and Overview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
+- Explicitly enabling **External Codex OAuth sources** can reuse OpenCode's `openai` OAuth entry for remote
+  quota when native Codex credentials are absent. It does not import OpenCode session token or cost history; see
+  [OpenCode with Codex or OpenAI](opencode.md#using-opencode-with-codex-or-openai).
 
 ### Advanced profile-home accounts
 - Managed Codex accounts remain the default multi-account path.
@@ -71,7 +74,7 @@ Example:
 - OpenAI web battery saver is a separate toggle. When enabled, routine background/settings-driven refreshes are reduced, but explicit manual refreshes still run.
 - OpenAI web battery saver currently defaults to off.
 - Preferences → Providers → Codex → OpenAI cookies (Automatic or Manual).
-- URL: `https://chatgpt.com/codex/settings/usage`.
+- URL: `https://chatgpt.com/codex/cloud/settings/analytics#usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
@@ -112,6 +115,8 @@ Example:
   - Usage windows (primary + secondary) with reset timestamps.
   - Credits snapshot (balance, hasCredits, unlimited).
   - Account identity (email + plan type) when available.
+- The plan from the fresh rate-limit response takes precedence over the account's cached plan after a subscription
+  change. A missing or blank rate-limit plan falls back to the account response; email still comes from that account.
 - App-server errors are terminal for the CLI strategy, except when Codex includes a recoverable `wham/usage` JSON body in the error text.
 - If macOS blocks or quarantines the `codex` executable, QuotaKit records the launch failure and skips background CLI
   launches for 30 minutes. Use a manual refresh after reinstalling or unblocking `codex` to retry immediately.
@@ -138,11 +143,23 @@ Example:
 4) Last imported browser cookie email (cached).
 
 ## Credits
-- Web dashboard fills credits only when OAuth/CLI do not provide them.
+- Web dashboard fills credits only when OAuth/CLI do not provide them. Account-matched extra usage reconciles monthly caps and purchased balances separately.
+- When usage reports workspace credits without an amount, an optional authenticated `remaining_balance` read uses the selected account's OAuth or browser session. Missing permission leaves usage and monthly-limit data available.
+- A workspace balance attaches and persists only when the response account ID matches the selected account. An explicit unavailable observation suppresses an older cached balance; a later positive or zero read restores visibility. Usage-only refreshes preserve the account's prior observation. An account-scoped API result omits page-only history, plan detail, and code-review fields because the page exposes an email but no workspace ID.
+- Workspace balances have no known total capacity, so the Mac credits card shows the amount without a monthly-cap progress bar. The iPhone sync keeps the separate monthly cap and omits a standalone workspace balance from budget rows.
 - CLI RPC: `account/rateLimits/read` → credits balance.
 - CLI PTY diagnostics can still parse `Credits:` from saved/manual `/status` output.
+- When a balance has no reported monthly cap, the menu chooses the next power-of-ten token scale for its bar and label.
+  Reported caps keep their own scale.
 
 ## Cost usage (local log scan)
+
+For a manual comparison with another development machine, run `quotakit cost --provider codex --remote <ssh-host>`.
+Both hosts scan their own native Codex logs once and return separate summaries, retaining their own day boundaries,
+pricing provenance, missing values, and incomplete-request counts. Only bounded totals cross SSH. A remote error keeps
+the local result and returns a nonzero exit code. See [CLI host reporting](cli.md) for the versioned summary contract.
+
+- A queued refresh does not restart a cost-history worker after it exits paused. A later explicit refresh can retry.
 - Menu source selection:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
   - **Local session cost estimates** is a Codex-only opt-in that instead scans this Mac's ambient `$CODEX_HOME`
@@ -159,15 +176,25 @@ Example:
 - Scanner:
   - Native Codex logs parse `event_msg` token_count entries and `turn_context` model markers; when both are present,
     `turn_context` is authoritative for the model bucket.
+  - Paginated continuation files count only their owned usage when `history_base.thread_id` identifies an earlier
+    page. Bounded scans retain the validated fork baseline and exact request index across restarts.
+  - Excess cached request rows are replayed from unchanged source files. The previous ledger stays available during
+    bounded recovery; pricing is retained only for validated source requests and byte boundaries.
   - pi sessions count assistant-message usage rows and attribute `openai-codex` assistant usage to Codex.
   - pi assistant usage is bucketed by assistant-turn timestamp, so mixed-model pi sessions can contribute to multiple
     days/models correctly.
+  - Conversation rows retain their canonical project folder and use the rollout's original working directory when
+    resolving a relative `CODEX_SQLITE_HOME`. Thread names come from the matching Codex state database or session
+    index, so projects sharing one Git root keep their own session metadata.
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
 - Cache:
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/codex-v11.json`
+  - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
-- Window: configurable 1-365 day rolling history, with a 60s minimum refresh interval.
+- Window: a visible rolling history of up to 365 days; routine background work scans 30 days.
+- Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode). Manual disables
+  that recurring timer, while startup refreshes, explicit refreshes, and pending Codex catch-up may still scan.
+  The scanner's 60-second debounce is an internal limit, not the app refresh cadence.
 
 ### Usage & Spend account rows
 
@@ -179,7 +206,12 @@ These account rows intentionally exclude pi sessions because pi history is machi
 Codex account. The normal Codex cost menu and CLI scan continue to include supported pi history. The dashboard labels
 its values as local estimates and keeps currencies separate.
 
+## Managed account promotion and background tasks
+
+After a managed account is promoted to the system Codex home, QuotaKit restarts an already running Codex app-server daemon for that same home. It first checks a recognized daemon PID and the CLI's `version` response against the resolved control socket, including socket and home symlinks. If the CLI probe or restart fails, the account switch remains complete and the app displays a manual-restart note. Credits and plan-history background tasks keep ownership tokens so an older cancelled task cannot clear a replacement task's handle.
+
 ## Key files
+
 - Web: `Sources/QuotaKitCore/OpenAIWeb/*`
 - CLI RPC + diagnostic PTY parser: `Sources/QuotaKitCore/UsageFetcher.swift`,
   `Sources/QuotaKitCore/Providers/Codex/CodexStatusProbe.swift`

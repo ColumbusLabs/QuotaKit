@@ -226,8 +226,6 @@ struct HelmcodePluginTests {
             self.lock.withLock { self.recorded }
         }
 
-        func append(_ value: String) {
-            self.lock.withLock { self.recorded.append(value) }
-        }
+        func append(_ value: String) { self.lock.withLock { self.recorded.append(value) } }
     }
 }

@@ -10,9 +10,9 @@ import Testing
 ///
 /// - **T4**: single-device aggregation correctness — totals, activeDayCount,
 ///   per-provider rollups, daily series order.
-/// - **T5**: cross-device merge — same `(providerID, dayKey)` from two
-///   devices with different `lastUpdated` → max wins (NOT sum); other
-///   `(providerID, dayKey)` combos coexist.
+/// - **T5**: cross-device merge — local histories from distinct devices
+///   sum; account-level rows use the newest revision. Other
+///   `(providerID, dayKey)` combinations coexist.
 /// - **T6**: window filtering — 7d / 30d / 90d / 365d return exactly the
 ///   days inside the window; boundary day inclusive.
 /// - Diagnostics smoke: counts, earliest dayKey, latestWriteAt.
@@ -198,6 +198,32 @@ struct CWLAggregateTests {
         #expect(agg.activeDayCount == 1)
         let codex = try #require(agg.providerRollups["codex|_"])
         #expect(codex.totalCostUSD == 10.0)
+    }
+
+    @Test
+    func `Pi session costs from two devices survive ledger aggregation`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(
+            context, device: "dev-A", provider: "pi", daysAgo: 0,
+            cost: 1.25, tokens: 100, lastUpdated: t0)
+        try self.insert(
+            context, device: "dev-B", provider: "pi", daysAgo: 0,
+            cost: 2.50, tokens: 200, lastUpdated: t0.addingTimeInterval(3600))
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+        #expect(agg.totalCostUSD == 3.75)
+        #expect(agg.totalTokens == 300)
+        #expect(agg.activeDayCount == 1)
+        let pi = try #require(agg.providerRollups["pi|_"])
+        #expect(pi.totalCostUSD == 3.75)
+        #expect(pi.totalTokens == 300)
+        #expect(pi.dailyPoints.count == 1)
+        #expect(pi.dailyPoints.first?.costUSD == 3.75)
     }
 
     @Test

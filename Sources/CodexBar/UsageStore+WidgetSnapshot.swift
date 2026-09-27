@@ -12,6 +12,12 @@ private enum WidgetSnapshotLoadTestOverrides {
 #endif
 
 extension UsageStore {
+    static func reloadWidgetTimelines() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
     private var isWidgetSnapshotTestEnvironment: Bool {
         if case .testing = self.startupBehavior {
             return true
@@ -130,6 +136,7 @@ extension UsageStore {
                         $0) })
                     snapshotToPersist = WidgetSnapshot(
                         entries: latestSnapshot.enabledProviders.compactMap { freshEntries[$0] ?? retainedEntries[$0] },
+                        accounts: latestSnapshot.accounts,
                         enabledProviders: latestSnapshot.enabledProviders,
                         usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
                         generatedAt: filteredSnapshot.generatedAt)
@@ -145,7 +152,7 @@ extension UsageStore {
 
             #if canImport(WidgetKit)
             if shouldReloadTimelines {
-                WidgetCenter.shared.reloadAllTimelines()
+                self.widgetTimelineReloader()
             }
             #endif
         }
@@ -179,7 +186,7 @@ extension UsageStore {
     {
         let enabledProviders = Set(self.enabledProviders())
         let expectedClaudeQuotaOwnerKey = snapshot.entries.contains { $0.provider == .claude }
-            ? self.expectedClaudeWidgetQuotaOwnerKey()
+            ? self.expectedClaudeWidgetQuotaOwnerKeyForCurrentPresentation()
             : nil
         let entries = snapshot.entries.compactMap { entry -> WidgetSnapshot.ProviderEntry? in
             guard enabledProviders.contains(entry.provider),
@@ -346,9 +353,12 @@ extension UsageStore {
         // A later success cannot make an older queued account publication current again.
         if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
             let snapshotToPersist: WidgetSnapshot
-            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) {
+            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) ||
+                queuedSnapshot.accounts.contains(where: { $0.provider == provider.instanceID })
+            {
                 snapshotToPersist = WidgetSnapshot(
                     entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
+                    accounts: queuedSnapshot.accounts.filter { $0.provider != provider.instanceID },
                     enabledProviders: queuedSnapshot.enabledProviders,
                     usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
                     generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
@@ -380,6 +390,9 @@ extension UsageStore {
     func invalidateWidgetUsageIfTerminalFailure(for provider: UsageProvider, after error: Error) {
         let priorUsage = self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID]
         guard !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorUsage != nil) else { return }
+        if self.widgetVerifiedTokenSnapshots.removeValue(forKey: provider) != nil {
+            self.widgetAccountSnapshotStore?.save(self.widgetVerifiedTokenSnapshots)
+        }
         self.invalidateGenericWidgetUsage(for: provider)
     }
 
@@ -411,6 +424,7 @@ extension UsageStore {
         }
         return WidgetSnapshot(
             entries: entries,
+            accounts: self.makeWidgetAccountEntries(now: now),
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             generatedAt: generatedAt)
@@ -421,14 +435,23 @@ extension UsageStore {
         now: Date,
         previousEntry: WidgetSnapshot.ProviderEntry?) -> WidgetSnapshot.ProviderEntry?
     {
-        let claudeSwapAccount = provider == .claude
-            ? self.claudeSwapActiveAccountOverride(for: provider.instanceID)
+        // A stale ambient probe may belong to another account while the swap adapter owns Claude.
+        let swapOwnsClaude = provider == .claude && self.settings.claudeSwapEnabled &&
+            ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+                provider: provider,
+                accountCount: self.claudeSwapAccountSnapshots.count,
+                showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        let claudeSwapAccount = swapOwnsClaude
+            ? self.claudeSwapAccountSnapshots.first(where: \.isActive)
             : nil
-        let snapshot = claudeSwapAccount?.snapshot ?? self.snapshots[provider.instanceID]
+        let snapshot = swapOwnsClaude
+            ? claudeSwapAccount?.snapshot
+            : self.snapshots[provider.instanceID]
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
-        let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {
-            claudeSwapAccount.map(Self.claudeSwapWidgetQuotaOwnerKey)
-                ?? self.expectedClaudeWidgetQuotaOwnerKey()
+        let expectedClaudeQuotaOwnerKey: String? = if swapOwnsClaude {
+            claudeSwapAccount.flatMap(Self.claudeSwapWidgetQuotaOwnerKey)
+        } else if provider == .claude {
+            self.expectedClaudeWidgetQuotaOwnerKey()
         } else {
             nil
         }
@@ -488,8 +511,8 @@ extension UsageStore {
             nil
         }
         let quotaOwnerKey: String? = if provider == .claude {
-            if let claudeSwapAccount {
-                Self.claudeSwapWidgetQuotaOwnerKey(claudeSwapAccount)
+            if swapOwnsClaude {
+                snapshot != nil ? expectedClaudeQuotaOwnerKey : preservedClaudeUsage?.quotaOwnerKey
             } else {
                 snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
             }
@@ -497,9 +520,12 @@ extension UsageStore {
             nil
         }
 
+        // Provider-specific by design: Pi's local strategy has no quota measurement; age belongs to its history.
+        let historyUpdatedAt = provider == .pi ? tokenSnapshot?.updatedAt : nil
         return WidgetSnapshot.ProviderEntry(
             provider: provider,
-            updatedAt: snapshot?.updatedAt ?? preservedClaudeUsage?.updatedAt ?? tokenSnapshot?.updatedAt ?? now,
+            updatedAt: historyUpdatedAt ?? snapshot?.updatedAt ?? preservedClaudeUsage?.updatedAt
+                ?? tokenSnapshot?.updatedAt ?? now,
             primary: snapshot?.primary ?? preservedClaudeUsage?.primary,
             secondary: snapshot?.secondary ?? preservedClaudeUsage?.secondary,
             tertiary: snapshot?.tertiary ?? preservedClaudeUsage?.tertiary,
@@ -522,9 +548,23 @@ extension UsageStore {
     }
 
     private nonisolated static func claudeSwapWidgetQuotaOwnerKey(
-        _ account: ProviderAccountUsageSnapshot) -> String
+        _ account: ProviderAccountUsageSnapshot) -> String?
     {
-        "\(account.id.source):\(account.id.opaqueID)"
+        ClaudeSwapRetainedUsageStore.ownershipFingerprint(for: account)
+            .map { "claude/swap:\(account.id.opaqueID):\($0)" }
+    }
+
+    private func expectedClaudeWidgetQuotaOwnerKeyForCurrentPresentation() -> String? {
+        if self.settings.claudeSwapEnabled,
+           ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+               provider: .claude,
+               accountCount: self.claudeSwapAccountSnapshots.count,
+               showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        {
+            return self.claudeSwapAccountSnapshots.first(where: \.isActive)
+                .flatMap(Self.claudeSwapWidgetQuotaOwnerKey)
+        }
+        return self.expectedClaudeWidgetQuotaOwnerKey()
     }
 
     private func expectedClaudeWidgetQuotaOwnerKey() -> String? {
@@ -594,8 +634,16 @@ extension UsageStore {
         provider: UsageProvider) -> WidgetSnapshot.TokenUsageSummary?
     {
         guard let snapshot else { return nil }
-        let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
-        let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
+        let fallbackTokens: Int? = {
+            var sum = 0
+            for t in snapshot.daily.compactMap(\.totalTokens) {
+                let (res, of) = sum.addingReportingOverflow(t)
+                if of { return nil }
+                sum = res
+            }
+            return sum > 0 ? sum : nil
+        }()
+        let monthTokensValue = snapshot.last30DaysTokens ?? fallbackTokens
         let sessionLabel = if provider == .bedrock || provider == .mistral {
             "Latest billing day"
         } else if provider == .codex {
@@ -620,7 +668,7 @@ extension UsageStore {
             updatedAt: snapshot.updatedAt)
     }
 
-    private func widgetUsageRows(
+    func widgetUsageRows(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
         now: Date) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
@@ -717,7 +765,7 @@ extension UsageStore {
                     percentLeft: window.window.remainingPercent)
             })
         }
-        if provider == .claude {
+        if provider == .claude, self.settings.claudeModelScopedWeeklyUsageVisible {
             rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
         }
         return rows.filter { $0.percentLeft != nil }

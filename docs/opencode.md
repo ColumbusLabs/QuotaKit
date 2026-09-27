@@ -12,6 +12,8 @@ read_when:
 - OpenCode Go usage API at `GET https://opencode.ai/zen/go/v1/usage`, authenticated by `OPENCODE_API_KEY` or
   `providers[].apiKey`, or a selected API-key token account.
 - OpenCode Go local history from `~/.local/share/opencode/opencode.db` on macOS and Linux.
+  Device-local quota estimates retain their values and reset dates, but QuotaKit omits pace
+  forecasts until an account-scoped source reports authoritative usage.
 - `POST https://opencode.ai/_server` with server function IDs:
   - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
   - `subscription.get` (`7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4`)
@@ -20,6 +22,20 @@ read_when:
 - Primary window: rolling 5-hour usage (`rollingUsage.usagePercent`, `rollingUsage.resetInSec`).
 - Secondary window: optional weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
 - Resets computed as `now + resetInSec`.
+- The menu layout editor offers the Monthly tertiary percentage before a usage snapshot arrives.
+
+## Using OpenCode with Codex or OpenAI
+
+Codex quota and local token/cost history are separate sources. The Codex provider reads session and weekly quota
+from the signed-in account's remote endpoint; these percentages do not come from local session logs.
+
+When OpenCode holds a Codex OAuth session, explicitly enabling **External Codex OAuth sources** can reuse its
+`openai` OAuth entry for remote quota. Native Codex credentials take precedence, and an explicit `CODEX_HOME`
+prevents external fallback. External credentials remain read-only; stale credentials fail closed, and API-key
+entries are ignored.
+
+This does not import ordinary OpenCode sessions into Codex token or spend totals. The OpenCode Go SQLite reader
+selects only `opencode-go` assistant records. OpenAI API usage is separate from Codex subscription quota.
 
 ## Notes
 - OpenCode Go accounts accept labeled API keys or Cookie headers. In Auto mode, a selected API-key account uses the
@@ -56,3 +72,9 @@ read_when:
   chart show a per-model breakdown for OpenCode Go the same way it already does for Claude (see the "Cost usage"
   section in [docs/claude.md](claude.md)). Rows with no `modelID` are grouped under an "unknown" bucket instead of
   being dropped.
+- Local history also includes recorded input, output, reasoning, cache-read, cache-write, and total tokens per day
+  and model. Step-finish parts take precedence over their parent message so multi-step sessions are not counted
+  twice. Explicit totals are used as recorded; older rows without a total sum the five complete token components.
+  Missing, malformed, negative, or overflowing counts remain unknown rather than becoming zero. A day containing
+  a row without usable tokens has no complete token total. These device-local counts add history detail only:
+  they do not change account quota, and costs still come from the recorded `cost` field, never token pricing.

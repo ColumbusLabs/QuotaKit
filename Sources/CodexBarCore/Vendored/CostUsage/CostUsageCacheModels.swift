@@ -168,6 +168,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var modelsUsed: [String]?
         var modelBreakdowns: [ModelBreakdown]?
         var unpricedRequestCount: Int?
+        var pricedRequestCount: Int?
         var unmeteredRequestCount: Int?
         var estimatedRequestCount: Int?
 
@@ -184,6 +185,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.modelsUsed = entry.modelsUsed
             self.modelBreakdowns = entry.modelBreakdowns?.map(ModelBreakdown.init)
             self.unpricedRequestCount = entry.unpricedRequestCount
+            self.pricedRequestCount = entry.pricedRequestCount
             self.unmeteredRequestCount = entry.unmeteredRequestCount
             self.estimatedRequestCount = entry.estimatedRequestCount
         }
@@ -203,7 +205,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 modelBreakdowns: self.modelBreakdowns?.map(\.dailyReportValue),
                 unpricedRequestCount: self.unpricedRequestCount,
                 unmeteredRequestCount: self.unmeteredRequestCount,
-                estimatedRequestCount: self.estimatedRequestCount)
+                estimatedRequestCount: self.estimatedRequestCount,
+                pricedRequestCount: self.pricedRequestCount)
         }
     }
 
@@ -238,8 +241,60 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         }
     }
 
+    struct HourlyEntry: Codable, Equatable {
+        var hourUnixMs: Int64
+        var totalTokens: Int?
+        var costUSD: Double?
+        var tokensAreComplete: Bool?
+        var costIsComplete: Bool?
+
+        init(_ entry: CostUsageHourlyEntry) {
+            self.hourUnixMs = Int64((entry.hour.timeIntervalSince1970 * 1000).rounded())
+            self.totalTokens = entry.totalTokens
+            self.costUSD = entry.costUSD
+            self.tokensAreComplete = entry.tokensAreComplete
+            self.costIsComplete = entry.costIsComplete
+        }
+
+        var hourlyValue: CostUsageHourlyEntry {
+            CostUsageHourlyEntry(
+                hour: Date(timeIntervalSince1970: Double(self.hourUnixMs) / 1000),
+                totalTokens: self.totalTokens,
+                costUSD: self.costUSD,
+                tokensAreComplete: self.tokensAreComplete ?? (self.totalTokens != nil),
+                costIsComplete: self.costIsComplete ?? (self.costUSD != nil))
+        }
+    }
+
+    struct QuotaSlice: Codable, Equatable {
+        var timestampUnixMs: Int64
+        var totalTokens: Int?
+        var costUSD: Double?
+        var tokensAreComplete: Bool?
+        var costIsComplete: Bool?
+
+        init(_ entry: CostUsageTimedEntry) {
+            self.timestampUnixMs = Int64((entry.timestamp.timeIntervalSince1970 * 1000).rounded())
+            self.totalTokens = entry.totalTokens
+            self.costUSD = entry.costUSD
+            self.tokensAreComplete = entry.tokensAreComplete
+            self.costIsComplete = entry.costIsComplete
+        }
+
+        var timedValue: CostUsageTimedEntry {
+            CostUsageTimedEntry(
+                timestamp: Date(timeIntervalSince1970: Double(self.timestampUnixMs) / 1000),
+                totalTokens: self.totalTokens,
+                costUSD: self.costUSD,
+                tokensAreComplete: self.tokensAreComplete ?? (self.totalTokens != nil),
+                costIsComplete: self.costIsComplete ?? (self.costUSD != nil))
+        }
+    }
+
     var data: [Entry]
     var summary: Summary?
+    var hourly: [HourlyEntry]?
+    var quotaSlices: [QuotaSlice]?
     var updatedAtUnixMs: Int64
     var scanSinceKey: String?
     var scanUntilKey: String?
@@ -255,6 +310,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         guard !report.data.isEmpty else { return nil }
         self.data = report.data.map(Entry.init)
         self.summary = report.summary.map(Summary.init)
+        self.hourly = report.hourly.isEmpty ? nil : report.hourly.map(HourlyEntry.init)
+        self.quotaSlices = report.quotaSlices.isEmpty ? nil : report.quotaSlices.map(QuotaSlice.init)
         self.updatedAtUnixMs = cache.lastScanUnixMs
         self.scanSinceKey = reportSinceKey
         self.scanUntilKey = reportUntilKey
@@ -263,7 +320,11 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
     }
 
     var report: CostUsageDailyReport {
-        CostUsageDailyReport(data: self.data.map(\.dailyReportValue), summary: self.summary?.dailyReportValue)
+        CostUsageDailyReport(
+            data: self.data.map(\.dailyReportValue),
+            summary: self.summary?.dailyReportValue,
+            hourly: (self.hourly ?? []).map(\.hourlyValue),
+            quotaSlices: (self.quotaSlices ?? []).map(\.timedValue))
     }
 
     var updatedAt: Date? {
@@ -287,10 +348,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Older or absent revisions require bounded reparsing before cached rows can be reused.
-    /// Revision 3 reparses all revision-2 files once to repair rowless duplicate entries.
-    /// Older entries cannot distinguish a truly empty fragment from suppressed usage.
-    static let currentCodexParserRevision = 3
+    /// Paginated continuation corrections require bounded reparsing of older files.
+    static let currentCodexParserRevision = 4
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -321,6 +380,13 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    var codexNextUsageRowIndex: Int?
+    /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
+    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]?
+    var codexPendingSourcePricing: [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence]?
+    var codexPendingSourcePricingAnchor: CostUsageCodexTokenIndexAnchor?
+    var codexStagedRecoveryRows: [CostUsageScanner.CodexUsageRow]?
+    var codexStagedRecoverySnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenSnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]?
     var codexTokenTimestampsMonotonic: Bool?
@@ -334,6 +400,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexReplacementScanPending: Bool?
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
+    var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?

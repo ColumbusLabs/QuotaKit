@@ -2,10 +2,11 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+@Suite(CodexCredentialFixtures())
 struct CodexOAuthCredentialReadTests {
     @Test
     func `missing auth json maps to a not found credential error`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-missing-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
 
@@ -20,7 +21,7 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `unreadable auth json maps to an unreadable credential error`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-unreadable-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
@@ -225,9 +226,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `expired external oauth fetch fails closed without mutating its source`() async throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-stale-fetch-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-stale-fetch-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -355,9 +356,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `consented external OAuth fetch uses the token without mutating its source`() async throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-fetch-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-fetch-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -431,7 +432,7 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `credential save preserves the supplied refresh timestamp`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-save-timestamp-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
@@ -472,9 +473,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `native codex home wins over external oauth sources`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-native-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-native-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -512,9 +513,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `legacy codex home wins before open code fallback`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-legacy-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-legacy-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -554,7 +555,7 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `legacy API keys are rejected by the external OAuth fallback`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-legacy-api-key-home-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
         let legacyDirectory = home
@@ -578,9 +579,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `usage credential loading falls back to isolated open code data`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-fallback-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-fallback-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -610,9 +611,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `external fallback does not mask an unreadable native auth file`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-unreadable-native-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-unreadable-external-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -642,7 +643,7 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `external fallback does not mask malformed native auth json`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-malformed-native-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
         let nativeDirectory = home.appendingPathComponent(".codex", isDirectory: true)
@@ -663,7 +664,7 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `external fallback does not mask native auth without oauth tokens`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-missing-tokens-native-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: home) }
         let nativeDirectory = home.appendingPathComponent(".codex", isDirectory: true)
@@ -684,9 +685,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `external OAuth fallback is disabled without explicit consent`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-consent-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-consent-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)
@@ -713,9 +714,9 @@ struct CodexOAuthCredentialReadTests {
 
     @Test
     func `explicit codex home does not borrow open code credentials`() throws {
-        let home = FileManager.default.temporaryDirectory
+        let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-isolated-home-\(UUID().uuidString)", isDirectory: true)
-        let dataHome = FileManager.default.temporaryDirectory
+        let dataHome = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-isolated-data-\(UUID().uuidString)", isDirectory: true)
         defer {
             try? FileManager.default.removeItem(at: home)

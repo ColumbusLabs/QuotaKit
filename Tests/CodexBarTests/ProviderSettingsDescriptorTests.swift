@@ -7,11 +7,21 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
+    @Test
+    func `xKiro keeps its API key in provider config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-xkiro")
+        let fields = try #require(ProviderCatalog.implementation(for: .xkiro))
+            .settingsFields(context: fixture.settingsContext(provider: .xkiro))
+        #expect(fields.map(\.id) == ["xkiro-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: .xkiro)?.apiKey == "fixture-key")
+    }
+
     @Test(arguments: [UsageProvider.atlascloud, .vercel])
     func `balance providers keep API keys in their own config`(provider: UsageProvider) throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-\(provider.rawValue)")
-        let implementation: any ProviderImplementation = provider == .atlascloud
-            ? AtlasCloudProviderImplementation() : VercelProviderImplementation()
+        let implementation = try #require(ProviderCatalog.implementation(for: provider))
         let fields = implementation.settingsFields(context: fixture.settingsContext(provider: provider))
         #expect(fields.map(\.id) == ["\(provider.rawValue)-api-key"])
         #expect(fields.map(\.kind) == [.secure])
@@ -49,7 +59,7 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `DevPass stores a regular API key in provider config`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devpass")
-        let fields = DevPassProviderImplementation()
+        let fields = try #require(ProviderCatalog.implementation(for: .devpass))
             .settingsFields(context: fixture.settingsContext(provider: .devpass))
         #expect(fields.map(\.id) == ["devpass-api-key"])
         #expect(fields.map(\.kind) == [.secure])
@@ -508,6 +518,26 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `claude model scoped widget usage toggle is default on and independent`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-model-scoped-widget")
+        let context = fixture.settingsContext(provider: .claude)
+        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
+        let widgetToggle = try #require(toggles.first {
+            $0.id == "claude-model-scoped-weekly-usage-visible"
+        })
+
+        #expect(widgetToggle.binding.wrappedValue)
+        #expect(widgetToggle.isEnabled == nil)
+        #expect(widgetToggle.subtitle.contains("Fable"))
+
+        widgetToggle.binding.wrappedValue = false
+        #expect(fixture.settings.claudeModelScopedWeeklyUsageVisible == false)
+
+        fixture.settings.showOptionalCreditsAndExtraUsage = false
+        #expect(widgetToggle.isEnabled == nil)
+    }
+
+    @Test
     func `claude single swap account toggle persists and follows integration visibility`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-swap-single")
         let context = fixture.settingsContext(provider: .claude)
@@ -698,6 +728,23 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `venice exposes usage source picker routing to web`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-venice")
+        let context = fixture.settingsContext(provider: .venice)
+
+        let implementation = VeniceProviderImplementation()
+        let pickers = implementation.settingsPickers(context: context)
+        #expect(pickers.contains(where: { $0.id == "venice-usage-source" }))
+
+        let modeContext = ProviderSourceModeContext(provider: .venice, settings: fixture.settings)
+        #expect(implementation.sourceMode(context: modeContext) == .auto)
+        fixture.settings.veniceUsageDataSource = .web
+        #expect(implementation.sourceMode(context: modeContext) == .web)
+        fixture.settings.veniceUsageDataSource = .api
+        #expect(implementation.sourceMode(context: modeContext) == .api)
+    }
+
+    @Test
     func `copilot budget secondary picker appears before cookie picker`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-budget-pickers")
         fixture.settings.copilotBudgetExtrasEnabled = true
@@ -782,7 +829,8 @@ struct ProviderSettingsDescriptorTests {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy-xkiro")
         let aixy = AixyProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .aixy))
         #expect(aixy.map(\.id) == ["aixy-api-key", "aixy-base-url"])
-        let xkiro = XKiroProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .xkiro))
+        let xkiro = try #require(ProviderCatalog.implementation(for: .xkiro))
+            .settingsFields(context: fixture.settingsContext(provider: .xkiro))
         #expect(xkiro.map(\.id) == ["xkiro-api-key"])
     }
 
@@ -871,6 +919,16 @@ extension ProviderSettingsDescriptorTests {
             .detailLine(context)
 
         #expect(detailLine == "web")
+    }
+
+    @Test
+    func `devin automatic auth explains Chromium browser support`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-browsers")
+        fixture.settings.devinCookieSource = .auto
+        let picker = try #require(DevinProviderImplementation()
+            .settingsPickers(context: fixture.settingsContext(provider: .devin)).first)
+
+        #expect(picker.subtitle == "Automatically imports the app.devin.ai session from supported Chromium browsers.")
     }
 }
 
@@ -1431,7 +1489,7 @@ extension ProviderSettingsDescriptorTests {
 }
 
 extension ProviderSettingsDescriptorTests {
-    private func makeSettingsFixture(
+    func makeSettingsFixture(
         suite: String,
         environmentBase: [String: String] = [:]) throws -> ProviderSettingsFixture
     {
@@ -1479,7 +1537,7 @@ extension ProviderSettingsDescriptorTests {
             .map(String.init)
     }
 
-    private struct ProviderSettingsFixture {
+    struct ProviderSettingsFixture {
         let settings: SettingsStore
         let store: UsageStore
         private let state = ProviderSettingsContextState()

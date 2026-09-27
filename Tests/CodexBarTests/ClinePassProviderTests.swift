@@ -9,8 +9,7 @@ struct ClinePassProviderTests {
     @Test
     func `provider appears in settings with API key field and official icon`() throws {
         let suite = "ClinePassProviderTests-settings"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        let defaults = InMemoryUserDefaults()
         let settings = SettingsStore(
             userDefaults: defaults,
             configStore: testConfigStore(suiteName: suite),
@@ -20,7 +19,7 @@ struct ClinePassProviderTests {
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        let implementation = ClinePassProviderImplementation()
+        let implementation = try #require(ProviderCatalog.implementation(for: .clinepass))
         let context = ProviderSettingsContext(
             provider: .clinepass,
             settings: settings,

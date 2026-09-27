@@ -175,12 +175,12 @@ struct UserFacingLocalizationCoverageTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let source = try String(
-            contentsOf: root.appendingPathComponent("Sources/CodexBar/PreferencesSpendDashboardPane.swift"),
+            contentsOf: root.appendingPathComponent("Sources/CodexBar/SpendDashboardProviderBreakdown.swift"),
             encoding: .utf8)
 
-        #expect(source.contains(#"Text(L("Model breakdown unavailable"))"#))
+        #expect(source.contains(#"self.modelHistoryState(L("Model breakdown unavailable"))"#))
         #expect(source.contains(#"L("Partial model breakdown")"#))
-        #expect(source.contains(#"Text(L("No model-level history"))"#))
+        #expect(source.contains(#"self.modelHistoryState(L("No model-level history"))"#))
     }
 
     @Test

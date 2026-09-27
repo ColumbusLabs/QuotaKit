@@ -33,7 +33,20 @@ extension CodexBarCLI {
         let forceRefresh = values.flags.contains("refresh")
         let includePiSessions = Self.decodeCostIncludePiSessions(from: values)
         let useColor = Self.shouldUseColor(noColor: values.flags.contains("noColor"), format: format)
-        let historyDays = Self.decodeCostHistoryDays(from: values)
+        let now = Date()
+        let bucketCalendar = CostUsageBucketTimeZone.calendar(
+            identifier: Self.stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
+        let period = Self.decodeCostReportingPeriod(from: values, saved: Self.costReportingPeriodFromDefaults())
+        let historyDays = period.days(now: now, calendar: bucketCalendar)
+        if values.options["remote"] != nil || values.flags.contains("summaryOnly") {
+            await Self.runCodexHostCosts(
+                values,
+                providers: providers,
+                unsupported: unsupported,
+                historyDays: historyDays,
+                output: output)
+            return
+        }
         // Cursor cost reuses the same cookie-source policy as usage fetches: reject the fetch when the
         // user set Cursor cookies to Off, and forward the Manual header so the dashboard request uses
         // the configured session instead of auto-resolving a different one.
@@ -60,15 +73,17 @@ extension CodexBarCLI {
             Self.writeStderr("Warning: \(warning)\n")
         }
 
-        let bucketCalendar = CostUsageBucketTimeZone.calendar(
-            identifier: Self.stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
         let fetcher = CostUsageFetcher(calendar: bucketCalendar)
+        let outputProviders = Self.costProviders(providers, groupBy: groupBy, format: format)
+        let piSessionProcessContexts = await Self.piSessionProcessContextsForCost(
+            providers: outputProviders,
+            includePiSessions: includePiSessions)
         var sections: [String] = []
         var payload: [CostPayload] = []
         var exitCode: ExitCode = .success
 
         // Provider-specific by design: project/session grouping is available only for Codex local session data.
-        for provider in Self.costProviders(providers, groupBy: groupBy, format: format) {
+        for provider in outputProviders {
             if let error = Self.cursorCostAvailabilityError(
                 provider,
                 settings: cursorCookieSettings,
@@ -87,15 +102,18 @@ extension CodexBarCLI {
                 // cookie-authenticated dashboard API via the shared session resolution.
                 let snapshot = try await fetcher.loadTokenSnapshot(
                     provider: provider,
+                    now: now,
                     forceRefresh: forceRefresh,
                     historyDays: historyDays,
                     cursorCookieHeaderOverride: Self.cursorCostHeaderOverride(provider, settings: cursorCookieSettings),
                     refreshPricingInBackground: false,
                     includePiSessions: Self.costIncludePiSessions(
                         provider: provider,
+                        selectedProviders: outputProviders,
                         groupBy: groupBy,
                         format: format,
-                        includePiSessions: includePiSessions))
+                        includePiSessions: includePiSessions),
+                    piSessionProcessContexts: piSessionProcessContexts).reporting(period)
                 switch format {
                 case .text:
                     sections.append(Self.renderCostText(
@@ -122,8 +140,9 @@ extension CodexBarCLI {
 
         if format == .json,
            let openCodex = await Self.loadOpenCodexCostPayload(
-               historyDays: historyDays,
-               calendar: bucketCalendar)
+               period: period,
+               calendar: bucketCalendar,
+               now: now)
         {
             payload.append(openCodex)
         }
@@ -160,9 +179,19 @@ extension CodexBarCLI {
         provider: UsageProvider,
         snapshot: CostUsageTokenSnapshot,
         groupBy: CostGroupBy = .none,
-        useColor: Bool) -> String
+        useColor: Bool,
+        calendar: Calendar = .current) -> String
     {
-        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let name = descriptor.metadata.displayName
+        // Provider-specific by design: Antigravity is the one cost provider whose local models can
+        // all be absent from the pricing catalog, so it falls back to the token-only rendering.
+        // Other providers keep the cost shape and render their unknown values as dashes.
+        let costIsEntirelyUnknown = provider == .antigravity
+            && (snapshot.last30DaysCostUSD == nil || (snapshot.daily.isEmpty && snapshot.last30DaysCostUSD == 0))
+        if descriptor.tokenCost.presentation == .tokensOnly || costIsEntirelyUnknown {
+            return Self.renderLocalTokenHistoryText(name: name, snapshot: snapshot, useColor: useColor)
+        }
         // Provider-specific by design: Codex cost is explicitly an API-equivalent local-session estimate.
         let title = if provider == .codex {
             "\(name) API-equivalent estimate (not billed)"
@@ -179,6 +208,9 @@ extension CodexBarCLI {
             return Self.renderSessionCostText(header: header, snapshot: snapshot)
         }
 
+        let todayIncomplete = snapshot.incompleteRequestCount(forLastDays: 1, calendar: calendar)
+        let incomplete = CostUsageIncompleteRequests.sum(snapshot.daily.map(\.incompleteRequestCount))
+        let unpriced = snapshot.daily.reduce(0) { $0 + max(0, $1.unpricedRequestCount ?? 0) }
         let todayCost = snapshot.sessionCostUSD
             .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
         let todayTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
@@ -187,8 +219,7 @@ extension CodexBarCLI {
         let monthCost = snapshot.last30DaysCostUSD
             .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
         let monthTokens = snapshot.last30DaysTokens.map { UsageFormatter.tokenCountString($0) }
-        let historyLabel = snapshot.historyLabel
-            ?? (snapshot.historyDays == 1 ? "Today" : "Last \(snapshot.historyDays) days")
+        let historyLabel = snapshot.periodLabel
         let monthLine = monthTokens.map {
             "\(historyLabel): \(monthCost) · \($0) tokens"
         } ?? "\(historyLabel): \(monthCost)"
@@ -201,14 +232,53 @@ extension CodexBarCLI {
         }
 
         let hintLine = Self.costEstimateHint(provider: provider)
-        return [header, todayLine, monthLine, meteredLine, hintLine]
-            .compactMap(\.self)
-            .joined(separator: "\n")
+        var lines: [String?] = [
+            header,
+            todayLine + (todayIncomplete > 0 ? " · Incomplete" : ""),
+            monthLine + (incomplete > 0 ? " · Incomplete" : ""),
+            meteredLine,
+        ]
+        if incomplete > 0 {
+            lines
+                .append("Incomplete: \(incomplete) requests lacked final usage and were excluded from tokens and cost.")
+        }
+        if unpriced > 0 {
+            lines.append("Partial estimate: \(unpriced) recorded request\(unpriced == 1 ? "" : "s") had no price.")
+        }
+        if !snapshot.historyIsFullyScanned {
+            lines.append("Partial local history · recorded token subtotal")
+        }
+        lines.append(hintLine)
+        return lines.compactMap(\.self).joined(separator: "\n")
+    }
+
+    private static func renderLocalTokenHistoryText(
+        name: String,
+        snapshot: CostUsageTokenSnapshot,
+        useColor: Bool) -> String
+    {
+        let header = Self.costHeaderLine("\(name) Token History", useColor: useColor)
+        let hint = "Local token history · dollar costs unavailable"
+        guard snapshot.historyCoverageIsEstablished || snapshot.last30DaysTokens != nil else {
+            return [header, "Local token history is unavailable or incomplete.", hint].joined(separator: "\n")
+        }
+        let today = snapshot.sessionTokens.map { "\(UsageFormatter.tokenCountString($0)) tokens" } ?? "—"
+        let total = snapshot.last30DaysTokens.map { "\(UsageFormatter.tokenCountString($0)) tokens" } ?? "—"
+        let historyLabel = snapshot.periodLabel
+        let lines: [String?] = [
+            header,
+            "Today: \(today)",
+            snapshot.historyDays == 1 ? nil : "\(historyLabel): \(total)",
+            snapshot.daily.isEmpty && snapshot.historyCoverageIsEstablished
+                ? "No token usage found in the selected period." : nil,
+            snapshot.historyIsFullyScanned ? nil : "Partial local history · recorded token subtotal",
+            hint,
+        ]
+        return lines.compactMap(\.self).joined(separator: "\n")
     }
 
     private static func renderProjectCostText(header: String, snapshot: CostUsageTokenSnapshot) -> String {
-        let historyLabel = snapshot.historyLabel
-            ?? (snapshot.historyDays == 1 ? "Today" : "Last \(snapshot.historyDays) days")
+        let historyLabel = snapshot.periodLabel
         var lines = [header, "Projects (\(historyLabel)):"]
         guard !snapshot.projects.isEmpty else {
             lines.append("—")
@@ -240,8 +310,7 @@ extension CodexBarCLI {
     }
 
     private static func renderSessionCostText(header: String, snapshot: CostUsageTokenSnapshot) -> String {
-        let historyLabel = snapshot.historyLabel
-            ?? (snapshot.historyDays == 1 ? "Today" : "Last \(snapshot.historyDays) days")
+        let historyLabel = snapshot.periodLabel
         var lines = [header, "Conversations (\(historyLabel)):"]
         let historyIncomplete = snapshot.historyCoverageIsEstablished == false
         if historyIncomplete {
@@ -315,6 +384,18 @@ extension CodexBarCLI {
         selection.asList.filter { Self.costSupportedProviders.contains($0) }
     }
 
+    /// Provider-specific by design: historical Pi/OMP cost roots must include the working directories and
+    /// selectors of live Pi-family processes, even when the CLI itself runs from another directory.
+    static func piSessionProcessContextsForCost(
+        providers: [UsageProvider],
+        includePiSessions: Bool) async -> [PiSessionProcessContext]
+    {
+        let hasPiConsumer = providers.contains(.pi) ||
+            (includePiSessions && providers.contains { $0 == .claude || $0 == .codex })
+        guard hasPiConsumer else { return [] }
+        return await LocalAgentSessionScanner().piSessionProcessContexts()
+    }
+
     /// Providers participating in a cost run: text-mode project/session grouping is Codex-only,
     /// while JSON output always keeps every requested provider.
     static func costProviders(
@@ -329,10 +410,16 @@ extension CodexBarCLI {
     /// Session text reports need native Codex rows, so keep Pi/OMP aggregate merging out of that path.
     static func costIncludePiSessions(
         provider: UsageProvider,
+        selectedProviders: [UsageProvider] = [],
         groupBy: CostGroupBy,
         format: OutputFormat,
         includePiSessions: Bool) -> Bool
     {
+        // Provider-specific by design: Pi owns its rows when it is selected alongside native
+        // local providers, so the two provider snapshots cannot publish the same usage twice.
+        if provider == .claude || provider == .codex, selectedProviders.contains(.pi) {
+            return false
+        }
         // Provider-specific by design: only Codex local session text bypasses Pi/OMP merging.
         guard provider == .codex, groupBy == .session, format == .text else { return includePiSessions }
         return false
@@ -386,6 +473,7 @@ extension CodexBarCLI {
     {
         let daily = snapshot?.daily.map(Self.costDailyPayload(from:)) ?? []
         let summary = snapshot.map { $0.summary(forLastDays: $0.historyDays, calendar: calendar) }
+        let last30Days = snapshot.map { Self.last30DaysTotals(from: $0, calendar: calendar) }
         let projects = provider == .codex
             ? snapshot?.projects.map { project in
                 CostProjectPayload(
@@ -417,15 +505,17 @@ extension CodexBarCLI {
             sessionCostUSD: snapshot?.sessionCostUSD,
             historyDays: snapshot?.historyDays,
             historyCoverageIsEstablished: snapshot?.historyCoverageIsEstablished,
-            last30DaysTokens: snapshot?.last30DaysTokens,
-            last30DaysCostUSD: snapshot?.last30DaysCostUSD,
+            last30DaysTokens: last30Days?.tokens,
+            last30DaysCostUSD: last30Days?.costUSD,
             meteredCostUSD: snapshot?.meteredCostUSD,
             daily: daily,
             projects: projects,
-            totals: snapshot.flatMap(Self.costTotals(from:)),
+            totals: snapshot.flatMap { Self.costTotals($0, calendar: calendar) },
             provenance: summary?.provenance.rawValue,
             coverage: summary?.coverage,
-            error: error.map { Self.makeErrorPayload($0) })
+            error: error.map { Self.makeErrorPayload($0) },
+            reportingPeriod: snapshot.map { ($0.reportingPeriod ?? .rolling(days: $0.historyDays)).rawValue },
+            historyLabel: snapshot?.periodLabel)
     }
 
     static func makeOpenCodexCostPayload(
@@ -433,6 +523,7 @@ extension CodexBarCLI {
         calendar: Calendar = .current) -> CostPayload
     {
         let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
+        let last30Days = self.last30DaysTotals(from: snapshot, calendar: calendar)
         return CostPayload(
             provider: OpenCodexUsageLog.sourceID,
             source: "opencodex",
@@ -442,19 +533,36 @@ extension CodexBarCLI {
             sessionCostUSD: snapshot.sessionCostUSD,
             historyDays: snapshot.historyDays,
             historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
-            last30DaysTokens: snapshot.last30DaysTokens,
-            last30DaysCostUSD: snapshot.last30DaysCostUSD,
+            last30DaysTokens: last30Days.tokens,
+            last30DaysCostUSD: last30Days.costUSD,
             meteredCostUSD: nil,
             daily: snapshot.daily.map(self.costDailyPayload(from:)),
             projects: [],
-            totals: self.costTotals(from: snapshot),
+            totals: self.costTotals(snapshot, calendar: calendar),
             provenance: CostProvenance.listPriceEstimate.rawValue,
             coverage: summary.coverage,
-            error: nil)
+            error: nil,
+            reportingPeriod: (snapshot.reportingPeriod ?? .rolling(days: snapshot.historyDays)).rawValue,
+            historyLabel: snapshot.periodLabel)
+    }
+
+    private static func last30DaysTotals(
+        from snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) -> (tokens: Int?, costUSD: Double?)
+    {
+        guard snapshot.historyDays > 30 else {
+            return (snapshot.last30DaysTokens, snapshot.last30DaysCostUSD)
+        }
+        let summary = snapshot.summary(forLastDays: 30, calendar: calendar)
+        if summary.entryCount == 0 {
+            // This fork has no full-scan marker. An empty window cannot establish zero.
+            return (nil, nil)
+        }
+        return (summary.totalTokens, summary.totalCostUSD)
     }
 
     private static func loadOpenCodexCostPayload(
-        historyDays: Int,
+        period: CostReportingPeriod,
         calendar: Calendar,
         now: Date = Date()) async -> CostPayload?
     {
@@ -467,10 +575,10 @@ extension CodexBarCLI {
         guard let snapshot = try? store.loadSnapshot(
             logURL: logURL,
             now: now,
-            historyDays: historyDays,
+            historyDays: period.days(now: now, calendar: calendar),
             calendar: calendar)
         else { return nil }
-        return self.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
+        return self.makeOpenCodexCostPayload(snapshot: snapshot.reporting(period), calendar: calendar)
     }
 
     private static func costDailyPayload(from entry: CostUsageDailyReport.Entry) -> CostDailyEntryPayload {
@@ -496,17 +604,14 @@ extension CodexBarCLI {
             totalTokens: breakdown.totalTokens)
     }
 
-    private static func costTotals(from snapshot: CostUsageTokenSnapshot) -> CostTotalsPayload? {
+    private static func costTotals(_ snapshot: CostUsageTokenSnapshot, calendar: Calendar) -> CostTotalsPayload? {
         let entries = snapshot.daily
-        guard !entries.isEmpty else {
-            guard snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil else { return nil }
-            return CostTotalsPayload(
-                totalInputTokens: nil,
-                totalOutputTokens: nil,
-                cacheReadTokens: nil,
-                cacheCreationTokens: nil,
-                totalTokens: snapshot.last30DaysTokens,
-                totalCostUSD: snapshot.last30DaysCostUSD)
+        guard !entries.isEmpty || snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil
+        else { return nil }
+
+        func sum(_ keyPath: KeyPath<CostUsageDailyReport.Entry, Int?>) -> Int? {
+            let values = entries.compactMap { $0[keyPath: keyPath] }
+            return values.isEmpty ? nil : CheckedSum.integers(values)
         }
 
         var totalInput = 0
@@ -523,30 +628,42 @@ extension CodexBarCLI {
         var sawReasoning = false
         var sawTokens = false
         var sawCost = false
+        var overflowInput = false
+        var overflowOutput = false
+        var overflowCacheRead = false
+        var overflowCacheCreation = false
+        var overflowReasoning = false
+        var overflowTokens = false
 
         for entry in entries {
             if let input = entry.inputTokens {
-                totalInput += input
+                let (res, of) = totalInput.addingReportingOverflow(input)
+                if of { overflowInput = true } else { totalInput = res }
                 sawInput = true
             }
             if let output = entry.outputTokens {
-                totalOutput += output
+                let (res, of) = totalOutput.addingReportingOverflow(output)
+                if of { overflowOutput = true } else { totalOutput = res }
                 sawOutput = true
             }
             if let cacheRead = entry.cacheReadTokens {
-                totalCacheRead += cacheRead
+                let (res, of) = totalCacheRead.addingReportingOverflow(cacheRead)
+                if of { overflowCacheRead = true } else { totalCacheRead = res }
                 sawCacheRead = true
             }
             if let cacheCreation = entry.cacheCreationTokens {
-                totalCacheCreation += cacheCreation
+                let (res, of) = totalCacheCreation.addingReportingOverflow(cacheCreation)
+                if of { overflowCacheCreation = true } else { totalCacheCreation = res }
                 sawCacheCreation = true
             }
             if let reasoning = entry.reasoningTokens {
-                totalReasoning += reasoning
+                let (res, of) = totalReasoning.addingReportingOverflow(reasoning)
+                if of { overflowReasoning = true } else { totalReasoning = res }
                 sawReasoning = true
             }
             if let tokens = entry.totalTokens {
-                totalTokens += tokens
+                let (res, of) = totalTokens.addingReportingOverflow(tokens)
+                if of { overflowTokens = true } else { totalTokens = res }
                 sawTokens = true
             }
             if let cost = entry.costUSD {
@@ -555,24 +672,40 @@ extension CodexBarCLI {
             }
         }
 
-        let summary = snapshot.summary(forLastDays: snapshot.historyDays)
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
+        var coverage = CostUsageCoverageAccumulator()
+        for entry in entries {
+            coverage.add(entry)
+        }
         return CostTotalsPayload(
-            totalInputTokens: sawInput ? totalInput : nil,
-            totalOutputTokens: sawOutput ? totalOutput : nil,
-            cacheReadTokens: sawCacheRead ? totalCacheRead : nil,
-            cacheCreationTokens: sawCacheCreation ? totalCacheCreation : nil,
-            reasoningTokens: sawReasoning ? totalReasoning : nil,
-            totalTokens: sawTokens ? totalTokens : snapshot.last30DaysTokens,
+            totalInputTokens: (sawInput && !overflowInput) ? totalInput : nil,
+            totalOutputTokens: (sawOutput && !overflowOutput) ? totalOutput : nil,
+            cacheReadTokens: (sawCacheRead && !overflowCacheRead) ? totalCacheRead : nil,
+            cacheCreationTokens: (sawCacheCreation && !overflowCacheCreation) ? totalCacheCreation : nil,
+            reasoningTokens: (sawReasoning && !overflowReasoning) ? totalReasoning : nil,
+            totalTokens: (sawTokens && !overflowTokens) ? totalTokens : snapshot.last30DaysTokens,
             totalCostUSD: sawCost ? totalCost : snapshot.last30DaysCostUSD,
             provenance: summary.provenance.rawValue,
-            coverage: summary.coverage)
+            coverage: coverage.counts)
     }
 
-    private static func decodeCostHistoryDays(from values: ParsedValues) -> Int {
-        guard let raw = values.options["days"]?.last,
-              let parsed = Int(raw)
-        else { return 30 }
-        return max(1, min(365, parsed))
+    static func decodeCostReportingPeriod(
+        from values: ParsedValues,
+        saved: CostReportingPeriod) -> CostReportingPeriod
+    {
+        if values.options["days"] == nil, let raw = values.options["period"]?.last,
+           CostReportingPeriod(rawValue: raw) == nil
+        {
+            exit(
+                code: .failure,
+                message: "Error: --period must be month-to-date or all.",
+                output: CLIOutputPreferences.from(values: values),
+                kind: .args)
+        }
+        if let raw = values.options["days"]?.last, let days = Int(raw) {
+            return .rolling(days: max(1, min(365, days)))
+        }
+        return values.options["period"]?.last.flatMap(CostReportingPeriod.init(rawValue:)) ?? saved
     }
 
     static func decodeCostIncludePiSessions(from values: ParsedValues) -> Bool {
@@ -692,11 +825,20 @@ struct CostOptions: CommanderParsable {
         help: "Experimental: exclude pi and OMP session mirrors from Claude/Codex cost history")
     var providerNativeOnly: Bool = false
 
+    @Option(name: .long("period"), help: "Cost period: month-to-date or all; --days overrides this selection")
+    var period: String?
+
     @Option(name: .long("days"), help: "Cost history window in days (1...365)")
     var days: Int?
 
     @Option(name: .long("group-by"), help: "Group text output by: project | session")
     var groupBy: String?
+
+    @Option(name: .long("remote"), help: "Also report native Codex costs from one SSH host as a separate report")
+    var remote: String?
+
+    @Flag(name: .long("summary-only"), help: "Versioned native Codex JSON totals without account or session details")
+    var summaryOnly: Bool = false
 }
 
 struct CostPayload: Encodable, Sendable {
@@ -707,6 +849,8 @@ struct CostPayload: Encodable, Sendable {
     let sessionTokens: Int?
     let sessionCostUSD: Double?
     let historyDays: Int?
+    let reportingPeriod: String?
+    let historyLabel: String?
     let historyCoverageIsEstablished: Bool?
     let last30DaysTokens: Int?
     let last30DaysCostUSD: Double?
@@ -735,7 +879,9 @@ struct CostPayload: Encodable, Sendable {
         totals: CostTotalsPayload?,
         provenance: String? = nil,
         coverage: CostUsageCoverageCounts? = nil,
-        error: ProviderErrorPayload?)
+        error: ProviderErrorPayload?,
+        reportingPeriod: String? = nil,
+        historyLabel: String? = nil)
     {
         self.provider = provider
         self.source = source
@@ -744,6 +890,8 @@ struct CostPayload: Encodable, Sendable {
         self.sessionTokens = sessionTokens
         self.sessionCostUSD = sessionCostUSD
         self.historyDays = historyDays
+        self.reportingPeriod = reportingPeriod
+        self.historyLabel = historyLabel
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
         self.last30DaysTokens = last30DaysTokens
         self.last30DaysCostUSD = last30DaysCostUSD

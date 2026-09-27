@@ -251,6 +251,7 @@
 "No credits history data." = "暂无额度记录。";
 "No data available" = "无可用数据";
 "No data yet" = "暂无数据";
+"Workspaces" = "工作区";
 "No enabled providers available for Overview." = "“概览”中没有可用的已启用提供商。";
 "No providers selected" = "未选择提供商";
 "No token accounts yet." = "尚无令牌账户。";
@@ -505,6 +506,7 @@
 "cost_summary_style_inline_help" = "直接在主菜单中显示费用摘要。";
 "cost_summary_style_submenu_help" = "改为显示详细的费用子菜单。";
 "cost_summary_style_both_help" = "同时显示主菜单摘要和详细的费用子菜单。";
+"Month to date" = "本月至今";
 "cost_history_window_title" = "历史窗口";
 "cost_history_window_help" = "设置菜单中显示多少天的本地使用日志。";
 "cost_history_days_title" = "历史窗口：%d 天";
@@ -598,6 +600,12 @@
 "cost_summary_off" = "关闭";
 "merge_icons_title" = "合并图标";
 "merge_icons_subtitle" = "使用单个菜单栏图标并带提供商切换器。";
+"merged_icon_style_title" = "合并图标样式";
+"merged_icon_style_subtitle" = "“切换”逐个轮流显示各提供方；“堆叠”同时显示两个提供方,各占一行。";
+"merged_icon_style_switcher" = "切换";
+"merged_icon_style_stacked" = "堆叠";
+"merge_icon_stacked_top_provider_title" = "上排";
+"merge_icon_stacked_bottom_provider_title" = "下排";
 "show_most_used_provider_title" = "显示用量最高的提供商";
 "show_most_used_provider_subtitle" = "菜单栏会自动显示最接近速率限制的提供商。";
 "display_mode_title" = "显示模式";
@@ -846,6 +854,12 @@
 "usage_percent_suffix_used" = "已使用";
 "Store multiple DeepSeek API keys." = "存储多个 DeepSeek API 密钥。";
 "This week" = "本周";
+"Current window" = "当前窗口";
+"Last week" = "上周";
+"%d weeks ago" = "%d 周前";
+"Previous window" = "上一窗口";
+"%d windows ago" = "%d 个窗口前";
+"Recent windows" = "最近窗口";
 "Week" = "本周";
 "Month" = "本月";
 "Models" = "模型";
@@ -1328,6 +1342,8 @@
 "Tracked tokens" = "已跟踪 token";
 "Subscriptions" = "订阅";
 "By subscription" = "按订阅";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "暂无模型级历史";
 "Daily estimated spend" = "每日估算支出";
 "Hourly estimated spend" = "每小时估算支出";
@@ -1445,6 +1461,33 @@
 "%d more accounts ready" = "另有 %d 个账户可用";
 "Shows the hidden accounts" = "显示隐藏的账户";
 "%@ remaining" = "剩余 %@";
+"codex_workspaces_cost_unavailable" = "费用不可用";
+"codex_workspaces_elevated_usage" = "使用量偏高";
+"codex_workspaces_estimated_cost_short" = "预估费用";
+"codex_workspaces_estimated_cost_value" = "预估 %@";
+"codex_workspaces_estimated_local_logs" = "根据本地 Codex 日志估算";
+"codex_workspaces_failed_read_logs" = "无法读取 Codex 日志";
+"codex_workspaces_high_usage" = "高使用量";
+"codex_workspaces_indexing_local_logs" = "正在索引本地 Codex 日志…";
+"codex_workspaces_indexing_projects" = "正在索引项目…";
+"codex_workspaces_local_codex_chat" = "本地 Codex 聊天";
+"codex_workspaces_model" = "模型";
+"codex_workspaces_no_local_usage" = "尚无本地 Codex 使用记录";
+"codex_workspaces_no_sessions" = "此工作区中没有会话";
+"codex_workspaces_normal_usage" = "正常使用量";
+"codex_workspaces_partial_data" = "部分数据";
+"codex_workspaces_refresh_usage_data" = "刷新使用情况数据";
+"codex_workspaces_retry" = "重试";
+"codex_workspaces_saving_project_index" = "正在保存项目索引…";
+"codex_workspaces_scanning_logs" = "正在扫描 Codex 日志…";
+"codex_workspaces_session" = "会话";
+"codex_workspaces_session_count" = "会话: %@";
+"codex_workspaces_sessions" = "会话";
+"codex_workspaces_started" = "已开始";
+"codex_workspaces_title" = "工作区";
+"codex_workspaces_token_count_accessibility" = "%@ 个令牌";
+"codex_workspaces_tokens" = "令牌";
+"codex_workspaces_top_model" = "热门模型";
 "Finish now" = "立即完成";
 "Continue in background" = "转为后台运行";
 "(%d%% risk)" = "(%d%% 耗尽风险)";
@@ -1461,6 +1504,7 @@
 "More" = "多";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "安装…";
 "Install plugin" = "安装插件";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "将 JavaScript 或 TypeScript 文件复制到插件目录。";
@@ -1575,3 +1619,29 @@
 "Restore Defaults" = "恢复默认设置";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "选择要在此提供商的菜单、设置预览和概览中显示的用量行。";
 "%@ (unavailable)" = "%@（不可用）";
+"overview_layout_title" = "概览布局";
+"overview_layout_subtitle" = "选择“概览”显示的信息量。";
+"overview_layout_detailed" = "详细";
+"overview_layout_compact" = "紧凑";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "估算小计（%@）：%@";
+"Excluded requests with missing final usage: %d" = "因缺少最终用量而排除的请求：%d";
+"antigravity_cost_estimate_hint" = "本地用量 × 公开 API 价格 · 并非 Antigravity 账单或额度";
+"antigravity_quota_window_note" = "窗口费用涵盖所有模型 · 所示窗口为最受限的模型系列";
+"antigravity_no_priced_token_history" = "没有可计价的 Antigravity 令牌历史记录。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "分享用量概览…";
+"Usage snapshot unavailable" = "用量概览不可用";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit 无法准备可分享的用量概览。请刷新“用量和支出”后重试。";
+
+/* Account widgets */
+"section_widgets" = "小组件";
+"account_widgets_title" = "为小组件保持账户更新";
+"account_widgets_description" = "在每个 Account Usage 小组件中选择一个账户。每个服务商最多刷新六个账户。";
+"claude_limited_usage_detail" = "用量详情有限";
+"%@ weekly" = "%@ 每周";
+
+"Color Pace Indicator" = "用颜色显示使用节奏";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "使用量低于预期进度时显示绿色（有余量）；高于预期时显示红色（可能提前耗尽配额）。";

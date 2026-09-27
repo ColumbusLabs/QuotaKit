@@ -16,6 +16,12 @@ struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, Expressib
     static let weekly: Self = "weekly"
     static let monthly: Self = "monthly"
     static let opus: Self = "opus"
+    static let antigravityGemini: Self = "antigravityGemini"
+    static let antigravityClaudeGPT: Self = "antigravityClaudeGPT"
+
+    var isQuotaObservation: Bool {
+        self == .antigravityGemini || self == .antigravityClaudeGPT
+    }
 
     func canonicalWindowMinutes(_ windowMinutes: Int) -> Int {
         switch self {
@@ -33,12 +39,29 @@ struct PlanUtilizationHistoryEntry: Codable, Equatable, Hashable, Sendable {
     let capturedAt: Date
     let usedPercent: Double
     let resetsAt: Date?
+
+    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if lhs.capturedAt != rhs.capturedAt { return lhs.capturedAt < rhs.capturedAt }
+        if lhs.usedPercent != rhs.usedPercent { return lhs.usedPercent < rhs.usedPercent }
+        let lhsReset = lhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
+        let rhsReset = rhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
+        return lhsReset < rhsReset
+    }
 }
 
 struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
     let name: PlanUtilizationSeriesName
     let windowMinutes: Int
     let entries: [PlanUtilizationHistoryEntry]
+
+    var hasSupportedCadence: Bool {
+        self.windowMinutes > 0 || (self.windowMinutes == 0 && self.name.isQuotaObservation)
+    }
+
+    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if lhs.windowMinutes != rhs.windowMinutes { return lhs.windowMinutes < rhs.windowMinutes }
+        return lhs.name.rawValue < rhs.name.rawValue
+    }
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -49,17 +72,7 @@ struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
     init(name: PlanUtilizationSeriesName, windowMinutes: Int, entries: [PlanUtilizationHistoryEntry]) {
         self.name = name
         self.windowMinutes = windowMinutes
-        self.entries = entries.sorted { lhs, rhs in
-            if lhs.capturedAt != rhs.capturedAt {
-                return lhs.capturedAt < rhs.capturedAt
-            }
-            if lhs.usedPercent != rhs.usedPercent {
-                return lhs.usedPercent < rhs.usedPercent
-            }
-            let lhsReset = lhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            let rhsReset = rhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            return lhsReset < rhsReset
-        }
+        self.entries = entries.sorted(by: PlanUtilizationHistoryEntry.precedes)
     }
 
     init(from decoder: any Decoder) throws {
@@ -343,18 +356,13 @@ struct PlanUtilizationHistoryStore: Sendable {
     }
 
     private static func sortedHistories(_ histories: [PlanUtilizationSeriesHistory]) -> [PlanUtilizationSeriesHistory] {
-        self.sanitizedHistories(histories).sorted { lhs, rhs in
-            if lhs.windowMinutes != rhs.windowMinutes {
-                return lhs.windowMinutes < rhs.windowMinutes
-            }
-            return lhs.name.rawValue < rhs.name.rawValue
-        }
+        self.sanitizedHistories(histories).sorted(by: PlanUtilizationSeriesHistory.precedes)
     }
 
     private static func sanitizedHistories(_ histories: [PlanUtilizationSeriesHistory])
     -> [PlanUtilizationSeriesHistory] {
         histories.filter { history in
-            history.windowMinutes > 0 && !history.entries.isEmpty
+            history.hasSupportedCadence && !history.entries.isEmpty
         }
     }
 

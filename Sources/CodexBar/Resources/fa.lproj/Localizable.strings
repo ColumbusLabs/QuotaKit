@@ -228,6 +228,7 @@
 "No cost history data." = "داده های تاریخچه رایگان.";
 "No data available" = "داده ای در دسترس نیست";
 "No data yet" = "هنوز داده ای وجود ندارد";
+"Workspaces" = "فضاهای کاری";
 "No enabled providers available for Overview." = "هیچ ارائه دهنده فعالی برای مرور کلی در دسترس نیست.";
 "No providers selected" = "هیچ ارائه دهنده ای انتخاب نشده است";
 "No token accounts yet." = "هنوز حساب توکنی ندارم.";
@@ -481,6 +482,7 @@
 "cost_summary_style_inline_help" = "خلاصه هزینه را مستقیماً در منوی اصلی نشان می‌دهد.";
 "cost_summary_style_submenu_help" = "در عوض زیرمنوی جزئیات هزینه را نشان می‌دهد.";
 "cost_summary_style_both_help" = "هم خلاصه منوی اصلی و هم زیرمنوی جزئیات هزینه را نشان می‌دهد.";
+"Month to date" = "از ابتدای ماه تاکنون";
 "cost_history_window_title" = "پنجره تاریخچه";
 "cost_history_window_help" = "تعیین می‌کند چند روز از گزارش‌های استفاده محلی در منو نشان داده شود.";
 "cost_history_days_title" = "پنجره تاریخچه: %d روز";
@@ -621,6 +623,12 @@
 "cost_summary_off" = "خاموش";
 "merge_icons_title" = "آیکون های ادغام";
 "merge_icons_subtitle" = "از یک آیکون نوار منو با یک تغییر دهنده ارائه دهنده استفاده کنید.";
+"merged_icon_style_title" = "سبک نماد ترکیبی";
+"merged_icon_style_subtitle" = "تعویض‌گر بین ارائه‌دهنده‌ها یکی‌یکی می‌چرخد؛ پشته‌ای دو ارائه‌دهنده را همزمان، هرکدام در یک ردیف، نمایش می‌دهد.";
+"merged_icon_style_switcher" = "تعویض‌گر";
+"merged_icon_style_stacked" = "پشته‌ای";
+"merge_icon_stacked_top_provider_title" = "ردیف بالا";
+"merge_icon_stacked_bottom_provider_title" = "ردیف پایین";
 "show_most_used_provider_title" = "نمایش ارائه دهنده پرکاربرد";
 "show_most_used_provider_subtitle" = "نوار منو به طور خودکار ارائه دهنده ای را نشان می دهد که به محدودیت نرخ خود نزدیک تر است.";
 "display_mode_title" = "حالت نمایش";
@@ -889,6 +897,12 @@
 "usage_percent_suffix_used" = "استفاده شده";
 "Store multiple DeepSeek API keys." = "چند کلید DeepSeek API را ذخیره کنید.";
 "This week" = "این هفته";
+"Current window" = "پنجره فعلی";
+"Last week" = "هفته گذشته";
+"%d weeks ago" = "%d هفته پیش";
+"Previous window" = "پنجره قبلی";
+"%d windows ago" = "%d پنجره پیش";
+"Recent windows" = "پنجره‌های اخیر";
 "Week" = "هفته";
 "Month" = "ماه";
 "Models" = "مدل ها";
@@ -1352,6 +1366,8 @@
 "Tracked tokens" = "توکن‌های پیگیری‌شده";
 "Subscriptions" = "اشتراک‌ها";
 "By subscription" = "بر اساس اشتراک";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "تاریخچه‌ای در سطح مدل وجود ندارد";
 "Daily estimated spend" = "برآورد هزینه روزانه";
 "Hourly estimated spend" = "برآورد هزینه ساعتی";
@@ -1448,6 +1464,33 @@
 "%d more accounts ready" = "%d حساب دیگر آماده است";
 "Shows the hidden accounts" = "حساب‌های پنهان را نشان می‌دهد";
 "%@ remaining" = "%@ باقی‌مانده";
+"codex_workspaces_estimated_cost_short" = "هزینهٔ تخمینی";
+"codex_workspaces_estimated_cost_value" = "تخمینی %@";
+"codex_workspaces_estimated_local_logs" = "برآوردشده از گزارش‌های محلی Codex";
+"codex_workspaces_failed_read_logs" = "خواندن گزارش‌های Codex ناموفق بود";
+"codex_workspaces_indexing_local_logs" = "در حال فهرست‌سازی گزارش‌های محلی Codex…";
+"codex_workspaces_indexing_projects" = "در حال فهرست‌سازی پروژه‌ها…";
+"codex_workspaces_local_codex_chat" = "گفتگوی محلی Codex";
+"codex_workspaces_no_local_usage" = "هنوز استفادهٔ محلی از Codex وجود ندارد";
+"codex_workspaces_saving_project_index" = "در حال ذخیرهٔ فهرست پروژه…";
+"codex_workspaces_scanning_logs" = "در حال پویش گزارش‌های Codex…";
+"codex_workspaces_session_count" = "نشست‌ها: %@";
+"codex_workspaces_sessions" = "نشست‌ها";
+"codex_workspaces_title" = "فضاهای کاری";
+"codex_workspaces_tokens" = "توکن‌ها";
+"codex_workspaces_token_count_accessibility" = "%@ توکن";
+"codex_workspaces_top_model" = "مدل برتر";
+"codex_workspaces_cost_unavailable" = "هزینه در دسترس نیست";
+"codex_workspaces_refresh_usage_data" = "تازه‌سازی داده‌های استفاده";
+"codex_workspaces_retry" = "دوباره امتحان کنید";
+"codex_workspaces_partial_data" = "داده‌های جزئی";
+"codex_workspaces_high_usage" = "استفادهٔ زیاد";
+"codex_workspaces_elevated_usage" = "استفادهٔ بالاتر";
+"codex_workspaces_normal_usage" = "استفادهٔ عادی";
+"codex_workspaces_no_sessions" = "در این فضای کاری نشستی وجود ندارد";
+"codex_workspaces_session" = "نشست";
+"codex_workspaces_model" = "مدل";
+"codex_workspaces_started" = "آغازشده";
 "Finish now" = "اکنون تمام شود";
 "Continue in background" = "ادامه در پس‌زمینه";
 "(%d%% risk)" = "(%d%% خطر تمام شدن)";
@@ -1464,6 +1507,7 @@
 "More" = "بیشتر";
 
 /* Provider Plugins */
+"Plugins" = "Plugins";
 "Install…" = "نصب…";
 "Install plugin" = "نصب افزونه";
 "Copies a JavaScript or TypeScript file into the plugins directory." = "یک فایل JavaScript یا TypeScript را در پوشهٔ افزونه‌ها کپی می‌کند.";
@@ -1567,3 +1611,29 @@
 "Restore Defaults" = "بازیابی پیش‌فرض‌ها";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "انتخاب کنید کدام ردیف‌های استفاده در منوی این ارائه‌دهنده، پیش‌نمایش تنظیمات و نمای کلی نمایش داده شوند.";
 "%@ (unavailable)" = "%@ (در دسترس نیست)";
+"overview_layout_title" = "چیدمان نمای کلی";
+"overview_layout_subtitle" = "میزان اطلاعات نمایش‌داده‌شده در نمای کلی را انتخاب کنید.";
+"overview_layout_detailed" = "با جزئیات";
+"overview_layout_compact" = "فشرده";
+
+/* Antigravity local cost and partial coverage */
+"Est. subtotal (%@): %@" = "جمع جزئی تخمینی (%@): %@";
+"Excluded requests with missing final usage: %d" = "درخواست‌های حذف‌شده به دلیل نبود داده‌های مصرف نهایی: %d";
+"antigravity_cost_estimate_hint" = "مصرف محلی × قیمت‌های عمومی API · هزینه یا اعتبار Antigravity نیست";
+"antigravity_quota_window_note" = "هزینهٔ بازه همهٔ مدل‌ها را دربر می‌گیرد · بازهٔ نمایش‌داده‌شده محدودترین خانواده است";
+"antigravity_no_priced_token_history" = "تاریخچهٔ قیمت‌گذاری‌شدهٔ توکن Antigravity موجود نیست.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "اشتراک‌گذاری نمای کلی استفاده…";
+"Usage snapshot unavailable" = "نمای کلی استفاده در دسترس نیست";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit نتوانست نمای کلی استفاده قابل اشتراک‌گذاری را آماده کند. استفاده و هزینه را تازه‌سازی کنید و دوباره امتحان کنید.";
+
+/* Account widgets */
+"section_widgets" = "ویجت‌ها";
+"account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
+"account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";
+"claude_limited_usage_detail" = "جزئیات استفاده محدود است";
+"%@ weekly" = "%@ هفتگی";
+
+"Color Pace Indicator" = "رنگ‌بندی آهنگ مصرف";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "سبز وقتی مصرف از آهنگ مورد انتظار عقب‌تر است (ذخیره)؛ قرمز وقتی جلوتر است (خطر تمام شدن زودهنگام سهمیه).";

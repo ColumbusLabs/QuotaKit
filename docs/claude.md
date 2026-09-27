@@ -9,6 +9,12 @@ read_when:
 
 # Claude provider
 
+Claude Web distinguishes Cloudflare challenges from expired sessions. The menu directs a
+challenged account to Claude provider settings for an OAuth source or network change while
+keeping cached cookies and the last successful usage. A successful CLI quota read can offer
+account actions even when optional identity fields are absent. Restored percentage-only history
+shows a neutral limited-detail note, and model-scoped weekly labels are localized in the menu.
+
 Claude supports three usage data paths plus local cost usage. The main provider pipeline uses runtime-specific
 automatic selection, but the codebase still has multiple active Claude `.auto` decision sites while the refactor is
 pending. For the exact current-state parity contract, see
@@ -46,6 +52,19 @@ Admin API key setup:
   - Inline 30-day dashboard chart when daily buckets are present.
   - Identity login method: `Admin API`.
 
+### Optional workspace spend
+
+Enable **Show workspace spend** in Settings → Providers → Claude, set `claudeWorkspaceSpendEnabled: true` on the
+Claude provider config entry, or set `ANTHROPIC_ADMIN_WORKSPACE_SPEND=true`. It is off by default and applies only
+to the Admin API source.
+
+The existing [cost report](https://platform.claude.com/docs/en/api/admin/cost_report/retrieve) request adds
+`group_by[]=workspace_id` alongside `group_by[]=description`; no extra request or credentials are required.
+The organization totals, cost items, token summaries, and daily chart remain unchanged. When more than one workspace
+has cost rows, **Workspace spend · 30d** shows up to 20 workspaces, highest spend first, over the same 30-day buckets
+as the organization total. Labels use workspace IDs; a null workspace is **Default**. Amounts are converted from
+Anthropic's USD cents to dollars. A single workspace keeps the existing organization view.
+
 ## Keychain prompt policy (Claude OAuth)
 - Preferences → Providers → Claude → Keychain prompt policy.
 - Options:
@@ -53,8 +72,12 @@ Admin API key setup:
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
   - `Always allow prompts`: allows interactive prompts in both user and background flows.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
+- The experimental `/usr/bin/security` reader follows the stored policy: background reads that can prompt require
+  `Always allow prompts` and an explicitly permitted QuotaKit operation. `Never prompt` blocks this reader.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
+- An expired cached token is checked against the live Claude Keychain entry when no-prompt access is available;
+  background refresh does not open an interactive Keychain prompt.
 
 ### Debug selection (debug menu enabled)
 - The Debug pane can force OAuth / Web / CLI.
@@ -66,6 +89,8 @@ Admin API key setup:
   - QuotaKit OAuth cache when available.
   - File fallback: `~/.claude/.credentials.json`.
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
+- Fresh credentials from an allowed source can replace a QuotaKit-owned OAuth cache item whose ACL rejects the
+  current build. This uses no-UI Keychain operations and does not delete Claude Code's credential item.
 - On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
 - Missing-scope recovery requires a Claude Code sign-in token with `user:profile` usage access. `claude setup-token`
@@ -86,9 +111,13 @@ Admin API key setup:
   - `seven_day_routines` / `seven_day_cowork` → Daily Routines extra window.
   - Claude Design/Omelette keys are ignored because Claude Design shares the main Claude usage limit.
   - `extra_usage` → Extra usage cost (monthly spend/limit).
-- Preferences → Providers → Claude → Show Daily Routines usage hides only the Daily Routines row in menus and the
-  provider preview. The global optional credits and extra usage setting is its master switch. The Claude-specific
-  setting does not change fetching, history, notifications, widgets, hooks, model-scoped weekly limits, or CLI output.
+- Preferences → Providers → Claude → Visible usage items lets you hide the Daily Routines row in menus, the Settings
+  preview, and Overview. The global optional credits and extra usage setting remains its master switch. Hiding this
+  row does not change fetching, history, notifications, widgets, model-scoped weekly limits, hooks, or CLI output.
+- Preferences → Providers → Claude → Show model-specific weekly usage in widgets controls model-scoped weekly quota
+  rows in desktop widgets. It is on by default and displays every known Claude window with a
+  `claude-weekly-scoped-` identifier (for example, Fable). It does not change fetching, the menu, history,
+  notifications, hooks, or CLI output.
 - Successful OAuth login enables Claude and preserves the selected usage source. With the default Auto source, OAuth
   remains preferred when readable, while CLI/Web fallback stays available when OAuth credentials are not usable.
 - Plan inference: `subscriptionType` is preferred when present; `rate_limit_tier` falls back to
@@ -108,6 +137,8 @@ Admin API key setup:
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
   3) Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
+- A stale cached browser cookie triggers a no-prompt browser session rediscovery. If rediscovery finds a session,
+  QuotaKit reports the new request's actual timeout, cancellation, or server error rather than the stale cookie error.
 - Domain: `claude.ai`.
 - Cookie name required:
   - `sessionKey` (value prefix `sk-ant-...`).
@@ -139,7 +170,8 @@ The accepted multi-account design in
   shell, fixed arguments, bounded runtime and output), requires `schemaVersion == 1`, and parses only slot number,
   active state, usage status, email (display only), display-only `organizationName` (always present, may be empty),
   optional display-only `alias` when non-empty, the 5-hour/7-day windows, and optional display-only model-scoped
-  weekly windows from `usage.scoped`. Identity stays `claude-swap:<slot>`; organization name and alias are never
+  weekly windows from `usage.scoped`, optional `usage.spend`, and source measurement times. Identity stays
+  `claude-swap:<slot>`; organization name and alias are never
   used as identity. When two or more slots share an email, cards append ` · organizationName` or ` · Account N`;
   a user-chosen cswap alias replaces that label. Unique emails stay email-only.
 - Display: when claude-swap reports more than one account, the Claude menu and `quotakit cards` show one card per
@@ -173,7 +205,7 @@ The accepted multi-account design in
   `unavailable` means claude-swap deferred polling because a window is at 100%, QuotaKit keeps that slot's last
   projected usage bars and names the exhausted window (5-hour session, 7-day weekly, and/or a scoped model such as
   Fable) plus its reset time — not "Usage fetch failed." A first refresh that is already `unavailable` with no
-  retained windows still notes that polling is deferred. Active rows are marked `[active]`; no claude-swap row infers
+  retained windows says usage is unavailable, without assuming why the source could not fetch it. Active rows are marked `[active]`; no claude-swap row infers
   a plan badge.
 - Switching: an inactive account with usable source credentials shows “Switch Account…”. Clicking it runs exactly
   `cswap --switch-to <slot> --json`, validates the versioned result and requested slot, then refreshes both ambient
@@ -183,6 +215,10 @@ The accepted multi-account design in
 - Expired, missing, unknown, or Keychain-inaccessible credentials stay non-actionable. A failed switch remains visible
   on that account without discarding its last successful usage. A running Claude Code process can take up to the
   claude-swap Keychain cache interval to observe the new account.
+- A `foreign_credential` row explains that the live credential belongs to another account. An inactive row can use
+  the existing explicit slot switch. An active row offers **Re-authenticate**, which runs the same
+  `cswap --switch-to <slot> --json` command to let claude-swap reconcile its own credential state, without `--force`. Clicking the active segment
+  still only inspects it; repair requires its explicit button.
 - Multiple claude-swap accounts—and a single account when explicitly enabled—take precedence over Claude
   token-account presentation (stacked cards and the segmented switcher).
 
@@ -204,6 +240,8 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
+- Usage probes pass a process-only `remoteControlAtStartup: false` setting through PTY, watchdog, and direct fallback
+  launches. Saved Claude settings and profiles are unchanged.
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
 - Probe working directory: `~/Library/Application Support/CodexBar/ClaudeProbe` with local Claude settings that disable
   deep-link URL handler registration during headless probes.
@@ -224,6 +262,11 @@ Compact multi-account layout proof (synthetic accounts and usage data):
     visible, and never derives quota percentages from spend or token totals.
 
 ## Cost usage (local log scan)
+- Claude Swap account cards accept `usageFetchedAt`, source-reported `spend`, `disabled`, and
+  `lastGoodUsage`/`lastGoodFetchedAt` from the opt-in adapter. Failed account readings can show
+  last-known quota with its capture age and an explicit diagnostic. Active foreign-credential
+  slots offer a manual re-authentication action when switching is supported. Historical quota
+  is excluded from the menu bar, widgets, and brief CLI warning/reset summaries.
 - Source roots:
   - Native Claude logs:
     - `$CLAUDE_CONFIG_DIR` (comma-separated), each root uses `<root>/projects`.
@@ -248,8 +291,17 @@ Compact multi-account layout proof (synthetic accounts and usage data):
     single pi-compatible session can contribute to multiple models/days.
   - Matching assistant entry IDs within the same session are counted once across roots; distinct turns are retained.
 - Cache:
+  - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart. Dashboard and regular report windows keep separate cache files so duplicate proxy responses cannot leak a winner between ranges. Oversized token components remain unavailable independently while representable components and costs stay visible.
   - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v2.json`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
+
+## Quota warnings
+
+OAuth and CLI warning episodes follow verified account identity when available. Samples without identity keep an
+independent unresolved episode, even when their reset time and remaining quota resemble the last known account.
+Credential changes retire unresolved quota and predictive episodes while preserving known account and OAuth-owner
+histories. A verified OAuth owner mapping can reconcile owner-scoped thresholds with the account; hooks and
+predictive warnings keep their own source keys.
 
 ## Key files
 - OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`

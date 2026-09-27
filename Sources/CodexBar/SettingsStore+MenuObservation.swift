@@ -30,6 +30,7 @@ extension SettingsStore {
         _ = self.providerChangelogLinksEnabled
         _ = self.menuBarShowsBrandIconWithPercent
         _ = self.menuBarHidesCritters
+        _ = self.menuBarColorPace
         _ = self.menuBarHighContrastOnInactiveDisplays
         _ = self.menuBarShowsHighestUsage
         _ = self.menuBarDisplayMode
@@ -37,6 +38,7 @@ extension SettingsStore {
         _ = self.kiroMenuBarDisplayMode
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
+        _ = self.accountWidgetsEnabled
         _ = self.menuBarMetricPreferencesRaw
         _ = self.menuBarLayout
         _ = self.menuBarLayoutOverrides
@@ -66,11 +68,13 @@ extension SettingsStore {
         _ = self.copilotBudgetExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
         _ = self.claudeDailyRoutinesUsageVisible
+        _ = self.claudeModelScopedWeeklyUsageVisible
         _ = self.codexSparkUsageVisible
         _ = self.openAIWebAccessEnabled
         _ = self.openAIWebBatterySaverEnabled
         _ = self.backgroundWorkLowPowerModePreference
         _ = self.providerStorageFootprintsEnabled
+        _ = self.stayAwakeEnabled
         _ = self.agentSessionsEnabled
         _ = self.agentSessionLabelStyle
         _ = self.agentSessionsManualHosts
@@ -97,7 +101,11 @@ extension SettingsStore {
         _ = self.zoomMateCookieSource
         _ = self.ollamaCookieSource
         _ = self.mergeIcons
+        _ = self.mergedOverviewLayout
         _ = self.switcherShowsIcons
+        _ = self.mergeIconsStacked
+        _ = self.mergeIconStackedTopProviderRaw
+        _ = self.mergeIconStackedBottomProviderRaw
         _ = self.mergedOverviewSelectedProviders
         _ = self.zaiAPIToken
         _ = self[providerConfig: .synthetic, field: .apiKey]

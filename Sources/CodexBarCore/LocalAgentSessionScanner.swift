@@ -61,6 +61,7 @@ private final class TrustedCodexAppServerCache: @unchecked Sendable {
 public struct LocalAgentSessionScanner: Sendable {
     typealias ProcessOutputProvider = @Sendable ([String: String]) async -> String
     typealias CWDProvider = @Sendable ([Int32], [String: String]) async -> [Int32: String]
+    typealias ProcessEnvironmentProvider = @Sendable ([Int32]) async -> [Int32: [String: String]]
     typealias AppServerTrustValidator = @Sendable (String) -> Bool
     typealias AppServerExecutablePathProvider = @Sendable (Int32) -> String?
     typealias AppServerArgumentsProvider = @Sendable (Int32) -> [String]?
@@ -88,6 +89,7 @@ public struct LocalAgentSessionScanner: Sendable {
     private let trustedCodexAppServerCache = TrustedCodexAppServerCache()
     private let processOutputProvider: ProcessOutputProvider?
     private let cwdProvider: CWDProvider?
+    private let processEnvironmentProvider: ProcessEnvironmentProvider?
     private let appServerTrustValidator: AppServerTrustValidator
     private let appServerExecutablePathProvider: AppServerExecutablePathProvider
     private let appServerArgumentsProvider: AppServerArgumentsProvider
@@ -98,6 +100,7 @@ public struct LocalAgentSessionScanner: Sendable {
         self.config = config
         self.processOutputProvider = nil
         self.cwdProvider = nil
+        self.processEnvironmentProvider = nil
         self.appServerTrustValidator = { CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0) }
         self.appServerExecutablePathProvider = Self.runningExecutablePath
         self.appServerArgumentsProvider = Self.runningArguments
@@ -109,6 +112,7 @@ public struct LocalAgentSessionScanner: Sendable {
         config: SessionScanConfig = SessionScanConfig(),
         processOutputProvider: @escaping ProcessOutputProvider,
         cwdProvider: @escaping CWDProvider,
+        processEnvironmentProvider: ProcessEnvironmentProvider? = nil,
         appServerTrustValidator: @escaping AppServerTrustValidator = {
             CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0)
         },
@@ -122,6 +126,7 @@ public struct LocalAgentSessionScanner: Sendable {
         self.config = config
         self.processOutputProvider = processOutputProvider
         self.cwdProvider = cwdProvider
+        self.processEnvironmentProvider = processEnvironmentProvider
         self.appServerTrustValidator = appServerTrustValidator
         self.appServerExecutablePathProvider = appServerExecutablePathProvider
         self.appServerArgumentsProvider = appServerArgumentsProvider
@@ -135,11 +140,7 @@ public struct LocalAgentSessionScanner: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         includeFileOnlySessions: Bool = true) async -> [AgentSession]
     {
-        let allProcesses = if let processOutputProvider = self.processOutputProvider {
-            await AgentPSOutputParser.parse(processOutputProvider(environment))
-        } else {
-            await self.processRecords(environment: environment)
-        }
+        let allProcesses = await self.processRecords(environment: environment)
         let processes = Array(AgentSessionCorrelation.newestProcessesFirst(
             AgentPSOutputParser.agentProcesses(from: allProcesses))
             .prefix(max(0, self.config.maxProcessCount)))
@@ -238,6 +239,66 @@ public struct LocalAgentSessionScanner: Sendable {
             directoryBudget: &directoryBudget)
     }
 
+    /// Returns the project directories of live Pi processes so historical cost scans can resolve
+    /// project-level `.pi/settings.json` without assuming the app's own current directory.
+    @concurrent
+    public func piWorkingDirectories(
+        environment: [String: String] = ProcessInfo.processInfo.environment) async -> [URL]
+    {
+        let contexts = await self.piSessionProcessContexts(environment: environment)
+        var seen = Set<String>()
+        return contexts.compactMap { context in
+            guard let workingDirectory = context.workingDirectory,
+                  seen.insert(workingDirectory.path).inserted
+            else { return nil }
+            return workingDirectory
+        }
+    }
+
+    /// Returns the command selectors and project directories of live Pi-family processes so cost scans can
+    /// resolve process-owned `--session-dir` and `--profile` choices alongside project settings.
+    @concurrent
+    public func piSessionProcessContexts(
+        environment: [String: String] = ProcessInfo.processInfo.environment) async -> [PiSessionProcessContext]
+    {
+        let allProcesses = await self.processRecords(environment: environment)
+        // Provider-specific by design: only Pi processes provide project roots for Pi history resolution.
+        // Keep every process through context resolution first so duplicate processes do not consume the
+        // process budget before an older process with a distinct session root is considered.
+        let processes = AgentSessionCorrelation.newestProcessesFirst(
+            AgentPSOutputParser.agentProcesses(from: allProcesses)
+                .filter { AgentPSOutputParser.provider(for: $0) == .pi })
+        guard !processes.isEmpty, self.config.maxProcessCount > 0 else { return [] }
+
+        let cwdByPID = if let cwdProvider = self.cwdProvider {
+            await cwdProvider(processes.map(\.pid), environment)
+        } else {
+            await self.cwdByPID(processes.map(\.pid), environment: environment)
+        }
+        var seen = Set<String>()
+        let distinctContexts: [PiSessionProcessContext] = processes.compactMap { process in
+            let workingDirectory = cwdByPID[process.pid]
+                .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            // Keep unresolved selectors so missing CWD evidence cannot turn unknown history into zero.
+            let context = PiSessionProcessContext(
+                command: process.command,
+                arguments: process.arguments,
+                workingDirectory: workingDirectory,
+                selectorEnvironment: process.piSelectorEnvironment)
+            let key = PiFamilySessionScanner.processRootSelectorKey(context)
+            guard seen.insert(key).inserted else { return nil }
+            return context
+        }
+        return distinctContexts
+            .prefix(max(0, self.config.maxProcessCount))
+            .sorted {
+                $0.workingDirectory?.path == $1.workingDirectory?.path
+                    ? $0.command < $1.command
+                    : ($0.workingDirectory?.path ?? "<unresolved-cwd>") <
+                    ($1.workingDirectory?.path ?? "<unresolved-cwd>")
+            }
+    }
+
     public static func shouldScanSessionMetadata(
         hasAgentProcesses: Bool,
         includeFileOnlySessions: Bool,
@@ -251,7 +312,7 @@ public struct LocalAgentSessionScanner: Sendable {
         DarwinProcessEnumerator.executablePath(pid: pid)
         #else
         _ = pid
-        nil
+        return nil
         #endif
     }
 
@@ -260,7 +321,7 @@ public struct LocalAgentSessionScanner: Sendable {
         DarwinProcessEnumerator.commandArguments(pid: pid)
         #else
         _ = pid
-        nil
+        return nil
         #endif
     }
 
@@ -465,6 +526,7 @@ public struct LocalAgentSessionScanner: Sendable {
                     lastActivityAt: rollout?.modifiedAt,
                     transcriptPath: rollout?.url.path,
                     host: context.host))
+            // Provider-specific by design: Pi-family processes are correlated by PiFamilySessionScanner.
             case .pi:
                 continue
             }
@@ -504,12 +566,24 @@ public struct LocalAgentSessionScanner: Sendable {
     }
 
     private func processRecords(environment: [String: String]) async -> [AgentProcessRecord] {
+        if let processOutputProvider = self.processOutputProvider {
+            let records = await AgentPSOutputParser.parse(processOutputProvider(environment))
+            guard let processEnvironmentProvider = self.processEnvironmentProvider else { return records }
+            let piPIDs = records.filter { AgentPSOutputParser.piDialect(for: $0) != nil }.map(\.pid)
+            guard !piPIDs.isEmpty else { return records }
+            let environments = await processEnvironmentProvider(piPIDs)
+            return records.map { record in
+                guard AgentPSOutputParser.piDialect(for: record) != nil else { return record }
+                return Self.withPiSelectorEnvironment(environments[record.pid], record: record)
+            }
+        }
         #if canImport(Darwin)
         return DarwinProcessEnumerator.allPIDs().compactMap { pid in
             guard let bsdInfo = DarwinProcessEnumerator.bsdInfo(pid: pid),
                   let executablePath = DarwinProcessEnumerator.executablePath(pid: pid)
             else { return nil }
-            let arguments = DarwinProcessEnumerator.commandArguments(pid: pid)
+            let processArguments = DarwinProcessEnumerator.argumentsWithPiSelectorEnvironment(pid: pid)
+            let arguments = processArguments?.arguments
             let command = arguments?.joined(separator: " ") ?? executablePath
             return AgentProcessRecord(
                 pid: pid,
@@ -517,11 +591,36 @@ public struct LocalAgentSessionScanner: Sendable {
                 startedAt: bsdInfo.startTime,
                 command: command,
                 executablePath: executablePath,
-                arguments: arguments)
+                arguments: arguments,
+                piSelectorEnvironment: processArguments?.piSelectorEnvironment)
         }
         #else
-        return await AgentPSOutputParser.parse(self.processOutput(environment: environment))
+        let records = await AgentPSOutputParser.parse(self.processOutput(environment: environment))
+        #if os(Linux)
+        return records.map { record in
+            guard AgentPSOutputParser.piDialect(for: record) != nil else { return record }
+            return Self.withPiSelectorEnvironment(
+                PiProcessEnvironment.readLinuxEnvironment(pid: record.pid),
+                record: record)
+        }
+        #else
+        return records
         #endif
+        #endif
+    }
+
+    private static func withPiSelectorEnvironment(
+        _ environment: [String: String]?,
+        record: AgentProcessRecord) -> AgentProcessRecord
+    {
+        AgentProcessRecord(
+            pid: record.pid,
+            ppid: record.ppid,
+            startedAt: record.startedAt,
+            command: record.command,
+            executablePath: record.executablePath,
+            arguments: record.arguments,
+            piSelectorEnvironment: environment)
     }
 
     #if !canImport(Darwin)
@@ -584,7 +683,8 @@ public struct LocalAgentSessionScanner: Sendable {
 
         let candidates = days.flatMap { day -> [(url: URL, modifiedAt: Date)] in
             let directory = root.appendingPathComponent(formatter.string(from: day), isDirectory: true)
-            return directoryBudget.files(in: directory, fileManager: fileManager).compactMap { file in
+            let files = directoryBudget.files(in: directory, fileManager: fileManager)
+            return directoryBudget.compactMapWhileTimeRemains(files) { file in
                 guard file.lastPathComponent.hasPrefix("rollout-"), file.pathExtension == "jsonl",
                       let modifiedAt = try? file.resourceValues(
                           forKeys: [.contentModificationDateKey]).contentModificationDate

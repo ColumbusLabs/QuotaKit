@@ -810,6 +810,8 @@ extension StatusMenuTokenAccountSwitcherTests {
         await store.refreshProvider(.claude)
         XCTAssertEqual(store.snapshot(for: .claude)?.primary?.usedPercent, 45)
         XCTAssertEqual(store.sourceLabel(for: .claude), "fixture")
+        let previousCacheKey = store.accountSnapshots[.claude]?.first?.cacheKey
+        XCTAssertNotNil(previousCacheKey)
 
         if let account {
             settings.updateTokenAccount(provider: .claude, accountID: account.id, token: "rotated-p1")
@@ -822,7 +824,21 @@ extension StatusMenuTokenAccountSwitcherTests {
         XCTAssertNil(store.snapshot(for: .claude))
         XCTAssertNil(store.lastSourceLabels[.claude])
         XCTAssertNil(store.lastKnownResetSnapshots[.claude])
-        XCTAssertNil(store.accountSnapshots[.claude])
+        XCTAssertEqual(store.accountSnapshots[.claude]?.count, 1)
+        guard let failed = store.accountSnapshots[.claude]?.first,
+              let selected = settings.selectedTokenAccount(for: .claude)
+        else {
+            XCTFail("Expected a failure entry for the selected Claude account")
+            return
+        }
+        XCTAssertEqual(failed.account.id, selected.id)
+        XCTAssertEqual(failed.account.token, "rotated-p1")
+        XCTAssertEqual(failed.cacheKey, store.tokenAccountSnapshotCacheKey(provider: .claude, account: selected))
+        XCTAssertNotEqual(Optional(failed.cacheKey), previousCacheKey)
+        XCTAssertNil(failed.snapshot)
+        XCTAssertNil(failed.sourceLabel)
+        XCTAssertNotNil(failed.error)
+        XCTAssertTrue(failed.fetchError is StatusMenuTokenAccountTestError)
     }
 
     func test_segmentedRefreshClearsLiveSnapshotWhenBaseURLChangesAndReplacementFails() async {
@@ -854,6 +870,8 @@ extension StatusMenuTokenAccountSwitcherTests {
         }
         await store.refreshProvider(.sub2api)
         XCTAssertEqual(store.snapshot(for: .sub2api)?.primary?.usedPercent, 45)
+        let previousCacheKey = store.accountSnapshots[.sub2api]?.first?.cacheKey
+        XCTAssertNotNil(previousCacheKey)
 
         settings.updateProviderConfig(provider: .sub2api) { config in
             config.enterpriseHost = "https://second.example.test"
@@ -866,7 +884,20 @@ extension StatusMenuTokenAccountSwitcherTests {
         XCTAssertNil(store.snapshot(for: .sub2api))
         XCTAssertNil(store.lastSourceLabels[.sub2api])
         XCTAssertNil(store.lastKnownResetSnapshots[.sub2api])
-        XCTAssertNil(store.accountSnapshots[.sub2api])
+        XCTAssertEqual(store.accountSnapshots[.sub2api]?.count, 1)
+        guard let failed = store.accountSnapshots[.sub2api]?.first,
+              let selected = settings.selectedTokenAccount(for: .sub2api)
+        else {
+            XCTFail("Expected a failure entry for the selected Sub2API account")
+            return
+        }
+        XCTAssertEqual(failed.account.id, selected.id)
+        XCTAssertEqual(failed.cacheKey, store.tokenAccountSnapshotCacheKey(provider: .sub2api, account: selected))
+        XCTAssertNotEqual(Optional(failed.cacheKey), previousCacheKey)
+        XCTAssertNil(failed.snapshot)
+        XCTAssertNil(failed.sourceLabel)
+        XCTAssertNotNil(failed.error)
+        XCTAssertTrue(failed.fetchError is StatusMenuTokenAccountTestError)
     }
 
     func test_segmentedRefreshClearsLiveSnapshotWhenLastAccountIsRemovedAndFallbackFails() async {

@@ -1,0 +1,874 @@
+{
+  "implementationOrder": [
+    "codex",
+    "openai",
+    "azureopenai",
+    "claude",
+    "clinepass",
+    "cursor",
+    "opencode",
+    "opencodego",
+    "alibaba",
+    "alibabatokenplan",
+    "qwencloud",
+    "factory",
+    "fireworks",
+    "gemini",
+    "antigravity",
+    "copilot",
+    "devin",
+    "devpass",
+    "zai",
+    "minimax",
+    "manus",
+    "kimi",
+    "kilo",
+    "kiro",
+    "vertexai",
+    "augment",
+    "jetbrains",
+    "moonshot",
+    "amp",
+    "t3chat",
+    "ollama",
+    "synthetic",
+    "openrouter",
+    "elevenlabs",
+    "warp",
+    "windsurf",
+    "zed",
+    "perplexity",
+    "mimo",
+    "doubao",
+    "sakana",
+    "abacus",
+    "mistral",
+    "deepseek",
+    "deepinfra",
+    "codebuff",
+    "crof",
+    "venice",
+    "commandcode",
+    "qoder",
+    "stepfun",
+    "bedrock",
+    "grok",
+    "groq",
+    "llmproxy",
+    "litellm",
+    "bifrost",
+    "deepgram",
+    "poe",
+    "chutes",
+    "neuralwatt",
+    "clawrouter",
+    "longcat",
+    "sub2api",
+    "wayfinder",
+    "zenmux",
+    "aiand",
+    "zoommate",
+    "xai",
+    "notion",
+    "ibmbob",
+    "gitkraken",
+    "v0",
+    "coderabbit",
+    "huggingface",
+    "replicate",
+    "hyper",
+    "aixy",
+    "xkiro",
+    "raycast",
+    "helmcode",
+    "typesafe",
+    "atlascloud",
+    "vercel",
+    "llmman",
+    "nous",
+    "muse",
+    "pi"
+  ],
+  "order": [
+    "codex",
+    "openai",
+    "azureopenai",
+    "claude",
+    "clinepass",
+    "cursor",
+    "opencode",
+    "opencodego",
+    "alibaba",
+    "alibabatokenplan",
+    "qwencloud",
+    "factory",
+    "fireworks",
+    "gemini",
+    "antigravity",
+    "copilot",
+    "devin",
+    "devpass",
+    "zai",
+    "minimax",
+    "manus",
+    "kimi",
+    "kilo",
+    "kiro",
+    "vertexai",
+    "augment",
+    "jetbrains",
+    "moonshot",
+    "amp",
+    "t3chat",
+    "ollama",
+    "synthetic",
+    "openrouter",
+    "elevenlabs",
+    "warp",
+    "windsurf",
+    "zed",
+    "perplexity",
+    "mimo",
+    "doubao",
+    "sakana",
+    "abacus",
+    "mistral",
+    "deepseek",
+    "deepinfra",
+    "codebuff",
+    "crof",
+    "venice",
+    "commandcode",
+    "qoder",
+    "stepfun",
+    "bedrock",
+    "grok",
+    "groq",
+    "llmproxy",
+    "litellm",
+    "bifrost",
+    "deepgram",
+    "poe",
+    "chutes",
+    "neuralwatt",
+    "clawrouter",
+    "longcat",
+    "sub2api",
+    "wayfinder",
+    "zenmux",
+    "aiand",
+    "zoommate",
+    "xai",
+    "notion",
+    "ibmbob",
+    "gitkraken",
+    "v0",
+    "coderabbit",
+    "huggingface",
+    "replicate",
+    "hyper",
+    "aixy",
+    "xkiro",
+    "raycast",
+    "helmcode",
+    "typesafe",
+    "atlascloud",
+    "vercel",
+    "llmman",
+    "nous",
+    "muse",
+    "pi"
+  ],
+  "providers": [
+    {
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "xkiro"
+      ],
+      "color": [
+        0.3215686274509804,
+        0.788235294117647,
+        0.6078431372549019
+      ],
+      "confetti": [
+        [
+          0.3215686274509804,
+          0.788235294117647,
+          0.6078431372549019
+        ],
+        [
+          0.7176470588235294,
+          0.9490196078431372,
+          0.8431372549019608
+        ]
+      ],
+      "dashboard": "https://xkiro.com",
+      "debug": "",
+      "detail": "xkiro not detected",
+      "fields": [
+        {
+          "actions": [],
+          "id": "xkiro-api-key",
+          "placeholder": "Paste API key…",
+          "secure": true,
+          "subtitle": "Saved in QuotaKit's local config file. Or set XKIRO_API_KEY. Reads free-token usage only.",
+          "title": "xKiro API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-xkiro",
+      "id": "xkiro",
+      "labels": [
+        "Daily free tokens",
+        "Weekly",
+        ""
+      ],
+      "name": "xKiro",
+      "noData": "xKiro cost history is not available.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show xKiro usage"
+    },
+    {
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "atlascloud"
+      ],
+      "color": [
+        0.34901960784313724,
+        0.4588235294117647,
+        0.9607843137254902
+      ],
+      "confetti": [
+        [
+          0.34901960784313724,
+          0.4588235294117647,
+          0.9607843137254902
+        ],
+        [
+          0.6549019607843137,
+          0.7215686274509804,
+          1
+        ]
+      ],
+      "dashboard": "https://www.atlascloud.ai/console",
+      "debug": "",
+      "detail": "atlascloud not detected",
+      "fields": [
+        {
+          "actions": [],
+          "id": "atlascloud-api-key",
+          "placeholder": "Paste API key…",
+          "secure": true,
+          "subtitle": "Saved in QuotaKit's local config file. Or set ATLASCLOUD_API_KEY.",
+          "title": "Atlas Cloud API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon": "ProviderIcon-atlascloud",
+      "id": "atlascloud",
+      "labels": [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name": "Atlas Cloud",
+      "noData": "Atlas Cloud cost history is not available.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show Atlas Cloud balance"
+    },
+    {
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "vercel"
+      ],
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "confetti": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0.6392156862745098,
+          0.6392156862745098,
+          0.6392156862745098
+        ]
+      ],
+      "dashboard": "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway",
+      "debug": "",
+      "detail": "vercel not detected",
+      "fields": [
+        {
+          "actions": [],
+          "id": "vercel-api-key",
+          "placeholder": "Paste API key…",
+          "secure": true,
+          "subtitle": "Saved in QuotaKit's local config file. Or set AI_GATEWAY_API_KEY.",
+          "title": "Vercel AI Gateway API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon": "ProviderIcon-vercel",
+      "id": "vercel",
+      "labels": [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name": "Vercel AI Gateway",
+      "noData": "Vercel AI Gateway cost history is not available.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show Vercel AI Gateway balance"
+    },
+    {
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "devpass"
+      ],
+      "color": [
+        0.1450980392156863,
+        0.38823529411764707,
+        0.9215686274509803
+      ],
+      "confetti": [
+        [
+          0.1450980392156863,
+          0.38823529411764707,
+          0.9215686274509803
+        ],
+        [
+          0.5764705882352941,
+          0.7725490196078432,
+          0.9921568627450981
+        ]
+      ],
+      "dashboard": "https://devpass.llmgateway.io/dashboard",
+      "debug": "",
+      "detail": "devpass not detected",
+      "fields": [
+        {
+          "actions": [
+            {
+              "id": "devpass-dashboard",
+              "title": "Open DevPass"
+            }
+          ],
+          "id": "devpass-api-key",
+          "placeholder": "Regular LLM Gateway API key",
+          "secure": true,
+          "subtitle": "Saved in QuotaKit's local config file. Or set DEVPASS_API_KEY.",
+          "title": "DevPass API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-devpass",
+      "id": "devpass",
+      "labels": [
+        "Plan credits",
+        "Premium weekly",
+        ""
+      ],
+      "name": "DevPass",
+      "noData": "DevPass cost history is not available.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show DevPass usage"
+    },
+    {
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "gitkraken",
+        "gk"
+      ],
+      "color": [
+        0.09019607843137255,
+        0.5725490196078431,
+        0.5294117647058824
+      ],
+      "confetti": [
+        [
+          0.09019607843137255,
+          0.5725490196078431,
+          0.5294117647058824
+        ],
+        [
+          0.615686274509804,
+          0.8980392156862745,
+          0.8235294117647058
+        ]
+      ],
+      "dashboard": "https://gitkraken.dev/account#ai-usage",
+      "debug": "",
+      "detail": "gitkraken not detected",
+      "fields": [
+        {
+          "actions": [
+            {
+              "id": "gitkraken-open-account",
+              "title": "Open GitKraken Account"
+            }
+          ],
+          "id": "gitkraken-api-token",
+          "placeholder": "Token value only (without Bearer)",
+          "secure": true,
+          "subtitle": "Saved in QuotaKit's local config file. Or set GITKRAKEN_API_TOKEN.",
+          "title": "GitKraken access token"
+        },
+        {
+          "actions": [],
+          "id": "gitkraken-organization",
+          "placeholder": "Organization ID (optional)",
+          "secure": false,
+          "subtitle": "Optional gk-org-id header value. Or set GITKRAKEN_ORG_ID.",
+          "title": "API organization ID"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-gitkraken",
+      "id": "gitkraken",
+      "labels": [
+        "Personal",
+        "Shared pool",
+        ""
+      ],
+      "name": "GitKraken AI",
+      "noData": "GitKraken cost history is not available.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show GitKraken AI usage"
+    },
+    {
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "poe"
+      ],
+      "color": [
+        0.36470588235294116,
+        0.3607843137254902,
+        0.8705882352941177
+      ],
+      "confetti": [
+        [
+          0.36470588235294116,
+          0.3607843137254902,
+          0.8705882352941177
+        ],
+        [
+          0.16470588235294117,
+          0.16470588235294117,
+          0.6352941176470588
+        ],
+        [
+          0.8784313725490196,
+          0.3176470588235294,
+          0.9294117647058824
+        ]
+      ],
+      "dashboard": "https://poe.com/api/keys",
+      "debug": "",
+      "detail": "api",
+      "fields": [
+        {
+          "actions": [],
+          "id": "poe-api-key",
+          "placeholder": null,
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Get your key from poe.com/api/keys.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon": "ProviderIcon-poe",
+      "id": "poe",
+      "labels": [
+        "Points",
+        "Points",
+        ""
+      ],
+      "name": "Poe",
+      "noData": "Poe usage history is unavailable.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show Poe usage"
+    },
+    {
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "deepinfra",
+        "deep-infra",
+        "di"
+      ],
+      "color": [
+        0.16470588235294117,
+        0.19607843137254902,
+        0.4588235294117647
+      ],
+      "confetti": [
+        [
+          0.16470588235294117,
+          0.19607843137254902,
+          0.4588235294117647
+        ],
+        [
+          0.4549019607843137,
+          0.4980392156862745,
+          0.8705882352941177
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard": "https://deepinfra.com/dash",
+      "debug": "DeepInfra debug log not yet implemented",
+      "detail": "api",
+      "fields": [],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "icon": "ProviderIcon-deepinfra",
+      "id": "deepinfra",
+      "labels": [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name": "DeepInfra",
+      "noData": "DeepInfra per-request cost history is not available in QuotaKit.",
+      "status": [
+        "",
+        "https://status.deepinfra.com"
+      ],
+      "toggle": "Show DeepInfra usage"
+    },
+    {
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "zenmux",
+        "zen-mux"
+      ],
+      "color": [
+        0.35294117647058826,
+        0.1568627450980392,
+        0.7450980392156863
+      ],
+      "confetti": [
+        [
+          0.4235294117647059,
+          0.3607843137254902,
+          0.9058823529411765
+        ],
+        [
+          0.6352941176470588,
+          0.6078431372549019,
+          0.996078431372549
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard": "https://zenmux.ai/platform/management",
+      "debug": "ZenMux debug log not yet implemented",
+      "detail": "api",
+      "fields": [
+        {
+          "actions": [
+            {
+              "id": "zenmux-open-management",
+              "title": "Open ZenMux Management"
+            }
+          ],
+          "id": "zenmux-management-api-key",
+          "placeholder": "ZenMux management key…",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Standard ZenMux inference API keys are not supported.",
+          "title": "Management API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-zenmux",
+      "id": "zenmux",
+      "labels": [
+        "5-hour quota",
+        "Weekly quota",
+        ""
+      ],
+      "name": "ZenMux",
+      "noData": "ZenMux cost history is not exposed by the Management API.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show ZenMux usage"
+    },
+    {
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "clinepass"
+      ],
+      "color": [
+        0.38,
+        0.64,
+        0.98
+      ],
+      "confetti": [
+        [
+          0.3803921568627451,
+          0.6392156862745098,
+          0.9803921568627451
+        ],
+        [
+          0.06666666666666667,
+          0.06666666666666667,
+          0.06666666666666667
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard": "https://app.cline.bot/dashboard/subscription?personal=true",
+      "debug": "ClinePass debug log not yet implemented",
+      "detail": "api",
+      "fields": [
+        {
+          "actions": [],
+          "id": "clinepass-api-key",
+          "placeholder": "ClinePass API key...",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Paste a ClinePass API key.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-clinepass",
+      "id": "clinepass",
+      "labels": [
+        "5-hour",
+        "Weekly",
+        "Monthly"
+      ],
+      "name": "ClinePass",
+      "noData": "ClinePass cost history is not available via the usage-limits API.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show ClinePass usage"
+    },
+    {
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "aiand",
+        "ai&",
+        "ai-and"
+      ],
+      "color": [
+        0.8862745098039215,
+        0.3607843137254902,
+        0.16862745098039217
+      ],
+      "confetti": [
+        [
+          0.8862745098039215,
+          0.3607843137254902,
+          0.16862745098039217
+        ],
+        [
+          0.9490196078431372,
+          0.6313725490196078,
+          0.49411764705882355
+        ],
+        [
+          0.2,
+          0.13725490196078433,
+          0.10980392156862745
+        ]
+      ],
+      "dashboard": "https://console.aiand.com",
+      "debug": "ai& debug log not yet implemented",
+      "detail": "api",
+      "fields": [
+        {
+          "actions": [
+            {
+              "id": "aiand-open-console",
+              "title": "Open ai& Console"
+            }
+          ],
+          "id": "aiand-api-key",
+          "placeholder": "sk-…",
+          "secure": true,
+          "subtitle": "Stored in QuotaKit's config file. Create a key in the ai& console (shown once).",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-aiand",
+      "id": "aiand",
+      "labels": [
+        "Spend",
+        "Spend",
+        ""
+      ],
+      "name": "ai&",
+      "noData": "ai& spend is summed from the request logs API.",
+      "status": [
+        "",
+        ""
+      ],
+      "toggle": "Show ai& usage"
+    }
+  ]
+}

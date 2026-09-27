@@ -178,7 +178,7 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
                 selectedDay: selected)
             let group = try XCTUnwrap(model.groups.first)
             let view = AnyView(SpendDashboardCurrencySection(
-                group: group, requestedDays: 7, modelMetric: .constant(.cost), hidePersonalInfo: true)
+                group: group, requestedDays: 7, hidePersonalInfo: true, onClearSelectedDay: {})
                 .padding(24).frame(width: 900)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .environment(\.locale, Locale(identifier: "en_US_POSIX")))
@@ -217,7 +217,7 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
             SpendDashboardCurrencySection(
                 group: group,
                 requestedDays: selectedDays,
-                modelMetric: .constant(.cost))
+                hidePersonalInfo: false)
         }
         .padding(24)
         .frame(width: 760)

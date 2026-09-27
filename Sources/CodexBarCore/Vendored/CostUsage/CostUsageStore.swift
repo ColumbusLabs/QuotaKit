@@ -53,9 +53,14 @@ actor CostUsageStore {
 
     private final class SQLiteConnection: @unchecked Sendable {
         private(set) var handle: OpaquePointer?
+        let fileNumber: UInt64?
+        let volumeNumber: UInt64?
 
-        init(handle: OpaquePointer) {
+        init(handle: OpaquePointer, path: String) {
             self.handle = handle
+            let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+            self.fileNumber = (attributes?[.systemFileNumber] as? NSNumber)?.uint64Value
+            self.volumeNumber = (attributes?[.systemNumber] as? NSNumber)?.uint64Value
         }
 
         func close() {
@@ -83,6 +88,12 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "7c53241287d9fe21", // Scanner deferral bookkeeping fix leaves parsed rows and checkpoints unchanged.
+        "4c666659fa05e700", // Pending-range and parent-discovery scheduling preserve parsed rows and checkpoints.
+        "1dfdbe376483ff0c", // Explicit report coverage is additive; persisted parser rows remain compatible.
+        "fd299eccf5e46671", // Pricing-rescan evidence adds optional state; prior rows remain compatible.
+        "8214dde4d869b323", // Linux Priority scanning and Claude pricing leave persisted native rows compatible.
+        "6fd5257bc1319193", // Pre-pagination parser; revision 4 reparses stale native rows.
         "154f5c0cc5ea50d3", // Provider-aware OpenCodex pricing leaves persisted usage rows compatible.
         "606a690018e2845e", // LF scanning and empty-fragment retention preserve rows and checkpoints.
         "91a311c1117c5d33", // Parser revisions reparse older native files without rebuilding the store.
@@ -171,6 +182,20 @@ actor CostUsageStore {
     private let expectedSchemaVersion: Int32
     private let expectedParserHash: String
     private var connection: SQLiteConnection?
+    struct CodexScanStamp: Equatable, Sendable {
+        var connectionID: ObjectIdentifier
+        var dataVersion: Int64
+        var totalChanges: Int64
+        var schemaVersion: Int64
+        var userVersion: Int64
+        var parserHash: String?
+        var fileNumber: UInt64
+        var volumeNumber: UInt64
+    }
+
+    var retainedCodexScan: (stamp: CodexScanStamp, cache: CostUsageCache)?
+    var lastCodexSaveReusedContent = false
+    var lastCodexSaveStamp: CodexScanStamp?
     private(set) var rebuildCount = 0
     /// While a save cycle's enclosing transaction is open, nested `withDatabase` calls join
     /// it instead of opening their own connection scope, and the first failure aborts the
@@ -181,6 +206,42 @@ actor CostUsageStore {
     func activeSaveDatabase() throws -> OpaquePointer {
         guard let activeTransactionDatabase else { throw StoreError.sqlite(SQLITE_MISUSE) }
         return activeTransactionDatabase
+    }
+
+    /// A cached decode is valid only for this connection and the same on-disk SQLite file.
+    /// data_version catches other connections; total_changes catches this actor's writes.
+    func currentCodexScanStamp() -> CodexScanStamp? {
+        guard let connection = self.connection, let database = connection.handle,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: self.databaseURL.path),
+              let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
+              let volumeNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value,
+              connection.fileNumber == fileNumber,
+              connection.volumeNumber == volumeNumber,
+              let dataVersion = try? Self.scalarInt(database, "PRAGMA data_version"),
+              let schemaVersion = try? Self.scalarInt(database, "PRAGMA schema_version"),
+              let userVersion = try? Self.scalarInt(database, "PRAGMA user_version"),
+              let parserHash = try? Self.scalarText(database, "SELECT value FROM meta WHERE key = 'parser_hash'"),
+              userVersion == Int64(self.expectedSchemaVersion),
+              parserHash == self.expectedParserHash
+        else { return nil }
+        var moved: Int32 = 0
+        guard sqlite3_file_control(database, "main", SQLITE_FCNTL_HAS_MOVED, &moved) == SQLITE_OK,
+              moved == 0 else { return nil }
+        return CodexScanStamp(
+            connectionID: ObjectIdentifier(connection),
+            dataVersion: dataVersion,
+            totalChanges: sqlite3_total_changes64(database),
+            schemaVersion: schemaVersion,
+            userVersion: userVersion,
+            parserHash: parserHash,
+            fileNumber: fileNumber,
+            volumeNumber: volumeNumber)
+    }
+
+    func reopenCodexScanConnection() {
+        guard self.activeTransactionDatabase == nil else { return }
+        self.connection?.close()
+        self.connection = nil
     }
 
     init(
@@ -228,6 +289,27 @@ extension CostUsageStore {
         }
     }
 
+    nonisolated func syncLoadCodexScan(
+        calendar: Calendar) -> (cache: CostUsageCache, stamp: CodexScanStamp?)
+    {
+        self.syncWithStoreIsolation { store in
+            store.loadCodexScan(calendar: calendar)
+        }
+    }
+
+    nonisolated func syncRetainUnchangedCodexScan(_ cache: CostUsageCache) {
+        self.syncWithStoreIsolation { store in
+            guard store.lastCodexSaveReusedContent,
+                  let stamp = store.currentCodexScanStamp(),
+                  stamp == store.lastCodexSaveStamp
+            else {
+                store.retainedCodexScan = nil
+                return
+            }
+            store.retainedCodexScan = (stamp, cache)
+        }
+    }
+
     nonisolated func syncLoadCodexCache(
         calendar: Calendar,
         hydratingPaths: Set<String>?) -> CostUsageCache
@@ -266,7 +348,8 @@ extension CostUsageStore {
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
         rowBudget: Int = CostUsageStore.defaultRowBudget,
         fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes,
-        skipIdenticalContent: Bool = false) -> CostUsageStoreBudgetResult
+        skipIdenticalContent: Bool = false,
+        expectedScanStamp: CodexScanStamp? = nil) -> CostUsageStoreBudgetResult
     {
         self.syncWithStoreIsolation { store in
             store.saveCodexCache(
@@ -276,7 +359,8 @@ extension CostUsageStore {
                 reportWindow: reportWindow,
                 rowBudget: rowBudget,
                 fileBudgetBytes: fileBudgetBytes,
-                skipIdenticalContent: skipIdenticalContent)
+                skipIdenticalContent: skipIdenticalContent,
+                expectedScanStamp: expectedScanStamp)
         }
     }
 
@@ -498,7 +582,7 @@ extension CostUsageStore {
         }
         do {
             let opened = try self.openDatabase()
-            self.connection = SQLiteConnection(handle: opened)
+            self.connection = SQLiteConnection(handle: opened, path: self.databaseURL.path)
             return opened
         } catch {
             guard Self.shouldRebuild(after: error) else { throw error }
@@ -661,7 +745,7 @@ extension CostUsageStore {
         self.rebuildCount += 1
         Self.log.warning("cost-usage store rebuilt (count \(self.rebuildCount)): \(reason)")
         if let database = try? self.openDatabase() {
-            self.connection = SQLiteConnection(handle: database)
+            self.connection = SQLiteConnection(handle: database, path: self.databaseURL.path)
         }
     }
 

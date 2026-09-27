@@ -5,6 +5,7 @@ struct SpendSourcePublication: Sendable, Equatable {
     enum Role: Sendable, Equatable {
         case subscription
         case enrichment
+        case localHistory
     }
 
     enum State: Sendable, Equatable {
@@ -79,6 +80,7 @@ struct SpendDashboardPublication: Sendable {
 
     func model(
         requestedDays: Int,
+        reportingPeriod: CostReportingPeriod? = nil,
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,
@@ -98,6 +100,7 @@ struct SpendDashboardPublication: Sendable {
             inputs: inputs,
             inputRevision: self.inputRevision,
             requestedDays: requestedDays,
+            reportingPeriod: reportingPeriod,
             now: now,
             calendar: calendar,
             preferredCurrencyCode: preferredCurrencyCode,
@@ -164,7 +167,14 @@ struct SpendDashboardPublication: Sendable {
                 hiddenSourceIDs: hiddenSourceIDs,
                 hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent)
             if rosterSources.isEmpty, coverageSources.isEmpty {
-                count += hiddenSourceIDs.contains(provider.rawValue) ? 0 : 1
+                let hasVisibleLocalHistory = self.sources.contains {
+                    $0.provider == provider &&
+                        $0.role == .localHistory &&
+                        !hiddenSourceIDs.contains($0.id)
+                }
+                if !hasVisibleLocalHistory {
+                    count += hiddenSourceIDs.contains(provider.rawValue) ? 0 : 1
+                }
             } else {
                 count += coverageSources.count
             }

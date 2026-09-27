@@ -111,9 +111,7 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
             })
     }
 
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
-    }
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool { false }
 
     private static func isAuthenticationFailure(_ error: Error) -> Bool {
         (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired

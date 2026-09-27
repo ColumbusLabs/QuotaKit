@@ -18,18 +18,12 @@ extension StatusItemController {
         var countdownResetDates: [Date] = []
         var absoluteResetDates: [Date] = []
         for provider in providers {
-            let resetDates = self.menuBarDisplayedResetDates(for: provider, now: now)
-            let resolution = self.settings.menuBarLayoutResolution(for: provider)
+            let resolution = self.renderedMenuBarLayoutResolution(for: provider)
             if !resolution.usesLegacyRendering,
                self.settings.menuBarIconStyle == .iconAndPercent
             {
-                let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
-                if tokens.contains(.resetCountdown) {
-                    countdownResetDates.append(contentsOf: resetDates)
-                }
-                if tokens.contains(.resetAbsolute) {
-                    absoluteResetDates.append(contentsOf: resetDates)
-                }
+                countdownResetDates += self.menuBarLayoutResetDates(for: provider, now: now, absolute: false)
+                absoluteResetDates += self.menuBarLayoutResetDates(for: provider, now: now, absolute: true)
                 delays += self.menuBarConditionalResetDelays(
                     provider: provider,
                     resolution: resolution,
@@ -44,6 +38,7 @@ extension StatusItemController {
             guard self.settings.menuBarShowsBrandIconWithPercent,
                   displayMode == .resetTime || smartExhaustedActive
             else { continue }
+            let resetDates = self.menuBarDisplayedResetDates(for: provider, now: now)
             switch self.settings.resetTimeDisplayStyle {
             case .countdown:
                 countdownResetDates.append(contentsOf: resetDates)
@@ -53,8 +48,7 @@ extension StatusItemController {
         }
 
         if let delay = Self.menuBarCountdownRefreshDelay(resetDates: countdownResetDates, now: now) {
-            // Countdown text ticks every minute; refresh on each displayed-minute boundary (the last of
-            // which lands at the reset, flipping a smart-exhausted lane back to the percentage).
+            // Match the formatter's visible precision, then observe expiration for exhausted-lane transitions.
             delays.append(delay)
         }
         if let delay = Self.menuBarAbsoluteRefreshDelay(resetDates: absoluteResetDates, now: now) {
@@ -96,7 +90,10 @@ extension StatusItemController {
             let remaining = resetDate.timeIntervalSince(now)
             guard remaining > 0 else { return nil }
             let displayedMinutes = ceil(remaining / 60)
-            let nextBoundaryRemaining = max(0, displayedMinutes - 1) * 60
+            let displayedHours = floor(displayedMinutes / 60)
+            let nextMinutes = displayedMinutes >= 1440 && displayedHours.truncatingRemainder(dividingBy: 24) > 0
+                ? displayedHours * 60 - 1 : displayedMinutes - 1
+            let nextBoundaryRemaining = remaining >= 1 ? max(1, nextMinutes * 60) : 0
             return max(
                 self.menuBarCountdownRefreshEpsilon,
                 remaining - nextBoundaryRemaining + self.menuBarCountdownRefreshEpsilon)
@@ -156,6 +153,9 @@ extension StatusItemController {
     }
 
     private func menuBarRefreshProviders() -> [UsageProvider] {
+        if let stackedProviders = self.stackedMergeIconProvidersIfActive() {
+            return [stackedProviders.top, stackedProviders.bottom]
+        }
         if self.shouldMergeIcons {
             return [self.primaryProviderForUnifiedIcon()]
         }
@@ -166,7 +166,9 @@ extension StatusItemController {
         if providers.contains(.codex) {
             return true
         }
-        guard self.shouldMergeIcons, self.settings.menuBarShowsHighestUsage else {
+        guard self.stackedMergeIconProvidersIfActive() == nil,
+              self.shouldMergeIcons, self.settings.menuBarShowsHighestUsage
+        else {
             return false
         }
         let activeProviders = self.store.enabledFirstPartyProvidersForDisplay()
@@ -192,7 +194,7 @@ extension StatusItemController {
         -> [TimeInterval]
     {
         providers.compactMap { provider in
-            let resolution = self.settings.menuBarLayoutResolution(for: provider)
+            let resolution = self.renderedMenuBarLayoutResolution(for: provider)
             guard !resolution.usesLegacyRendering,
                   self.settings.menuBarIconStyle == .iconAndPercent
             else { return nil }
@@ -231,7 +233,9 @@ extension StatusItemController {
         -> [TimeInterval]
     {
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
-        guard metrics.contains(where: \.isClockDerivedRate) else { return [] }
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        guard metrics.contains(where: \.isClockDerivedRate)
+            || tokens.contains(.runsOut) || tokens.contains(.runsOutCompact) else { return [] }
         let secondsIntoMinute = now.timeIntervalSince1970.truncatingRemainder(dividingBy: 60)
         return [max(
             Self.menuBarCountdownRefreshEpsilon,

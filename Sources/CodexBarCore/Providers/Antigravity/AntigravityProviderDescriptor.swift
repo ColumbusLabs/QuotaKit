@@ -50,17 +50,24 @@ public enum AntigravityProviderDescriptor {
                 ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
-                noDataMessage: { "No Antigravity token history was found in the local tokscale cache." },
-                supportsTokenSnapshot: true),
-            pace: ProviderPaceCapability(
-                sessionPaceWindowRule: .custom { window, _ in
-                    window.windowMinutes == nil || window.windowMinutes == 300
-                }),
+                noDataMessage: { Self.noDataMessageKey },
+                menuHintLines: [.localized(self.estimateHintKey)],
+                supportsTokenSnapshot: true,
+                settingsStatusOrder: 3,
+                showsHintInProviderDetails: true,
+                estimateDisclaimer: "Local usage × public API prices · not Antigravity charges or credits",
+                historyTitleStyle: .compact,
+                hintPlacement: .beforeRequestHistory,
+                chartEstimateDisclaimer: .localized(self.estimateHintKey),
+                preservesCalendarDaysInCharts: true,
+                presentation: .costAndTokens),
+            pace: ProviderPaceCapability(sessionPaceWindowRule: .windowDuration(minutes: 300)),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 iconWindowResolver: self.iconWindows,
                 // Provider-specific by design: Antigravity decorates its mixed-model usage with the Gemini badge.
                 iconDecorations: [.gemini, .antigravity],
+                semanticWindowResolver: self.semanticWindows,
                 requestedMenuBarLaneOrders: [
                     .primary: [.primary, .secondary, .tertiary],
                     .secondary: [.secondary, .primary, .tertiary],
@@ -73,7 +80,17 @@ public enum AntigravityProviderDescriptor {
                         return nil
                     }
                     return family == .small ? 2 : 3
-                }),
+                },
+                menuCard: ProviderMenuCardPresentation(
+                    supportsInlineTokenCostDashboard: true,
+                    showsQuotaWeekCost: true,
+                    // Antigravity has no single account-wide weekly quota: it reports a weekly bucket
+                    // per model family, and `semanticWindows` surfaces whichever family is most
+                    // constrained, while the cost bucketed into it spans every model.
+                    quotaWindowNote: self.quotaWindowNoteKey,
+                    // Because that surfaced reset belongs to whichever family currently leads, stored
+                    // observations name unrelated families' resets and must not become boundaries.
+                    ignoresObservedQuotaResetBoundaries: true)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .cli, .oauth],
                 pipeline: ProviderFetchPipeline(
@@ -84,8 +101,23 @@ public enum AntigravityProviderDescriptor {
                 versionDetector: nil))
     }
 
+    static let estimateHintKey = "antigravity_cost_estimate_hint"
+    static let quotaWindowNoteKey = "antigravity_quota_window_note"
+    static let noDataMessageKey = "antigravity_no_priced_token_history"
+
     private static let quotaSummaryPrefix = "antigravity-quota-summary-"
     private static let compactFallbackPrefix = "antigravity-compact-fallback-"
+
+    private static func semanticWindows(snapshot: UsageSnapshot) -> ProviderSemanticWindows {
+        let rows = (snapshot.extraRateWindows ?? []).filter { $0.id.hasPrefix(self.quotaSummaryPrefix) }
+        guard !rows.isEmpty else {
+            return ProviderUsagePresentation.standardSemanticWindows(snapshot: snapshot)
+        }
+        let known = rows.filter(\.usageKnown)
+        return ProviderSemanticWindows(
+            session: self.mostConstrained(windows: known, minutes: 300),
+            weekly: self.mostConstrained(windows: known, minutes: 7 * 24 * 60))
+    }
 
     private static func iconWindows(context: ProviderIconWindowContext) -> ProviderUsageWindowPair {
         let windows = (context.snapshot.extraRateWindows ?? [])
@@ -209,12 +241,12 @@ public enum AntigravityProviderDescriptor {
     }
 
     static func resolveFallbackError(_ previous: Error?, _ current: Error) -> Error {
-        if (previous as? AntigravityStatusProbeError) == .authenticationRequired,
-           (current as? AntigravityStatusProbeError) == .notRunning
-        {
-            return previous ?? current
+        guard let previous else { return current }
+        return switch current as? AntigravityStatusProbeError {
+        case .notRunning, .missingCSRFToken:
+            (previous as? AntigravityStatusProbeError) == .notRunning ? current : previous
+        default: current
         }
-        return current
     }
 }
 
@@ -683,6 +715,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         dependencies: SnapshotWaitDependencies) async throws -> AntigravityStatusSnapshot
     {
         var lastFetchError: Error?
+        var lastPortDiscoveryError: Error?
         while dependencies.now() < deadline {
             try await Self.checkAuthenticationPrompt(dependencies)
             let remaining = deadline.timeIntervalSince(dependencies.now())
@@ -690,6 +723,10 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
             let ports: [Int]
             do {
                 ports = try await dependencies.listeningPorts(Int(pid), portProbeTimeout)
+            } catch let error as AntigravityPortDiscoveryPendingError {
+                try Task.checkCancellation()
+                lastPortDiscoveryError = error.underlyingError
+                ports = []
             } catch {
                 guard Self.isNoListeningPortsError(error) else {
                     try await Self.checkAuthenticationPrompt(dependencies)
@@ -747,6 +784,9 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         try await Self.checkAuthenticationPrompt(dependencies)
         if let lastFetchError {
             throw lastFetchError
+        }
+        if let lastPortDiscoveryError {
+            throw lastPortDiscoveryError
         }
         Self.log.warning("Antigravity CLI HTTPS: no ports found for pid \(pid)")
         throw AntigravityStatusProbeError.portDetectionFailed(

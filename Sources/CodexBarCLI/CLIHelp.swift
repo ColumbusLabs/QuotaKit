@@ -119,17 +119,25 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-color] [--pretty] [--refresh] [--provider-native-only]
-                       [--days <days>] [--group-by project|session]
+                       [--days <days>] [--period month-to-date|all] [--group-by project|session]
+                       [--remote <ssh-host> | --summary-only]
 
         Description:
           Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.
-          This does not require web or CLI access and uses cached scan results unless --refresh is provided.
+          Antigravity token history is read locally, with API-price estimates for known models;
+          Muse Code remains token-only.
+          Local readers need no web or provider CLI access; Cursor uses its authenticated dashboard API.
+          Use --refresh to bypass cached scan results.
           Experimental: use --provider-native-only to exclude pi and OMP session mirrors.
+          Use --provider codex --remote <host> for separate local and SSH-host summaries.
+          --summary-only emits versioned Codex JSON totals without account or session details.
 
         Examples:
           quotakit cost
           quotakit cost --provider codex --group-by project
           quotakit cost --provider claude --format json --pretty
+          quotakit cost --period month-to-date --format json
+          quotakit cost --provider codex --remote build-host --format json
         """
     }
 
@@ -261,6 +269,8 @@ extension CodexBarCLI {
                              [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                              [-v|--verbose]
                              [--pretty]
+          quotakit config preferences export [--file <preferences.json>]
+          quotakit config preferences import --file <preferences.json> [--json]
           quotakit config providers [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
@@ -274,6 +284,8 @@ extension CodexBarCLI {
           Validate or print the QuotaKit config file (default: validate).
           dump prints normalized config JSON with stored credentials redacted by default
           (use --show-secrets to reveal raw values).
+          preferences transfers allowlisted UI settings on macOS; import applies in the running app or next launch.
+          Export writes JSON to stdout unless --file is supplied. --defaults-domain selects an alternate app domain.
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
           set-api-key stores a provider API key in the resolved config file and enables that provider by default.
@@ -334,8 +346,8 @@ extension CodexBarCLI {
         Description:
           Run external commands when quota/provider events occur. Rules are stored in the
           shared config file and are disabled by default. Events:
-          quota_low, quota_reached, quota_reset, provider_unavailable, provider_recovered,
-          refresh_failed.
+          quota_low, quota_reached, quota_reset, usage_updated, provider_unavailable,
+          provider_recovered, refresh_failed.
 
           Commands run directly (no shell), receive event metadata via QUOTAKIT_* environment
           variables (plus legacy CODEXBAR_* aliases) and a JSON payload on stdin, and are timed out.
@@ -343,9 +355,9 @@ extension CodexBarCLI {
 
           `watch` polls the selected providers and fires rules on real transitions, so hooks
           work without the macOS app. Events are edge-triggered against the previous poll, so a
-          persisting condition does not re-fire. Baselines are in-memory: the first poll of a
-          lane establishes state without firing. Keep one continuous process running so transition
-          baselines and event rate limits survive between polls. Default interval 300s, minimum 60s.
+          persisting condition does not re-fire. The first successful poll can emit usage_updated;
+          quota-transition baselines are established without firing. Keep one continuous process so
+          transition baselines and event rate limits survive between polls. Default interval 300s, minimum 60s.
 
         Examples:
           quotakit hooks list
@@ -464,7 +476,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--provider-native-only]
-                       [--days <days>] [--group-by project]
+                       [--days <days>] [--period month-to-date|all] [--group-by project]
           quotakit sessions [--json|--json-v2] [--pretty]
           quotakit sessions focus <id>
           quotakit dashboard [--pretty] [--timeout <seconds>] [--identity <redacted|full>] [--output <path>]

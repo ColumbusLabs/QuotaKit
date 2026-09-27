@@ -4,6 +4,7 @@ extension StatusItemController {
     func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
         switch action {
         case .installUpdate: (#selector(self.installUpdate), nil)
+        case .checkForUpdates: (#selector(self.checkForUpdates), nil)
         case .refresh: (#selector(self.refreshMenuItem(_:)), nil)
         case .refreshAugmentSession: (#selector(self.refreshAugmentSession), nil)
         case .dashboard: (#selector(self.openDashboard), nil)
@@ -16,7 +17,10 @@ extension StatusItemController {
         case let .switchAccount(provider): (#selector(self.runSwitchAccount(_:)), provider.rawValue)
         case let .openTerminal(command): (#selector(self.openTerminalCommand(_:)), command)
         case let .loginToProvider(url): (#selector(self.openLoginToProvider(_:)), url)
+        case .openCodexWorkspaces:
+            (#selector(self.openCodexWorkspaces(_:)), CodexWorkspacesWindowIdentity.menuItem)
         case .settings: (#selector(self.showSettingsGeneral), nil)
+        case let .providerSettings(provider): (#selector(self.showProviderSettings(_:)), provider.rawValue)
         case .about: (#selector(self.showSettingsAbout), nil)
         case .quit: (#selector(self.quit), nil)
         case let .copyError(message): (#selector(self.copyError(_:)), message)
