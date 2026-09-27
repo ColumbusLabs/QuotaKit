@@ -62,6 +62,12 @@ untouched for downgrade safety, while a saved token layout takes precedence.
 Custom layout saves keep older-readable projections so a downgrade can still load the layout; provider-specific
 named percentages are omitted from those older projections without removing the rest of the layout.
 
+For Abacus, explicitly selecting Credits keeps the monthly allowance visible. With 250 of 1,000 credits used, it
+shows `C 75%` remaining (or `C 25%` with Show usage as used). Its billing window and reset date still drive pacing;
+Automatic keeps its existing percentage. Credits labels also apply to editor tokens, conditional metrics and pace
+accessibility.
+
+
 ## Icon rendering
 - 18×18 template image.
 - Bar windows are provider/style-specific primary and secondary windows.

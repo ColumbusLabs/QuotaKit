@@ -65,12 +65,12 @@ struct PerplexityCreditPercentTests {
         #expect(StatusItemController.switcherWeeklyMetricPercent(
             for: .perplexity, snapshot: snapshot, showUsed: showUsed) == (showUsed ? 25 : 75))
         let data = self.renderData(provider: .perplexity, snapshot: snapshot)
-        for (preference, expected): (MenuBarPercentWindowPreference, String) in [
+        for (preference, expected): (PercentWindow, String) in [
             (.session, showUsed ? "C 100%" : "C 0%"),
             (.weekly, showUsed ? "B 25%" : "B 75%"),
             (.automatic, showUsed ? "25%" : "75%"),
         ] {
-            let layout = preference.applied(to: MenuBarLayout(lines: [[.percent(window: .automatic)]]))
+            let layout = MenuBarLayout(lines: [[.percent(window: preference)]])
             let output = MenuBarLayoutRenderer().render(
                 layout: layout,
                 data: data,
@@ -95,8 +95,6 @@ struct PerplexityCreditPercentTests {
         }
         for token: MenuBarLayoutToken in [
             .resetCountdown, .resetAbsolute,
-            .windowResetCountdown(window: .automatic), .windowResetAbsolute(window: .automatic),
-            .windowResetCountdown(window: .weekly), .windowResetAbsolute(window: .weekly),
         ] {
             let output = MenuBarLayoutRenderer().render(
                 layout: MenuBarLayout(lines: [[token]]),

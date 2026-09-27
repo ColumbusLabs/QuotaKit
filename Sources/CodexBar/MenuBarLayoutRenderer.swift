@@ -875,7 +875,7 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData) -> String
     {
         switch percentWindow {
-        case .session: L("menu_bar_layout_token_session_pace")
+        case .session: L("%@ %@", self.primaryLabel(data: data) ?? L("Session"), L("display_mode_pace").lowercased())
         case .weekly: L("%@ %@", data.laneLabels.secondary, L("display_mode_pace").lowercased())
         case .scopedWeekly: L("menu_bar_layout_token_weekly_pace")
         case .automatic: L("menu_bar_layout_token_auto_pace")
@@ -884,13 +884,14 @@ final class MenuBarLayoutRenderer {
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
         return descriptor.presentation.primarySemanticWindow == .session
             ? data.laneLabels.primary : data.laneLabels.secondary
     }
 
     private static func secondaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        ProviderDescriptorRegistry.descriptor(for: data.provider).presentation.menuBarLayoutSecondaryLabel.map(L)
+        PercentWindow.weekly.providerLabel(provider: data.provider)
     }
     private static func sessionPrefix(_ window: MenuBarLayoutRenderWindow?) -> String {
         guard let minutes = window?.windowMinutes, minutes > 0 else { return "S" }
