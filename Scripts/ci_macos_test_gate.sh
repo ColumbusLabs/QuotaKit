@@ -52,6 +52,8 @@ classify_path() {
       ;;
     *.md)
       ;;
+    docs/*.tsv)
+      ;;
     docs/.nojekyll|docs/CNAME|docs/index.html|docs/llms.txt|docs/site-locales.mjs|docs/site.css|docs/site.js|docs/social.html|docs/social.png)
       ;;
     docs/*.png|docs/*.jpg|docs/*.jpeg|docs/*.webp|docs/*.ico|docs/*.svg)
