@@ -1,11 +1,12 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Live refresh after PR #200
+## Live refresh after PRs #200-#202
 
-- QuotaKit `origin/main=77746961dc157fa554d652236e8e651ec092ccd3`
-  includes PR #200's Pi root-identity fix. PR #199 had already merged the
+- The QuotaKit audit baseline `origin/main=d9b6dc4f222fee17b95ae3ba64c0f5c4fa69eb7a`
+  includes PR #200's Pi root-identity fix, PR #201's Claude partial-spend and
+  cache fixes, and PR #202's published ledger. PR #199 had already merged the
   direct-fork, Codex append-prefix, and Pi temporal accounting fixes; issues
-  #193, #194, and #195 are closed. PR #201 is open with hosted checks running.
+  #193, #194, and #195 are closed.
 - The upstream cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
   Fetched `upstream/main=bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`
   yields 875 commits in the audit range: 758 nonmerges and 117 merges.
@@ -32,17 +33,17 @@ cannot have regressed that behavior.
 
 | Current evidence tier | Rows | Interpretation |
 | --- | ---: | --- |
-| Documented merged or observed in current source | 173 | Includes 132 historically source-audited integrations, eight later mapped adaptations, one corrected Mistral exclusion, 26 newly checked older-tail rows, two Pi root-identity rows merged in PR #200, and four test/CI behaviors represented by PR #192. |
+| Documented merged or observed in current source | 178 | Includes 132 historically source-audited integrations, eight later mapped adaptations, one corrected Mistral exclusion, 26 newly checked older-tail rows, two Pi root-identity rows merged in PR #200, five Claude spend/cache rows merged in PR #201, and four test/CI behaviors represented by PR #192. |
 | Source-audited justified exclusions | 58 | Concrete supersession, platform, release, structural, test, or documentation rationale. |
 | Release-only or no distinct merge source delta | 165 | 87 upstream release-bookkeeping rows and 78 merge wrappers; their child changes are counted separately. |
 | Test-only rows with no standalone runtime port | 33 | The earlier 21 plus 12 test/fixture-only rows from the bounded test/CI group audit. Test intent may travel with a related feature slice. |
-| **Clear runtime gaps** | **32** | 21 older-tail and 11 newly arrived rows are absent or materially incomplete on current `main`. They form fewer coherent implementation slices. |
+| **Clear runtime gaps** | **27** | 16 older-tail and 11 newly arrived rows are absent or materially incomplete on current `main`. They form fewer coherent implementation slices. |
 | Prior `adapted` claim still unverified on current `main` | 203 | A staged branch or old label is not proof of merge. |
 | Prior `pending` or `deferred` work needing current decision | 149 | Some may have landed in broad PRs; each still needs a current-main mapping. |
 | Plausible historical exclusion needing per-row proof | 46 | Runtime or other files still require current behavior or applicability evidence. |
 | Other review rows | 16 | Ten architecture/adaptation reviews, four disputed exclusions, one partially covered cost row, and one reopened Homebrew runtime decision. |
 
-**The defensible lower bound is 32 runtime gap rows, not 875 missing features.**
+**The defensible lower bound is 27 runtime gap rows, not 875 missing features.**
 Another 414 rows remain outside the closed evidence and clear-gap tiers. They
 include historical merge claims, likely exclusions, and possible product work;
 they are not a 414-feature implementation queue. Issue #149's prior 712-commit count is
@@ -66,12 +67,12 @@ runner containment. The ledger records the distinct reason for each.
 
 Hold this catch-up pass at `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`.
 Newer upstream commits belong to the next pass; they do not enlarge this
-acceptance set while fixes are under review. The 32 clear-gap rows form 18
+acceptance set while fixes are under review. The 27 clear-gap rows form 16
 coherent slices in five workstreams:
 
 | Workstream | Gap rows | First action |
 | --- | ---: | --- |
-| Accounting and scan identity | 7 | Reconcile Claude cache/spend and Codex history bounds; PR #200 covered Pi root identity. |
+| Accounting and scan identity | 2 | Reconcile Codex history bounds and remaining accounting behavior; PRs #200 and #201 covered Pi identity and Claude spend/cache. |
 | Credentials, process lifecycle, and security | 13 | Reconcile fresh credentials, bounded validation, teardown, owned child cleanup, and redaction. |
 | Provider quota correctness | 5 | Reconcile TypeSafe, Antigravity, Kimi, and z.ai behavior. |
 | Plugin and configuration behavior | 3 | Reconcile plugin tab, blank config, and validated cookie sessions. |
@@ -90,9 +91,8 @@ uncertain runtime cases as explicit follow-ups. This is a grouping method, not
 a blanket assertion that a branch or PR title proves coverage. Measure progress
 by verified slices merged and rows with defensible dispositions.
 
-The 32 clear gaps include Codex sparse-history bounds, Claude Web reset-credit
-fallback, partial Pi/Claude spend preservation, Claude cache reuse, TypeSafe
-balances, Grok model names, Keychain validation bounds, Antigravity quota
+The 27 clear gaps include Codex sparse-history bounds, Claude Web reset-credit
+fallback, TypeSafe balances, Grok model names, Keychain validation bounds, Antigravity quota
 parsing, Kimi/z.ai availability, Agent Sessions teardown,
 Antigravity descendant cleanup, Codex credential/plan refresh, app-server
 trust, per-provider widget retention, environment redaction, and Notion/ZoomMate
