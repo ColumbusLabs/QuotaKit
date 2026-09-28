@@ -8025,7 +8025,6 @@ enum CostUsageScanner {
                 plan: plan,
                 resources: resources,
                 checkCancellation: checkCancellation,
-                forceQueuedRescan: activeLookbackState.cacheWideMigrationQueueActive == true,
                 scanBudget: scanBudget)
             var scanResult = try Self.scanCodexFiles(
                 filesScheduledForRefresh,
@@ -8041,7 +8040,6 @@ enum CostUsageScanner {
                     plan: plan,
                     resources: resources,
                     checkCancellation: checkCancellation,
-                    forceQueuedRescan: activeLookbackState.cacheWideMigrationQueueActive == true,
                     scanBudget: scanBudget)
                 try fileIndex.advanceMetadataInventory(scanBudget: shouldBoundCatchUp
                     ? CodexScanBudget(
@@ -8676,12 +8674,11 @@ enum CostUsageScanner {
         plan: CodexRefreshPlan,
         resources: CodexScanResources,
         checkCancellation: CancellationCheck?,
-        forceQueuedRescan: Bool = false,
         scanBudget: CodexScanBudget? = nil) -> CodexFileScanContext
     {
         CodexFileScanContext(
             range: range,
-            forceFullScan: options.forceRescan || forceQueuedRescan || plan.windowExpanded
+            forceFullScan: options.forceRescan || plan.windowExpanded
                 || plan.needsProjectMetadataMigration,
             sourceRowRecoveryPathKeys: plan.sourceRowRecoveryPathKeys,
             preserveUnavailableHistoryDuringRecovery: plan.preserveUnavailableHistoryDuringRecovery,
