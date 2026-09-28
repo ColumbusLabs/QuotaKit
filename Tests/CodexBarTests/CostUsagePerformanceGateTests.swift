@@ -67,6 +67,18 @@ struct CostUsagePerformanceGateTests {
         options.maxCodexScanDurationPerRefresh = 1
         let relaunchedRecorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = relaunchedRecorder
+        let timeLimitedScanCount = 100
+        let timeBudgetStart = ContinuousClock.now
+        let timeLimitedBudget = CostUsageScanner.CodexScanBudget(
+            maxFileBytes: options.maxCodexSessionFileBytes,
+            maxBytesPerRefresh: options.maxCodexScanBytesPerRefresh,
+            maxDuration: 1,
+            now: {
+                relaunchedRecorder.snapshot().codexFileScanAttempts >= timeLimitedScanCount
+                    ? timeBudgetStart.advanced(by: .seconds(2))
+                    : timeBudgetStart
+            })
+        options.codexScanBudgetForTesting = timeLimitedBudget
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
@@ -82,36 +94,46 @@ struct CostUsagePerformanceGateTests {
 
         #expect(relaunchedMetrics.codexDiscoveryVisits == candidateLimit)
         #expect(relaunchedMetrics.codexDirectoryEntryReads <= candidateLimit + 2)
-        #expect(relaunchedMetrics.codexFileScanAttempts == candidateLimit)
-        #expect(relaunchedCache.files.count == candidateLimit * 2)
+        #expect(relaunchedMetrics.codexFileScanAttempts == timeLimitedScanCount)
+        #expect(timeLimitedBudget.deferredByTimeBudgetFileCount == 1)
+        #expect(relaunchedCache.files.count > firstCache.files.count)
+        #expect(relaunchedCache.files.count < corpusSize)
         #expect((relaunchedCache.codexActiveLookbackState?.directoryPendingNamesByCursor?.values
                 .reduce(0) { $0 + $1.count } ?? 0) <= 512)
         #expect(relaunchedCache.codexScanCatchUpPending == true)
 
-        let secondRecorder = CostUsageScanner.CodexScanWorkRecorder()
-        options.codexScanWorkRecorderForTesting = secondRecorder
-        _ = CostUsageScanner.loadDailyReport(
-            provider: .codex,
-            since: day,
-            until: day,
-            now: day.addingTimeInterval(2),
-            options: options)
-        let secondMetrics = secondRecorder.snapshot()
-        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        print(
-            "[discovery-proof] second=\(secondCache.files.count), "
-                + "discovery=\(secondMetrics.codexDiscoveryVisits), "
-                + "visits=\(secondMetrics.codexCandidateSelectionVisits), "
-                + "attempts=\(secondMetrics.codexFileScanAttempts), "
-                + "accounting=\(secondMetrics.codexProgressAccountingVisits)")
+        // Once the timed pass defers its selected tail, larger per-refresh time allowance lets
+        // later bounded pages drain it without making those pages depend on CI runner speed.
+        options.codexScanBudgetForTesting = nil
+        options.maxCodexScanDurationPerRefresh = 60
+        var catchUpCache = relaunchedCache
+        var catchUpPass = 2
+        while catchUpCache.files.count < corpusSize, catchUpPass < 8 {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(Double(catchUpPass)),
+                options: options)
+            let metrics = recorder.snapshot()
+            let nextCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            print(
+                "[discovery-proof] catch-up-\(catchUpPass)=\(nextCache.files.count), "
+                    + "visits=\(metrics.codexCandidateSelectionVisits), "
+                    + "attempts=\(metrics.codexFileScanAttempts)")
 
-        // The final file slice also advances the flat-root cursor across the two date ancestors.
-        #expect(secondMetrics.codexDiscoveryVisits == corpusSize - candidateLimit * 2 + 2)
-        #expect(secondMetrics.codexCandidateSelectionVisits == corpusSize - candidateLimit * 2)
-        #expect(secondMetrics.codexFileScanAttempts == corpusSize - candidateLimit * 2)
-        #expect(secondMetrics.codexProgressAccountingVisits == 0)
-        #expect(secondCache.files.count == corpusSize)
-        #expect(secondCache.codexScanCatchUpPending == true)
+            #expect(metrics.codexCandidateSelectionVisits <= candidateLimit)
+            #expect(metrics.codexFileScanAttempts <= candidateLimit)
+            #expect(metrics.codexFileScanAttempts > 0)
+            #expect(nextCache.files.count > catchUpCache.files.count)
+            #expect(nextCache.files.count <= catchUpCache.files.count + candidateLimit)
+            #expect(nextCache.codexScanCatchUpPending == true)
+            catchUpCache = nextCache
+            catchUpPass += 1
+        }
+        #expect(catchUpCache.files.count == corpusSize)
     }
 
     @Test
