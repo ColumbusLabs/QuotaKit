@@ -243,6 +243,8 @@ final class CopilotAllowanceFixture {
             environmentBase: [:])
         self.settings.statusChecksEnabled = false
         self.settings.multiAccountMenuLayout = .segmented
+        self.settings.iCloudSyncEnabled = false
+        self.settings.accountWidgetsEnabled = false
         self.store._test_providerFetchOutcomeOverride = { [weak self] _ in
             self?.failedRefreshes += 1
             return ProviderFetchOutcome(
