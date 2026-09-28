@@ -110,6 +110,7 @@ extension CostUsageStore {
                 defer { sqlite3_finalize(status) }
                 Self.bind(path, to: status, at: 1)
                 try Self.stepDone(status, database: database)
+                try Self.invalidateVerifiedTemporalCoverage(database)
             }
             return true
         }

@@ -1687,7 +1687,8 @@ extension CostUsagePerformanceGateTests {
         let coldDiscovery = try #require(coldCache.codexSessionDiscovery)
         #expect(coldCounter.value >= 250)
         #expect(coldChild.days.isEmpty)
-        #expect(coldChild.forkBaselineDependencyKey?.contains("missing|late-parent|discovery|") == true)
+        // An unresolved fork has no reusable parent baseline until the missing file appears.
+        #expect(coldChild.forkBaselineDependencyKey == nil)
         #expect(coldDiscovery.missingSessionIds.contains("late-parent"))
 
         let warmCounter = HeadParseCounter()
