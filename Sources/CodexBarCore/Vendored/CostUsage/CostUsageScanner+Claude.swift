@@ -821,7 +821,7 @@ extension CostUsageScanner {
             try checkCancellation?()
 
             cache = scanState.cache
-            artifact.sourceFileIDs = scanState.sourceFileIDs.filter { sourceInventory[$0.key] != nil }
+            artifact.updateSourceFileIDs(scanState.sourceFileIDs, presentIn: sourceInventory)
             cache.roots = nil
 
             for key in cache.files.keys where sourceInventory[key] == nil {
@@ -847,8 +847,8 @@ extension CostUsageScanner {
         let committedCacheStamp: CostUsageClaudeFileStamp? = if shouldMutateCache {
             try CostUsageClaudeCacheIO.save(
                 provider: provider,
-                cache: cache,
-                sourceFileIDs: artifact.sourceFileIDs,
+                cache: artifact,
+                usage: cache,
                 cacheRoot: options.cacheRoot,
                 reportContext: cacheContext,
                 calendar: range.calendar,
