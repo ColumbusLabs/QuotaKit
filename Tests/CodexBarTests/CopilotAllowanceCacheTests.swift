@@ -124,7 +124,8 @@ struct CopilotAllowanceCacheTests {
             #expect(fixture.store.snapshots[.copilot]?.updatedAt == original.updatedAt)
             #expect(fixture.store.lastKnownResetSnapshots[.copilot]?.updatedAt == original.updatedAt)
             #expect(fixture.failedRefreshes == previousFailures + 1)
-            #expect(fixture.store.accountSnapshots[.copilot]?.first?.error == previousError)
+            #expect(fixture.store.accountSnapshots[.copilot]?.first?.error == URLError(.notConnectedToInternet)
+                .localizedDescription)
             let expectedVisibleError = previousFailures == 0 ? nil : URLError(.notConnectedToInternet)
                 .localizedDescription
             #expect(fixture.store.errors[.copilot] == expectedVisibleError)
@@ -178,6 +179,8 @@ struct CopilotAllowanceCacheTests {
         defer { fixture.stop() }
         try fixture.seedAccounts()
         let account = try #require(fixture.settings.effectiveSelectedTokenAccount(for: .copilot))
+        let previousCacheKey = try #require(fixture.store.accountSnapshots[.copilot]?
+            .first { $0.id == account.id }?.cacheKey)
         if credential {
             fixture.settings.updateTokenAccount(
                 provider: .copilot,
@@ -194,7 +197,10 @@ struct CopilotAllowanceCacheTests {
             allowDisabled: true)
         #expect(fixture.store.snapshots[.copilot] == nil)
         #expect(fixture.store.lastKnownResetSnapshots[.copilot] == nil)
-        #expect(fixture.store.accountSnapshots[.copilot]?.contains { $0.id == account.id } != true)
+        let failedEntry = try #require(fixture.store.accountSnapshots[.copilot]?
+            .first { $0.id == account.id })
+        #expect(failedEntry.snapshot == nil)
+        #expect(failedEntry.cacheKey != previousCacheKey)
     }
 }
 
