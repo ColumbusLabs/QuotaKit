@@ -155,6 +155,8 @@ actor CostUsageStore {
 
     /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
     nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
+    /// Test-only count of rows/snapshots checked during persistence prefix comparison.
+    nonisolated(unsafe) static var codexPrefixComparisonVisitForTesting: ((String, Int) -> Void)?
 
     /// Test-only failure injection inside the bounded delta transaction, after file writes and
     /// before metadata writes. Used to prove transient SQLite errors preserve the prior store.

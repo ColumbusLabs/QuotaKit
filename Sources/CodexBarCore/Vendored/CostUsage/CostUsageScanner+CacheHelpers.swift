@@ -1268,6 +1268,25 @@ extension CostUsageScanner {
             anchor: cached.codexPendingSourcePricingAnchor)
         fileUsage.codexPendingPricing = pendingPricing.isEmpty
             || (fileUsage.codexScanComplete == true && !fileUsage.hasBufferedCodexForkRetryLines) ? nil : pendingPricing
+        if !sessionAlreadyContributed, !isBufferedForkResume,
+           !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context),
+           sourcePricingForResume == nil, cached.codexPendingPricing == nil,
+           cached.codexScanComplete != false, startOffset == cached.size,
+           input.metadata.size > cached.size,
+           let priorRows = cached.codexRows,
+           let priorSnapshots = cached.codexTokenSnapshots,
+           let ledgerRevision = cached.codexLedgerRevision,
+           let fileIdentity = cached.codexScanFileId,
+           fileIdentity == input.metadata.fileId
+        {
+            fileUsage.codexAppendOnlyPrefix = CostUsageCodexAppendOnlyPrefix(
+                path: input.metadata.path,
+                fileIdentity: fileIdentity,
+                parsedBytes: startOffset,
+                rowCount: priorRows.count,
+                snapshotCount: priorSnapshots.count,
+                ledgerRevision: ledgerRevision)
+        }
         cache.files[input.metadata.path] = fileUsage
         Self.rememberScannedCodexFile(
             input: input,

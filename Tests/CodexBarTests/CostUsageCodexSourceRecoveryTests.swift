@@ -422,7 +422,12 @@ struct CostUsageCodexSourceRecoveryTests {
         // The direct-fork baseline also revalidates the parent's one usage row.
         #expect(recorder.snapshot().usageRowsProcessed == 4)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
-        #expect(reopened.files[parent.path] == canonical.files[parent.path])
+        var reopenedParent = reopened.files[parent.path]
+        var canonicalParent = canonical.files[parent.path]
+        // The store may rewrite an unchanged parent and assign a new ledger revision.
+        reopenedParent?.codexLedgerRevision = nil
+        canonicalParent?.codexLedgerRevision = nil
+        #expect(reopenedParent == canonicalParent)
         #expect(reopened.files[child.path]?.codexRows == originalChild.codexRows)
         #expect(reopened.files[child.path]?.days == originalChild.days)
         #expect(reopened.files[child.path]?.forkBaselineDependencyKey == originalChild.forkBaselineDependencyKey)

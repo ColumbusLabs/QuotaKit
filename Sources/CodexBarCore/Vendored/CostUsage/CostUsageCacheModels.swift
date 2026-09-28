@@ -380,6 +380,10 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    /// Store-owned revision of the committed row/snapshot ledger loaded with this file.
+    var codexLedgerRevision: String?
+    /// A scanner proof for one append. Never restored from the SQLite manifest.
+    var codexAppendOnlyPrefix: CostUsageCodexAppendOnlyPrefix?
     var codexNextUsageRowIndex: Int?
     /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
     var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]?
@@ -417,6 +421,15 @@ struct CostUsageFileUsage: Codable, Equatable {
             || self.codexHasBufferedSubagentLines == true
             || self.codexHasBufferedUnresolvedForkLines == true
     }
+}
+
+struct CostUsageCodexAppendOnlyPrefix: Codable, Equatable {
+    var path: String
+    var fileIdentity: String
+    var parsedBytes: Int64
+    var rowCount: Int
+    var snapshotCount: Int
+    var ledgerRevision: String
 }
 
 struct CostUsageCodexSessionMetadata: Codable, Equatable {
