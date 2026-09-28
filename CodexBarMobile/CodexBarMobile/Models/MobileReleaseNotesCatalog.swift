@@ -32,6 +32,10 @@ enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(
+                            localized: "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone."),
+                        String(
+                            localized: "Copilot Enterprise accounts on different GitHub hosts now stay separate on iPhone."),
+                        String(
                             localized: "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."),
                         String(
                             localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),

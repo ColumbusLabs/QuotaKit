@@ -8,6 +8,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Muse Code can show a user-selected dev.meta.ai team quota when the CLI login omits windows, using an opt-in, domain-scoped browser session.
+- Claude local Usage & Spend now includes claude-swap session homes without counting shared or copied history twice.
+- Abacus AI now reads credits and optional billing through the bundled plugin, with bounded cookie retries and calendar-month pacing.
+- Provider plugins can send encoded form POST requests, collect an optional POST response, and calculate calendar-month dates in a chosen time zone.
+- Codex account menus show Mac-wide local session spend once under **This Mac**, separate from account-specific quota cards.
 - Menu bar layouts can show explicit Session or Weekly reset countdowns and clocks, including conditional branches.
 - Optional pace colors show reserve in green and early exhaustion risk in red.
 - Claude Swap account cards now show source-reported spend, disabled slots, and dated last-known quota after a failed refresh; a repair action remains available for the active foreign-credential slot. Compact rows and CLI output label historical readings, while the menu bar and widgets use live readings only.
@@ -41,6 +46,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Codex: distinguish accounts with the same email and workspace name using stable, privacy-safe labels across account settings and menu switchers.
 - Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.
 - Usage & Spend refreshes independent provider history when a newer regular token snapshot is published.
 - Menu bar: offer a per-provider percent window choice, keep cached menu card heights stable, and scope warmed status submenus to their provider.

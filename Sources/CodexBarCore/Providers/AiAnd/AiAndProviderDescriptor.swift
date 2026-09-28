@@ -32,7 +32,7 @@ public enum AiAndProviderDescriptor {
             placeholder: "sk-…",
             action: ("aiand-open-console", "Open ai& Console", "https://console.aiand.com")),
         showsAPIDetail: true,
-        requiresCredentialForAvailability: true)
+        availability: .configuredKey)
 
     static func scriptStrategy(
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy

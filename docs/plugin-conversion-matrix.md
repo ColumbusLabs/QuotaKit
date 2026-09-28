@@ -24,6 +24,12 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 
 ## Totals
 
+Bundled Swift registration uses `PluginProviderSpec` for the ten pilot providers plus Synthetic, Chutes, v0,
+ElevenLabs, Neuralwatt, ClawRouter, Aixy, Bifrost, Deepgram, LLM Proxy, LiteLLM, sub2api, and llmman. ClawRouter keeps
+its custom app endpoint field. The other twelve additions share app settings builders; provider-owned endpoint
+validation and the bundled scripts remain authoritative. This glue migration does not change the conversion
+classifications or registry count below.
+
 | Status | Count |
 |---|---:|
 | `cut-over` | 17 |
@@ -47,9 +53,9 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | cursor | `needs-cookie-import` | No | Browser cookies/app database provide auth, and integer request history also has bespoke detail. |
 | opencode | `needs-cookie-import` | No | Skipped: React server-function response parsing needs a protocol-specific text decoder beyond `matchFirst`. |
 | opencodego | `needs-files/subprocess/oauth-broker` | No | Local auth/SQLite state and browser sessions are required, with an additional bespoke usage model. |
-| alibaba | `needs-host-extension` | No | Console auth still requires form-encoded POST and CSRF/sec-token discovery; the host only sends JSON POST. |
-| alibabatokenplan | `needs-host-extension` | No | Console requests require form-encoded POST and redirect-aware cookie forwarding, which domain-scoped headers do not supply. |
-| qwencloud | `needs-host-extension` | No | CSRF plus form-encoded POST and redirect-aware routing remain outside the JSON-only POST broker. |
+| alibaba | `needs-host-extension` | No | Form POST is available in host-caps-3; CSRF/sec-token parsing stays in the script. Cookie-jar lane host-caps-4 owns redirect-scoped cookies and the remaining session parity audit; not yet convertible. |
+| alibabatokenplan | `needs-host-extension` | No | Form POST is available in host-caps-3. Cookie-jar lane host-caps-4 must preserve domain/path metadata through redirects and define legacy-header migration before cutover. |
+| qwencloud | `needs-host-extension` | No | Form POST is available in host-caps-3. Cookie-jar lane host-caps-4 owns declared-origin redirects, dashboard/API domain/path routing, final-URL proof, and migration of the native paired-header cache; no cutover here. |
 | factory | `needs-files/subprocess/oauth-broker` | No | The canonical fallback recovers WorkOS tokens from browser localStorage and persists sessions; cookie headers cover only part of auth. |
 | gemini | `needs-files/subprocess/oauth-broker` | No | Gemini CLI credential/config files, Google OAuth refresh, and a curl fallback own the current flow. |
 | antigravity | `needs-pty/webview/native` | No | Process/port discovery, localhost IDE RPC, OAuth files, and a persistent PTY make this a native integration. |
@@ -78,7 +84,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | mimo | `needs-files/subprocess/oauth-broker` | No | The canonical pipeline includes the file-based local usage fallback as well as browser sessions; cookies alone cannot preserve it. |
 | doubao | `needs-files/subprocess/oauth-broker` | No | Full parity needs a CLI subprocess or Volcengine HMAC signing and POST-based plan calls. |
 | sakana | `cut-over` | Yes | Manual cookie credentials already enter through the core descriptor; two fixed-origin HTML GETs and generic quota/PAYG detail projection fit the host. |
-| abacus | `needs-host-extension` | No | Billing duration subtracts one Calendar.current month; the host exposes daily resets but no calendar/month subtraction with timezone parity. |
+| abacus | `cut-over` | Yes | The bundled plugin collects required credits and optional billing with bounded cookie attempts and calendar-month pacing; the native fetcher was removed. |
 | mistral | `needs-cookie-import` | No | CSRF extraction and dependent GETs fit scripts, but auth rejection iterates alternate browser profiles and preserves session selection. |
 | deepseek | `needs-files/subprocess/oauth-broker` | No | Platform auth/profile selection reads Chromium localStorage, and the result has a bespoke history model. |
 | deepinfra | `cut-over` | Yes | Both engines use fixed-origin bearer GETs for required billing data, preserving cents conversion, balance deductions, suspension, spending limits, and bounded retries. The native fetcher and parser are deleted. |

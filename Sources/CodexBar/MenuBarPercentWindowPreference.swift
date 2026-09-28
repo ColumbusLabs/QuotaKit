@@ -37,6 +37,16 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         }
     }
 
+    func label(for provider: UsageProvider) -> String {
+        guard self != .automatic else { return self.label }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let primary = Self.percentWindow(descriptor.presentation.primarySemanticWindow)
+        let presentation = descriptor.presentation
+        return L(self.percentWindow == primary
+            ? presentation.menuBarLayoutPrimaryLabel ?? descriptor.metadata.sessionLabel
+            : presentation.menuBarLayoutSecondaryLabel ?? descriptor.metadata.weeklyLabel)
+    }
+
     /// Windows this provider can actually render as a menu-bar percent, in picker order.
     ///
     /// Extra-rate and plan metrics (monthly plan, extra usage, tertiary, average) still resolve

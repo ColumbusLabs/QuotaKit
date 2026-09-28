@@ -287,6 +287,8 @@ struct ProvidersPane: View {
             let account = try await self.managedCodexAccountCoordinator.authenticateManagedAccount()
             self.selectCodexVisibleAccountForAuthenticatedManagedAccount(account)
             await self.refreshCodexProvider()
+        } catch is CancellationError {
+            return
         } catch {
             self.codexAccountsNotice = self.codexAccountsNotice(for: error)
         }
@@ -302,6 +304,8 @@ struct ProvidersPane: View {
                 _ = try await self.managedCodexAccountCoordinator
                     .authenticateManagedAccount(existingAccountID: accountID)
                 await self.refreshCodexProvider()
+            } catch is CancellationError {
+                return
             } catch {
                 self.codexAccountsNotice = self.codexAccountsNotice(for: error)
             }
@@ -320,11 +324,12 @@ struct ProvidersPane: View {
         }
 
         let result = await self.codexAmbientLoginRunner.run(timeout: 120)
-        if let info = CodexLoginAlertPresentation.alertInfo(for: result) {
-            self.presentLoginAlert(title: info.title, message: info.message)
+        guard case .success = result.outcome else {
+            if let info = CodexLoginAlertPresentation.alertInfo(for: result) {
+                self.presentLoginAlert(title: info.title, message: info.message)
+            }
             return
         }
-
         await self.refreshCodexProvider()
     }
 

@@ -58,7 +58,10 @@ struct SpendDashboardSourceConcurrencyTests {
     }
 
     @Test
-    func `Codex ownership change retains failed unchanged sibling only`() async {
+    func `Codex ownership change retains failed unchanged sibling only`() async throws {
+        let suite = "SpendDashboardSourceConcurrencyTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
         let gate = SpendDashboardResultBatchGate()
         let initial = SpendDashboardConfiguration(
             costUsageEnabled: true,
@@ -73,8 +76,10 @@ struct SpendDashboardSourceConcurrencyTests {
             .init(configuration: replacement),
         ])
         let controller = SpendDashboardController(
+            userDefaults: defaults,
             requestBuilder: { mode in await requestSequence.next(mode: mode) },
-            loader: { request in await gate.load(request) })
+            loader: { request in await gate.load(request) },
+            nowProvider: { Date(timeIntervalSince1970: 1_784_179_200) })
 
         controller.update(configuration: initial)
         await Self.waitForResultGate(gate)
@@ -84,18 +89,26 @@ struct SpendDashboardSourceConcurrencyTests {
                 Self.input(id: "codex:b", cost: 5),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await Self.waitUntil {
+            !controller.isRefreshing && !controller.isModelDerivationInFlight &&
+                controller.model.groups.first?.totalCost == 8
+        }
         #expect(controller.model.groups.first?.totalCost == 8)
 
         controller.update(configuration: replacement)
         await Self.waitForResultGate(gate)
-        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        await Self.waitUntil {
+            !controller.isModelDerivationInFlight && controller.model.groups.first?.totalCost == 5
+        }
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:b"])
         await gate.resume(result: SpendDashboardLoadResult(
             inputs: [],
             failedSourceIDs: ["codex:a", "codex:b"]))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await Self.waitUntil {
+            !controller.isRefreshing && !controller.isModelDerivationInFlight &&
+                controller.failedSourceCount == 2 && controller.model.groups.first?.totalCost == 5
+        }
 
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:b"])
@@ -723,11 +736,12 @@ struct SpendDashboardSourceConcurrencyTests {
     }
 
     private static func waitForResultGate(_ gate: SpendDashboardResultBatchGate) async {
-        for _ in 0..<1000 {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
             if await gate.pendingCount == 1 {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for pending dashboard load")
     }
@@ -746,11 +760,12 @@ struct SpendDashboardSourceConcurrencyTests {
     }
 
     private static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0..<1000 {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
             if condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for dashboard state")
     }

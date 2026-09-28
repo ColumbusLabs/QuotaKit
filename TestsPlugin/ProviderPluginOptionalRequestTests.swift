@@ -68,7 +68,7 @@ struct ProviderPluginOptionalRequestTests {
         }.manifest
         let request = try ProviderPluginHTTPResponse.Request(
             rawURL: "https://example.test/primary",
-            options: ["optionalURL": "https://example.test/optional"],
+            options: ["optionalRequest": ["url": "https://example.test/optional", "method": "GET", "options": [:]]],
             method: "GET",
             settings: [:],
             secrets: [:],

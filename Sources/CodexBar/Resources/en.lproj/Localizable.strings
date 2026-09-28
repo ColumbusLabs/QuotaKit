@@ -573,7 +573,7 @@
 "menu_bar_metric_subtitle" = "Choose which window drives the menu bar percent.";
 "menu_bar_metric_subtitle_deepseek" = "Shows the DeepSeek balance in the menu bar.";
 "menu_bar_metric_subtitle_moonshot" = "Shows the Moonshot / Kimi API balance in the menu bar.";
-"menu_bar_metric_subtitle_mistral" = "Choose Mistral API spend or Monthly Plan usage for the menu bar.";
+"menu_bar_metric_subtitle_mistral" = "Choose Mistral API spend or Monthly Plan usage for the menu bar and widgets.";
 "automatic" = "Automatic";
 "primary_api_key_limit" = "Primary (API key limit)";
 

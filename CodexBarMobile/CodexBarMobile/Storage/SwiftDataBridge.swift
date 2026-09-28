@@ -176,6 +176,7 @@ enum SwiftDataBridge {
         let crossModelUsageData = provider.crossModelUsage.flatMap { try? encoder.encode($0) }
         let hyperBalanceData = provider.hyperBalance.flatMap { try? encoder.encode($0) }
         let providerDetailsData = provider.providerDetails.flatMap { try? encoder.encode($0) }
+        let accountIdentitiesData = provider.accountIdentities.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
         if let existing {
@@ -192,6 +193,7 @@ enum SwiftDataBridge {
             existing.crossModelUsageData = crossModelUsageData
             existing.hyperBalanceData = hyperBalanceData
             existing.providerDetailsData = providerDetailsData
+            existing.accountIdentitiesData = accountIdentitiesData
             existing.device = device
             model = existing
         } else {
@@ -212,6 +214,7 @@ enum SwiftDataBridge {
                 crossModelUsageData: crossModelUsageData,
                 hyperBalanceData: hyperBalanceData,
                 providerDetailsData: providerDetailsData,
+                accountIdentitiesData: accountIdentitiesData,
                 device: device)
             context.insert(created)
             model = created
@@ -341,6 +344,9 @@ enum SwiftDataBridge {
                 let providerDetails = row.providerDetailsData.flatMap {
                     try? decoder.decode([SyncProviderDetailSection].self, from: $0)
                 }
+                let accountIdentities = row.accountIdentitiesData.flatMap {
+                    try? decoder.decode([String].self, from: $0)
+                }
 
                 // Reconstruct utilization history by grouping the flat entry rows
                 // back into series. Sort by series name for stability, and by
@@ -381,6 +387,7 @@ enum SwiftDataBridge {
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
                     perplexityCredits: perplexityCredits,
                     codexResetCredits: codexResetCredits,
+                    accountIdentities: accountIdentities,
                     crossModelUsage: crossModelUsage,
                     hyperBalance: hyperBalance,
                     providerDetails: providerDetails))

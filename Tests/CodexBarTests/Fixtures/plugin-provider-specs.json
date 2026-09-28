@@ -181,6 +181,7 @@
   ],
   "providers": [
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         true,
         true,
@@ -206,9 +207,29 @@
           0.8431372549019608
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://xkiro.com",
       "debug": "",
       "detail": "xkiro not detected",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [],
@@ -238,13 +259,28 @@
       ],
       "name": "xKiro",
       "noData": "xKiro cost history is not available.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "XKIRO_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show xKiro usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show xKiro usage",
+      "toggles": [],
+      "widgetColor": [
+        0.3215686274509804,
+        0.788235294117647,
+        0.6078431372549019
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         true,
         true,
@@ -270,9 +306,29 @@
           1
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://www.atlascloud.ai/console",
       "debug": "",
       "detail": "atlascloud not detected",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [],
@@ -302,13 +358,28 @@
       ],
       "name": "Atlas Cloud",
       "noData": "Atlas Cloud cost history is not available.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "ATLASCLOUD_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show Atlas Cloud balance"
+      "subscriptionDashboard": "",
+      "toggle": "Show Atlas Cloud balance",
+      "toggles": [],
+      "widgetColor": [
+        0.34901960784313724,
+        0.4588235294117647,
+        0.9607843137254902
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         true,
         true,
@@ -334,9 +405,29 @@
           0.6392156862745098
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway",
       "debug": "",
       "detail": "vercel not detected",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [],
@@ -366,13 +457,28 @@
       ],
       "name": "Vercel AI Gateway",
       "noData": "Vercel AI Gateway cost history is not available.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "AI_GATEWAY_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show Vercel AI Gateway balance"
+      "subscriptionDashboard": "",
+      "toggle": "Show Vercel AI Gateway balance",
+      "toggles": [],
+      "widgetColor": [
+        1,
+        1,
+        1
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         true,
         true,
@@ -398,9 +504,29 @@
           0.9921568627450981
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://devpass.llmgateway.io/dashboard",
       "debug": "",
       "detail": "devpass not detected",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [
@@ -435,13 +561,28 @@
       ],
       "name": "DevPass",
       "noData": "DevPass cost history is not available.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "DEVPASS_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show DevPass usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show DevPass usage",
+      "toggles": [],
+      "widgetColor": [
+        0.1450980392156863,
+        0.38823529411764707,
+        0.9215686274509803
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         true,
         true,
@@ -468,9 +609,29 @@
           0.8235294117647058
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://gitkraken.dev/account#ai-usage",
       "debug": "",
       "detail": "gitkraken not detected",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [
@@ -513,13 +674,29 @@
       ],
       "name": "GitKraken AI",
       "noData": "GitKraken cost history is not available.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "GITKRAKEN_API_TOKEN": "fixture-key",
+        "GITKRAKEN_ORG_ID": "fixture-project"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show GitKraken AI usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show GitKraken AI usage",
+      "toggles": [],
+      "widgetColor": [
+        0.09019607843137255,
+        0.5725490196078431,
+        0.5294117647058824
+      ],
+      "workspaceOrder": 7
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         false,
         false,
@@ -550,9 +727,29 @@
           0.9294117647058824
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://poe.com/api/keys",
       "debug": "",
       "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [],
@@ -582,13 +779,29 @@
       ],
       "name": "Poe",
       "noData": "Poe usage history is unavailable.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "POE_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show Poe usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show Poe usage",
+      "toggles": [],
+      "widgetColor": [
+        0.36470588235294116,
+        0.3607843137254902,
+        0.8705882352941177
+      ],
+      "workspaceOrder": null
     },
     {
+      "accountAvailability": true,
+      "apiKeyDebugLabel": "",
       "availability": [
         false,
         false,
@@ -621,9 +834,29 @@
           1
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://deepinfra.com/dash",
       "debug": "DeepInfra debug log not yet implemented",
       "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [],
       "flags": [
         false,
@@ -644,13 +877,37 @@
       ],
       "name": "DeepInfra",
       "noData": "DeepInfra per-request cost history is not available in QuotaKit.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "DEEPINFRA_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         "https://status.deepinfra.com"
       ],
-      "toggle": "Show DeepInfra usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show DeepInfra usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "DEEPINFRA_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste API key…",
+        "subtitle": "Store multiple DeepInfra API keys.",
+        "title": "API tokens"
+      },
+      "widgetColor": [
+        0.16470588235294117,
+        0.19607843137254902,
+        0.4588235294117647
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         false,
         false,
@@ -682,9 +939,29 @@
           1
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://zenmux.ai/platform/management",
       "debug": "ZenMux debug log not yet implemented",
       "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [
@@ -719,13 +996,28 @@
       ],
       "name": "ZenMux",
       "noData": "ZenMux cost history is not exposed by the Management API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "ZENMUX_MANAGEMENT_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show ZenMux usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show ZenMux usage",
+      "toggles": [],
+      "widgetColor": [
+        0.35294117647058826,
+        0.1568627450980392,
+        0.7450980392156863
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         false,
         false,
@@ -756,16 +1048,36 @@
           1
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://app.cline.bot/dashboard/subscription?personal=true",
       "debug": "ClinePass debug log not yet implemented",
       "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [],
           "id": "clinepass-api-key",
           "placeholder": "ClinePass API key...",
           "secure": true,
-          "subtitle": "Stored in ~/.quotakit/config.json. Paste a ClinePass API key.",
+          "subtitle": "Paste an API key, or run cline auth. Reads the existing Cline session without copying it.",
           "title": "API key"
         }
       ],
@@ -788,13 +1100,28 @@
       ],
       "name": "ClinePass",
       "noData": "ClinePass cost history is not available via the usage-limits API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "CLINE_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show ClinePass usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show ClinePass usage",
+      "toggles": [],
+      "widgetColor": [
+        0.38,
+        0.64,
+        0.98
+      ],
+      "workspaceOrder": null
     },
     {
+      "apiKeyDebugLabel": "",
       "availability": [
         false,
         false,
@@ -827,9 +1154,29 @@
           0.10980392156862745
         ]
       ],
+      "creditsHint": "",
       "dashboard": "https://console.aiand.com",
       "debug": "ai& debug log not yet implemented",
       "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
       "fields": [
         {
           "actions": [
@@ -864,11 +1211,1578 @@
       ],
       "name": "ai&",
       "noData": "ai& spend is summed from the request logs API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "AIAND_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
       "status": [
         "",
         ""
       ],
-      "toggle": "Show ai& usage"
+      "subscriptionDashboard": "",
+      "toggle": "Show ai& usage",
+      "toggles": [],
+      "widgetColor": [
+        0.8862745098039215,
+        0.3607843137254902,
+        0.16862745098039217
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "synthetic",
+        "synthetic.new"
+      ],
+      "color": [
+        0.16470588235294117,
+        0.16470588235294117,
+        0.16470588235294117
+      ],
+      "confetti": [
+        [
+          0.38823529411764707,
+          0.4,
+          0.9450980392156862
+        ],
+        [
+          0.24313725490196078,
+          0.24313725490196078,
+          0.24313725490196078
+        ],
+        [
+          0.9686274509803922,
+          0.9647058823529412,
+          0.9529411764705882
+        ]
+      ],
+      "creditsHint": "Weekly token quota regenerates continuously.",
+      "dashboard": "",
+      "debug": "",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "synthetic-api-key",
+          "placeholder": "Paste key…",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Paste the key from the Synthetic dashboard.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-synthetic",
+      "id": "synthetic",
+      "labels": [
+        "Five-hour quota",
+        "Weekly tokens",
+        "Search hourly"
+      ],
+      "name": "Synthetic",
+      "noData": "Synthetic cost summary is not supported.",
+      "planLabels": {
+        "enterprise": "Enterprise",
+        "pro": "Pro",
+        "starter": "Starter",
+        "team": "Team"
+      },
+      "progressColor": "brand",
+      "projections": {
+        "SYNTHETIC_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Synthetic usage",
+      "toggles": [],
+      "widgetColor": [
+        0.16470588235294117,
+        0.16470588235294117,
+        0.16470588235294117
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "chutes",
+        "chutes.ai"
+      ],
+      "color": [
+        0,
+        0.7215686274509804,
+        1
+      ],
+      "confetti": [
+        [
+          0.07058823529411765,
+          0.07058823529411765,
+          0.07058823529411765
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0.38823529411764707,
+          0.8235294117647058,
+          0.592156862745098
+        ]
+      ],
+      "creditsHint": "Subscription usage from the Chutes API.",
+      "dashboard": "https://chutes.ai",
+      "debug": "Chutes debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "chutes-api-key",
+          "placeholder": "chutes key...",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Paste a Chutes API key.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-chutes",
+      "id": "chutes",
+      "labels": [
+        "4-hour quota",
+        "Monthly quota",
+        ""
+      ],
+      "name": "Chutes",
+      "noData": "Chutes cost history is not available from QuotaKit.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "CHUTES_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Chutes usage",
+      "toggles": [],
+      "widgetColor": [
+        0.09411764705882353,
+        0.6274509803921569,
+        0.34509803921568627
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "V0_API_KEY",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "v0"
+      ],
+      "color": [
+        0.06666666666666667,
+        0.06666666666666667,
+        0.06666666666666667
+      ],
+      "confetti": [
+        [
+          0.06666666666666667,
+          0.06666666666666667,
+          0.06666666666666667
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0.5333333333333333,
+          0.5333333333333333,
+          0.5333333333333333
+        ]
+      ],
+      "creditsHint": "Billing and rate-limit data from the v0 Platform API",
+      "dashboard": "https://v0.app/settings/billing",
+      "debug": "",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [
+            {
+              "id": "v0-open-api-keys",
+              "title": "Open v0 API keys"
+            }
+          ],
+          "id": "v0-api-key",
+          "placeholder": "v0_...",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Create one in v0 settings or set V0_API_KEY.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "v0-scope",
+          "placeholder": "project-slug",
+          "secure": false,
+          "subtitle": "Optional project ID or slug. Leave blank for the default v0 scope.",
+          "title": "Scope"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-v0",
+      "id": "v0",
+      "labels": [
+        "Billing",
+        "Rate limit",
+        ""
+      ],
+      "name": "v0",
+      "noData": "v0 cost history is not available via the Platform API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "V0_API_KEY": "fixture-key",
+        "V0_SCOPE": "fixture-project"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show v0 usage",
+      "toggles": [],
+      "widgetColor": [
+        0.06666666666666667,
+        0.06666666666666667,
+        0.06666666666666667
+      ],
+      "workspaceOrder": 8
+    },
+    {
+      "accountAvailability": true,
+      "apiKeyDebugLabel": "ELEVENLABS_API_KEY",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "elevenlabs",
+        "11labs",
+        "eleven"
+      ],
+      "color": [
+        0.92,
+        0.92,
+        0.9
+      ],
+      "confetti": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0.5019607843137255,
+          0.5019607843137255,
+          0.5019607843137255
+        ],
+        [
+          0.9921568627450981,
+          0.9882352941176471,
+          0.9882352941176471
+        ]
+      ],
+      "creditsHint": "",
+      "dashboard": "https://elevenlabs.io/app/developers/usage",
+      "debug": "",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "elevenlabs-api-key",
+          "placeholder": "xi-...",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Get your key from elevenlabs.io/app/settings/api-keys.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-elevenlabs",
+      "id": "elevenlabs",
+      "labels": [
+        "Credits",
+        "Voices",
+        ""
+      ],
+      "name": "ElevenLabs",
+      "noData": "ElevenLabs cost history is not available via API yet.",
+      "planLabels": {
+        "business": "Business",
+        "creator": "Creator",
+        "enterprise": "Enterprise",
+        "free": "Free",
+        "growing business": "Business",
+        "pro": "Pro",
+        "scale": "Scale",
+        "starter": "Starter"
+      },
+      "progressColor": "label",
+      "projections": {
+        "ELEVENLABS_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        "https://status.elevenlabs.io"
+      ],
+      "subscriptionDashboard": "https://elevenlabs.io/app/subscription",
+      "toggle": "Show ElevenLabs usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "ELEVENLABS_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste API key…",
+        "subtitle": "Store multiple ElevenLabs API keys.",
+        "title": "API keys"
+      },
+      "widgetColor": [
+        0.9215686274509803,
+        0.9215686274509803,
+        0.9019607843137255
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "accountAvailability": true,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "neuralwatt",
+        "nw",
+        "neural"
+      ],
+      "color": [
+        0.12,
+        0.72,
+        0.38
+      ],
+      "confetti": [
+        [
+          0.2196078431372549,
+          0.8509803921568627,
+          0.5490196078431373
+        ],
+        [
+          0.09019607843137255,
+          0.1411764705882353,
+          0.22745098039215686
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "creditsHint": "Subscription kWh and prepaid USD balance.",
+      "dashboard": "https://portal.neuralwatt.com/dashboard",
+      "debug": "",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "neuralwatt-api-key",
+          "placeholder": "sk-...",
+          "secure": true,
+          "subtitle": "Stored in the QuotaKit config file. Manage keys from the Neuralwatt dashboard.",
+          "title": "API key"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-neuralwatt",
+      "id": "neuralwatt",
+      "labels": [
+        "Subscription",
+        "Key allowance",
+        ""
+      ],
+      "name": "Neuralwatt",
+      "noData": "Neuralwatt token cost history is not available via the quota API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "NEURALWATT_API_KEY": "fixture-key"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "https://portal.neuralwatt.com/dashboard",
+      "toggle": "Show Neuralwatt usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "1.0 seconds",
+        "injection": {
+          "NEURALWATT_API_KEY": "fixture-account"
+        },
+        "placeholder": "sk-...",
+        "subtitle": "Store multiple Neuralwatt API keys.",
+        "title": "API keys"
+      },
+      "widgetColor": [
+        0.2196078431372549,
+        0.8509803921568627,
+        0.5490196078431373
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "clawrouter",
+        "claw-router"
+      ],
+      "color": [
+        0.16470588235294117,
+        0.5098039215686274,
+        0.9607843137254902
+      ],
+      "confetti": [
+        [
+          0.2,
+          0.17254901960784313,
+          0.7019607843137254
+        ],
+        [
+          0.27058823529411763,
+          0.43529411764705883,
+          0.8666666666666667
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "creditsHint": "",
+      "dashboard": "https://clawrouter.openclaw.ai/dashboard/access",
+      "debug": "ClawRouter debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "clawrouter-api-key",
+          "placeholder": "ClawRouter key…",
+          "secure": true,
+          "subtitle": "Stored in the QuotaKit config file. Reads monthly budget and routed usage from /v1/usage.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "clawrouter-base-url",
+          "placeholder": "https://clawrouter.openclaw.ai",
+          "secure": false,
+          "subtitle": "Optional. Defaults to the hosted ClawRouter service.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-clawrouter",
+      "id": "clawrouter",
+      "labels": [
+        "Monthly budget",
+        "Requests",
+        ""
+      ],
+      "name": "ClawRouter",
+      "noData": "ClawRouter spend is reported by its usage API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "CLAWROUTER_API_KEY": "fixture-key",
+        "CLAWROUTER_BASE_URL": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show ClawRouter usage",
+      "toggles": [],
+      "widgetColor": [
+        0.16470588235294117,
+        0.5098039215686274,
+        0.9607843137254902
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "accountAvailability": false,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "aixy"
+      ],
+      "color": [
+        0.07058823529411765,
+        0.21176470588235294,
+        0.3137254901960784
+      ],
+      "confetti": [
+        [
+          0.07058823529411765,
+          0.21176470588235294,
+          0.3137254901960784
+        ],
+        [
+          0.9254901960784314,
+          0.4549019607843137,
+          0.2901960784313726
+        ],
+        [
+          0.9686274509803922,
+          0.9529411764705882,
+          0.9098039215686274
+        ]
+      ],
+      "creditsHint": "Reads key-scoped usage and applicable budgets from Aixy.",
+      "dashboard": "https://dash.aixy-gateway.com",
+      "debug": "Aixy debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "aixy-api-key",
+          "placeholder": "Paste Aixy API key…",
+          "secure": true,
+          "subtitle": "Project-scoped Aixy key used to read its own usage and applicable budgets.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "aixy-base-url",
+          "placeholder": "https://api.aixy-gateway.com",
+          "secure": false,
+          "subtitle": "Optional Aixy gateway URL for a self-hosted or dedicated installation.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-aixy",
+      "id": "aixy",
+      "labels": [
+        "Budget",
+        "Secondary budget",
+        ""
+      ],
+      "name": "Aixy",
+      "noData": "Aixy spend is reported by the provider API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "AIXY_API_KEY": "fixture-key",
+        "AIXY_BASE_URL": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Aixy usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "AIXY_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste Aixy API key…",
+        "subtitle": "Store multiple Aixy API keys.",
+        "title": "API keys"
+      },
+      "widgetColor": [
+        0.07058823529411765,
+        0.21176470588235294,
+        0.3137254901960784
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "accountAvailability": false,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "bifrost"
+      ],
+      "color": [
+        0.2,
+        0.7529411764705882,
+        0.6196078431372549
+      ],
+      "confetti": [
+        [
+          0.2,
+          0.7529411764705882,
+          0.6196078431372549
+        ],
+        [
+          0.12156862745098039,
+          0.47843137254901963,
+          0.38823529411764707
+        ],
+        [
+          0.5607843137254902,
+          0.8784313725490196,
+          0.7803921568627451
+        ]
+      ],
+      "creditsHint": "Reads governance budgets and rate limits from the Bifrost virtual key quota endpoint.",
+      "dashboard": "",
+      "debug": "Bifrost debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "bifrost-api-key",
+          "placeholder": "Paste Bifrost virtual key…",
+          "secure": true,
+          "subtitle": "Bifrost virtual key used to read its own budgets and rate limits.",
+          "title": "Virtual key"
+        },
+        {
+          "actions": [],
+          "id": "bifrost-base-url",
+          "placeholder": "https://bifrost.example.com",
+          "secure": false,
+          "subtitle": "Bifrost gateway base URL, e.g. your company's self-hosted Bifrost host.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-bifrost",
+      "id": "bifrost",
+      "labels": [
+        "Budget",
+        "Secondary budget",
+        ""
+      ],
+      "name": "Bifrost",
+      "noData": "Bifrost spend is reported by the provider API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "BIFROST_API_KEY": "fixture-key",
+        "BIFROST_BASE_URL": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Bifrost usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "BIFROST_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste Bifrost virtual key…",
+        "subtitle": "Store multiple Bifrost virtual keys.",
+        "title": "Virtual keys"
+      },
+      "widgetColor": [
+        0.2,
+        0.7529411764705882,
+        0.6196078431372549
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        true
+      ],
+      "cli": [
+        "deepgram",
+        "dg"
+      ],
+      "color": [
+        0.49,
+        0.23,
+        0.93
+      ],
+      "confetti": [
+        [
+          0.07450980392156863,
+          0.9372549019607843,
+          0.5843137254901961
+        ],
+        [
+          0.0784313725490196,
+          0.6039215686274509,
+          0.984313725490196
+        ],
+        [
+          0.10196078431372549,
+          0.10196078431372549,
+          0.12156862745098039
+        ]
+      ],
+      "creditsHint": "Usage summary from Deepgram API",
+      "dashboard": "https://console.deepgram.com/project/",
+      "debug": "Deepgram debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "deepgram-api-key",
+          "placeholder": "dg_...",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Get your key from console.deepgram.com.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "deepgram-project-id",
+          "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+          "secure": false,
+          "subtitle": "Optional. Leave blank to discover and aggregate projects visible to the API key.",
+          "title": "Project ID"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-deepgram",
+      "id": "deepgram",
+      "labels": [
+        "Requests",
+        "Usage",
+        ""
+      ],
+      "name": "Deepgram",
+      "noData": "Deepgram cost summary is not yet supported.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "DEEPGRAM_API_KEY": "fixture-key",
+        "DEEPGRAM_PROJECT_ID": "fixture-project"
+      },
+      "projectToken": "fixture-project",
+      "status": [
+        "",
+        "https://status.deepgram.com"
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Deepgram usage",
+      "toggles": [],
+      "widgetColor": [
+        0.0392156862745098,
+        0.07058823529411765,
+        0.10588235294117647
+      ],
+      "workspaceOrder": 5
+    },
+    {
+      "accountAvailability": false,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "llmproxy",
+        "llm-api-key-proxy",
+        "llm-proxy"
+      ],
+      "color": [
+        0.1411764705882353,
+        0.7058823529411765,
+        0.49411764705882355
+      ],
+      "confetti": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "creditsHint": "",
+      "dashboard": "",
+      "debug": "LLM Proxy debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "llmproxy-api-key",
+          "placeholder": "proxy key…",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Used for /v1/quota-stats.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "llmproxy-base-url",
+          "placeholder": "https://proxy.example.com",
+          "secure": false,
+          "subtitle": "Base URL for the LLM-API-Key-Proxy instance.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-llmproxy",
+      "id": "llmproxy",
+      "labels": [
+        "Quota",
+        "Requests",
+        ""
+      ],
+      "name": "LLM Proxy",
+      "noData": "LLM Proxy cost history is reported in the quota-stats summary.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "LLM_PROXY_API_KEY": "fixture-key",
+        "LLM_PROXY_BASE_URL": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show LLM Proxy usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "LLM_PROXY_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste proxy API key…",
+        "subtitle": "Store multiple LLM Proxy API keys.",
+        "title": "API keys"
+      },
+      "widgetColor": [
+        0.1411764705882353,
+        0.7058823529411765,
+        0.49411764705882355
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "accountAvailability": false,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "litellm",
+        "litellm-proxy"
+      ],
+      "color": [
+        0.2980392156862745,
+        0.5372549019607843,
+        0.7529411764705882
+      ],
+      "confetti": [
+        [
+          0.09803921568627451,
+          0.09803921568627451,
+          0.2196078431372549
+        ],
+        [
+          0.5098039215686274,
+          0.34509803921568627,
+          0.9490196078431372
+        ],
+        [
+          0.7725490196078432,
+          0.7254901960784313,
+          0.9647058823529412
+        ]
+      ],
+      "creditsHint": "Reads spend and budget from LiteLLM key, user, and team info endpoints.",
+      "dashboard": "",
+      "debug": "LiteLLM debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "litellm-api-key",
+          "placeholder": "sk-…",
+          "secure": true,
+          "subtitle": "LiteLLM virtual key used to read its own spend and budget.",
+          "title": "API key"
+        },
+        {
+          "actions": [],
+          "id": "litellm-base-url",
+          "placeholder": "https://litellm.example.com",
+          "secure": false,
+          "subtitle": "LiteLLM proxy base URL. /v1 suffixes are accepted and stripped for management endpoints.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-litellm",
+      "id": "litellm",
+      "labels": [
+        "Personal budget",
+        "Team budget",
+        ""
+      ],
+      "name": "LiteLLM",
+      "noData": "LiteLLM spend is reported by the provider API.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "LITELLM_API_KEY": "fixture-key",
+        "LITELLM_BASE_URL": "https://fixture.example.com",
+        "LITELLM_MODEL_USAGE_ENABLED": "true"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show LiteLLM usage",
+      "toggles": [
+        {
+          "id": "litellm-model-usage",
+          "subtitle": "Read the user's last 30 days of tokens and logged requests by model.",
+          "title": "Show model activity"
+        }
+      ],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "LITELLM_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste LiteLLM API key…",
+        "subtitle": "Store multiple LiteLLM API keys.",
+        "title": "API keys"
+      },
+      "widgetColor": [
+        0.2980392156862745,
+        0.5372549019607843,
+        0.7529411764705882
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "accountAvailability": false,
+      "apiKeyDebugLabel": "",
+      "availability": [
+        false,
+        false,
+        false
+      ],
+      "cli": [
+        "sub2api",
+        "sub-2-api"
+      ],
+      "color": [
+        0.17647058823529413,
+        0.7764705882352941,
+        0.8470588235294118
+      ],
+      "confetti": [
+        [
+          0.12156862745098039,
+          0.3843137254901961,
+          1
+        ],
+        [
+          0.3764705882352941,
+          0.9294117647058824,
+          0.9647058823529412
+        ],
+        [
+          0.4549019607843137,
+          0.9764705882352941,
+          0.6901960784313725
+        ]
+      ],
+      "creditsHint": "Reads key quota, subscription limits, usage, and wallet balance from /v1/usage.",
+      "dashboard": "",
+      "debug": "sub2api debug log not yet implemented",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          false,
+          false
+        ],
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          false,
+          false
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "sub2api-api-key",
+          "placeholder": "sk-…",
+          "secure": true,
+          "subtitle": "Used when no group API key account is selected.",
+          "title": "Fallback API key"
+        },
+        {
+          "actions": [],
+          "id": "sub2api-base-url",
+          "placeholder": "https://sub2api.example.com",
+          "secure": false,
+          "subtitle": "Base URL of your sub2api instance. HTTPS is required except for local loopback testing.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-sub2api",
+      "id": "sub2api",
+      "labels": [
+        "Quota",
+        "Weekly quota",
+        "Monthly quota"
+      ],
+      "name": "sub2api",
+      "noData": "sub2api spend is reported by its usage API.",
+      "planLabels": {
+        "claude team": "Team",
+        "enterprise": "Enterprise",
+        "free": "Free",
+        "pro": "Pro",
+        "team": "Team",
+        "wallet plan": "Wallet"
+      },
+      "progressColor": "brand",
+      "projections": {
+        "SUB2API_API_KEY": "fixture-key",
+        "SUB2API_BASE_URL": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show sub2api usage",
+      "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "SUB2API_API_KEY": "fixture-account"
+        },
+        "placeholder": "Paste sub2api API key…",
+        "subtitle": "Store one labeled sub2api API key for each group you want to monitor.",
+        "title": "Group API keys"
+      },
+      "widgetColor": [
+        0.17647058823529413,
+        0.7764705882352941,
+        0.8470588235294118
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "llmman"
+      ],
+      "color": [
+        0.4235294117647059,
+        0.7725490196078432,
+        0.6901960784313725
+      ],
+      "confetti": [
+        [
+          0.4235294117647059,
+          0.7725490196078432,
+          0.6901960784313725
+        ],
+        [
+          0.1843137254901961,
+          0.4980392156862745,
+          0.4549019607843137
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "creditsHint": "",
+      "dashboard": "http://127.0.0.1:17434",
+      "debug": "",
+      "detail": "api",
+      "enterpriseHost": true,
+      "environmentAvailability": [
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [
+        {
+          "actions": [],
+          "id": "llmman-api-key",
+          "placeholder": "LLMMAN_API_KEY",
+          "secure": true,
+          "subtitle": "Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys.",
+          "title": "API key"
+        },
+        {
+          "actions": [
+            {
+              "id": "llmman-open-web-ui",
+              "title": "Open llmman"
+            }
+          ],
+          "id": "llmman-base-url",
+          "placeholder": "http://127.0.0.1:17434",
+          "secure": false,
+          "subtitle": "Address of llmman serve. Defaults to http://127.0.0.1:17434.",
+          "title": "Base URL"
+        }
+      ],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "icon": "ProviderIcon-llmman",
+      "id": "llmman",
+      "labels": [
+        "Memory",
+        "Models",
+        ""
+      ],
+      "name": "llmman",
+      "noData": "llmman cost summary is not supported.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projections": {
+        "LLMMAN_API_KEY": "fixture-key",
+        "LLMMAN_HOST": "https://fixture.example.com"
+      },
+      "projectToken": "",
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show llmman usage",
+      "toggles": [],
+      "widgetColor": [
+        0.4235294117647059,
+        0.7725490196078432,
+        0.6901960784313725
+      ],
+      "workspaceOrder": null
     }
   ]
 }

@@ -890,8 +890,10 @@ public struct CursorStatusProbe: Sendable {
     let browserCookieImportOrder: BrowserCookieImportOrder
     let urlSession: any ProviderHTTPTransport
     let sessionStore: CursorSessionStore
-    #if os(macOS)
+    #if os(macOS) || os(Linux)
     let appAuthStore: any CursorAppAuthSessionProviding
+    #endif
+    #if os(macOS)
     let persistsAppAuthSession: Bool
     #endif
     let conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator
@@ -913,6 +915,16 @@ public struct CursorStatusProbe: Sendable {
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             persistsAppAuthSession: true,
+            conditionalMutationCoordinator: .shared)
+        #elseif os(Linux)
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
+            urlSession: urlSession,
+            appAuthStore: CursorAppAuthStore(),
+            sessionStore: sessionStore,
             conditionalMutationCoordinator: .shared)
         #else
         self.init(
@@ -944,6 +956,16 @@ public struct CursorStatusProbe: Sendable {
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             persistsAppAuthSession: true,
+            conditionalMutationCoordinator: conditionalMutationCoordinator)
+        #elseif os(Linux)
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
+            urlSession: urlSession,
+            appAuthStore: CursorAppAuthStore(),
+            sessionStore: sessionStore,
             conditionalMutationCoordinator: conditionalMutationCoordinator)
         #else
         self.init(
@@ -985,6 +1007,26 @@ public struct CursorStatusProbe: Sendable {
         try await self.fetchWithCookieHeader(
             session.cookieHeader(),
             identityFallback: session.identity)
+    }
+    #elseif os(Linux)
+    init(
+        baseURL: URL = URL(string: "https://cursor.com")!,
+        timeout: TimeInterval = 15.0,
+        browserDetection: BrowserDetection,
+        browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
+        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        appAuthStore: any CursorAppAuthSessionProviding,
+        sessionStore: CursorSessionStore = .shared,
+        conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
+    {
+        self.baseURL = baseURL
+        self.timeout = timeout
+        self.browserDetection = browserDetection
+        self.browserCookieImportOrder = browserCookieImportOrder
+        self.urlSession = urlSession
+        self.sessionStore = sessionStore
+        self.appAuthStore = appAuthStore
+        self.conditionalMutationCoordinator = conditionalMutationCoordinator
     }
     #else
     init(

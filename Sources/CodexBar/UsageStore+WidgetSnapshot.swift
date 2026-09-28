@@ -349,6 +349,7 @@ extension UsageStore {
     func invalidateGenericWidgetUsage(for provider: UsageProvider) {
         // Provider-specific by design: Claude has a separate owner-aware preservation path in makeWidgetEntry.
         guard provider != .claude else { return }
+        self.lastWidgetSourceSnapshots[provider.instanceID] = nil
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A later success cannot make an older queued account publication current again.
         if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
@@ -420,7 +421,7 @@ extension UsageStore {
                    !self.widgetUsagePreservationBlockedProviders.contains(entry.provider)
            })
         {
-            entries = previousSnapshot.entries
+            entries = previousSnapshot.entries.map { self.preservedWidgetEntryForCurrentMetric($0) }
         }
         return WidgetSnapshot(
             entries: entries,
@@ -488,6 +489,11 @@ extension UsageStore {
         let usageRows = snapshot.map {
             self.widgetUsageRows(provider: provider, snapshot: $0, now: now)
         } ?? preservedClaudeUsage?.usageRows ?? []
+        if ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRowsFollowMenuBarMetric,
+           let snapshot
+        {
+            self.lastWidgetSourceSnapshots[provider.instanceID] = snapshot
+        }
 
         let creditsRemaining: Double?
         let codeReviewRemaining: Double?
@@ -768,7 +774,11 @@ extension UsageStore {
         if provider == .claude, self.settings.claudeModelScopedWeeklyUsageVisible {
             rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
         }
-        return rows.filter { $0.percentLeft != nil }
+        return ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRows(
+            rows,
+            snapshot: snapshot,
+            metric: self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot).providerMetric)
+            .filter { $0.percentLeft != nil }
     }
 
     private nonisolated static func cursorWidgetRows(
@@ -897,7 +907,9 @@ extension UsageStore {
         {
             return "Monthly"
         }
-        return metadata?.sessionLabel ?? "Session"
+        guard let metadata else { return "Session" }
+        return ProviderDescriptorRegistry.descriptor(for: provider).presentation
+            .rateWindowLabels(metadata: metadata, snapshot: snapshot).primary
     }
 
     private nonisolated static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
@@ -933,5 +945,28 @@ extension UsageStore {
                 title: namedWindow.title,
                 percentLeft: namedWindow.window.remainingPercent)
         }
+    }
+
+    /// Reproject the last published source without changing its measurement time.
+    private func preservedWidgetEntryForCurrentMetric(
+        _ entry: WidgetSnapshot.ProviderEntry) -> WidgetSnapshot.ProviderEntry
+    {
+        guard let provider = entry.provider.firstPartyProvider,
+              ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRowsFollowMenuBarMetric,
+              let snapshot = self.lastWidgetSourceSnapshots[entry.provider]
+        else { return entry }
+        return WidgetSnapshot.ProviderEntry(
+            instanceID: entry.provider,
+            updatedAt: entry.updatedAt,
+            primary: entry.primary,
+            secondary: entry.secondary,
+            tertiary: entry.tertiary,
+            usageRows: self.widgetUsageRows(provider: provider, snapshot: snapshot, now: entry.updatedAt),
+            creditsRemaining: entry.creditsRemaining,
+            codeReviewRemainingPercent: entry.codeReviewRemainingPercent,
+            tokenUsage: entry.tokenUsage,
+            dailyUsage: entry.dailyUsage,
+            providerCost: entry.providerCost,
+            quotaOwnerKey: entry.quotaOwnerKey)
     }
 }

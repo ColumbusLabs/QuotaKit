@@ -44,9 +44,13 @@ public enum AccountIdentityComputer {
     /// Returns `[]` only when this provider DOES participate (Tier-A) but
     /// no identifier could be derived (e.g. user signed out, fetch failed).
     /// iOS treats `[]` like nil for grouping purposes.
+    /// Copilot callers must pass the configured API host. Legacy hostless
+    /// GitHub IDs must not become public identities on Enterprise hosts.
     public static func compute(
         provider: UsageProvider,
-        identity: ProviderIdentitySnapshot?) -> [String]?
+        identity: ProviderIdentitySnapshot?,
+        externalIdentifier: String? = nil,
+        copilotExpectedAPIHost: String? = nil) -> [String]?
     {
         switch provider {
         case .codex:
@@ -57,7 +61,11 @@ public enum AccountIdentityComputer {
             self.vertexAI(identity: identity)
         case .replicate:
             self.replicate(identity: identity)
-        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+        case .copilot:
+            self.copilot(
+                externalIdentifier: externalIdentifier,
+                expectedAPIHost: copilotExpectedAPIHost)
+        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
@@ -149,6 +157,44 @@ public enum AccountIdentityComputer {
         // usernames can coincide. Labels and cookies are not stable identities.
         let kind = self.normalize(identity.accountOrganization) == username ? "organization" : "user"
         return ["replicate:\(kind):\(username)"]
+    }
+
+    /// GitHub's numeric user ID is stable; the API issuer keeps Enterprise
+    /// accounts with identical numeric IDs in separate identity namespaces.
+    /// Legacy login-only identifiers are deliberately not promoted to a
+    /// cross-device identity, since a login can exist on several hosts.
+    /// Older public label-only snapshots may remain separate until their Mac
+    /// upgrades; editable labels cannot safely bridge verified identities.
+    private static func copilot(
+        externalIdentifier: String?,
+        expectedAPIHost: String?) -> [String]
+    {
+        guard let components = self.copilotComponents(externalIdentifier: externalIdentifier),
+              expectedAPIHost == nil || components.apiHost == expectedAPIHost?.lowercased(),
+              let normalized = self.normalize(components.raw)
+        else { return [] }
+        return ["copilot:github-user:\(normalized)"]
+    }
+
+    private static func copilotComponents(externalIdentifier: String?)
+        -> (raw: String, apiHost: String)?
+    {
+        guard let raw = externalIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let marker = raw.range(of: ":user:"),
+              !raw[marker.upperBound...].isEmpty,
+              raw[marker.upperBound...].utf8.allSatisfy({ $0 >= 48 && $0 <= 57 })
+        else { return nil }
+        let prefix = String(raw[..<marker.lowerBound])
+        if prefix == "github" { return (raw, "api.github.com") }
+        guard prefix.hasPrefix("github:") else { return nil }
+        let issuer = String(prefix.dropFirst("github:".count))
+        guard !issuer.isEmpty,
+              issuer.utf8.allSatisfy({ byte in
+                  (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 90)
+                      || (byte >= 97 && byte <= 122) || byte == 45 || byte == 46 || byte == 58
+              })
+        else { return nil }
+        return (raw, issuer.lowercased())
     }
 
     // MARK: - Normalization

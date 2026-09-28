@@ -17,6 +17,7 @@ private enum QuickJSHostFunction: Int32 {
     case cacheSet
     case log
     case nextDailyReset
+    case addMonths
     case pct
     case amountFromPercent
     case isDetailLabel
@@ -516,6 +517,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (.cacheSet, "cacheSet", 3),
             (.log, "log", 1),
             (.nextDailyReset, "nextDailyReset", 2),
+            (.addMonths, "addMonths", 3),
             (.pct, "pct", 2),
             (.amountFromPercent, "amountFromPercent", 2),
             (.isDetailLabel, "isDetailLabel", 1),
@@ -575,6 +577,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 return cqjs_undefined()
             case .nextDailyReset:
                 return try self.hostNextDailyReset(values)
+            case .addMonths:
+                return try self.hostAddMonths(values)
             case .pct:
                 return try self.hostPercentage(values)
             case .amountFromPercent:
@@ -648,7 +652,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 settings: state.settings,
                 secrets: state.secrets,
                 manifest: self.manifest,
-                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy)
+                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy,
+                redactionValues: state.redactionValues)
             // Paired GETs run in the host, even while this confined worker waits for their result.
             let payload = try self.blockingValue(timeout: self.timeout) {
                 try await ProviderPluginHTTPResponse.fetch(
@@ -729,30 +734,34 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         self.cache[key] = CacheEntry(json: json, expiresAt: Date().addingTimeInterval(min(ttl, 86400)))
     }
 
+    private func hostAddMonths(_ arguments: UnsafeBufferPointer<JSValue>) throws -> JSValue {
+        guard arguments.count == 3, self.fetchState != nil else {
+            throw ProviderPluginError.script("calendar month bridge is unavailable")
+        }
+        var milliseconds = Double.nan
+        var months = Double.nan
+        guard JS_ToFloat64(self.context, &milliseconds, arguments[0]) == 0,
+              JS_ToFloat64(self.context, &months, arguments[1]) == 0
+        else {
+            throw ProviderPluginError.script("invalid calendar month arguments")
+        }
+        return try JS_NewFloat64(self.context, ProviderPluginDate.addMonths(
+            milliseconds: milliseconds, months: months, timeZone: self.string(from: arguments[2])))
+    }
+
     private func hostNextDailyReset(_ arguments: UnsafeBufferPointer<JSValue>) throws -> JSValue {
         guard arguments.count >= 2
         else { throw ProviderPluginError.script("date bridge requires a time zone and hour") }
         let identifier = try self.string(from: arguments[0])
         var rawHour = 0.0
-        guard JS_ToFloat64(self.context, &rawHour, arguments[1]) == 0,
-              rawHour.isFinite,
-              rawHour.rounded() == rawHour,
-              (0...23).contains(rawHour),
-              let timeZone = TimeZone(identifier: identifier)
-        else {
+        guard JS_ToFloat64(self.context, &rawHour, arguments[1]) == 0 else {
             throw ProviderPluginError.script("invalid daily reset time zone or hour")
         }
         guard let now = self.fetchState?.now else {
             throw ProviderPluginError.script("date bridge is only available during fetchUsage")
         }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        let start = calendar.startOfDay(for: now)
-        var candidate = calendar.date(byAdding: .hour, value: Int(rawHour), to: start)!
-        if candidate <= now {
-            candidate = calendar.date(byAdding: .day, value: 1, to: candidate)!
-        }
-        return JS_NewFloat64(self.context, candidate.timeIntervalSince1970 * 1000)
+        return try JS_NewFloat64(self.context, ProviderPluginDate.nextDailyReset(
+            now: now, hour: rawHour, timeZone: identifier))
     }
 
     private func hostPercentage(_ arguments: UnsafeBufferPointer<JSValue>) throws -> JSValue {

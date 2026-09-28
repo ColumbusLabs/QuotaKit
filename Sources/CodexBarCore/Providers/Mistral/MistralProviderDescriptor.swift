@@ -23,7 +23,7 @@ public enum MistralProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .mistral,
-            menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .monthlyPlan]),
+            menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary, .monthlyPlan]),
             settingsSection: .init(MistralProviderSettingsKey.self, cookieSettings: MistralProviderSettings.self),
             credentials: self.credentials,
             metadata: ProviderMetadata(
@@ -40,7 +40,6 @@ public enum MistralProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                balanceOnly: true,
                 usesDetailBackedWindow: true,
                 browserCookieOrder: self.browserCookieOrder,
                 dashboardURL: "https://admin.mistral.ai/organization/usage",
@@ -61,28 +60,69 @@ public enum MistralProviderDescriptor {
                 menuHintLines: [.literal("Reported by Mistral billing usage.")],
                 showsCostMenuSection: false,
                 primaryValue: .latestDaily),
-            presentation: ProviderUsagePresentation(menuBarWindowResolver: { context in
-                guard context.metric == .monthlyPlan else { return .unhandled }
-                return .resolved(context.snapshot.extraRateWindows?.first {
-                    $0.id == "mistral-monthly-plan"
-                }?.window)
-            }, menuCard: ProviderMenuCardPresentation(
-                usesProviderCostHistoryAsPrimaryDashboard: true,
-                primaryCostHistoryResolver: { snapshot, tokenSnapshot in
-                    if let projected = snapshot?.mistralUsage?.toCostUsageTokenSnapshot() {
-                        return projected
-                    }
-                    return snapshot == nil ? tokenSnapshot : nil
+            presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: snapshot.primary == nil ? metadata.sessionLabel : "Included API",
+                        secondary: metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
                 },
-                showsPrimaryBalanceDescription: true,
-                hidesPrimaryResetWithoutDate: true)),
+                extraRateWindowSelector: { snapshot in
+                    (snapshot.extraRateWindows ?? []).filter { $0.id == "mistral-monthly-plan" }
+                },
+                menuBarLayoutPrimaryLabel: "Included API",
+                menuBarWindowResolver: { context in
+                    switch context.metric {
+                    case .automatic:
+                        .resolved(nil)
+                    case .monthlyPlan:
+                        .resolved(context.snapshot.extraRateWindows?.first { $0.id == "mistral-monthly-plan" }?.window)
+                    default:
+                        .unhandled
+                    }
+                },
+                widgetRowResolver: self.widgetRows,
+                menuCard: ProviderMenuCardPresentation(
+                    usesProviderCostHistoryAsPrimaryDashboard: true,
+                    primaryCostHistoryResolver: { snapshot, tokenSnapshot in
+                        if let projected = snapshot?.mistralUsage?.toCostUsageTokenSnapshot() {
+                            return projected
+                        }
+                        return snapshot == nil ? tokenSnapshot : nil
+                    },
+                    showsPrimaryBalanceDescription: true,
+                    hidesPrimaryResetWithoutDate: true,
+                    extraRateWindowUsesResetDescriptionAsDetail: { $0.id == "mistral-monthly-plan" }),
+                menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [MistralWebFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "mistral",
                 aliases: ["mistral-ai"],
-                versionDetector: nil))
+                versionDetector: nil,
+                browserSupportExemption: { _, _, settings in
+                    // A pasted Cookie header needs no browser import, so it works on Linux too.
+                    settings?.mistral?.cookieSource == .manual &&
+                        CookieHeaderNormalizer.normalize(settings?.mistral?.manualCookieHeader) != nil
+                }))
+    }
+
+    private static func widgetRows(
+        _ rows: [WidgetSnapshot.WidgetUsageRowSnapshot],
+        snapshot: UsageSnapshot,
+        metric: ProviderMenuBarMetric) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
+    {
+        guard metric == .monthlyPlan,
+              let plan = snapshot.extraRateWindows?.first(where: { $0.id == "mistral-monthly-plan" }),
+              plan.usageKnown
+        else { return rows }
+        return [WidgetSnapshot.WidgetUsageRowSnapshot(
+            id: plan.id,
+            title: plan.title,
+            percentLeft: plan.window.remainingPercent,
+            window: plan.window)]
     }
 }
 
@@ -176,7 +216,19 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
             timeout: timeout,
             transport: transport)
         var remaining = deadline.timeIntervalSinceNow
-        let vibeResult: MistralUsageFetcher.MistralVibeUsageResult? = if let csrfToken, remaining > 0 {
+        let budgets: MistralSubscriptionBudgets? = if remaining > 0 {
+            try await Self.fetchOptionalSubscriptionBudgets(
+                cookieHeader: cookieHeader,
+                timeout: min(remaining, 4),
+                transport: transport)
+        } else {
+            nil
+        }
+        remaining = deadline.timeIntervalSinceNow
+        let vibeResult: MistralUsageFetcher.MistralVibeUsageResult? = if budgets?.vibe == nil,
+                                                                         let csrfToken,
+                                                                         remaining > 0
+        {
             try await Self.fetchOptionalVibeUsage(
                 csrfToken: csrfToken,
                 cookieHeader: cookieHeader,
@@ -195,7 +247,30 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
         } else {
             nil
         }
-        return Self.attachVibeWindow(to: snapshot.with(credits: credits).toUsageSnapshot(), vibeResult: vibeResult)
+        var result = snapshot.with(credits: credits).toUsageSnapshot()
+        if let budgets {
+            result = Self.attachSubscriptionBudgets(to: result, budgets: budgets)
+        }
+        return Self.attachVibeWindow(to: result, vibeResult: vibeResult)
+    }
+
+    static func fetchOptionalSubscriptionBudgets(
+        cookieHeader: String,
+        timeout: TimeInterval,
+        transport: ProviderHTTPTransport = ProviderHTTPClient.shared) async throws
+        -> MistralSubscriptionBudgets?
+    {
+        do {
+            return try await MistralUsageFetcher.fetchSubscriptionBudgets(
+                cookieHeader: cookieHeader,
+                timeout: timeout,
+                transport: transport)
+        } catch {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                throw CancellationError()
+            }
+            return nil
+        }
     }
 
     static func fetchOptionalCredits(
@@ -238,6 +313,41 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
             }
             return nil
         }
+    }
+
+    static func attachSubscriptionBudgets(
+        to usageSnapshot: UsageSnapshot,
+        budgets: MistralSubscriptionBudgets) -> UsageSnapshot
+    {
+        let apiWindow = budgets.api.map { budget in
+            RateWindow(
+                usedPercent: budget.usagePercentage,
+                windowMinutes: nil,
+                resetsAt: budget.resetsAt,
+                resetDescription: Self.budgetDescription(budget))
+        }
+        var extraWindows = usageSnapshot.extraRateWindows?.filter { $0.id != "mistral-monthly-plan" } ?? []
+        if let vibe = budgets.vibe {
+            let vibeWindow = RateWindow(
+                usedPercent: vibe.usagePercentage,
+                windowMinutes: nil,
+                resetsAt: vibe.resetsAt,
+                resetDescription: Self.budgetDescription(vibe))
+            extraWindows.append(NamedRateWindow(
+                id: "mistral-monthly-plan",
+                title: "Monthly Plan",
+                window: vibeWindow))
+        }
+        return usageSnapshot
+            .with(primary: apiWindow, secondary: usageSnapshot.secondary)
+            .with(extraRateWindows: extraWindows)
+    }
+
+    private static func budgetDescription(_ budget: MistralSubscriptionBudget) -> String {
+        let used = UsageFormatter.currencyString(budget.usedAmount, currencyCode: budget.currencyCode)
+        let limit = UsageFormatter.currencyString(budget.limit, currencyCode: budget.currencyCode)
+        let remaining = UsageFormatter.currencyString(budget.remainingAmount, currencyCode: budget.currencyCode)
+        return "\(used) / \(limit) · \(UsageFormatter.remainingString(from: remaining))"
     }
 
     static func attachVibeWindow(

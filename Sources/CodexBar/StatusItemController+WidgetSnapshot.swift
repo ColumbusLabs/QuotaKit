@@ -9,6 +9,7 @@ extension StatusItemController {
             "costEnabled=\(self.settings.costUsageEnabled ? "1" : "0")",
             "codexLocalCost=\(self.settings.codexLocalSessionCostLedgerEnabled ? "1" : "0")",
             "claudeScopedWeekly=\(self.settings.claudeModelScopedWeeklyUsageVisible ? "1" : "0")",
+            "metrics=\(self.settings.menuBarMetricPreferencesRaw.sorted { $0.key < $1.key })",
         ].joined(separator: "|")
     }
 

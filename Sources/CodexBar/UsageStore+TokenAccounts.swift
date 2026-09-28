@@ -378,7 +378,7 @@ extension UsageStore {
     {
         let managedRuntimeStates = Dictionary(
             uniqueKeysWithValues: snapshot.storedAccounts.map { account in
-                let workspaceAccountID: String? =
+                let authWorkspaceAccountID: String? =
                     switch snapshot.runtimeIdentity(for: account) {
                     case let .providerAccount(id):
                         id
@@ -393,7 +393,7 @@ extension UsageStore {
                         authFingerprint: authFingerprint ?? (requiresLiveAuth ? nil : account.authFingerprint),
                         workspaceAccountID: authFingerprint == nil && requiresLiveAuth
                             ? nil
-                            : (workspaceAccountID ?? account.workspaceAccountID)))
+                            : (account.effectiveWorkspaceAccountID ?? authWorkspaceAccountID)))
             })
         let visibleAccounts = projection.visibleAccounts.map { account in
             guard case let .managedAccount(id) = account.selectionSource else { return account }
@@ -1244,7 +1244,8 @@ extension UsageStore {
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
-            let labeled = self.applyAccountLabel(scoped, provider: provider, account: account)
+            let current = self.resolvingCurrentCopilotAllowance(in: scoped, provider: provider, account: account)
+            let labeled = self.applyAccountLabel(current, provider: provider, account: account)
             let snapshot = TokenAccountUsageSnapshot(
                 account: account,
                 snapshot: labeled,
@@ -1283,7 +1284,7 @@ extension UsageStore {
               let current = self.uniqueTokenAccount(provider: provider, accountID: account.id),
               snapshot.cacheKey == self.tokenAccountSnapshotCacheKey(provider: provider, account: current)
         else { return nil }
-        return snapshot
+        return self.resolvingCurrentCopilotAllowance(in: snapshot, provider: provider, account: current)
     }
 
     private static func preservesClaudeOAuthSnapshot(
@@ -1395,11 +1396,16 @@ extension UsageStore {
             self.lastFetchAttempts[.codex] = outcome.attempts
             let publishedCredits = self.codexAccountSnapshots.first(where: { $0.id == account.id })?.credits
                 ?? result.credits
-            if self.shouldPublishSelectedCodexCredits(result, publishedCredits: publishedCredits) {
+            if self.shouldPublishSelectedCodexCredits(
+                result,
+                publishedCredits: publishedCredits,
+                publicationGuard: publicationGuard)
+            {
                 self.credits = publishedCredits
                 self.lastCreditsError = nil
                 self.lastCreditsSnapshot = publishedCredits
                 self.lastCreditsSnapshotAccountKey = publicationGuard.accountKey
+                self.lastCreditsSnapshotOwnerGuard = publicationGuard
                 self.lastCreditsSource = publishedCredits == nil ? .none : .api
             }
             self.handleCodexResetCreditNotifications(snapshot: snapshot)
@@ -1492,11 +1498,12 @@ extension UsageStore {
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
+            let current = self.resolvingCurrentCopilotAllowance(in: scoped, provider: provider, account: account)
             let labeled: UsageSnapshot =
                 if let account {
-                    self.applyAccountLabel(scoped, provider: provider, account: account)
+                    self.applyAccountLabel(current, provider: provider, account: account)
                 } else {
-                    scoped
+                    current
                 }
             let backfilled = await MainActor.run {
                 guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else {

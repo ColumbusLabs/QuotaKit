@@ -20,12 +20,15 @@ struct ProviderEndpointOverrideSecurityTests {
                     ClawRouterSettingsReader.baseURLEnvironmentKey: endpoint,
                 ])
             }
-            #expect(throws: DeepgramSettingsError.invalidEndpointOverride(
-                DeepgramSettingsReader.apiURLEnvironmentKey))
-            {
+            do {
                 try DeepgramSettingsReader.validateEndpointOverride(environment: [
                     DeepgramSettingsReader.apiURLEnvironmentKey: endpoint,
                 ])
+                Issue.record("Expected DeepgramSettingsError.invalidEndpointOverride")
+            } catch let DeepgramSettingsError.invalidEndpointOverride(key) {
+                #expect(key == DeepgramSettingsReader.apiURLEnvironmentKey)
+            } catch {
+                Issue.record("Expected DeepgramSettingsError.invalidEndpointOverride, got \(error)")
             }
         }
     }

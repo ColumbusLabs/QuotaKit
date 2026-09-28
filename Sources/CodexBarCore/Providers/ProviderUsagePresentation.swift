@@ -275,6 +275,7 @@ public struct ProviderMenuCardPresentation: Sendable {
     public typealias UsageNotesResolver = @Sendable (ProviderUsageNotesContext) -> ProviderUsageNotesResolution
     public typealias CostVisibilityResolver = @Sendable (ProviderCostVisibilityContext) -> Bool
     public typealias SnapshotPredicate = @Sendable (_ snapshot: UsageSnapshot?) -> Bool
+    public typealias ExtraRateWindowPredicate = @Sendable (_ namedWindow: NamedRateWindow) -> Bool
     public typealias PrimaryCostHistoryResolver = @Sendable (
         _ snapshot: UsageSnapshot?,
         _ tokenSnapshot: CostUsageTokenSnapshot?) -> CostUsageTokenSnapshot?
@@ -282,6 +283,7 @@ public struct ProviderMenuCardPresentation: Sendable {
     private let usageNotesResolver: UsageNotesResolver
     private let costVisibilityResolver: CostVisibilityResolver
     private let movePrimaryDetailToStatus: SnapshotPredicate
+    private let extraRateWindowUsesResetDescriptionAsDetail: ExtraRateWindowPredicate
     private let primaryCostHistoryResolver: PrimaryCostHistoryResolver
     public let creditsVisibility: ProviderCreditsVisibility
     public let showsCreditsSection: Bool
@@ -330,6 +332,7 @@ public struct ProviderMenuCardPresentation: Sendable {
         hidesPrimaryResetWithoutSecondary: Bool = false,
         clearsPrimaryReset: Bool = false,
         movePrimaryDetailToStatus: @escaping SnapshotPredicate = { _ in false },
+        extraRateWindowUsesResetDescriptionAsDetail: @escaping ExtraRateWindowPredicate = { _ in false },
         primaryDetailKind: ProviderPrimaryDetailKind = .none,
         usesAbacusPace: Bool = false,
         usesSyntheticRollingRegen: Bool = false,
@@ -354,6 +357,7 @@ public struct ProviderMenuCardPresentation: Sendable {
         self.hidesPrimaryResetWithoutSecondary = hidesPrimaryResetWithoutSecondary
         self.clearsPrimaryReset = clearsPrimaryReset
         self.movePrimaryDetailToStatus = movePrimaryDetailToStatus
+        self.extraRateWindowUsesResetDescriptionAsDetail = extraRateWindowUsesResetDescriptionAsDetail
         self.primaryDetailKind = primaryDetailKind
         self.usesAbacusPace = usesAbacusPace
         self.usesSyntheticRollingRegen = usesSyntheticRollingRegen
@@ -371,6 +375,10 @@ public struct ProviderMenuCardPresentation: Sendable {
 
     public func movesPrimaryDetailToStatus(snapshot: UsageSnapshot?) -> Bool {
         self.movePrimaryDetailToStatus(snapshot)
+    }
+
+    public func extraRateWindowShowsResetDescriptionAsDetail(_ namedWindow: NamedRateWindow) -> Bool {
+        self.extraRateWindowUsesResetDescriptionAsDetail(namedWindow)
     }
 
     public func primaryCostHistory(
@@ -439,6 +447,10 @@ public struct ProviderUsagePresentation: Sendable {
     public typealias WidgetRowLimitResolver = @Sendable (
         _ rows: [WidgetSnapshot.WidgetUsageRowSnapshot]?,
         _ family: ProviderWidgetFamily) -> Int?
+    public typealias WidgetRowResolver = @Sendable (
+        _ rows: [WidgetSnapshot.WidgetUsageRowSnapshot],
+        _ snapshot: UsageSnapshot,
+        _ metric: ProviderMenuBarMetric) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
 
     private let rateWindowLabeler: RateWindowLabeler?
     private let identityPresenter: IdentityPresenter?
@@ -452,6 +464,7 @@ public struct ProviderUsagePresentation: Sendable {
     private let planUtilizationSeriesResolver: PlanUtilizationSeriesResolver
     private let planUtilizationSeriesNormalizer: PlanUtilizationSeriesNormalizer
     private let widgetRowLimitResolver: WidgetRowLimitResolver
+    private let widgetRowResolver: WidgetRowResolver?
     public let iconDecorations: ProviderIconDecorations
     public let treatsExhaustedSecondaryIconWindowAsMissing: Bool
     public let reservesMissingSecondaryIconLane: Bool
@@ -496,6 +509,7 @@ public struct ProviderUsagePresentation: Sendable {
         planUtilizationSeriesResolver: @escaping PlanUtilizationSeriesResolver = Self.standardPlanUtilizationSeries,
         planUtilizationSeriesNormalizer: @escaping PlanUtilizationSeriesNormalizer = { series, _ in series },
         widgetRowLimitResolver: @escaping WidgetRowLimitResolver = { _, _ in nil },
+        widgetRowResolver: WidgetRowResolver? = nil,
         secondaryGloballyCapsPrimary: Bool = false,
         primaryBindingQuotaLanes: Set<ProviderUsageLane> = [],
         menuCard: ProviderMenuCardPresentation = ProviderMenuCardPresentation(),
@@ -525,6 +539,7 @@ public struct ProviderUsagePresentation: Sendable {
         self.planUtilizationSeriesResolver = planUtilizationSeriesResolver
         self.planUtilizationSeriesNormalizer = planUtilizationSeriesNormalizer
         self.widgetRowLimitResolver = widgetRowLimitResolver
+        self.widgetRowResolver = widgetRowResolver
         self.secondaryGloballyCapsPrimary = secondaryGloballyCapsPrimary
         self.primaryBindingQuotaLanes = primaryBindingQuotaLanes
         self.menuCard = menuCard
@@ -613,6 +628,18 @@ public struct ProviderUsagePresentation: Sendable {
         family: ProviderWidgetFamily) -> Int?
     {
         self.widgetRowLimitResolver(rows, family)
+    }
+
+    public var widgetRowsFollowMenuBarMetric: Bool {
+        self.widgetRowResolver != nil
+    }
+
+    public func widgetRows(
+        _ rows: [WidgetSnapshot.WidgetUsageRowSnapshot],
+        snapshot: UsageSnapshot,
+        metric: ProviderMenuBarMetric) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
+    {
+        self.widgetRowResolver?(rows, snapshot, metric) ?? rows
     }
 
     public static func window(in snapshot: UsageSnapshot, following lanes: [ProviderUsageLane]) -> RateWindow? {

@@ -357,7 +357,8 @@ struct MenuDescriptor {
                     title: extra.title,
                     window: extra.window,
                     resetStyle: resetStyle,
-                    showUsed: settings.usageBarsShowUsed)
+                    showUsed: settings.usageBarsShowUsed,
+                    descriptionIsDetail: presentation.menuCard.extraRateWindowShowsResetDescriptionAsDetail(extra))
             }
 
             Self.appendProviderUsageSummaries(
@@ -743,6 +744,7 @@ struct MenuDescriptor {
         metadata: ProviderMetadata,
         snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
     {
+        let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
         if provider == .factory, snapshot.tertiary != nil {
             return (L("5-hour"), L("Weekly"), L("Monthly"), true)
         }
@@ -777,7 +779,7 @@ struct MenuDescriptor {
         {
             "Monthly"
         } else {
-            metadata.sessionLabel
+            presentation.rateWindowLabels(metadata: metadata, snapshot: snapshot).primary
         }
         let secondaryLabel = if let cursorLabels {
             cursorLabels.secondary
@@ -801,6 +803,45 @@ struct MenuDescriptor {
             metadata.supportsOpus)
     }
 
+    private static func appendRateWindow(
+        entries: inout [Entry],
+        title: String,
+        window: RateWindow,
+        resetStyle: ResetTimeDisplayStyle,
+        showUsed: Bool,
+        resetOverride: String? = nil,
+        descriptionIsDetail: Bool = false)
+    {
+        let line = UsageFormatter
+            .usageLine(remaining: window.remainingPercent, used: window.usedPercent, showUsed: showUsed)
+        entries.append(.text("\(title): \(line)", .primary))
+        if let resetOverride {
+            entries.append(.text(resetOverride, .secondary))
+        } else if !descriptionIsDetail || window.resetsAt != nil,
+                  let reset = UsageFormatter.resetLine(for: window, style: resetStyle)
+        {
+            entries.append(.text(reset, .secondary))
+        }
+        if descriptionIsDetail,
+           let detail = window.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !detail.isEmpty
+        {
+            entries.append(.text(detail, .secondary))
+        }
+    }
+
+    private static func versionNumber(for provider: UsageProvider, store: UsageStore) -> String? {
+        guard let raw = store.version(for: provider) else { return nil }
+        let pattern = #"[0-9]+(?:\.[0-9]+)*"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
+        guard let match = regex.firstMatch(in: raw, options: [], range: range),
+              let r = Range(match.range, in: raw) else { return nil }
+        return String(raw[r])
+    }
+}
+
+extension MenuDescriptor {
     private static func cursorRateWindowLabels(
         snapshot: UsageSnapshot,
         fallbackPrimary: String,
@@ -824,34 +865,6 @@ struct MenuDescriptor {
                     : "Requests",
                 fallbackSecondary)
         }
-    }
-
-    private static func appendRateWindow(
-        entries: inout [Entry],
-        title: String,
-        window: RateWindow,
-        resetStyle: ResetTimeDisplayStyle,
-        showUsed: Bool,
-        resetOverride: String? = nil)
-    {
-        let line = UsageFormatter
-            .usageLine(remaining: window.remainingPercent, used: window.usedPercent, showUsed: showUsed)
-        entries.append(.text("\(title): \(line)", .primary))
-        if let resetOverride {
-            entries.append(.text(resetOverride, .secondary))
-        } else if let reset = UsageFormatter.resetLine(for: window, style: resetStyle) {
-            entries.append(.text(reset, .secondary))
-        }
-    }
-
-    private static func versionNumber(for provider: UsageProvider, store: UsageStore) -> String? {
-        guard let raw = store.version(for: provider) else { return nil }
-        let pattern = #"[0-9]+(?:\.[0-9]+)*"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
-        guard let match = regex.firstMatch(in: raw, options: [], range: range),
-              let r = Range(match.range, in: raw) else { return nil }
-        return String(raw[r])
     }
 }
 

@@ -125,6 +125,19 @@ struct ProviderAccountGroupTests {
     }
 
     @Test
+    func `Copilot tab shows host but hides local record UUID`() {
+        let group = ProviderAccountGroup(
+            providerID: "copilot",
+            providerName: "Copilot",
+            accounts: [Self.snapshot(
+                providerID: "copilot",
+                providerName: "Copilot",
+                accountEmail: "Account 1 @ api.example.ghe.com " +
+                    "(local 00000000-0000-0000-0000-000000000001)")])
+        #expect(group.tabLabel(forIndex: 0) == "Account 1 @ api.example.ghe.com")
+    }
+
+    @Test
     func `tabLabel falls back to loginMethod when email missing`() {
         let group = ProviderAccountGroup(
             providerID: "kiro",

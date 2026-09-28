@@ -97,6 +97,11 @@ final class SyncCoordinator {
     /// composites can be detected.
     private var pushHistorySeeded: Bool = false
 
+    /// If startup reconciliation discovers old records after the first push,
+    /// drain two more cycles: partial multi-account shrink uses a two-cycle
+    /// confirmation before deleting records. This remains bounded to startup.
+    private var startupReconcileFollowUpCycles = 0
+
     /// Per-record consecutive-missing counter for the L1 ghost-records
     /// cleanup's two-cycle confirmation. Multi-account expansion may
     /// transiently shrink the emit set (Codex active-account switch race,
@@ -177,10 +182,11 @@ final class SyncCoordinator {
         self.observeLoop()
     }
 
-    /// One-shot startup reconcile. Replaces the in-memory empty
-    /// `lastPushedRecordNames` with whatever CloudKit reports for this
-    /// device, then flips `pushHistorySeeded = true` so the next push
-    /// cycle's diff is meaningful.
+    /// One-shot startup reconcile. Seeds `lastPushedRecordNames` with what
+    /// CloudKit reports for this device, then enables stale-record detection.
+    /// If a push finished while the CloudKit query was in flight, drain two
+    /// follow-up cycles so the partial-shrink confirmation can delete old
+    /// account keys without waiting for another usage refresh.
     ///
     /// Why this matters: pre-fix, `lastPushedRecordNames` was in-memory
     /// only, which meant L1 ghost-records cleanup couldn't see records
@@ -189,10 +195,12 @@ final class SyncCoordinator {
     /// already restarted between mocks-on and mocks-off), the new Mac
     /// process never knew about the stranded mock records, and they
     /// surfaced on iOS forever. Discovered 2026-05-05 user QA.
-    private func reconcileLastPushedRecordNamesWithCloudKit() async {
+    func reconcileLastPushedRecordNamesWithCloudKit() async {
         guard self.settings.iCloudSyncEnabled else { return }
         let recordNames = await self.syncManager
             .fetchPerProviderRecordNames(forDeviceID: self.deviceID)
+        let discoveredOldRecords = Set(recordNames).subtracting(self.lastPushedRecordNames)
+        let pushedBeforeReconcile = self.pushHistorySeeded && !self.lastPushedRecordNames.isEmpty
         // If the in-memory set has already been seeded by a push that
         // ran before the reconcile completed, merge rather than replace —
         // CloudKit's view of the world plus anything we've already pushed
@@ -202,6 +210,10 @@ final class SyncCoordinator {
         print(
             "[CodexBar Sync] L1 reconcile: seeded lastPushedRecordNames " +
                 "with \(recordNames.count) record(s) from CloudKit")
+        if pushedBeforeReconcile, !discoveredOldRecords.isEmpty {
+            self.startupReconcileFollowUpCycles = 2
+            await self.pushCurrentSnapshot()
+        }
     }
 
     private func observeLoop() {
@@ -249,6 +261,10 @@ final class SyncCoordinator {
         repeat {
             self.pushPending = false
             await self.performCurrentSnapshotPush()
+            if self.startupReconcileFollowUpCycles > 0 {
+                self.startupReconcileFollowUpCycles -= 1
+                self.pushPending = self.pushPending || self.startupReconcileFollowUpCycles > 0
+            }
         } while self.pushPending
     }
 
@@ -301,6 +317,11 @@ final class SyncCoordinator {
             let providerSnapshot = self.buildProviderUsageSnapshot(
                 for: provider,
                 snapshot: snapshot,
+                tokenAccount: provider == .copilot
+                    ? self.settings.selectedTokenAccount(for: .copilot).flatMap { account in
+                        snapshot?.identity?.accountEmail == account.label ? account : nil
+                    }
+                    : nil,
                 codexCredits: provider == .codex ? self.store.credits : nil,
                 error: error,
                 metadata: meta,
@@ -368,6 +389,13 @@ final class SyncCoordinator {
         self.updateSyncStatus(
             legacyResult: legacyResult,
             perProviderResult: perProviderResult)
+
+        // Keep the old CloudKit record until its replacement is confirmed in
+        // the per-provider zone. A successful legacy-zone write does not make
+        // it safe to delete the old primary-zone record after an upload error.
+        if perProviderResult?.succeeded == false {
+            return
+        }
 
         // L1 ghost-records cleanup. Compute the composites we just pushed
         // (i.e. all currently-enabled, non-ghost providers regardless of
@@ -628,6 +656,7 @@ final class SyncCoordinator {
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
+        tokenAccount: ProviderTokenAccount? = nil,
         codexCredits: CreditsSnapshot? = nil,
         error: String?,
         metadata: ProviderMetadata?,
@@ -709,9 +738,42 @@ final class SyncCoordinator {
 
         // Per-account stable identifier set for cross-Mac union-find merging.
         // See `Research/019-account-identity-multi-version-merge.md`.
+        let copilotAPIHost = provider == .copilot
+            ? CopilotUsageFetcher.apiHost(enterpriseHost: self.settings.copilotEnterpriseHost)
+            : nil
         let accountIdentities = AccountIdentityComputer.compute(
             provider: provider,
-            identity: snapshot?.identity)
+            identity: snapshot?.identity,
+            externalIdentifier: tokenAccount?.externalIdentifier,
+            copilotExpectedAPIHost: copilotAPIHost)
+        // Copilot's visible account label is not globally unique: Enterprise
+        // hosts can issue the same login and numeric user ID. Qualify the
+        // existing readable record-key field by GitHub host so CloudKit, the
+        // iPhone cache, and SwiftData keep both records. The opaque numeric
+        // identity remains only in accountIdentities for cross-Mac merging.
+        // Older records retain their previous key until normal per-device
+        // stale-record reconciliation removes them after a successful push.
+        let accountEmail: String? = {
+            guard provider == .copilot, let tokenAccount,
+                  let apiHost = copilotAPIHost
+            else { return snapshot?.identity?.accountEmail }
+            // Older Enterprise accounts may carry a public/hostless GitHub
+            // numeric ID. The configured host can safely distinguish their
+            // record/display key, but cannot verify that ID's issuer. Leave
+            // accountIdentities empty until re-auth writes a scoped ID.
+            guard apiHost != "api.github.com" || accountIdentities?.first != nil else {
+                return snapshot?.identity?.accountEmail
+            }
+            let issuer = apiHost == "api.github.com" ? "github.com" : apiHost
+            let label = snapshot?.identity?.accountEmail ?? tokenAccount.label
+            if accountIdentities?.first == nil {
+                // A pre-host-scoped Enterprise account has no verified
+                // cross-Mac identity. Keep it local until re-auth instead of
+                // merging two arbitrary labels like "Account 1" on iPhone.
+                return "\(label) @ \(issuer) (local \(tokenAccount.id.uuidString.lowercased()))"
+            }
+            return "\(label) @ \(issuer)"
+        }()
 
         // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. Populated
         // only for the relevant providerID so iOS can dispatch via
@@ -787,7 +849,7 @@ final class SyncCoordinator {
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
             primary: primaryWindow,
             secondary: secondaryWindow,
-            accountEmail: snapshot?.identity?.accountEmail,
+            accountEmail: accountEmail,
             loginMethod: snapshot?.identity?.loginMethod,
             statusMessage: syncedStatusMessage,
             isError: error != nil,
@@ -836,10 +898,23 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
+        // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
+        if provider == .muse {
+            // The selected browser team's source is useful on iPhone; the full team list and
+            // other plugin rows stay local to the Mac.
+            guard snapshot?.dataConfidence == .estimated,
+                  let section = snapshot?.details.first(where: { $0.title == "Browser team quota (dev.meta.ai)" }),
+                  let team = section.rows.first(where: { $0.label == "Team" }),
+                  !team.value.isEmpty
+            else { return nil }
+            return [SyncProviderDetailSection(
+                title: "Browser team quota (dev.meta.ai)",
+                rows: [.init(label: "Team", value: team.value)])]
+        }
         // These providers expose useful rows that have no dedicated iPhone payload. In particular,
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
-            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana,
+            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot,
         ]
         guard supported.contains(provider),
               let details = snapshot?.details,
@@ -1348,6 +1423,7 @@ final class SyncCoordinator {
                 self.buildProviderUsageSnapshot(
                     for: tokenProvider,
                     snapshot: entry.snapshot,
+                    tokenAccount: entry.account,
                     codexCredits: nil,
                     error: entry.error,
                     metadata: meta,

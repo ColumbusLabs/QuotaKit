@@ -47,7 +47,9 @@ final class GeminiStdoutHolderFixture {
         output.fileHandleForWriting.closeFile()
         capture.start()
         do {
-            let ready = capture.finishFirstLineSynchronously(timeout: 2)
+            // The first system Python launch can be slow on a busy CI runner.
+            // This is fixture startup, separate from the producer's two-second deadline.
+            let ready = capture.finishFirstLineSynchronously(timeout: 10)
             try #require(String(data: ready, encoding: .utf8) == "ready\n")
         } catch {
             self.cleanup()

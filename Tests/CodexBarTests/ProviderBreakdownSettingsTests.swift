@@ -7,7 +7,7 @@ extension ProviderSettingsDescriptorTests {
     @Test
     func `provider breakdown toggles default off and persist independently`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-breakdowns")
-        for (provider, implementation, toggleID, environmentKey) in [
+        for (provider, implementation, toggleID, environmentKey) in try [
             (
                 UsageProvider.claude,
                 ClaudeProviderImplementation() as any ProviderImplementation,
@@ -15,7 +15,7 @@ extension ProviderSettingsDescriptorTests {
                 "ANTHROPIC_ADMIN_WORKSPACE_SPEND"),
             (
                 UsageProvider.litellm,
-                LiteLLMProviderImplementation() as any ProviderImplementation,
+                #require(ProviderCatalog.implementation(for: .litellm)) as any ProviderImplementation,
                 "litellm-model-usage",
                 "LITELLM_MODEL_USAGE_ENABLED"),
         ] {

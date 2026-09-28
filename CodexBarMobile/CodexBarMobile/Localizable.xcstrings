@@ -20353,6 +20353,22 @@
           }
         }
       }
+    },
+    "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Muse Code で選択したチームのクォータと Copilot のシートクレジットが、QuotaKit Mac から iPhone に同期されるようになりました。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Muse Code 所选团队的配额和 Copilot 席位额度现可从 QuotaKit Mac 同步到 iPhone。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Muse Code 所選團隊的配額與 Copilot 席位額度現可從 QuotaKit Mac 同步到 iPhone。" } }
+      }
+    },
+    "Copilot Enterprise accounts on different GitHub hosts now stay separate on iPhone.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copilot Enterprise accounts on different GitHub hosts now stay separate on iPhone." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "異なる GitHub ホスト上の Copilot Enterprise アカウントが、iPhone でも別々に表示されるようになりました。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不同 GitHub 主机上的 Copilot Enterprise 帐户现在会在 iPhone 上分别显示。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "不同 GitHub 主機上的 Copilot Enterprise 帳戶現在會在 iPhone 上分別顯示。" } }
+      }
     }
   },
   "version": "1.0"

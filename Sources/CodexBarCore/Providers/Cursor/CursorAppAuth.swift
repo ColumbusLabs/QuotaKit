@@ -210,27 +210,26 @@ struct CursorAppAuthStore: CursorAppAuthSessionProviding {
     }
 
     static func resolveDefaultDBPath(
-        home: String = NSHomeDirectory(),
+        home: String? = nil,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default) -> String
     {
         #if os(macOS)
         _ = environment
         _ = fileManager
-        return "\(home)/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+        return "\(home ?? NSHomeDirectory())/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
         #elseif os(Linux)
         let configHome = environment[CodexBarConfigStore.xdgConfigHomeEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let expandedConfigHome = configHome.map { ($0 as NSString).expandingTildeInPath }
-        let base: String = if let expandedConfigHome,
-                              !expandedConfigHome.isEmpty,
-                              (expandedConfigHome as NSString).isAbsolutePath
+        if let configHome,
+           !configHome.isEmpty,
+           configHome.hasPrefix("/")
         {
-            expandedConfigHome
-        } else {
-            "\(home)/.config"
+            return "\(configHome)/Cursor/User/globalStorage/state.vscdb"
         }
-        return "\(base)/Cursor/User/globalStorage/state.vscdb"
+
+        let resolvedHome = self.resolveLinuxHome(home: home, environment: environment)
+        return "\(resolvedHome)/.config/Cursor/User/globalStorage/state.vscdb"
         #else
         _ = home
         _ = environment
@@ -238,6 +237,28 @@ struct CursorAppAuthStore: CursorAppAuthSessionProviding {
         return ""
         #endif
     }
+
+    #if os(Linux)
+    /// Prefer an injected home, then an absolute process `HOME`, then the account database home.
+    private static func resolveLinuxHome(
+        home: String?,
+        environment: [String: String]) -> String
+    {
+        if let home {
+            return home
+        }
+
+        let envHome = environment["HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let envHome,
+           !envHome.isEmpty,
+           envHome.hasPrefix("/")
+        {
+            return envHome
+        }
+
+        return NSHomeDirectory()
+    }
+    #endif
 
     func loadSession() throws -> CursorAppAuthSession? {
         guard FileManager.default.fileExists(atPath: self.dbPath) else { return nil }

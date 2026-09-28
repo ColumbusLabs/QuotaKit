@@ -6,7 +6,10 @@ import Testing
 @MainActor
 struct SpendDashboardForceStateMachineTests {
     @Test
-    func `A forced failures dominate stale capture and retain only trusted old rows`() async {
+    func `A forced failures dominate stale capture and retain only trusted old rows`() async throws {
+        let suite = "SpendDashboardForceStateMachineTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
         let initial = Self.configuration(owner: "owner", revision: "R")
         let latest = Self.configuration(owner: "owner", revision: "L")
         let oldInputs = [
@@ -34,19 +37,27 @@ struct SpendDashboardForceStateMachineTests {
         ])
         let loader = SpendDashboardStateLoaderGate()
         let controller = SpendDashboardController(
+            userDefaults: defaults,
             requestBuilder: { mode in await builder.next(mode) },
-            loader: { request in await loader.load(request) })
+            loader: { request in await loader.load(request) },
+            nowProvider: { Date(timeIntervalSince1970: 1_784_179_200) })
 
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: oldInputs, failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await Self.waitUntil {
+            !controller.isRefreshing && !controller.isModelDerivationInFlight &&
+                controller.model.groups.first?.totalCost == 8
+        }
 
         controller.refresh()
         await Self.waitForLoader(loader)
         controller.update(configuration: latest)
         await loader.resume(SpendDashboardLoadResult(inputs: [], failedSourceIDs: failedIDs))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await Self.waitUntil {
+            !controller.isRefreshing && !controller.isModelDerivationInFlight &&
+                controller.failedSourceCount == 2 && controller.model.groups.first?.totalCost == 8
+        }
 
         #expect(builder.modes == [.refreshMissing, .forceRefresh, .captureOnly])
         #expect(await loader.forces == [false, true])
@@ -730,11 +741,12 @@ struct SpendDashboardForceStateMachineTests {
     }
 
     private static func waitForLoader(_ loader: SpendDashboardStateLoaderGate) async {
-        for _ in 0..<1000 {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
             if await loader.pendingCount == 1 {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for dashboard loader")
     }
@@ -760,11 +772,12 @@ struct SpendDashboardForceStateMachineTests {
     }
 
     private static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0..<1000 {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while ContinuousClock.now < deadline {
             if condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for dashboard controller")
     }

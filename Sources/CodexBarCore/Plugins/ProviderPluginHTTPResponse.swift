@@ -14,6 +14,7 @@ enum ProviderPluginHTTPResponse {
         let primary: URLRequest
         let optional: URLRequest?
         let retryPolicy: ProviderHTTPRetryPolicy
+        let optionalBudget: Duration?
 
         init(
             rawURL: String,
@@ -22,8 +23,18 @@ enum ProviderPluginHTTPResponse {
             settings: [String: String],
             secrets: [String: String],
             manifest: ProviderPluginManifest,
-            enforcesUserResponsePolicy: Bool) throws
+            enforcesUserResponsePolicy: Bool,
+            redactionValues: ProviderPluginRedactionValues? = nil) throws
         {
+            Self.redactForm(options, into: redactionValues)
+            if let budget = options["optionalBudgetSeconds"] {
+                guard let number = budget as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                      number.doubleValue.isFinite, (0...5).contains(number.doubleValue)
+                else { throw ProviderPluginError.http("optionalBudgetSeconds must be a number from 0 through 5") }
+                self.optionalBudget = .seconds(number.doubleValue)
+            } else {
+                self.optionalBudget = nil
+            }
             self.retryPolicy = try ProviderPluginHTTPResponse.retryPolicy(
                 options["retryPolicy"].map(JSONProviderPluginValue.init))
             self.primary = try ProviderPluginHTTPResponse.request(
@@ -34,14 +45,19 @@ enum ProviderPluginHTTPResponse {
                 secrets: secrets,
                 manifest: manifest,
                 enforcesUserResponsePolicy: enforcesUserResponsePolicy)
-            if let optionalURL = options["optionalURL"] {
-                guard method == "GET", let optionalURL = optionalURL as? String else {
-                    throw ProviderPluginError.http("optionalURL requires a string URL and GET")
+            if let optional = options["optionalRequest"] {
+                guard method == "GET", let value = optional as? [String: Any],
+                      let url = value["url"] as? String, let optionalMethod = value["method"] as? String,
+                      optionalMethod == "GET" || optionalMethod == "POST",
+                      let optionalOptions = value["options"] as? [String: Any]
+                else {
+                    throw ProviderPluginError.http("optional request requires a GET primary and GET or POST options")
                 }
+                Self.redactForm(optionalOptions, into: redactionValues)
                 var request = try ProviderPluginHTTPResponse.request(
-                    rawURL: optionalURL,
-                    options: options,
-                    method: "GET",
+                    rawURL: url,
+                    options: optionalOptions,
+                    method: optionalMethod,
                     settings: settings,
                     secrets: secrets,
                     manifest: manifest,
@@ -50,6 +66,21 @@ enum ProviderPluginHTTPResponse {
                 self.optional = request
             } else {
                 self.optional = nil
+            }
+        }
+
+        private static func redactForm(_ options: [String: Any], into redactionValues: ProviderPluginRedactionValues?) {
+            if let form = options["form"] as? [String: String] {
+                for value in form.values {
+                    redactionValues?.insert(value)
+                    redactionValues?.insert(FormURLEncoding.encode(value))
+                    if let json = try? JSONSerialization.data(
+                        withJSONObject: value, options: [.fragmentsAllowed, .withoutEscapingSlashes]),
+                        let escaped = String(data: json, encoding: .utf8)
+                    {
+                        redactionValues?.insert(String(escaped.dropFirst().dropLast()))
+                    }
+                }
             }
         }
     }
@@ -70,7 +101,7 @@ enum ProviderPluginHTTPResponse {
         rejectsNonSuccessResponses: Bool,
         contextOptions: ProviderPluginContextOptions = .production) async throws -> Payload
     {
-        let collectionBudget = contextOptions.optionalCollectionBudget
+        let collectionBudget = request.optionalBudget ?? contextOptions.optionalCollectionBudget
         let (starts, started) = AsyncStream<ContinuousClock.Instant>.makeStream(bufferingPolicy: .bufferingNewest(1))
         return try await withThrowingTaskGroup(of: Completion.self) { group in
             defer { group.cancelAll() }
@@ -194,12 +225,7 @@ enum ProviderPluginHTTPResponse {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = try Self.timeoutSeconds(options)
-        if method == "POST" {
-            guard let bodyJSON = options["bodyJSON"] as? String else {
-                throw ProviderPluginError.http("POST JSON body is missing")
-            }
-            request.httpBody = Data(bodyJSON.utf8)
-        }
+        if method == "POST" { request.httpBody = try Self.postBody(options) }
         if let headers = options["headers"] as? [String: Any] {
             for (name, rawValue) in headers {
                 guard let value = rawValue as? String else {
@@ -218,7 +244,9 @@ enum ProviderPluginHTTPResponse {
             request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         }
         if method == "POST" {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(
+                options["form"] == nil ? "application/json" : "application/x-www-form-urlencoded",
+                forHTTPHeaderField: "Content-Type")
         }
         if let auth = manifest.auth {
             var secretName = auth.secret
@@ -244,6 +272,19 @@ enum ProviderPluginHTTPResponse {
             request.setValue(value, forHTTPHeaderField: auth.header)
         }
         return request
+    }
+
+    private static func postBody(_ options: [String: Any]) throws -> Data {
+        if let form = options["form"] {
+            guard let fields = form as? [String: String], options["bodyJSON"] == nil, options["body"] == nil else {
+                throw ProviderPluginError.http("POST form requires a string-to-string map and no JSON body")
+            }
+            return FormURLEncoding.body(fields)
+        }
+        guard let bodyJSON = options["bodyJSON"] as? String else {
+            throw ProviderPluginError.http("POST JSON body is missing")
+        }
+        return Data(bodyJSON.utf8)
     }
 
     private static func timeoutSeconds(_ options: [String: Any]) throws -> TimeInterval {

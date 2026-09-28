@@ -26,7 +26,20 @@ For a bundled plugin with a simple API-key configuration, declare a public `Plug
 provider-owned `*ProviderDescriptor.swift` file, then expose `descriptor = Self.spec.makeDescriptor()`. The spec owns
 metadata, branding, environment-key aliases, the API-key field, and optional presentation and script-settings overrides;
 the bundled script still owns requests and parsing. See `XKiroProviderDescriptor` for a minimal example and
-`ZenMuxProviderDescriptor` for optional usage settings.
+`ZenMuxProviderDescriptor` for optional usage settings. Optional dashboards, subscription links, plan labels,
+widget colors, and progress colors retain their provider-owned values. `V0ProviderDescriptor` demonstrates a
+workspace field shared by config projection, plugin settings, and the app's Scope field.
+
+`Endpoint` shares the `enterpriseHost` projection, environment key, Base URL field, and validated URL resolver.
+Its requirement distinguishes a configured override (including invalid values that must reach fetch validation),
+a validated override, and an optional override with a declared default. URL normalization and validation remain in
+the provider-owned reader. Deepgram's environment-only API URL override stays separate from its Project ID field;
+it does not gain an `enterpriseHost` setting.
+
+Typed Boolean toggles share config reads/writes, environment projection, app bindings, and an optional enabled
+fetch timeout; LiteLLM uses this for model activity. Only llmman opts out of requiring an API key for fetching.
+The pre-migration `plugin-provider-specs.json` golden covers settings, registration, CLI help, branding, credential
+projections, token-account metadata, and availability. Extend it before migrating another provider.
 
 Run `Scripts/regenerate-provider-manifests.sh` after wiring the provider. A spec with an `apiKeyField` and no separate
 app implementation registers `PluginAPIKeyProviderImplementation(spec: ...)` in the existing provider order. Preserve
@@ -119,11 +132,18 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 
 - `await ctx.http.getJSON(url, opts?)` performs GET and returns `{status, headers, json}`.
 - `await ctx.http.get(url, opts?)` performs GET and returns `{status, headers, bodyText}`.
+- `await ctx.http.getWithOptional(url, optional, opts?)` runs a required GET beside an optional GET or POST. The optional response may be discarded after a bounded collection budget; its request has no retries and a five-second limit.
 - Without `http-status`, the host rejects non-2xx responses before returning them. Declaring this capability allows the
   plugin to inspect their status and body; it does not add retries or alter origin/authentication checks.
 - `await ctx.http.postJSON(url, {body, headers?})` performs JSON POST. `body` must be JSON-serializable.
 - `await ctx.http.post(url, {body, headers?})` sends the same JSON POST and returns `{status, headers, bodyText}` so a
   plugin can classify non-JSON error pages before parsing a successful response.
+- `await ctx.http.post(url, {form: {key: "value"}, headers?})` sends `application/x-www-form-urlencoded` data and
+  returns the text response, including its final `url`. The host encodes a string-to-string map; raw form strings,
+  non-string values, and combining `form` with `body` are rejected. Form requests use the same declared-origin,
+  authentication, deadline, response-size, and retry rules as JSON POST. Form values, their percent-encoded values,
+  and their JSON-escaped values join the fetch's log/error redaction set before transport starts. Do not log
+  credentials before submitting the request; values discovered by the script are not known to the host yet.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
   hard request deadline from 1 through 90 seconds; the default is 15 seconds. Each attempt’s deadline starts when
   its transport task begins, so scheduler delays do not consume the request budget. Queued work remains bounded
@@ -180,6 +200,12 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
   instance ID and deleted with the plugin. Keys are 1–128 UTF-8 bytes; at most 64 entries and 64 KiB total are kept.
 - `ctx.date.iso(text)`, `unixSeconds(number)`, and `unixMillis(number)` create JavaScript dates.
 - `ctx.date.nextDailyReset(timeZoneIdentifier, hour)` returns the next wall-clock reset in an IANA time zone.
+- `ctx.date.addMonths(date, months, timeZoneIdentifier)` adds whole Gregorian calendar months in the chosen time zone, preserving local wall-clock time and clamping month ends.
+- `ctx.date.addMonths(date, months, timeZoneIdentifier)` adds an integer number of Gregorian calendar months to a
+  valid JavaScript `Date`; use negative months to subtract. Both engines call Foundation Calendar with the specified
+  IANA time zone, preserving local wall-clock time across DST and clamping month ends (January 31 plus one month is
+  February 28, or February 29 in a leap year). Offsets are limited to ±120,000 months, and invalid dates, time zones,
+  fractional offsets, or results outside JavaScript's Date range throw.
 - `ctx.env.timeZone` is the host's current IANA time-zone identifier; zero-offset GMT aliases are normalized to `UTC`.
 - `ctx.format.currency(value, currencyCode)` matches native QuotaKit currency formatting, including currency-specific
   precision. `number(value, options?)`, `usd(value)`, and `monthDay(date)` also provide deterministic formatting on both
@@ -198,6 +224,8 @@ on `CODEXBAR_JS_PROVIDERS`.
 On Linux, QuickJS enforces the watchdog in-engine with `JS_SetInterruptHandler`, caps the runtime heap at 64 MiB, and
 caps the JavaScript stack at 2 MiB. The interrupt terminates evaluation on its confined thread; timed-out scripts do not
 leave an abandoned evaluation thread behind.
+
+The bundled Abacus AI plugin uses required credits GET and optional billing POST with host-encoded form data. It tries at most five Chrome-first validated sessions within a bounded refresh budget, and uses calendar-month dates for its pacing window.
 
 ## Snapshot result
 

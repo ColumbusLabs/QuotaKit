@@ -208,8 +208,11 @@ struct SettingsStoreAdditionalTests {
     }
 
     @Test
-    func `menu bar metric preference restricts mistral to payg or monthly plan`() {
+    func `menu bar metric preference allows mistral included API and monthly plan`() {
         let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-mistral-metric")
+
+        settings.setMenuBarMetricPreference(.primary, for: .mistral)
+        #expect(settings.menuBarMetricPreference(for: .mistral) == .primary)
 
         settings.setMenuBarMetricPreference(.monthlyPlan, for: .mistral)
         #expect(settings.menuBarMetricPreference(for: .mistral) == .monthlyPlan)
@@ -242,7 +245,7 @@ struct SettingsStoreAdditionalTests {
             .gemini: standard.union([.average]),
             .perplexity: standard.union([.tertiary]),
             .opencodego: standard.union([.tertiary]),
-            .mistral: [.automatic, .monthlyPlan],
+            .mistral: [.automatic, .primary, .monthlyPlan],
             .openrouter: [.automatic, .primary],
             .coderabbit: [.automatic],
             .deepseek: [.automatic],

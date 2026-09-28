@@ -1,7 +1,11 @@
 import Foundation
 
 public enum ClinePassProviderDescriptor {
-    public static let descriptor = Self.spec.makeDescriptor()
+    public static let descriptor = Self.spec.makeDescriptor(
+        credentials: Self.credentials,
+        fetchPlan: ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.makeStrategy()] })))
     public static let spec = PluginProviderSpec(
         id: .clinepass,
         displayName: "ClinePass",
@@ -19,8 +23,49 @@ public enum ClinePassProviderDescriptor {
         apiKeyField: .init(
             id: "clinepass-api-key",
             title: "API key",
-            subtitle: "Stored in ~/.quotakit/config.json. Paste a ClinePass API key.",
+            subtitle: "Paste an API key, or run cline auth. Reads the existing Cline session without copying it.",
             placeholder: "ClinePass API key..."),
         showsAPIDetail: true,
-        requiresCredentialForAvailability: true)
+        availability: .configuredKey)
+
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        requiresAPIKeyForAPISource: false,
+        environmentProjections: [.apiKey(Self.spec.environmentKey)],
+        tokenResolver: { kind, environment, authFileURL in
+            guard kind == .primary else { return nil }
+            if let key = Self.spec.apiKey(environment: environment) {
+                return ProviderTokenResolution(token: key, source: .environment)
+            }
+            guard let credential = ClinePassSettingsReader.fileCredential(
+                environment: environment, authFileURL: authFileURL) else { return nil }
+            return ProviderTokenResolution(token: credential.token, source: .authFile)
+        },
+        authDetector: { environment, _ in
+            if Self.spec.apiKey(environment: environment) != nil { return ["api"] }
+            guard let credential = ClinePassSettingsReader.fileCredential(environment: environment) else { return [] }
+            return [credential.isOAuth ? "oauth" : "api"]
+        },
+        missingCredentialMessage: { _ in
+            "ClinePass credentials not found. Add an API key or run cline auth to sign in."
+        })
+
+    static func makeStrategy(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy {
+        ScriptFetchStrategy(
+            id: "clinepass.js",
+            provider: .clinepass,
+            bundledPlugin: "clinepass",
+            secretKey: self.spec.environmentKey,
+            sourceLabel: "api",
+            transport: transport,
+            resolveValues: { context in
+                if let values = Self.spec.scriptValues(context) { return values }
+                guard let credential = ClinePassSettingsReader.fileCredential(environment: context.env)
+                else { return nil }
+                return .init(
+                    settings: ["CLINE_AUTH_SOURCE": credential.isOAuth ? "oauth" : "api"],
+                    secrets: [Self.spec.environmentKey: credential.token])
+            },
+            isEnabled: { _ in true })
+    }
 }

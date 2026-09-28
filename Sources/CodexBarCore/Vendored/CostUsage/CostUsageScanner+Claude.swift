@@ -100,51 +100,11 @@ extension CostUsageScanner {
         fileManager: FileManager = .default,
         workingDirectory: URL? = nil) -> [URL]
     {
-        if let override = options.claudeProjectsRoots {
-            return override
-        }
-
-        var roots: [URL] = []
-
-        if let configuredRoot = environment[ClaudeConfigPaths.configDirectoryEnvironmentKey],
-           !configuredRoot.isEmpty
-        {
-            let root = ClaudeConfigPaths.configRoot(
-                environment: environment,
-                workingDirectory: workingDirectory)
-            roots.append(root.appendingPathComponent("projects", isDirectory: true))
-        } else {
-            var pathEnvironment = environment
-            if pathEnvironment["HOME"]?.isEmpty ?? true {
-                pathEnvironment["HOME"] = homeDirectory.path
-            }
-            let ownerHome = ClaudeConfigPaths.homeDirectory(
-                environment: pathEnvironment,
-                workingDirectory: workingDirectory)
-            let configRoot = ClaudeConfigPaths.configRoot(
-                environment: pathEnvironment,
-                workingDirectory: workingDirectory)
-            roots.append(ownerHome.appendingPathComponent(".config/claude/projects", isDirectory: true))
-            roots.append(configRoot.appendingPathComponent("projects", isDirectory: true))
-            roots.append(contentsOf: ClaudeDesktopProjectsLocator.roots(
-                homeDirectory: ownerHome,
-                fileManager: fileManager))
-        }
-
-        return self.deduplicatedClaudeProjectRoots(roots)
-    }
-
-    private static func deduplicatedClaudeProjectRoots(_ roots: [URL]) -> [URL] {
-        var seen: Set<String> = []
-        var out: [URL] = []
-        for root in roots {
-            let standardized = root.standardizedFileURL
-            let path = standardized.path
-            guard !seen.contains(path) else { continue }
-            seen.insert(path)
-            out.append(standardized)
-        }
-        return out
+        options.claudeProjectsRoots ?? ClaudeConfigPaths.costProjectsRoots(
+            environment: environment,
+            homeDirectory: homeDirectory,
+            fileManager: fileManager,
+            workingDirectory: workingDirectory)
     }
 
     static func parseClaudeFile(
@@ -624,6 +584,7 @@ extension CostUsageScanner {
 
     private final class ClaudeScanState {
         var cache: CostUsageCache
+        var sourceFileIDs: [String: String]
         let range: CostUsageDayRange
         let providerFilter: ClaudeLogProviderFilter
         let forceFullScan: Bool
@@ -634,6 +595,7 @@ extension CostUsageScanner {
 
         init(
             cache: CostUsageCache,
+            sourceFileIDs: [String: String],
             range: CostUsageDayRange,
             providerFilter: ClaudeLogProviderFilter,
             forceFullScan: Bool,
@@ -643,6 +605,7 @@ extension CostUsageScanner {
             checkCancellation: CancellationCheck?)
         {
             self.cache = cache
+            self.sourceFileIDs = sourceFileIDs
             self.range = range
             self.providerFilter = providerFilter
             self.forceFullScan = forceFullScan
@@ -654,17 +617,18 @@ extension CostUsageScanner {
     }
 
     private static func processClaudeFile(
-        url: URL,
-        size: Int64,
-        mtimeMs: Int64,
+        source: ClaudeSourceFile,
         state: ClaudeScanState) throws
     {
         try state.checkCancellation?()
-        let path = url.path
+        let path = source.url.path
+        let stamp = source.stamp
+        let cached = state.cache.files[path]
+        let sameFile = state.sourceFileIDs[path] == stamp.fileID
 
-        if let cached = state.cache.files[path],
-           cached.mtimeUnixMs == mtimeMs,
-           cached.size == size,
+        if let cached, sameFile,
+           cached.mtimeUnixMs == stamp.mtimeUnixMs,
+           cached.size == stamp.size,
            !state.forceFullScan,
            !state.changedPaths.contains(path)
         {
@@ -672,17 +636,17 @@ extension CostUsageScanner {
         }
 
         state.pricingResolver.prepareCatalog()
-        if let cached = state.cache.files[path], !state.forceFullScan {
+        if let cached, sameFile, !state.forceFullScan {
             let startOffset = cached.parsedBytes ?? cached.size
             let canIncremental = !state.replacedPaths.contains(path)
-                && size > cached.size && startOffset > 0 && startOffset <= size
+                && stamp.size > cached.size && startOffset > 0 && startOffset <= stamp.size
                 && cached.claudeRows != nil
             if canIncremental {
                 #if DEBUG
-                Self.recordClaudeScanWork(.incrementalTranscriptParse)
+                Self.recordClaudeScanWork(.transcriptParse(startOffset: startOffset))
                 #endif
                 let delta = try Self.parseClaudeFileCancellable(
-                    fileURL: url,
+                    fileURL: source.url,
                     range: state.range,
                     providerFilter: state.providerFilter,
                     startOffset: startOffset,
@@ -690,29 +654,31 @@ extension CostUsageScanner {
                     checkCancellation: state.checkCancellation)
                 let mergedRows = Self.mergeClaudeRows(existing: cached.claudeRows ?? [], delta: delta.rows)
                 state.cache.files[path] = Self.makeClaudeFileUsage(
-                    mtimeMs: mtimeMs,
-                    size: size,
+                    mtimeMs: stamp.mtimeUnixMs,
+                    size: stamp.size,
                     rows: mergedRows,
                     parsedBytes: delta.parsedBytes)
+                state.sourceFileIDs[path] = stamp.fileID
                 return
             }
         }
 
         #if DEBUG
-        Self.recordClaudeScanWork(.transcriptParse)
+        Self.recordClaudeScanWork(.transcriptParse(startOffset: 0))
         #endif
         let parsed = try Self.parseClaudeFileCancellable(
-            fileURL: url,
+            fileURL: source.url,
             range: state.range,
             providerFilter: state.providerFilter,
             pricingResolver: state.pricingResolver,
             checkCancellation: state.checkCancellation)
         let usage = Self.makeClaudeFileUsage(
-            mtimeMs: mtimeMs,
-            size: size,
+            mtimeMs: stamp.mtimeUnixMs,
+            size: stamp.size,
             rows: parsed.rows,
             parsedBytes: parsed.parsedBytes)
         state.cache.files[path] = usage
+        state.sourceFileIDs[path] = stamp.fileID
     }
 
     private static func inventoryClaudeRoots(
@@ -783,24 +749,25 @@ extension CostUsageScanner {
             return priorMemo.report
         }
 
-        var cache = CostUsageClaudeCacheIO.load(
+        var artifact = CostUsageClaudeCacheIO.loadArtifact(
             provider: provider,
             cacheRoot: options.cacheRoot,
             reportContext: cacheContext,
             calendar: range.calendar)
+        var cache = artifact.usage
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
         let windowExpanded = Self.requestedWindowExpandsCache(range: range, cache: cache)
         let hasWindowScopedBaseline = priorMemo?.certifiesWindow(reportKey: reportKey, cache: cache) == true
         let needsWindowScopedRebuild = reportContext != nil && !hasWindowScopedBaseline
         let sourceInventoryChanged = priorMemo.map { $0.sourceInventory != sourceInventory } ?? false
-        let cacheArtifactChanged = priorMemo.map {
-            $0.reportKey.cacheArtifactStamp != cacheArtifactStamp
-        } ?? false
+        let cacheArtifactChanged = priorMemo.map { $0.reportKey.cacheArtifactStamp != cacheArtifactStamp } ?? false
         let scanConfigurationChanged = priorMemo.map {
             $0.reportKey.scanConfiguration != reportKey.scanConfiguration
         } ?? false
+        let sourceIdentitiesChanged = artifact.sourceFileIDs != sourceInventory.mapValues(\.fileID)
         let shouldRefresh = options.forceRescan
+            || sourceIdentitiesChanged
             || windowExpanded
             || needsWindowScopedRebuild
             || sourceInventoryChanged
@@ -811,6 +778,7 @@ extension CostUsageScanner {
             || nowMs - cache.lastScanUnixMs > refreshMs
         let providerFilter = options.claudeLogProviderFilter
         let hasStableProcessBaseline = priorMemo != nil
+            && !sourceIdentitiesChanged
             && !sourceInventoryChanged
             && !cacheArtifactChanged
             && !scanConfigurationChanged
@@ -825,6 +793,7 @@ extension CostUsageScanner {
             let priorCache = cache
             if options.forceRescan {
                 cache = CostUsageCache()
+                artifact.sourceFileIDs = [:]
             }
             let changedPaths: Set<String> = if let priorMemo {
                 Set(inventory.files.keys.filter { path in
@@ -836,6 +805,7 @@ extension CostUsageScanner {
             let replacedPaths = inventory.replacedPaths(comparedWith: priorMemo?.sourceInventory)
             let scanState = ClaudeScanState(
                 cache: cache,
+                sourceFileIDs: artifact.sourceFileIDs,
                 range: range,
                 providerFilter: providerFilter,
                 forceFullScan: forceFullScan,
@@ -846,15 +816,12 @@ extension CostUsageScanner {
 
             for path in inventory.files.keys.sorted() {
                 guard let source = inventory.files[path] else { continue }
-                try Self.processClaudeFile(
-                    url: source.url,
-                    size: source.stamp.size,
-                    mtimeMs: source.stamp.mtimeUnixMs,
-                    state: scanState)
+                try Self.processClaudeFile(source: source, state: scanState)
             }
             try checkCancellation?()
 
             cache = scanState.cache
+            artifact.sourceFileIDs = scanState.sourceFileIDs.filter { sourceInventory[$0.key] != nil }
             cache.roots = nil
 
             for key in cache.files.keys where sourceInventory[key] == nil {
@@ -881,6 +848,7 @@ extension CostUsageScanner {
             try CostUsageClaudeCacheIO.save(
                 provider: provider,
                 cache: cache,
+                sourceFileIDs: artifact.sourceFileIDs,
                 cacheRoot: options.cacheRoot,
                 reportContext: cacheContext,
                 calendar: range.calendar,

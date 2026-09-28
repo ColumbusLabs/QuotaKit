@@ -8,11 +8,17 @@ read_when:
 
 # Cursor provider
 
-Cursor is primarily web-backed. Usage is fetched via browser cookies, with legacy stored-session cookies and Cursor.app local auth as fallbacks.
+QuotaKit fetches Cursor usage with a first-party session from the Cursor app or with a cursor.com cookie. Automatic mode
+prefers a valid app token on macOS. On Linux, it tries cached and stored cookies before the signed-in Cursor app token;
+browser cookie import is unavailable.
 
 ## Data sources + fallback order
 
-1) **Cached cookie header** (preferred)
+Manual cookie configuration is always the explicit override. Automatic mode follows app token → cached cookie → browser
+cookie import → stored session on macOS, and cached cookie → stored session → app token on Linux. Explicit `web` mode never
+reads app credentials; Linux requires a configured manual cookie.
+
+1) **Cached cookie header** (after app auth on macOS; first automatic source on Linux)
    - Stored after successful browser import.
    - Keychain cache: `com.steipete.codexbar.cache` (account `cookie.cursor`).
 
@@ -28,13 +34,14 @@ Cursor is primarily web-backed. Usage is fetched via browser cookies, with legac
    - Legacy sessions captured by older CodexBar releases remain readable.
    - Stored at: `~/Library/Application Support/CodexBar/cursor-session.json`.
 
-4) **Cursor.app local auth** (last fallback)
+4) **Cursor.app local auth** (first automatic source on macOS; last fallback on Linux)
    - Reads Cursor.app's VS Code-style global state DB for the local app bearer token.
-   - File:
+   - Files consulted by read-only SQLite:
      - macOS: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`
-     - Linux: `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb` (default `~/.config/Cursor/...`)
-   - Used only after cookie/session sources fail so existing account-selection precedence stays stable.
-   - On Linux, this is the primary automatic source because browser import is macOS-only.
+     - Linux: absolute `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb`; otherwise absolute `$HOME/.config/Cursor/User/globalStorage/state.vscdb`, then the account home's `.config` directory.
+     - Active WAL sidecars, when present: `state.vscdb-wal` and `state.vscdb-shm`.
+   - A token is usable only when its JWT expiry is more than 60 seconds away. QuotaKit never refreshes it.
+   - Linux reads the app database directly and does not persist the app token.
    - Derives Cursor's first-party web-session cookie, then uses the same usage and account endpoints as browser sessions.
    - Account identity comes from that authenticated session; cached app profile fields are not mixed across accounts.
 
@@ -45,11 +52,11 @@ Manual option:
 ## Add and switch account
 - **Add Account** opens `https://authenticator.cursor.sh/` in a supported browser.
 - **Switch Account** opens the same authenticator and waits for a different stable account ID when available, falling back to normalized email when IDs are unavailable.
-- When the system's HTTPS handler is a supported browser, CodexBar opens the route there automatically. When the handler is an intermediary app, CodexBar asks the user to choose a concrete supported browser before opening the route.
-- CodexBar pins the original HTTPS route to that concrete browser and polls cookies only from the same application. Interactive login never falls back to another browser, a stored session, or Cursor.app; cancelling browser selection or the absence of a supported browser stops before login opens.
-- An installed non-Safari browser remains eligible before its first profile or cookie database exists, and CodexBar detects the store created during login. Browsers with access-blocked profile data remain unavailable, while Safari still requires an existing readable cookie source.
-- CodexBar preserves its cached and legacy stored Cursor sessions while login is in progress. An accepted browser session must be durably cached before the legacy session is cleared, so cancellation or failure leaves the previous session intact. Add completes only after the authenticated response includes a Cursor account identity. Switch compares stable account IDs when both sides provide them and otherwise compares normalized email.
-- CodexBar checks all available profiles in the selected browser. Add accepts a sole unambiguous account automatically, while Switch always asks for confirmation before replacing the current account, even when only one eligible alternative is found. Multiple eligible accounts always require an explicit choice, and CodexBar caches only the chosen session.
+- When the system's HTTPS handler is a supported browser, QuotaKit opens the route there automatically. When the handler is an intermediary app, QuotaKit asks the user to choose a concrete supported browser before opening the route.
+- QuotaKit pins the original HTTPS route to that concrete browser and polls cookies only from the same application. Interactive login never falls back to another browser, a stored session, or Cursor.app; cancelling browser selection or the absence of a supported browser stops before login opens.
+- An installed non-Safari browser remains eligible before its first profile or cookie database exists, and QuotaKit detects the store created during login. Browsers with access-blocked profile data remain unavailable, while Safari still requires an existing readable cookie source.
+- QuotaKit preserves its cached and legacy stored Cursor sessions while login is in progress. An accepted browser session must be durably cached before the legacy session is cleared, so cancellation or failure leaves the previous session intact. Add completes only after the authenticated response includes a Cursor account identity. Switch compares stable account IDs when both sides provide them and otherwise compares normalized email.
+- QuotaKit checks all available profiles in the selected browser. Add accepts a sole unambiguous account automatically, while Switch always asks for confirmation before replacing the current account, even when only one eligible alternative is found. Multiple eligible accounts always require an explicit choice, and QuotaKit caches only the chosen session.
 - A successful add or switch selects the Automatic cookie source. Saved manual headers and token accounts remain
   stored but passive: they do not override browser fetching, cached usage, quota warnings, or utilization/reset
   ownership. Explicitly selecting a saved token account switches Cursor back to Manual and reactivates it.
@@ -93,9 +100,9 @@ The cost summary's Cursor section is opt-in: it only fetches when **Show cost su
 Unlike Claude and Codex cost (scanned from local session logs on this machine), Cursor cost is remote, account-wide data from the cursor.com dashboard, so it covers usage from every machine on the account.
 
 Auth reuses the exact status-probe session resolution and cookie-source policy:
-- **Auto**: cached cookie header → browser cookie import → stored WebKit session → Cursor.app local auth.
+- **Auto**: Cursor.app token → cached cookie → browser cookie import → stored session in the macOS cost dashboard.
 - **Manual**: a non-empty pasted cookie header is required and forwarded as-is, so cost and status share the same session; an empty header fails closed instead of falling back to another account.
-- **Off**: the fetch is skipped in the app; `codexbar cost --provider cursor` fails explicitly and `/cost` returns a provider error row.
+- **Off**: the fetch is skipped in the app; `quotakit cost --provider cursor` fails explicitly and `/cost` returns a provider error row.
 
 Fetch behavior:
 - `POST https://cursor.com/api/dashboard/get-filtered-usage-events` (cookie-authenticated; requires a matching `Origin` for CSRF).

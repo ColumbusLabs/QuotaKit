@@ -16,6 +16,7 @@ import Testing
 /// covered in R3 with virtual machine integration.
 @MainActor
 @Suite(.serialized)
+// swiftlint:disable:next type_body_length
 struct SyncCoordinatorMultiAccountTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
@@ -171,6 +172,172 @@ struct SyncCoordinatorMultiAccountTests {
         #expect(claudeSnapshots.count == 2)
         let emails = Set(claudeSnapshots.compactMap(\.accountEmail))
         #expect(emails == ["alice@example.com", "bob@example.com"])
+    }
+
+    @Test
+    func `Copilot Enterprise hosts with the same login keep separate sync records`() async throws {
+        var snapshots: [ProviderUsageSnapshot] = []
+        for host in ["east.ghe.example", "west.ghe.example"] {
+            let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-\(host)")
+            settings.iCloudSyncEnabled = true
+            settings.copilotEnterpriseHost = host
+            settings.addTokenAccount(
+                provider: .copilot,
+                label: "same-login",
+                token: "synthetic-token",
+                externalIdentifier: "github:api.\(host):user:42")
+            try settings.setProviderEnabled(
+                provider: .copilot,
+                metadata: #require(ProviderDefaults.metadata[.copilot]),
+                enabled: true)
+            let store = self.makeUsageStore(settings: settings)
+            store._setSnapshotForTesting(
+                self.makeUsageSnapshot(provider: .copilot, accountEmail: "same-login"),
+                provider: .copilot)
+            let mock = MockSyncPusher()
+            await SyncCoordinator(store: store, settings: settings, syncManager: mock).pushCurrentSnapshot()
+            let synced = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "copilot" })
+            snapshots.append(synced)
+            #expect(mock.lastPerProviderEnvelopes.first?.provider.accountEmail == snapshots.last?.accountEmail)
+        }
+        #expect(snapshots.count == 2)
+        #expect(Set(snapshots.compactMap(\.accountEmail)) == [
+            "same-login @ api.east.ghe.example",
+            "same-login @ api.west.ghe.example",
+        ])
+        #expect(Set(snapshots.compactMap { $0.accountIdentities?.first }).count == 2)
+    }
+
+    @Test
+    func `Copilot host qualification replaces the prior legacy CloudKit record`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-LegacyMigration")
+        settings.iCloudSyncEnabled = true
+        settings.addTokenAccount(provider: .copilot, label: "same-login", token: "synthetic-token")
+        try settings.setProviderEnabled(
+            provider: .copilot,
+            metadata: #require(ProviderDefaults.metadata[.copilot]),
+            enabled: true)
+        let account = try #require(settings.selectedTokenAccount(for: .copilot))
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            self.makeUsageSnapshot(provider: .copilot, accountEmail: account.label),
+            provider: .copilot)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.lastSnapshot?.providers.first { $0.providerID == "copilot" }?.accountEmail == "same-login")
+        settings.copilotEnterpriseHost = "example.ghe.com"
+        settings.updateTokenAccount(
+            provider: .copilot,
+            accountID: account.id,
+            externalIdentifier: .some("github:api.example.ghe.com:user:42"))
+        mock.nextPerProviderResult = .failure("synthetic provider-zone outage")
+        await coordinator.pushCurrentSnapshot()
+
+        let migrated = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "copilot" })
+        #expect(migrated.accountEmail == "same-login @ api.example.ghe.com")
+        #expect(migrated.accountIdentities?.count == 1)
+        #expect(mock.deleteCallCount == 0)
+
+        mock.nextPerProviderResult = .success
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deletedRecordNamesAcrossCalls.last?.count == 1)
+        #expect(mock.deletedRecordNamesAcrossCalls.last?.first?.hasSuffix("|copilot|same-login") == true)
+    }
+
+    @Test
+    func `Enterprise Copilot hostless legacy ID does not claim public identity`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-HostlessEnterprise")
+        settings.iCloudSyncEnabled = true
+        settings.copilotEnterpriseHost = "example.ghe.com"
+        settings.addTokenAccount(
+            provider: .copilot,
+            label: "same-login",
+            token: "synthetic-token",
+            externalIdentifier: "github:user:42")
+        try settings.setProviderEnabled(
+            provider: .copilot,
+            metadata: #require(ProviderDefaults.metadata[.copilot]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            self.makeUsageSnapshot(provider: .copilot, accountEmail: "same-login"),
+            provider: .copilot)
+        let mock = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: mock).pushCurrentSnapshot()
+
+        let synced = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "copilot" })
+        #expect(synced.accountIdentities?.isEmpty == true)
+        #expect(synced.accountEmail?.hasPrefix("same-login @ api.example.ghe.com (local ") == true)
+    }
+
+    @Test
+    func `Two Enterprise Macs with hostless IDs and the same label stay distinct`() async throws {
+        var recordLabels: [String] = []
+        for index in 0..<2 {
+            let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-HostlessMac\(index)")
+            settings.iCloudSyncEnabled = true
+            settings.copilotEnterpriseHost = "example.ghe.com"
+            settings.addTokenAccount(
+                provider: .copilot,
+                label: "Account 1",
+                token: "synthetic-token",
+                externalIdentifier: "github:user:42")
+            try settings.setProviderEnabled(
+                provider: .copilot,
+                metadata: #require(ProviderDefaults.metadata[.copilot]),
+                enabled: true)
+            let store = self.makeUsageStore(settings: settings)
+            store._setSnapshotForTesting(
+                self.makeUsageSnapshot(provider: .copilot, accountEmail: "Account 1"),
+                provider: .copilot)
+            let mock = MockSyncPusher()
+            await SyncCoordinator(store: store, settings: settings, syncManager: mock).pushCurrentSnapshot()
+            let synced = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "copilot" })
+            #expect(synced.accountIdentities?.isEmpty == true)
+            let recordLabel = try #require(synced.accountEmail)
+            recordLabels.append(recordLabel)
+        }
+        #expect(Set(recordLabels).count == 2)
+        #expect(recordLabels.allSatisfy { $0.hasPrefix("Account 1 @ api.example.ghe.com (local ") })
+    }
+
+    @Test
+    func `Delayed startup reconcile deletes legacy Copilot record after first push`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-RestartReconcile")
+        settings.iCloudSyncEnabled = true
+        settings.copilotEnterpriseHost = "example.ghe.com"
+        settings.addTokenAccount(
+            provider: .copilot,
+            label: "same-login",
+            token: "synthetic-token",
+            externalIdentifier: "github:api.example.ghe.com:user:42")
+        try settings.setProviderEnabled(
+            provider: .copilot,
+            metadata: #require(ProviderDefaults.metadata[.copilot]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            self.makeUsageSnapshot(provider: .copilot, accountEmail: "same-login"),
+            provider: .copilot)
+        let mock = MockSyncPusher()
+        mock.shouldBlockNextRecordNameFetch = true
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        let reconcile = Task { await coordinator.reconcileLastPushedRecordNamesWithCloudKit() }
+        await mock.waitForBlockedRecordNameFetch()
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 0)
+        let deviceID = try #require(mock.fetchRecordNamesLastDeviceID)
+        mock.nextFetchRecordNamesResult = [CloudSyncManager.perProviderRecordName(
+            deviceID: deviceID,
+            providerID: "copilot",
+            accountEmail: "same-login")]
+        mock.resumeBlockedRecordNameFetch()
+        await reconcile.value
+
+        #expect(mock.deleteCallCount == 1)
+        #expect(mock.deletedRecordNamesAcrossCalls.last?.first?.hasSuffix("|copilot|same-login") == true)
     }
 
     @Test

@@ -305,7 +305,7 @@ extension UsageStore {
             self.lastKnownResetSnapshots[.codex] = hydratedSnapshot
             self.errors[.codex] = hydratedPrior.error
             self.lastSourceLabels[.codex] = hydratedPrior.sourceLabel
-            self.publishHydratedCodexCreditsIfNeeded(from: hydratedPrior.credits, accountKey: expectedGuard.accountKey)
+            self.publishHydratedCodexCreditsIfNeeded(from: hydratedPrior.credits, ownerGuard: expectedGuard)
             self.lastCodexUsagePublicationGuard = expectedGuard
             self.lastCodexAccountScopedRefreshGuard = expectedGuard
         }
@@ -824,8 +824,12 @@ extension UsageStore {
         } else {
             self.lastKnownResetSnapshots[provider.instanceID]
         }
+        // Resolve display-only allowances after any suspended request has completed.
+        let allowanceCurrent = self.resolvingCurrentCopilotAllowance(
+            in: publication.accountScoped,
+            provider: provider)
         let backfilled = self.preparePublishedSnapshot(
-            publication.accountScoped,
+            allowanceCurrent,
             provider: provider,
             resetBackfillSource: resetBackfillSource,
             context: context)
