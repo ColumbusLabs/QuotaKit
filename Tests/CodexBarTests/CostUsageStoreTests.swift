@@ -1821,11 +1821,13 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test
-    func `compatible predecessor parser hash adopts without rebuilding`() async throws {
+    @Test(arguments: ["295616a4e7dcfc3f", "4e2ff98d27e5c601", "053a4fb6aa6156c2"])
+    func `compatible predecessor parser hash adopts without rebuilding`(predecessorHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "053a4fb6aa6156c2",
+            "4e2ff98d27e5c601",
             "7c53241287d9fe21",
             "4c666659fa05e700",
             "1dfdbe376483ff0c",
@@ -1869,7 +1871,6 @@ extension CostUsageStoreTests {
             "794d08208e8b4be3",
             "a9e63a41a2306504",
         ])
-        let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: predecessorHash)

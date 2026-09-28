@@ -250,13 +250,12 @@ extension CostUsageScanner {
         let sourceScanComplete = parsed.parsedBytes >= input.metadata.size && parsed.jsonlResumeState == nil
         let hasReplayBuffer = parsed.bufferedSubagentLines != nil
             || parsed.bufferedUnresolvedForkLines != nil
-        // Only a replayable lineage prefix needs staged replacement. Ordinary bounded rescans
-        // retain the established partial-resume accounting until append can continue them. A
-        // complete pass is replacement-shaped even without buffers so stale rows are removed.
-        // Ordinary bounded migrations persist their parsed prefix, then append the remaining
-        // events. Staging only the offset would discard that prefix because the committed ledger
-        // is intentionally not replaced while a lineage replay buffer is unresolved.
-        let replacementGeneration = replacementWasPending || stageParsedRows || hasReplayBuffer || sourceScanComplete
+        // A bounded reread of committed rows must stage its new generation. Otherwise a partial
+        // prefix can be published with the old rows, then appended a second time on resume.
+        // Retain that prefix until the complete generation atomically replaces the committed one.
+        let replacementGeneration = replacementWasPending || stageParsedRows || hasReplayBuffer
+            || sourceScanComplete || cached?.codexRows?.isEmpty == false
+            || cached?.codexTokenSnapshots?.isEmpty == false || cached?.days.isEmpty == false
         // Unresolved lineage is still staged work. Do not replace a committed subagent ledger
         // with an empty/partial replay while its parent snapshots are unavailable.
         let replacementPending = replacementGeneration && (!sourceScanComplete || hasReplayBuffer)
@@ -323,9 +322,8 @@ extension CostUsageScanner {
             sessionId: sourceSessionID,
             priorityTurns: context.resources.priorityTurns)
         let replayedRows = stagedRows + classifiedNewRows
-        let replayedSnapshots = plan.stageParsedRows
-            ? (plan.replacementWasPending ? input.cached?.codexStagedRecoverySnapshots ?? [] : [])
-            + parsed.tokenSnapshots
+        let replayedSnapshots = plan.replacementWasPending
+            ? Self.mergingCodexTokenSnapshots(input.cached?.codexStagedRecoverySnapshots ?? [], parsed.tokenSnapshots)
             : parsed.tokenSnapshots
         let uniqueRows = Self.uniqueCodexRows(
             rows: replayedRows,
@@ -368,6 +366,7 @@ extension CostUsageScanner {
             forkBaselineDependencyKey: Self.codexForkBaselineDependencyKey(
                 parentSessionId: parsed.forkedFromId,
                 dependsOnParentTotals: parsed.dependsOnParentTotals,
+                hasResolvedForkBaseline: parsed.forkBaselineResolved,
                 inheritedResolver: context.resources.inheritedResolver),
             projectPath: projectPath,
             canonicalProjectPath: canonicalProjectPath,
@@ -428,8 +427,8 @@ extension CostUsageScanner {
         Self.retainCodexSourcePricing(&usage, pricing: sourcePricing, anchor: plan.sourceAnchor)
         usage.codexPendingPricing = pendingPricing.isEmpty
             || (usage.codexScanComplete == true && !usage.hasBufferedCodexForkRetryLines) ? nil : pendingPricing
-        usage.codexStagedRecoveryRows = plan.replacementPending && plan.stageParsedRows ? uniqueRows : nil
-        usage.codexStagedRecoverySnapshots = plan.replacementPending && plan.stageParsedRows
+        usage.codexStagedRecoveryRows = plan.replacementPending ? uniqueRows : nil
+        usage.codexStagedRecoverySnapshots = plan.replacementPending
             ? replayedSnapshots : nil
         if duplicateWithoutUniqueUsage,
            !parsed.rows.isEmpty || !Self.isCompleteEmptyCodexFragment(usage)

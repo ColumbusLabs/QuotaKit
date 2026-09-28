@@ -88,6 +88,8 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "053a4fb6aa6156c2", // QuotaKit direct-fork producer; revision 6 reparses ambiguous first-owned rows.
+        "4e2ff98d27e5c601", // QuotaKit pre-direct-fork producer; revision 5 reparses affected native files.
         "7c53241287d9fe21", // Scanner deferral bookkeeping fix leaves parsed rows and checkpoints unchanged.
         "4c666659fa05e700", // Pending-range and parent-discovery scheduling preserve parsed rows and checkpoints.
         "1dfdbe376483ff0c", // Explicit report coverage is additive; persisted parser rows remain compatible.

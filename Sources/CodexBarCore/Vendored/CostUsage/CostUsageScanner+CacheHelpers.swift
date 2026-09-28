@@ -850,7 +850,8 @@ extension CostUsageScanner {
         cache: inout CostUsageCache,
         state: inout CodexScanState) throws -> Bool
     {
-        guard let cached = input.cached, cached.hasCurrentCodexParser else { return false }
+        guard let cached = input.cached, cached.hasCurrentCodexParser,
+              !cached.hasBufferedCodexForkRetryLines else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
               !Self.codexFileNeedsSourceRowRecovery(cached, context: context) else { return false }
         let needsSessionId = cached.sessionId == nil
@@ -951,58 +952,7 @@ extension CostUsageScanner {
         return !(Set(cached.codexTurnIDs ?? []).isDisjoint(with: context.changedPriorityTurnIDs))
     }
 
-    /// Replays any compact fork buffer without reading JSONL when the indexed file is unchanged.
-    /// This remains safe for subagents because no appended lineage can change their classification.
-    static func isValidatedSameSizeBufferedCodexForkRetry(
-        metadata: CodexFileMetadata,
-        cached: CostUsageFileUsage) -> Bool
-    {
-        let startOffset = cached.parsedBytes ?? cached.size
-        guard cached.forkedFromId != nil,
-              cached.forkBaselineDependencyKey == nil,
-              cached.hasBufferedCodexForkRetryLines,
-              cached.codexScanComplete != false,
-              cached.codexJSONLResumeState == nil,
-              cached.codexScanFileId == metadata.fileId,
-              startOffset > 0,
-              startOffset == metadata.size,
-              cached.codexTokenIndexAnchor?.indexedBytes == startOffset
-        else { return false }
-        return cached.codexTokenIndexAnchor.map {
-            Self.codexTokenIndexAnchorMatches(
-                $0,
-                fileURL: URL(fileURLWithPath: metadata.path),
-                metadata: metadata)
-        } == true
-    }
-
-    /// Reuses compact ordinary-fork events for a validated appended suffix.
-    /// Appended subagent buffers still require a full rescan because later lineage can change attribution.
-    static func isAppendSafeBufferedCodexForkResume(
-        metadata: CodexFileMetadata,
-        cached: CostUsageFileUsage) -> Bool
-    {
-        let startOffset = cached.parsedBytes ?? cached.size
-        guard cached.codexScanComplete != false,
-              cached.forkedFromId != nil,
-              cached.codexBufferedSubagentLines?.isEmpty != false,
-              cached.codexBufferedUnresolvedForkLines?.isEmpty == false,
-              cached.codexJSONLResumeState == nil,
-              cached.codexScanFileId != nil,
-              cached.codexScanFileId == metadata.fileId,
-              startOffset > 0,
-              startOffset <= metadata.size,
-              cached.codexTokenIndexAnchor?.indexedBytes == startOffset
-        else { return false }
-        return cached.codexTokenIndexAnchor.map {
-            Self.codexTokenIndexAnchorMatches(
-                $0,
-                fileURL: URL(fileURLWithPath: metadata.path),
-                metadata: metadata)
-        } == true
-    }
-
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     static func appendCodexFileIncrementIfPossible(
         input: CodexFileScanInput,
         context: CodexFileScanContext,
@@ -1012,7 +962,13 @@ extension CostUsageScanner {
     {
         try context.checkCancellation?()
         guard let cached = input.cached, cached.hasCurrentCodexParser,
-              cached.sessionId != nil, !context.forceFullScan else { return false }
+              cached.sessionId != nil,
+              !context.forceFullScan || Self.isValidatedSameSizeBufferedCodexForkRetry(
+                  metadata: input.metadata,
+                  cached: cached) else { return false }
+        if cached.hasBufferedCodexForkRetryLines, !Self.codexBufferedForkHasMetadata(cached) {
+            return false
+        }
         // A bounded full replacement has its own staged generation. Re-enter the full parser so
         // the buffered prefix is replayed from a neutral row index; merging it through this
         // incremental path would append the replay with fresh indexes.
@@ -1063,6 +1019,18 @@ extension CostUsageScanner {
                 metadata: input.metadata,
                 cached: cached)
         let isBufferedForkResume = isBufferedForkRetry || isOrdinaryUnresolvedForkResume
+        let needsBufferedSnapshotRecovery = Self.codexBufferedSnapshotsNeedRecovery(
+            cached: cached,
+            isBufferedForkResume: isBufferedForkResume)
+        // Without offsets, a replayed event cannot be matched to an indexed snapshot.
+        // Let the full parser replace that generation instead of risking duplicate totals.
+        if needsBufferedSnapshotRecovery,
+           (cached.codexTokenSnapshots ?? []).contains(where: { $0.endOffset == nil })
+           || ((cached.codexBufferedUnresolvedForkLines ?? []) + (cached.codexBufferedSubagentLines ?? []))
+           .contains(where: { $0.endOffset == nil })
+        {
+            return false
+        }
         if cached.codexScanComplete == false, !isResumablePartial {
             return false
         }
@@ -1122,6 +1090,7 @@ extension CostUsageScanner {
             initialLastAcceptedTokenTimestampUnixMs: cached.codexSession?.latestAcceptedUsageUnixMs,
             initialBufferedSubagentLines: cached.codexBufferedSubagentLines,
             initialBufferedUnresolvedForkLines: cached.codexBufferedUnresolvedForkLines,
+            includeInitialBufferedTokenSnapshots: needsBufferedSnapshotRecovery,
             initialJSONLResumeState: cached.codexJSONLResumeState,
             initialForkAccountingState: resumesResolvedFork ? cached.codexForkAccountingState : nil,
             scanTargetSize: resumableTargetSize ?? input.metadata.size,
@@ -1148,6 +1117,7 @@ extension CostUsageScanner {
         let forkBaselineDependencyKey = Self.codexForkBaselineDependencyKey(
             parentSessionId: delta.forkedFromId,
             dependsOnParentTotals: delta.dependsOnParentTotals,
+            hasResolvedForkBaseline: delta.forkBaselineResolved,
             inheritedResolver: context.resources.inheritedResolver)
         let canonicalProjectPath = delta.projectPath.map {
             context.resources.projectPathResolver.canonicalProjectPath(for: $0)
@@ -1188,7 +1158,10 @@ extension CostUsageScanner {
             priorityTurns: context.resources.priorityTurns)
         context.workRecorder?.record(processed: uniqueRows.count, repriced: classifiedUniqueRows.count)
 
-        let migratedCached = sessionAlreadyContributed
+        let shouldReconcileBufferedRows = isBufferedForkResume
+            && delta.bufferedUnresolvedForkLines == nil
+            && delta.bufferedSubagentLines == nil
+        let migratedCached = sessionAlreadyContributed || shouldReconcileBufferedRows
             ? Self.codexFileUsageByFilteringRows(migrated, rows: retainedCachedRows, context: context)
             : migrated
         if sessionAlreadyContributed,
@@ -1201,7 +1174,7 @@ extension CostUsageScanner {
         }
         let uniqueDays = Self.codexFileDays(rows: uniqueRows)
 
-        if sessionAlreadyContributed {
+        if sessionAlreadyContributed || shouldReconcileBufferedRows {
             Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
             Self.applyFileDays(cache: &cache, fileDays: migratedCached.days, sign: 1)
         }
@@ -1215,9 +1188,13 @@ extension CostUsageScanner {
             rows: uniqueRows,
             range: context.range,
             priorityTurns: context.resources.priorityTurns)
-        let mergedTokenSnapshots = isBufferedForkResume && startOffset == input.metadata.size
-            ? (migratedCached.codexTokenSnapshots ?? [])
-            : (migratedCached.codexTokenSnapshots ?? []) + delta.tokenSnapshots
+        let mergedTokenSnapshots: [CostUsageCodexTokenSnapshot] = if needsBufferedSnapshotRecovery {
+            Self.mergingCodexTokenSnapshots(migratedCached.codexTokenSnapshots ?? [], delta.tokenSnapshots)
+        } else if isBufferedForkResume && startOffset == input.metadata.size {
+            migratedCached.codexTokenSnapshots ?? []
+        } else {
+            (migratedCached.codexTokenSnapshots ?? []) + delta.tokenSnapshots
+        }
         var fileUsage = Self.makeFileUsage(
             mtimeUnixMs: input.metadata.mtimeUnixMs,
             size: input.metadata.size,
@@ -1263,7 +1240,9 @@ extension CostUsageScanner {
                 rows: classifiedUniqueRows,
                 sessionId: sessionId),
             codexTokenSnapshots: mergedTokenSnapshots,
-            codexTokenCheckpoints: isBufferedForkResume && startOffset == input.metadata.size
+            codexTokenCheckpoints: needsBufferedSnapshotRecovery
+                ? Self.codexTokenCheckpoints(for: mergedTokenSnapshots)
+                : isBufferedForkResume && startOffset == input.metadata.size
                 ? migratedCached.codexTokenCheckpoints
                 : Self.appendingCodexTokenCheckpoints(
                     delta.tokenSnapshots,
@@ -1297,19 +1276,6 @@ extension CostUsageScanner {
             context: context,
             state: &state)
         return true
-    }
-
-    static func codexForkBaselineDependencyKey(
-        parentSessionId: String?,
-        dependsOnParentTotals: Bool,
-        inheritedResolver: CodexInheritedTotalsResolver) -> String?
-    {
-        guard let parentSessionId else { return nil }
-        guard dependsOnParentTotals else { return Self.codexForkDependencyNotRequiredKey }
-
-        // A nil key means the parent changed while its snapshots were read (or no stable
-        // snapshot was resolved). Preserve nil so the child cannot be reused on the next scan.
-        return inheritedResolver.dependencyKeyUsed(for: parentSessionId)
     }
 
     static func mergeFileDays(

@@ -197,6 +197,11 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
     `turn_context` is authoritative for the model bucket.
   - Paginated continuation files count only their owned usage when `history_base.thread_id` identifies an earlier
     page. Bounded scans retain the validated fork baseline and exact request index across restarts.
+  - Direct forks inherit the parent's cumulative token counter at the fork timestamp, including inherited totals
+    from earlier ancestors. A changed ancestor invalidates descendant baselines; unresolved parents keep child
+    events buffered until the parent can be scanned within the refresh budget. A first post-boundary event whose
+    cumulative and last totals match at or above an inherited counter stays unbilled and pending because the same
+    observation can represent copied history or a new child turn.
   - Excess cached request rows are replayed from unchanged source files. The previous ledger stays available during
     bounded recovery; pricing is retained only for validated source requests and byte boundaries.
   - pi sessions count assistant-message usage rows and attribute `openai-codex` assistant usage to Codex.
