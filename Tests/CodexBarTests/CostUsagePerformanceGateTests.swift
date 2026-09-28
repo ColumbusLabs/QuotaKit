@@ -1367,6 +1367,7 @@ struct CostUsagePerformanceGateTests {
             now: day,
             options: options)
         let expectedTokens = baseline.summary?.totalTokens
+        #expect(expectedTokens == fileCount * 110)
 
         options.useCodexCatchUpWorkingSet = true
         options.maxCodexScanDurationPerRefresh = 60
