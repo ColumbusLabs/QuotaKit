@@ -70,6 +70,7 @@ assert_gate() {
 }
 
 assert_gate false docs-only $'M\tdocs/providers.md' $'M\tREADME.md'
+assert_gate false docs-tabular-ledger $'A\tdocs/upstream-backlog-ledger-2026-09-28.tsv'
 assert_gate true configuration-doc $'M\tdocs/configuration.md'
 assert_gate true rename-to-configuration-doc $'R100\tdocs/old.md\tdocs/configuration.md'
 assert_gate true rename-from-configuration-doc $'R100\tdocs/configuration.md\tdocs/new.md'
