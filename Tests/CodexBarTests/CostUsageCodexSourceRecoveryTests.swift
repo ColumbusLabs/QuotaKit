@@ -419,8 +419,8 @@ struct CostUsageCodexSourceRecoveryTests {
         let repaired = Self.report(day: day, options: options, elapsed: 1)
         #expect(repaired.data == cold.data)
         #expect(repaired.summary == cold.summary)
-        // The direct-fork baseline also revalidates the parent's one usage row.
-        #expect(recorder.snapshot().usageRowsProcessed == 4)
+        // The current parent baseline is reused while the child rows are recovered.
+        #expect(recorder.snapshot().usageRowsProcessed == 3)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         #expect(reopened.files[parent.path] == canonical.files[parent.path])
         #expect(reopened.files[child.path]?.codexRows == originalChild.codexRows)
