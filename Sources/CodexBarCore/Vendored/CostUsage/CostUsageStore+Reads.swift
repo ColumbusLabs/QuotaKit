@@ -222,18 +222,40 @@ extension CostUsageStore {
     /// by a bounded scanner pass. This intentionally does not call `readSnapshot()` so callers
     /// can prove that routine catch-up never performs a cache-wide event read.
     func readCodexWorkingSetSnapshot(
-        hydratingPaths: Set<String>?) -> CostUsageStoreSnapshot
+        hydratingPaths: Set<String>?,
+        loadTemporal: Bool = false,
+        temporalRange: (sinceDay: String, untilDay: String)? = nil) -> CostUsageStoreSnapshot
     {
         self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
                 let files = try Self.readFiles(database, includeBufferedPresence: true)
                 let paths = hydratingPaths.map { Set($0) }
                 let hydratedPaths = paths ?? Set(files.map(\.path))
+                let metadata = try Self.readSingleton(
+                    CostUsageStoreMetadata.self,
+                    database: database,
+                    table: "scan_metadata") ?? .empty
+                let temporalSince = temporalRange?.sinceDay ?? metadata.scanSinceDay
+                let temporalUntil = temporalRange?.untilDay ?? metadata.scanUntilDay
+                let fileTemporal: [CostUsageStoreTemporalAggregate]
+                let verifiedTemporal: [CostUsageStoreTemporalAggregate]
+                if loadTemporal, let temporalSince, let temporalUntil, temporalSince <= temporalUntil {
+                    fileTemporal = try Self.readTemporalAggregates(
+                        database,
+                        verified: false,
+                        sinceDay: temporalSince,
+                        untilDay: temporalUntil)
+                    verifiedTemporal = try Self.readTemporalAggregates(
+                        database,
+                        verified: true,
+                        sinceDay: temporalSince,
+                        untilDay: temporalUntil)
+                } else {
+                    fileTemporal = []
+                    verifiedTemporal = []
+                }
                 return try CostUsageStoreSnapshot(
-                    metadata: Self.readSingleton(
-                        CostUsageStoreMetadata.self,
-                        database: database,
-                        table: "scan_metadata") ?? .empty,
+                    metadata: metadata,
                     files: files,
                     tokenSnapshots: Self.readTokenSnapshots(
                         database,
@@ -247,6 +269,16 @@ extension CostUsageStore {
                         sinceDay: nil,
                         untilDay: nil),
                     verifiedDayAggregates: Self.readVerifiedDayAggregates(database),
+                    verifiedDayKeys: Self.readVerifiedDayStatus(
+                        database,
+                        sinceDay: temporalSince,
+                        untilDay: temporalUntil),
+                    fileTemporalAggregates: fileTemporal,
+                    verifiedTemporalAggregates: verifiedTemporal,
+                    fileTemporalCoverageIsComplete: loadTemporal
+                        ? Self.temporalFileCoverageIsComplete(database) : true,
+                    verifiedTemporalCoverageIsComplete: loadTemporal
+                        ? Self.verifiedTemporalCoverageIsComplete(database) : false,
                     forkLineage: Self.readForkLineage(database, path: nil),
                     bufferedLines: Self.readBufferedLines(
                         database,

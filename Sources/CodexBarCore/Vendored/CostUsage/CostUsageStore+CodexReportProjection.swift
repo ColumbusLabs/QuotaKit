@@ -7,6 +7,11 @@ struct CostUsageStoreCodexReportProjection: Sendable {
     /// Aggregates copied only after a complete scan. Unlike `fileDayAggregates`, these rows
     /// remain stable while a bounded catch-up replaces individual files.
     var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
+    var verifiedDayKeys: [String] = []
+    var fileTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
+    var verifiedTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
+    var fileTemporalCoverageIsComplete: Bool = false
+    var verifiedTemporalCoverageIsComplete: Bool = false
     var verifiedScanSinceKey: String?
     var verifiedScanUntilKey: String?
     var verifiedUpdatedAtUnixMs: Int64?
@@ -15,8 +20,15 @@ struct CostUsageStoreCodexReportProjection: Sendable {
 }
 
 extension CostUsageStore {
-    func readCodexReportProjection(calendar: Calendar) -> CostUsageStoreCodexReportProjection {
-        let snapshot = self.readCodexWorkingSetSnapshot(hydratingPaths: [])
+    func readCodexReportProjection(
+        calendar: Calendar,
+        temporalRange: (sinceDay: String, untilDay: String)? = nil,
+        loadTemporal: Bool = true) -> CostUsageStoreCodexReportProjection
+    {
+        let snapshot = self.readCodexWorkingSetSnapshot(
+            hydratingPaths: [],
+            loadTemporal: loadTemporal,
+            temporalRange: temporalRange)
         guard snapshot.metadata.timeZoneIdentifier == nil
             || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else {
@@ -26,6 +38,11 @@ extension CostUsageStore {
             cache: Self.codexManifestCache(from: snapshot),
             fileDayAggregates: snapshot.fileDayAggregates,
             verifiedDayAggregates: snapshot.verifiedDayAggregates,
+            verifiedDayKeys: snapshot.verifiedDayKeys,
+            fileTemporalAggregates: snapshot.fileTemporalAggregates,
+            verifiedTemporalAggregates: snapshot.verifiedTemporalAggregates,
+            fileTemporalCoverageIsComplete: snapshot.fileTemporalCoverageIsComplete,
+            verifiedTemporalCoverageIsComplete: snapshot.verifiedTemporalCoverageIsComplete,
             verifiedScanSinceKey: snapshot.metadata.verifiedScanSinceDay,
             verifiedScanUntilKey: snapshot.metadata.verifiedScanUntilDay,
             verifiedUpdatedAtUnixMs: snapshot.metadata.verifiedUpdatedAtUnixMs,
@@ -37,15 +54,25 @@ extension CostUsageStore {
 extension CostUsageStoreAccess {
     static func readCodexReportProjection(
         store: CostUsageStore,
-        calendar: Calendar) -> CostUsageStoreCodexReportProjection
+        calendar: Calendar,
+        temporalRange: (sinceDay: String, untilDay: String)? = nil,
+        loadTemporal: Bool = true) -> CostUsageStoreCodexReportProjection
     {
-        store.syncReadCodexReportProjection(calendar: calendar)
+        store.syncReadCodexReportProjection(
+            calendar: calendar,
+            temporalRange: temporalRange,
+            loadTemporal: loadTemporal)
     }
 
     static func readCodexReportProjection(
         cacheRoot: URL?,
-        calendar: Calendar) async -> CostUsageStoreCodexReportProjection
+        calendar: Calendar,
+        temporalRange: (sinceDay: String, untilDay: String)? = nil,
+        loadTemporal: Bool = true) async -> CostUsageStoreCodexReportProjection
     {
-        await CostUsageStore(cacheRoot: cacheRoot).readCodexReportProjection(calendar: calendar)
+        await CostUsageStore(cacheRoot: cacheRoot).readCodexReportProjection(
+            calendar: calendar,
+            temporalRange: temporalRange,
+            loadTemporal: loadTemporal)
     }
 }

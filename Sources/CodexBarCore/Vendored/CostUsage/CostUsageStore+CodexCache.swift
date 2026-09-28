@@ -621,6 +621,7 @@ extension CostUsageStore {
         var parserRevision: Int?
         var hasExactUsageRowIndex: Bool?
         var forkAccountingState: CostUsageScanner.CodexForkAccountingState?
+        var ledgerRevision: String?
     }
 
     private struct StoredPriorityState: Codable {
@@ -793,7 +794,7 @@ extension CostUsageStore {
                     identity: normalizedIdentity,
                     isComplete: file.scanState.isComplete)
             }
-            let usage = CostUsageFileUsage(
+            var usage = CostUsageFileUsage(
                 mtimeUnixMs: file.mtimeUnixMs,
                 size: file.size,
                 days: Self.days(from: aggregates),
@@ -871,6 +872,7 @@ extension CostUsageStore {
                 codexHasBufferedSubagentLines: file.hasBufferedSubagentLines,
                 codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines,
                 codexParserRevision: details.parserRevision)
+            usage.codexLedgerRevision = details.ledgerRevision
             cache.files[file.path] = usage
         }
         Self.enqueueDeferredCodexIdentityValidation(
@@ -1279,6 +1281,7 @@ extension CostUsageStore {
             parserRevision: usage.codexParserRevision)
         details.hasExactUsageRowIndex = usage.codexNextUsageRowIndex != nil
         details.forkAccountingState = usage.codexForkAccountingState
+        details.ledgerRevision = replacementPending ? committedDetails?.ledgerRevision : UUID().uuidString
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
             // carried by the accumulator/buffers, while old rows and snapshots stay in place.
@@ -1365,6 +1368,15 @@ extension CostUsageStore {
         let appendSafe = baseline.file?.scanState.fileIdentity == file.scanState.fileIdentity
             && oldParsedBytes < newParsedBytes
         let stableCursor = oldParsedBytes == newParsedBytes
+        let appendProof = usage.codexAppendOnlyPrefix.map { witness in
+            appendSafe && canReuseRows && witness.path == path
+                && witness.fileIdentity == file.scanState.fileIdentity
+                && witness.parsedBytes == oldParsedBytes
+                && witness.rowCount == baseline.rowCount
+                && witness.snapshotCount == baseline.snapshotCount
+                && witness.ledgerRevision == committedDetails?.ledgerRevision
+                && rowCount >= witness.rowCount && snapshotCount >= witness.snapshotCount
+        } ?? false
         // A stable byte cursor and row count do not imply identical pricing or parser rows.
         // Metadata-only repricing can change the payload without changing either value. Check
         // the prefix only when the planner could reuse or append it, and stream cold baselines.
@@ -1372,19 +1384,19 @@ extension CostUsageStore {
         let snapshotPrefixMatches = reuseCandidate
             && ((stableCursor && baseline.snapshotCount == snapshotCount)
                 || (appendSafe && baseline.snapshotCount <= snapshotCount))
-            && self.snapshotPrefixMatches(
+            && (appendProof || self.snapshotPrefixMatches(
                 path: path,
                 storedCount: baseline.snapshotCount,
                 source: sourceSnapshots,
-                cached: baseline.usage?.codexTokenSnapshots)
+                cached: baseline.usage?.codexTokenSnapshots))
         let rowPrefixMatches = reuseCandidate
             && ((stableCursor && baseline.rowCount == rowCount)
                 || (appendSafe && baseline.rowCount <= rowCount))
-            && self.rowPrefixMatches(
+            && (appendProof || self.rowPrefixMatches(
                 path: path,
                 storedCount: baseline.rowCount,
                 source: sourceRows,
-                cached: baseline.usage?.codexRows)
+                cached: baseline.usage?.codexRows))
         let snapshotAction: CostUsagePersistenceAction = replacingStagedGeneration
             ? .replace
             : CostUsagePersistencePlanner.action(
@@ -1428,6 +1440,13 @@ extension CostUsageStore {
         _ = self.replaceFileDayAggregates(
             path: path,
             aggregates: Self.fileAggregates(usage, pricing: aggregatePricing))
+        _ = self.replaceFileTemporalAggregates(
+            path: path,
+            aggregates: Self.fileTemporalAggregates(
+                path: path,
+                usage: usage,
+                calendar: calendar,
+                pricing: aggregatePricing))
         _ = self.upsertForkLineage(CostUsageStoreForkLineage(
             path: path,
             sessionID: usage.sessionId,
@@ -1457,6 +1476,7 @@ extension CostUsageStore {
         cached: [CostUsageScanner.CodexUsageRow]?) -> Bool
     {
         guard storedCount > 0 else { return true }
+        Self.codexPrefixComparisonVisitForTesting?(path, storedCount)
         if let cached {
             return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
         }
@@ -1493,6 +1513,7 @@ extension CostUsageStore {
         cached: [CostUsageCodexTokenSnapshot]?) -> Bool
     {
         guard storedCount > 0 else { return true }
+        Self.codexPrefixComparisonVisitForTesting?(path, storedCount)
         if let cached {
             return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
         }
@@ -1611,7 +1632,10 @@ extension CostUsageStore {
         calendar: Calendar,
         reportWindow: (sinceKey: String, untilKey: String)?) -> CostUsageCodexPreviousReport?
     {
-        let projection = self.readCodexReportProjection(calendar: calendar)
+        let temporalRange = reportWindow.map { (sinceDay: $0.sinceKey, untilDay: $0.untilKey) }
+        let projection = self.readCodexReportProjection(
+            calendar: calendar,
+            temporalRange: temporalRange)
         guard let sinceKey = reportWindow?.sinceKey ?? projection.cache.scanSinceKey,
               let untilKey = reportWindow?.untilKey ?? projection.cache.scanUntilKey,
               let since = CostUsageScanner.parseDayKey(sinceKey, calendar: calendar),
@@ -1641,6 +1665,54 @@ extension CostUsageStore {
             catalog: ModelsDevCache.load(now: Date(), cacheRoot: cacheRoot).artifact?.catalog,
             cacheRoot: cacheRoot,
             customPricing: CostUsagePricing.customPricingOverlay())
+    }
+
+    private static func fileTemporalAggregates(
+        path: String,
+        usage: CostUsageFileUsage,
+        calendar: Calendar,
+        pricing: AggregatePricingContext) -> [CostUsageStoreTemporalAggregate]
+    {
+        let dayKeys = usage.days.keys.sorted()
+        guard let first = dayKeys.first,
+              let last = dayKeys.last,
+              let since = CostUsageScanner.parseDayKey(first, calendar: calendar),
+              let until = CostUsageScanner.parseDayKey(last, calendar: calendar)
+        else { return [] }
+        var fileCache = CostUsageCache()
+        fileCache.files[path] = usage
+        fileCache.days = usage.days
+        let report = CostUsageScanner.buildCodexReportFromCache(
+            cache: fileCache,
+            range: CostUsageScanner.CostUsageDayRange(
+                since: since,
+                until: until,
+                calendar: calendar),
+            modelsDevCatalog: pricing.catalog,
+            modelsDevCacheRoot: pricing.cacheRoot)
+        let hourly = report.hourly.map { entry in
+            CostUsageStoreTemporalAggregate(
+                path: path,
+                kind: 0,
+                timestampUnixMs: Int64((entry.hour.timeIntervalSince1970 * 1000).rounded()),
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: entry.hour, calendar: calendar),
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD,
+                tokensAreComplete: entry.tokensAreComplete,
+                costIsComplete: entry.costIsComplete)
+        }
+        let slices = report.quotaSlices.map { entry in
+            CostUsageStoreTemporalAggregate(
+                path: path,
+                kind: 1,
+                timestampUnixMs: Int64((entry.timestamp.timeIntervalSince1970 * 1000).rounded()),
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: entry.timestamp, calendar: calendar),
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD,
+                tokensAreComplete: entry.tokensAreComplete,
+                costIsComplete: entry.costIsComplete)
+        }
+        return hourly + slices
     }
 
     private static func fileAggregates(

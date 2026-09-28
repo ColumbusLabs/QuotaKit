@@ -2,11 +2,15 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+#if canImport(SQLite3)
+import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
+#endif
+
 @Suite(.serialized)
 struct PiNativeProjectionTests {
-    @Test(
-        .disabled(
-            "Fresh Codex temporal projection needs bounded persistence: https://github.com/ColumbusLabs/QuotaKit/issues/194"))
+    @Test
     func `fresh native projection preserves pinned hourly and quota slices`() async throws {
         let fixture = try Fixture()
         defer { fixture.env.cleanup() }
@@ -72,9 +76,7 @@ struct PiNativeProjectionTests {
         #expect(cachedNative.historyCoverageIsEstablished)
     }
 
-    @Test(
-        .disabled(
-            "Cached Codex temporal aggregates need bounded persistence: https://github.com/ColumbusLabs/QuotaKit/issues/194"))
+    @Test
     func `cached native projection preserves pinned hourly and quota slices`() async throws {
         let fixture = try Fixture()
         defer { fixture.env.cleanup() }
@@ -97,6 +99,138 @@ struct PiNativeProjectionTests {
         #expect(cachedNative.hourly == baseline.snapshot.hourly)
         #expect(cachedNative.quotaSlices == baseline.snapshot.quotaSlices)
         try fixture.expectNativeQuotaWindow(cachedNative)
+    }
+
+    @Test
+    func `reopened temporal projection replaces an old native generation without raw hydration`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.env.cleanup() }
+        try fixture.writePiHistory()
+        _ = try await fixture.load(includePi: true)
+        try fixture.replaceNativeHistory()
+        let fresh = try await fixture.load(includePi: true)
+        guard case let .includesPi(_, freshNative) = fresh.accounting else {
+            Issue.record("Expected fresh Pi accounting after the native file replacement")
+            return
+        }
+        #expect(freshNative.hourly.map(\.hour) == [fixture.hours[1]])
+        #expect(freshNative.hourly.map(\.totalTokens) == [25])
+        #expect(freshNative.quotaSlices.map(\.timestamp) == [fixture.events[1]])
+
+        let reopened = CostUsageStore(cacheRoot: fixture.env.cacheRoot)
+            .syncReadCodexReportProjection(calendar: fixture.calendar)
+        #expect(reopened.fileTemporalCoverageIsComplete)
+        #expect(reopened.cache.files.values.allSatisfy {
+            $0.codexRows == nil && $0.codexTokenSnapshots == nil
+        })
+        #expect(reopened.fileTemporalAggregates.count == 2)
+        let cached = try #require(await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: fixture.now.addingTimeInterval(60),
+            historyDays: 1,
+            includePiSessions: true,
+            scannerOptions: fixture.options,
+            environment: fixture.environment,
+            piScannerOptions: fixture.piOptions))
+        guard case let .includesPi(_, cachedNative) = cached.accounting else {
+            Issue.record("Expected cached Pi accounting after the native file replacement")
+            return
+        }
+        #expect(cachedNative.hourly == freshNative.hourly)
+        #expect(cachedNative.quotaSlices == freshNative.quotaSlices)
+    }
+
+    @Test
+    func `legacy cache with missing temporal ledger regenerates before Pi publication`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.env.cleanup() }
+        try fixture.writePiHistory()
+        let baseline = try await fixture.load(includePi: false)
+        var legacyCache = CostUsageStoreAccess.read(
+            cacheRoot: fixture.env.cacheRoot,
+            calendar: fixture.calendar)
+        for path in legacyCache.files.keys {
+            legacyCache.files[path]?.codexParserRevision = 6
+        }
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: fixture.env.cacheRoot,
+            cache: legacyCache,
+            calendar: fixture.calendar).catchUpRequired)
+        let databaseURL = CostUsageStore(cacheRoot: fixture.env.cacheRoot).databaseURL
+        var database: OpaquePointer?
+        #expect(sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK)
+        let opened = try #require(database)
+        defer { sqlite3_close_v2(opened) }
+        let clearTemporalSQL = """
+        DELETE FROM file_temporal_aggregates;
+        DELETE FROM file_temporal_status;
+        DELETE FROM verified_temporal_aggregates;
+        DELETE FROM meta WHERE key = 'verified_temporal_version';
+        """
+        #expect(sqlite3_exec(
+            opened,
+            clearTemporalSQL,
+            nil,
+            nil,
+            nil) == SQLITE_OK)
+
+        let before = try #require(await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: fixture.now.addingTimeInterval(60),
+            historyDays: 1,
+            includePiSessions: true,
+            scannerOptions: fixture.options,
+            environment: fixture.environment,
+            piScannerOptions: fixture.piOptions))
+        #expect(before.accounting == .nativeOnly)
+        #expect(!before.snapshot.historyCoverageIsEstablished)
+
+        let repaired = try await fixture.load(includePi: true)
+        guard case let .includesPi(_, native) = repaired.accounting else {
+            Issue.record("Expected bounded parser migration to restore Pi native accounting")
+            return
+        }
+        #expect(native.hourly == baseline.snapshot.hourly)
+        #expect(native.quotaSlices == baseline.snapshot.quotaSlices)
+    }
+
+    @Test
+    func `empty verified day clears retained daily and temporal accounting`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.env.cleanup() }
+        _ = try await fixture.load(includePi: false)
+        let day = try #require(fixture.calendar.date(byAdding: .day, value: 1, to: fixture.now))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day, calendar: fixture.calendar)
+        let store = CostUsageStore(cacheRoot: fixture.env.cacheRoot)
+        #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
+            store: store,
+            day: dayKey,
+            calendar: fixture.calendar))
+        let projection = store.syncReadCodexReportProjection(
+            calendar: fixture.calendar,
+            temporalRange: (dayKey, dayKey))
+        #expect(projection.verifiedDayKeys == [dayKey])
+        #expect(projection.verifiedTemporalCoverageIsComplete)
+        let retained = CostUsageDailyReport(
+            data: [CostUsageDailyReport.Entry(
+                date: dayKey,
+                inputTokens: 20,
+                outputTokens: 0,
+                totalTokens: 20,
+                costUSD: 2,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
+            summary: nil,
+            hourly: [CostUsageHourlyEntry(hour: day, totalTokens: 20, costUSD: 2)],
+            quotaSlices: [CostUsageTimedEntry(timestamp: day, totalTokens: 20, costUSD: 2)])
+        let empty = CostUsageDailyReport(data: [], summary: nil)
+        let replaced = CostUsageFetcher.replacingVerifiedDays(
+            in: retained,
+            with: empty,
+            verifiedDayKeys: projection.verifiedDayKeys,
+            calendar: fixture.calendar)
+        #expect(replaced.data.isEmpty)
+        #expect(replaced.hourly.isEmpty)
+        #expect(replaced.quotaSlices.isEmpty)
+        #expect(replaced.summary == nil)
     }
 
     @Test
@@ -313,6 +447,40 @@ struct PiNativeProjectionTests {
             row["message"] = message
             _ = try self.env.writePiSessionFile(
                 relativePath: "pi-projection.jsonl", contents: self.env.jsonl([row]))
+        }
+
+        func replaceNativeHistory() throws {
+            let event = self.events[1]
+            _ = try self.env.writeCodexSessionFile(
+                day: self.events[0],
+                filename: "native-projection.jsonl",
+                contents: self.env.jsonl([
+                    [
+                        "type": "session_meta",
+                        "timestamp": self.env.isoString(for: event.addingTimeInterval(-2)),
+                        "payload": ["id": "synthetic-native-projection", "cwd": self.env.root.path],
+                    ],
+                    [
+                        "type": "turn_context",
+                        "timestamp": self.env.isoString(for: event.addingTimeInterval(-1)),
+                        "payload": ["model": "gpt-5.4", "turn_id": "replacement-turn"],
+                    ],
+                    [
+                        "type": "event_msg",
+                        "timestamp": self.env.isoString(for: event),
+                        "payload": [
+                            "type": "token_count",
+                            "info": [
+                                "model": "gpt-5.4",
+                                "last_token_usage": [
+                                    "input_tokens": 25,
+                                    "cached_input_tokens": 0,
+                                    "output_tokens": 0,
+                                ],
+                            ],
+                        ],
+                    ],
+                ]))
         }
 
         func piRow(at date: Date, input: Any) -> [String: Any] {

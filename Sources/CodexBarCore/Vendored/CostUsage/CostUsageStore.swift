@@ -88,6 +88,9 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "36872d2d0ebf9818", // Temporal revision 7 rebuilds compact buckets from retained file rows.
+        "053a4fb6aa6156c2", // QuotaKit direct-fork producer; revision 6 reparses ambiguous first-owned rows.
+        "4e2ff98d27e5c601", // QuotaKit pre-direct-fork producer; revision 5 reparses affected native files.
         "7c53241287d9fe21", // Scanner deferral bookkeeping fix leaves parsed rows and checkpoints unchanged.
         "4c666659fa05e700", // Pending-range and parent-discovery scheduling preserve parsed rows and checkpoints.
         "1dfdbe376483ff0c", // Explicit report coverage is additive; persisted parser rows remain compatible.
@@ -153,6 +156,8 @@ actor CostUsageStore {
 
     /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
     nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
+    /// Test-only count of rows/snapshots checked during persistence prefix comparison.
+    nonisolated(unsafe) static var codexPrefixComparisonVisitForTesting: ((String, Int) -> Void)?
 
     /// Test-only failure injection inside the bounded delta transaction, after file writes and
     /// before metadata writes. Used to prove transient SQLite errors preserve the prior store.
@@ -334,10 +339,15 @@ extension CostUsageStore {
     }
 
     nonisolated func syncReadCodexReportProjection(
-        calendar: Calendar) -> CostUsageStoreCodexReportProjection
+        calendar: Calendar,
+        temporalRange: (sinceDay: String, untilDay: String)? = nil,
+        loadTemporal: Bool = true) -> CostUsageStoreCodexReportProjection
     {
         self.syncWithStoreIsolation { store in
-            store.readCodexReportProjection(calendar: calendar)
+            store.readCodexReportProjection(
+                calendar: calendar,
+                temporalRange: temporalRange,
+                loadTemporal: loadTemporal)
         }
     }
 
@@ -624,6 +634,7 @@ extension CostUsageStore {
                 try Self.execute(opened, "VACUUM")
                 try self.createSchema(opened)
             }
+            try Self.ensureTemporalAggregateTables(opened)
             return opened
         } catch {
             sqlite3_close_v2(opened)

@@ -46,6 +46,66 @@ extension CostUsageStore {
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
         else { return }
         try execute(database, "DELETE FROM verified_day_aggregates")
+        try clearVerifiedTemporalAggregates(database)
+        try execute(database, "DELETE FROM verified_day_status")
+        try invalidateVerifiedTemporalCoverage(database)
+    }
+
+    static func readVerifiedDayStatus(
+        _ database: OpaquePointer,
+        sinceDay: String? = nil,
+        untilDay: String? = nil) throws -> [String]
+    {
+        var sql = "SELECT day FROM verified_day_status"
+        if sinceDay != nil, untilDay != nil {
+            sql += " WHERE day >= ? AND day <= ?"
+        }
+        sql += " ORDER BY day"
+        let statement = try Self.prepare(database, sql)
+        defer { sqlite3_finalize(statement) }
+        if let sinceDay, let untilDay {
+            Self.bind(sinceDay, to: statement, at: 1)
+            Self.bind(untilDay, to: statement, at: 2)
+        }
+        var days: [String] = []
+        var result = sqlite3_step(statement)
+        while result == SQLITE_ROW {
+            guard let day = Self.columnText(statement, at: 0) else { throw StoreError.invalidData }
+            days.append(day)
+            result = sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+        return days
+    }
+
+    static func markVerifiedDayStatus(_ database: OpaquePointer, day: String) throws {
+        let statement = try Self.prepare(database, "INSERT OR IGNORE INTO verified_day_status(day) VALUES (?)")
+        defer { sqlite3_finalize(statement) }
+        Self.bind(day, to: statement, at: 1)
+        try Self.stepDone(statement, database: database)
+    }
+
+    static func markVerifiedDayStatus(
+        _ database: OpaquePointer,
+        sinceDay: String,
+        untilDay: String,
+        calendar: Calendar) throws
+    {
+        let dayCalendar = CostUsageScanner.CostUsageDayRange.localGregorianCalendar(matching: calendar)
+        guard let since = CostUsageScanner.parseDayKey(sinceDay, calendar: dayCalendar),
+              let until = CostUsageScanner.parseDayKey(untilDay, calendar: dayCalendar),
+              since <= until
+        else { throw StoreError.invalidData }
+        var date = since
+        while date <= until {
+            try Self.markVerifiedDayStatus(
+                database,
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: date, calendar: dayCalendar))
+            guard let next = dayCalendar.date(byAdding: .day, value: 1, to: date), next > date else {
+                throw StoreError.invalidData
+            }
+            date = next
+        }
     }
 
     static func readVerifiedDayAggregates(
@@ -218,6 +278,11 @@ extension CostUsageStore {
                         database,
                         day: day,
                         aggregates: aggregates)
+                    try Self.replaceVerifiedTemporalAggregates(
+                        database,
+                        sinceDay: day,
+                        untilDay: day)
+                    try Self.markVerifiedDayStatus(database, day: day)
                     metadata.verifiedUpdatedAtUnixMs = max(
                         metadata.verifiedUpdatedAtUnixMs ?? 0,
                         metadata.lastScanUnixMs > 0 ? metadata.lastScanUnixMs : 0)
@@ -275,8 +340,18 @@ extension CostUsageStore {
                     try Self.clearVerifiedDayAggregates(
                         database,
                         sinceDay: sinceDay,
-                        untilDay: untilDay)
+                        untilDay: untilDay,
+                        preserveTemporalCoverage: true)
                     try Self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+                    try Self.replaceVerifiedTemporalAggregates(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay)
+                    try Self.markVerifiedDayStatus(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay,
+                        calendar: dayCalendar)
                     metadata.verifiedUpdatedAtUnixMs = max(
                         metadata.verifiedUpdatedAtUnixMs ?? 0,
                         metadata.lastScanUnixMs > 0 ? metadata.lastScanUnixMs : 0)
@@ -315,12 +390,28 @@ extension CostUsageStore {
             Self.bind(day, to: statement, at: Int32(index + 1))
         }
         try Self.stepDone(statement, database: database)
+        let status = try Self.prepare(
+            database,
+            "DELETE FROM verified_day_status WHERE day IN (\(placeholders))")
+        defer { sqlite3_finalize(status) }
+        for (index, day) in sortedDays.enumerated() {
+            Self.bind(day, to: status, at: Int32(index + 1))
+        }
+        try Self.stepDone(status, database: database)
+        for day in sortedDays {
+            try Self.clearVerifiedTemporalAggregates(
+                database,
+                sinceDay: day,
+                untilDay: day)
+        }
+        try Self.invalidateVerifiedTemporalCoverage(database)
     }
 
     static func clearVerifiedDayAggregates(
         _ database: OpaquePointer,
         sinceDay: String,
-        untilDay: String) throws
+        untilDay: String,
+        preserveTemporalCoverage: Bool = false) throws
     {
         guard sinceDay <= untilDay,
               try scalarInt(
@@ -334,6 +425,20 @@ extension CostUsageStore {
         Self.bind(sinceDay, to: statement, at: 1)
         Self.bind(untilDay, to: statement, at: 2)
         try Self.stepDone(statement, database: database)
+        let status = try Self.prepare(
+            database,
+            "DELETE FROM verified_day_status WHERE day >= ? AND day <= ?")
+        defer { sqlite3_finalize(status) }
+        Self.bind(sinceDay, to: status, at: 1)
+        Self.bind(untilDay, to: status, at: 2)
+        try Self.stepDone(status, database: database)
+        try Self.clearVerifiedTemporalAggregates(
+            database,
+            sinceDay: sinceDay,
+            untilDay: untilDay)
+        if !preserveTemporalCoverage {
+            try Self.invalidateVerifiedTemporalCoverage(database)
+        }
     }
 
     /// Creates the additive table and imports the last old JSON report when that is the only

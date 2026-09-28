@@ -419,9 +419,15 @@ struct CostUsageCodexSourceRecoveryTests {
         let repaired = Self.report(day: day, options: options, elapsed: 1)
         #expect(repaired.data == cold.data)
         #expect(repaired.summary == cold.summary)
+        // The current parent baseline is reused while the child rows are recovered.
         #expect(recorder.snapshot().usageRowsProcessed == 3)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
-        #expect(reopened.files[parent.path] == canonical.files[parent.path])
+        var reopenedParent = reopened.files[parent.path]
+        var canonicalParent = canonical.files[parent.path]
+        // The store may rewrite an unchanged parent and assign a new ledger revision.
+        reopenedParent?.codexLedgerRevision = nil
+        canonicalParent?.codexLedgerRevision = nil
+        #expect(reopenedParent == canonicalParent)
         #expect(reopened.files[child.path]?.codexRows == originalChild.codexRows)
         #expect(reopened.files[child.path]?.days == originalChild.days)
         #expect(reopened.files[child.path]?.forkBaselineDependencyKey == originalChild.forkBaselineDependencyKey)

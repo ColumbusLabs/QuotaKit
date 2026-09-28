@@ -93,6 +93,14 @@ extension CostUsageStore {
             self.bind(untilDay, to: deleteFileAggregates, at: 2)
             try self.stepDone(deleteFileAggregates, database: database)
 
+            let deleteFileTemporal = try self.prepare(
+                database,
+                "DELETE FROM file_temporal_aggregates WHERE day < ? OR day > ?")
+            defer { sqlite3_finalize(deleteFileTemporal) }
+            self.bind(sinceDay, to: deleteFileTemporal, at: 1)
+            self.bind(untilDay, to: deleteFileTemporal, at: 2)
+            try self.stepDone(deleteFileTemporal, database: database)
+
             let deleteAggregates = try self.prepare(
                 database,
                 "DELETE FROM day_aggregates WHERE day < ? OR day > ?")
@@ -358,8 +366,17 @@ extension CostUsageStore {
                         untilDay: nil)
                     var updatedMetadata = metadata
                     let existingVerified = try Self.readVerifiedDayAggregates(database)
-                    if existingVerified != aggregates {
-                        try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
+                    let scopeMatches = metadata.verifiedScanSinceDay == metadata.scanSinceDay
+                        && metadata.verifiedScanUntilDay == metadata.scanUntilDay
+                        && metadata.verifiedTimeZoneIdentifier == metadata.timeZoneIdentifier
+                        && metadata.verifiedRootPaths == metadata.rootMtimes?.keys.sorted()
+                    let temporalFilesComplete = try Self.temporalFileCoverageIsComplete(database)
+                    let temporalVerified = try Self.verifiedTemporalCoverageIsComplete(database)
+                    let temporalNeedsRefresh = temporalFilesComplete && !temporalVerified
+                    if existingVerified != aggregates || !scopeMatches || temporalNeedsRefresh {
+                        if existingVerified != aggregates {
+                            try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
+                        }
                         updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
                         updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
                         updatedMetadata.verifiedUpdatedAtUnixMs = metadata.lastScanUnixMs > 0
@@ -367,16 +384,23 @@ extension CostUsageStore {
                         updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
                         updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
                         try Self.writeVerifiedLedgerMarker(database)
-                    } else if updatedMetadata.verifiedScanSinceDay == nil,
-                              updatedMetadata.verifiedScanUntilDay == nil
-                    {
-                        // A complete empty scan still establishes a coverage marker, but an
-                        // identical later pass must not rewrite the verified timestamp.
-                        updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
-                        updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
-                        updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
-                        updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
-                        try Self.writeVerifiedLedgerMarker(database)
+                        try Self.execute(database, "DELETE FROM verified_day_status")
+                        if let sinceDay = metadata.scanSinceDay,
+                           let untilDay = metadata.scanUntilDay
+                        {
+                            try Self.markVerifiedDayStatus(
+                                database,
+                                sinceDay: sinceDay,
+                                untilDay: untilDay,
+                                calendar: calendar)
+                            try Self.replaceVerifiedTemporalAggregates(
+                                database,
+                                sinceDay: sinceDay,
+                                untilDay: untilDay)
+                        }
+                        if temporalFilesComplete {
+                            try Self.markVerifiedTemporalCoverageComplete(database)
+                        }
                     }
                     if updatedMetadata != metadata {
                         let payload = try JSONEncoder().encode(updatedMetadata)

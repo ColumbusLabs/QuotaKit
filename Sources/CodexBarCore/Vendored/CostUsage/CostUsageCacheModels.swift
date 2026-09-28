@@ -348,8 +348,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Paginated continuation corrections require bounded reparsing of older files.
-    static let currentCodexParserRevision = 4
+    /// Fork accounting changes require bounded reparsing of older files.
+    static let currentCodexParserRevision = 7
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -380,6 +380,10 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    /// Store-owned revision of the committed row/snapshot ledger loaded with this file.
+    var codexLedgerRevision: String?
+    /// A scanner proof for one append. Never restored from the SQLite manifest.
+    var codexAppendOnlyPrefix: CostUsageCodexAppendOnlyPrefix?
     var codexNextUsageRowIndex: Int?
     /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
     var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]?
@@ -417,6 +421,15 @@ struct CostUsageFileUsage: Codable, Equatable {
             || self.codexHasBufferedSubagentLines == true
             || self.codexHasBufferedUnresolvedForkLines == true
     }
+}
+
+struct CostUsageCodexAppendOnlyPrefix: Codable, Equatable {
+    var path: String
+    var fileIdentity: String
+    var parsedBytes: Int64
+    var rowCount: Int
+    var snapshotCount: Int
+    var ledgerRevision: String
 }
 
 struct CostUsageCodexSessionMetadata: Codable, Equatable {

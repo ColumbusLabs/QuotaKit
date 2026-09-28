@@ -182,7 +182,12 @@ struct CostUsageStoreTests {
                 skipIdenticalContent: true)
             let after = await store.persistenceWriteMetricsForTesting()
             #expect(!result.catchUpRequired)
-            #expect(store.syncLoadCodexCache(calendar: .current).files == changed.files)
+            var restoredFiles = store.syncLoadCodexCache(calendar: .current).files
+            let changedPath = "/sessions/0.jsonl"
+            #expect(restoredFiles[changedPath]?.codexLedgerRevision
+                != changed.files[changedPath]?.codexLedgerRevision)
+            restoredFiles[changedPath]?.codexLedgerRevision = changed.files[changedPath]?.codexLedgerRevision
+            #expect(restoredFiles == changed.files)
             return after.rows - before.rows
         }
 
@@ -239,7 +244,9 @@ struct CostUsageStoreTests {
             skipIdenticalContent: true)
 
         #expect(!result.catchUpRequired)
-        #expect(store.syncLoadCodexCache(calendar: calendar).files[path] == unchangedUsage)
+        var restoredUsage = store.syncLoadCodexCache(calendar: calendar).files[path]
+        restoredUsage?.codexLedgerRevision = unchangedUsage?.codexLedgerRevision
+        #expect(restoredUsage == unchangedUsage)
         #expect(await store.fetchFileDayAggregates(path: path) == [original])
     }
 
@@ -1821,11 +1828,14 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test
-    func `compatible predecessor parser hash adopts without rebuilding`() async throws {
+    @Test(arguments: ["295616a4e7dcfc3f", "4e2ff98d27e5c601", "053a4fb6aa6156c2"])
+    func `compatible predecessor parser hash adopts without rebuilding`(predecessorHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "36872d2d0ebf9818",
+            "053a4fb6aa6156c2",
+            "4e2ff98d27e5c601",
             "7c53241287d9fe21",
             "4c666659fa05e700",
             "1dfdbe376483ff0c",
@@ -1859,7 +1869,6 @@ extension CostUsageStoreTests {
             "2d17f4981b78d07f",
             "1ad1e41af7f25b3e",
             "be0bb04e9e92b697",
-            "398d5964ff82286a",
             "4c26d7b4f3200869",
             "776fe64ed298f47a",
             "ae84207057847ef9",
@@ -1869,7 +1878,6 @@ extension CostUsageStoreTests {
             "794d08208e8b4be3",
             "a9e63a41a2306504",
         ])
-        let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: predecessorHash)

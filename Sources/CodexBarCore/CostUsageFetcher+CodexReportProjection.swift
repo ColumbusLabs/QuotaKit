@@ -27,6 +27,9 @@ enum CostUsageCodexReportProjectionBuilder {
             aggregates: projection.fileDayAggregates.lazy
                 .filter { paths.contains($0.path) }
                 .map(\.aggregate),
+            temporal: projection.fileTemporalAggregates.filter { aggregate in
+                aggregate.path.map(paths.contains) == true
+            },
             cache: scopedCache,
             range: range,
             cacheRoot: cacheRoot)
@@ -57,6 +60,7 @@ enum CostUsageCodexReportProjectionBuilder {
     {
         self.report(
             aggregates: projection.fileDayAggregates.map(\.aggregate),
+            temporal: projection.fileTemporalAggregates,
             cache: projection.cache,
             range: range,
             cacheRoot: cacheRoot)
@@ -72,6 +76,7 @@ enum CostUsageCodexReportProjectionBuilder {
     {
         self.report(
             aggregates: projection.verifiedDayAggregates,
+            temporal: projection.verifiedTemporalAggregates,
             cache: projection.cache,
             range: range,
             cacheRoot: cacheRoot)
@@ -79,6 +84,7 @@ enum CostUsageCodexReportProjectionBuilder {
 
     private static func report(
         aggregates: some Sequence<CostUsageStoreDayAggregate>,
+        temporal: [CostUsageStoreTemporalAggregate] = [],
         cache: CostUsageCache,
         range: CostUsageScanner.CostUsageDayRange,
         cacheRoot: URL?) -> CostUsageDailyReport
@@ -155,7 +161,36 @@ enum CostUsageCodexReportProjectionBuilder {
             reasoningTokens: totalReasoning > 0 ? totalReasoning : nil,
             totalTokens: totalInput + totalOutput,
             totalCostUSD: costs.count == entries.count ? costs.reduce(0, +) : nil)
-        return CostUsageDailyReport(data: entries, summary: summary)
+        var hourly: [Date: CostUsageTemporalTotals] = [:]
+        var quotaSlices: [Date: CostUsageTemporalTotals] = [:]
+        for aggregate in temporal where CostUsageScanner.CostUsageDayRange.isInRange(
+            dayKey: aggregate.day,
+            since: range.sinceKey,
+            until: range.untilKey)
+        {
+            let timestamp = Date(timeIntervalSince1970: Double(aggregate.timestampUnixMs) / 1000)
+            switch aggregate.kind {
+            case 0:
+                hourly[timestamp, default: CostUsageTemporalTotals()].add(
+                    totalTokens: aggregate.totalTokens,
+                    costUSD: aggregate.costUSD,
+                    tokensAreComplete: aggregate.tokensAreComplete,
+                    costIsComplete: aggregate.costIsComplete)
+            case 1:
+                quotaSlices[timestamp, default: CostUsageTemporalTotals()].add(
+                    totalTokens: aggregate.totalTokens,
+                    costUSD: aggregate.costUSD,
+                    tokensAreComplete: aggregate.tokensAreComplete,
+                    costIsComplete: aggregate.costIsComplete)
+            default:
+                continue
+            }
+        }
+        return CostUsageDailyReport(
+            data: entries,
+            summary: summary,
+            hourly: CostUsageScanner.sortedHourlyEntries(hourly),
+            quotaSlices: CostUsageScanner.sortedQuotaSlices(quotaSlices))
     }
 
     // Compact row construction stays aligned with the scanner's persisted row shape.
