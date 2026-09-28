@@ -108,7 +108,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v11.json")
+                == "claude-v12.json")
     }
 
     @Test
@@ -134,6 +134,119 @@ struct CostUsageScannerClaudeMemoTests {
             provider: .claude, cache: cache, cacheRoot: env.cacheRoot)
         _ = try #require(updatedSave)
         #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).lastScanUnixMs == 2)
+    }
+
+    @Test
+    func `unchanged cache artifacts decode once and same size replacement invalidates the memo`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 1)
+        _ = try self.writeEvent(env: env, day: day, path: "project/session.jsonl", id: "first", input: 10)
+        let options = self.options(env: env)
+        _ = self.load(day: day, options: options)
+        let cacheURL = self.cacheURL(env: env)
+        let originalStamp = try #require(CostUsageClaudeFileStamp.read(at: cacheURL))
+        let originalAttributes = try FileManager.default.attributesOfItem(atPath: cacheURL.path)
+        let originalMtime = try #require(originalAttributes[.modificationDate] as? Date)
+
+        CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: cacheURL)
+        let warmRecorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let warmArtifact = CostUsageScanner.withClaudeScanWorkRecorderForTesting(warmRecorder) {
+            var artifact = CostUsageClaudeCacheArtifact()
+            for _ in 0..<4 {
+                artifact = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
+            }
+            return artifact
+        }
+        #expect(warmRecorder.snapshot().cacheDecodes == 1)
+        #expect(!warmArtifact.usage.files.isEmpty)
+        let unchangedSaveRecorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let unchangedStamp = CostUsageScanner.withClaudeScanWorkRecorderForTesting(unchangedSaveRecorder) {
+            try? CostUsageClaudeCacheIO.save(
+                provider: .claude,
+                cache: warmArtifact,
+                cacheRoot: env.cacheRoot)
+        }
+        #expect(unchangedStamp == originalStamp)
+        #expect(unchangedSaveRecorder.snapshot().cacheEncodes == 0)
+
+        var replacement = warmArtifact
+        replacement.usage.lastScanUnixMs += 1
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        try encoder.encode(replacement).write(to: cacheURL, options: .atomic)
+        try FileManager.default.setAttributes([.modificationDate: originalMtime], ofItemAtPath: cacheURL.path)
+        let replacementStamp = try #require(CostUsageClaudeFileStamp.read(at: cacheURL))
+        #expect(replacementStamp.fileID != originalStamp.fileID)
+        #expect(replacementStamp.size == originalStamp.size)
+        #expect(replacementStamp.mtimeUnixMs == originalStamp.mtimeUnixMs)
+
+        let replacementRecorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let reloaded = CostUsageScanner.withClaudeScanWorkRecorderForTesting(replacementRecorder) {
+            CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
+        }
+        #expect(replacementRecorder.snapshot().cacheDecodes == 1)
+        #expect(reloaded.usage.lastScanUnixMs == replacement.usage.lastScanUnixMs)
+    }
+
+    @Test
+    func `schema two artifact rebuilds from source and preserves the report window`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let previousDay = try env.makeLocalNoon(year: 2026, month: 6, day: 30)
+        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 1)
+        _ = try self.writeEvent(
+            env: env, day: previousDay, path: "project/previous.jsonl", id: "previous", input: 10)
+        _ = try self.writeEvent(env: env, day: day, path: "project/current.jsonl", id: "current", input: 20)
+        let options = self.options(env: env)
+        let initial = self.load(since: previousDay, until: day, now: day, options: options)
+        #expect(initial.summary?.totalInputTokens == 30)
+        #expect(initial.data.count == 2)
+
+        let cacheURL = self.cacheURL(env: env)
+        var legacy = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: cacheURL)) as? [String: Any])
+        legacy["version"] = 2
+        try JSONSerialization.data(withJSONObject: legacy).write(to: cacheURL, options: .atomic)
+
+        let (upgraded, work) = self.recordedLoad(
+            since: previousDay, until: day, now: day, options: options)
+
+        #expect(upgraded.data == initial.data)
+        #expect(upgraded.summary == initial.summary)
+        #expect(work.cacheDecodes == 1)
+        #expect(work.transcriptParses == 2)
+        let rebuilt = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
+        #expect(rebuilt.usage.version == 3)
+        #expect(rebuilt.usage.files.count == 2)
+        #expect(rebuilt.usage.days.count == 2)
+    }
+
+    @Test
+    func `compact Claude cache rows round trip every field`() throws {
+        let row = CostUsageScanner.ClaudeUsageRow(
+            dayKey: "2026-07-01",
+            model: "synthetic-model",
+            sessionId: "session",
+            messageId: "message",
+            requestId: "request",
+            timestampUnixMs: 123,
+            isSidechain: true,
+            pathRole: .subagent,
+            input: 1,
+            cacheRead: 2,
+            cacheCreate: 3,
+            cacheCreate1h: 4,
+            output: 5,
+            costNanos: 6,
+            costPriced: false,
+            isIncomplete: true)
+        let data = try JSONEncoder().encode(row)
+        let fields = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(data.count < 240)
+        #expect(fields.count == 16)
+        #expect(fields["d"] as? String == row.dayKey)
+        #expect(fields["dayKey"] == nil)
+        #expect(try JSONDecoder().decode(CostUsageScanner.ClaudeUsageRow.self, from: data) == row)
     }
 
     @Test
@@ -231,7 +344,6 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(!initial.quotaSlices.isEmpty)
         #expect(restarted.hourly == initial.hourly)
         #expect(restarted.quotaSlices == initial.quotaSlices)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(CostUsageClaudeFileStamp.read(at: sourceURL) == sourceStamp)
         let rewritten = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: memoURL)) as? [String: Any])
@@ -256,7 +368,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 30)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -283,7 +394,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 30)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -312,7 +422,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 20)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -330,7 +439,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.data.isEmpty)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -355,7 +463,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(report.data == initial.data)
         #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
-        #expect(metrics.cacheEncodes == 1)
+        #expect(metrics.cacheEncodes == 0)
     }
 
     @Test
@@ -371,7 +479,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 10)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
         #expect(metrics.repricedRows == 1)
@@ -407,7 +514,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (repriced, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(abs((repriced.summary?.totalCostUSD ?? 0) - 0.002) < 0.000000001)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 0)
         #expect(metrics.repricedRows == 1)
@@ -431,7 +537,6 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 10)
-        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -485,11 +590,20 @@ struct CostUsageScannerClaudeMemoTests {
     }
 
     private func load(day: Date, options: CostUsageScanner.Options) -> CostUsageDailyReport {
+        self.load(since: day, until: day, now: day, options: options)
+    }
+
+    private func load(
+        since: Date,
+        until: Date,
+        now: Date,
+        options: CostUsageScanner.Options) -> CostUsageDailyReport
+    {
         CostUsageScanner.loadDailyReport(
             provider: .claude,
-            since: day,
-            until: day,
-            now: day,
+            since: since,
+            until: until,
+            now: now,
             options: options)
     }
 
@@ -497,9 +611,18 @@ struct CostUsageScannerClaudeMemoTests {
         day: Date,
         options: CostUsageScanner.Options) -> (CostUsageDailyReport, CostUsageScanner.ClaudeScanWorkMetrics)
     {
+        self.recordedLoad(since: day, until: day, now: day, options: options)
+    }
+
+    private func recordedLoad(
+        since: Date,
+        until: Date,
+        now: Date,
+        options: CostUsageScanner.Options) -> (CostUsageDailyReport, CostUsageScanner.ClaudeScanWorkMetrics)
+    {
         let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
         let report = CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) {
-            self.load(day: day, options: options)
+            self.load(since: since, until: until, now: now, options: options)
         }
         return (report, recorder.snapshot())
     }

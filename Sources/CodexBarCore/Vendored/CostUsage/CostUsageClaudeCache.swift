@@ -306,8 +306,15 @@ extension CostUsageScanner {
 #endif
 
 struct CostUsageClaudeCacheArtifact: Codable {
-    var usage = CostUsageCache()
-    var sourceFileIDs: [String: String] = [:]
+    var usage = CostUsageCache() {
+        didSet { self.contentID = UUID() }
+    }
+
+    var sourceFileIDs: [String: String] = [:] {
+        didSet { self.contentID = UUID() }
+    }
+
+    private(set) var contentID = UUID() // Swift string equality is not byte identity for JSON.
 
     private enum CodingKeys: String, CodingKey { case sourceFileIDs }
 
@@ -316,6 +323,22 @@ struct CostUsageClaudeCacheArtifact: Codable {
     init(usage: CostUsageCache, sourceFileIDs: [String: String]) {
         self.usage = usage
         self.sourceFileIDs = sourceFileIDs
+    }
+
+    mutating func updateUsageIfChanged(to usage: CostUsageCache) {
+        if self.usage != usage {
+            self.usage = usage
+        }
+    }
+
+    mutating func updateSourceFileIDs(
+        _ sourceFileIDs: [String: String],
+        presentIn inventory: [String: CostUsageClaudeFileStamp])
+    {
+        let retained = sourceFileIDs.filter { inventory[$0.key] != nil }
+        if self.sourceFileIDs != retained {
+            self.sourceFileIDs = retained
+        }
     }
 
     init(from decoder: any Decoder) throws {
@@ -334,8 +357,51 @@ struct CostUsageClaudeCacheArtifact: Codable {
 /// Claude and Vertex retain their small transcript cache. Codex deliberately has no route
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
-    /// Cached transcript rows written before proxy-response identity deduplication need rebuilding.
-    private static let schemaVersion = 2
+    /// Compact row keys; older artifacts rebuild from their source transcripts.
+    private static let schemaVersion = 3
+
+    /// Keep only the four active Claude/Vertex artifacts in memory and let Foundation evict
+    /// them under pressure. The stamp prevents a replacement file from inheriting stale rows.
+    private final class ArtifactMemo: @unchecked Sendable {
+        final class Entry {
+            let stamp: CostUsageClaudeFileStamp
+            let artifact: CostUsageClaudeCacheArtifact
+
+            init(stamp: CostUsageClaudeFileStamp, artifact: CostUsageClaudeCacheArtifact) {
+                self.stamp = stamp
+                self.artifact = artifact
+            }
+        }
+
+        static let shared = ArtifactMemo()
+        let entries = NSCache<NSURL, Entry>()
+
+        private init() {
+            self.entries.countLimit = 4
+        }
+    }
+
+    #if DEBUG
+    static func evictArtifactMemoForTesting(at url: URL) {
+        ArtifactMemo.shared.entries.removeObject(forKey: self.memoKey(for: url))
+    }
+    #endif
+
+    private static func memoKey(for url: URL) -> NSURL {
+        url.standardizedFileURL.resolvingSymlinksInPath() as NSURL
+    }
+
+    /// Apply the same format and calendar checks on memo hits and fresh decodes.
+    private static func validated(
+        _ artifact: CostUsageClaudeCacheArtifact,
+        calendar: Calendar?) -> CostUsageClaudeCacheArtifact?
+    {
+        guard artifact.usage.version == self.schemaVersion else { return nil }
+        if let calendar, artifact.usage.timeZoneIdentifier != calendar.timeZone.identifier {
+            return nil
+        }
+        return artifact
+    }
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -353,7 +419,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 11
+        case .claude: 12
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }
@@ -383,32 +449,57 @@ enum CostUsageClaudeCacheIO {
         calendar: Calendar? = nil) -> CostUsageClaudeCacheArtifact
     {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
+        let key = Self.memoKey(for: url)
+        let stamp = CostUsageClaudeFileStamp.read(at: url)
+        if let stamp,
+           let memoized = ArtifactMemo.shared.entries.object(forKey: key),
+           memoized.stamp == stamp
+        {
+            if CostUsageClaudeFileStamp.read(at: url) == stamp {
+                return Self.validated(memoized.artifact, calendar: calendar) ?? CostUsageClaudeCacheArtifact()
+            }
+        }
         guard let data = try? Data(contentsOf: url) else { return CostUsageClaudeCacheArtifact() }
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheDecode)
         #endif
-        guard let artifact = try? JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: data),
-              artifact.usage.version == self.schemaVersion
-        else { return CostUsageClaudeCacheArtifact() }
-        if let calendar, artifact.usage.timeZoneIdentifier != calendar.timeZone.identifier {
+        guard let artifact = try? JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: data) else {
             return CostUsageClaudeCacheArtifact()
         }
-        return artifact
+        // Memoize only when the bytes read still belong to the pre-read stamp.
+        if let stamp, CostUsageClaudeFileStamp.read(at: url) == stamp {
+            ArtifactMemo.shared.entries.setObject(ArtifactMemo.Entry(stamp: stamp, artifact: artifact), forKey: key)
+        }
+        return Self.validated(artifact, calendar: calendar) ?? CostUsageClaudeCacheArtifact()
     }
 
     static func save(
         provider: UsageProvider,
-        cache: CostUsageCache,
-        sourceFileIDs: [String: String] = [:],
+        cache: CostUsageClaudeCacheArtifact,
+        usage: CostUsageCache? = nil,
         cacheRoot: URL? = nil,
         reportContext: CostUsageReportContext = .regular,
         calendar: Calendar = .current,
         checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> CostUsageClaudeFileStamp?
     {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot, reportContext: reportContext)
-        var artifact = CostUsageClaudeCacheArtifact(usage: cache, sourceFileIDs: sourceFileIDs)
-        artifact.usage.version = self.schemaVersion
-        artifact.usage.timeZoneIdentifier = calendar.timeZone.identifier
+        var artifact = cache
+        if let usage {
+            artifact.updateUsageIfChanged(to: usage)
+        }
+        if artifact.usage.version != self.schemaVersion { artifact.usage.version = self.schemaVersion }
+        let timeZoneID = calendar.timeZone.identifier
+        if artifact.usage.timeZoneIdentifier?.utf8.elementsEqual(timeZoneID.utf8) != true {
+            artifact.usage.timeZoneIdentifier = timeZoneID
+        }
+        let key = Self.memoKey(for: url)
+        try checkCancellation?()
+        if let memoized = ArtifactMemo.shared.entries.object(forKey: key),
+           memoized.artifact.contentID == artifact.contentID,
+           CostUsageClaudeFileStamp.read(at: url) == memoized.stamp
+        {
+            return memoized.stamp
+        }
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheEncode)
         #endif
@@ -423,6 +514,7 @@ enum CostUsageClaudeCacheIO {
            (try? Data(contentsOf: url)) == data,
            CostUsageClaudeFileStamp.read(at: url) == stamp
         {
+            ArtifactMemo.shared.entries.setObject(ArtifactMemo.Entry(stamp: stamp, artifact: artifact), forKey: key)
             return stamp
         }
         let directory = url.deletingLastPathComponent()
@@ -438,10 +530,54 @@ enum CostUsageClaudeCacheIO {
                 try? FileManager.default.removeItem(at: temporaryURL)
                 return nil
             }
+            if CostUsageClaudeFileStamp.read(at: url) == stamp {
+                ArtifactMemo.shared.entries.setObject(ArtifactMemo.Entry(stamp: stamp, artifact: artifact), forKey: key)
+            }
             return stamp
         } catch {
             try? FileManager.default.removeItem(at: temporaryURL)
             return nil
         }
+    }
+
+    /// Preserve the existing cache-only call shape for focused callers and tests.
+    static func save(
+        provider: UsageProvider,
+        cache: CostUsageCache,
+        sourceFileIDs: [String: String] = [:],
+        cacheRoot: URL? = nil,
+        reportContext: CostUsageReportContext = .regular,
+        calendar: Calendar = .current,
+        checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> CostUsageClaudeFileStamp?
+    {
+        try self.save(
+            provider: provider,
+            cache: CostUsageClaudeCacheArtifact(usage: cache, sourceFileIDs: sourceFileIDs),
+            cacheRoot: cacheRoot,
+            reportContext: reportContext,
+            calendar: calendar,
+            checkCancellation: checkCancellation)
+    }
+}
+
+/// Compact retained rows while preserving the full row model in memory.
+extension CostUsageScanner.ClaudeUsageRow {
+    enum CodingKeys: String, CodingKey {
+        case dayKey = "d"
+        case model = "m"
+        case sessionId = "s"
+        case messageId = "i"
+        case requestId = "r"
+        case timestampUnixMs = "t"
+        case isSidechain = "b"
+        case pathRole = "p"
+        case input = "in"
+        case cacheRead = "cr"
+        case cacheCreate = "cc"
+        case cacheCreate1h = "ch"
+        case output = "out"
+        case costNanos = "c"
+        case costPriced = "priced"
+        case isIncomplete = "partial"
     }
 }
