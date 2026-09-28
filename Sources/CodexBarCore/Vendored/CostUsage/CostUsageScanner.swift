@@ -2026,26 +2026,30 @@ enum CostUsageScanner {
             return nil
         }
 
-        func currentDependencyKey(for sessionId: String, ancestors: Set<String> = []) throws -> String? {
-            guard ancestors.count < 64, !ancestors.contains(sessionId) else { return nil }
-            switch try self.fileIndex.lookup(sessionId: sessionId) {
-            case let .found(fileURL):
-                let key = self.dependencyKey(for: sessionId, fileURL: fileURL)
-                let usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[fileURL.standardizedFileURL.path]
-                if usage?.forkBaselineDependencyKey == CostUsageScanner.codexForkDependencyNotRequiredKey {
-                    return key
+        func currentDependencyKey(for sessionId: String) throws -> String? {
+            var nextSessionID: String? = sessionId
+            var visited: Set<String> = []
+            var keys: [String] = []
+            while let currentSessionID = nextSessionID {
+                guard visited.count < 64, visited.insert(currentSessionID).inserted else { return nil }
+                switch try self.fileIndex.lookup(sessionId: currentSessionID) {
+                case let .found(fileURL):
+                    keys.append(self.dependencyKey(for: currentSessionID, fileURL: fileURL))
+                    let usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[fileURL.standardizedFileURL.path]
+                    if usage?.forkBaselineDependencyKey == CostUsageScanner.codexForkDependencyNotRequiredKey {
+                        nextSessionID = nil
+                    } else {
+                        nextSessionID = usage?.forkedFromId
+                            ?? self.snapshotResolutions[currentSessionID]?.forkOrigin?.metadata.forkedFromId
+                    }
+                case let .missing(dependencyKey):
+                    keys.append(dependencyKey)
+                    nextSessionID = nil
+                case .deferred:
+                    return nil
                 }
-                let parentID = usage?.forkedFromId
-                    ?? self.snapshotResolutions[sessionId]?.forkOrigin?.metadata.forkedFromId
-                guard let parentID else { return key }
-                guard let inheritedKey = try self.currentDependencyKey(
-                    for: parentID, ancestors: ancestors.union([sessionId])) else { return nil }
-                return key + "|inherited|" + inheritedKey
-            case let .missing(dependencyKey):
-                return dependencyKey
-            case .deferred:
-                return nil
             }
+            return keys.joined(separator: "|inherited|")
         }
 
         func dependencyKeyUsed(for sessionId: String) -> String? {
@@ -8663,25 +8667,32 @@ enum CostUsageScanner {
         }
 
         // Newest-first ordering commonly encounters a child before its parent. Once this
-        // refresh has indexed the parent, replay the child's compact parsed events in memory;
-        // do not reread the JSONL or wait for another refresh.
+        // refresh has indexed the parent, replay the child's compact parsed events in memory.
+        // A fork can itself inherit from another fork, so repeat while replays resolve more
+        // parents. The depth cap matches inheritedTotals' cycle/depth guard.
         var retryState = CodexScanState()
         var retriedPaths: Set<String> = []
-        for fileURL in bufferedForkRetries.reversed() where retriedPaths.insert(fileURL.path).inserted {
-            guard Self.shouldRetryBufferedCodexFork(cache.files[fileURL.path]) else { continue }
-            scannedPaths.insert(fileURL.path)
-            attemptedPaths.insert(fileURL.path)
-            let outcome = try Self.scanCodexFile(
-                fileURL: fileURL,
-                context: context,
-                cache: &cache,
-                state: &retryState)
-            if case .processed = outcome {
-                processedPaths.insert(fileURL.path)
+        let retries = bufferedForkRetries.reversed().filter { retriedPaths.insert($0.path).inserted }
+        for _ in 0..<min(64, retries.count) {
+            var resolvedAny = false
+            for fileURL in retries {
+                guard Self.shouldRetryBufferedCodexFork(cache.files[fileURL.path]) else { continue }
+                scannedPaths.insert(fileURL.path)
+                attemptedPaths.insert(fileURL.path)
+                let outcome = try Self.scanCodexFile(
+                    fileURL: fileURL,
+                    context: context,
+                    cache: &cache,
+                    state: &retryState)
+                if case .processed = outcome {
+                    processedPaths.insert(fileURL.path)
+                }
+                inheritedResolver.updateCachedUsage(
+                    fileURL: fileURL,
+                    usage: cache.files[fileURL.path])
+                resolvedAny = resolvedAny || !Self.shouldRetryBufferedCodexFork(cache.files[fileURL.path])
             }
-            inheritedResolver.updateCachedUsage(
-                fileURL: fileURL,
-                usage: cache.files[fileURL.path])
+            if !resolvedAny { break }
         }
         return CodexFileScanResult(
             scannedPaths: scannedPaths,
