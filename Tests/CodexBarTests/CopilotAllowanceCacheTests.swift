@@ -36,8 +36,11 @@ struct CopilotAllowanceCacheTests {
                 attempts: [])
         }
         let refresh = Task { await fixture.store.refreshProvider(.copilot, allowDisabled: true) }
-        while !gate.started {
-            await Task.yield()
+        guard await gate.waitUntilStarted() else {
+            refresh.cancel()
+            gate.resume()
+            Issue.record("Copilot refresh did not reach the delayed provider response")
+            return
         }
         if accountOverride {
             fixture.store.setCopilotSeatCreditEntitlement(clear ? "" : "7000")
@@ -199,6 +202,14 @@ struct CopilotAllowanceCacheTests {
 final class CopilotAllowanceResponseGate {
     var started = false
     private var continuation: CheckedContinuation<Void, Never>?
+
+    func waitUntilStarted() async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while !self.started, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return self.started
+    }
 
     func wait() async {
         await withCheckedContinuation { continuation in
