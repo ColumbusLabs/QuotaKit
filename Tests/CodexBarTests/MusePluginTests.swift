@@ -167,7 +167,8 @@ struct MusePluginTests {
         #expect(selected.usage.secondary != nil)
         #expect(selectedRows.count == 23)
         #expect(selectedRows.first?.label == "First Team")
-        #expect(selectedRows.contains { $0.value == "30" && $0.label.count == 120 })
+        let selectedRow = try #require(selectedRows.first { $0.value == "30" })
+        #expect(selectedRow.label == String(repeating: "Long name ", count: 12).trimmingCharacters(in: .whitespaces))
         #expect(selectedRows.allSatisfy { $0.label.count <= 120 && $0.value.count <= 120 })
 
         let unselected = try await Self.fetchWithWeb(engine: engine, teamID: nil, web: web)
