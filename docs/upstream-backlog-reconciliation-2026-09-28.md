@@ -32,20 +32,20 @@ cannot have regressed that behavior.
 
 | Current evidence tier | Rows | Interpretation |
 | --- | ---: | --- |
-| Documented merged or observed in current source | 169 | Includes 132 historically source-audited integrations, eight later mapped adaptations, one corrected Mistral exclusion, 26 newly checked older-tail rows, and two Pi root-identity rows merged in PR #200. |
+| Documented merged or observed in current source | 173 | Includes 132 historically source-audited integrations, eight later mapped adaptations, one corrected Mistral exclusion, 26 newly checked older-tail rows, two Pi root-identity rows merged in PR #200, and four test/CI behaviors represented by PR #192. |
 | Source-audited justified exclusions | 58 | Concrete supersession, platform, release, structural, test, or documentation rationale. |
 | Release-only or no distinct merge source delta | 165 | 87 upstream release-bookkeeping rows and 78 merge wrappers; their child changes are counted separately. |
-| Test-only rows with no standalone runtime port | 21 | Ten old-tail tests, ten historical test-only exclusions, and one covered test row. Test intent may travel with a related feature slice. |
+| Test-only rows with no standalone runtime port | 33 | The earlier 21 plus 12 test/fixture-only rows from the bounded test/CI group audit. Test intent may travel with a related feature slice. |
 | **Clear runtime gaps** | **32** | 21 older-tail and 11 newly arrived rows are absent or materially incomplete on current `main`. They form fewer coherent implementation slices. |
-| Prior `adapted` claim still unverified on current `main` | 216 | A staged branch or old label is not proof of merge. |
+| Prior `adapted` claim still unverified on current `main` | 203 | A staged branch or old label is not proof of merge. |
 | Prior `pending` or `deferred` work needing current decision | 149 | Some may have landed in broad PRs; each still needs a current-main mapping. |
-| Plausible historical exclusion needing per-row proof | 49 | Runtime or other files still require current behavior or applicability evidence. |
+| Plausible historical exclusion needing per-row proof | 46 | Runtime or other files still require current behavior or applicability evidence. |
 | Other review rows | 16 | Ten architecture/adaptation reviews, four disputed exclusions, one partially covered cost row, and one reopened Homebrew runtime decision. |
 
 **The defensible lower bound is 32 runtime gap rows, not 875 missing features.**
-Another 430 rows remain outside the closed evidence and clear-gap tiers. They
+Another 414 rows remain outside the closed evidence and clear-gap tiers. They
 include historical merge claims, likely exclusions, and possible product work;
-they are not a 430-feature implementation queue. Issue #149's prior 712-commit count is
+they are not a 414-feature implementation queue. Issue #149's prior 712-commit count is
 stale; the cursor-to-head audit range is 875 at the fetched head above.
 
 The group pass closed 133 rows without a feature port: 78 nonmerge commits
@@ -54,7 +54,13 @@ nonmerge rows change only `Tests/`; one previously covered test row has no
 standalone runtime delta; and 34 merge commits have no runtime source in their
 remerge resolution. Each ledger row records its exact path evidence. A merge's
 child commits remain separate ledger rows. This path rule deliberately leaves
-49 plausible exclusions open because they touch runtime or other surfaces.
+46 plausible exclusions open because they touch runtime or other surfaces.
+
+A bounded review of the 19 unresolved `tests and CI` group rows accounted for
+16 more: four behaviors already represented by current-main PR #192, and 12
+test or fixture changes without a standalone runtime port. Three remain open:
+OpenCodeGo production accumulation, a Homebrew release retry, and Python
+runner containment. The ledger records the distinct reason for each.
 
 ### Fixed-cut execution
 
@@ -77,7 +83,7 @@ fresh base for its check gate. QuotaKit CI starts four full Mac shards even for
 a small Mac-only fix, so one PR per upstream SHA would repeat that cost without
 improving the evidence. Keep unrelated or high-risk fixes separate.
 
-Resolve the 430 uncertain rows by their 26 existing `prior_group` values: cite
+Resolve the 414 uncertain rows by their 26 existing `prior_group` values: cite
 the current source or merged PR once for a genuinely shared behavior, apply
 that decision to its exact SHA set, and list exceptions individually. Preserve
 uncertain runtime cases as explicit follow-ups. This is a grouping method, not
@@ -102,7 +108,7 @@ diffs against current `main`; do not merge old branch trees wholesale.
 
 ### Next accounting and integration sequence
 
-1. Finish the 216 old `adapted`, 149 `pending`/`deferred`, and 49 plausible
+1. Finish the 203 old `adapted`, 149 `pending`/`deferred`, and 46 plausible
    exclusion decisions against current source and merged PR evidence. Record
    the exact QuotaKit commit, source anchor, justified exclusion, or linked
    follow-up per row. Preserve the six dirty worktrees while reconciling them.
