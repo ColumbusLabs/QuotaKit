@@ -340,6 +340,11 @@ struct CostUsageStoreSnapshot: Equatable, Sendable {
     var fileDayAggregates: [CostUsageStoreFileDayAggregate]
     var dayAggregates: [CostUsageStoreDayAggregate]
     var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
+    var verifiedDayKeys: [String] = []
+    var fileTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
+    var verifiedTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
+    var fileTemporalCoverageIsComplete: Bool = true
+    var verifiedTemporalCoverageIsComplete: Bool = false
     var forkLineage: [CostUsageStoreForkLineage]
     var bufferedLines: [CostUsageStoreBufferedLine]
     var discoveryState: CostUsageStoreDiscoveryState?

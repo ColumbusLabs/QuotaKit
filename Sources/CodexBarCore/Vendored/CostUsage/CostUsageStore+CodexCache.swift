@@ -1440,6 +1440,13 @@ extension CostUsageStore {
         _ = self.replaceFileDayAggregates(
             path: path,
             aggregates: Self.fileAggregates(usage, pricing: aggregatePricing))
+        _ = self.replaceFileTemporalAggregates(
+            path: path,
+            aggregates: Self.fileTemporalAggregates(
+                path: path,
+                usage: usage,
+                calendar: calendar,
+                pricing: aggregatePricing))
         _ = self.upsertForkLineage(CostUsageStoreForkLineage(
             path: path,
             sessionID: usage.sessionId,
@@ -1625,7 +1632,10 @@ extension CostUsageStore {
         calendar: Calendar,
         reportWindow: (sinceKey: String, untilKey: String)?) -> CostUsageCodexPreviousReport?
     {
-        let projection = self.readCodexReportProjection(calendar: calendar)
+        let temporalRange = reportWindow.map { (sinceDay: $0.sinceKey, untilDay: $0.untilKey) }
+        let projection = self.readCodexReportProjection(
+            calendar: calendar,
+            temporalRange: temporalRange)
         guard let sinceKey = reportWindow?.sinceKey ?? projection.cache.scanSinceKey,
               let untilKey = reportWindow?.untilKey ?? projection.cache.scanUntilKey,
               let since = CostUsageScanner.parseDayKey(sinceKey, calendar: calendar),
@@ -1655,6 +1665,54 @@ extension CostUsageStore {
             catalog: ModelsDevCache.load(now: Date(), cacheRoot: cacheRoot).artifact?.catalog,
             cacheRoot: cacheRoot,
             customPricing: CostUsagePricing.customPricingOverlay())
+    }
+
+    private static func fileTemporalAggregates(
+        path: String,
+        usage: CostUsageFileUsage,
+        calendar: Calendar,
+        pricing: AggregatePricingContext) -> [CostUsageStoreTemporalAggregate]
+    {
+        let dayKeys = usage.days.keys.sorted()
+        guard let first = dayKeys.first,
+              let last = dayKeys.last,
+              let since = CostUsageScanner.parseDayKey(first, calendar: calendar),
+              let until = CostUsageScanner.parseDayKey(last, calendar: calendar)
+        else { return [] }
+        var fileCache = CostUsageCache()
+        fileCache.files[path] = usage
+        fileCache.days = usage.days
+        let report = CostUsageScanner.buildCodexReportFromCache(
+            cache: fileCache,
+            range: CostUsageScanner.CostUsageDayRange(
+                since: since,
+                until: until,
+                calendar: calendar),
+            modelsDevCatalog: pricing.catalog,
+            modelsDevCacheRoot: pricing.cacheRoot)
+        let hourly = report.hourly.map { entry in
+            CostUsageStoreTemporalAggregate(
+                path: path,
+                kind: 0,
+                timestampUnixMs: Int64((entry.hour.timeIntervalSince1970 * 1000).rounded()),
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: entry.hour, calendar: calendar),
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD,
+                tokensAreComplete: entry.tokensAreComplete,
+                costIsComplete: entry.costIsComplete)
+        }
+        let slices = report.quotaSlices.map { entry in
+            CostUsageStoreTemporalAggregate(
+                path: path,
+                kind: 1,
+                timestampUnixMs: Int64((entry.timestamp.timeIntervalSince1970 * 1000).rounded()),
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: entry.timestamp, calendar: calendar),
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD,
+                tokensAreComplete: entry.tokensAreComplete,
+                costIsComplete: entry.costIsComplete)
+        }
+        return hourly + slices
     }
 
     private static func fileAggregates(

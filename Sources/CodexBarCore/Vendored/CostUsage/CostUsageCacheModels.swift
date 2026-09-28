@@ -349,7 +349,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Fork accounting changes require bounded reparsing of older files.
-    static let currentCodexParserRevision = 6
+    static let currentCodexParserRevision = 7
 
     var mtimeUnixMs: Int64
     var size: Int64

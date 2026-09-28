@@ -6956,7 +6956,8 @@ enum CostUsageScanner {
         if currentScanIsPending {
             let projection = CostUsageStoreAccess.readCodexReportProjection(
                 store: store,
-                calendar: range.calendar)
+                calendar: range.calendar,
+                temporalRange: (range.sinceKey, range.untilKey))
             if let verifiedSince = projection.verifiedScanSinceKey,
                let verifiedUntil = projection.verifiedScanUntilKey,
                verifiedSince <= range.sinceKey,
@@ -7001,7 +7002,8 @@ enum CostUsageScanner {
         if options.useCodexCatchUpWorkingSet {
             let projection = CostUsageStoreAccess.readCodexReportProjection(
                 store: store,
-                calendar: range.calendar)
+                calendar: range.calendar,
+                temporalRange: (range.sinceKey, range.untilKey))
             report = CostUsageCodexReportProjectionBuilder.build(
                 projection: projection,
                 roots: plan.roots,
@@ -7037,6 +7039,30 @@ enum CostUsageScanner {
                   roots: rootsFingerprint)
         else { return nil }
         return previous
+    }
+
+    static func scopedPreviousReport(
+        _ previous: CostUsageCodexPreviousReport,
+        range: CostUsageDayRange) -> CostUsageDailyReport
+    {
+        let report = previous.report
+        return CostUsageDailyReport.merged([CostUsageDailyReport(
+            data: report.data.filter {
+                CostUsageDayRange.isInRange(dayKey: $0.date, since: range.sinceKey, until: range.untilKey)
+            },
+            summary: nil,
+            hourly: report.hourly.filter {
+                CostUsageDayRange.isInRange(
+                    dayKey: CostUsageDayRange.dayKey(from: $0.hour, calendar: range.calendar),
+                    since: range.sinceKey,
+                    until: range.untilKey)
+            },
+            quotaSlices: report.quotaSlices.filter {
+                CostUsageDayRange.isInRange(
+                    dayKey: CostUsageDayRange.dayKey(from: $0.timestamp, calendar: range.calendar),
+                    since: range.sinceKey,
+                    until: range.untilKey)
+            })], calendar: range.calendar)
     }
 
     private static func saveCodexCache(
@@ -7648,7 +7674,7 @@ enum CostUsageScanner {
                     range: range,
                     rootsFingerprint: plan.rootsFingerprint)
                 {
-                    return previous.report
+                    return Self.scopedPreviousReport(previous, range: range)
                 }
                 return Self.buildCodexReportFromCache(
                     cache: cache,
@@ -8372,7 +8398,7 @@ enum CostUsageScanner {
             range: range,
             rootsFingerprint: plan.rootsFingerprint)
         {
-            return previous.report
+            return Self.scopedPreviousReport(previous, range: range)
         }
         if options.useCodexCatchUpWorkingSet {
             // Bounded hydration keeps only scheduled file details in memory. Build the
@@ -8380,7 +8406,8 @@ enum CostUsageScanner {
             // parent or other unhydrated session still contributes its request count.
             let projection = CostUsageStoreAccess.readCodexReportProjection(
                 store: loadedCache.store,
-                calendar: range.calendar)
+                calendar: range.calendar,
+                temporalRange: (range.sinceKey, range.untilKey))
             return CostUsageCodexReportProjectionBuilder.build(
                 projection: projection,
                 roots: plan.roots,

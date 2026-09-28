@@ -4,6 +4,43 @@ import Testing
 
 struct CostUsageRequestedWindowProjectionTests {
     @Test
+    func `retained wider report is scoped to requested daily and temporal dates`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 1, day: 1)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 8, day: 1)
+        let range = CostUsageScanner.CostUsageDayRange(since: currentDay, until: currentDay)
+        let report = CostUsageDailyReport(
+            data: [oldDay, currentDay].map { day in
+                CostUsageDailyReport.Entry(
+                    date: CostUsageScanner.CostUsageDayRange.dayKey(from: day, calendar: range.calendar),
+                    inputTokens: 10,
+                    outputTokens: 0,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)
+            },
+            summary: nil,
+            hourly: [oldDay, currentDay].map {
+                CostUsageHourlyEntry(hour: $0, totalTokens: 10, costUSD: 1)
+            },
+            quotaSlices: [oldDay, currentDay].map {
+                CostUsageTimedEntry(timestamp: $0, totalTokens: 10, costUSD: 1)
+            })
+        let previous = try #require(CostUsageCodexPreviousReport(
+            report: report,
+            cache: CostUsageCache(),
+            reportSinceKey: "2026-01-01",
+            reportUntilKey: "2026-08-01"))
+        let scoped = CostUsageScanner.scopedPreviousReport(previous, range: range)
+        #expect(scoped.data.map(\.date) == [range.sinceKey])
+        #expect(scoped.hourly.map(\.hour) == [currentDay])
+        #expect(scoped.quotaSlices.map(\.timestamp) == [currentDay])
+        #expect(scoped.summary?.totalTokens == 10)
+    }
+
+    @Test
     func `requested 30 day projection ignores older pending migration but rejects incomplete requested file`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
