@@ -4542,8 +4542,9 @@ struct CostUsageScannerBreakdownTests {
                 self.codexTokenCount(
                     timestamp: env.isoString(for: day.addingTimeInterval(1)),
                     model: model,
-                    total: (input: 1000, cached: 900, output: 100),
-                    last: (input: 1000, cached: 900, output: 100)),
+                    // A total equal to last is ambiguous after a direct fork: it could be
+                    // copied history or a new child turn. Keep this as an inherited snapshot.
+                    total: (input: 1000, cached: 900, output: 100)),
                 self.codexTokenCount(
                     timestamp: env.isoString(for: day.addingTimeInterval(2)),
                     model: model,
