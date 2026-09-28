@@ -205,7 +205,7 @@ struct ProviderArchitectureGatekeeperTests {
     func `small provider capabilities preserve legacy registries`() {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
-            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper, .atlascloud, .vercel,
+            .deepseek, .deepinfra, .moonshot, .poe, .hyper, .atlascloud, .vercel,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .perplexity, .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes,
@@ -2038,12 +2038,12 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact renderer preserves QuotaKit's Cursor Auto/API and provider-specific detail labels."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuDescriptor.swift",
-            line: 871,
+            line: 873,
             anchor: "let cleaned = if provider == .codex {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["codex@0"],
-            reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
+            reason: "Codex plan names use CodexPlanFormatting for tier labels such as Pro 20x; other providers use the generic cleaner."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuOpenRefreshPlan.swift",
             line: 28,

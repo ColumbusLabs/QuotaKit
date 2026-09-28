@@ -1,7 +1,7 @@
 import Foundation
 
 public enum DeepgramProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor(fetchPlan: Self.fetchPlan())
     public static let spec = PluginProviderSpec(
         id: .deepgram,
         displayName: "Deepgram",
@@ -43,6 +43,44 @@ public enum DeepgramProviderDescriptor {
             resolvesProjectID: true),
         showsAPIDetail: true,
         availability: .configuredKey)
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
+                let swift = DeepgramAPIFetchStrategy()
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
+                guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
+                return [self.spec.makeStrategy(timeout: self.spec.fetchTimeout(environment: context.env)), swift]
+                #else
+                return [swift]
+                #endif
+            }))
+    }
+}
+
+struct DeepgramAPIFetchStrategy: ProviderFetchStrategy {
+    let id = "deepgram.api"
+    let kind: ProviderFetchKind = .apiToken
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        ProviderTokenResolver.token(for: .deepgram, environment: context.env) != nil
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        guard let apiKey = ProviderTokenResolver.token(for: .deepgram, environment: context.env) else {
+            throw DeepgramSettingsError.missingToken
+        }
+        let usage = try await DeepgramUsageFetcher.fetchUsage(
+            apiKey: apiKey,
+            projectID: ProviderTokenResolver.token(for: .deepgram, kind: .projectID, environment: context.env),
+            environment: context.env)
+        return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "api")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
 }
 
 /// Errors related to Deepgram settings

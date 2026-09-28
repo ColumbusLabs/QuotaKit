@@ -898,6 +898,7 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
+        // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
         if provider == .muse {
             // The selected browser team's source is useful on iPhone; the full team list and
             // other plugin rows stay local to the Mac.

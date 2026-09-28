@@ -1,3 +1,4 @@
+#if os(Linux)
 import Foundation
 import Testing
 @testable import CodexBarCore
@@ -39,3 +40,4 @@ struct ClaudeSwapCostRootsLinuxTests {
         #expect(roots.contains(projects.standardizedFileURL))
     }
 }
+#endif

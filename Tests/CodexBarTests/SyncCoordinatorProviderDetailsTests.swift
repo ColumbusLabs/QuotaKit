@@ -10,6 +10,10 @@ struct SyncCoordinatorProviderDetailsTests {
     @Test
     func `Muse browser team source reaches iPhone without the team list or credential rows`() async throws {
         let suite = "SyncCoordinatorMuseDetailsTests-\(UUID().uuidString)"
+        let authFile = FileManager.default.temporaryDirectory.appendingPathComponent("\(suite)-auth.json")
+        try Data(#"{"providers":{"meta":{"mechanism":"oauth","access_token":"dca:fixture-sync"}}}"#.utf8)
+            .write(to: authFile)
+        defer { try? FileManager.default.removeItem(at: authFile) }
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = SettingsStore(
@@ -25,7 +29,8 @@ struct SyncCoordinatorProviderDetailsTests {
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            environmentBase: [MuseCredentials.authPathEnvironmentKey: authFile.path])
         let details = try [
             ProviderDetailSection(title: "Muse Code subscription", rows: [
                 .init(label: "Plan", value: "Muse Code Power Usage"),

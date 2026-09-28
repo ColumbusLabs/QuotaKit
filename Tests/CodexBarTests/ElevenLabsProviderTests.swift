@@ -47,7 +47,7 @@ struct ElevenLabsProviderTests {
         #expect(await strategy.isAvailable(context) == false)
         await #expect(throws: ProviderFetchClassifiedError(
             kind: .missingCredential,
-            message: "Missing ElevenLabs API key. Set apiKey in ~/.codexbar/config.json or ELEVENLABS_API_KEY."))
+            message: "Missing ElevenLabs API key. Set apiKey in ~/.quotakit/config.json or ELEVENLABS_API_KEY."))
         {
             try await strategy.fetch(context)
         }

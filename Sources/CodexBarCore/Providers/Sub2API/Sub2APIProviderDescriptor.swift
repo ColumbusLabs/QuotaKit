@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Sub2APIProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor(fetchPlan: Self.fetchPlan())
     public static let spec = PluginProviderSpec(
         id: .sub2api,
         displayName: "sub2api",
@@ -80,5 +80,44 @@ public enum Sub2APIProviderDescriptor {
 
     public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
         snapshot.secondary != nil ? "Daily quota" : nil
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
+                let swift = Sub2APIAPIFetchStrategy()
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
+                guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
+                return [self.spec.makeStrategy(timeout: self.spec.fetchTimeout(environment: context.env)), swift]
+                #else
+                return [swift]
+                #endif
+            }))
+    }
+}
+
+struct Sub2APIAPIFetchStrategy: ProviderFetchStrategy {
+    let id = "sub2api.api"
+    let kind: ProviderFetchKind = .apiToken
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        Sub2APISettingsReader.apiKey(environment: context.env) != nil &&
+            Sub2APISettingsReader.baseURL(environment: context.env) != nil
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        guard let apiKey = Sub2APISettingsReader.apiKey(environment: context.env) else {
+            throw Sub2APIUsageError.missingCredentials
+        }
+        guard let baseURL = Sub2APISettingsReader.baseURL(environment: context.env) else {
+            throw Sub2APIUsageError.missingBaseURL
+        }
+        let usage = try await Sub2APIUsageFetcher.fetchUsage(apiKey: apiKey, baseURL: baseURL)
+        return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "api")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
     }
 }
