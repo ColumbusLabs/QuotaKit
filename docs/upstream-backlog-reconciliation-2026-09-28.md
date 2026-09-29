@@ -1,6 +1,73 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status after PR #207 and the 16-row follow-up
+## Current status after the cost/history batch
+
+The audit baseline is `origin/main=005c2e48efce0467d84e7cf62b9f93655cde7536`.
+All 59 previously unresolved rows in the two cost/history groups now have an
+individual source decision: **43 accounted** and **16 confirmed runtime gap or
+partial-coverage rows**. The accounted rows comprise 38 represented behaviors,
+two documentation rows, two structural/applicability exclusions, and one merge
+wrapper accounted for by its children. Missing upstream test assertions alone
+were not treated as missing runtime behavior.
+
+The scanner change in code commit `77cc0627e33b885f901aa30dc85af1e672c94bb7`
+accounts for upstream ordinal 800: priority reconciliation visits recorded day
+keys, removes stale metadata inside the inspected window, and retains history
+outside it. Upstream ordinal 776 is a source-audited exclusion: ordinal 800's
+first-parent scanner diff reverses that earlier history clamp to retain daily
+discovery accounting. QuotaKit's production reporting horizon is 365 days, with
+existing fetcher bounds and reporting-period tests. Adding an unbudgeted search
+for the first existing date partition would conflict with the paged scanner.
+
+| Current evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 308 |
+| Source-audited justified exclusions | 75 |
+| Release-only or no distinct merge source delta | 166 |
+| Test/CI-only rows with no standalone runtime port | 35 |
+| **Clear runtime gaps** | **41** |
+| Prior `adapted` claims still unverified on current `main` | 123 |
+| Prior `pending` or `deferred` work needing current decision | 86 |
+| Plausible historical exclusions needing per-row proof | 28 |
+| Other review rows | 13 |
+| **Total** | **875** |
+
+There are now **584 accounted rows**, **41 clear runtime gap rows**, and
+**250 unresolved rows**. The previous totals were 539, 27, and 309. The gap count
+increased because this audit confirmed 16 previously uncertain deltas, while
+the scanner fix and the history-clamp exclusion dispositioned two prior gaps.
+These counts measure upstream rows, not features or required PRs. The
+[row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) preserves all 875 SHAs
+and their historical evidence; only current dispositions and follow-up actions
+changed in this batch.
+
+The newly confirmed gaps group into cache/read efficiency (47, 71, 149, 311,
+362, 465), accounting and cache-scope correctness (73, 365, 547), credential
+and identity behavior (387, 390, 391, 601), menu refresh (422), and OpenCode/SSH
+reporting (485, 486). Performance rows have concrete source deltas; no measured
+speedup or memory reduction is claimed. The shared dependency paths allow these
+rows to be handled in coherent slices instead of one PR per upstream commit.
+
+Focused verification covered **54 unique tests** across sparse metadata,
+priority reconciliation, priority cursors, fair scheduling, and reporting-period
+bounds. The three new metadata tests passed again after formatting. The
+independent scanner review found no confirmed issue. Parser-hash generation,
+format/lint, localization, customer-branding, provider-palette, and portable
+repository checks passed. Required hosted CI and merge remain the integration
+gate for this batch; local test evidence is not a claim of deployed behavior.
+
+The fixed cut remains `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`: 758
+nonmerges and 117 merges. The monitor cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5`. Both upstream automations remain
+paused. Six dirty source worktrees remain preserved. Product version, build
+numbers, appcast, and release state are unchanged. Continue by auditing the
+remaining 250 uncertain rows in bounded behavior groups and integrating the
+41 confirmed gaps in coherent slices. Advance the cursor only after every
+applicable row has a final disposition and adopted work is merged.
+
+The sections below are historical snapshots; their counts are not current.
+
+## Historical snapshot after PR #207 and the 16-row follow-up
 
 - The code audit baseline `origin/main=88ef1cac0690b115e27ed1b0116ebe14716f098a` includes the two Codex fixes in PR
   #207. Receipt-backed cache saves account for upstream ordinal 74; visible
