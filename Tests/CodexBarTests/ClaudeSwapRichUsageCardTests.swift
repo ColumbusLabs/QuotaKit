@@ -53,7 +53,8 @@ struct ClaudeSwapRichUsageCardTests {
     func `switch and adapter diagnostics retain last known age and account privacy`() async throws {
         try await ClaudeSwapRichUsageFixture.withFixture { fixture in
             let failedSwitch = try fixture.model(for: "2", hidePersonalInfo: true, switchError: "Fixture switch failed")
-            #expect(failedSwitch.email.isEmpty)
+            #expect(failedSwitch.email == "Account 2")
+            #expect(!failedSwitch.email.contains("example.invalid"))
             #expect(failedSwitch.subtitleText.contains("Account switch failed: Fixture switch failed"))
             #expect(failedSwitch.lastKnownUsageText?.contains("last-known usage") == true)
             #expect(!failedSwitch.subtitleText.contains("example.invalid"))
