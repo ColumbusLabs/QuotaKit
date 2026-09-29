@@ -1,6 +1,53 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Three-group audit and account-label repair after PR #205
+## Current status after PR #207 and the 16-row follow-up
+
+- The code audit baseline `origin/main=88ef1cac0690b115e27ed1b0116ebe14716f098a` includes the two Codex fixes in PR
+  #207. Receipt-backed cache saves account for upstream ordinal 74; visible
+  credential-owner rechecks account for ordinal 253. PR #207 passed its required
+  hosted CI before merging.
+- The fixed cut remains `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7` and
+  the monitor cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
+  This range has 875 exact SHAs: 758 nonmerges and 117 merges.
+- A follow-up audit resolved 15 plugin architecture rows using current-main
+  source and tests: 13 behaviors are represented, one QuickJS source-size rule
+  is CI-only, and one API-key adapter consolidation has no distinct provider
+  behavior to port. A separate check found upstream ordinal 35's narrow cached
+  reads represented by QuotaKit's compact report and catch-up projections.
+  No quantified performance improvement is claimed for that row.
+
+| Current evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 267 |
+| Source-audited justified exclusions | 72 |
+| Release-only or no distinct merge source delta | 165 |
+| Test/CI-only rows with no standalone runtime port | 35 |
+| **Clear runtime gaps** | **27** |
+| Prior `adapted` claims still unverified on current `main` | 143 |
+| Prior `pending` or `deferred` work needing current decision | 121 |
+| Plausible historical exclusions needing per-row proof | 30 |
+| Other review rows | 15 |
+| **Total** | **875** |
+
+The first four tiers account for **539** rows. Another **309** rows need a
+current-source decision; they are not a 309-feature implementation queue. The
+**27** clear gaps are a defensible lower bound. Their workstreams are accounting
+and scan identity (2), credentials/process/security (13), provider quota
+correctness (5), plugin/configuration behavior (3), and reporting/widgets (4).
+The [row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) records each
+SHA's exact disposition and evidence.
+
+Both upstream automations remain paused. The cursor, product version, build
+number, appcast, and release state are unchanged. Six dirty worktrees remain
+preserved as source inventories. Resolve the remaining 309 uncertain rows by
+shared behavior and exact exceptions, then integrate the 27 confirmed gaps in
+coherent slices. Advance the cursor only after every applicable row has a final
+disposition and adopted work is merged.
+
+The sections below retain earlier 875-row and 850-row snapshots as historical
+evidence. Their older counts are not the current remaining-work totals.
+
+## 2026-09-28 snapshot after PR #205
 
 - The QuotaKit audit baseline is `origin/main=f8481642fea06572cddcca389c0c2581e669873f`,
   the squash merge of PR #205. It includes the recent merged cost,
@@ -22,7 +69,7 @@
 - Both upstream automations remain paused. No upstream cursor, version, build
   number, appcast, or release artifact was changed during this audit.
 
-## Current remaining-work accounting
+## Remaining-work accounting at PR #205 snapshot
 
 The row statuses below are disjoint and total 875. They measure **audit
 evidence**, not features or PRs. A source-audited historical integration claim
