@@ -1,19 +1,17 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Grouped audit refresh after PR #203
+## Three-group audit and account-label repair after PR #205
 
-- The QuotaKit audit baseline `origin/main=c2e488a107bd3a80a3b4bd24d344fc9783386b81`
-  includes PR #200's Pi root-identity fix, PR #201's Claude partial-spend and
-  cache fixes, PR #202's published ledger, and PR #203's ledger follow-up. PR #199 had already merged the
-  direct-fork, Codex append-prefix, and Pi temporal accounting fixes; issues
-  #193, #194, and #195 are closed.
+- The QuotaKit audit baseline is `origin/main=f8481642fea06572cddcca389c0c2581e669873f`,
+  the squash merge of PR #205. It includes the recent merged cost,
+  provider, shared-code, ledger, and account-label repairs in PRs #199-#205.
 - The upstream cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
   Fetched `upstream/main=bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`
   yields 875 commits in the audit range: 758 nonmerges and 117 merges.
   This is 25 SHAs beyond the frozen snapshot below, not 875 unmerged features.
-- The [row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) now includes
-  all 875 SHAs, the source drafts' evidence for 742 historical rows, and
-  merged-PR provenance where an upstream SHA is explicitly named. Its
+- The [row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) includes all
+  875 SHAs, the source drafts' evidence for 742 historical rows, and merged-PR
+  provenance where an upstream SHA is explicitly named. Its
   `current_main_status` column distinguishes live verification from prior
   draft dispositions. A merged PR reference is evidence to inspect, not
   automatic proof of behavioral coverage.
@@ -33,21 +31,21 @@ cannot have regressed that behavior.
 
 | Current evidence tier | Rows | Interpretation |
 | --- | ---: | --- |
-| Documented merged or observed in current source | 214 | The previous 178 plus 36 exact row mappings to current source and tests, primarily through merged PRs #190-#192 and #201. |
-| Source-audited justified exclusions | 70 | The previous 58 plus eight Linux/Omarchy desktop rows outside QuotaKit's distribution and four superseded Claude behaviors with current-main coverage. |
+| Documented merged or observed in current source | 251 | The prior 214 plus 35 exact mappings in provider, shared, and Codex cost groups, and two account-label fixes in PR #205. |
+| Source-audited justified exclusions | 71 | The prior 70 plus one structural cookie/reset helper refactor whose behavior is present in shared code. |
 | Release-only or no distinct merge source delta | 165 | 87 upstream release-bookkeeping rows and 78 merge wrappers; their child changes are counted separately. |
 | Test-only rows with no standalone runtime port | 34 | The prior 33 plus a plugin fixture control that leaves the production collection budget unchanged. Test intent may travel with a related feature slice. |
-| **Clear runtime gaps** | **29** | 18 older-tail and 11 newly arrived rows are absent or materially incomplete on current `main`. Two newly confirmed older-tail gaps affect account labels. |
-| Prior `adapted` claim still unverified on current `main` | 180 | A staged branch or old label is not proof of merge. |
-| Prior `pending` or `deferred` work needing current decision | 136 | Some may have landed in broad PRs; each still needs a current-main mapping. |
-| Plausible historical exclusion needing per-row proof | 31 | Runtime or other files still require current behavior or applicability evidence. |
+| **Clear runtime gaps** | **29** | Two account-label gaps closed in PR #205; two Codex cost and credential-owner gaps were confirmed during this pass. |
+| Prior `adapted` claim still unverified on current `main` | 158 | A staged branch or old label is not proof of merge. |
+| Prior `pending` or `deferred` work needing current decision | 121 | Some may have landed in broad PRs; each still needs a current-main mapping. |
+| Plausible historical exclusion needing per-row proof | 30 | Runtime or other files still require current behavior or applicability evidence. |
 | Other review rows | 16 | Ten architecture/adaptation reviews, four disputed exclusions, one partially covered cost row, and one reopened Homebrew runtime decision. |
 
 **The defensible lower bound is 29 runtime gap rows, not 875 missing features.**
-Another 363 rows remain outside the closed evidence and clear-gap tiers. They
+Another 325 rows remain outside the closed evidence and clear-gap tiers. They
 include historical merge claims, likely exclusions, and possible product work;
-they are not a 363-feature implementation queue. Issue #149's prior 712-commit count is
-stale; the cursor-to-head audit range is 875 at the fetched head above.
+they are not a 325-feature implementation queue. Issue #149's prior 712-commit
+count is stale; the cursor-to-head audit range is 875 at the fetched head above.
 
 The group pass closed 133 rows without a feature port: 78 nonmerge commits
 change only upstream `CHANGELOG.md`, `version.env`, or `appcast.xml`; 20
@@ -55,7 +53,7 @@ nonmerge rows change only `Tests/`; one previously covered test row has no
 standalone runtime delta; and 34 merge commits have no runtime source in their
 remerge resolution. Each ledger row records its exact path evidence. A merge's
 child commits remain separate ledger rows. This path rule deliberately leaves
-31 plausible exclusions open because they touch runtime or other surfaces.
+30 plausible exclusions open because they touch runtime or other surfaces.
 
 A bounded review of the 19 unresolved `tests and CI` group rows accounted for
 16 more: four behaviors already represented by current-main PR #192, and 12
@@ -63,26 +61,38 @@ test or fixture changes without a standalone runtime port. Three remain open:
 OpenCodeGo production accumulation, a Homebrew release retry, and Python
 runner containment. The ledger records the distinct reason for each.
 
-A bounded grouped pass then resolved 51 more uncertain rows: 36 verified
-current-main behaviors, 12 source-audited exclusions, one test-only fixture,
-and two newly confirmed account-label gaps. It reviewed high-confidence
-subsets of Claude/credential, plugin, provider-quota, and Mac menu groups,
-plus Linux-only and Cursor rows. Unchecked rows in those groups stay open.
+A prior grouped pass resolved 51 uncertain rows: 36 verified current-main
+behaviors, 12 source-audited exclusions, one test-only fixture, and two then
+confirmed account-label gaps. It reviewed high-confidence subsets of
+Claude/credential, plugin, provider-quota, and Mac menu groups, plus Linux-only
+and Cursor rows. Unchecked rows in those groups stayed open.
+
+This pass reviewed 129 unresolved rows across `provider and shared
+correctness`, `Codex cost and catch-up`, and `Shared provider and plugin
+contracts`. Thirty-eight received exact decisions: 35 current-main behaviors
+with source/test anchors, one justified structural exclusion, and two confirmed
+partial runtime gaps. The other 91 remain open. PR #205 closes the two prior
+account-label gaps: privacy-safe swap labels in Claude cards and account-label
+precedence in the dashboard. The newly confirmed gaps are Codex cache saves
+that still read a second snapshot instead of retaining a receipt-backed
+single-read baseline (upstream ordinal 74), and reauthentication that does not
+recheck changed, removed, or workspace-mismatched credential ownership before
+selection (ordinal 253). These remain linked to the cost and credential slices.
 
 ### Fixed-cut execution
 
 Hold this catch-up pass at `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`.
 Newer upstream commits belong to the next pass; they do not enlarge this
-acceptance set while fixes are under review. The 29 clear-gap rows form about
-17 coherent slices in five workstreams:
+acceptance set while fixes are under review. The 29 clear-gap rows belong to
+five workstreams:
 
 | Workstream | Gap rows | First action |
 | --- | ---: | --- |
-| Accounting and scan identity | 2 | Reconcile Codex history bounds and remaining accounting behavior; PRs #200 and #201 covered Pi identity and Claude spend/cache. |
-| Credentials, process lifecycle, and security | 13 | Reconcile fresh credentials, bounded validation, teardown, owned child cleanup, and redaction. |
+| Accounting and scan identity | 3 | Reconcile Codex history bounds and the single-read cache save baseline; PRs #200 and #201 covered Pi identity and Claude spend/cache. |
+| Credentials, process lifecycle, and security | 14 | Reconcile fresh credentials, credential-owner rechecks, bounded validation, teardown, owned child cleanup, and redaction. |
 | Provider quota correctness | 5 | Reconcile TypeSafe, Antigravity, Kimi, and z.ai behavior. |
 | Plugin and configuration behavior | 3 | Reconcile plugin tab, blank config, and validated cookie sessions. |
-| Reporting and widget UX | 6 | Reconcile model labels, persistent menu row, per-provider widget retention, and account-label disambiguation. |
+| Reporting and widget UX | 4 | Reconcile model labels, persistent menu row, and per-provider widget retention. |
 
 Submit related slices together when they share source and tests. Independent
 PRs can run concurrently because the protected branch does not require a
@@ -90,7 +100,7 @@ fresh base for its check gate. QuotaKit CI starts four full Mac shards even for
 a small Mac-only fix, so one PR per upstream SHA would repeat that cost without
 improving the evidence. Keep unrelated or high-risk fixes separate.
 
-Resolve the 363 uncertain rows by their 26 existing `prior_group` values: cite
+Resolve the 325 uncertain rows by their 26 existing `prior_group` values: cite
 the current source or merged PR once for a genuinely shared behavior, apply
 that decision to its exact SHA set, and list exceptions individually. Preserve
 uncertain runtime cases as explicit follow-ups. This is a grouping method, not
@@ -98,12 +108,12 @@ a blanket assertion that a branch or PR title proves coverage. Measure progress
 by verified slices merged and rows with defensible dispositions.
 
 The 29 clear gaps include Codex sparse-history bounds, Claude Web reset-credit
-fallback, TypeSafe balances, Grok model names, Keychain validation bounds, Antigravity quota
-parsing, Kimi/z.ai availability, Agent Sessions teardown,
+fallback, TypeSafe balances, Grok model names, Keychain validation bounds,
+Antigravity quota parsing, Kimi/z.ai availability, Agent Sessions teardown,
 Antigravity descendant cleanup, Codex credential/plan refresh, app-server
-trust, per-provider widget retention, privacy-mode compact account labels,
-dashboard account-label precedence, environment redaction, and Notion/ZoomMate
-cookie sessions. The ledger carries each SHA and current-source anchor.
+trust, per-provider widget retention, Codex single-read cache saves,
+credential-owner rechecks, environment redaction, and Notion/ZoomMate cookie
+sessions. The ledger carries each SHA and current-source anchor.
 
 Six dirty worktrees are preserved as source inventories. Their distinct
 candidate slices include Kimi/CommandCode quota data, plugin cookie sources
@@ -115,7 +125,7 @@ diffs against current `main`; do not merge old branch trees wholesale.
 
 ### Next accounting and integration sequence
 
-1. Finish the 180 old `adapted`, 136 `pending`/`deferred`, and 31 plausible
+1. Finish the 158 old `adapted`, 121 `pending`/`deferred`, and 30 plausible
    exclusion decisions against current source and merged PR evidence. Record
    the exact QuotaKit commit, source anchor, justified exclusion, or linked
    follow-up per row. Preserve the six dirty worktrees while reconciling them.
