@@ -53,6 +53,7 @@ actor CostUsageStore {
 
     private final class SQLiteConnection: @unchecked Sendable {
         private(set) var handle: OpaquePointer?
+        let generation = UUID()
         let fileNumber: UInt64?
         let volumeNumber: UInt64?
 
@@ -187,10 +188,17 @@ actor CostUsageStore {
     private let expectedSchemaVersion: Int32
     private let expectedParserHash: String
     private var connection: SQLiteConnection?
+    private var failureGeneration = UUID()
+    var retainedCodexBaseline: RetainedCodexBaseline?
+    #if DEBUG
+    var codexBaselineReleaseObserverForTesting: (@Sendable () -> Void)?
+    #endif
     struct CodexScanStamp: Equatable, Sendable {
         var connectionID: ObjectIdentifier
+        var connectionGeneration: UUID
         var dataVersion: Int64
         var totalChanges: Int64
+        var failureGeneration: UUID
         var schemaVersion: Int64
         var userVersion: Int64
         var parserHash: String?
@@ -234,8 +242,10 @@ actor CostUsageStore {
               moved == 0 else { return nil }
         return CodexScanStamp(
             connectionID: ObjectIdentifier(connection),
+            connectionGeneration: connection.generation,
             dataVersion: dataVersion,
             totalChanges: sqlite3_total_changes64(database),
+            failureGeneration: self.failureGeneration,
             schemaVersion: schemaVersion,
             userVersion: userVersion,
             parserHash: parserHash,
@@ -245,6 +255,8 @@ actor CostUsageStore {
 
     func reopenCodexScanConnection() {
         guard self.activeTransactionDatabase == nil else { return }
+        self.retainedCodexBaseline = nil
+        self.retainedCodexScan = nil
         self.connection?.close()
         self.connection = nil
     }
@@ -294,11 +306,15 @@ extension CostUsageStore {
         }
     }
 
-    nonisolated func syncLoadCodexScan(
-        calendar: Calendar) -> (cache: CostUsageCache, stamp: CodexScanStamp?)
-    {
+    nonisolated func syncLoadCodexScan(calendar: Calendar) -> CostUsageStoreLoad {
         self.syncWithStoreIsolation { store in
             store.loadCodexScan(calendar: calendar)
+        }
+    }
+
+    nonisolated func syncReleaseCodexBaseline(_ receipt: CodexBaselineReceipt) {
+        self.syncWithStoreIsolation { store in
+            store.releaseCodexBaseline(receipt)
         }
     }
 
@@ -359,7 +375,8 @@ extension CostUsageStore {
         rowBudget: Int = CostUsageStore.defaultRowBudget,
         fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes,
         skipIdenticalContent: Bool = false,
-        expectedScanStamp: CodexScanStamp? = nil) -> CostUsageStoreBudgetResult
+        expectedScanStamp: CodexScanStamp? = nil,
+        receipt: CodexBaselineReceipt? = nil) -> CostUsageStoreBudgetResult
     {
         self.syncWithStoreIsolation { store in
             store.saveCodexCache(
@@ -370,7 +387,8 @@ extension CostUsageStore {
                 rowBudget: rowBudget,
                 fileBudgetBytes: fileBudgetBytes,
                 skipIdenticalContent: skipIdenticalContent,
-                expectedScanStamp: expectedScanStamp)
+                expectedScanStamp: expectedScanStamp,
+                receipt: receipt)
         }
     }
 
@@ -529,6 +547,9 @@ extension CostUsageStore {
     /// transaction if ROLLBACK itself failed. Roll back, or drop the connection so the
     /// next access reopens the intact file.
     private func recoverConnectionAfterFailure() {
+        self.retainedCodexBaseline = nil
+        self.retainedCodexScan = nil
+        self.failureGeneration = UUID()
         guard let handle = self.connection?.handle else { return }
         if sqlite3_get_autocommit(handle) == 0,
            sqlite3_exec(handle, "ROLLBACK", nil, nil, nil) != SQLITE_OK
@@ -586,9 +607,30 @@ extension CostUsageStore {
         }
     }
 
+    func connectionMatchesPath(_ database: OpaquePointer) throws -> Bool {
+        var moved: Int32 = 0
+        guard sqlite3_file_control(database, "main", SQLITE_FCNTL_HAS_MOVED, &moved) == SQLITE_OK else {
+            throw StoreError.sqlite(SQLITE_IOERR)
+        }
+        guard moved == 0,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: self.databaseURL.path),
+              let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
+              let volumeNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value,
+              let connection = self.connection
+        else { return false }
+        return connection.fileNumber == fileNumber && connection.volumeNumber == volumeNumber
+    }
+
     func ensureDatabase() throws -> OpaquePointer {
         if let database = self.connection?.handle {
-            return database
+            if try self.connectionMatchesPath(database) {
+                return database
+            }
+            self.retainedCodexBaseline = nil
+            self.retainedCodexScan = nil
+            guard sqlite3_get_autocommit(database) != 0 else { throw StoreError.sqlite(SQLITE_IOERR) }
+            self.connection?.close()
+            self.connection = nil
         }
         do {
             let opened = try self.openDatabase()
@@ -745,6 +787,9 @@ extension CostUsageStore {
     }
 
     private func rebuildDatabase(reason: String) {
+        self.retainedCodexBaseline = nil
+        self.retainedCodexScan = nil
+        self.failureGeneration = UUID()
         self.connection?.close()
         self.connection = nil
         for suffix in ["", "-wal", "-shm"] {

@@ -46,6 +46,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Codex account reauthentication checks the current credential owner before login and follows the visible System or managed account source.
+- Codex cost scans reuse their decoded cache baseline through save, avoiding a redundant full database snapshot read.
 - Pi-inclusive Codex history preserves native hourly and quota-window usage after a fresh scan, cache reopen, or session replacement, without loading the full raw ledger for cached display.
 - Codex: distinguish accounts with the same email and workspace name using stable, privacy-safe labels across account settings and menu switchers.
 - Cursor: keep cost requests with pre-1970 start dates within the dashboard API's supported range.

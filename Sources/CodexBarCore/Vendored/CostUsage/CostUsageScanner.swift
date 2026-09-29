@@ -7071,8 +7071,7 @@ enum CostUsageScanner {
 
     private static func saveCodexCache(
         _ cache: inout CostUsageCache,
-        store: CostUsageStore,
-        scanStamp: CostUsageStore.CodexScanStamp?,
+        loadedCache: CostUsageStoreLoad,
         range: CostUsageDayRange,
         previousReport: CostUsageCodexPreviousReport?,
         hydratedPaths: Set<String>? = nil,
@@ -7083,7 +7082,7 @@ enum CostUsageScanner {
         // the sole writable connection; app and CLI readers take independent WAL snapshots.
         let saveResult: CostUsageStoreBudgetResult = if let hydratedPaths {
             CostUsageStoreAccess.saveCodexCatchUp(
-                store: store,
+                store: loadedCache.store,
                 cache: cache,
                 calendar: range.calendar,
                 requestedScanWindow: (sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey),
@@ -7091,13 +7090,14 @@ enum CostUsageScanner {
                 hydratedPaths: hydratedPaths)
         } else {
             CostUsageStoreAccess.save(
-                store: store,
+                store: loadedCache.store,
                 cache: cache,
                 calendar: range.calendar,
                 requestedScanWindow: (sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey),
                 reportWindow: (sinceKey: range.sinceKey, untilKey: range.untilKey),
                 skipIdenticalContent: true,
-                expectedScanStamp: scanStamp,
+                expectedScanStamp: loadedCache.scanStamp,
+                receipt: loadedCache.receipt,
                 requireScanStamp: true)
         }
         if saveResult.catchUpRequired {
@@ -7108,7 +7108,7 @@ enum CostUsageScanner {
                 // Persist sparse window evidence only after the cache save commits. The proof is
                 // computed from the final in-memory working set and never hydrates unrelated rows.
                 _ = CostUsageStoreAccess.recordVerifiedCodexWindow(
-                    store: store,
+                    store: loadedCache.store,
                     sinceDay: independentlyVerifiedCodexWindow.sinceKey,
                     untilDay: independentlyVerifiedCodexWindow.untilKey,
                     calendar: range.calendar)
@@ -7116,7 +7116,7 @@ enum CostUsageScanner {
             if let independentlyVerifiedDayKey {
                 // A closed day can be safe even while the wider requested window remains pending.
                 _ = CostUsageStoreAccess.recordVerifiedCodexDay(
-                    store: store,
+                    store: loadedCache.store,
                     day: independentlyVerifiedDayKey,
                     calendar: range.calendar)
             }
@@ -7525,6 +7525,7 @@ enum CostUsageScanner {
         checkCancellation: CancellationCheck?) throws -> CostUsageDailyReport
     {
         let loadedCache = Self.loadCodexCache(options: options, range: range)
+        defer { loadedCache.release() }
         var cache = loadedCache.cache
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         // Keep an unfinished discovery queue on its original wider scan range when a
@@ -7667,8 +7668,7 @@ enum CostUsageScanner {
                     range: range)
                 Self.saveCodexCache(
                     &cache,
-                    store: loadedCache.store,
-                    scanStamp: loadedCache.scanStamp,
+                    loadedCache: loadedCache,
                     range: range,
                     previousReport: previousReport,
                     independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow,
@@ -8382,8 +8382,7 @@ enum CostUsageScanner {
                 range: range)
             Self.saveCodexCache(
                 &cache,
-                store: loadedCache.store,
-                scanStamp: loadedCache.scanStamp,
+                loadedCache: loadedCache,
                 range: range,
                 previousReport: previousReport,
                 hydratedPaths: options.useCodexCatchUpWorkingSet

@@ -57,6 +57,7 @@ extension CostUsageStore {
     static let defaultFileBudgetBytes: Int64 = 256 * 1024 * 1024
 
     func loadCodexCache(calendar: Calendar) -> CostUsageCache {
+        self.retainedCodexBaseline = nil
         _ = self.removeLegacyCodexArtifactIfPresent()
         let snapshot = self.readSnapshot()
         guard snapshot.metadata.timeZoneIdentifier == nil
@@ -65,26 +66,55 @@ extension CostUsageStore {
         return Self.cache(from: snapshot)
     }
 
-    func loadCodexScan(calendar: Calendar) -> (cache: CostUsageCache, stamp: CodexScanStamp?) {
+    func loadCodexScan(calendar: Calendar) -> CostUsageStoreLoad {
         _ = self.removeLegacyCodexArtifactIfPresent()
-        if let retained = self.retainedCodexScan,
-           retained.stamp == self.currentCodexScanStamp()
+        let receipt = CodexBaselineReceipt(store: self)
+        let currentStamp = self.currentCodexScanStamp()
+        if let retained = self.retainedCodexBaseline,
+           let baseline = retained.baseline,
+           baseline.stamp == currentStamp
         {
-            let compatible = retained.cache.timeZoneIdentifier == nil
-                || retained.cache.timeZoneIdentifier == calendar.timeZone.identifier
-            return (compatible ? retained.cache : CostUsageCache(), retained.stamp)
+            self.retainedCodexBaseline = RetainedCodexBaseline(id: receipt.id, baseline: baseline)
+            let compatible = baseline.decoded.timeZoneIdentifier == nil
+                || baseline.decoded.timeZoneIdentifier == calendar.timeZone.identifier
+            let cache = compatible
+                ? Self.reconciledCodexCache(baseline.decoded, persistence: baseline.persistence)
+                : CostUsageCache()
+            self.retainedCodexScan = (baseline.stamp, cache)
+            return CostUsageStoreLoad(
+                store: self,
+                cache: cache,
+                scanStamp: baseline.stamp,
+                receipt: receipt)
         }
-        self.retainedCodexScan = nil
+        let retainedCache = self.retainedCodexScan.flatMap { retained in
+            retained.stamp == currentStamp ? retained.cache : nil
+        }
+        self.retainedCodexBaseline = nil
+        if retainedCache == nil { self.retainedCodexScan = nil }
         let firstRead = self.readStampedCodexScanSnapshot()
         if firstRead == nil { self.reopenCodexScanConnection() }
         guard let read = firstRead ?? self.readStampedCodexScanSnapshot() else {
-            return (CostUsageCache(), nil)
+            self.retainedCodexBaseline = RetainedCodexBaseline(id: receipt.id, baseline: nil)
+            return CostUsageStoreLoad(
+                store: self,
+                cache: CostUsageCache(),
+                scanStamp: nil,
+                receipt: receipt)
         }
-        let compatible = read.snapshot.metadata.timeZoneIdentifier == nil
-            || read.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
-        let cache = compatible ? Self.cache(from: read.snapshot) : CostUsageCache()
+        let unchangedRetainedCache = read.stamp == currentStamp ? retainedCache : nil
+        let baseline = Self.codexBaseline(
+            from: read.snapshot,
+            stamp: read.stamp,
+            decoded: unchangedRetainedCache)
+        self.retainedCodexBaseline = RetainedCodexBaseline(id: receipt.id, baseline: baseline)
+        let compatible = baseline.decoded.timeZoneIdentifier == nil
+            || baseline.decoded.timeZoneIdentifier == calendar.timeZone.identifier
+        let cache = compatible
+            ? Self.reconciledCodexCache(baseline.decoded, persistence: baseline.persistence)
+            : CostUsageCache()
         if compatible { self.retainedCodexScan = (read.stamp, cache) }
-        return (cache, read.stamp)
+        return CostUsageStoreLoad(store: self, cache: cache, scanStamp: read.stamp, receipt: receipt)
     }
 
     /// Loads the Codex manifest and aggregate tables while hydrating event-level state only for
@@ -94,6 +124,7 @@ extension CostUsageStore {
         calendar: Calendar,
         hydratingPaths: Set<String>?) -> CostUsageCache
     {
+        self.retainedCodexBaseline = nil
         _ = self.removeLegacyCodexArtifactIfPresent()
         let snapshot = self.readCodexWorkingSetSnapshot(hydratingPaths: hydratingPaths)
         guard snapshot.metadata.timeZoneIdentifier == nil
@@ -113,12 +144,16 @@ extension CostUsageStore {
         rowBudget: Int = CostUsageStore.defaultRowBudget,
         fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes,
         skipIdenticalContent: Bool = false,
-        expectedScanStamp: CodexScanStamp? = nil) -> CostUsageStoreBudgetResult
+        expectedScanStamp: CodexScanStamp? = nil,
+        receipt: CodexBaselineReceipt? = nil) -> CostUsageStoreBudgetResult
     {
         self.lastCodexSaveReusedContent = false
         self.lastCodexSaveStamp = nil
         self.retainedCodexScan = nil
-        if let expectedScanStamp, self.currentCodexScanStamp() != expectedScanStamp {
+        guard let baseline = self.takeCodexBaseline(receipt),
+              self.codexBaselineIsCurrent(baseline),
+              expectedScanStamp == nil || expectedScanStamp == baseline.stamp
+        else {
             return CostUsageStoreBudgetResult(
                 deletedRows: 0,
                 rowCount: 0,
@@ -128,7 +163,7 @@ extension CostUsageStore {
         let requestedCache = cache
         var cache = cache
         Self.reconcileCompletedCodexCatchUp(cache: &cache)
-        let previous = self.readSnapshot()
+        let previous = baseline.persistence
         let budgetProtectionWindow = Self.budgetProtectionWindow(
             cache: cache,
             requestedScanWindow: requestedScanWindow)
@@ -138,7 +173,7 @@ extension CostUsageStore {
             && cache.codexScanCatchUpPending == true
         if skipIdenticalContent,
            Self.persistedContentMatches(
-               previous: previous,
+               baseline: baseline,
                cache: cache,
                calendar: calendar)
         {
@@ -150,7 +185,10 @@ extension CostUsageStore {
                     fileBytes: 0,
                     catchUpRequired: true)
             }
-            if let expectedScanStamp, self.currentCodexScanStamp() != expectedScanStamp {
+            guard self.codexBaselineIsCurrent(baseline),
+                  Self.persistedContentMatches(baseline: baseline, cache: cache, calendar: calendar),
+                  expectedScanStamp == nil || self.currentCodexScanStamp() == expectedScanStamp
+            else {
                 _ = self.rollbackSaveTransaction()
                 return CostUsageStoreBudgetResult(
                     deletedRows: 0,
@@ -159,22 +197,8 @@ extension CostUsageStore {
                     catchUpRequired: true)
             }
 
-            // Another process may have committed a full save after the optimistic comparison.
-            // Recheck the complete semantic snapshot under this writer lock. A mismatch means
-            // this scanner's cache is stale, so preserve the newer store and request a rescan.
-            let lockedPrevious = self.readSnapshotInCurrentTransaction()
-            guard Self.persistedContentMatches(
-                previous: lockedPrevious,
-                cache: cache,
-                calendar: calendar)
-            else {
-                _ = self.rollbackSaveTransaction()
-                return CostUsageStoreBudgetResult(
-                    deletedRows: 0,
-                    rowCount: lockedPrevious.files.count,
-                    fileBytes: 0,
-                    catchUpRequired: true)
-            }
+            // The full database stamp revalidates the decoded semantic snapshot under the
+            // writer lock. A mismatch preserves external commits and requests a rescan.
 
             // Retention mutates the store, so run it only after the locked revalidation.
             // This prevents a stale scanner from pruning content committed by another process.
@@ -207,7 +231,7 @@ extension CostUsageStore {
             // The sqlite cursor is excluded from content identity so a steadily advancing
             // lastRowID cannot force a full rewrite. Persist it here as a metadata-only
             // update inside the same writer transaction.
-            guard self.persistPriorityTurnsCursorIfChanged(previous: lockedPrevious, cache: cache) else {
+            guard self.persistPriorityTurnsCursorIfChanged(previous: baseline, cache: cache) else {
                 _ = self.rollbackSaveTransaction()
                 var retry = result
                 retry.catchUpRequired = true
@@ -232,23 +256,24 @@ extension CostUsageStore {
             return result
         }
         let aggregatePricing = self.aggregatePricingContext()
-        let restoredPreviousFiles = Self.cache(from: previous).files
         let saved = self.withSaveTransaction(default: false) {
-            guard expectedScanStamp == nil || self.currentCodexScanStamp() == expectedScanStamp else {
+            guard self.codexBaselineIsCurrent(baseline),
+                  expectedScanStamp == nil || self.currentCodexScanStamp() == expectedScanStamp
+            else {
                 return false
             }
-            // Rebuild the per-file baseline under the writer lock. Another process may have
-            // committed between the optimistic read and this transaction.
-            let lockedPrevious = self.readSnapshotInCurrentTransaction()
-            let restoredFiles = lockedPrevious == previous ? restoredPreviousFiles : [:]
+            // The receipt's compact persistence baseline is the exact snapshot guarded by the
+            // stamp above, so no second event-ledger read is needed inside the transaction.
+            let lockedPrevious = baseline.persistence
+            let restoredFiles = Self.reconciledCodexCache(
+                baseline.decoded,
+                persistence: baseline.persistence).files
             let canReuseStoredRows = lockedPrevious.metadata.timeZoneIdentifier == calendar.timeZone.identifier
             self.deleteRemovedFiles(previous: lockedPrevious, cache: cache)
             let previousFilesByPath = Dictionary(uniqueKeysWithValues: lockedPrevious.files.map { ($0.path, $0) })
-            let snapshotCountsByPath = lockedPrevious.tokenSnapshots
-                .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
-            let rowCountsByPath = lockedPrevious.usageRows
-                .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
-            let aggregatesByPath = Dictionary(grouping: lockedPrevious.fileDayAggregates, by: \.path)
+            let snapshotCountsByPath = lockedPrevious.snapshotCounts
+            let rowCountsByPath = lockedPrevious.rowCounts
+            let aggregatesByPath = lockedPrevious.fileAggregatesByPath
             var persistedFiles = 0
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
                 self.persistFile(
@@ -260,7 +285,7 @@ extension CostUsageStore {
                         rowCount: rowCountsByPath[path] ?? 0,
                         canReuseRows: canReuseStoredRows,
                         usage: restoredFiles[path],
-                        aggregates: aggregatesByPath[path]?.map(\.aggregate) ?? []),
+                        aggregates: aggregatesByPath[path] ?? []),
                     calendar: calendar,
                     aggregatePricing: aggregatePricing)
                 persistedFiles += 1
@@ -503,8 +528,8 @@ extension CostUsageStore {
     }
 
     /// True when persisting `cache` would leave every content table semantically unchanged.
-    /// This is O(persisted cache rows): it reconstructs typed values already read from SQLite
-    /// and compares them in memory; it never parses timestamps or opens session JSONL files. The
+    /// This is O(persisted cache rows): it reuses the typed baseline and current filesystem
+    /// identity checks; it never parses timestamps or opens session JSONL files. The
     /// persisted spellings of a few optional fields differ from their in-memory forms
     /// (`catchUpPending` and `codexScanComplete` store nil as false/true, `timeZoneIdentifier`
     /// is fixed by the caller's calendar, and `lastScanUnixMs` is a wall-clock stamp), so
@@ -512,11 +537,11 @@ extension CostUsageStore {
     /// here: it advances independently of usage content and is written as a metadata-only
     /// update on the skip path.
     private static func persistedContentMatches(
-        previous: CostUsageStoreSnapshot,
+        baseline: CodexDecodedBaseline,
         cache: CostUsageCache,
         calendar: Calendar) -> Bool
     {
-        var restored = Self.cache(from: previous)
+        var restored = Self.reconciledCodexCache(baseline.decoded, persistence: baseline.persistence)
         guard restored.timeZoneIdentifier == nil
             || restored.timeZoneIdentifier == calendar.timeZone.identifier
         else { return false }
@@ -539,14 +564,16 @@ extension CostUsageStore {
     /// Writes only `scan_metadata.priorityTurnStatePayload` when the sqlite cursor advanced.
     /// Caller already owns the save transaction.
     private func persistPriorityTurnsCursorIfChanged(
-        previous: CostUsageStoreSnapshot,
+        previous: CodexDecodedBaseline,
         cache: CostUsageCache) -> Bool
     {
-        guard Self.persistedPriorityTurnsCursor(previous) != cache.codexPriorityTurnsCursor else {
+        guard previous.decoded.codexPriorityTurnsCursor != cache.codexPriorityTurnsCursor else {
             return true
         }
         guard let payload = Self.priorityTurnStatePayload(cache: cache) else { return false }
-        var metadata = previous.metadata
+        // Retention and budget enforcement may have refreshed verified coverage since the
+        // baseline was read. Preserve that in-transaction metadata and patch only the cursor.
+        var metadata = self.fetchMetadata()
         metadata.priorityTurnStatePayload = payload
         return self.setMetadata(metadata)
     }
@@ -682,10 +709,19 @@ extension CostUsageStore {
         var validatedCurrentSnapshot = false
     }
 
+    private static func cache(
+        from snapshot: CostUsageStoreSnapshot,
+        hydratingPaths: Set<String>? = nil) -> CostUsageCache
+    {
+        let persistence = CodexPersistenceState(snapshot: snapshot)
+        let decoded = Self.decodeCodexCache(from: snapshot, hydratingPaths: hydratingPaths)
+        return Self.reconciledCodexCache(decoded, persistence: persistence)
+    }
+
     // Full and manifest-only restoration share this mapping to keep every persisted field
     // byte-compatible across the two read paths.
     // swiftlint:disable:next function_body_length
-    private static func cache(
+    static func decodeCodexCache(
         from snapshot: CostUsageStoreSnapshot,
         hydratingPaths: Set<String>? = nil) -> CostUsageCache
     {
@@ -725,12 +761,6 @@ extension CostUsageStore {
         let lineageByPath = Dictionary(uniqueKeysWithValues: snapshot.forkLineage.map { ($0.path, $0) })
         let buffersByPath = Dictionary(grouping: snapshot.bufferedLines, by: \.path)
         let accumulatorByPath = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
-        let currentRootDevices = Self.currentCodexRootDevices(rootMtimes: metadata.rootMtimes)
-        var remainingIdentityValidationVisits = CostUsageScanner.codexCatchUpScanCandidateLimit
-        var deferredIdentityValidationPaths: [String] = []
-        var completedIdentityValidationPaths: [String] = []
-        var invalidatedIdentityValidationPaths: [String] = []
-
         for file in snapshot.files {
             let details: StoredFileDetails
             if let detailsData = file.scanState.detailsPayload,
@@ -767,33 +797,6 @@ extension CostUsageStore {
             let lineage = lineageByPath[file.path]
             let accumulator = accumulatorByPath[file.path]
             let buffers = buffersByPath[file.path] ?? []
-            let normalizedIdentity = Self.normalizedCodexFileIdentity(
-                file: file,
-                currentRootDevices: currentRootDevices)
-            let identityNeedsValidation = normalizedIdentity != file.scanState.fileIdentity
-            let restoredScanState: RestoredCodexScanState
-            if identityNeedsValidation, remainingIdentityValidationVisits > 0 {
-                Self.codexCatchUpReconciliationVisitForTesting?()
-                remainingIdentityValidationVisits -= 1
-                restoredScanState = Self.restoredCodexScanState(
-                    file: file,
-                    currentRootDevices: currentRootDevices,
-                    validateMetadata: true)
-                if restoredScanState.isComplete, restoredScanState.validatedCurrentSnapshot {
-                    completedIdentityValidationPaths.append(file.path)
-                } else {
-                    invalidatedIdentityValidationPaths.append(file.path)
-                }
-            } else if identityNeedsValidation {
-                deferredIdentityValidationPaths.append(file.path)
-                restoredScanState = RestoredCodexScanState(
-                    identity: file.scanState.fileIdentity,
-                    isComplete: file.scanState.isComplete)
-            } else {
-                restoredScanState = RestoredCodexScanState(
-                    identity: normalizedIdentity,
-                    isComplete: file.scanState.isComplete)
-            }
             var usage = CostUsageFileUsage(
                 mtimeUnixMs: file.mtimeUnixMs,
                 size: file.size,
@@ -856,9 +859,9 @@ extension CostUsageStore {
                         sha256: $0.sha256)
                 },
                 claudeRows: nil,
-                codexScanFileId: restoredScanState.identity,
+                codexScanFileId: file.scanState.fileIdentity,
                 codexScanTargetSize: file.scanState.targetSize,
-                codexScanComplete: restoredScanState.isComplete,
+                codexScanComplete: file.scanState.isComplete,
                 codexReplacementScanPending: file.scanState.replacementScanPending,
                 codexInventoryValidationGeneration: file.scanState.inventoryValidationGeneration,
                 codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
@@ -875,17 +878,61 @@ extension CostUsageStore {
             usage.codexLedgerRevision = details.ledgerRevision
             cache.files[file.path] = usage
         }
+        cache.days = Self.days(from: snapshot.dayAggregates)
+        return cache
+    }
+
+    static func reconciledCodexCache(
+        _ decoded: CostUsageCache,
+        persistence: CodexPersistenceState) -> CostUsageCache
+    {
+        var cache = decoded
+        let metadata = persistence.metadata
+        let currentRootDevices = Self.currentCodexRootDevices(rootMtimes: metadata.rootMtimes)
+        var remainingIdentityValidationVisits = CostUsageScanner.codexCatchUpScanCandidateLimit
+        var deferredIdentityValidationPaths: [String] = []
+        var completedIdentityValidationPaths: [String] = []
+        var invalidatedIdentityValidationPaths: [String] = []
+
+        for file in persistence.files {
+            guard var usage = cache.files[file.path] else { continue }
+            let normalizedIdentity = Self.normalizedCodexFileIdentity(
+                file: file,
+                currentRootDevices: currentRootDevices)
+            let identityNeedsValidation = normalizedIdentity != file.scanState.fileIdentity
+            let restoredScanState: RestoredCodexScanState
+            if identityNeedsValidation, remainingIdentityValidationVisits > 0 {
+                Self.codexCatchUpReconciliationVisitForTesting?()
+                remainingIdentityValidationVisits -= 1
+                restoredScanState = Self.restoredCodexScanState(
+                    file: file,
+                    currentRootDevices: currentRootDevices,
+                    validateMetadata: true)
+                if restoredScanState.isComplete, restoredScanState.validatedCurrentSnapshot {
+                    completedIdentityValidationPaths.append(file.path)
+                } else {
+                    invalidatedIdentityValidationPaths.append(file.path)
+                }
+            } else if identityNeedsValidation {
+                deferredIdentityValidationPaths.append(file.path)
+                restoredScanState = RestoredCodexScanState(
+                    identity: file.scanState.fileIdentity,
+                    isComplete: file.scanState.isComplete)
+            } else {
+                restoredScanState = RestoredCodexScanState(
+                    identity: normalizedIdentity,
+                    isComplete: file.scanState.isComplete)
+            }
+            usage.codexScanFileId = restoredScanState.identity
+            usage.codexScanComplete = restoredScanState.isComplete
+            cache.files[file.path] = usage
+        }
         Self.enqueueDeferredCodexIdentityValidation(
             deferredIdentityValidationPaths + invalidatedIdentityValidationPaths,
             metadata: metadata,
             cache: &cache)
-        Self.removeCompletedCodexIdentityValidation(
-            completedIdentityValidationPaths,
-            cache: &cache)
-        Self.reconcileCompletedCodexCatchUp(
-            cache: &cache,
-            visitLimit: remainingIdentityValidationVisits)
-        cache.days = Self.days(from: snapshot.dayAggregates)
+        Self.removeCompletedCodexIdentityValidation(completedIdentityValidationPaths, cache: &cache)
+        Self.reconcileCompletedCodexCatchUp(cache: &cache, visitLimit: remainingIdentityValidationVisits)
         return cache
     }
 
@@ -1620,14 +1667,6 @@ extension CostUsageStore {
             turnsCursor: cache.codexPriorityTurnsCursor))
     }
 
-    private static func persistedPriorityTurnsCursor(
-        _ snapshot: CostUsageStoreSnapshot) -> CostUsageScanner.CodexPriorityTurnsPersistedCursor?
-    {
-        snapshot.metadata.priorityTurnStatePayload.flatMap {
-            try? JSONDecoder().decode(StoredPriorityState.self, from: $0)
-        }?.turnsCursor
-    }
-
     private func compactPreviousReport(
         calendar: Calendar,
         reportWindow: (sinceKey: String, untilKey: String)?) -> CostUsageCodexPreviousReport?
@@ -2151,7 +2190,7 @@ extension CostUsageStore {
     }
 
     private func deleteRemovedFiles(
-        previous: CostUsageStoreSnapshot,
+        previous: CodexPersistenceState,
         cache: CostUsageCache)
     {
         for path in previous.files.map(\.path) where cache.files[path] == nil {
@@ -2202,6 +2241,12 @@ struct CostUsageStoreLoad: @unchecked Sendable {
     var store: CostUsageStore
     var cache: CostUsageCache
     var scanStamp: CostUsageStore.CodexScanStamp?
+    var receipt: CostUsageStore.CodexBaselineReceipt?
+
+    func release() {
+        guard let receipt else { return }
+        self.store.syncReleaseCodexBaseline(receipt)
+    }
 }
 
 enum CostUsageStoreAccess {
@@ -2230,8 +2275,7 @@ enum CostUsageStoreAccess {
 
     static func load(cacheRoot: URL?, calendar: Calendar) -> CostUsageStoreLoad {
         let store = self.scanStores.store(cacheRoot: cacheRoot)
-        let loaded = store.syncLoadCodexScan(calendar: calendar)
-        return CostUsageStoreLoad(store: store, cache: loaded.cache, scanStamp: loaded.stamp)
+        return store.syncLoadCodexScan(calendar: calendar)
     }
 
     static func loadCodexWorkingSet(
@@ -2243,7 +2287,7 @@ enum CostUsageStoreAccess {
         let cache = store.syncLoadCodexCache(
             calendar: calendar,
             hydratingPaths: hydratingPaths)
-        return CostUsageStoreLoad(store: store, cache: cache)
+        return CostUsageStoreLoad(store: store, cache: cache, scanStamp: nil, receipt: nil)
     }
 
     static func hydrateCodexWorkingSet(
@@ -2303,13 +2347,15 @@ enum CostUsageStoreAccess {
         calendar: Calendar = .current) -> CostUsageStoreBudgetResult
     {
         let loaded = self.load(cacheRoot: cacheRoot, calendar: calendar)
+        defer { loaded.release() }
         let since = cache.scanSinceKey ?? "0000-01-01"
         let until = cache.scanUntilKey ?? "9999-12-31"
         return self.save(
             store: loaded.store,
             cache: cache,
             calendar: calendar,
-            requestedScanWindow: (sinceKey: since, untilKey: until))
+            requestedScanWindow: (sinceKey: since, untilKey: until),
+            receipt: loaded.receipt)
     }
 
     @discardableResult
@@ -2321,6 +2367,7 @@ enum CostUsageStoreAccess {
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
         skipIdenticalContent: Bool = false,
         expectedScanStamp: CostUsageStore.CodexScanStamp? = nil,
+        receipt: CostUsageStore.CodexBaselineReceipt? = nil,
         requireScanStamp: Bool = false) -> CostUsageStoreBudgetResult
     {
         if requireScanStamp, expectedScanStamp == nil {
@@ -2336,7 +2383,8 @@ enum CostUsageStoreAccess {
             requestedScanWindow: requestedScanWindow,
             reportWindow: reportWindow,
             skipIdenticalContent: skipIdenticalContent,
-            expectedScanStamp: expectedScanStamp)
+            expectedScanStamp: expectedScanStamp,
+            receipt: receipt)
         if !result.catchUpRequired, result.deletedRows == 0 {
             store.syncRetainUnchangedCodexScan(cache)
         }
