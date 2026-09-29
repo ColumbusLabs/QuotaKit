@@ -1,6 +1,72 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status after the provider/shared audit
+## Current status after the cache-scope and overflow fixes
+
+The implementation baseline is `origin/main=8112e3487d73ea00361ffa87c3d35ed10a5cc3d6`,
+the verified squash merge of [PR #210](https://github.com/ColumbusLabs/QuotaKit/pull/210).
+Code commit `35a2f0fc4453a3e31fa64ccb14b36bb6145ef453` closes two confirmed
+correctness gaps without changing scanner receipts, persistence schemas, API
+prices, the reporting horizon, or release metadata:
+
+- **365:** validate raw cache ownership before the workspace refresh performs
+  sidecar lookup or history import. Failed and other-home reads preserve the
+  prior nonempty history; valid empty scans remain publishable.
+- **73:** preserve the existing overflow-aware exact/request/row coverage
+  accumulator through dashboard windows and Overview currency groups. Lost
+  exactness remains sticky rather than being reconstructed from flattened counts.
+
+| Current evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 335 |
+| Source-audited justified exclusions | 80 |
+| Release-only or no distinct merge source delta | 167 |
+| Test/CI-only rows with no standalone runtime port | 37 |
+| **Clear runtime gaps** | **45** |
+| Prior `adapted` claims still unverified on current `main` | 107 |
+| Prior `pending` or `deferred` work needing current decision | 69 |
+| Plausible historical exclusions needing per-row proof | 21 |
+| Other review rows | 14 |
+| **Total** | **875** |
+
+There are **619 accounted rows**, **45 clear runtime gaps**, and **211 unresolved
+rows**, compared with 617/47/211 before this fix batch. These counts measure
+upstream rows, not features or required PRs. The
+[row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) retains all exact SHAs
+and historical fields; only current fields for 73 and 365 change here. The
+provider/shared audit's open questions (200, 315, 317) and test/CI safety
+follow-ups (88, 487) remain explicit and unchanged.
+
+Verification covers **82 unique focused tests** across cost provenance, merged
+reports, snapshot/dashboard coverage, Overview summaries, workspace cache scope,
+and the affected architecture gate. There are **17 new synthetic boundary cases**:
+11 coverage cases and six cache-scope cases. The initial run exposed an incorrect
+raw-scanner-cache preservation assertion and a stale source-line anchor; both
+were corrected, and the three affected suites passed after rebuilding. A fixture
+now explicitly establishes nonempty history before testing preservation. Repository
+lint, parser-hash, format, localization, branding, palette, and documentation-link
+checks passed. Independent review found no remaining issue. No full local suite,
+live provider/Keychain probe, or app relaunch was run.
+
+Required hosted CI remains the merge gate. Existing routing requires the full
+Mac suite for these runtime paths and skips iOS. Source and focused-test evidence
+is not a claim of installation, release, or live device behavior.
+
+The fixed cut remains `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`: 758
+nonmerges and 117 merges. The monitor cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5`. Both upstream automations remain
+paused. All 12 worktrees, including six dirty source inventories, are preserved;
+this batch creates no worktree. Product version, build numbers, appcast, and
+release state are unchanged.
+
+**Next:** address Codex System-account privacy labels (390) and local spend for
+keyring-backed logins (601) as a bounded account-presentation batch using scoped
+credential doubles. Continue grouped audits later without restarting broad
+per-commit automation. Advance the cursor only after every applicable row has
+its final disposition and adopted work is merged.
+
+The sections below are historical snapshots; their counts are not current.
+
+## Historical snapshot after the provider/shared audit (PR #210)
 
 The source audit baseline is `origin/main=c364817d50f0380c56e35c2c7fbd47471b164679`,
 the verified squash merge of [PR #209](https://github.com/ColumbusLabs/QuotaKit/pull/209).
