@@ -247,7 +247,11 @@ struct SpendDashboardModel: Equatable, Sendable {
         let modelHistoryCompleteness: ModelHistoryCompleteness
         let incompleteModelProviders: Set<UsageProvider>
         let tokenMix: CostUsageTokenMix
-        let coverage: CostUsageCoverageCounts
+        let coverageAccumulator: CostUsageCoverageAccumulator
+        var coverage: CostUsageCoverageCounts {
+            self.coverageAccumulator.counts
+        }
+
         let provenance: CostProvenance
         let meteredCost: Double?
         let sessions: [SessionRow]
@@ -281,7 +285,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             modelHistoryCompleteness: ModelHistoryCompleteness,
             incompleteModelProviders: Set<UsageProvider> = [],
             tokenMix: CostUsageTokenMix = CostUsageTokenMix(),
-            coverage: CostUsageCoverageCounts = CostUsageCoverageCounts(),
+            coverageAccumulator: CostUsageCoverageAccumulator = CostUsageCoverageAccumulator(),
             provenance: CostProvenance = .unknown,
             meteredCost: Double? = nil,
             sessions: [SessionRow] = [],
@@ -303,7 +307,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.modelHistoryCompleteness = modelHistoryCompleteness
             self.incompleteModelProviders = incompleteModelProviders
             self.tokenMix = tokenMix
-            self.coverage = coverage
+            self.coverageAccumulator = coverageAccumulator
             self.provenance = provenance
             self.meteredCost = meteredCost
             self.sessions = sessions
@@ -583,7 +587,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             : ModelHistoryCompleteness.incomplete
         let dailyPoints = Self.dailyPoints(summaries: summaries)
         var tokenMix = CostUsageTokenMix()
-        var coverage = CostUsageCoverageCounts()
+        var coverage = CostUsageCoverageAccumulator()
         var metered: Double?
         var hasMeteredCostAmount = false
         var sawVendorMeteredProvenance = false
@@ -591,7 +595,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         for summary in scopedSummaries {
             for windowEntry in summary.entries {
                 tokenMix.merge(.from(entry: windowEntry.entry))
-                coverage.merge(windowEntry.entry.coverageCounts)
+                coverage.add(windowEntry.entry)
             }
             if selectedDay == nil,
                let meteredCost = summary.input.snapshot.meteredCostUSD,
@@ -642,7 +646,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             modelHistoryCompleteness: modelHistoryCompleteness,
             incompleteModelProviders: incompleteModelProviders,
             tokenMix: tokenMix,
-            coverage: coverage,
+            coverageAccumulator: coverage,
             provenance: provenance,
             meteredCost: hasMeteredCostAmount ? metered : nil,
             sessions: Self.sessionRows(summaries: summaries, bounds: bounds, calendar: calendar),
