@@ -241,6 +241,7 @@ enum SpendDashboardSource {
             hiddenSourceIDs: settings.spendDashboardHiddenSourceIDs,
             menuOwnershipFingerprint: self.menuOwnershipFingerprint(
                 settings: settings,
+                store: store,
                 providers: providers),
             codexHistoryDays: max(1, min(SpendDashboardSource.scanDays, store.spendDashboardCodexHistoryDays)))
     }
@@ -699,40 +700,41 @@ enum SpendDashboardSource {
     }
 
     @MainActor
-    static func codexSources(settings: SettingsStore, store: UsageStore) -> [CodexSpendSourceDescriptor] {
-        let accounts = settings.codexVisibleAccountProjection.visibleAccounts
-        let providerName = store.metadata(for: .codex).displayName
-        return accounts.enumerated().map { index, account in
+    private static func codexHomes(
+        settings: SettingsStore,
+        store: UsageStore) -> [(account: CodexVisibleAccount?, homePath: String?)]
+    {
+        let ambientHome = CodexHomeScope.ambientHomeURL(env: store.environmentBase).standardizedFileURL.path
+        var homes = settings.codexVisibleAccountProjection.visibleAccounts.map { account in
             let homePath: String? = switch account.selectionSource {
             case .liveSystem:
-                settings.liveSystemCodexHomePath(forActiveSource: .liveSystem)
+                settings.liveSystemCodexHomePath(forActiveSource: .liveSystem) ?? ambientHome
             case let .managedAccount(id):
                 settings.managedCodexRemoteHomePath(forActiveSource: .managedAccount(id: id))
             case let .profileHome(path):
                 settings.profileCodexHomePath(forActiveSource: .profileHome(path: path))
             }
-            let request = self.codexRequest(
-                account: account,
-                homePath: homePath,
+            return (account: Optional(account), homePath: CodexHomeScope.normalizedHomePath(homePath))
+        }
+        // Local rollouts exist independently of file-backed account identity, including keyring logins.
+        if !homes.contains(where: { $0.account?.isLive == true || $0.homePath == ambientHome }) {
+            homes.append((account: nil, homePath: ambientHome))
+        }
+        return homes
+    }
+
+    @MainActor
+    static func codexSources(settings: SettingsStore, store: UsageStore) -> [CodexSpendSourceDescriptor] {
+        let homes = self.codexHomes(settings: settings, store: store)
+        let providerName = store.metadata(for: .codex).displayName
+        return homes.enumerated().map { index, home in
+            self.codexSource(
+                account: home.account,
+                homePath: home.homePath,
                 providerName: providerName,
                 index: index,
-                count: accounts.count,
+                count: homes.count,
                 bucketTimeZoneIdentifier: settings.costUsageBucketTimeZoneIdentifier)
-            let cacheIdentity = request?.cacheIdentity ?? self.sha256([
-                account.id,
-                self.sourceToken(account.selectionSource),
-                CodexHomeScope.normalizedHomePath(homePath) ?? "unavailable-home",
-                CodexAuthFingerprint.normalize(account.authFingerprint) ?? "missing-auth",
-                settings.costUsageBucketTimeZoneIdentifier,
-            ].joined(separator: "\u{0}"))
-            let displayName = request?.displayName ?? self.codexDisplayName(
-                providerName: providerName,
-                index: index,
-                count: accounts.count)
-            return CodexSpendSourceDescriptor(
-                identity: "\(account.id)|\(cacheIdentity)",
-                displayName: displayName,
-                request: request)
         }
     }
 
@@ -740,12 +742,14 @@ enum SpendDashboardSource {
     static func currentMenuOwnershipFingerprint(settings: SettingsStore, store: UsageStore) -> String {
         self.menuOwnershipFingerprint(
             settings: settings,
+            store: store,
             providers: self.costCapableProviders(store: store))
     }
 
     @MainActor
     private static func menuOwnershipFingerprint(
         settings: SettingsStore,
+        store: UsageStore,
         providers: [UsageProvider]) -> String
     {
         var parts = providers.map { provider in
@@ -753,19 +757,11 @@ enum SpendDashboardSource {
         }
         parts.append("bucket:\(settings.costUsageBucketTimeZoneIdentifier)")
         if providers.contains(.codex) {
-            parts.append(contentsOf: settings.codexVisibleAccountProjection.visibleAccounts.map { account in
-                let homePath: String? = switch account.selectionSource {
-                case .liveSystem:
-                    settings.liveSystemCodexHomePath(forActiveSource: .liveSystem)
-                case let .managedAccount(id):
-                    settings.managedCodexRemoteHomePath(forActiveSource: .managedAccount(id: id))
-                case let .profileHome(path):
-                    settings.profileCodexHomePath(forActiveSource: .profileHome(path: path))
-                }
-                return [
-                    account.id,
-                    self.sourceToken(account.selectionSource),
-                    CodexHomeScope.normalizedHomePath(homePath) ?? "unavailable-home",
+            parts.append(contentsOf: self.codexHomes(settings: settings, store: store).map { home in
+                [
+                    home.account?.id ?? "local",
+                    self.sourceToken(home.account?.selectionSource ?? .liveSystem),
+                    CodexHomeScope.normalizedHomePath(home.homePath) ?? "unavailable-home",
                 ].joined(separator: "|")
             })
         }
@@ -895,40 +891,47 @@ enum SpendDashboardSource {
             store.tokenSnapshotPublicationRevision(for: provider))
     }
 
-    static func codexRequest(
-        account: CodexVisibleAccount,
+    static func codexSource(
+        account: CodexVisibleAccount?,
         homePath: String?,
         providerName: String,
         index: Int,
         count: Int,
-        bucketTimeZoneIdentifier: String = "") -> CodexSpendScanRequest?
+        bucketTimeZoneIdentifier: String = "") -> CodexSpendSourceDescriptor
     {
-        guard let homePath = CodexHomeScope.normalizedHomePath(homePath) else { return nil }
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: homePath, isDirectory: &isDirectory),
-              isDirectory.boolValue,
-              FileManager.default.isReadableFile(atPath: homePath)
-        else { return nil }
-        let sourceToken = self.sourceToken(account.selectionSource)
-        let liveAuthFingerprint = CodexAuthFingerprint.fingerprint(homePath: homePath)
+        let homePath = CodexHomeScope.normalizedHomePath(homePath)
+        let readableHome = homePath.flatMap { path -> String? in
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                && isDirectory.boolValue && FileManager.default.isReadableFile(atPath: path) ? path : nil
+        }
+        let id = account?.id ?? "local"
+        let source = account?.selectionSource ?? .liveSystem
+        let liveAuthFingerprint = readableHome.flatMap { CodexAuthFingerprint.fingerprint(homePath: $0) }
         let authFingerprint = liveAuthFingerprint
-            ?? CodexAuthFingerprint.normalize(account.authFingerprint)
+            ?? CodexAuthFingerprint.normalize(account?.authFingerprint)
         let cacheIdentity = self.sha256([
-            account.id,
-            sourceToken,
-            homePath,
+            id,
+            self.sourceToken(source),
+            homePath ?? "unavailable-home",
             authFingerprint ?? "missing-auth",
             bucketTimeZoneIdentifier,
         ].joined(separator: "\u{0}"))
         let displayName = self.codexDisplayName(providerName: providerName, index: index, count: count)
-        return CodexSpendScanRequest(
-            id: account.id,
+        let request = readableHome.map { path in
+            CodexSpendScanRequest(
+                id: id,
+                displayName: displayName,
+                source: source,
+                homePath: path,
+                authFingerprint: authFingerprint,
+                authFileWasReadable: liveAuthFingerprint != nil,
+                cacheIdentity: cacheIdentity)
+        }
+        return CodexSpendSourceDescriptor(
+            identity: "\(id)|\(cacheIdentity)",
             displayName: displayName,
-            source: account.selectionSource,
-            homePath: homePath,
-            authFingerprint: authFingerprint,
-            authFileWasReadable: liveAuthFingerprint != nil,
-            cacheIdentity: cacheIdentity)
+            request: request)
     }
 
     private static func codexDisplayName(providerName: String, index: Int, count: Int) -> String {

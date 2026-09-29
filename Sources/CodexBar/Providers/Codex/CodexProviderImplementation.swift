@@ -287,28 +287,64 @@ struct CodexProviderImplementation: ProviderImplementation {
             entries.append(.text(note, .secondary))
         }
 
-        let isInteractionBlocked = context.codexAccountPromotionCoordinator?.isInteractionBlocked() ?? false
+        let submenuItems = Self.systemAccountMenuItems(
+            projection: projection,
+            hidePersonalInfo: context.settings.hidePersonalInfo,
+            isInteractionBlocked: context.codexAccountPromotionCoordinator?.isInteractionBlocked() ?? false)
+        guard !submenuItems.isEmpty else { return }
 
+        entries.append(.submenu(
+            "System Account",
+            MenuDescriptor.MenuActionSystemImage.systemAccount.rawValue,
+            submenuItems))
+    }
+
+    @MainActor
+    static func systemAccountMenuItems(
+        projection: CodexVisibleAccountProjection,
+        hidePersonalInfo: Bool,
+        isInteractionBlocked: Bool) -> [MenuDescriptor.SubmenuItem]
+    {
+        let ordinals = Self.systemAccountPrivacyOrdinals(for: projection.visibleAccounts)
         let submenuItems = projection.visibleAccounts.map { account in
             let isChecked = account.id == projection.liveVisibleAccountID
             let isEnabled = !isInteractionBlocked &&
                 !isChecked &&
                 account.storedAccountID != nil
             let action = account.storedAccountID.map(MenuDescriptor.MenuAction.requestCodexSystemPromotion)
+            let title = hidePersonalInfo
+                ? PersonalInfoRedactor.redactAccountLabel(
+                    account.displayName,
+                    isEnabled: true,
+                    ordinal: ordinals[account.id])
+                : account.displayName
             return MenuDescriptor.SubmenuItem(
-                title: account.displayName,
+                title: title,
                 action: action,
                 isEnabled: isEnabled,
                 isChecked: isChecked)
         }
         guard submenuItems.count > 1 || submenuItems.contains(where: { $0.isEnabled && $0.action != nil }) else {
-            return
+            return []
         }
+        return submenuItems
+    }
 
-        entries.append(.submenu(
-            "System Account",
-            MenuDescriptor.MenuActionSystemImage.systemAccount.rawValue,
-            submenuItems))
+    private static func systemAccountPrivacyOrdinals(
+        for accounts: [CodexVisibleAccount]) -> [String: PersonalInfoRedactor.AccountOrdinal]
+    {
+        let ordered = accounts.sorted { lhs, rhs in
+            let left = lhs.storedAccountID?.uuidString ?? lhs.id
+            let right = rhs.storedAccountID?.uuidString ?? rhs.id
+            return left == right ? lhs.id < rhs.id : left < right
+        }
+        var ordinals: [String: PersonalInfoRedactor.AccountOrdinal] = [:]
+        for (index, account) in ordered.enumerated() {
+            if let ordinal = PersonalInfoRedactor.AccountOrdinal(index + 1) {
+                ordinals[account.id] = ordinal
+            }
+        }
+        return ordinals
     }
 
     @MainActor

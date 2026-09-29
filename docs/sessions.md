@@ -28,3 +28,5 @@ quotakit sessions focus <session-id>
 `--json` preserves the legacy v1 array restricted to Codex and Claude. `--json-v2` includes Pi-family rows and their dialect. Remote fetching negotiates v2 first and falls back to v1 for mixed-version hosts.
 
 Remote hosts need key-based, non-interactive SSH and either `quotakit` on `PATH` or QuotaKit installed in `/Applications`.
+
+SSH destination deduplication preserves usernames exactly and compares only hostnames without case. `User@host` and `user@host` remain distinct destinations; `user@HOST` and `user@host` share one destination. Input order and option, whitespace, and control-character rejection are preserved.

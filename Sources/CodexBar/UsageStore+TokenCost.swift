@@ -576,13 +576,20 @@ extension UsageStore {
             return "\(base)|cursorCookie=manual:\(headerFingerprint)"
         }
 
-        let credentialFingerprint = CookieHeaderCache.loadForDisplay(provider: .cursor)
-            .map { CookieHeaderCache.credentialFingerprint($0.cookieHeader) } ?? "unresolved"
+        let credentialFingerprint = self.cursorCostCredentialFingerprintForDisplay() ?? "unresolved"
         return self.cursorCostScopeSignature(
             historyDays: historyDays,
             source: source,
             credentialFingerprint: credentialFingerprint,
             includeSettingsRevision: includeSettingsRevision)
+    }
+
+    private func cursorCostCredentialFingerprintForDisplay() -> String? {
+        #if DEBUG
+        if let override = self._test_cursorCostCredentialFingerprintOverride { return override() }
+        #endif
+        return CookieHeaderCache.loadForDisplay(provider: .cursor)
+            .map { CookieHeaderCache.credentialFingerprint($0.cookieHeader) }
     }
 
     func cursorCostScopeSignature(
@@ -622,6 +629,84 @@ extension UsageStore {
         return now.timeIntervalSince(last) < tokenFetchTTL
     }
 
+    struct TokenRefreshPublicationScope {
+        let publicationRevision: ProviderPublicationRevision
+        let providerConfigRevision: UInt64
+        let costSettingsRevision: UInt64
+        let historyDays: Int
+        let signature: String
+    }
+
+    func tokenRefreshPublicationScope(
+        for provider: UsageProvider,
+        historyDays: Int,
+        costScopeSignature: String) -> TokenRefreshPublicationScope
+    {
+        TokenRefreshPublicationScope(
+            publicationRevision: self.providerPublicationRevision(for: provider),
+            providerConfigRevision: self.settings.providerConfigRevision(for: provider),
+            costSettingsRevision: self.settings.costUsageSettingsRevision,
+            historyDays: historyDays,
+            signature: costScopeSignature)
+    }
+
+    enum TokenRefreshPublicationDisposition: Equatable {
+        case current
+        case scopeChanged
+        case unchangedCredentialMismatch
+    }
+
+    func tokenRefreshPublicationDisposition(
+        provider: UsageProvider,
+        scope: TokenRefreshPublicationScope,
+        fetchedCredentialScopeFingerprint: String? = nil) -> TokenRefreshPublicationDisposition
+    {
+        guard self.tokenRefreshPublicationBaseIsCurrent(
+            provider: provider,
+            publicationRevision: scope.publicationRevision,
+            providerConfigRevision: scope.providerConfigRevision,
+            costSettingsRevision: scope.costSettingsRevision,
+            historyDays: scope.historyDays)
+        else {
+            return .scopeChanged
+        }
+
+        let currentSignature = self.tokenSnapshotScopeSignature(for: provider)
+        if provider == .cursor,
+           self.settings.cursorCookieSource == .auto,
+           scope.signature.contains("|cursorCookie=auto:"),
+           let fetchedCredentialScopeFingerprint
+        {
+            let resolvedSignature = self.cursorCostScopeSignature(
+                historyDays: scope.historyDays,
+                source: .auto,
+                credentialFingerprint: fetchedCredentialScopeFingerprint)
+            if currentSignature == resolvedSignature { return .current }
+            // An unconfirmed fetched account should be retried only after the attempted scope changes.
+            return currentSignature == scope.signature ? .unchangedCredentialMismatch : .scopeChanged
+        }
+
+        return currentSignature == scope.signature ? .current : .scopeChanged
+    }
+
+    private func tokenRefreshPublicationBaseIsCurrent(
+        provider: UsageProvider,
+        publicationRevision: ProviderPublicationRevision,
+        providerConfigRevision: UInt64,
+        costSettingsRevision: UInt64?,
+        historyDays: Int) -> Bool
+    {
+        let costSettingsRevisionIsCurrent = costSettingsRevision.map {
+            self.settings.costUsageSettingsRevision == $0
+        } ?? true
+        return self.providerPublicationRevisionIsCurrent(publicationRevision, for: provider) &&
+            self.settings.providerConfigRevision(for: provider) == providerConfigRevision &&
+            costSettingsRevisionIsCurrent &&
+            self.settings.isCostUsageEffectivelyEnabled(for: provider) &&
+            self.isEnabled(provider) &&
+            self.settings.costUsageHistoryDays == historyDays
+    }
+
     struct TokenFetchFailureCooldown {
         let attemptedAt: Date
         let retryAfter: Date
@@ -652,11 +737,12 @@ extension UsageStore {
         costScopeSignature: String,
         fetchedCredentialScopeFingerprint: String? = nil) -> Bool
     {
-        guard self.providerPublicationRevisionIsCurrent(publicationRevision, for: provider),
-              self.settings.providerConfigRevision(for: provider) == providerConfigRevision,
-              self.settings.isCostUsageEffectivelyEnabled(for: provider),
-              self.isEnabled(provider),
-              self.settings.costUsageHistoryDays == historyDays
+        guard self.tokenRefreshPublicationBaseIsCurrent(
+            provider: provider,
+            publicationRevision: publicationRevision,
+            providerConfigRevision: providerConfigRevision,
+            costSettingsRevision: nil,
+            historyDays: historyDays)
         else {
             return false
         }

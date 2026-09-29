@@ -105,6 +105,7 @@ Auth reuses the exact status-probe session resolution and cookie-source policy:
 - **Off**: the fetch is skipped in the app; `quotakit cost --provider cursor` fails explicitly and `/cost` returns a provider error row.
 
 Fetch behavior:
+- An unchanged auto-source credential that cannot be confirmed against the fetched result does not trigger an immediate retry loop. Accepted usage is retained; changed credentials or cost settings can refresh normally.
 - `POST https://cursor.com/api/dashboard/get-filtered-usage-events` (cookie-authenticated; requires a matching `Origin` for CSRF).
 - Pages of 1000 events (up to 200 pages), with exact page-boundary overlap removed before aggregation. Reaching the safety cap or otherwise receiving fewer events than Cursor reports fails the refresh instead of publishing a partial total.
 - The window start is snapped to the local day boundary so a 1-day window covers all of today and wider windows keep their full first day.
