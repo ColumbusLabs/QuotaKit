@@ -39,11 +39,15 @@ Workspaces index combines that scan cache with the read-only Codex thread
 catalog:
 
 1. Scan local rollout JSONL into the Codex v11 cost cache.
-2. Read catalog metadata without modifying the Codex catalog.
-3. Canonicalize workspace attribution and scope it to the selected Codex home.
-4. Publish the complete source state and derived snapshot in one SQLite
+2. During refresh, validate that the raw cache belongs to the selected Codex
+   home before that refresh imports sidecar history or looks up a cached snapshot. A failed or wrong-home read leaves
+   the existing history and last complete view intact, including forced refreshes.
+   A valid empty scan still publishes an empty snapshot.
+3. Read catalog metadata without modifying the Codex catalog.
+4. Canonicalize workspace attribution and scope it to the selected Codex home.
+5. Publish the complete source state and derived snapshot in one SQLite
    transaction.
-5. Expose project, session, model, daily, source-status, progress, and CSV
+6. Expose project, session, model, daily, source-status, progress, and CSV
    library models to presentation consumers.
 
 The supported internal presentation boundary is:

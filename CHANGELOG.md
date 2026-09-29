@@ -46,6 +46,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Codex Workspaces validates the scanned cache belongs to the selected home before importing history, preserving the last complete view when a cache read fails or belongs to another home.
+- Usage & Spend and Overview keep safe request or row coverage when exact cost-coverage counts overflow, including combined currency groups.
 - Codex priority-cost reconciliation visits recorded metadata days, removes stale inspected entries, and preserves history outside the refreshed window.
 - Codex account reauthentication checks the current credential owner before login and follows the visible System or managed account source.
 - Codex cost scans reuse their decoded cache baseline through save, avoiding a redundant full database snapshot read.

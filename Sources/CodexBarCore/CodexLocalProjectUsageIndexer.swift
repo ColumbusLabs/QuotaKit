@@ -7,9 +7,14 @@ enum CodexLocalProjectUsageIndexer {
 
     struct Options: Sendable {
         var scannerOptions: CostUsageScanner.Options
+        var rawCacheReadOverrideForTesting: (@Sendable (URL?, Calendar) -> CostUsageCache)?
 
-        init(scannerOptions: CostUsageScanner.Options = CostUsageScanner.Options()) {
+        init(
+            scannerOptions: CostUsageScanner.Options = CostUsageScanner.Options(),
+            rawCacheReadOverrideForTesting: (@Sendable (URL?, Calendar) -> CostUsageCache)? = nil)
+        {
             self.scannerOptions = scannerOptions
+            self.rawCacheReadOverrideForTesting = rawCacheReadOverrideForTesting
         }
     }
 
@@ -69,15 +74,22 @@ enum CodexLocalProjectUsageIndexer {
             checkCancellation: checkCancellation)
         try checkCancellation?()
 
-        var cache = CostUsageStoreAccess.read(
+        var cache = options.rawCacheReadOverrideForTesting.map {
+            $0(scannerOptions.cacheRoot, scannerOptions.calendar)
+        } ?? CostUsageStoreAccess.read(
             cacheRoot: scannerOptions.cacheRoot,
             calendar: scannerOptions.calendar)
+        let expectedRoots = CostUsageScanner.codexRootsFingerprint(options: scannerOptions)
+        // Sidecar rehydration stamps the requested roots, so validate the scanner cache before importing it.
+        guard cache.roots == expectedRoots else {
+            throw IndexError.cacheScopeMismatch
+        }
         let modelsDevLoad = ModelsDevCache.load(now: now, cacheRoot: scannerOptions.cacheRoot)
         cache.codexPricingKey = CostUsageScanner.codexPricingKey(modelsDevArtifact: modelsDevLoad.artifact)
         let catalogResult = CodexThreadCatalogReader.loadResult(options: scannerOptions)
         let catalog = catalogResult.catalog
         let sourceStatus = CodexLocalProjectUsageSourceStatus(catalog: catalogResult.completeness)
-        let rootsFingerprint = self.rootsFingerprint(CostUsageScanner.codexRootsFingerprint(options: scannerOptions))
+        let rootsFingerprint = self.rootsFingerprint(expectedRoots)
         let sidecar = CodexWorkspaceUsageSidecar(cacheRoot: scannerOptions.cacheRoot)
         if !forceRefresh {
             if let snapshot = sidecar.loadLatestSnapshot(

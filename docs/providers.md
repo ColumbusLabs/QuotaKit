@@ -38,6 +38,10 @@ adds or ranks amounts across currencies.
 The page also shows token mix (input / output / cache / reasoning), priced/unpriced/unmetered/estimated coverage,
 sessions, Codex projects, and a 365-day token heatmap. A heatmap day with no coverage is a gap, not zero activity,
 and is not clickable. Custom list-price overlays are documented in `docs/model-pricing.md`.
+Coverage aggregation preserves exact categories when their totals fit, then
+falls back to request counts or source rows when they cannot be represented.
+That fallback remains consistent across dashboard windows and combined
+Overview currency groups; it does not turn incomplete coverage into exact counts.
 Usage details group each provider's account or local-history sources with its model rows. The first six models
 show by default, and **Show all** reveals the rest. Projects and sessions share a detail selector; daily and
 hourly charts share a trend selector when hourly history exists. The daily ledger remains below either chart mode and
