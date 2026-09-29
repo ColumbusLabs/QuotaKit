@@ -82,6 +82,7 @@ enum CostUsageScanner {
         var codexHydratedFiles: Int
         var codexFileScanAttempts: Int
         var codexProgressAccountingVisits: Int
+        var codexPriorityMetadataDayVisits: Int
     }
 
     final class CodexScanWorkRecorder: @unchecked Sendable {
@@ -99,6 +100,7 @@ enum CostUsageScanner {
         private var codexFileScanAttempts = 0
         private var codexFileScanAttemptPaths: Set<String> = []
         private var codexProgressAccountingVisits = 0
+        private var codexPriorityMetadataDayVisits = 0
 
         func record(processed: Int, repriced: Int) {
             self.lock.lock()
@@ -167,6 +169,12 @@ enum CostUsageScanner {
             self.lock.unlock()
         }
 
+        func recordCodexPriorityMetadataDayVisit() {
+            self.lock.lock()
+            self.codexPriorityMetadataDayVisits += 1
+            self.lock.unlock()
+        }
+
         func snapshot() -> CodexScanWorkMetrics {
             self.lock.lock()
             defer { self.lock.unlock() }
@@ -182,7 +190,8 @@ enum CostUsageScanner {
                 codexCandidateSelectionVisits: self.codexCandidateSelectionVisits,
                 codexHydratedFiles: self.codexHydratedFiles,
                 codexFileScanAttempts: self.codexFileScanAttempts,
-                codexProgressAccountingVisits: self.codexProgressAccountingVisits)
+                codexProgressAccountingVisits: self.codexProgressAccountingVisits,
+                codexPriorityMetadataDayVisits: self.codexPriorityMetadataDayVisits)
         }
     }
 
@@ -2932,35 +2941,45 @@ enum CostUsageScanner {
             ?? self.dayKeyFromParsedISO(timestamp, calendar: calendar)
     }
 
-    private static func codexPriorityTurnKeysChanged(
+    static func codexPriorityTurnKeysChanged(
         old: [String: String]?,
         new: [String: String],
-        range: CostUsageDayRange) -> Bool
+        range: CostUsageDayRange,
+        workRecorder: CodexScanWorkRecorder? = nil) -> Bool
     {
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-            where old?[dayKey] != new[dayKey]
-        {
-            return true
+        let candidateDays = Set((old ?? [:]).keys).union(new.keys)
+        for dayKey in candidateDays {
+            workRecorder?.recordCodexPriorityMetadataDayVisit()
+            guard CostUsageDayRange.isInRange(
+                dayKey: dayKey,
+                since: range.scanSinceKey,
+                until: range.scanUntilKey)
+            else { continue }
+            if old?[dayKey] != new[dayKey] { return true }
         }
         return false
     }
 
-    private static func changedPriorityTurnIDs(
+    static func changedPriorityTurnIDs(
         old: [String: [String]]?,
         new: [String: [String]],
         oldKeys: [String: String]?,
         newKeys: [String: String],
-        range: CostUsageDayRange) -> Set<String>
+        range: CostUsageDayRange,
+        workRecorder: CodexScanWorkRecorder? = nil) -> Set<String>
     {
         var out = Set<String>()
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-        {
+        let candidateDays = Set((old ?? [:]).keys)
+            .union(new.keys)
+            .union((oldKeys ?? [:]).keys)
+            .union(newKeys.keys)
+        for dayKey in candidateDays {
+            workRecorder?.recordCodexPriorityMetadataDayVisit()
+            guard CostUsageDayRange.isInRange(
+                dayKey: dayKey,
+                since: range.scanSinceKey,
+                until: range.scanUntilKey)
+            else { continue }
             let oldIDs = Set(old?[dayKey] ?? [])
             let newIDs = Set(new[dayKey] ?? [])
             if oldIDs != newIDs || oldKeys?[dayKey] != newKeys[dayKey] {
@@ -2971,41 +2990,25 @@ enum CostUsageScanner {
         return out
     }
 
-    private static func mergePriorityTurnKeys(
-        existing: [String: String]?,
-        new: [String: String],
+    /// Priority metadata is sparse; walking empty calendar days makes long-range history work grow with time.
+    static func mergePriorityDayValues<Value>(
+        existing: [String: Value]?,
+        new: [String: Value],
         range: CostUsageDayRange,
         retainedSinceKey: String,
-        retainedUntilKey: String) -> [String: String]?
+        retainedUntilKey: String,
+        workRecorder: CodexScanWorkRecorder? = nil) -> [String: Value]?
     {
         var out = existing ?? [:]
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-        {
+        let candidateDays = Set(out.keys).union(new.keys)
+        for dayKey in candidateDays {
+            workRecorder?.recordCodexPriorityMetadataDayVisit()
+            guard CostUsageDayRange.isInRange(
+                dayKey: dayKey,
+                since: range.scanSinceKey,
+                until: range.scanUntilKey)
+            else { continue }
             out[dayKey] = new[dayKey]
-        }
-        out = out.filter { key, _ in
-            CostUsageDayRange.isInRange(dayKey: key, since: retainedSinceKey, until: retainedUntilKey)
-        }
-        return out.isEmpty ? nil : out
-    }
-
-    private static func mergePriorityTurnIDsByDay(
-        existing: [String: [String]]?,
-        new: [String: [String]],
-        range: CostUsageDayRange,
-        retainedSinceKey: String,
-        retainedUntilKey: String) -> [String: [String]]?
-    {
-        var out = existing ?? [:]
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-        {
-            out[dayKey] = new[dayKey] ?? []
         }
         out = out.filter { key, _ in
             CostUsageDayRange.isInRange(dayKey: key, since: retainedSinceKey, until: retainedUntilKey)
@@ -6782,14 +6785,16 @@ enum CostUsageScanner {
             && Self.codexPriorityTurnKeysChanged(
                 old: cache.codexPriorityTurnKeys,
                 new: priorityTurnKeys,
-                range: range)
+                range: range,
+                workRecorder: options.codexScanWorkRecorderForTesting)
         let changedPriorityTurnIDs = shouldInspectPriorityTurns && hasPriorityMetadata
             ? Self.changedPriorityTurnIDs(
                 old: cache.codexPriorityTurnIDsByDay,
                 new: priorityTurnIDsByDay,
                 oldKeys: cache.codexPriorityTurnKeys,
                 newKeys: priorityTurnKeys,
-                range: range)
+                range: range,
+                workRecorder: options.codexScanWorkRecorderForTesting)
             : []
         let requiresAllFilesForCacheWideMigration = !options.useCodexCatchUpWorkingSet
             && !cache.files.isEmpty
@@ -8351,18 +8356,20 @@ enum CostUsageScanner {
                 }
             }
             if plan.hasPriorityMetadata, !hasPendingPriorityReprocessing {
-                cache.codexPriorityTurnKeys = Self.mergePriorityTurnKeys(
+                cache.codexPriorityTurnKeys = Self.mergePriorityDayValues(
                     existing: shouldRetainWiderWindow ? cache.codexPriorityTurnKeys : nil,
                     new: plan.priorityTurnKeys,
                     range: range,
                     retainedSinceKey: retainedSinceKey,
-                    retainedUntilKey: retainedUntilKey)
-                cache.codexPriorityTurnIDsByDay = Self.mergePriorityTurnIDsByDay(
+                    retainedUntilKey: retainedUntilKey,
+                    workRecorder: options.codexScanWorkRecorderForTesting)
+                cache.codexPriorityTurnIDsByDay = Self.mergePriorityDayValues(
                     existing: shouldRetainWiderWindow ? cache.codexPriorityTurnIDsByDay : nil,
                     new: plan.priorityTurnIDsByDay,
                     range: range,
                     retainedSinceKey: retainedSinceKey,
-                    retainedUntilKey: retainedUntilKey)
+                    retainedUntilKey: retainedUntilKey,
+                    workRecorder: options.codexScanWorkRecorderForTesting)
                 if plan.inspectedPriorityTurns {
                     // Only inspected refreshes observe the live memo; skip writing otherwise so
                     // a nil plan cursor cannot clobber a previously persisted one.
