@@ -1,6 +1,81 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status after the cost/history batch
+## Current status after the provider/shared audit
+
+The source audit baseline is `origin/main=c364817d50f0380c56e35c2c7fbd47471b164679`,
+the verified squash merge of [PR #209](https://github.com/ColumbusLabs/QuotaKit/pull/209).
+All **42** previously unresolved `provider and shared correctness` rows received
+current-source evidence. This batch makes **39 final decisions**: **33 accounted**
+and **6 confirmed runtime gap or partial-coverage rows**. Three applicability
+questions remain open. No runtime code changes are included in this audit.
+
+The accounted rows comprise 25 represented behaviors, five source-audited
+exclusions, one upstream release-bookkeeping row, and two test/CI-only rows.
+Kiro's optional overage guard already matches upstream, including the CLI fallback.
+Pi's temporary parser-key compatibility was superseded by the fixed upstream cut;
+porting its old hash exception would introduce obsolete behavior. Source review
+and existing test assertions support the represented decisions; those tests were
+not executed during this documentation-only audit.
+
+| Current evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 333 |
+| Source-audited justified exclusions | 80 |
+| Release-only or no distinct merge source delta | 167 |
+| Test/CI-only rows with no standalone runtime port | 37 |
+| **Clear runtime gaps** | **47** |
+| Prior `adapted` claims still unverified on current `main` | 107 |
+| Prior `pending` or `deferred` work needing current decision | 69 |
+| Plausible historical exclusions needing per-row proof | 21 |
+| Other review rows | 14 |
+| **Total** | **875** |
+
+There are **617 accounted rows**, **47 clear runtime gap rows**, and
+**211 unresolved rows**, compared with 584/41/250 before this batch. Counts
+measure upstream rows, not features or required PRs. The
+[row-level ledger](upstream-backlog-ledger-2026-09-28.tsv) retains all 875 SHAs,
+all historical fields, and the precise source evidence and next action for each
+of the 42 audited rows.
+
+The six newly confirmed runtime gaps are Hooks input accessibility (147),
+malformed optional Z.ai analytics in the opt-in JS provider path (188), forced
+vibrancy affecting Overview highlights (202), opt-in hiding of unreachable
+remote hosts (260), Grok visor icon decoration (285), and StepFun credit labels
+and unknown-reset handling (470). These are source findings; no live provider,
+macOS rendering, accessibility-tree, or device behavior was tested.
+
+Two non-runtime follow-ups remain explicit in accounted test/CI rows: nested
+process containment in the CI runner (88), and the second real-Keychain consent
+gate in the opt-in Claude live test (487). Accounted here means no standalone
+product runtime port; it does not claim that those harness changes are present.
+Neither live test nor any Keychain probe was run.
+
+Three rows remain unresolved: exact dependency/action compatibility and security
+applicability (200), shared card context and explicit subtitle localization
+coverage (315), and applicability of upstream toolchain/lint/release routes (317).
+Historical PR pointers for 317 are preserved as evidence to inspect, not proof
+that those changes are represented.
+
+Verification for this batch is ledger integrity, documentation links, diff
+whitespace, and changed-path CI routing. The existing gates skip Mac and iOS
+jobs for these two documentation files; required hosted lint and Linux CLI CI
+remain the merge gate. No local Swift build or test suite was started.
+
+The fixed cut remains `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`: 758
+nonmerges and 117 merges. The monitor cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5`. Both upstream automations remain
+paused. Six dirty source worktrees are preserved; no new worktree was created.
+Product version, build numbers, appcast, and release state are unchanged.
+
+**Next:** implement cache-scope validation (365) and overflow-safe cost
+aggregation (73) as one bounded correctness batch with focused tests. The
+remaining uncertain rows can be audited in later bounded groups; do not
+restart broad per-commit automation. Advance the cursor only after every
+applicable row has a final disposition and adopted work is merged.
+
+The sections below are historical snapshots; their counts are not current.
+
+## Historical snapshot after the cost/history batch (PR #209)
 
 The audit baseline is `origin/main=005c2e48efce0467d84e7cf62b9f93655cde7536`.
 All 59 previously unresolved rows in the two cost/history groups now have an
