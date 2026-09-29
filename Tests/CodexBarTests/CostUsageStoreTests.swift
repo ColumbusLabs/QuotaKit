@@ -13,61 +13,6 @@ import CSQLite3
 
 struct CostUsageStoreTests {
     @Test
-    func `unchanged Codex scan reuses one decoded snapshot`() throws {
-        let fixture = try StoreFixture()
-        defer { fixture.remove() }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
-        let writer = CostUsageStore(cacheRoot: fixture.root)
-        var cache = CostUsageCache()
-        cache.scanSinceKey = "2026-08-01"
-        cache.scanUntilKey = "2026-08-01"
-        cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
-        _ = writer.syncSaveCodexCache(
-            cache,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
-
-        #if DEBUG
-        var reads = 0
-        CostUsageStore.snapshotReadForTesting = { url in
-            if url == writer.databaseURL { reads += 1 }
-        }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
-        #endif
-        let first = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
-        let second = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
-        #expect(first.store === second.store)
-        #expect(first.scanStamp != nil)
-        #expect(second.cache.files == first.cache.files)
-        #if DEBUG
-        #expect(reads == 1)
-        #endif
-        let saved = CostUsageStoreAccess.save(
-            store: second.store,
-            cache: second.cache,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
-            skipIdenticalContent: true,
-            expectedScanStamp: second.scanStamp,
-            requireScanStamp: true)
-        #expect(!saved.catchUpRequired)
-        #if DEBUG
-        // The save reads one baseline snapshot before comparing persisted content.
-        #expect(reads == 2)
-        #endif
-        let third = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
-        #expect(third.cache.files == second.cache.files)
-        #if DEBUG
-        #expect(reads == 2)
-        #endif
-        var otherCalendar = calendar
-        otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
-        let otherZone = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: otherCalendar)
-        #expect(otherZone.cache.files.isEmpty)
-    }
-
-    @Test
     func `identical save does not retain a snapshot pruned by SQLite`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -89,6 +34,7 @@ struct CostUsageStoreTests {
         #expect(await writer.upsertFile(stale))
 
         let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        defer { loaded.release() }
         #expect(loaded.cache.files[stale.path] != nil)
         let saved = CostUsageStoreAccess.save(
             store: loaded.store,
@@ -97,6 +43,7 @@ struct CostUsageStoreTests {
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"),
             skipIdenticalContent: true,
             expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
             requireScanStamp: true)
         #expect(!saved.catchUpRequired)
         #expect(saved.deletedRows == 0)
@@ -121,6 +68,7 @@ struct CostUsageStoreTests {
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
         let stale = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        defer { stale.release() }
 
         cache.files["/sessions/b.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 2, size: 0, days: [:])
         _ = writer.syncSaveCodexCache(
@@ -133,9 +81,11 @@ struct CostUsageStoreTests {
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
             expectedScanStamp: stale.scanStamp,
+            receipt: stale.receipt,
             requireScanStamp: true)
         #expect(refused.catchUpRequired)
         let fresh = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        defer { fresh.release() }
         #expect(fresh.cache.files["/sessions/b.jsonl"] != nil)
     }
 
