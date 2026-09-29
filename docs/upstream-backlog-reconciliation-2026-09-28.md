@@ -1,9 +1,100 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status after the identity and credential fixes
+## Current status: clearance goal, Mac UX audit and fresh upstream tail
 
-The implementation baseline is `origin/main=94e764a549de40bce8224a2e85a421d8ca9aa940`,
-the verified squash merge of [PR #211](https://github.com/ColumbusLabs/QuotaKit/pull/211).
+The persistent [clearance goal](upstream-clearance-goal-2026-09-29.md) is active.
+The current implementation/source audit baseline is
+`ac6c4c966f6012fffbc3144d40271b01a7646dfe`, the verified squash merge of
+[PR #212](https://github.com/ColumbusLabs/QuotaKit/pull/212).
+This slice audits **72 rows**: all 26 unresolved `Mac UX and reporting` rows and
+46 newly discovered upstream commits. It changes source accounting, not runtime
+behavior. Existing tests were inspected as source evidence, not executed.
+
+The refreshed upstream head is `25bba9b7fd9ce83c33053958f7366e23b2dc8a82`.
+The [original ledger](upstream-backlog-ledger-2026-09-28.tsv) retains its 875 SHAs
+and all 12 historical fields. The [tail ledger](upstream-backlog-ledger-2026-09-29-tail.tsv)
+adds ordinals 876–921: 27 nonmerges and 19 merges. Together they contain exactly
+**921 unique rows**, matching the monitor-base-to-refreshed-head Git range.
+
+| Current evidence tier across both ledgers | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 361 |
+| Source-audited justified exclusions | 80 |
+| Release-only or no distinct merge runtime delta | 188 |
+| Test/CI-only rows with no standalone runtime port | 41 |
+| **Clear runtime gaps** | **65** |
+| **Unresolved current-source or applicability decisions** | **186** |
+| **Total** | **921** |
+
+There are **670 accounted rows, 65 clear runtime gap rows,
+and 186 unresolved rows**. The previous 623/41/211 snapshot covered only
+875 commits. The refreshed 46-row tail expands the inventory; raw row counts
+measure commits, not missing features or required PRs. The original Mac UX audit
+accounts for 18 rows and identifies eight gap/partial rows, reducing that original
+unresolved inventory from 211 to 185. Tail decisions and precise remaining actions
+are recorded individually in the new ledger.
+
+### Grouped implementation actions
+
+- Mac UX: one Homebrew installed-cask command/check/upgrade chain (386/459/687),
+  DeepSeek optional-details visibility (417), passive Antigravity CLI selection
+  and metadata preservation (580), additional balance/Doubao window mapping
+  (594), layout-editor hint cleanup (665), and bounded opt-in hosting diagnostics
+  (695). The Homebrew work must use QuotaKit's installed cask identity and does
+  not authorize adding an official distribution lane.
+- Fresh tail: group Mistral's Monthly Plan picker and billing dimensions/aggregation,
+  model aliases and date-aware pricing, quota burndown/history context, and any
+  process/security findings by shared dependencies. Merge wrappers, superseded
+  experiments and upstream release notes are not separate runtime ports.
+- Preserve QuotaKit's intentional transient compact-account expansion. Row 505's
+  blank-currency fallback was already present before that upstream commit; the
+  shared conversion refactor is represented, not a newly discovered product gap.
+- Palette applicability and all remaining disputed rows retain explicit next
+  checks. A fork-specific color difference alone is not evidence of a missing
+  feature. Existing safety follow-ups 88/487 remain explicit.
+
+### Cleanup completed during this slice
+
+**12 worktrees became one primary checkout.** Four clean and six dirty side
+checkouts were removed after their exact heads and staged/unstaged patches passed
+recovery verification; the duplicate clean checkout was separately proven equal
+to its retained source tree before removal. No side checkout had untracked files.
+All unique unfinished source remains recoverable in private bundles and patches,
+and its branch/source disposition continues. Cleanup does not claim it is merged.
+
+**13 local branches and 13 remote branches were removed.** Completed heads were
+matched to merged PR heads and merge commits on main; remote deletion used
+expected-OID leases. Verified private recovery bundles precede all removals.
+Current inventory is **one worktree, 115 local branches, and five origin tracking
+refs** (including `origin/HEAD` and `origin/main`). The goal branch is temporary;
+remaining unique branch/source inventories still need reconciliation and cleanup.
+Primary app/build caches, signing files, local settings and release artifacts were
+untouched. Full restoration evidence lives under `.git/upstream-cleanup-recovery/`.
+
+### Verification and next slice
+
+Local verification for this documentation-only slice covers row/schema integrity,
+exact SHA range membership, preservation of historical fields, documentation links,
+and existing CI path gates. Required hosted CI is the delivery gate; no local Swift
+suite, app launch, live provider or Keychain probe belongs to this source audit.
+The existing gates skip Mac and iOS tests for these documentation paths.
+
+**Next:** implement the Mistral picker and billing fixes as one integrated batch,
+using disjoint Luna assignments, focused synthetic tests and one required CI cycle.
+Continue bounded audits of the remaining groups while cleaning completed refs.
+Refresh upstream again at final goal closeout; advance the monitor cursor only
+when every applicable row is implemented and merged or specifically excluded.
+Both broad upstream automations remain paused. The cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5`; product versions, build numbers,
+appcast and release state are unchanged.
+
+The sections below are historical snapshots; their counts and checkout inventories
+are not current.
+
+## Historical snapshot after the identity and credential fixes (PR #212)
+
+The implementation is merged at `ac6c4c966f6012fffbc3144d40271b01a7646dfe`
+through [PR #212](https://github.com/ColumbusLabs/QuotaKit/pull/212).
 Code commit `2ddfa198b247e58954898b87d035e9aa729ca6f2` closes four confirmed gaps:
 
 - **387:** preserve SSH username case and deduplicate only hostname case variants.
@@ -64,8 +155,8 @@ The sections below are historical snapshots; their counts are not current.
 
 ## Historical snapshot after the cache-scope and overflow fixes (PR #211)
 
-The implementation baseline is `origin/main=8112e3487d73ea00361ffa87c3d35ed10a5cc3d6`,
-the verified squash merge of [PR #210](https://github.com/ColumbusLabs/QuotaKit/pull/210).
+The implementation is merged at `94e764a549de40bce8224a2e85a421d8ca9aa940`
+through [PR #211](https://github.com/ColumbusLabs/QuotaKit/pull/211).
 Code commit `35a2f0fc4453a3e31fa64ccb14b36bb6145ef453` closes two confirmed
 correctness gaps without changing scanner receipts, persistence schemas, API
 prices, the reporting horizon, or release metadata:
