@@ -33,9 +33,13 @@ struct MenuCardCompactAccountRowView: View {
         init(
             row: AccountMenuLayoutPlanner.CompactRow,
             hidePersonalInfo: Bool = false,
+            privacyOrdinal: PersonalInfoRedactor.AccountOrdinal? = nil,
             now: Date = .now)
         {
-            self.label = PersonalInfoRedactor.redactEmail(row.label, isEnabled: hidePersonalInfo)
+            self.label = PersonalInfoRedactor.redactAccountLabel(
+                row.label,
+                isEnabled: hidePersonalInfo,
+                ordinal: privacyOrdinal)
             self.headroomPercent = row.headroomPercent
             self.severity = row.severity
             self.constraintDetail = StatusItemController.localizedCompactConstraintDetail(row, now: now)
