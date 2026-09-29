@@ -681,12 +681,15 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         settings.costUsageEnabled = true
         let metadata = try #require(ProviderRegistry.shared.metadata[.codex])
         settings.setProviderEnabled(provider: .codex, metadata: metadata, enabled: true)
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let environment = ["CODEX_HOME": home.path]
+        settings._test_codexReconciliationEnvironment = environment
         return UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
+            fetcher: UsageFetcher(environment: environment),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: [:])
+            environmentBase: environment)
     }
 
     private static func receivedHistoryDays(

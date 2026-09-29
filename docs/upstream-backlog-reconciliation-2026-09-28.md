@@ -1,6 +1,68 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status after the cache-scope and overflow fixes
+## Current status after the identity and credential fixes
+
+The implementation baseline is `origin/main=94e764a549de40bce8224a2e85a421d8ca9aa940`,
+the verified squash merge of [PR #211](https://github.com/ColumbusLabs/QuotaKit/pull/211).
+Code commit `2ddfa198b247e58954898b87d035e9aa729ca6f2` closes four confirmed gaps:
+
+- **387:** preserve SSH username case and deduplicate only hostname case variants.
+- **390:** apply the fork's strict Hide Personal Info policy to System Account
+  titles using stable numbered slots; retain raw labels when privacy is off and
+  preserve promotion actions, checked/enabled state, restart note, and visibility.
+- **391:** stop immediate Cursor retries for unchanged unconfirmed credentials,
+  retain accepted usage, and retry changed credential/settings scopes normally.
+- **601:** include ambient Codex active/archive session spend without file-backed
+  account identity; share normalized source discovery and ownership fingerprints,
+  deduplicate the ambient home, and retain named-account scan/auth guards.
+
+| Current evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 339 |
+| Source-audited justified exclusions | 80 |
+| Release-only or no distinct merge source delta | 167 |
+| Test/CI-only rows with no standalone runtime port | 37 |
+| **Clear runtime gaps** | **41** |
+| Prior `adapted` claims still unverified on current `main` | 107 |
+| Prior `pending` or `deferred` work needing current decision | 69 |
+| Plausible historical exclusions needing per-row proof | 21 |
+| Other review rows | 14 |
+| **Total** | **875** |
+
+There are **623 accounted rows**, **41 clear runtime gaps**, and **211 unresolved
+rows**, compared with 619/45/211 before this batch. Counts measure upstream rows,
+not features or required PRs. The [row-level ledger](upstream-backlog-ledger-2026-09-28.tsv)
+retains all exact SHAs and historical fields; only the four current records
+above change here. Unresolved applicability rows 200/315/317 and test/CI safety
+follow-ups 88/487 remain explicit.
+
+Verification: **162 focused tests across nine suites passed**, including 14 new
+regression test methods for privacy, retry disposition, and authless local spend,
+plus the extended SSH destination test. The debug build, repository lint,
+parser-hash, format, localization, branding, palette, and documentation-link
+checks passed. Independent review found no actionable issue. No full local suite,
+live provider/Keychain probe, or app relaunch ran.
+
+Required hosted CI remains the merge gate. Existing routing requires the full
+Mac suite for these runtime paths and skips iOS. This describes verified source
+and tests, not an installed build, release, or physical-device observation.
+
+The fixed cut remains `bd77ea6a7b35c8e3b66d46285f718c8eebf285b7`: 758
+nonmerges and 117 merges. The monitor cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5`. Both upstream automations remain
+paused. All 12 worktrees, including six dirty source inventories, are preserved;
+this batch creates no worktree. Product version, build numbers, appcast, and
+release state are unchanged.
+
+**Next:** source-audit the 26 unresolved `Mac UX and reporting` rows together,
+recording net behavior and exact evidence before deciding which runtime work is
+needed. Keep later implementation grouped by shared dependencies; do not restart
+broad per-commit automation. Advance the cursor only after every applicable row
+has its final disposition and adopted work is merged.
+
+The sections below are historical snapshots; their counts are not current.
+
+## Historical snapshot after the cache-scope and overflow fixes (PR #211)
 
 The implementation baseline is `origin/main=8112e3487d73ea00361ffa87c3d35ed10a5cc3d6`,
 the verified squash merge of [PR #210](https://github.com/ColumbusLabs/QuotaKit/pull/210).

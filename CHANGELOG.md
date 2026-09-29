@@ -46,6 +46,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Remote sessions preserve SSH username case while deduplicating hostnames without case.
+- Codex System Account menus honor Hide Personal Info without changing account promotion actions.
+- Cursor costs stop immediate retries for unchanged, unconfirmed credentials while allowing account and settings changes to refresh.
+- Usage & Spend includes local Codex session history for keyring logins without requiring an auth file or counting the ambient home twice.
 - Codex Workspaces validates the scanned cache belongs to the selected home before importing history, preserving the last complete view when a cache read fails or belongs to another home.
 - Usage & Spend and Overview keep safe request or row coverage when exact cost-coverage counts overflow, including combined currency groups.
 - Codex priority-cost reconciliation visits recorded metadata days, removes stale inspected entries, and preserves history outside the refreshed window.

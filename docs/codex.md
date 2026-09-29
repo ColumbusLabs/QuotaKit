@@ -74,7 +74,8 @@ Example:
 
 ### Same-email workspace labels
 
-Account settings, the System Account picker, and the menu switcher retain the workspace name when it is available.
+Account settings, the System Account picker, and the menu switcher retain the workspace name when it is available and personal information is visible.
+With **Hide Personal Info** enabled, System Account submenu titles use stable numbered account labels; promotion targets, checked state, and availability are unchanged.
 If the same email and workspace label would appear more than once (including missing names or the “Personal” fallback),
 QuotaKit adds a stable eight-character hash of the workspace identity. The hash stays the same when selecting or promoting
 that workspace and never exposes the full provider identifier. This is display-only; stored account metadata and
@@ -185,6 +186,7 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
     enable other providers' cost scans; results still require the same provider configuration and history/account scope.
   - The local-only mode never makes a network request or uploads session content. It uses an existing local models.dev
     cache when available, then the bundled `CostUsagePricing` rates.
+- Usage & Spend also includes the ambient Codex home when file-backed account discovery has no live identity, including keyring logins. A normalized ambient home already represented by an account is not added twice; named-account credential and cache ownership checks still apply.
 - Source files:
   - Native Codex logs:
     - `~/.codex/sessions/YYYY/MM/DD/*.jsonl`
