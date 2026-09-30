@@ -866,3 +866,40 @@ struct CodexOAuthTests {
         #expect(url.absoluteString == "https://chat.openai.com/backend-api/wham/usage")
     }
 }
+
+extension CodexOAuthTests {
+    @Test
+    func `decodes spend-control reset aliases and truncates fractional numbers`() throws {
+        let cases: [(field: String, value: String, expected: Int)] = [
+            ("resetsAt", "123.9", 123),
+            ("resets_at", "\" 456 \"", 456),
+            ("reset_at", "-789.9", -789),
+        ]
+
+        for testCase in cases {
+            let json = """
+            {"individual_limit":{"\(testCase.field)":\(testCase.value)}}
+            """
+            let response = try CodexOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
+            #expect(response.individualLimit?.resetsAt == testCase.expected)
+        }
+    }
+
+    @Test
+    func `omits spend-control reset values outside Int range without failing the snapshot`() throws {
+        for value in ["1e300", "-1e300", "9223372036854775808"] {
+            let json = """
+            {"individual_limit":{"limit":100,"used":25,"reset_at":\(value)}}
+            """
+            let response = try CodexOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
+
+            #expect(response.individualLimit?.limit == 100)
+            #expect(response.individualLimit?.used == 25)
+            #expect(response.individualLimit?.resetsAt == nil)
+        }
+
+        let fallbackJSON = #"{"individual_limit":{"resetsAt":1e300,"resets_at":"456"}}"#
+        let fallbackResponse = try CodexOAuthUsageFetcher._decodeUsageResponseForTesting(Data(fallbackJSON.utf8))
+        #expect(fallbackResponse.individualLimit?.resetsAt == 456)
+    }
+}

@@ -1127,6 +1127,9 @@
 "Antigravity login failed" = "Antigravity-inloggning misslyckades";
 "Keychain access is disabled in Advanced, so browser cookie import is unavailable." = "Åtkomst till Nyckelring är inaktiverad under Avancerat, så import av webbläsarcookies är inte tillgänglig.";
 "Browser cookies" = "Webbläsarcookies";
+"Browser cookies are used only for the optional prepaid balance." = "Webbläsarcookies används endast för det valfria förbetalda saldot.";
+"Imports browser cookies to read the optional prepaid balance." = "Importerar webbläsarcookies för att läsa det valfria förbetalda saldot.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Klistra in Cookie-headern som hämtats från faktureringssidan på Hugging Face.";
 "Usage history (%d days)" = "Användningshistorik (%d dagar)";
 "Cache read" = "Cacheläsning";
 "Copied" = "Kopierat";

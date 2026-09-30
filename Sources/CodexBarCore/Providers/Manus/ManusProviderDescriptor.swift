@@ -42,13 +42,13 @@ public enum ManusProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .manus),
                 iconResourceName: "ProviderIcon-manus",
-                color: ProviderColor(red: 52 / 255, green: 50 / 255, blue: 45 / 255),
+                color: ProviderColor(hex: 0x34322D),
                 confettiPalette: [
                     ProviderColor(hex: 0x34322D),
                     ProviderColor(hex: 0xF2F0E9),
                     ProviderColor(hex: 0x0099FF),
                 ],
-                widgetColor: ProviderColor(red: 24 / 255, green: 24 / 255, blue: 24 / 255)),
+                widgetColor: ProviderColor(hex: 0x181818)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Manus cost summary is not supported." }),

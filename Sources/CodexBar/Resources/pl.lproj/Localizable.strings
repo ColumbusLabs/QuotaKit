@@ -1136,6 +1136,9 @@
 "Base URL" = "Bazowy URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "Bazowy URL dla instancji LLM-API-Key-Proxy.";
 "Browser cookies" = "Pliki cookie przeglądarki";
+"Browser cookies are used only for the optional prepaid balance." = "Pliki cookie przeglądarki są używane wyłącznie do opcjonalnego salda przedpłaconego.";
+"Imports browser cookies to read the optional prepaid balance." = "Importuje pliki cookie przeglądarki, aby odczytać opcjonalne saldo przedpłacone.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Wklej nagłówek Cookie przechwycony na stronie rozliczeń Hugging Face.";
 "Cap end" = "Koniec limitu";
 "Cap start" = "Początek limitu";
 "Capacity End" = "Koniec pojemności";

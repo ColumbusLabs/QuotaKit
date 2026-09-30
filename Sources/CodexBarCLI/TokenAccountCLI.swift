@@ -21,6 +21,7 @@ enum TokenAccountCLIError: LocalizedError {
     case noAccounts(UsageProvider)
     case accountNotFound(UsageProvider, String)
     case indexOutOfRange(UsageProvider, Int, Int)
+    case antigravityCLIAccountSelectionUnsupported
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +31,9 @@ enum TokenAccountCLIError: LocalizedError {
             "No token account labeled '\(label)' for \(provider.rawValue)."
         case let .indexOutOfRange(provider, index, count):
             "Token account index \(index) out of range for \(provider.rawValue) (1-\(count))."
+        case .antigravityCLIAccountSelectionUnsupported:
+            "Antigravity CLI uses its local login and cannot select saved Google accounts. " +
+                "Use --source auto or --source oauth with account selection."
         }
     }
 }
@@ -70,8 +74,16 @@ struct TokenAccountCLIContext {
         for provider: UsageProvider, sourceMode: ProviderSourceMode? = nil) throws -> [ProviderTokenAccount]
     {
         guard let support = TokenAccountSupportCatalog.support(for: provider) else { return [] }
+        let effectiveSourceMode = sourceMode ?? self.preferredSourceMode(for: provider)
+        // Provider-specific by design: agy owns its login; saved Google accounts cannot select its local identity.
+        if provider == .antigravity, effectiveSourceMode == .cli {
+            if self.selection.usesOverride {
+                throw TokenAccountCLIError.antigravityCLIAccountSelectionUnsupported
+            }
+            return []
+        }
         if !self.selection.usesOverride,
-           support.passiveSourceModes.contains(sourceMode ?? self.preferredSourceMode(for: provider))
+           support.passiveSourceModes.contains(effectiveSourceMode)
         {
             return []
         }
@@ -228,23 +240,13 @@ struct TokenAccountCLIContext {
         self.codexAccountReconciler().loadVisibleAccounts()
     }
 
+    /// Token-account labels are CLI display metadata; provider identity stays provider-reported.
     func applyAccountLabel(
         _ snapshot: UsageSnapshot,
         provider: UsageProvider,
-        account: ProviderTokenAccount) -> UsageSnapshot
+        account _: ProviderTokenAccount) -> UsageSnapshot
     {
-        let label = account.label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty else { return snapshot }
-        let existing = snapshot.identity(for: provider.instanceID)
-        let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? label : email
-        let identity = ProviderIdentitySnapshot(
-            providerID: provider.instanceID,
-            accountEmail: resolvedEmail,
-            accountOrganization: existing?.accountOrganization,
-            loginMethod: existing?.loginMethod,
-            accountID: existing?.accountID)
-        return snapshot.withIdentity(identity)
+        snapshot.scoped(to: provider)
     }
 
     func applyCodexVisibleAccountLabel(_ snapshot: UsageSnapshot, account: CodexVisibleAccount) -> UsageSnapshot {

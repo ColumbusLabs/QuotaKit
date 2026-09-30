@@ -76,7 +76,7 @@ enum CodexLocalProjectUsageIndexer {
 
         var cache = options.rawCacheReadOverrideForTesting.map {
             $0(scannerOptions.cacheRoot, scannerOptions.calendar)
-        } ?? CostUsageStoreAccess.read(
+        } ?? CostUsageStoreAccess.readWithoutTokenSnapshots(
             cacheRoot: scannerOptions.cacheRoot,
             calendar: scannerOptions.calendar)
         let expectedRoots = CostUsageScanner.codexRootsFingerprint(options: scannerOptions)
@@ -174,7 +174,7 @@ enum CodexLocalProjectUsageIndexer {
             since: since,
             until: until,
             calendar: options.calendar)
-        let cache = cacheOverride ?? CostUsageStoreAccess.read(
+        let cache = cacheOverride ?? CostUsageStoreAccess.readWithoutTokenSnapshots(
             cacheRoot: options.cacheRoot,
             calendar: options.calendar)
         let catalog = catalogOverride ?? CodexThreadCatalogReader.load(options: options)

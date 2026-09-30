@@ -25,6 +25,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Changed
 
+- Provider accent colors in the app now use the refreshed reviewed palette; widget colors stay the same.
 - Hugging Face billing spend and ZeroGPU quota now use QuotaKit's branded provider card, color, icon, and quota-alert subscription when synced from Mac.
 
 ### Fixed

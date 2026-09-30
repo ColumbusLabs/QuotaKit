@@ -9,7 +9,7 @@ public enum ClawRouterProviderDescriptor {
         weeklyLabel: "Requests",
         debugLogUnavailableMessage: "ClawRouter debug log not yet implemented",
         dashboardURL: "https://clawrouter.openclaw.ai/dashboard/access",
-        color: ProviderColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255),
+        color: ProviderColor(hex: 0x2A82F5),
         confetti: [0x332CB3, 0x456FDD, 0xFFFFFF],
         noDataMessage: "ClawRouter spend is reported by its usage API.",
         environmentKey: ClawRouterSettingsReader.apiKeyEnvironmentKey,

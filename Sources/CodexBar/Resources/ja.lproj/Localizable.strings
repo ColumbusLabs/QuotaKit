@@ -1114,6 +1114,9 @@
 "Base URL" = "ベース URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy インスタンスのベース URL。";
 "Browser cookies" = "ブラウザ Cookie";
+"Browser cookies are used only for the optional prepaid balance." = "ブラウザー Cookie は、任意のプリペイド残高にのみ使用されます。";
+"Imports browser cookies to read the optional prepaid balance." = "任意のプリペイド残高を読み取るためにブラウザー Cookie を読み込みます。";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Hugging Face の請求ページで取得した Cookie ヘッダーを貼り付けてください。";
 "Cap end" = "上限終了";
 "Cap start" = "上限開始";
 "Capacity End" = "キャパシティ終了";

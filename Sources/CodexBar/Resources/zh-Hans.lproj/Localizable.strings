@@ -1092,6 +1092,9 @@
 "Base URL" = "Base URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy 实例的 Base URL。";
 "Browser cookies" = "浏览器 Cookie";
+"Browser cookies are used only for the optional prepaid balance." = "浏览器 Cookie 仅用于可选的预付余额。";
+"Imports browser cookies to read the optional prepaid balance." = "导入浏览器 Cookie 以读取可选的预付余额。";
+"Paste the Cookie header captured from your Hugging Face billing page." = "粘贴从 Hugging Face 账单页面获取的 Cookie 标头。";
 "Cap end" = "上限终点";
 "Cap start" = "上限起点";
 "Capacity End" = "容量终点";

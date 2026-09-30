@@ -56,12 +56,13 @@ public enum VeniceProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .venice),
                 iconResourceName: "ProviderIcon-venice",
-                color: ProviderColor(red: 0.2, green: 0.6, blue: 1.0),
+                color: ProviderColor(hex: 0x3C8FDD),
                 confettiPalette: [
                     ProviderColor(hex: 0x0E2942),
                     ProviderColor(hex: 0xF7F5ED),
                     ProviderColor(hex: 0x3C8FDD),
-                ]),
+                ],
+                widgetColor: ProviderColor(hex: 0x3399FF)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Venice per-day cost history is not available via API." }),

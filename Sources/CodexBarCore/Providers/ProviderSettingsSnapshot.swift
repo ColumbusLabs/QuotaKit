@@ -122,7 +122,8 @@ public struct ProviderSettingsSectionRegistration: Sendable {
 
     public init<Key: ProviderSettingsSectionKey>(
         _ key: Key.Type,
-        cookieSettings _: Key.Section.Type) where Key.Section: ProviderCookieSettings
+        cookieSettings _: Key.Section.Type,
+        credentialDefaultCookieSource: ProviderCookieSource = .auto) where Key.Section: ProviderCookieSettings
     {
         self.init(
             key,
@@ -134,7 +135,7 @@ public struct ProviderSettingsSectionRegistration: Sendable {
             },
             credentialSettings: { context in
                 guard let provider = key.providerID.firstPartyProvider else { return nil }
-                let settings = context.cookieSettings(for: provider)
+                let settings = context.cookieSettings(for: provider, defaultSource: credentialDefaultCookieSource)
                 return Key.Section(
                     cookieSource: settings.cookieSource,
                     manualCookieHeader: settings.manualCookieHeader,

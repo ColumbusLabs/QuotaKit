@@ -9,7 +9,7 @@ struct MenuCardCompactAccountRowView: View {
         let label: String
         let headroomPercent: Double?
         let severity: AccountMenuLayoutPlanner.Severity?
-        let constraintDetail: String?
+        let detailLines: [String]
         let hasError: Bool
         let showsBestBadge: Bool
 
@@ -24,7 +24,7 @@ struct MenuCardCompactAccountRowView: View {
             self.label = label
             self.headroomPercent = headroomPercent
             self.severity = severity
-            self.constraintDetail = constraintDetail
+            self.detailLines = constraintDetail.map { [$0] } ?? []
             self.hasError = hasError
             self.showsBestBadge = showsBestBadge
         }
@@ -32,6 +32,7 @@ struct MenuCardCompactAccountRowView: View {
         @MainActor
         init(
             row: AccountMenuLayoutPlanner.CompactRow,
+            resetTimeDisplayStyle: ResetTimeDisplayStyle = .countdown,
             hidePersonalInfo: Bool = false,
             privacyOrdinal: PersonalInfoRedactor.AccountOrdinal? = nil,
             now: Date = .now)
@@ -42,9 +43,33 @@ struct MenuCardCompactAccountRowView: View {
                 ordinal: privacyOrdinal)
             self.headroomPercent = row.headroomPercent
             self.severity = row.severity
-            self.constraintDetail = StatusItemController.localizedCompactConstraintDetail(row, now: now)
+            var details = row.windowDetails.map { detail in
+                let title = localizedSessionQuotaLabel(detail.label, windowMinutes: detail.window.windowMinutes)
+                let percent = UsageFormatter.percentText(
+                    detail.window.remainingPercent,
+                    suffix: L("usage_percent_suffix_left"))
+                let reset: String? = switch detail.resetPresentation {
+                case .standard:
+                    UsageFormatter.resetLine(for: detail.window, style: resetTimeDisplayStyle, now: now)
+                case .hidden:
+                    nil
+                case .providerDescription:
+                    detail.window.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                let line = ["\(title) \(percent)", reset].compactMap(\.self).filter { !$0.isEmpty }
+                    .joined(separator: " · ")
+                return PersonalInfoRedactor.redactEmails(in: line, isEnabled: hidePersonalInfo) ?? line
+            }
+            if let capturedAt = row.lastKnownUsageCapturedAt {
+                details.append(LastKnownUsagePresentation.message(capturedAt: capturedAt, now: now))
+            }
+            self.detailLines = details
             self.hasError = row.hasError
             self.showsBestBadge = row.isBestCandidate
+        }
+
+        var constraintDetail: String? {
+            self.detailLines.isEmpty ? nil : self.detailLines.joined(separator: " · ")
         }
 
         var accessibilityText: String {
@@ -52,9 +77,7 @@ struct MenuCardCompactAccountRowView: View {
             if let label = self.headroomLabel {
                 parts.append(String(format: L("%@ remaining"), label))
             }
-            if let detail = self.constraintDetail {
-                parts.append(detail)
-            }
+            parts.append(contentsOf: self.detailLines)
             if self.hasError {
                 parts.append(L("Account unavailable"))
             }
@@ -80,7 +103,7 @@ struct MenuCardCompactAccountRowView: View {
                 "compactAccount",
                 self.label,
                 self.headroomLabel ?? "-",
-                self.constraintDetail ?? "-",
+                self.detailLines.joined(separator: "|"),
                 self.hasError ? "error" : "ok",
                 self.showsBestBadge ? "best" : "plain",
             ].joined(separator: "|")
@@ -138,13 +161,13 @@ struct MenuCardCompactAccountRowView: View {
                         .frame(minWidth: 34, alignment: .trailing)
                 }
             }
-            if let detail = self.model.constraintDetail {
+            ForEach(Array(self.model.detailLines.enumerated()), id: \.offset) { _, detail in
                 Text(detail)
                     .font(.footnote)
                     .foregroundStyle(self.model.severity == .critical
                         ? MenuHighlightStyle.error(self.isHighlighted)
                         : MenuHighlightStyle.secondary(self.isHighlighted))
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)

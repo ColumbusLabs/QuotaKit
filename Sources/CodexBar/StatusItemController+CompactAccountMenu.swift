@@ -149,6 +149,7 @@ extension StatusItemController {
                 }
                 let rowModel = MenuCardCompactAccountRowView.Model(
                     row: compactRow,
+                    resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
                     hidePersonalInfo: self.settings.hidePersonalInfo,
                     privacyOrdinal: accountsByID[compactRow.accountID].flatMap { rendering.privacyOrdinal?($0) })
                 let accountID = compactRow.accountID

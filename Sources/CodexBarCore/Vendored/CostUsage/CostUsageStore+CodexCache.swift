@@ -56,14 +56,14 @@ extension CostUsageStore {
     static let defaultRowBudget = 25000
     static let defaultFileBudgetBytes: Int64 = 256 * 1024 * 1024
 
-    func loadCodexCache(calendar: Calendar) -> CostUsageCache {
+    func loadCodexCache(calendar: Calendar, loadTokenSnapshots: Bool = true) -> CostUsageCache {
         self.retainedCodexBaseline = nil
         _ = self.removeLegacyCodexArtifactIfPresent()
-        let snapshot = self.readSnapshot()
+        let snapshot = self.readSnapshot(loadTokenSnapshots: loadTokenSnapshots)
         guard snapshot.metadata.timeZoneIdentifier == nil
             || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else { return CostUsageCache() }
-        return Self.cache(from: snapshot)
+        return Self.cache(from: snapshot, tokenSnapshotsLoaded: loadTokenSnapshots)
     }
 
     func loadCodexScan(calendar: Calendar) -> CostUsageStoreLoad {
@@ -711,10 +711,14 @@ extension CostUsageStore {
 
     private static func cache(
         from snapshot: CostUsageStoreSnapshot,
-        hydratingPaths: Set<String>? = nil) -> CostUsageCache
+        hydratingPaths: Set<String>? = nil,
+        tokenSnapshotsLoaded: Bool = true) -> CostUsageCache
     {
         let persistence = CodexPersistenceState(snapshot: snapshot)
-        let decoded = Self.decodeCodexCache(from: snapshot, hydratingPaths: hydratingPaths)
+        let decoded = Self.decodeCodexCache(
+            from: snapshot,
+            hydratingPaths: hydratingPaths,
+            tokenSnapshotsLoaded: tokenSnapshotsLoaded)
         return Self.reconciledCodexCache(decoded, persistence: persistence)
     }
 
@@ -723,7 +727,8 @@ extension CostUsageStore {
     // swiftlint:disable:next function_body_length
     static func decodeCodexCache(
         from snapshot: CostUsageStoreSnapshot,
-        hydratingPaths: Set<String>? = nil) -> CostUsageCache
+        hydratingPaths: Set<String>? = nil,
+        tokenSnapshotsLoaded: Bool = true) -> CostUsageCache
     {
         var cache = CostUsageCache()
         let metadata = snapshot.metadata
@@ -848,8 +853,9 @@ extension CostUsageStore {
                     .flatMap {
                         try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
                     } : nil,
-                codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
-                codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
+                codexTokenSnapshots: details.hasTokenSnapshots && isHydrated && tokenSnapshotsLoaded
+                    ? tokenSnapshots : nil,
+                codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated && tokenSnapshotsLoaded
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
                 codexTokenTimestampsMonotonic: file.scanState.tokenTimestampsMonotonic,
                 codexTokenIndexAnchor: file.anchor.map {
@@ -2307,6 +2313,13 @@ enum CostUsageStoreAccess {
 
     static func read(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
         CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexCache(calendar: calendar)
+    }
+
+    /// Cache read for reports that need priced rows and aggregates but not token histories.
+    static func readWithoutTokenSnapshots(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
+        CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexCache(
+            calendar: calendar,
+            loadTokenSnapshots: false)
     }
 
     static func readCodexCatchUpProjection(

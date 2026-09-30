@@ -1113,6 +1113,9 @@
 "Base URL" = "Base URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "Base URL cho phiên bản LLM- API -Key-Proxy.";
 "Browser cookies" = "Cookie trình duyệt";
+"Browser cookies are used only for the optional prepaid balance." = "Cookie trình duyệt chỉ được dùng cho số dư trả trước tùy chọn.";
+"Imports browser cookies to read the optional prepaid balance." = "Nhập cookie trình duyệt để đọc số dư trả trước tùy chọn.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Dán tiêu đề Cookie được lấy từ trang thanh toán Hugging Face của bạn.";
 "Cap end" = "Cap end";
 "Cap start" = "Cap start";
 "Capacity End" = "Dung lượng End";

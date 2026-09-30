@@ -1129,6 +1129,9 @@
 "Base URL" = "Temel URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy örneği için temel URL.";
 "Browser cookies" = "Tarayıcı çerezleri";
+"Browser cookies are used only for the optional prepaid balance." = "Tarayıcı çerezleri yalnızca isteğe bağlı ön ödemeli bakiye için kullanılır.";
+"Imports browser cookies to read the optional prepaid balance." = "İsteğe bağlı ön ödemeli bakiyeyi okumak için tarayıcı çerezlerini içe aktarır.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Hugging Face faturalandırma sayfanızdan alınan Cookie başlığını yapıştırın.";
 "Cap end" = "Kapasite sonu";
 "Cap start" = "Kapasite başlangıcı";
 "Capacity End" = "Kapasite sonu";

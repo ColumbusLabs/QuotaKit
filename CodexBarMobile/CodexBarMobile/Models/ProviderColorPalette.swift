@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Single source of truth for provider-card tint colors.
+/// Provider colors for in-app surfaces and widgets.
 ///
-/// The raw swatches mirror the Mac `ProviderDescriptorRegistry` branding
-/// colors. `color(for:)` returns an appearance-adaptive tint so very dark or
-/// very light brand colors stay visible on iOS surfaces.
+/// The app raw swatches mirror the Mac `ProviderDescriptorRegistry` branding
+/// colors. `color(for:)` returns an appearance-adaptive app tint. The widget
+/// palette retains established widget colors where the app accent changed.
 enum ProviderColorPalette {
     struct RawColor: Equatable {
         let red: Double
@@ -56,8 +56,17 @@ enum ProviderColorPalette {
         (self.rawColor(for: providerIdentifier) ?? self.fallback).color
     }
 
+    static func widgetColor(for providerIdentifier: String) -> Color {
+        (self.widgetRawColor(for: providerIdentifier) ?? self.fallback).color
+    }
+
     static func rawColor(for providerIdentifier: String) -> RawColor? {
         self.palette[self.normalized(providerIdentifier)]
+    }
+
+    static func widgetRawColor(for providerIdentifier: String) -> RawColor? {
+        let key = self.normalized(providerIdentifier)
+        return self.widgetPalette[key] ?? self.palette[key]
     }
 
     static func normalized(_ value: String) -> String {
@@ -69,13 +78,42 @@ enum ProviderColorPalette {
 
     private static let fallback = RawColor(red: 0, green: 122 / 255, blue: 1)
 
+    private static let widgetPalette: [String: RawColor] = {
+        let entries: [(aliases: [String], color: RawColor)] = [
+            (["abacus", "abacusai"], RawColor(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
+            (["amp", "ampcode"], RawColor(red: 220 / 255, green: 38 / 255, blue: 38 / 255)),
+            (["augment"], RawColor(red: 139 / 255, green: 92 / 255, blue: 246 / 255)),
+            (["bedrock"], RawColor(red: 1, green: 0.6, blue: 0)),
+            (["clinepass"], RawColor(red: 0.38, green: 0.64, blue: 0.98)),
+            (["codebuff"], RawColor(red: 68 / 255, green: 255 / 255, blue: 0)),
+            (["commandcode"], RawColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),
+            (["cursor"], RawColor(red: 0, green: 0, blue: 0)),
+            (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
+            (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
+            (["kiro"], RawColor(red: 217 / 255, green: 119 / 255, blue: 6 / 255)),
+            (["longcat"], RawColor(red: 1, green: 209 / 255, blue: 0)),
+            (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
+            (["neuralwatt"], RawColor(red: 0.12, green: 0.72, blue: 0.38)),
+            (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
+            (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
+        ]
+
+        var table: [String: RawColor] = [:]
+        for entry in entries {
+            for alias in entry.aliases {
+                table[Self.normalized(alias)] = entry.color
+            }
+        }
+        return table
+    }()
+
     private static let palette: [String: RawColor] = {
         let entries: [(aliases: [String], color: RawColor)] = [
             (["codex"], RawColor(red: 73 / 255, green: 163 / 255, blue: 176 / 255)),
             (["openai", "chatgpt"], RawColor(red: 0.06, green: 0.51, blue: 0.43)),
             (["azureopenai"], RawColor(red: 0, green: 120 / 255, blue: 212 / 255)),
             (["claude", "anthropic"], RawColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
-            (["cursor"], RawColor(red: 0, green: 0, blue: 0)),
+            (["cursor"], RawColor(red: 245 / 255, green: 78 / 255, blue: 0)),
             (["opencode"], RawColor(red: 14 / 255, green: 165 / 255, blue: 233 / 255)),
             (["opencodego"], RawColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255)),
             (["alibaba", "bailian"], RawColor(red: 1, green: 106 / 255, blue: 0)),
@@ -91,13 +129,13 @@ enum ProviderColorPalette {
             (["zed"], RawColor(red: 8 / 255, green: 78 / 255, blue: 255 / 255)),
             (["poe"], RawColor(red: 93 / 255, green: 92 / 255, blue: 222 / 255)),
             (["clawrouter"], RawColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255)),
-            (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
+            (["sub2api"], RawColor(red: 20 / 255, green: 184 / 255, blue: 166 / 255)),
             (["zenmux"], RawColor(red: 90 / 255, green: 40 / 255, blue: 190 / 255)),
-            (["clinepass"], RawColor(red: 0.38, green: 0.64, blue: 0.98)),
-            (["longcat"], RawColor(red: 1, green: 209 / 255, blue: 0)),
+            (["clinepass"], RawColor(red: 84 / 255, green: 135 / 255, blue: 200 / 255)),
+            (["longcat"], RawColor(red: 41 / 255, green: 225 / 255, blue: 84 / 255)),
             (["huggingface"], RawColor(red: 1, green: 210 / 255, blue: 30 / 255)),
             (["replicate"], RawColor(red: 160 / 255, green: 160 / 255, blue: 160 / 255)),
-            (["neuralwatt"], RawColor(red: 0.12, green: 0.72, blue: 0.38)),
+            (["neuralwatt"], RawColor(red: 213 / 255, green: 89 / 255, blue: 52 / 255)),
             (["chutes"], RawColor(red: 0, green: 184 / 255, blue: 255 / 255)),
             (["qoder"], RawColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255)),
             (["wayfinder"], RawColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255)),
@@ -107,16 +145,16 @@ enum ProviderColorPalette {
             (["manus"], RawColor(red: 52 / 255, green: 50 / 255, blue: 45 / 255)),
             (["kimi"], RawColor(red: 244 / 255, green: 63 / 255, blue: 94 / 255)),
             (["kilo"], RawColor(red: 242 / 255, green: 112 / 255, blue: 39 / 255)),
-            (["kiro"], RawColor(red: 217 / 255, green: 119 / 255, blue: 6 / 255)),
+            (["kiro"], RawColor(red: 144 / 255, green: 70 / 255, blue: 255 / 255)),
             (["vertexai", "vertex"], RawColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
-            (["augment"], RawColor(red: 139 / 255, green: 92 / 255, blue: 246 / 255)),
+            (["augment"], RawColor(red: 26 / 255, green: 160 / 255, blue: 73 / 255)),
             (["jetbrains"], RawColor(red: 255 / 255, green: 51 / 255, blue: 153 / 255)),
             (["ibmbob"], RawColor(red: 14 / 255, green: 97 / 255, blue: 250 / 255)),
             (["v0"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),
             (["kimik2", "kimik2unofficial"], RawColor(red: 76 / 255, green: 0, blue: 255 / 255)),
             (["moonshot", "moonshotkimiapi", "kimiapi"], RawColor(red: 32 / 255, green: 93 / 255, blue: 235 / 255)),
             (["notion"], RawColor(red: 51 / 255, green: 126 / 255, blue: 169 / 255)),
-            (["amp", "ampcode"], RawColor(red: 220 / 255, green: 38 / 255, blue: 38 / 255)),
+            (["amp", "ampcode"], RawColor(red: 243 / 255, green: 78 / 255, blue: 63 / 255)),
             (["t3chat", "t3"], RawColor(red: 245 / 255, green: 102 / 255, blue: 71 / 255)),
             (["ollama"], RawColor(red: 136 / 255, green: 136 / 255, blue: 136 / 255)),
             (["synthetic", "syntheticnew"], RawColor(red: 42 / 255, green: 42 / 255, blue: 42 / 255)),
@@ -128,18 +166,18 @@ enum ProviderColorPalette {
             (["mimo", "xiaomimimo"], RawColor(red: 249 / 255, green: 115 / 255, blue: 22 / 255)),
             (["doubao"], RawColor(red: 51 / 255, green: 112 / 255, blue: 255 / 255)),
             (["sakana", "sakanaai"], RawColor(red: 0.16, green: 0.46, blue: 0.86)),
-            (["abacus", "abacusai"], RawColor(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
-            (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
-            (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
+            (["abacus", "abacusai"], RawColor(red: 129 / 255, green: 78 / 255, blue: 232 / 255)),
+            (["mistral"], RawColor(red: 255 / 255, green: 82 / 255, blue: 41 / 255)),
+            (["deepseek"], RawColor(red: 77 / 255, green: 107 / 255, blue: 254 / 255)),
             (["deepinfra"], RawColor(red: 42 / 255, green: 50 / 255, blue: 117 / 255)),
-            (["codebuff"], RawColor(red: 68 / 255, green: 255 / 255, blue: 0)),
+            (["codebuff"], RawColor(red: 0, green: 255 / 255, blue: 149 / 255)),
             (["coderabbit"], RawColor(red: 200 / 255, green: 60 / 255, blue: 40 / 255)),
             (["crof"], RawColor(red: 0.18, green: 0.67, blue: 0.58)),
-            (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
-            (["commandcode"], RawColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),
+            (["venice"], RawColor(red: 60 / 255, green: 143 / 255, blue: 221 / 255)),
+            (["commandcode"], RawColor(red: 140 / 255, green: 78 / 255, blue: 221 / 255)),
             (["stepfun"], RawColor(red: 0.13, green: 0.59, blue: 0.95)),
             (["crossmodel"], RawColor(red: 150 / 255, green: 65 / 255, blue: 200 / 255)),
-            (["bedrock"], RawColor(red: 1, green: 0.6, blue: 0)),
+            (["bedrock"], RawColor(red: 1 / 255, green: 168 / 255, blue: 141 / 255)),
             (["grok"], RawColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255)),
             (["groq", "groqcloud", "groqapi"], RawColor(red: 245 / 255, green: 104 / 255, blue: 68 / 255)),
             (["llmproxy"], RawColor(red: 36 / 255, green: 180 / 255, blue: 126 / 255)),
@@ -162,7 +200,7 @@ enum ProviderColorPalette {
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),
-            (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
+            (["devin"], RawColor(red: 49 / 255, green: 124 / 255, blue: 255 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

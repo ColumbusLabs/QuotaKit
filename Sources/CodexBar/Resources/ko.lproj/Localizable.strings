@@ -1083,6 +1083,9 @@
 "Base URL" = "기본 URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy 인스턴스의 기본 URL.";
 "Browser cookies" = "브라우저 쿠키";
+"Browser cookies are used only for the optional prepaid balance." = "브라우저 쿠키는 선택적인 선불 잔액에만 사용됩니다.";
+"Imports browser cookies to read the optional prepaid balance." = "선택적인 선불 잔액을 읽기 위해 브라우저 쿠키를 가져옵니다.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Hugging Face 결제 페이지에서 가져온 Cookie 헤더를 붙여넣으세요.";
 "Cap end" = "한도 종료";
 "Cap start" = "한도 시작";
 "Capacity End" = "용량 종료";

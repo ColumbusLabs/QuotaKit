@@ -1134,6 +1134,9 @@
 "Base URL" = "URL القاعدة";
 "Base URL for the LLM-API-Key-Proxy instance." = "URL أساسي لنسخة LLM-API-Key-Proxy (الوكيل الرئيسي).";
 "Browser cookies" = "ملفات تعريف الارتباط في المتصفح";
+"Browser cookies are used only for the optional prepaid balance." = "لا تُستخدم ملفات تعريف الارتباط في المتصفح إلا للرصيد الاختياري المدفوع مسبقًا.";
+"Imports browser cookies to read the optional prepaid balance." = "يستورد ملفات تعريف الارتباط في المتصفح لقراءة الرصيد الاختياري المدفوع مسبقًا.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "الصق ترويسة Cookie التي التقطتها من صفحة الفوترة في Hugging Face.";
 "Cap end" = "نهاية الغطاء";
 "Cap start" = "بداية الكابر";
 "Capacity End" = "نهاية السعة";

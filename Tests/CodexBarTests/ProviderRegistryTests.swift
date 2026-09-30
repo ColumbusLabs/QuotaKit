@@ -167,17 +167,49 @@ struct ProviderRegistryTests {
     func `priority provider brand colors match QuotaKit palette`() {
         expectColor(.codex, red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor(.claude, red: 204 / 255, green: 124 / 255, blue: 94 / 255)
-        expectColor(.cursor, red: 0, green: 0, blue: 0)
+        expectColor(.cursor, red: 245 / 255, green: 78 / 255, blue: 0)
         expectColor(.replicate, red: 160 / 255, green: 160 / 255, blue: 160 / 255)
         expectColor(.grok, red: 26 / 255, green: 26 / 255, blue: 26 / 255)
-        expectColor(.commandcode, red: 71 / 255, green: 85 / 255, blue: 105 / 255)
+        expectColor(.commandcode, red: 140 / 255, green: 78 / 255, blue: 221 / 255)
         expectColor(.opencodego, red: 52 / 255, green: 211 / 255, blue: 153 / 255)
+    }
+
+    @Test
+    func `reviewed provider accents match source audit and widget colors stay unchanged`() {
+        let expected: [(UsageProvider, String, String)] = [
+            (.abacus, "#814EE8", "#38BDF8"),
+            (.amp, "#F34E3F", "#DC2626"),
+            (.augment, "#1AA049", "#8B5CF6"),
+            (.bedrock, "#01A88D", "#FF9900"),
+            (.clinepass, "#5487C8", "#61A3FA"),
+            (.codebuff, "#00FF95", "#44FF00"),
+            (.commandcode, "#8C4EDD", "#000000"),
+            (.cursor, "#F54E00", "#000000"),
+            (.deepseek, "#4D6BFE", "#527DF0"),
+            (.devin, "#317CFF", "#46B482"),
+            (.kiro, "#9046FF", "#D97706"),
+            (.longcat, "#29E154", "#FFD100"),
+            (.mistral, "#FF5229", "#FF500F"),
+            (.neuralwatt, "#D55934", "#38D98C"),
+            (.sub2api, "#14B8A6", "#2DC6D8"),
+            (.venice, "#3C8FDD", "#3399FF"),
+        ]
+
+        for (provider, accent, widgetColor) in expected {
+            let branding = ProviderDescriptorRegistry.descriptor(for: provider).branding
+            #expect(branding.color.hexString == accent, "Unexpected \(provider.rawValue) accent")
+            #expect(branding.widgetColor.hexString == widgetColor, "Unexpected \(provider.rawValue) widget color")
+        }
+
+        #expect(KimiProviderDescriptor.descriptor.branding.color.hexString == "#F43F5E")
+        #expect(MoonshotProviderDescriptor.descriptor.branding.confettiPalette.first?.hexString == "#121212")
     }
 
     @Test
     func `provider brand colors stay visually distinct`() {
         let descriptors = ProviderDescriptorRegistry.all
-        // These providers use independently chosen brand colors that happen to be close.
+        // Row 879's source-backed palette refresh adopts these accents. Keep the resulting close
+        // pairs explicit here so the general separation threshold remains intact.
         let intentionalOverlaps: Set<Set<UsageProvider>> = [
             [.opencodego, .bifrost],
             [.devpass, .moonshot],
@@ -186,6 +218,13 @@ struct ProviderRegistryTests {
             [.deepseek, .atlascloud],
             [.v0, .typesafe],
             [.deepgram, .pi],
+            [.neuralwatt, .aiand],
+            [.clinepass, .litellm],
+            [.devin, .doubao],
+            [.devin, .clawrouter],
+            [.minimax, .amp],
+            [.perplexity, .sub2api],
+            [.abacus, .commandcode],
         ]
 
         for leftIndex in descriptors.indices {

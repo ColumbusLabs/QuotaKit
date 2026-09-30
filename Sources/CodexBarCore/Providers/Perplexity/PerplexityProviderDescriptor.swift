@@ -48,7 +48,7 @@ public enum PerplexityProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .perplexity),
                 iconResourceName: "ProviderIcon-perplexity",
-                color: ProviderColor(red: 32 / 255, green: 178 / 255, blue: 170 / 255),
+                color: ProviderColor(hex: 0x20B2AA),
                 confettiPalette: [
                     ProviderColor(hex: 0x016A71),
                     ProviderColor(hex: 0x313131),

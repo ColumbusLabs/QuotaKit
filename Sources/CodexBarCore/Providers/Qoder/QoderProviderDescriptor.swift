@@ -40,7 +40,7 @@ public enum QoderProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .qoder),
                 iconResourceName: "ProviderIcon-qoder",
-                color: ProviderColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255),
+                color: ProviderColor(hex: 0x10B981),
                 confettiPalette: [
                     ProviderColor(hex: 0x2ADB5C),
                     ProviderColor(hex: 0x111113),

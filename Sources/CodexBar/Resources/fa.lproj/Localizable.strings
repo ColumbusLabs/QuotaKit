@@ -1134,6 +1134,9 @@
 "Base URL" = "پایگاه URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "URL پایه برای نمونه LLM-API-Key-Proxy.";
 "Browser cookies" = "کوکی های مرورگر";
+"Browser cookies are used only for the optional prepaid balance." = "کوکی‌های مرورگر فقط برای موجودی پیش‌پرداخت اختیاری استفاده می‌شوند.";
+"Imports browser cookies to read the optional prepaid balance." = "کوکی‌های مرورگر را برای خواندن موجودی پیش‌پرداخت اختیاری وارد می‌کند.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "هدر Cookie را که از صفحه صورتحساب Hugging Face گرفته‌اید، جای‌گذاری کنید.";
 "Cap end" = "انتهای نهایی";
 "Cap start" = "شروع کپ";
 "Capacity End" = "پایان ظرفیت";

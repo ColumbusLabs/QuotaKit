@@ -6194,6 +6194,34 @@
         }
       }
     },
+    "The app now uses refreshed provider accent colors; widget colors stay the same.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "The app now uses refreshed provider accent colors; widget colors stay the same."}},
+        "ar": {"stringUnit": {"state": "translated", "value": "يستخدم التطبيق الآن ألوانًا محدّثة لإبراز هوية المزوّدين؛ وتبقى ألوان الأدوات كما هي."}},
+        "ca": {"stringUnit": {"state": "translated", "value": "L’app ara fa servir colors d’accent actualitzats per als proveïdors; els colors dels ginys es mantenen igual."}},
+        "de": {"stringUnit": {"state": "translated", "value": "Die App verwendet jetzt aktualisierte Anbieter-Akzentfarben; Widget-Farben bleiben unverändert."}},
+        "es": {"stringUnit": {"state": "translated", "value": "La app ahora usa colores de acento actualizados para los proveedores; los colores de los widgets no cambian."}},
+        "fa": {"stringUnit": {"state": "translated", "value": "برنامه اکنون از رنگ‌های تأکیدی به‌روزشده برای ارائه‌دهندگان استفاده می‌کند؛ رنگ ویجت‌ها بدون تغییر می‌ماند."}},
+        "fr": {"stringUnit": {"state": "translated", "value": "L’app utilise désormais des couleurs d’accent actualisées pour les fournisseurs ; les couleurs des widgets restent inchangées."}},
+        "gl": {"stringUnit": {"state": "translated", "value": "A aplicación usa agora cores de acento actualizadas para os provedores; as cores dos widgets non cambian."}},
+        "id": {"stringUnit": {"state": "translated", "value": "Aplikasi kini menggunakan warna aksen penyedia yang diperbarui; warna widget tetap sama."}},
+        "it": {"stringUnit": {"state": "translated", "value": "L’app ora usa colori di accento aggiornati per i provider; i colori dei widget restano invariati."}},
+        "ja": {"stringUnit": {"state": "translated", "value": "アプリのプロバイダーアクセントカラーを更新しました。ウィジェットの色は変わりません。"}},
+        "ko": {"stringUnit": {"state": "translated", "value": "앱의 제공업체 강조 색상이 업데이트되었으며 위젯 색상은 그대로 유지됩니다."}},
+        "nl": {"stringUnit": {"state": "translated", "value": "De app gebruikt nu bijgewerkte accentkleuren voor providers; widgetkleuren blijven hetzelfde."}},
+        "pl": {"stringUnit": {"state": "translated", "value": "Aplikacja używa teraz odświeżonych kolorów akcentu dostawców; kolory widżetów pozostają bez zmian."}},
+        "pt-BR": {"stringUnit": {"state": "translated", "value": "O app agora usa cores de destaque atualizadas para os provedores; as cores dos widgets permanecem iguais."}},
+        "ru": {"stringUnit": {"state": "translated", "value": "В приложении обновлены акцентные цвета провайдеров; цвета виджетов остаются прежними."}},
+        "sv": {"stringUnit": {"state": "translated", "value": "Appen använder nu uppdaterade accentfärger för leverantörer; widgetfärgerna är oförändrade."}},
+        "th": {"stringUnit": {"state": "translated", "value": "แอปใช้สีเน้นของผู้ให้บริการที่ปรับปรุงแล้ว ส่วนสีของวิดเจ็ตยังคงเดิม"}},
+        "tr": {"stringUnit": {"state": "translated", "value": "Uygulama artık sağlayıcılar için yenilenmiş vurgu renkleri kullanıyor; widget renkleri aynı kalıyor."}},
+        "uk": {"stringUnit": {"state": "translated", "value": "У застосунку оновлено акцентні кольори провайдерів; кольори віджетів залишилися без змін."}},
+        "vi": {"stringUnit": {"state": "translated", "value": "Ứng dụng hiện dùng màu nhấn nhà cung cấp mới; màu tiện ích không thay đổi."}},
+        "zh-Hans": {"stringUnit": {"state": "translated", "value": "应用现已采用更新后的提供商强调色；小组件颜色保持不变。"}},
+        "zh-Hant": {"stringUnit": {"state": "translated", "value": "App 現已採用更新後的供應商強調色；小工具顏色維持不變。"}}
+      }
+    },
     "Provider cards with real-time rate limits, budget progress, and daily cost breakdowns.": {
       "localizations": {
         "en": {

@@ -32,7 +32,7 @@ public enum T3ChatProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .t3chat),
                 iconResourceName: "ProviderIcon-t3chat",
-                color: ProviderColor(red: 245 / 255, green: 102 / 255, blue: 71 / 255),
+                color: ProviderColor(hex: 0xF56647),
                 confettiPalette: [
                     ProviderColor(hex: 0x970B72),
                     ProviderColor(hex: 0xE6229C),

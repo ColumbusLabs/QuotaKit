@@ -23,6 +23,23 @@ if aggregate is None:
 body = aggregate.group("body")
 if "      - build-linux-cli\n" not in body or '"${{ needs.build-linux-cli.result }}"' not in body:
     raise SystemExit("aggregate CI gate must require Linux CLI matrix result")
+compatibility = re.search(r"(?ms)^  swift-build-macos-compatibility:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if compatibility is None:
+    raise SystemExit("missing Xcode 26.3 compatibility build")
+compatibility_body = compatibility.group("body")
+for required in (
+    "needs: changes",
+    "if: ${{ needs.changes.outputs.macos-tests == 'true' }}",
+    "runs-on: macos-15",
+    "/Applications/Xcode_26.3.app/Contents/Developer",
+    "swift build --build-tests",
+):
+    if required not in compatibility_body:
+        raise SystemExit(f"Xcode 26.3 compatibility build is missing {required!r}")
+if "      - swift-build-macos-compatibility\n" not in body:
+    raise SystemExit("aggregate CI gate must require Xcode 26.3 compatibility build")
+if '"${{ needs.swift-build-macos-compatibility.result }}"' not in body:
+    raise SystemExit("aggregate CI verifier must receive the Xcode 26.3 build result")
 PY
 
 assert_gate() {
@@ -271,10 +288,10 @@ if [[ -s "$ios_unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success false true success >/dev/null success
-"$verify" success success false skipped false false skipped >/dev/null success
-"$verify" success success true success false false skipped >/dev/null success
-"$verify" success success false skipped false true success >/dev/null success
+"$verify" success success true success false true success success success >/dev/null
+"$verify" success success false skipped false false skipped success skipped >/dev/null
+"$verify" success success true success false false skipped success success >/dev/null
+"$verify" success success false skipped false true success success skipped >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -283,21 +300,28 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped false true success success
-assert_verify_fails success success true skipped true true success success
-assert_verify_fails success success false skipped true true success success
-assert_verify_fails success success true success true true success success
-assert_verify_fails success success false success false true success success
-assert_verify_fails success success "" skipped false true success success
-assert_verify_fails failure success true success false true success success
-assert_verify_fails success failure true success false true success success
-assert_verify_fails success success true success false true skipped success
-assert_verify_fails success success true success false false success success
-assert_verify_fails success success true success false "" skipped success
+assert_verify_fails success success true skipped false true success success success
+assert_verify_fails success success true skipped true true success success success
+assert_verify_fails success success false skipped true true success success skipped
+assert_verify_fails success success true success true true success success success
+assert_verify_fails success success false success false true success success skipped
+assert_verify_fails success success "" skipped false true success success skipped
+assert_verify_fails failure success true success false true success success success
+assert_verify_fails success failure true success false true success success success
+assert_verify_fails success success true success false true skipped success success
+assert_verify_fails success success true success false false success success success
+assert_verify_fails success success true success false "" skipped success success
+
+for compatibility_result in failure cancelled skipped "" unknown; do
+  assert_verify_fails success success true success false true success success "$compatibility_result"
+done
+for compatibility_result in success failure cancelled "" unknown; do
+  assert_verify_fails success success false skipped false false skipped success "$compatibility_result"
+done
 
 for linux_result in failure cancelled skipped "" unknown; do
-  assert_verify_fails success success true success false true success "$linux_result"
+  assert_verify_fails success success true success false true success "$linux_result" success
 done
-assert_verify_fails success success true success false true success
+assert_verify_fails success success true success false true success success
 
 printf 'CI path gate tests passed.\n'

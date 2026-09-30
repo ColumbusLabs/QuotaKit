@@ -37,7 +37,7 @@ jobs:
       ios-tests: ${{ steps.ios-tests.outputs.ios-tests }}
       ios-tests-reason: ${{ steps.ios-tests.outputs.ios-tests-reason }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -129,7 +129,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -171,7 +171,7 @@ jobs:
         shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}
         shard-count: [4]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # Full history so `lint.sh audit_parser_version` can compare against
         # the event-specific base selected below. A shallow (depth-1) checkout
         # makes the parser-version audit false-fail on parser changes because
@@ -264,7 +264,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Select Xcode with an available iOS simulator
         run: |
@@ -338,6 +338,43 @@ jobs:
           name: CodexBarMobile-xcresult
           path: ${{ runner.temp }}/CodexBarMobile.xcresult
 
+  swift-build-macos-compatibility:
+    needs: changes
+    if: ${{ needs.changes.outputs.macos-tests == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 26.3
+        run: |
+          set -euo pipefail
+          developer_dir="/Applications/Xcode_26.3.app/Contents/Developer"
+          if [[ ! -d "$developer_dir" ]]; then
+            echo "Xcode 26.3 is required for the macOS compatibility build." >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$developer_dir"
+          echo "DEVELOPER_DIR=$developer_dir" >> "$GITHUB_ENV"
+          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.3* ]]
+          /usr/bin/xcodebuild -version
+
+      - name: Restore Xcode 26.3 compatibility build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-macos15-xcode26.3-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            swiftpm-macos15-xcode26.3-
+
+      - name: Build tests with Xcode 26.3
+        run: |
+          set -euo pipefail
+          swift --version
+          swift build --build-tests
+
   build-linux-cli:
     strategy:
       fail-fast: false
@@ -348,7 +385,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Swift ${{ env.SWIFT_VERSION }} via swiftly
         shell: bash
@@ -416,11 +453,12 @@ jobs:
       - changes
       - lint
       - swift-test-macos
+      - swift-build-macos-compatibility
       - ios-test
       - build-linux-cli
     if: ${{ always() && !cancelled() }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Verify required CI jobs
         run: |
@@ -432,7 +470,8 @@ jobs:
             "${{ needs.changes.outputs.macos-tests-deferred }}" \
             "${{ needs.changes.outputs.ios-tests }}" \
             "${{ needs.ios-test.result }}" \
-            "${{ needs.build-linux-cli.result }}"
+            "${{ needs.build-linux-cli.result }}" \
+            "${{ needs.swift-build-macos-compatibility.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -449,6 +488,7 @@ jobs:
           IOS_TESTS_REASON: ${{ needs.changes.outputs.ios-tests-reason }}
           IOS_RESULT: ${{ needs.ios-test.result }}
           LINUX_RESULT: ${{ needs.build-linux-cli.result }}
+          MACOS_COMPATIBILITY_RESULT: ${{ needs.swift-build-macos-compatibility.result }}
         run: |
           set -euo pipefail
           macos_reason="${MACOS_TESTS_REASON:-<unset>}"
@@ -466,6 +506,7 @@ jobs:
             printf '| macOS gate reason | %s |\n' "$macos_reason"
             printf '| macOS focused suites | `%s` |\n' "${MACOS_TEST_FILTER:-<full suite or skipped>}"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
+            printf '| Xcode 26.3 compatibility build result | `%s` |\n' "$MACOS_COMPATIBILITY_RESULT"
             printf '| build-linux-cli matrix result | `%s` |\n' "$LINUX_RESULT"
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| iOS gate reason | %s |\n' "$ios_reason"

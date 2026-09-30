@@ -151,11 +151,15 @@ struct AccountMenuLayoutPlannerTests {
         #expect(constrained.constraintDetail == "Weekly 43%")
         #expect(constrained.headroomPercent == 0)
         #expect(constrained.severity == .critical)
+        #expect(constrained.windowDetails.map(\.label) == ["Weekly"])
+        #expect(constrained.windowDetails.first?.metricID == "secondary")
 
         let allHidden = self.compactRows(in: AccountMenuLayoutPlanner.plan(
             accounts: accounts,
             hiddenMetricIDs: ["primary", "secondary", "claude-weekly-scoped-fable"]))
         #expect(allHidden.allSatisfy { $0.constraintDetail == nil })
+        let hidesAllWindowDetails = allHidden.allSatisfy(\.windowDetails.isEmpty)
+        #expect(hidesAllWindowDetails)
         #expect(allHidden.map(\.headroomPercent) == baseline.map(\.headroomPercent))
     }
 

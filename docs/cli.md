@@ -22,22 +22,20 @@ before helper validation or failure handling. This shell mode does not elevate p
 approval is still required. The installer uses absolute system tools, clears the inherited environment before
 requesting approval, and stops on installation failure. The in-app installer is separate and uses Foundation symlinks.
 
-### Release tarball install (macOS/Linux)
-- Download release tarballs from GitHub Releases:
-  - macOS: `QuotaKitCLI-v<tag>-macos-arm64.tar.gz`, `QuotaKitCLI-v<tag>-macos-x86_64.tar.gz`
-  - Linux (glibc): `QuotaKitCLI-v<tag>-linux-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-x86_64.tar.gz`
-  - Linux (static musl): `QuotaKitCLI-v<tag>-linux-musl-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-musl-x86_64.tar.gz`
-- Extract and run `./quotakit` (symlink) or `./QuotaKitCLI`.
+### Manual standalone packages (macOS/Linux)
 
-```
-tar -xzf QuotaKitCLI-v0.17.0-macos-x86_64.tar.gz
-./quotakit --version
-./quotakit usage --format json --pretty
-```
+QuotaKit does not currently publish standalone CLI release tarballs. The supported Mac install is the
+helper bundled with `QuotaKit.app`. Maintainers can manually run the **Release CLI** workflow to produce
+workflow artifacts for macOS (arm64/x86_64) and Linux glibc (aarch64/x86_64); a manual run does not publish
+a GitHub release. Static musl packages are not supported by that workflow.
+
+For a manually supplied package, extract it and run `./quotakit` or `./QuotaKitCLI`. The package contains
+the matching Core resource bundle, which must remain beside the executable. See [RELEASING.md](RELEASING.md)
+for the current public distribution policy.
 
 ## Build
 - `./Scripts/package_app.sh` (or `./Scripts/compile_and_run.sh`) bundles `QuotaKitCLI` into `QuotaKit.app/Contents/Helpers/QuotaKitCLI`.
-- Standalone: `swift build -c release --product QuotaKitCLI` (binary at `./.build/release/QuotaKitCLI`).
+- Standalone: `swift build -c release --product CodexBarCLI` (internal build binary at `./.build/release/CodexBarCLI`). Packaging names the public executable `QuotaKitCLI`.
 - Dependencies: Swift 6.2+, Commander package (`https://github.com/steipete/Commander`).
 
 ## Configuration
