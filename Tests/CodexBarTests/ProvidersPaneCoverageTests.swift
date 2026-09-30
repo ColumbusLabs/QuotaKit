@@ -346,7 +346,7 @@ struct ProvidersPaneCoverageTests {
         let pane = ProvidersPane(settings: settings, store: store)
         let picker = pane._test_settingsPickers(for: .opencode).first { $0.id == "opencode-cookie-source" }
 
-        #expect(picker?.dynamicSubtitle?() == "Paste a Cookie header captured from the billing page.")
+        #expect(picker?.dynamicSubtitle?() == "Paste a Cookie header captured from opencode.ai.")
         #expect(picker?.trailingText?() == nil)
         #expect(picker?.trailingActions.first?.isVisible?() == false)
     }
@@ -362,7 +362,7 @@ struct ProvidersPaneCoverageTests {
         let pane = ProvidersPane(settings: settings, store: store)
         let picker = pane._test_settingsPickers(for: .opencodego).first { $0.id == "opencodego-cookie-source" }
 
-        #expect(picker?.dynamicSubtitle?() == "Paste a Cookie header captured from the billing page.")
+        #expect(picker?.dynamicSubtitle?() == "Paste a Cookie header captured from opencode.ai.")
         #expect(picker?.trailingText?() == nil)
         #expect(picker?.trailingActions.first?.isVisible?() == false)
     }
