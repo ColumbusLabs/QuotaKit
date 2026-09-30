@@ -9,6 +9,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Overview: choose Detailed or Compact in Menu settings, with labeled usage bars, the existing provider navigation, and useful details for providers without quota bars (#2616). Thanks @Zihao-Qi!
+- Widgets: improve quota readability with shared responsive tiles, full provider names, and visible secondary allowances (upstream #3137).
+- Widgets: pin verified saved accounts in a dedicated QuotaKit Account Usage widget, with opt-in refresh and privacy-aware labels (upstream #3585).
+- Claude widgets: show verified model-specific weekly quota rows by default, with a Claude setting to hide only those widget rows.
+- Widgets: offer Burn Down for compatible provider quotas, including Devin daily/weekly and Cursor billing cycles, with accurate labels and preserved Codex/Claude selections (#3097). Thanks @thatlev!
 - Claude Web: optionally show available limit resets and expiration times from the current Web response, without persisting the inventory.
 - Widgets: DeepSeek balances and OpenRouter credits, while preserving real quota limits and capture freshness.
 - Grok: critter decoration and richer billing/history details from bounded response parsing.
@@ -75,6 +80,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Menu bar: prevent blank status-item slots after normal quit while preserving saved icon positions. Thanks to the upstream reporter and verifier, @mymatejackson and @giuseppebisemi.
+- Providers: prevent crashes on oversized Kimi, Chutes, MiniMax, and Perplexity usage values or durations while preserving usable quota data.
 - Cost history: bounded stamped read views, streamed persisted event rows, and one-pass aggregate updates preserve scanner retry receipts and malformed-row safeguards.
 - Codex: account and plan authority guard quota reset backfill and dashboard enrichment; personal-info hiding uses stable account labels.
 - Claude account switching updates open menus safely and preserves warning continuity only with verified ownership.
@@ -181,10 +188,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
-- Overview: choose Detailed or Compact in Menu settings, with labeled usage bars, the existing provider navigation, and useful details for providers without quota bars (#2616). Thanks @Zihao-Qi!
-- Widgets: improve quota readability with shared responsive tiles, full provider names, and visible secondary allowances (upstream #3137).
-- Widgets: pin verified saved accounts in a dedicated QuotaKit Account Usage widget, with opt-in refresh and privacy-aware labels (upstream #3585).
-- Claude widgets: show verified model-specific weekly quota rows by default, with a Claude setting to hide only those widget rows.
 - Replicate: show current-month billing spend and optional credit balance from a saved or browser session, with labeled account support and iPhone spend sync.
 - Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
@@ -195,13 +198,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.
 - Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
 - Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.
-- Widgets: offer Burn Down for compatible provider quotas, including Devin daily/weekly and Cursor billing cycles, with accurate labels and preserved Codex/Claude selections (#3097). Thanks @thatlev!
-- Codex: add a debug-only local Workspaces project and session inspector that follows source, history, and privacy settings and cancels loads when closed. Thanks @AmrMohamad!
 
 ### Fixed
 
-- Menu bar: prevent blank status-item slots after normal quit while preserving saved icon positions. Thanks to the upstream reporter and verifier, @mymatejackson and @giuseppebisemi.
-- Providers: prevent crashes on oversized Kimi, Chutes, MiniMax, and Perplexity usage values or durations while preserving usable quota data.
 - Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.
 - OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.
