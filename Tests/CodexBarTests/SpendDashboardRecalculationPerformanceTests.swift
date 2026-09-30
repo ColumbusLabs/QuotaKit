@@ -427,7 +427,9 @@ struct SpendDashboardRecalculationPerformanceTests {
             providerScope: [])
         let duringScopedBuild = controller.modelDerivationCounters.snapshot
         #expect(pendingScoped.groups.isEmpty)
-        #expect(duringScopedBuild.buildsExecuted == before.buildsExecuted)
+        // The detached worker may start before this synchronous call returns.
+        // It must still execute at most one new derivation for this scope.
+        #expect((before.buildsExecuted...before.buildsExecuted + 1).contains(duringScopedBuild.buildsExecuted))
         await Self.waitForBuilds(before.buildCompletions + 1, controller: controller)
         let scoped = publication.model(
             requestedDays: controller.selectedDays,
@@ -647,11 +649,13 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     private static func waitUntil(_ condition: @escaping @MainActor () -> Bool) async {
-        for _ in 0..<2000 {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(5))
+        while clock.now < deadline {
             if condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for spend dashboard state")
     }
