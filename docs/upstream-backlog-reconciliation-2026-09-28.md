@@ -2,23 +2,25 @@
 
 ## Current status: cost, provider contracts and maintenance clearance
 
-Verified merged main remains `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`
-([PR #214](https://github.com/ColumbusLabs/QuotaKit/pull/214)):
-**693 accounted, 59 known gaps, 169 unresolved / 921**.
+Verified merged main is `64bd8cd644ce7bc82ab98d4084b913f1a4540c79`
+([PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215)):
+**808 accounted, 73 known gaps, 40 unresolved / 921**.
 
-[PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215) is frozen at
-`e28c5f7812533fa334be46fa216537610fc7e91e`, with proposed counts
-**808 accounted, 73 known gaps, 40 unresolved / 921**. Its compiler and fixture
-repairs are pushed. Required CI run `36671868151` has passed lint, both Linux
-builds and iOS tests; Mac shards remain pending. No merged credit is claimed yet.
+Required [CI run 36671868151](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36671868151)
+passed at exact head `e28c5f7812533fa334be46fa216537610fc7e91e`: lint,
+both Linux architectures, iOS, all four Mac shards and the aggregate gate.
+The squash tree matches that tested tree. Local main and origin/main match;
+identical-tree post-merge CI was cancelled and completion verified.
 
-The following source candidate `b4a6a7abe58221818a3bb76e874d706566450702`
-has ledger counts **850 accounted, 69 known gaps, 2 unresolved / 921** after
-current-source review of all 140 historical merge claims and 22 tested
-implementation/test/documentation closures. The two unresolved reviews are
-provider-cookie localization (315) and the host-aware plugin cookie contract
-(841). The 69 gaps still require implementation or a specific final-source
-supersession/applicability decision. Candidate counts are not merged counts.
+The following grouped source combines
+`b4a6a7abe58221818a3bb76e874d706566450702` and
+`0d42ba2af5836e64c7fbc90a920a5e4f63e249ac` with candidate accounting:
+**859 accounted, 60 known gaps, 2 unresolved / 921**. All 140 historical merge
+claims were reviewed against current source. Twenty-two preceding tested rows
+and nine new runtime/applicability closures have source provenance. The two
+unresolved decisions are residual shared-card context applicability (315) and
+host-aware plugin cookies (841). Explicit cookie subtitle localization is already
+tested. Candidate counts are not merged counts.
 
 ### Implemented and verified in the new candidate
 
@@ -32,8 +34,9 @@ supersession/applicability decision. Candidate counts are not merged counts.
   build-tests gate, focused test-runner/PTY maintenance and accurate recovery and
   distribution documentation.
 - Final provider app accents on Mac/iPhone with established widget colors and
-  explicit retained fork-color decisions. Recorder placeholder observation (334)
-  and native conditional session mutation (866) remain open.
+  explicit retained fork-color decisions. Recorder placeholder observation (334), metadata balance resolution (789/801)
+  and numeric boundary fixes (466) are verified; native conditional session
+  mutation (866) remains open.
 
 Focused Mac checks ran 361 tests, then 111 affected tests after repairs, then
 94 CLI/registry/architecture tests. Independent review found and fixed implicit
@@ -41,21 +44,36 @@ Antigravity CLI attribution; its 43 affected tests passed. Eight focused iPhone
 palette tests passed. Full lint passed across 2,627 files, followed by scoped lint
 for final fixes. Both package resolvers, CI path-gate checks and synthetic
 TERM/KILL process-group cleanup passed. Parser hash is `7607317f30850961`.
+The follow-on ran 199 focused Mac and 8 portable tests, then passed 47 affected
+Mac and 8 portable tests after a formatting-fixture correction and retained
+OpenRouter architecture marker. Other passing suites were not rerun. Cookie
+localization spans all 39 active pickers and 23 catalogs; independent reviews and
+scoped format/strict lint passed. Homebrew rows386/459/687 are excluded under the
+supported no-cask policy; plugin-tabs242 are implemented and default-on838 is an
+explicit retained placement policy.
 Required exact-head hosted CI and merge are pending. No full local suite, live
 provider/browser/Keychain probe, product release, version or cursor advance ran.
 
 ### Cleanup and next
 
-One primary worktree and 34 local branches remain; 97 local and 16 remote refs
-have been removed with source/containment/recovery proofs. Five provider snapshot
-branches have full source proofs for removal after the covering merge. Remaining
-unique branch content is being reconciled against current source before removal.
+One primary worktree and 28 local branches remain; 103 local and 18 remote refs
+have been removed with source/containment/recovery proofs. PR #215 refs and five
+covered provider snapshot branches were removed after the verified merge.
+Remaining unique branch content is being reconciled against current source before
+removal.
 
-Next: close PR #215 at its passing exact head, move this verified source onto the
-identical squash tree, run one combined required CI cycle, merge and clean its
-covered refs. Then address the grouped numeric, account-authority/privacy,
-cost-history/reset and cookie-policy slices. Refresh upstream only for final
-clearance proof; keep the monitor cursor fixed until every applicable row closes.
+The stale remote optimization branch was also removed after a verified private
+recovery bundle and expected-OID lease. Its repeated-stat optimization is already
+represented; three unique unbenchmarked cache experiments are archived as separate
+performance work. The current sort order is retained. No upstream row receives
+credit from this cleanup; all unique commits remain recoverable.
+
+Next: finish the residual card-context source audit,
+move the tested grouped source onto the identical PR #215 squash tree, run one
+combined required CI cycle, merge and clean covered refs. Then address grouped
+account-authority/privacy, cost-history/reset and cookie-policy slices. Refresh
+upstream for final clearance proof; keep the monitor cursor fixed until every
+applicable row closes.
 
 ---
 
