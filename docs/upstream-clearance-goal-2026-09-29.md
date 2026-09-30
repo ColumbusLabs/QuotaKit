@@ -1,5 +1,19 @@
 # Upstream clearance goal — 2026-09-29
 
+## Current checkpoint
+
+PR #214 is verified merged as `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`:
+**693 accounted, 59 known gaps, 169 unresolved / 921**. Its required CI passed
+and the tested/squashed trees match. One primary worktree remains.
+
+The next candidate implements 14 gap rows and includes 143 original-row source
+audits plus focused documentation parity. Its proposed counts are **808 accounted,
+73 known gaps, 40 unresolved / 921**, pending exact-head hosted CI and merge.
+Implementation and independent review are verified locally; the goal stays active.
+Cleanup has removed 27 local and 16 remote branches, leaving 103 local refs and
+four origin tracking refs including HEAD. Preserve the remaining unique source
+until its applicable behavior is integrated or specifically dispositioned.
+
 ## Finish line
 
 The user authorized a persistent goal to clear all upstream work and remove
@@ -130,3 +144,9 @@ Provider contracts, quota correctness, catalog/architecture and provider additio
 are the next independent source audit groups, using the pinned tested code commit.
 One worktree remains; cleanup now totals 14 local and 14 remote branches, including
 PR #213's temporary branch. Continue cleanup as each subsequent slice closes.
+
+## Quota/process/pricing/provider slice
+
+Code candidate `773099859e5beed780f3b6b8bb401496a5efeb3c` covers recorded quota burndown, retained-environment diagnostics, owned probe cleanup and bounded parsing, reserve/product aliases with historical/current pricing, Azure version settings and Ollama recovery/diagnostics. Focused checks, strict lint and independent reviews passed. Required hosted CI includes Mac and the current research-document-triggered iOS gate. See the current reconciliation for exact rows, counts, check limits and verified recovery directories.
+
+Nine more completed local snapshots were removed after semantic source/test/doc review and a verified private bundle. The unfinished cost/Codex snapshot remains for performance parity and branch-specific source decisions; branch cleanup is not evidence that those changes were implemented.
