@@ -1,28 +1,38 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: cost, provider contracts and maintenance clearance
+## Current status: locally verified runtime recovery
 
-Verified merged main is `64bd8cd644ce7bc82ab98d4084b913f1a4540c79`
-([PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215)):
-**808 accounted, 73 known gaps, 40 unresolved / 921**.
+[PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as
+`7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`: **860 accounted,60 known gaps,1 unresolved /921**.
+Exact head `caa71f847b013d10d9edf4a75f721e32590499d5` passed every required
+[CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039)
+gate. The squash tree exactly matches the tested tree; main and origin/main are
+synchronized. Its isolated native pipe fix preserves prefix/error/EOF semantics.
+Identical-tree post-merge CI36706769713 was cancelled and completion verified.
 
-Required [CI run 36671868151](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36671868151)
-passed at exact head `e28c5f7812533fa334be46fa216537610fc7e91e`: lint,
-both Linux architectures, iOS, all four Mac shards and the aggregate gate.
-The squash tree matches that tested tree. Local main and origin/main match;
-identical-tree post-merge CI was cancelled and completion verified.
+Runtime-recovery source `778882884196e59cf4ead0a405cd2cadef4df852` has exactly the locally verified
+source tree from `c245ec6a0d0a4e19e2c53e564f0495f6896b0be9`. It closes20 concrete rows in its candidate:
+**880 accounted,40 known gaps,1 unresolved /921**. All planned focused filters
+passed across42 suite names in affected-only runs; full lint passed with zero
+violations across2644 files plus locale/parser/package/release-helper gates.
+Publication and required exact-head hosted CI remain delivery gates; this candidate
+is not a verified merge. The next wave is active on the primary checkout for the
+remaining41 rows and applicable fresh-tail behavior with GPT6 Luna max owners.
 
-The following grouped source combines
-`997988ae699569a923a6dd473d9bca227935394d` and
-`2d4031784d9c361a224a6a412a20c73013c1cd51` and
-`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
-**860 accounted, 60 known gaps, 1 unresolved / 921**. All 140 historical merge
-claims were reviewed against current source. Twenty-two preceding tested rows
-and ten new runtime/applicability closures have source provenance. Host-aware plugin cookies (841) are the only unresolved decision. Cookie subtitle
-localization and shared-account confidence/reset context (315/451) are tested,
-including six focused account/card tests. Candidate counts are not merged counts.
+A safe upstream refresh found nine additional objects through
+`5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f` (930 observed total).
+Those nine are audited separately and receive no ledger credit here. The monitor
+cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
 
-### Implemented and verified in the new candidate
+Cleanup removed **118 local and19 remote refs**. **15 local branches and one
+primary worktree** remain before this publication. Fourteen source-covered
+intermediate branches and PR216's slice branch were retired with expected-OID
+checks, complete source audits and a verified self-contained recovery bundle.
+Unique unfinished work and unrelated battery work remain protected. No full local
+suite, live provider/browser/Keychain/SSH probe, product release, app relaunch or
+product-version/cursor advance ran.
+
+### Earlier PR216 candidate scope
 
 - Native cost timestamp parsing, incremental order validation and lean workspace
   reads; normal scanner history hydration remains tracked in row 149.
@@ -51,29 +61,20 @@ localization spans all 39 active pickers and 23 catalogs; independent reviews an
 scoped format/strict lint passed. Homebrew rows386/459/687 are excluded under the
 supported no-cask policy; plugin-tabs242 are implemented and default-on838 is an
 explicit retained placement policy.
-Required exact-head hosted CI and merge are pending. No full local suite, live
+PR216 exact-head hosted CI and merge passed. The recovery candidate has its own pending gates. No full local suite, live
 provider/browser/Keychain probe, product release, version or cursor advance ran.
 
 ### Cleanup and next
 
-One primary worktree and 28 local branches remain; 103 local and 18 remote refs
-have been removed with source/containment/recovery proofs. PR #215 refs and five
-covered provider snapshot branches were removed after the verified merge.
-Remaining unique branch content is being reconciled against current source before
-removal.
+One primary worktree and15 local branches remain;118 local and19 remote refs
+have been retired with source/containment/recovery proofs. PR216's exact tested
+merge is verified, and all14 fully covered intermediate tips remain recoverable.
 
-The stale remote optimization branch was also removed after a verified private
-recovery bundle and expected-OID lease. Its repeated-stat optimization is already
-represented; three unique unbenchmarked cache experiments are archived as separate
-performance work. The current sort order is retained. No upstream row receives
-credit from this cleanup; all unique commits remain recoverable.
-
-Next: publish this verified grouped source,
-move the tested grouped source onto the identical PR #215 squash tree, run one
-combined required CI cycle, merge and clean covered refs. Then address grouped
-account-authority/privacy, cost-history/reset and cookie-policy slices. Refresh
-upstream for final clearance proof; keep the monitor cursor fixed until every
-applicable row closes.
+Next: publish the locally verified recovery slice on PR216's squash without any
+source change, run its required hosted CI, merge and retire its branch. Continue
+the remaining41 original-cut rows and applicable fresh-tail behavior in grouped
+Luna-owned slices. Reconcile every remaining branch and refresh upstream again
+before advancing the cursor or completing the goal.
 
 ---
 
