@@ -1,3 +1,5 @@
+// This established menu and switcher source exceeds the file-length limit; split during a dedicated view refactor.
+// swiftlint:disable file_length
 import AppKit
 import CodexBarCore
 import QuartzCore
@@ -1336,6 +1338,8 @@ final class TokenAccountSwitcherView: NSView {
 
 final class CodexAccountSwitcherView: NSView {
     private let accounts: [CodexVisibleAccount]
+    private let hidePersonalInfo: Bool
+    private let privacyOrdinals: [String: PersonalInfoRedactor.AccountOrdinal]
     private let onSelect: (CodexVisibleAccount) -> Void
     private var selectedAccountID: String
     private var pressedAccountID: String?
@@ -1355,9 +1359,12 @@ final class CodexAccountSwitcherView: NSView {
         accounts: [CodexVisibleAccount],
         selectedAccountID: String?,
         width: CGFloat,
+        hidePersonalInfo: Bool = false,
         onSelect: @escaping (CodexVisibleAccount) -> Void)
     {
         self.accounts = accounts
+        self.hidePersonalInfo = hidePersonalInfo
+        self.privacyOrdinals = Self.privacyOrdinals(for: accounts)
         self.onSelect = onSelect
         self.selectedAccountID = selectedAccountID ?? accounts.first?.id ?? ""
         var columns = max(1, accounts.count > 3 ? Int(ceil(Double(accounts.count) / 2)) : accounts.count)
@@ -1420,7 +1427,7 @@ final class CodexAccountSwitcherView: NSView {
                     target: self,
                     action: #selector(self.handleSelect))
                 button.identifier = NSUserInterfaceItemIdentifier(account.id)
-                button.toolTip = account.menuDisplayName
+                button.toolTip = self.displayLabel(for: account)
                 button.isBordered = false
                 button.setButtonType(.toggle)
                 button.controlSize = .small
@@ -1456,6 +1463,9 @@ final class CodexAccountSwitcherView: NSView {
 
     private func compactButtonTitle(for account: CodexVisibleAccount, buttonWidth: CGFloat) -> String {
         let availableTextWidth = max(24, buttonWidth - self.buttonHorizontalPadding)
+        if self.hidePersonalInfo {
+            return self.truncateTail(self.displayLabel(for: account), toFit: availableTextWidth)
+        }
         if self.textWidth(account.menuDisplayName) <= availableTextWidth {
             return account.menuDisplayName
         }
@@ -1506,6 +1516,30 @@ final class CodexAccountSwitcherView: NSView {
         }
 
         return title
+    }
+
+    private func displayLabel(for account: CodexVisibleAccount) -> String {
+        PersonalInfoRedactor.redactAccountLabel(
+            account.menuDisplayName,
+            isEnabled: self.hidePersonalInfo,
+            ordinal: self.privacyOrdinals[account.id])
+    }
+
+    private static func privacyOrdinals(
+        for accounts: [CodexVisibleAccount]) -> [String: PersonalInfoRedactor.AccountOrdinal]
+    {
+        let ordered = accounts.sorted { lhs, rhs in
+            let left = lhs.storedAccountID?.uuidString ?? lhs.id
+            let right = rhs.storedAccountID?.uuidString ?? rhs.id
+            return left == right ? lhs.id < rhs.id : left < right
+        }
+        var ordinals: [String: PersonalInfoRedactor.AccountOrdinal] = [:]
+        for (index, account) in ordered.enumerated() {
+            if let ordinal = PersonalInfoRedactor.AccountOrdinal(index + 1) {
+                ordinals[account.id] = ordinal
+            }
+        }
+        return ordinals
     }
 
     private func truncateTail(_ text: String, toFit width: CGFloat) -> String {

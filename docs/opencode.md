@@ -8,17 +8,29 @@ read_when:
 # OpenCode provider
 
 ## Data sources
-- Browser cookies from `opencode.ai`.
+- Browser cookies from `opencode.ai`. The legacy `auth` cookie serves the older workspace pages and the
+  `__Host-console_session` cookie authenticates Console requests. Both pass through the cookie filter, and a
+  Console-only session is valid for a migrated workspace.
 - OpenCode Go usage API at `GET https://opencode.ai/zen/go/v1/usage`, authenticated by `OPENCODE_API_KEY` or
   `providers[].apiKey`, or a selected API-key token account.
+- OpenCode Console JSON, used first for OpenCode Go web reads:
+  - `GET https://opencode.ai/console/api/orgs` lists workspaces without a workspace header.
+  - `GET https://opencode.ai/console/api/go/status` returns Go subscription meters and requires the workspace ID in
+    the `x-org-id` header.
+  - `GET https://opencode.ai/console/api/billing/status` reads the workspace's prepaid PAYG Zen balance with the
+    same header. `balanceMicroCents` is converted to USD by dividing by 100,000,000; `availableMicroCents` is a
+    separate value and is not substituted for the balance.
 - OpenCode Go local history from `~/.local/share/opencode/opencode.db` on macOS and Linux.
   Device-local quota estimates retain their values and reset dates, but QuotaKit omits pace
   forecasts until an account-scoped source reports authoritative usage.
-- `POST https://opencode.ai/_server` with server function IDs:
+- `POST https://opencode.ai/_server` with server function IDs, used for workspaces that have not migrated to Console:
   - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
   - `subscription.get` (`7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4`)
 
 ## Usage mapping
+- Console meter `usedMicroCents` and `limitMicroCents` values become percentages as `100 * used / limit`.
+- A missing Console meter reset remains unknown, with no countdown. A missing monthly reset uses the billing-period
+  end at `access.endsAt`.
 - Primary window: rolling 5-hour usage (`rollingUsage.usagePercent`, `rollingUsage.resetInSec`).
 - Secondary window: optional weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
 - Resets computed as `now + resetInSec`.
@@ -45,13 +57,21 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
 - API-key accounts preserve the saved browser-cookie preference when added, selected, edited, or removed. Cookie
   accounts select Manual, including when an API-key account is changed to a Cookie header. Keys cannot contain
   whitespace, `=`, or `:`; surrounding quotes and whitespace are removed before validation.
-- Responses are `text/javascript` with serialized objects; parse via regex.
+- Legacy workspace responses are `text/javascript` with serialized objects; Console responses are JSON.
+- OpenCode Go web reads try Console first. They use the legacy workspace page only when legacy auth is available;
+  legacy and Console sessions can expire independently. Console HTTP 401 means signed out. Console status and
+  permission errors remain API errors if the legacy route cannot supply a valid response. Cancellation and
+  certificate failures do not trigger fallback.
+- A Console Go response of `null` or `access: null` means there are no subscription windows. Prepaid pay-as-you-go
+  accounts can still report a Zen balance, including zero or negative values. Other Console billing modes are not
+  mapped. A failed optional balance read does not discard valid Go usage.
 - Missing workspace ID or rolling usage fields should raise parse errors; omitted weekly usage stays absent.
 - OpenCode web Auto imports Chrome first, then Dia when their cookie stores exist; Keychain preflight stays scoped
   to each candidate browser. Other browsers stay on Manual Cookie import until QuotaKit has an explicit browser
   selector.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
-- Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL.
+- Workspace override accepts a raw `wrk_…` or `org_…` ID, a full legacy `https://opencode.ai/workspace/...` URL, or
+  a Console `https://opencode.ai/console/...` URL.
 - Cached cookies: Keychain cache `com.steipete.codexbar.cache` (account `cookie.opencode`, source + timestamp). Browser
   import only runs when the cached cookie fails.
 - OpenCode Go unscoped Auto mode tries daily cost history derived from local `opencode-go` assistant costs first,

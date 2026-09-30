@@ -223,6 +223,28 @@ public struct ProviderFetchResult: Sendable {
             claudeOAuthKeychainCredentialAbsent: self.claudeOAuthKeychainCredentialAbsent,
             claudeOAuthKeychainCredentialUnavailable: self.claudeOAuthKeychainCredentialUnavailable)
     }
+
+    public func withDiagnostic(_ diagnostic: String) -> ProviderFetchResult {
+        ProviderFetchResult(
+            usage: self.usage,
+            credits: self.credits,
+            dashboard: self.dashboard,
+            sourceLabel: self.sourceLabel,
+            strategyID: self.strategyID,
+            strategyKind: self.strategyKind,
+            supplementalUsageTask: self.supplementalUsageTask,
+            codexResetCreditsAttempted: self.codexResetCreditsAttempted,
+            codexPATCredentialOwner: self.codexPATCredentialOwner,
+            fireworksDiscoveredAccountSlug: self.fireworksDiscoveredAccountSlug,
+            codexMonthlyLimitEnrichmentFailed: self.codexMonthlyLimitEnrichmentFailed,
+            diagnostic: diagnostic,
+            claudeOAuthKeychainPersistentRefHash: self.claudeOAuthKeychainPersistentRefHash,
+            claudeOAuthHistoryOwnerIdentifier: self.claudeOAuthHistoryOwnerIdentifier,
+            claudeOAuthCredentialOwner: self.claudeOAuthCredentialOwner,
+            claudeOAuthKeychainCredentialMismatch: self.claudeOAuthKeychainCredentialMismatch,
+            claudeOAuthKeychainCredentialAbsent: self.claudeOAuthKeychainCredentialAbsent,
+            claudeOAuthKeychainCredentialUnavailable: self.claudeOAuthKeychainCredentialUnavailable)
+    }
 }
 
 public enum ProviderSupplementalUsageUpdate: Sendable {
@@ -230,6 +252,12 @@ public enum ProviderSupplementalUsageUpdate: Sendable {
 }
 
 public struct ProviderFetchAttempt: Sendable {
+    public enum Outcome: String, Sendable {
+        case succeeded
+        case skipped
+        case failed
+    }
+
     public let strategyID: String
     public let kind: ProviderFetchKind
     public let wasAvailable: Bool
@@ -240,6 +268,13 @@ public struct ProviderFetchAttempt: Sendable {
         self.kind = kind
         self.wasAvailable = wasAvailable
         self.errorDescription = errorDescription
+    }
+
+    public var outcome: Outcome {
+        if !self.wasAvailable {
+            return .skipped
+        }
+        return self.errorDescription == nil ? .succeeded : .failed
     }
 }
 
@@ -323,9 +358,14 @@ public protocol ProviderFetchStrategy: Sendable {
     func isAvailable(_ context: ProviderFetchContext) async -> Bool
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool
+    func diagnostic(forPriorFailure error: Error) -> String?
 }
 
 extension ProviderFetchStrategy {
+    public func diagnostic(forPriorFailure _: Error) -> String? {
+        nil
+    }
+
     public func makeResult(
         usage: UsageSnapshot,
         credits: CreditsSnapshot? = nil,
@@ -355,6 +395,8 @@ public struct ProviderFetchPipeline: Sendable {
     public let resolveStrategies: @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy]
     private let resolveFallbackError: FallbackErrorResolver
     private let retrySleeper: RetrySleeper
+
+    private static let log = CodexBarLog.logger(LogCategories.provider(.antigravity))
 
     public init(
         resolveStrategies: @escaping @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy],
@@ -398,15 +440,26 @@ public struct ProviderFetchPipeline: Sendable {
             }
 
             do {
-                let result = try await ProviderFetchDelayedRetry.run(sleeper: self.retrySleeper) {
+                var result = try await ProviderFetchDelayedRetry.run(sleeper: self.retrySleeper) {
                     try await strategy.fetch(context)
                 }
                 try Task.checkCancellation()
+                if result.diagnostic == nil,
+                   let lastAvailableError,
+                   let diagnostic = strategy.diagnostic(forPriorFailure: lastAvailableError)
+                {
+                    result = result.withDiagnostic(diagnostic)
+                }
                 attempts.append(ProviderFetchAttempt(
                     strategyID: strategy.id,
                     kind: strategy.kind,
                     wasAvailable: true,
                     errorDescription: nil))
+                self.logAntigravityAutoOutcomes(
+                    provider: provider,
+                    context: context,
+                    attempts: attempts,
+                    surfacedError: nil)
                 return ProviderFetchOutcome(result: .success(result), attempts: attempts)
             } catch {
                 lastAvailableError = self.resolveFallbackError(lastAvailableError, error)
@@ -421,14 +474,50 @@ public struct ProviderFetchPipeline: Sendable {
                 if strategy.shouldFallback(on: error, context: context) {
                     continue
                 }
-                return ProviderFetchOutcome(
-                    result: .failure(lastAvailableError ?? error),
-                    attempts: attempts)
+                let surfacedError = lastAvailableError ?? error
+                self.logAntigravityAutoOutcomes(
+                    provider: provider,
+                    context: context,
+                    attempts: attempts,
+                    surfacedError: surfacedError)
+                return ProviderFetchOutcome(result: .failure(surfacedError), attempts: attempts)
             }
         }
 
         let error = lastAvailableError ?? ProviderFetchError.noAvailableStrategy(provider)
+        self.logAntigravityAutoOutcomes(
+            provider: provider,
+            context: context,
+            attempts: attempts,
+            surfacedError: error)
         return ProviderFetchOutcome(result: .failure(error), attempts: attempts)
+    }
+
+    private func logAntigravityAutoOutcomes(
+        provider: UsageProvider,
+        context: ProviderFetchContext,
+        attempts: [ProviderFetchAttempt],
+        surfacedError: Error?)
+    {
+        guard provider == .antigravity, context.sourceMode == .auto, !attempts.isEmpty else { return }
+        let sources = attempts.map { attempt in
+            let outcome = switch attempt.outcome {
+            case .succeeded:
+                "succeeded"
+            case .skipped:
+                "skipped: unavailable"
+            case .failed:
+                "failed: \(ProviderDiagnosticFetchAttempt.errorCategoryLabel(attempt.errorDescription))"
+            }
+            return "\(attempt.strategyID) (\(ProviderDiagnosticFetchAttempt.kindLabel(attempt.kind))): \(outcome)"
+        }.joined(separator: " -> ")
+        var metadata: [String: String] = ["sources": sources]
+        if let surfacedError {
+            metadata["errorCategory"] = ProviderDiagnosticError(
+                from: surfacedError,
+                authConfigured: true).category
+        }
+        Self.log.debug("Antigravity automatic source outcomes", metadata: metadata)
     }
 }
 

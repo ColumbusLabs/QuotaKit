@@ -18,6 +18,8 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let opus: RateWindow?
     public let extraRateWindows: [NamedRateWindow]
     public let providerCost: ProviderCostSnapshot?
+    /// Live-only resets returned by Claude Web's usage endpoint.
+    public let resetCredits: ClaudeRateLimitResetCreditsSnapshot?
     public let updatedAt: Date
     public let accountEmail: String?
     public let accountOrganization: String?
@@ -45,6 +47,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         opus: RateWindow?,
         extraRateWindows: [NamedRateWindow] = [],
         providerCost: ProviderCostSnapshot? = nil,
+        resetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil,
         updatedAt: Date,
         accountEmail: String?,
         accountOrganization: String?,
@@ -64,6 +67,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         self.opus = opus
         self.extraRateWindows = extraRateWindows
         self.providerCost = providerCost
+        self.resetCredits = resetCredits
         self.updatedAt = updatedAt
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization

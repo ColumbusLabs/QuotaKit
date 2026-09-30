@@ -16,6 +16,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settings)
         settings.statusChecksEnabled = false
 
         let store = UsageStore(
@@ -84,6 +85,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suiteA),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settingsA)
         settingsA.statusChecksEnabled = false
 
         let environmentA = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-profile-a"]
@@ -124,6 +126,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suiteB),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settingsB)
         settingsB.statusChecksEnabled = false
 
         let environmentB = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-profile-b"]
@@ -181,6 +184,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settings)
         settings.statusChecksEnabled = false
 
         let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-shared-profile"]
@@ -251,6 +255,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settings)
         settings.statusChecksEnabled = false
 
         let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-\(sourceLabel)-profile"]
@@ -317,6 +322,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settings)
         settings.statusChecksEnabled = false
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "primary-token")
         settings.addTokenAccount(provider: .claude, label: "Secondary", token: "secondary-token")
@@ -395,6 +401,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        self.enableClaude(in: settings)
         settings.statusChecksEnabled = false
         settings.multiAccountMenuLayout = .stacked
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "primary-token")
@@ -461,5 +468,13 @@ struct UsageStoreWidgetSnapshotAccountTests {
         #expect(preservedEntry.primary == quota)
         #expect(preservedEntry.quotaOwnerKey == freshEntry.quotaOwnerKey)
         #expect(preservedEntry.tokenUsage?.sessionTokens == 4300)
+    }
+
+    private func enableClaude(in settings: SettingsStore) {
+        settings.providerDetectionCompleted = true
+        settings.setProviderEnabled(
+            provider: .claude,
+            metadata: ProviderDefaults.metadata[.claude]!,
+            enabled: true)
     }
 }

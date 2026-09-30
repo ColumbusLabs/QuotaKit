@@ -269,6 +269,30 @@ extension CostUsageStore {
         }
     }
 
+    /// Builds the persisted v3 status input inside an existing read transaction, without loading
+    /// token history or changing the status hash to the activity-cache representation.
+    static func readCodexCatchUpProjection(
+        _ database: OpaquePointer,
+        metadata: CostUsageStoreMetadata,
+        discoveryState: CostUsageStoreDiscoveryState?,
+        lookbackState: CostUsageStoreLookbackState?) throws -> CostUsageStoreCatchUpProjection
+    {
+        try CostUsageStoreCatchUpProjection(
+            rootMtimes: metadata.rootMtimes,
+            catchUpPending: metadata.catchUpPending,
+            processedBytes: metadata.processedBytes,
+            totalBytes: metadata.totalBytes,
+            completedFiles: metadata.completedFiles,
+            totalFiles: metadata.totalFiles,
+            scanInventoryPaths: metadata.scanInventoryPaths,
+            previousReportUpdatedAtUnixMs: try? metadata.previousReportPayload.flatMap { payload in
+                try JSONDecoder().decode(PreviousReportTimestamp.self, from: payload).updatedAtUnixMs
+            },
+            files: readCodexCatchUpFiles(database),
+            discoveryState: discoveryState,
+            lookbackState: lookbackState)
+    }
+
     func readSnapshot(loadTokenSnapshots: Bool = true) -> CostUsageStoreSnapshot {
         #if DEBUG
         Self.snapshotReadForTesting?(self.databaseURL)
@@ -286,18 +310,28 @@ extension CostUsageStore {
     /// Attach the stamp only after the read transaction commits. A concurrent writer must not
     /// let a decoded older snapshot borrow a newer stamp.
     func readStampedCodexScanSnapshot(
-        loadTokenSnapshots: Bool = true) -> (snapshot: CostUsageStoreSnapshot, stamp: CodexScanStamp)?
+        loadTokenSnapshots: Bool = true) -> (
+        snapshot: CostUsageStoreSnapshot,
+        stamp: CodexScanStamp,
+        usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]?,
+        usageRowCountsByPath: [String: Int]?)?
     {
         self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
             #if DEBUG
             Self.snapshotReadForTesting?(self.databaseURL)
             #endif
-            let snapshot = try Self.inReadTransaction(database) { () -> CostUsageStoreSnapshot in
+            let read = try Self.inReadTransaction(database) { () -> (
+                snapshot: CostUsageStoreSnapshot,
+                usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]?,
+                usageRowCountsByPath: [String: Int]?) in
                 var snapshot = try Self.readSnapshot(
                     database,
                     loadTokenSnapshots: loadTokenSnapshots,
+                    loadUsageRows: loadTokenSnapshots,
                     storeURL: self.databaseURL)
+                var usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]?
+                var usageRowCountsByPath: [String: Int]?
                 if !loadTokenSnapshots {
                     let markers = Self.codexTokenSnapshotMarkersByPath(from: snapshot.files)
                     let accumulators = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
@@ -321,11 +355,18 @@ extension CostUsageStore {
                     }
                     snapshot.tokenSnapshotCounts = counts
                     snapshot.tokenSnapshotsLoaded = false
+                    let usageRows = try Self.readDecodedUsageRows(database)
+                    usageRowsByPath = usageRows.rowsByPath
+                    usageRowCountsByPath = usageRows.rowCountsByPath
                 }
-                return snapshot
+                return (snapshot, usageRowsByPath, usageRowCountsByPath)
             }
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }
-            return (snapshot, after)
+            return (
+                snapshot: read.snapshot,
+                stamp: after,
+                usageRowsByPath: read.usageRowsByPath,
+                usageRowCountsByPath: read.usageRowCountsByPath)
         }
     }
 
@@ -583,6 +624,7 @@ extension CostUsageStore {
     private static func readSnapshot(
         _ database: OpaquePointer,
         loadTokenSnapshots: Bool = true,
+        loadUsageRows: Bool = true,
         storeURL: URL) throws -> CostUsageStoreSnapshot
     {
         try CostUsageStoreSnapshot(
@@ -593,7 +635,7 @@ extension CostUsageStore {
             files: self.readFiles(database),
             tokenSnapshots: loadTokenSnapshots
                 ? self.readTokenSnapshots(database, path: nil, storeURL: storeURL) : [],
-            usageRows: self.readUsageRows(database, path: nil),
+            usageRows: loadUsageRows ? self.readUsageRows(database, path: nil) : [],
             fileDayAggregates: self.readFileDayAggregates(database, path: nil),
             dayAggregates: self.readDayAggregates(database, sinceDay: nil, untilDay: nil),
             forkLineage: self.readForkLineage(database, path: nil),
@@ -854,6 +896,20 @@ extension CostUsageStore {
         _ database: OpaquePointer,
         path: String?) throws -> [CostUsageStoreUsageRow]
     {
+        var values: [CostUsageStoreUsageRow] = []
+        _ = try self.forEachUsageRow(database, path: path) { values.append($0) }
+        return values
+    }
+
+    /// Visits each physical event row in stable file and row-index order without retaining the
+    /// encoded payload collection. The return value counts every physical row, including rows
+    /// whose payload is malformed or cannot be decoded by a higher-level reader.
+    @discardableResult
+    static func forEachUsageRow(
+        _ database: OpaquePointer,
+        path: String?,
+        _ visit: (CostUsageStoreUsageRow) throws -> Void) throws -> Int
+    {
         var sql = """
         SELECT f.path, r.row_index, r.payload
         FROM usage_rows r JOIN files f ON f.id = r.file_id
@@ -867,18 +923,44 @@ extension CostUsageStore {
         if let path {
             self.bind(path, to: statement, at: 1)
         }
-        var values: [CostUsageStoreUsageRow] = []
+        var physicalRowCount = 0
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
             guard let path = self.columnText(statement, at: 0),
                   let rowIndex = Int(exactly: sqlite3_column_int64(statement, 1)),
                   let payload = self.columnData(statement, at: 2)
             else { throw StoreError.invalidData }
-            values.append(CostUsageStoreUsageRow(path: path, rowIndex: rowIndex, payload: payload))
+            physicalRowCount += 1
+            try visit(CostUsageStoreUsageRow(path: path, rowIndex: rowIndex, payload: payload))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
-        return values
+        return physicalRowCount
+    }
+
+    static func readDecodedUsageRows(
+        _ database: OpaquePointer) throws -> (
+        rowsByPath: [String: [CostUsageScanner.CodexUsageRow]],
+        rowCountsByPath: [String: Int])
+    {
+        let decoder = JSONDecoder()
+        var rowsByPath: [String: [CostUsageScanner.CodexUsageRow]] = [:]
+        var rowCountsByPath: [String: Int] = [:]
+        try self.forEachUsageRow(database, path: nil) { row in
+            rowCountsByPath[row.path, default: 0] += 1
+            let decoded = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: row.payload)
+            #if DEBUG
+            CostUsageStore.codexStreamedUsageRowForTesting?(
+                row.path,
+                row.rowIndex,
+                row.payload.count,
+                decoded != nil)
+            #endif
+            if let decoded {
+                rowsByPath[row.path, default: []].append(decoded)
+            }
+        }
+        return (rowsByPath, rowCountsByPath)
     }
 
     private static func readUsageRows(

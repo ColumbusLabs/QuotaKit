@@ -36,6 +36,15 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     private let key: String
     private let lockURL: URL
 
+    private var userDefaults: UserDefaults {
+        ClaudeOAuthKeychainPromptPreference.resolveUserDefaults(
+            domain: self.domain,
+            bundleIdentifier: Bundle.main.bundleIdentifier,
+            standard: .standard,
+            suiteFactory: { UserDefaults(suiteName: $0) },
+            fallback: .standard)
+    }
+
     init(
         domain: String,
         key: String,
@@ -275,7 +284,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private func currentGeneration() -> String? {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         userDefaults.synchronize()
         if let generation = userDefaults.string(forKey: self.key), !generation.isEmpty {
             return generation
@@ -294,7 +303,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private func currentState() -> State {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         userDefaults.synchronize()
         if let generations = userDefaults.dictionary(forKey: self.key) as? [String: String], !generations.isEmpty {
             return .profiles(generations)
@@ -351,7 +360,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private var hasAnyUnlockedProfileFallback: Bool {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         userDefaults.synchronize()
         let prefix = self.key + Self.unlockedProfileFallbackKeyPrefix
         return userDefaults.persistentDomain(forName: self.domain)?.keys.contains {
@@ -364,7 +373,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private func unlockedProfileFallbackGeneration(profileIdentifier: String) -> String? {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         userDefaults.synchronize()
         let fallbackKey = self.unlockedProfileFallbackKey(profileIdentifier: profileIdentifier)
         guard let generation = userDefaults.string(forKey: fallbackKey), !generation.isEmpty else { return nil }
@@ -385,7 +394,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
         _ generation: String?,
         profileIdentifier: String)
     {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         let fallbackKey = self.unlockedProfileFallbackKey(profileIdentifier: profileIdentifier)
         if let generation {
             userDefaults.set(generation, forKey: fallbackKey)
@@ -396,7 +405,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private func writeGeneration(_ generation: String?) {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         if let generation {
             userDefaults.set(generation, forKey: self.key)
         } else {
@@ -406,7 +415,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
     }
 
     private func writeProfileGenerations(_ generations: [String: String]) {
-        let userDefaults = UserDefaults(suiteName: self.domain) ?? .standard
+        let userDefaults = self.userDefaults
         if generations.isEmpty {
             userDefaults.removeObject(forKey: self.key)
         } else {

@@ -424,6 +424,29 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `fetch attempt exports strategy outcome and decodes legacy attempts`() throws {
+        let attempt = ProviderFetchAttempt(
+            strategyID: "antigravity.cli-https",
+            kind: .cli,
+            wasAvailable: true,
+            errorDescription: "HTTP 503 network timeout token=fixture-secret")
+        let diagnostic = ProviderDiagnosticFetchAttempt(from: attempt)
+        let legacy = try JSONDecoder().decode(
+            ProviderDiagnosticFetchAttempt.self,
+            from: Data(#"{"kind":"local","wasAvailable":true,"errorCategory":"network"}"#.utf8))
+        let encoded = try JSONEncoder().encode(diagnostic)
+        let json = try #require(String(data: encoded, encoding: .utf8))
+
+        #expect(attempt.outcome.rawValue == "failed")
+        #expect(diagnostic.strategyID == "antigravity.cli-https")
+        #expect(diagnostic.outcome == "failed")
+        #expect(diagnostic.errorCategory == "network")
+        #expect(legacy.strategyID == nil)
+        #expect(legacy.outcome == "failed")
+        #expect(!json.contains("fixture-secret"))
+    }
+
+    @Test
     func `missing api key setup errors map to auth before api`() {
         let category = ProviderDiagnosticFetchAttempt.errorCategoryLabel(
             "Azure OpenAI API key not configured. Set AZURE_OPENAI_API_KEY.")

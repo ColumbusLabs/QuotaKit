@@ -1022,7 +1022,6 @@
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "Sparas i ~/.quotakit/config.json. Används för /v1/quota-stats.";
 "CodexBar could not safely preserve the current system account before switching." = "QuotaKit kunde inte spara det aktuella systemkontot säkert före bytet.";
 "Oasis-Token" = "Oasis-Token";
-"Open Crof dashboard" = "Öppna Crof-översikt";
 "Sonnet" = "Sonnet";
 "No credits history data available." = "Ingen kredithistorik finns tillgänglig.";
 "4 days" = "4 dagar";
@@ -1264,7 +1263,6 @@
 "Service" = "Tjänst";
 "Azure OpenAI key" = "Azure OpenAI-nyckel";
 "%@ cookies are disabled." = "%@-cookies är inaktiverade.";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Sparas i ~/.quotakit/config.json. Du kan också ange CROF_API_KEY.";
 "CodexBar will ask macOS Keychain for your Synthetic API key so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din Synthetic-API-nyckel så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "CodexBar could not update managed account storage." = "QuotaKit kunde inte uppdatera hanterad kontolagring.";
 "CodexBar will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din Augment-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
@@ -1662,3 +1660,25 @@
 "Paste a Cookie header and select its tenant below." = "Klistra in en Cookie-header och välj klientorganisation nedan.";
 
 "Blocked by monthly limit" = "Blockerat av månadsgränsen";
+
+"hooks_executable" = "Körbar fil";
+
+"agent_sessions_hide_unreachable_title" = "Dölj värdar som inte kan nås";
+
+"agent_sessions_hide_unreachable_subtitle" = "Dölj värdar när deras sessioner inte kan hämtas.";
+
+"Switch Claude Code account" = "Byt Claude Code-konto";
+
+"No active account" = "Inget aktivt konto";
+
+"Details for %@" = "Information om %@";
+
+"Switch Claude Code to %@" = "Byt Claude Code till %@";
+
+"Switching account…" = "Byter konto…";
+
+"Refreshing account status…" = "Uppdaterar kontostatus…";
+
+"QuotaKit Help" = "QuotaKit-hjälp";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Med ett valt eller angivet Google-konto accepterar Auto rapporter från den lokala appen, agy CLI och IDE endast om identiteten matchar och försöker sedan med OAuth. Uttryckligen valda Local API / agy CLI kan använda ett annat lokalt inloggat konto.";

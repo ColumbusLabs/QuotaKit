@@ -909,6 +909,68 @@ struct GrokWebBillingFetcherTests {
 
 extension GrokWebBillingFetcherTests {
     @Test
+    func `rejects unsupported grpc flags and truncated frames`() {
+        var unsupported = Self.grpcFrame(Self.protobufPayload(usedPercent: 42, resetEpoch: 1_800_000_001))
+        unsupported[0] = 0x01
+        let truncated = Self.grpcFrame(Self.protobufPayload(usedPercent: 42, resetEpoch: 1_800_000_001)).dropLast()
+
+        #expect(GrokWebBillingFetcher.grpcWebDataFrames(from: unsupported).isEmpty)
+        #expect(GrokWebBillingFetcher.grpcWebDataFrames(from: Data(truncated)).isEmpty)
+        #expect {
+            _ = try GrokWebBillingFetcher.parseGRPCWebResponse(unsupported)
+        } throws: { $0 is GrokWebBillingError }
+        #expect {
+            _ = try GrokWebBillingFetcher.parseGRPCWebResponse(Data(truncated))
+        } throws: { $0 is GrokWebBillingError }
+    }
+
+    @Test
+    func `rejects duplicate or wrong wire type billing percentages`() {
+        let percent = Self.fixed32Field(1, value: 42)
+        let duplicate = Data(percent + percent)
+        let wrongWireType = Data([0x08, 0x2A])
+
+        for payload in [duplicate, wrongWireType] {
+            #expect {
+                _ = try GrokWebBillingFetcher.parseGRPCWebResponse(Self.grpcFrame(payload))
+            } throws: { error in
+                guard case GrokWebBillingError.parseFailed = error else { return false }
+                return true
+            }
+        }
+    }
+
+    @Test
+    func `product billing parser accepts unique identity and percentage and omits ambiguous fields`() throws {
+        let validEntry = Self.varintField(1, value: 2) + Self.fixed32Field(2, value: 37.5)
+        let payload = Self.lengthDelimitedField(
+            1,
+            message:
+            Self.fixed32Field(1, value: 50)
+                + Self.lengthDelimitedField(7, message: validEntry))
+        let snapshot = try GrokWebBillingFetcher.parseGRPCWebResponse(Self.grpcFrame(Data(payload)))
+        #expect(snapshot.usedPercent == 50)
+        #expect(snapshot.productUsage == [GrokProductUsage(product: "GrokBuild", usedPercent: 37.5)])
+
+        let ambiguousEntries = [
+            Self.varintField(1, value: 2) + Self.varintField(1, value: 4) + Self.fixed32Field(2, value: 37.5),
+            Self.varintField(1, value: 2) + Self.fixed32Field(2, value: 37.5) + Self.fixed32Field(2, value: 38),
+            Self.fixed32Field(1, value: 2) + Self.fixed32Field(2, value: 37.5),
+            Self.varintField(1, value: 2) + Self.varintField(2, value: 37),
+        ]
+        for entry in ambiguousEntries {
+            let malformed = Self.lengthDelimitedField(
+                1,
+                message:
+                Self.fixed32Field(1, value: 50)
+                    + Self.lengthDelimitedField(7, message: entry))
+            let result = try GrokWebBillingFetcher.parseGRPCWebResponse(Self.grpcFrame(Data(malformed)))
+            #expect(result.usedPercent == 50)
+            #expect(result.productUsage.isEmpty)
+        }
+    }
+
+    @Test
     func `web strategy does not infer cadence from invalid proxy bounds`() async throws {
         let reset = Date().addingTimeInterval(6 * 24 * 60 * 60)
         let futureStart = reset.addingTimeInterval(24 * 60 * 60)
@@ -1136,6 +1198,21 @@ extension GrokWebBillingFetcherTests {
         data.append(0x10) // field 2, varint
         data.append(contentsOf: Self.varint(resetEpoch))
         return data
+    }
+
+    private static func fixed32Field(_ number: UInt8, value: Float) -> [UInt8] {
+        var bits = value.bitPattern.littleEndian
+        var bytes = [number << 3 | 0x05]
+        withUnsafeBytes(of: &bits) { bytes.append(contentsOf: $0) }
+        return bytes
+    }
+
+    private static func varintField(_ number: UInt8, value: UInt64) -> [UInt8] {
+        [number << 3] + self.varint(value)
+    }
+
+    private static func lengthDelimitedField(_ number: UInt8, message: [UInt8]) -> [UInt8] {
+        [number << 3 | 0x02] + self.varint(UInt64(message.count)) + message
     }
 
     private static func grpcFrame(_ payload: Data, flags: UInt8 = 0x00) -> Data {

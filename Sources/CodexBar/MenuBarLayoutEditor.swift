@@ -1036,9 +1036,8 @@ struct MenuBarLayoutPreview: View {
             scopedWeeklyTitle: scopedNamed?.title,
             automatic: automaticRenderWindow,
             // Provider-specific by design: Mistral uses spend text when its automatic lane has no percentage window.
-            automaticText: provider == .mistral && automaticRenderWindow == nil
-                ? StatusItemController.mistralSpendDisplayText(snapshot: snapshot)
-                : nil,
+            automaticText: StatusItemController.menuBarLayoutAutomaticText(
+                provider: provider, snapshot: snapshot, automatic: automaticRenderWindow),
             sessionPace: self.store.menuBarLayoutPaceText(
                 provider: provider,
                 window: session,
@@ -1056,7 +1055,14 @@ struct MenuBarLayoutPreview: View {
                 dataConfidence: snapshot.dataConfidence,
                 now: now),
             runsOut: runsOut,
-            balance: MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot),
+            balance: MenuBarLayoutBalanceResolver.balance(
+                provider: provider,
+                snapshot: snapshot,
+                codexCredits: self.store.codexConsumerProjectionIfNeeded(
+                    for: provider,
+                    surface: .menuBar,
+                    snapshotOverride: snapshot,
+                    now: now)?.credits?.snapshot),
             costToday: costToday.map {
                 UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
             },

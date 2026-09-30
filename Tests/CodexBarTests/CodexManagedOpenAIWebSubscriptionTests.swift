@@ -5,6 +5,114 @@ import Testing
 
 extension CodexManagedOpenAIWebTests {
     @Test
+    func `codex presentation clears subscription dates without accepted authority`() throws {
+        let settings = self.makeSettingsStore(suite: "CodexManagedOpenAIWebTests-subscription-presentation-clear")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        let expiresAt = Date(timeIntervalSince1970: 1_787_236_207)
+        let renewsAt = Date(timeIntervalSince1970: 1_787_322_607)
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 18, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 42, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            subscriptionExpiresAt: expiresAt,
+            subscriptionRenewsAt: renewsAt,
+            updatedAt: Date(timeIntervalSince1970: 1_787_000_000),
+            identity: ProviderIdentitySnapshot(
+                providerID: .codex,
+                accountEmail: "codex@example.com",
+                accountOrganization: nil,
+                loginMethod: "Pro"))
+        store.snapshots[.codex] = snapshot
+
+        let cacheURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-dashboard-cache-\(UUID().uuidString).json")
+        let presented = try OpenAIDashboardCacheStore.$cacheURLOverride.withValue(cacheURL) {
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
+                accountEmail: "other@example.com",
+                snapshot: OpenAIDashboardSnapshot(
+                    signedInEmail: "other@example.com",
+                    codeReviewRemainingPercent: nil,
+                    creditEvents: [],
+                    dailyBreakdown: [],
+                    usageBreakdown: [],
+                    creditsPurchaseURL: nil,
+                    subscriptionExpiresAt: expiresAt.addingTimeInterval(86400),
+                    subscriptionRenewsAt: renewsAt.addingTimeInterval(86400),
+                    updatedAt: Date())))
+            return try #require(store.presentationSnapshot(for: .codex))
+        }
+        defer { try? FileManager.default.removeItem(at: cacheURL) }
+
+        #expect(presented.subscriptionExpiresAt == nil)
+        #expect(presented.subscriptionRenewsAt == nil)
+        #expect(presented.primary == snapshot.primary)
+        #expect(presented.secondary == snapshot.secondary)
+        #expect(presented.identity?.providerID == snapshot.identity?.providerID)
+        #expect(presented.identity?.accountEmail == snapshot.identity?.accountEmail)
+        #expect(presented.identity?.loginMethod == snapshot.identity?.loginMethod)
+        #expect(store.snapshots[.codex]?.subscriptionExpiresAt == expiresAt)
+        #expect(store.snapshots[.codex]?.subscriptionRenewsAt == renewsAt)
+    }
+
+    @Test
+    func `same email dashboard cache overlays dates without changing raw codex snapshot`() throws {
+        let settings = self.makeSettingsStore(suite: "CodexManagedOpenAIWebTests-subscription-cache-overlay")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        let embeddedExpiry = Date(timeIntervalSince1970: 1_787_236_207)
+        let embeddedRenewal = Date(timeIntervalSince1970: 1_787_322_607)
+        let acceptedExpiry = Date(timeIntervalSince1970: 1_790_000_000)
+        let acceptedRenewal = Date(timeIntervalSince1970: 1_790_086_400)
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 18, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 42, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            subscriptionExpiresAt: embeddedExpiry,
+            subscriptionRenewsAt: embeddedRenewal,
+            updatedAt: Date(timeIntervalSince1970: 1_787_000_000),
+            identity: ProviderIdentitySnapshot(
+                providerID: .codex,
+                accountEmail: "codex@example.com",
+                accountOrganization: nil,
+                loginMethod: "Pro"))
+        store.snapshots[.codex] = snapshot
+
+        let cacheURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-dashboard-cache-\(UUID().uuidString).json")
+        let presented = try OpenAIDashboardCacheStore.$cacheURLOverride.withValue(cacheURL) {
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
+                accountEmail: "CODEX@example.com",
+                snapshot: OpenAIDashboardSnapshot(
+                    signedInEmail: "codex@example.com",
+                    codeReviewRemainingPercent: nil,
+                    creditEvents: [],
+                    dailyBreakdown: [],
+                    usageBreakdown: [],
+                    creditsPurchaseURL: nil,
+                    subscriptionExpiresAt: acceptedExpiry,
+                    subscriptionRenewsAt: acceptedRenewal,
+                    updatedAt: Date())))
+            return try #require(store.presentationSnapshot(for: .codex))
+        }
+        defer { try? FileManager.default.removeItem(at: cacheURL) }
+
+        #expect(presented.subscriptionExpiresAt == acceptedExpiry)
+        #expect(presented.subscriptionRenewsAt == acceptedRenewal)
+        #expect(presented.primary == snapshot.primary)
+        #expect(presented.secondary == snapshot.secondary)
+        #expect(presented.identity?.providerID == snapshot.identity?.providerID)
+        #expect(presented.identity?.accountEmail == snapshot.identity?.accountEmail)
+        #expect(presented.identity?.loginMethod == snapshot.identity?.loginMethod)
+        #expect(store.snapshots[.codex]?.subscriptionExpiresAt == embeddedExpiry)
+        #expect(store.snapshots[.codex]?.subscriptionRenewsAt == embeddedRenewal)
+    }
+
+    @Test
     func `authorized dashboard merges subscription metadata into existing codex usage`() async throws {
         let settings = self.makeSettingsStore(suite: "CodexManagedOpenAIWebTests-subscription-merge")
         let managedAccount = ManagedCodexAccount(

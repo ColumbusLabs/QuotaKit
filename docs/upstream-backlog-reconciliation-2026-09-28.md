@@ -901,3 +901,9 @@ mobile identity code and tests. Do not merge either old stack wholesale.
 
 No builds, tests, PRs, merges, cursor changes, or releases were started during
 this short cleanup and ledger pass.
+
+## Combined final verification checkpoint — 2026-09-30
+
+PR #217’s Recovery20 exact-head CI passed lint, Linux, iOS and macOS compatibility, but Mac shards exposed a locally reproduced stack overflow during fork-history hydration and redundant alias lookups in warm scans. The obsolete remaining run was cancelled. A coherent POSIX file-identity helper and reuse of one alias snapshot repair those paths without weakening receipt, parser, schema, path-moved or retry guards. The scanner edit updates the generated parser hash to `c52728bbaeedeb90`; the prior published `7607317f30850961` compatibility path is retained, with no unmerged intermediate producer whitelisted.
+
+All 41 original-cut rows remaining after Recovery20 map to the integrated final wave. The combined source remains uncredited until coordinated focused tests, lint, exact-head hosted CI and covering merge pass. Extend #217 with this integrated wave and the reviewed nine-object fresh tail, then perform one required CI matrix. Merged credit remains 860/921; 930 objects have been observed. There is one worktree and 15 local branches.

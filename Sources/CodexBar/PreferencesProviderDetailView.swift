@@ -339,7 +339,11 @@ private struct ProviderDetailInfoRows: View {
 
     var body: some View {
         ProviderDetailInfoRow(label: L("Source"), value: self.store.sourceLabel(for: self.provider))
-        ProviderDetailInfoRow(label: L("Version"), value: self.store.version(for: self.provider) ?? L("not detected"))
+        if self.provider != .antigravity {
+            ProviderDetailInfoRow(
+                label: L("Version"),
+                value: self.store.version(for: self.provider) ?? L("not detected"))
+        }
         ProviderDetailInfoRow(label: L("Updated"), value: self.updatedText)
 
         if let status = self.store.status(for: self.provider) {

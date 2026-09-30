@@ -165,6 +165,7 @@ check_cli_installer() {
 check_release_dsym_paths() {
   "${ROOT_DIR}/Scripts/test_release_dsym_paths.sh"
   python3 "${ROOT_DIR}/Scripts/test_release_asset_verification.py"
+  python3 "${ROOT_DIR}/Scripts/test_test_environment.py"
 }
 
 check_sparkle_signing_paths() {

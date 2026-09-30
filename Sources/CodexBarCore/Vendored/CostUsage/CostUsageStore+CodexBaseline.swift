@@ -36,7 +36,8 @@ extension CostUsageStore {
 
         init(
             snapshot: CostUsageStoreSnapshot,
-            tokenSnapshotMarkersByPath: [String: Bool] = [:])
+            tokenSnapshotMarkersByPath: [String: Bool] = [:],
+            usageRowCountsByPath: [String: Int]? = nil)
         {
             self.metadata = snapshot.metadata
             self.files = snapshot.files.map { file in
@@ -54,7 +55,8 @@ extension CostUsageStore {
                 ? []
                 : Set(self.snapshotCounts.compactMap { path, count in count > 0 ? path : nil })
                 .union(self.malformedDetailsPaths)
-            self.rowCounts = snapshot.usageRows.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
+            self.rowCounts = usageRowCountsByPath
+                ?? snapshot.usageRows.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
             self.fileAggregatesByPath = Dictionary(grouping: snapshot.fileDayAggregates, by: \.path)
                 .mapValues { $0.map(\.aggregate) }
         }
@@ -103,15 +105,19 @@ extension CostUsageStore {
     static func codexBaseline(
         from snapshot: CostUsageStoreSnapshot,
         stamp: CodexScanStamp,
-        decoded: CostUsageCache? = nil) -> CodexDecodedBaseline
+        decoded: CostUsageCache? = nil,
+        usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
+        usageRowCountsByPath: [String: Int]? = nil) -> CodexDecodedBaseline
     {
         let decoded = decoded ?? Self.decodeCodexCache(
             from: snapshot,
             tokenSnapshotsLoaded: snapshot.tokenSnapshotsLoaded,
-            preserveMalformedFiles: !snapshot.tokenSnapshotsLoaded)
+            preserveMalformedFiles: !snapshot.tokenSnapshotsLoaded,
+            decodedUsageRowsByPath: usageRowsByPath)
         var persistence = CodexPersistenceState(
             snapshot: snapshot,
-            tokenSnapshotMarkersByPath: Self.codexTokenSnapshotMarkersByPath(from: snapshot.files))
+            tokenSnapshotMarkersByPath: Self.codexTokenSnapshotMarkersByPath(from: snapshot.files),
+            usageRowCountsByPath: usageRowCountsByPath)
         if !snapshot.tokenSnapshotsLoaded {
             persistence.unloadedTokenSnapshotPaths = Set(persistence.snapshotCounts.compactMap { path, count in
                 guard count > 0, decoded.files[path]?.codexTokenSnapshots == nil else { return nil }

@@ -98,6 +98,7 @@ struct SettingsDefaultsState {
     var agentSessionsEnabled: Bool
     var agentSessionLabelStyleRaw: String
     var agentSessionsManualHosts: String
+    var agentSessionsHideUnreachableHosts: Bool
     var preferredCurrencyCode: String
     var macFleetSyncEnabled: Bool
     var macFleetSyncIncludeSecrets: Bool

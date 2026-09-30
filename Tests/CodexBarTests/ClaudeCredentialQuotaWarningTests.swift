@@ -29,11 +29,11 @@ struct ClaudeCredentialQuotaWarningTests {
     }
 
     @Test
-    func `credential rewrites retire unresolved account threshold episodes`() async throws {
+    func `credential rewrites preserve unresolved account threshold episodes`() async throws {
         try await self.checkRefreshes(
             activeAccount: nil,
             historyOwner: nil,
-            expectedThresholds: [50, 50, 50, 50, 20])
+            expectedThresholds: [50, 50, 20])
     }
 
     @Test(arguments: [true, false], ["session", "weekly", "scoped"])
@@ -42,7 +42,7 @@ struct ClaudeCredentialQuotaWarningTests {
             [49.0, 48, 47, 46, 45, 44].enumerated().map { index, remaining in
                 (index.isMultiple(of: 2) ? "account-a" : nil, remaining, hasReset ? 3600 : nil)
             },
-            expectedThresholds: [50, 50],
+            expectedThresholds: hasReset ? [50] : [50, 50],
             lane: lane)
     }
 
@@ -61,26 +61,31 @@ struct ClaudeCredentialQuotaWarningTests {
             remaining.enumerated().map { index, value in
                 (index.isMultiple(of: 2) ? "account-a" : nil, value, hasReset ? 3600 : nil)
             },
-            expectedThresholds: [50, 50, 20, 20])
+            expectedThresholds: hasReset ? [50, 20] : [50, 50, 20])
     }
 
     @Test(arguments: ["reset", "increase", "missing"])
     func `discontinuous identity gaps start one independent fallback episode`(discontinuity: String) throws {
         let reset: TimeInterval? = discontinuity == "missing" ? nil : (discontinuity == "reset" ? 7200 : 3600)
+        var samples: [(identity: String?, remaining: Double, reset: TimeInterval?)] = [
+            ("account-a", 40, 3600),
+            (nil, discontinuity == "increase" ? 49 : 39, reset),
+            ("account-a", 38, 3600),
+            (nil, discontinuity == "increase" ? 49 : 37, reset),
+            ("account-a", 36, 3600),
+            (nil, discontinuity == "increase" ? 49 : 35, reset),
+        ]
+        if discontinuity == "increase" {
+            // Exercise the 20% threshold after the independent fallback episode begins.
+            samples.append((nil, 19, reset))
+        }
         try self.checkIdentitySamples(
-            [
-                ("account-a", 40, 3600),
-                (nil, discontinuity == "increase" ? 49 : 39, reset),
-                ("account-a", 38, 3600),
-                (nil, discontinuity == "increase" ? 49 : 37, reset),
-                ("account-a", 36, 3600),
-                (nil, discontinuity == "increase" ? 49 : 35, reset),
-            ],
-            expectedThresholds: [50, 50])
+            samples,
+            expectedThresholds: discontinuity == "increase" ? [50, 50, 20] : [50, 50])
     }
 
     @Test
-    func `identity gaps do not merge known or unresolved accounts`() throws {
+    func `identity gaps follow the most recently verified account without merging known accounts`() throws {
         try self.checkIdentitySamples(
             [
                 ("account-a", 49, 3600),
@@ -91,21 +96,21 @@ struct ClaudeCredentialQuotaWarningTests {
                 ("account-b", 44, 3600),
                 (nil, 43, 3600),
             ],
-            expectedThresholds: [50, 50, 50])
+            expectedThresholds: [50, 50])
     }
 
     @Test
-    func `unresolved account A does not suppress a later known account B`() throws {
+    func `unresolved warning migrates when a later stable account is observed`() throws {
         try self.checkIdentitySamples(
             [(nil, 49, 3600), ("account-b", 48, 7200), (nil, 47, 3600)],
-            expectedThresholds: [50, 50])
+            expectedThresholds: [50])
     }
 
     @Test
-    func `known account A does not suppress an unresolved account B with the same reset`() throws {
+    func `known warning history continues through a same-cycle identity gap`() throws {
         try self.checkIdentitySamples(
             [("account-a", 49, 3600), (nil, 48, 3600), ("account-a", 47, 3600)],
-            expectedThresholds: [50, 50])
+            expectedThresholds: [50])
     }
 
     @Test(arguments: [true, false])
@@ -123,7 +128,7 @@ struct ClaudeCredentialQuotaWarningTests {
                 ("account-a", 48, reset),
                 (nil, 47, reset),
             ],
-            expectedThresholds: [50, 50, 20, 20, 50])
+            expectedThresholds: [50, 20, 50])
     }
 
     private func checkIdentitySamples(

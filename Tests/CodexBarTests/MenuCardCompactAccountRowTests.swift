@@ -176,22 +176,6 @@ struct MenuCardCompactAccountRowTests {
     }
 
     @Test
-    func `crof hides the primary reset until the secondary window is available`() throws {
-        let primary = Fixture.window(80, after: 3600)
-        let withoutSecondary = try Fixture.row(provider: .crof, primary: primary)
-        let withSecondary = try Fixture.row(
-            provider: .crof,
-            primary: primary,
-            weekly: Fixture.window(70, after: 187_200))
-        let primaryReset = try #require(
-            UsageFormatter.resetLine(for: primary, style: .countdown, now: Fixture.now))
-
-        #expect(withoutSecondary.windowDetails.first?.resetPresentation == .hidden)
-        #expect(withSecondary.windowDetails.first?.resetPresentation == .standard)
-        #expect(Fixture.model(withSecondary).detailLines[0].hasSuffix(primaryReset))
-    }
-
-    @Test
     func `captured stale usage remains visible with an error and affects height`() throws {
         let row = try Fixture.row(
             primary: Fixture.window(90, after: 3600),

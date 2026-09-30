@@ -84,39 +84,28 @@ struct ProviderPluginOptionalPOSTTests {
     func `optional form secrets are redacted even when optional transport fails`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let runtime = try Self.runtime(engine, optional: """
-        {url:'https://console.example.com/optional',method:'POST',form:{token:'private-fixture+&'}}
-        """, suffix: "throw new Error('private-fixture+& private-fixture%2B%26');") { request in
+        let handler: @Sendable (URLRequest) async throws -> (Data, URLResponse) = { request in
             if request.httpMethod == "POST" { throw URLError(.cannotConnectToHost) }
             return ProviderPluginConsoleCapabilitiesTests.response(request, body: "ready")
         }
+        let runtime = try Self.runtime(
+            engine,
+            optional: """
+            {url:'https://console.example.com/optional',method:'POST',form:{token:'private-fixture+&'}}
+            """,
+            suffix: "throw new Error('private-fixture+& private-fixture%2B%26');",
+            handler: handler)
         let error = await #expect(throws: ProviderPluginError.self) { try await runtime.fetchUsage() }
         #expect(error?.localizedDescription.contains("private-fixture") == false)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
-    func `caller cancellation interrupts required GET and optional POST`(engine: ProviderPluginEngineKind) async throws {
-        let calls = Calls()
-        let runtime = try Self.runtime(engine) { request in
-            calls.started()
-            do { try await Task.sleep(for: .seconds(30)) } catch {
-                calls.cancelled()
-                throw error
-            }
-            return ProviderPluginConsoleCapabilitiesTests.response(request, body: "late")
-        }
-        let task = Task { try await runtime.fetchUsage() }
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-        while calls.count < 2, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.count == 2)
-        task.cancel()
-        await #expect(throws: CancellationError.self) { try await task.value }
-        while calls.cancellations < 2, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.cancellations == 2)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
+    func `caller cancellation interrupts required GET and optional POST`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        try await ProviderPluginCancellationTestSupport.checkCallerCancellation(
+            engine: engine,
+            optionalMethod: "POST")
     }
 
     private static func runtime(
@@ -126,26 +115,25 @@ struct ProviderPluginOptionalPOSTTests {
         suffix: String = "return {identity:{loginMethod:response.optional?.bodyText || 'none'}};",
         handler: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) throws -> ProviderPluginRuntime
     {
-        try ProviderPluginConsoleCapabilitiesTests.runtime(engine, body: """
+        let body = """
         const response = await ctx.http.getWithOptional('https://console.example.com/primary',
           \(optional), {optionalBudgetSeconds:\(budget)});
         \(suffix)
-        """, transport: ProviderHTTPTransportHandler(handler))
+        """
+        return try ProviderPluginConsoleCapabilitiesTests.runtime(
+            engine,
+            body: body,
+            transport: ProviderHTTPTransportHandler(handler))
     }
 
     private final class Calls: @unchecked Sendable {
         private let lock = NSLock()
         private var starts = 0
-        private var cancels = 0
+
         var count: Int {
             self.lock.withLock { self.starts }
         }
 
-        var cancellations: Int {
-            self.lock.withLock { self.cancels }
-        }
-
         func started() { self.lock.withLock { self.starts += 1 } }
-        func cancelled() { self.lock.withLock { self.cancels += 1 } }
     }
 }

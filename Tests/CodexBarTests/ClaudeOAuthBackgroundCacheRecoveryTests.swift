@@ -18,6 +18,93 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
         }
     }
 
+    @Test
+    func `fresh profile memory owner is restored after confirmed stale cache cleanup`() async throws {
+        let service = "com.steipete.codexbar.cache.recovery-tests.\(UUID().uuidString)"
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let environment = ["HOME": root.path, "CLAUDE_CONFIG_DIR": root.path]
+        let credentialsURL = root.appendingPathComponent(".credentials.json")
+        let memory = ClaudeOAuthCredentialsStore.MemoryCacheStore()
+        let pending = ClaudeOAuthCredentialsStore.PendingCacheClearMemoryStore()
+        let profileIdentifier = ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(credentialsURL) {
+            ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environment)
+        }
+        let cacheKey = ClaudeOAuthCredentialsStore.cacheKeyForTesting(profileIdentifier: profileIdentifier)
+        let freshCredentials = try ClaudeOAuthCredentials.parse(data: self.credentialsData())
+        let freshHistoryOwner = try #require(freshCredentials.historyOwnerIdentifier)
+        let freshRecord = ClaudeOAuthCredentialRecord(
+            credentials: freshCredentials,
+            owner: .codexbar,
+            source: .memoryCache,
+            historyOwnerIdentifier: freshHistoryOwner)
+        let expiredEntry = ClaudeOAuthCredentialsStore.CacheEntry(
+            data: self.credentialsData(expiresIn: -3600),
+            storedAt: Date(),
+            owner: .claudeCLI,
+            profileIdentifier: profileIdentifier)
+
+        try await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            KeychainCacheStore.setTestStoreForTesting(true)
+            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            KeychainCacheStore.store(key: cacheKey, entry: expiredEntry)
+            defer { KeychainCacheStore.clear(key: cacheKey) }
+
+            try await KeychainAccessGate.withTaskOverrideForTesting(false) {
+                try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                    try await ClaudeOAuthCredentialsStore.withPendingCacheClearStoreOverrideForTesting(pending) {
+                        try await ClaudeOAuthCredentialsStore.withIsolatedCredentialsFileTrackingForTesting {
+                            try await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(
+                                credentialsURL)
+                            {
+                                try await ClaudeOAuthCredentialsStore.$taskMemoryCacheStoreOverride.withValue(memory) {
+                                    let afterRejectedClear: @Sendable () -> Void = {
+                                        memory.record = freshRecord
+                                        memory.timestamp = Date()
+                                        memory.profileIdentifier = profileIdentifier
+                                    }
+                                    let loadAndVerifyFreshMemory: () throws -> Void = {
+                                        let loaded = try ProviderInteractionContext.$current
+                                            .withValue(.background) {
+                                                try ClaudeOAuthCredentialsStore.loadRecord(
+                                                    environment: environment,
+                                                    allowKeychainPrompt: false,
+                                                    respectKeychainPromptCooldown: true,
+                                                    allowClaudeKeychainRepairWithoutPrompt: false)
+                                            }
+
+                                        #expect(loaded.credentials.accessToken == freshCredentials.accessToken)
+                                        #expect(loaded.source == .memoryCache)
+                                        #expect(loaded.owner == .codexbar)
+                                        #expect(loaded.historyOwnerIdentifier == freshHistoryOwner)
+                                        if case let .found(restored) = KeychainCacheStore.load(
+                                            key: cacheKey,
+                                            as: ClaudeOAuthCredentialsStore.CacheEntry.self)
+                                        {
+                                            #expect(restored.owner == .codexbar)
+                                            #expect(restored.historyOwnerIdentifier == freshHistoryOwner)
+                                            #expect(restored.profileIdentifier == profileIdentifier)
+                                            #expect(try ClaudeOAuthCredentials.parse(data: restored.data)
+                                                .accessToken ==
+                                                freshCredentials.accessToken)
+                                        } else {
+                                            Issue.record("Same-profile memory should replace the expired cache")
+                                        }
+                                    }
+                                    try ClaudeOAuthCredentialsStore.$taskAfterRejectedCacheClearForTesting
+                                        .withValue(afterRejectedClear) {
+                                            try loadAndVerifyFreshMemory()
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Test(arguments: CacheScenario.allCases)
     func `automatic refresh retains valid manual credentials while honoring invalidation`(
         scenario: CacheScenario) async throws

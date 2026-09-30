@@ -1192,7 +1192,6 @@
 "Open Augment (Log Out & Back In)" = "فتح Augment (تسجيل الخروج والعودة للدخول)";
 "Open Codebuff Dashboard" = "لوحة تحكم مفتوحة Codebuff";
 "Open Command Code Settings" = "افتح إعدادات Command Code";
-"Open Crof dashboard" = "لوحة تحكم Open Crof";
 "Open Manus" = "فتح Manus";
 "Open MiMo Balance" = "توازن MiMo مفتوح";
 "Open Moonshot Console" = "وحدة التحكم المفتوحة Moonshot";
@@ -1263,7 +1262,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "التخزين في ~/.quotakit/config.json. يتطلب مفتاح API إداري بشري.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "مخزنة في ~/.quotakit/config.json. تستخدم /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "مخزن في ~/.quotakit/config.json. يمكنك أيضا توفير CODEBUFF_API_KEY أو السماح QuotaKit بقراءة ~/.config/manicode/credentials.json (تم إنشاؤه بواسطة `codebuff login`).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "مخزن في ~/.quotakit/config.json. يمكنك أيضا توفير CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "مخزنة في ~/.quotakit/config.json. يمكنك أيضا توفير KILO_API_KEY أو ~/.local/share/kilo/auth.json (كيلو.أكس).";
 "T3 Chat cookie" = "T3 Chat كوكي";
 "Team mode" = "وضع الفريق";
@@ -1667,3 +1665,25 @@
 "Paste a Cookie header and select its tenant below." = "الصق ترويسة Cookie وحدد المستأجر أدناه.";
 
 "Blocked by monthly limit" = "تم الحظر بسبب الحد الشهري";
+
+"hooks_executable" = "الملف التنفيذي";
+
+"agent_sessions_hide_unreachable_title" = "إخفاء المضيفين غير المتاحين";
+
+"agent_sessions_hide_unreachable_subtitle" = "إخفاء المضيفين عند تعذّر جلب جلساتهم.";
+
+"Switch Claude Code account" = "تبديل حساب Claude Code";
+
+"No active account" = "لا يوجد حساب نشط";
+
+"Details for %@" = "تفاصيل %@";
+
+"Switch Claude Code to %@" = "تبديل Claude Code إلى %@";
+
+"Switching account…" = "جارٍ تبديل الحساب…";
+
+"Refreshing account status…" = "جارٍ تحديث حالة الحساب…";
+
+"QuotaKit Help" = "مساعدة QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "عند تحديد حساب Google أو تمريره، يقبل Auto تقارير التطبيق المحلي وagy CLI وIDE فقط إذا تطابقت الهوية، ثم يحاول OAuth. يمكن لوضع Local API أو agy CLI المحدد صراحةً استخدام حساب محلي آخر مسجّل الدخول.";

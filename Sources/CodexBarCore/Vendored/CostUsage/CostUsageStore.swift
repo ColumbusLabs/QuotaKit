@@ -1,5 +1,10 @@
 import Dispatch
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 #if canImport(SQLite3)
 import SQLite3
@@ -49,6 +54,78 @@ actor CostUsageStore {
         func sync<T>(_ operation: () throws -> T) rethrows -> T {
             try self.queue.sync(execute: operation)
         }
+
+        func isExecutingCurrentContext() -> Bool {
+            DispatchQueue.getSpecific(key: Self.queueKey) == ObjectIdentifier(self)
+        }
+    }
+
+    /// Fork resolution can request cached parent snapshots while the JSONL parser is on the
+    /// stack. A synchronous dispatch to the store executor may run inline on that same stack.
+    /// This single worker gives that bounded read a fresh stack while the actual SQLite work
+    /// still runs through `StoreSerialExecutor`, without occupying a shared worker pool.
+    private final class HistoryHydrationExecutor: @unchecked Sendable {
+        private let condition = NSCondition()
+        private var pendingWork: [@Sendable () -> Void] = []
+        private var workerThread: Thread?
+
+        private final class ResultBox<Value: Sendable>: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value: Value?
+
+            func store(_ value: Value) {
+                self.lock.lock()
+                self.value = value
+                self.lock.unlock()
+            }
+
+            func take() -> Value {
+                self.lock.lock()
+                defer { self.lock.unlock() }
+                guard let value = self.value else {
+                    preconditionFailure("History hydration completed without a result")
+                }
+                return value
+            }
+        }
+
+        init() {
+            let thread = Thread { [weak self] in self?.run() }
+            thread.name = "com.steipete.codexbar.cost-usage-history-hydration"
+            thread.qualityOfService = .utility
+            self.workerThread = thread
+            thread.start()
+        }
+
+        func sync<Value: Sendable>(_ operation: @escaping @Sendable () -> Value) -> Value {
+            guard Thread.current !== self.workerThread else {
+                return operation()
+            }
+
+            let result = ResultBox<Value>()
+            let semaphore = DispatchSemaphore(value: 0)
+            self.condition.lock()
+            self.pendingWork.append {
+                result.store(operation())
+                semaphore.signal()
+            }
+            self.condition.signal()
+            self.condition.unlock()
+            semaphore.wait()
+            return result.take()
+        }
+
+        private func run() {
+            while true {
+                self.condition.lock()
+                while self.pendingWork.isEmpty {
+                    self.condition.wait()
+                }
+                let work = self.pendingWork.removeFirst()
+                self.condition.unlock()
+                autoreleasepool { work() }
+            }
+        }
     }
 
     private final class SQLiteConnection: @unchecked Sendable {
@@ -59,9 +136,9 @@ actor CostUsageStore {
 
         init(handle: OpaquePointer, path: String) {
             self.handle = handle
-            let attributes = try? FileManager.default.attributesOfItem(atPath: path)
-            self.fileNumber = (attributes?[.systemFileNumber] as? NSNumber)?.uint64Value
-            self.volumeNumber = (attributes?[.systemNumber] as? NSNumber)?.uint64Value
+            let identity = CostUsageStore.fileIdentity(at: path)
+            self.fileNumber = identity?.fileNumber
+            self.volumeNumber = identity?.volumeNumber
         }
 
         func close() {
@@ -177,6 +254,14 @@ actor CostUsageStore {
     #if DEBUG
     /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
     nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
+    /// Test-only observations for the bounded activity/status read path.
+    nonisolated(unsafe) static var codexReadViewIntegrityCheckForTesting: ((URL) -> Void)?
+    nonisolated(unsafe) static var codexReadViewSnapshotForTesting: ((URL, CostUsageStoreReadPurpose) -> Void)?
+    nonisolated(unsafe) static var codexReadViewDecodeForTesting: ((URL, CostUsageStoreReadPurpose) -> Void)?
+    nonisolated(unsafe) static var codexReadViewUsageRowsForTesting: ((URL) -> Void)?
+    nonisolated(unsafe) static var codexReadViewCheckpointForTesting: ((URL) throws -> Void)?
+    /// Physical rows visited by the lean scanner reader and whether each payload decoded.
+    nonisolated(unsafe) static var codexStreamedUsageRowForTesting: ((String, Int, Int, Bool) -> Void)?
     /// Test-only observation of token snapshot table materialization.
     nonisolated(unsafe) static var tokenSnapshotsReadForTesting: ((URL) -> Void)?
     /// Test-only path-scoped proof for receipt-bound history hydration.
@@ -190,6 +275,7 @@ actor CostUsageStore {
     /// threads when tests or short-lived readers create several store actors.
     private nonisolated static let sharedExecutor = StoreSerialExecutor(
         label: "com.steipete.codexbar.cost-usage-store")
+    private nonisolated static let historyHydrationExecutor = HistoryHydrationExecutor()
     nonisolated var unownedExecutor: UnownedSerialExecutor {
         Self.sharedExecutor.asUnownedSerialExecutor()
     }
@@ -200,6 +286,9 @@ actor CostUsageStore {
     private var connection: SQLiteConnection?
     private var failureGeneration = UUID()
     var retainedCodexBaseline: RetainedCodexBaseline?
+    var retainedCodexRead: RetainedCodexRead?
+    /// A failed stamp requests open-time schema validation after the current read exits.
+    var requiresReadReopen = false
     #if DEBUG
     var codexBaselineReleaseObserverForTesting: (@Sendable () -> Void)?
     #endif
@@ -235,11 +324,9 @@ actor CostUsageStore {
     /// data_version catches other connections; total_changes catches this actor's writes.
     func currentCodexScanStamp() -> CodexScanStamp? {
         guard let connection = self.connection, let database = connection.handle,
-              let attributes = try? FileManager.default.attributesOfItem(atPath: self.databaseURL.path),
-              let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
-              let volumeNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value,
-              connection.fileNumber == fileNumber,
-              connection.volumeNumber == volumeNumber,
+              let identity = Self.fileIdentity(at: self.databaseURL.path),
+              connection.fileNumber == identity.fileNumber,
+              connection.volumeNumber == identity.volumeNumber,
               let dataVersion = try? Self.scalarInt(database, "PRAGMA data_version"),
               let schemaVersion = try? Self.scalarInt(database, "PRAGMA schema_version"),
               let userVersion = try? Self.scalarInt(database, "PRAGMA user_version"),
@@ -259,14 +346,15 @@ actor CostUsageStore {
             schemaVersion: schemaVersion,
             userVersion: userVersion,
             parserHash: parserHash,
-            fileNumber: fileNumber,
-            volumeNumber: volumeNumber)
+            fileNumber: identity.fileNumber,
+            volumeNumber: identity.volumeNumber)
     }
 
     func reopenCodexScanConnection() {
         guard self.activeTransactionDatabase == nil else { return }
         self.retainedCodexBaseline = nil
         self.retainedCodexScan = nil
+        self.retainedCodexRead = nil
         self.connection?.close()
         self.connection = nil
     }
@@ -330,12 +418,16 @@ extension CostUsageStore {
         receipt: CodexBaselineReceipt,
         expectedScanStamp: CodexScanStamp) -> CodexTokenSnapshotHydrationResult
     {
-        self.syncWithStoreIsolation { store in
-            store.hydrateCodexTokenSnapshots(
-                paths: paths,
-                receipt: receipt,
-                expectedScanStamp: expectedScanStamp)
+        let hydrate: @Sendable () -> CodexTokenSnapshotHydrationResult = {
+            self.syncWithStoreIsolation { store in
+                store.hydrateCodexTokenSnapshots(
+                    paths: paths,
+                    receipt: receipt,
+                    expectedScanStamp: expectedScanStamp)
+            }
         }
+        guard !Self.sharedExecutor.isExecutingCurrentContext() else { return hydrate() }
+        return Self.historyHydrationExecutor.sync(hydrate)
     }
 
     nonisolated func syncReleaseCodexBaseline(_ receipt: CodexBaselineReceipt) {
@@ -390,6 +482,15 @@ extension CostUsageStore {
                 calendar: calendar,
                 temporalRange: temporalRange,
                 loadTemporal: loadTemporal)
+        }
+    }
+
+    nonisolated func syncLoadCodexReadView(
+        calendar: Calendar,
+        purpose: CostUsageStoreReadPurpose) -> CostUsageStoreReadView
+    {
+        self.syncWithStoreIsolation { store in
+            store.loadCodexReadView(calendar: calendar, purpose: purpose)
         }
     }
 
@@ -577,6 +678,7 @@ extension CostUsageStore {
     private func recoverConnectionAfterFailure() {
         self.retainedCodexBaseline = nil
         self.retainedCodexScan = nil
+        self.retainedCodexRead = nil
         self.failureGeneration = UUID()
         guard let handle = self.connection?.handle else { return }
         if sqlite3_get_autocommit(handle) == 0,
@@ -635,31 +737,39 @@ extension CostUsageStore {
         }
     }
 
+    /// File identity checks can occur inside fork-history parsing. POSIX stat avoids extra
+    /// Foundation attribute-lookup frames on those paths.
+    private static func fileIdentity(at path: String) -> (fileNumber: UInt64, volumeNumber: UInt64)? {
+        var info = stat()
+        guard path.withCString({ fstatat(AT_FDCWD, $0, &info, 0) }) == 0 else { return nil }
+        return (UInt64(truncatingIfNeeded: info.st_ino), UInt64(truncatingIfNeeded: info.st_dev))
+    }
+
     func connectionMatchesPath(_ database: OpaquePointer) throws -> Bool {
         var moved: Int32 = 0
         guard sqlite3_file_control(database, "main", SQLITE_FCNTL_HAS_MOVED, &moved) == SQLITE_OK else {
             throw StoreError.sqlite(SQLITE_IOERR)
         }
         guard moved == 0,
-              let attributes = try? FileManager.default.attributesOfItem(atPath: self.databaseURL.path),
-              let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
-              let volumeNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value,
+              let identity = Self.fileIdentity(at: self.databaseURL.path),
               let connection = self.connection
         else { return false }
-        return connection.fileNumber == fileNumber && connection.volumeNumber == volumeNumber
+        return connection.fileNumber == identity.fileNumber && connection.volumeNumber == identity.volumeNumber
     }
 
     func ensureDatabase() throws -> OpaquePointer {
         if let database = self.connection?.handle {
-            if try self.connectionMatchesPath(database) {
+            if !self.requiresReadReopen, try self.connectionMatchesPath(database) {
                 return database
             }
             self.retainedCodexBaseline = nil
             self.retainedCodexScan = nil
+            self.retainedCodexRead = nil
             guard sqlite3_get_autocommit(database) != 0 else { throw StoreError.sqlite(SQLITE_IOERR) }
             self.connection?.close()
             self.connection = nil
         }
+        self.requiresReadReopen = false
         do {
             let opened = try self.openDatabase()
             self.connection = SQLiteConnection(handle: opened, path: self.databaseURL.path)
@@ -720,6 +830,9 @@ extension CostUsageStore {
             guard state.isCurrent || state.canAdoptPredecessor else {
                 throw StoreError.incompatibleSchema
             }
+            #if DEBUG
+            Self.codexReadViewIntegrityCheckForTesting?(self.databaseURL)
+            #endif
             try Self.validateDatabaseIntegrity(database)
             try Self.execute(database, "COMMIT")
         } catch {
@@ -738,6 +851,9 @@ extension CostUsageStore {
             guard lockedState.isCurrent || lockedState.canAdoptPredecessor else {
                 throw StoreError.incompatibleSchema
             }
+            #if DEBUG
+            Self.codexReadViewIntegrityCheckForTesting?(self.databaseURL)
+            #endif
             try Self.validateDatabaseIntegrity(database)
             if lockedState.canAdoptPredecessor {
                 try self.adoptCompatiblePredecessor(database, storedHash: lockedState.storedHash)
@@ -817,6 +933,7 @@ extension CostUsageStore {
     private func rebuildDatabase(reason: String) {
         self.retainedCodexBaseline = nil
         self.retainedCodexScan = nil
+        self.retainedCodexRead = nil
         self.failureGeneration = UUID()
         self.connection?.close()
         self.connection = nil

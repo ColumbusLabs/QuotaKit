@@ -26,10 +26,11 @@ struct PredictivePaceWarningEvent: Equatable {
 }
 
 enum PredictivePaceWarningNotificationLogic {
-    static func retainingVerifiedKeysAfterClaudeCredentialSwap(
+    static func retainingClaudeWarningKeysAfterCredentialSwap(
         _ keys: Set<PredictivePaceWarningStateKey>) -> Set<PredictivePaceWarningStateKey>
     {
-        Set(keys.filter { $0.provider != .claude || $0.accountDiscriminator != "claude-account:unknown" })
+        // Credential rewrites do not prove that an unresolved notification episode ended.
+        keys
     }
 
     static func notificationIDPrefix(provider: UsageProvider, event: PredictivePaceWarningEvent) -> String {
@@ -258,8 +259,10 @@ extension UsageStore {
                 account = boundAccount
             }
         }
-        // An unresolved CLI sample does not prove which account produced it, even when a later
-        // sample has the same reset time. Only the verified OAuth owner mapping above can merge histories.
+        if let account, account != unknownAccount, account.hasPrefix("claude-account:") {
+            self.reconcileClaudeQuotaWarningOwner(unknownAccount, account: account)
+            self.lastVerifiedClaudeWarningAccountDiscriminator = account
+        }
         return (account ?? source, source)
     }
 
@@ -272,6 +275,9 @@ extension UsageStore {
                 windowID: key.windowID)
             if prior.observedAt >= (self.quotaWarningState[accountKey]?.observedAt ?? .distantPast) {
                 self.quotaWarningState[accountKey] = prior
+            }
+            if owner == "claude-account:unknown" {
+                self.quotaWarningState[accountKey]?.sharedWithUnresolvedAccount = true
             }
             self.quotaWarningState.removeValue(forKey: key)
         }

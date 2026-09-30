@@ -7,7 +7,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Changed
+- Crof is retired from active Mac and notification provider catalogs; historical sync records and unavailable configuration remain readable.
+- Test entrypoints scrub inherited secret-shaped environment values before starting test children.
+
 ### Added
+- Claude Web: optionally show available limit resets and expiration times from the current Web response, without persisting the inventory.
+- Widgets: DeepSeek balances and OpenRouter credits, while preserving real quota limits and capture freshness.
+- Grok: critter decoration and richer billing/history details from bounded response parsing.
 - CLI: optional Claude daily and model cost breakdowns, complete recorded quota history, and capture timestamps for remote Codex cost summaries.
 - Hugging Face: optionally show browser wallet credits after explicit opt-in and a matching account check, while keeping inference allowances separate.
 - Plan Usage: show recorded Codex and Claude quota burndown beside utilization history, with reset-scoped windows and capture age.
@@ -50,6 +57,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cost history: bounded stamped read views, streamed persisted event rows, and one-pass aggregate updates preserve scanner retry receipts and malformed-row safeguards.
+- Codex: account and plan authority guard quota reset backfill and dashboard enrichment; personal-info hiding uses stable account labels.
+- Claude account switching updates open menus safely and preserves warning continuity only with verified ownership.
+- Antigravity: distinct CLI quota lanes, explicit weekly family metrics, safe source diagnostics, and bounded compatibility/account checks.
+- Provider cookies: stale authentication failures cannot clear a newer saved session; opted-in plugin cookies remain scoped to their original HTTPS host.
+- Narrow preference headers and hook accessibility labels remain usable.
 - Kimi: show the monthly quota that blocks a shorter window, preserve unknown reset times, and guide expired CLI credentials through sign-in.
 - Provider recovery: keep Z.ai quota available when optional analytics fails, label StepFun credits accurately, and use Command Code reported monthly grants.
 - Mac menus: improve tinted card readability, guard placeholder window closure, and simplify the persistent Refresh row.

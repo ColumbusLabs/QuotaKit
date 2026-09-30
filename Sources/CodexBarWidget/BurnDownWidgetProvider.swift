@@ -50,7 +50,6 @@ enum BurnProviderChoice: String, AppEnum {
     case deepseek
     case deepinfra
     case codebuff
-    case crof
     case venice
     case commandcode
     case qoder
@@ -144,7 +143,6 @@ enum BurnProviderChoice: String, AppEnum {
         .deepseek: DisplayRepresentation(title: "DeepSeek"),
         .deepinfra: DisplayRepresentation(title: "DeepInfra"),
         .codebuff: DisplayRepresentation(title: "Codebuff"),
-        .crof: DisplayRepresentation(title: "Crof"),
         .venice: DisplayRepresentation(title: "Venice"),
         .commandcode: DisplayRepresentation(title: "Command Code"),
         .qoder: DisplayRepresentation(title: "Qoder"),

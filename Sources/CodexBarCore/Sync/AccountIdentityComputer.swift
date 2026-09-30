@@ -74,7 +74,7 @@ public enum AccountIdentityComputer {
              // after we ship corresponding iOS render support and have a
              // real cross-Mac merge use case for that provider.
              .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
-             .codebuff, .crof, .venice, .commandcode, .stepfun,
+             .codebuff, .venice, .commandcode, .stepfun,
              // Upstream v0.26.0 new providers. Same rationale as above —
              // iOS 1.7 surfaces these via single-account cards; promote
              // to Tier-A only when cross-Mac merging is needed.

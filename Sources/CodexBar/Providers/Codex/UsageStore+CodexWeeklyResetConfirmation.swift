@@ -60,6 +60,10 @@ extension UsageStore {
         let rawInitialSnapshot = rawInitialResult.usage.scoped(to: .codex)
         let publicationBaseline = [previousSnapshot, missingWindowBackfillSnapshot]
             .compactMap(\.self)
+            .filter { baseline in
+                CodexWeeklyResetConfirmation.accountsAreCompatible(baseline, rawInitialSnapshot) &&
+                    CodexWeeklyResetConfirmation.plansAreCompatible(baseline, rawInitialSnapshot)
+            }
             .max { $0.updatedAt < $1.updatedAt }
         let publicationInitialOutcome = if let missingWindowBackfillSnapshot {
             initialOutcome.replacingUsage(Self.codexBackfillingResetWindows(
@@ -172,7 +176,11 @@ extension UsageStore {
         }
         let confirmationDecision = CodexWeeklyResetConfirmation.confirmationDecision(
             previous: publicationBaseline,
-            previousEvidence: previousSnapshot,
+            previousEvidence: previousSnapshot.flatMap {
+                CodexWeeklyResetConfirmation.hasCompatibleResetCreditEvidence(
+                    $0,
+                    with: rawInitialSnapshot) ? $0 : nil
+            },
             initial: rawInitialSnapshot,
             confirmation: confirmationSnapshot)
         Self.logCodexWeeklyResetPublicationDecision(

@@ -64,7 +64,7 @@ struct KeychainAccessValidationMemoTests {
         func remove() { try? FileManager.default.removeItem(at: self.root) }
     }
 
-    private static func gate(memo: Memo, path: String, check: @escaping () -> OSStatus?) -> Bool {
+    private static func gate(memo: Memo, path: String, check: @escaping @Sendable () -> OSStatus?) -> Bool {
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             ProviderInteractionContext.$current.withValue(.background) {
                 KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
@@ -90,7 +90,7 @@ struct KeychainAccessValidationMemoTests {
         let memo = Memo()
         let calls = Counter()
         let original = try Data(contentsOf: fixture.resource)
-        let check: () -> OSStatus? = {
+        let check: @Sendable () -> OSStatus? = {
             _ = calls.increment()
             return (try? Data(contentsOf: fixture.resource)) == original
                 ? errSecSuccess : OSStatus(CSSMERR_CSP_VERIFY_FAILED)
@@ -112,7 +112,7 @@ struct KeychainAccessValidationMemoTests {
         let calls = Counter()
         let plist = fixture.bundle.appendingPathComponent("Contents/Info.plist")
         let original = try Data(contentsOf: plist)
-        let check: () -> OSStatus? = {
+        let check: @Sendable () -> OSStatus? = {
             _ = calls.increment()
             return (try? Data(contentsOf: plist)) == original
                 ? errSecSuccess : OSStatus(CSSMERR_CSP_VERIFY_FAILED)
@@ -154,7 +154,7 @@ struct KeychainAccessValidationMemoTests {
         defer { fixture.remove() }
         let memo = Memo()
         let calls = Counter()
-        let check: () -> OSStatus? = {
+        let check: @Sendable () -> OSStatus? = {
             _ = calls.increment()
             return errSecSuccess
         }
@@ -177,7 +177,7 @@ struct KeychainAccessValidationMemoTests {
         for _ in 0..<19 {
             joined.enter()
         }
-        let memo = Memo(onJoin: { joined.leave() })
+        let memo = Memo(validationTimeout: 10, onJoin: { joined.leave() })
         let started = DispatchSemaphore(value: 0)
         let release = DispatchSemaphore(value: 0)
         let done = DispatchGroup()
@@ -219,21 +219,101 @@ struct KeychainAccessValidationMemoTests {
         print("validation memo concurrent: requests=20 validations=\(calls.count)")
     }
 
+    @Test
+    func `timed out owner completes the shared flight for same key joiners`() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let joined = DispatchSemaphore(value: 0)
+        let memo = Memo(validationTimeout: 0.05, onJoin: { joined.signal() })
+        let started = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let nativeReturned = DispatchSemaphore(value: 0)
+        let ownerDone = DispatchSemaphore(value: 0)
+        let joinerDone = DispatchSemaphore(value: 0)
+        let calls = Counter()
+        let path = fixture.helper.path
+        let queue = DispatchQueue(label: "validation-memo-timeout-test", attributes: .concurrent)
+        defer {
+            release.signal()
+            _ = nativeReturned.wait(timeout: .now() + 5)
+        }
+
+        queue.async {
+            #expect(memo.validate(trustedApplication: Self.trust, path: path) {
+                _ = calls.increment()
+                started.signal()
+                _ = release.wait(timeout: .now() + 5)
+                nativeReturned.signal()
+                return errSecSuccess
+            } == nil)
+            ownerDone.signal()
+        }
+        #expect(started.wait(timeout: .now() + 2) == .success)
+        queue.async {
+            #expect(memo.validate(trustedApplication: Self.trust, path: path) {
+                _ = calls.increment()
+                return errSecSuccess
+            } == nil)
+            joinerDone.signal()
+        }
+
+        #expect(joined.wait(timeout: .now() + 2) == .success)
+        #expect(ownerDone.wait(timeout: .now() + 2) == .success)
+        #expect(joinerDone.wait(timeout: .now() + 2) == .success)
+        #expect(calls.count == 1)
+    }
+
+    @Test
+    func `timed out native validators keep all bounded worker slots occupied until they return`() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let memo = Memo(validationTimeout: 0.02)
+        let release = DispatchSemaphore(value: 0)
+        let started = DispatchSemaphore(value: 0)
+        let validators = DispatchGroup()
+        let calls = Counter()
+        let path = fixture.helper.path
+        defer {
+            for _ in 0..<4 {
+                release.signal()
+            }
+            _ = validators.wait(timeout: .now() + 5)
+        }
+
+        for index in 0..<4 {
+            validators.enter()
+            #expect(memo.validate(trustedApplication: Data("blocked-\(index)".utf8), path: path) {
+                _ = calls.increment()
+                started.signal()
+                _ = release.wait(timeout: .now() + 30)
+                validators.leave()
+                return errSecSuccess
+            } == nil)
+            #expect(started.wait(timeout: .now() + 2) == .success)
+        }
+
+        #expect(memo.validate(trustedApplication: Data("fifth".utf8), path: path) {
+            _ = calls.increment()
+            return errSecSuccess
+        } == nil)
+        #expect(calls.count == 4)
+    }
+
     @Test(arguments: ["version", "main executable", "invoking executable", "bundle directory"])
     func `changed bundle or executable metadata revalidates cached rejections`(_ change: String) throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let memo = Memo()
-        var calls = 0
+        let calls = Counter()
         func validate() {
             #expect(memo.validate(trustedApplication: Self.trust, path: fixture.helper.path) {
-                calls += 1
+                _ = calls.increment()
                 return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
             } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
         }
         validate()
         validate()
-        #expect(calls == 1)
+        #expect(calls.count == 1)
         switch change {
         case "version": try fixture.setVersion("2")
         case "main executable": try Data("changed main executable size".utf8).write(to: fixture.main)
@@ -244,7 +324,7 @@ struct KeychainAccessValidationMemoTests {
                 ofItemAtPath: fixture.bundle.path)
         }
         validate()
-        #expect(calls == 2)
+        #expect(calls.count == 2)
     }
 
     @Test(arguments: [OSStatus?.none, errSecInteractionNotAllowed, errSecNotAvailable, errSecParam])
@@ -252,14 +332,14 @@ struct KeychainAccessValidationMemoTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let memo = Memo()
-        var calls = 0
+        let calls = Counter()
         for _ in 0..<2 {
             #expect(memo.validate(trustedApplication: Self.trust, path: fixture.helper.path) {
-                calls += 1
+                _ = calls.increment()
                 return status
             } == status)
         }
-        #expect(calls == 2)
+        #expect(calls.count == 2)
         #expect(Self.gate(memo: memo, path: fixture.helper.path) { errSecSuccess })
     }
 
@@ -270,14 +350,14 @@ struct KeychainAccessValidationMemoTests {
         let memo = Memo()
         let status = OSStatus(CSSMERR_CSP_VERIFY_FAILED)
         let lifetime = Memo.rejectionLifetime
-        var calls = 0
+        let calls = Counter()
         for now in [100, 100 + lifetime - 1, 100 + lifetime] {
             #expect(memo.validate(trustedApplication: Self.trust, path: fixture.helper.path, now: now) {
-                calls += 1
+                _ = calls.increment()
                 return status
             } == status)
         }
-        #expect(calls == 2)
+        #expect(calls.count == 2)
     }
 
     @Test
@@ -285,7 +365,7 @@ struct KeychainAccessValidationMemoTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let memo = Memo()
-        var calls = 0
+        let calls = Counter()
         for index in 0...Memo.capacity {
             #expect(memo
                 .validate(
@@ -293,30 +373,30 @@ struct KeychainAccessValidationMemoTests {
                     path: fixture.helper.path,
                     now: 100 + Double(index))
                 {
-                    calls += 1
+                    _ = calls.increment()
                     return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
                 } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
         }
         #expect(memo.validate(trustedApplication: Data("trust-1".utf8), path: fixture.helper.path, now: 200) {
-            calls += 1
+            _ = calls.increment()
             return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
         } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
-        #expect(calls == Memo.capacity + 1)
+        #expect(calls.count == Memo.capacity + 1)
         #expect(memo.validate(trustedApplication: Data("trust-0".utf8), path: fixture.helper.path, now: 200) {
-            calls += 1
+            _ = calls.increment()
             return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
         } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
-        #expect(calls == Memo.capacity + 2)
+        #expect(calls.count == Memo.capacity + 2)
         #expect(memo.validate(trustedApplication: Data("trust-2".utf8), path: fixture.helper.path, now: 200) {
-            calls += 1
+            _ = calls.increment()
             return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
         } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
-        #expect(calls == Memo.capacity + 2)
+        #expect(calls.count == Memo.capacity + 2)
         #expect(memo.validate(trustedApplication: Data("trust-0".utf8), path: fixture.main.path, now: 200) {
-            calls += 1
+            _ = calls.increment()
             return OSStatus(CSSMERR_CSP_VERIFY_FAILED)
         } == OSStatus(CSSMERR_CSP_VERIFY_FAILED))
-        #expect(calls == Memo.capacity + 3)
+        #expect(calls.count == Memo.capacity + 3)
     }
 
     @Test
@@ -325,16 +405,16 @@ struct KeychainAccessValidationMemoTests {
         defer { fixture.remove() }
         try FileManager.default.removeItem(at: fixture.bundle.appendingPathComponent("Contents/Info.plist"))
         let memo = Memo()
-        var calls = 0
+        let calls = Counter()
         for trust in [Self.trust, nil] {
             for _ in 0..<2 {
                 #expect(memo.validate(trustedApplication: trust, path: fixture.helper.path) {
-                    calls += 1
+                    _ = calls.increment()
                     return errSecSuccess
                 } == errSecSuccess)
             }
         }
-        #expect(calls == 4)
+        #expect(calls.count == 4)
     }
 }
 #endif

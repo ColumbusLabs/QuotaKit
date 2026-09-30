@@ -98,6 +98,7 @@ struct IconRendererHideCrittersTests {
         .antigravity,
         .factory,
         .warp,
+        .init(provider: .grok),
     ])
     func `hiding critters removes every decorated style twist`(style: IconStyle) throws {
         let decorated = self.icon(style: style, hideCritters: false)
@@ -113,12 +114,32 @@ struct IconRendererHideCrittersTests {
         .antigravity,
         .factory,
         .warp,
+        .init(provider: .grok),
     ])
     func `hidden decorated styles match plain capsule bars`(style: IconStyle) throws {
         let hidden = self.icon(style: style, hideCritters: true)
         let reference = self.icon(style: .cursor, hideCritters: true)
 
         #expect(try self.pixels(hidden) == self.pixels(reference))
+    }
+
+    @Test(arguments: [true, false])
+    func `Grok visor decorates either single quota and respects Hide Critters`(primary: Bool) throws {
+        func render(hidden: Bool, style: IconStyle) -> NSImage {
+            IconRenderer.makeIcon(
+                primaryRemaining: primary ? 60 : nil,
+                weeklyRemaining: primary ? nil : 60,
+                creditsRemaining: nil,
+                stale: false,
+                style: style,
+                hideCritters: hidden)
+        }
+        #expect(try self.pixels(render(hidden: false, style: .init(provider: .grok))) != self.pixels(render(
+            hidden: true,
+            style: .init(provider: .grok))))
+        #expect(try self.pixels(render(hidden: true, style: .init(provider: .grok))) == self.pixels(render(
+            hidden: true,
+            style: .cursor)))
     }
 
     @Test

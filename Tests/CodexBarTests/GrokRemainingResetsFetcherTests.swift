@@ -38,6 +38,7 @@ struct GrokRemainingResetsFetcherTests {
             Data("<html>upstream error</html>".utf8),
             Data([0, 0, 0, 0, 4, 0x52]),
             Data([0, 0, 0, 0, 2, 0x08, 0x01]),
+            Data([0, 0, 0, 0, 2, 0x50, 0x01]),
         ]
 
         for payload in malformedPayloads {

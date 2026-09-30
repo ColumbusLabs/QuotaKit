@@ -45,6 +45,9 @@ extension UsageStore {
         phaseDidChange: (@MainActor (CodexAccountScopedRefreshPhase) -> Void)? = nil)
         async
     {
+        #if DEBUG
+        defer { self._test_codexAccountScopedRefreshDidComplete?() }
+        #endif
         let refreshStartedAt = Date()
         self.prepareRefreshState(for: .codex)
         if self.prepareCodexAccountScopedRefreshIfNeeded() {

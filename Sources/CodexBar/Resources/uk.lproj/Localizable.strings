@@ -1175,7 +1175,6 @@
 "Open Augment (Log Out & Back In)" = "Відкрити доповнення (вийти та повернутися)";
 "Open Codebuff Dashboard" = "Відкрийте інформаційну панель Codebuff";
 "Open Command Code Settings" = "Відкрийте налаштування коду команди";
-"Open Crof dashboard" = "Відкрийте інформаційну панель Crof";
 "Open Manus" = "Відкрийте Manus";
 "Open MiMo Balance" = "Відкрийте MiMo Balance";
 "Open Moonshot Console" = "Відкрийте консоль Moonshot";
@@ -1246,7 +1245,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "Зберігається в ~/.quotakit/config.json. Потрібен ключ API адміністратора Anthropic.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "Зберігається в ~/.quotakit/config.json. Використовується для /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "Зберігається в ~/.quotakit/config.json. Ви також можете надати CODEBUFF_API_KEY або дозволити QuotaKit читати ~/.config/manicode/credentials.json (створений `codebuff login`).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Зберігається в ~/.quotakit/config.json. Ви також можете надати CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Зберігається в ~/.quotakit/config.json. Ви також можете надати KILO_API_KEY або ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "T3 Чат cookie";
 "Team mode" = "Командний режим";
@@ -1663,3 +1661,25 @@
 "Paste a Cookie header and select its tenant below." = "Вставте заголовок Cookie і виберіть клієнта нижче.";
 
 "Blocked by monthly limit" = "Заблоковано місячним лімітом";
+
+"hooks_executable" = "Виконуваний файл";
+
+"agent_sessions_hide_unreachable_title" = "Приховувати недоступні вузли";
+
+"agent_sessions_hide_unreachable_subtitle" = "Приховувати вузли, якщо не вдалося отримати їхні сеанси.";
+
+"Switch Claude Code account" = "Змінити обліковий запис Claude Code";
+
+"No active account" = "Немає активного облікового запису";
+
+"Details for %@" = "Відомості про %@";
+
+"Switch Claude Code to %@" = "Перемкнути Claude Code на %@";
+
+"Switching account…" = "Зміна облікового запису…";
+
+"Refreshing account status…" = "Оновлення стану облікового запису…";
+
+"QuotaKit Help" = "Довідка QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Для вибраного або переданого облікового запису Google режим Auto приймає звіти локального застосунку, agy CLI та IDE лише за збігу особи, потім пробує OAuth. Явно вибрані Local API / agy CLI можуть використовувати інший локально авторизований обліковий запис.";

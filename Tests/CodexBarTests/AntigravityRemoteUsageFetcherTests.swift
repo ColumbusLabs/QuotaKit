@@ -48,6 +48,164 @@ struct AntigravityRemoteUsageFetcherTests {
     }
 
     @Test
+    func `remote fetch prefers known quota summary and preserves account identity`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeAntigravityCredentials(
+            accessToken: "token",
+            refreshToken: nil,
+            expiry: Date().addingTimeInterval(3600),
+            idToken: GeminiAPITestHelpers.makeIDToken(email: "user@company.com", hostedDomain: "company.com"),
+            email: "user@company.com")
+
+        let dataLoader = GeminiAPITestHelpers.dataLoader { request in
+            guard let url = request.url, let host = url.host else {
+                throw URLError(.badURL)
+            }
+            guard host == "cloudcode-pa.googleapis.com" else {
+                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+            }
+            if url.path == "/v1internal:loadCodeAssist" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.jsonData([
+                        "currentTier": ["id": "standard-tier", "name": "standard"],
+                        "cloudaicompanionProject": "managed-project-123",
+                    ]))
+            }
+            if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                let body = try #require(request.httpBody)
+                let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+                #expect(json["project"] as? String == "managed-project-123")
+                #expect(request.timeoutInterval == 2)
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.jsonData([
+                        "groups": [[
+                            "displayName": "Gemini Models",
+                            "buckets": [[
+                                "bucketId": "opaque-capacity-17",
+                                "displayName": "Generation capacity",
+                                "window": "weekly",
+                                "remaining": ["remainingFraction": 0.75],
+                            ]],
+                        ]],
+                    ]))
+            }
+            if url.path == "/v1internal:fetchAvailableModels" {
+                Issue.record("A usable quota summary should avoid the legacy model endpoint")
+            }
+            return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+        }
+
+        let snapshot = try await AntigravityRemoteUsageFetcher(
+            timeout: 8,
+            homeDirectory: env.homeURL.path,
+            dataLoader: dataLoader)
+            .fetch()
+        let window = try #require(snapshot.toUsageSnapshot().extraRateWindows?.first)
+
+        #expect(snapshot.modelQuotas.isEmpty)
+        #expect(snapshot.accountEmail == "user@company.com")
+        #expect(snapshot.accountPlan == "Paid")
+        #expect(window.id == "antigravity-quota-summary-opaque-capacity-17")
+        #expect(window.window.windowMinutes == 10080)
+        #expect(window.window.remainingPercent == 75)
+    }
+
+    @Test
+    func `remote fetch falls back when quota summary has no known quota`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeAntigravityCredentials(
+            accessToken: "token",
+            refreshToken: nil,
+            expiry: Date().addingTimeInterval(3600),
+            idToken: GeminiAPITestHelpers.makeIDToken(email: "user@example.com"),
+            email: "user@example.com")
+
+        let dataLoader = GeminiAPITestHelpers.dataLoader { request in
+            guard let url = request.url, url.host == "cloudcode-pa.googleapis.com" else {
+                throw URLError(.badURL)
+            }
+            if url.path == "/v1internal:loadCodeAssist" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.loadCodeAssistResponse(
+                        tierId: "standard-tier",
+                        projectId: "managed-project-123"))
+            }
+            if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.jsonData([
+                        "groups": [[
+                            "displayName": "Gemini Models",
+                            "buckets": [["bucketId": "unknown-capacity"]],
+                        ]],
+                    ]))
+            }
+            if url.path == "/v1internal:fetchAvailableModels" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: Self.availableModelsResponse())
+            }
+            return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+        }
+
+        let snapshot = try await AntigravityRemoteUsageFetcher(
+            homeDirectory: env.homeURL.path,
+            dataLoader: dataLoader)
+            .fetch()
+
+        #expect(!snapshot.modelQuotas.isEmpty)
+        #expect(snapshot.accountEmail == "user@example.com")
+    }
+
+    @Test
+    func `remote fetch propagates cancellation from quota summary`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeAntigravityCredentials(
+            accessToken: "token",
+            refreshToken: nil,
+            expiry: Date().addingTimeInterval(3600),
+            idToken: GeminiAPITestHelpers.makeIDToken(email: "user@example.com"),
+            email: "user@example.com")
+
+        let dataLoader = GeminiAPITestHelpers.dataLoader { request in
+            guard let url = request.url, url.host == "cloudcode-pa.googleapis.com" else {
+                throw URLError(.badURL)
+            }
+            if url.path == "/v1internal:loadCodeAssist" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.loadCodeAssistResponse(
+                        tierId: "standard-tier",
+                        projectId: "managed-project-123"))
+            }
+            if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                throw CancellationError()
+            }
+            Issue.record("Cancellation must stop before the legacy model-quota route")
+            return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await AntigravityRemoteUsageFetcher(
+                homeDirectory: env.homeURL.path,
+                dataLoader: dataLoader)
+                .fetch()
+        }
+    }
+
+    @Test
     func `remote fetch uses selected token account credentials before shared credentials`() async throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
@@ -315,6 +473,12 @@ struct AntigravityRemoteUsageFetcherTests {
                             "currentTier": ["id": "standard-tier", "name": "standard"],
                             "cloudaicompanionProject": "managed-project-123",
                         ]))
+                }
+                if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                    return GeminiAPITestHelpers.response(
+                        url: url.absoluteString,
+                        status: 404,
+                        body: Data())
                 }
                 if url.path == "/v1internal:fetchAvailableModels" {
                     let body = try #require(request.httpBody)

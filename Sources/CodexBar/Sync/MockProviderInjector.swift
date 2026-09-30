@@ -256,7 +256,7 @@ enum MockProviderInjector {
         // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
         // additions below and with `QuotaProviderList` (Shared/Notifications).
         "openai", "manus", "windsurf", "mimo", "doubao",
-        "deepseek", "codebuff", "crof", "venice", "commandcode",
+        "deepseek", "codebuff", "venice", "commandcode",
         "stepfun",
         // iOS 1.7.0 catch-up (upstream v0.26.0 new providers).
         "moonshot", "bedrock",
@@ -1286,15 +1286,6 @@ enum MockProviderInjector {
             primaryResetDescription: "in 3 days",
             secondary: nil,
             thirtyDayCostUSD: 2.90, sessionCostUSD: 0.14),
-        .init(
-            providerID: "crof", providerName: "Crof",
-            accountLocal: "api", loginMethod: "Funded",
-            primaryUsage: 12, primaryLabel: "Monthly",
-            primaryWindowMinutes: 43200,
-            primaryResetsInSeconds: 24 * 86400,
-            primaryResetDescription: "in 24 days",
-            secondary: nil,
-            thirtyDayCostUSD: 0.30, sessionCostUSD: 0.01),
         .init(
             providerID: "venice", providerName: "Venice",
             accountLocal: "diem", loginMethod: "Trial",

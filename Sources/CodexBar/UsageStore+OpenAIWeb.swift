@@ -20,6 +20,13 @@ struct OpenAIWebRefreshPolicyContext {
     let refreshPhase: ProviderRefreshPhase
 }
 
+struct CodexOpenAIDashboardApplicationContext {
+    let allowCodexUsageBackfill: Bool
+    let expectedGuard: CodexAccountScopedRefreshGuard?
+    let refreshTaskToken: UUID?
+    let cacheScope: CookieHeaderCache.Scope?
+}
+
 // MARK: - OpenAI web lifecycle
 
 extension UsageStore {
@@ -151,12 +158,17 @@ extension UsageStore {
             preferCurrentSnapshot: true,
             allowLastKnownLiveFallback: false))
 
+        let applicationContext = CodexOpenAIDashboardApplicationContext(
+            allowCodexUsageBackfill: allowCodexUsageBackfill,
+            expectedGuard: expectedGuard,
+            refreshTaskToken: refreshTaskToken,
+            cacheScope: self.codexCookieCacheScopeForOpenAIWeb())
         await self.applyOpenAIDashboardAuthorityDecision(
             authority.decision,
             dashboard: dash,
             authorityInput: authority.input,
             attachedAccountEmail: attachedAccountEmail,
-            allowCodexUsageBackfill: allowCodexUsageBackfill)
+            applicationContext: applicationContext)
     }
 
     func applyOpenAIDashboardFailure(
@@ -251,7 +263,7 @@ extension UsageStore {
         dashboard: OpenAIDashboardSnapshot,
         authorityInput: CodexDashboardAuthorityInput,
         attachedAccountEmail: String?,
-        allowCodexUsageBackfill: Bool) async
+        applicationContext: CodexOpenAIDashboardApplicationContext) async
     {
         switch decision.disposition {
         case .attach:
@@ -275,7 +287,7 @@ extension UsageStore {
             }
 
             if decision.allowedEffects.contains(.usageBackfill),
-               allowCodexUsageBackfill,
+               applicationContext.allowCodexUsageBackfill,
                self.snapshots[.codex] == nil,
                let usage = dashboard.toUsageSnapshot(provider: .codex, accountEmail: attachedAccountEmail),
                CodexWeeklyResetConfirmation.initialDecision(previous: nil, initial: usage) == .publishInitial
@@ -321,6 +333,12 @@ extension UsageStore {
                     authorityDecision: decision,
                     attachedAccountEmail: attachedAccountEmail)
             }
+
+            self.scheduleCodexSubscriptionMetadataEnrichment(
+                dashboard: dashboard,
+                authorityInput: authorityInput,
+                decision: decision,
+                applicationContext: applicationContext)
 
         case .displayOnly:
             self.applyOpenAIDashboardCleanup(decision.cleanup, preserveVisibleDashboard: true)
@@ -1369,7 +1387,7 @@ extension UsageStore {
         self.logOpenAIWeb("[\(stamp)] OpenAI web \(context) start")
     }
 
-    private func logOpenAIWeb(_ message: String) {
+    func logOpenAIWeb(_ message: String) {
         let safeMessage = LogRedactor.redact(message)
         self.openAIWebLogger.debug(safeMessage)
         self.openAIWebDebugLines.append(safeMessage)

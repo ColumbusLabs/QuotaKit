@@ -173,6 +173,7 @@ enum IconRenderer {
                     addAntigravityTwist: Bool = false,
                     addFactoryTwist: Bool = false,
                     addWarpTwist: Bool = false,
+                    addGrokTwist: Bool = false,
                     blink: CGFloat = 0,
                     drawTrackFill: Bool = true,
                     warpEyesFilled: Bool = false)
@@ -662,6 +663,45 @@ enum IconRenderer {
                         }
                         ctx?.restoreGState() // Restore graphics state
                     }
+
+                    // Grok twist: a compact visor creature with twin antennae.
+                    if addGrokTwist {
+                        let ctx = NSGraphicsContext.current?.cgContext
+                        let centerXPx = rectPx.midXPx
+                        let hornWidthPx = 4
+                        let hornHeightPx = 3
+                        let hornOffsetPx = 8
+
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        NSBezierPath(rect: Self.grid.rect(
+                            x: centerXPx - hornOffsetPx - hornWidthPx / 2,
+                            y: rectPx.y + rectPx.h,
+                            w: hornWidthPx,
+                            h: hornHeightPx)).fill()
+                        NSBezierPath(rect: Self.grid.rect(
+                            x: centerXPx + hornOffsetPx - hornWidthPx / 2,
+                            y: rectPx.y + rectPx.h,
+                            w: hornWidthPx,
+                            h: hornHeightPx)).fill()
+
+                        let visorWidthPx = 14
+                        let visorHeightPx = 3
+                        let visorRect = Self.grid.rect(
+                            x: centerXPx - visorWidthPx / 2,
+                            y: rectPx.y + rectPx.h / 2 - visorHeightPx / 2,
+                            w: visorWidthPx,
+                            h: visorHeightPx)
+                        let visorPath = NSBezierPath(
+                            roundedRect: visorRect,
+                            xRadius: Self.grid.pt(visorHeightPx) / 2,
+                            yRadius: Self.grid.pt(visorHeightPx) / 2)
+
+                        ctx?.saveGState()
+                        ctx?.setShouldAntialias(true)
+                        ctx?.setBlendMode(.clear)
+                        visorPath.fill()
+                        ctx?.restoreGState()
+                    }
                 }
 
                 let providerPresentation = UsageProvider(rawValue: style.rawValue)
@@ -695,6 +735,7 @@ enum IconRenderer {
                 let twistAntigravity = decorations.contains(.antigravity)
                 let twistFactory = decorations.contains(.factory)
                 let twistWarp = decorations.contains(.warp)
+                let twistGrok = decorations.contains(.grok)
                 var statusOverlayAttachesToProminentMeter = false
 
                 if let bottomValue, bottomValue > 0, topValue == nil,
@@ -711,6 +752,7 @@ enum IconRenderer {
                         addAntigravityTwist: twistAntigravity,
                         addFactoryTwist: twistFactory,
                         addWarpTwist: twistWarp,
+                        addGrokTwist: twistGrok,
                         blink: blink)
                 } else if weeklyAvailable {
                     // Normal: top=primary, bottom=secondary (bonus/weekly).
@@ -723,6 +765,7 @@ enum IconRenderer {
                         addAntigravityTwist: twistAntigravity,
                         addFactoryTwist: twistFactory,
                         addWarpTwist: twistWarp,
+                        addGrokTwist: twistGrok,
                         blink: blink)
                     drawBar(rectPx: bottomRectPx, remaining: bottomValue)
                 } else if !hasWeekly || missingSecondary {
@@ -747,6 +790,7 @@ enum IconRenderer {
                                 addAntigravityTwist: twistAntigravity,
                                 addFactoryTwist: twistFactory,
                                 addWarpTwist: twistWarp,
+                                addGrokTwist: twistGrok,
                                 blink: blink)
                             drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
                         } else if !quotaLayoutPolicy.reservesMissingSecondaryLane, let topValue {
@@ -760,6 +804,7 @@ enum IconRenderer {
                                 addAntigravityTwist: twistAntigravity,
                                 addFactoryTwist: twistFactory,
                                 addWarpTwist: twistWarp,
+                                addGrokTwist: twistGrok,
                                 blink: blink)
                         } else {
                             drawBar(
@@ -771,6 +816,7 @@ enum IconRenderer {
                                 addAntigravityTwist: twistAntigravity,
                                 addFactoryTwist: twistFactory,
                                 addWarpTwist: twistWarp,
+                                addGrokTwist: twistGrok,
                                 blink: blink)
                             drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
                         }
@@ -788,6 +834,7 @@ enum IconRenderer {
                             addAntigravityTwist: twistAntigravity,
                             addFactoryTwist: twistFactory,
                             addWarpTwist: twistWarp,
+                            addGrokTwist: twistGrok,
                             blink: blink)
                     } else {
                         // No credits available; fall back to 5h if present.
@@ -800,6 +847,7 @@ enum IconRenderer {
                             addAntigravityTwist: twistAntigravity,
                             addFactoryTwist: twistFactory,
                             addWarpTwist: twistWarp,
+                            addGrokTwist: twistGrok,
                             blink: blink)
                     }
                     drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)

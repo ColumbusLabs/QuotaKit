@@ -81,6 +81,10 @@ struct ZoomMateWebFetchStrategy: ProviderFetchStrategy {
     let id: String = "zoommate.web"
     let kind: ProviderFetchKind = .web
 
+    private struct CredentialRejection: Error {
+        let mayRetryWithFreshImport: Bool
+    }
+
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         let cookieSource = context.settings?.zoommate?.cookieSource ?? .auto
         guard cookieSource != .off else { return false }
@@ -98,13 +102,36 @@ struct ZoomMateWebFetchStrategy: ProviderFetchStrategy {
         let cookieSource = context.settings?.zoommate?.cookieSource ?? .auto
         do {
             return try await self.fetchOnce(context, allowCachedCookieHeader: true)
+        } catch let rejection as CredentialRejection where cookieSource == .auto {
+            guard rejection.mayRetryWithFreshImport else {
+                throw ZoomMateUsageError.invalidCredentials
+            }
+            do {
+                return try await self.fetchOnce(context, allowCachedCookieHeader: false)
+            } catch is CredentialRejection {
+                throw ZoomMateUsageError.invalidCredentials
+            }
+        } catch let rejection as ZoomMateCachedCookieRejection where cookieSource == .auto {
+            guard rejection.mayRetryWithFreshImport else {
+                throw ZoomMateUsageError.invalidCredentials
+            }
+            do {
+                return try await self.fetchOnce(context, allowCachedCookieHeader: false)
+            } catch is CredentialRejection {
+                throw ZoomMateUsageError.invalidCredentials
+            }
+        } catch is CredentialRejection {
+            throw ZoomMateUsageError.invalidCredentials
+        } catch is ZoomMateCachedCookieRejection {
+            throw ZoomMateUsageError.invalidCredentials
         } catch ZoomMateUsageError.invalidCredentials where cookieSource == .auto {
-            // The persisted cookie session (or a bearer minted from it) was rejected. Drop the
-            // cached headers and retry once against a fresh browser import, mirroring
-            // OpenCodeUsageFetchStrategy. Outside user-initiated contexts the import is
-            // gate-blocked, so the retry surfaces `noSession` instead of replaying a dead cookie.
-            CookieHeaderCache.clear(provider: .zoommate)
-            return try await self.fetchOnce(context, allowCachedCookieHeader: false)
+            // A login-bootstrap rejection has no request-owned cached receipt yet. Retry once
+            // through the existing import gate without clearing state owned by another refresh.
+            do {
+                return try await self.fetchOnce(context, allowCachedCookieHeader: false)
+            } catch is CredentialRejection {
+                throw ZoomMateUsageError.invalidCredentials
+            }
         }
     }
 
@@ -128,10 +155,21 @@ struct ZoomMateWebFetchStrategy: ProviderFetchStrategy {
                 context: requestContext,
                 timeout: context.webTimeout)
         } catch ZoomMateUsageError.invalidCredentials {
-            // A reused cached bearer token was rejected (revoked session before its own expiry).
-            // Evict it so the next refresh mints fresh rather than replaying the dead token.
-            await Self.invalidateCachedBearerToken(for: requestContext)
-            throw ZoomMateUsageError.invalidCredentials
+            // Clear only the exact bearer and cookie observations used by this request. A newer
+            // login or token generation owns the current state and suppresses the stale retry.
+            let bearerCurrent = await Self.invalidateCachedBearerToken(for: requestContext)
+            let cookieClear: CookieHeaderCache.ConditionalMutationResult = if bearerCurrent,
+                                                                              let observation = requestContext
+                                                                                  .cookieObservation
+            {
+                CookieHeaderCache.clearIfObservationCurrent(
+                    provider: .zoommate,
+                    expected: observation)
+            } else {
+                .rejected
+            }
+            throw CredentialRejection(
+                mayRetryWithFreshImport: bearerCurrent && cookieClear == .stored)
         }
 
         // The Today/30-day history chart (design.md D3) is a non-fatal adjunct: a failure here
@@ -173,8 +211,11 @@ struct ZoomMateWebFetchStrategy: ProviderFetchStrategy {
         return context.settings?.zoommate?.manualCookieHeader ?? ""
     }
 
-    private static func invalidateCachedBearerToken(for requestContext: ZoomMateUsageFetcher.RequestContext) async {
-        guard let cacheKey = requestContext.cacheKey else { return }
-        await ZoomMateBearerTokenCache.shared.invalidate(forKey: cacheKey)
+    @discardableResult
+    private static func invalidateCachedBearerToken(for requestContext: ZoomMateUsageFetcher
+        .RequestContext) async -> Bool
+    {
+        guard let observation = requestContext.bearerObservation else { return true }
+        return await ZoomMateBearerTokenCache.shared.invalidateIfCurrent(observation)
     }
 }

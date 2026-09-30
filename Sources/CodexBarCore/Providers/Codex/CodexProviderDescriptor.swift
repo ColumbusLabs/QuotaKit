@@ -383,16 +383,68 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .oauth
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        (try? CodexOAuthCredentialsStore.loadForUsage(
-            env: context.env,
-            allowExternalSources: context.settings?.codex?.allowExternalOAuthSources == true)) != nil
+        await (try? Self.loadCredentials(context, retryStale: false)) != nil
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let credentials = try CodexOAuthCredentialsStore.loadForUsage(
-            env: context.env,
-            allowExternalSources: context.settings?.codex?.allowExternalOAuthSources == true)
+        let credentials = try await Self.loadCredentials(context, retryStale: true)
         return try await Self.fetch(context: context, credentials: credentials)
+    }
+
+    private static func loadCredentials(
+        _ context: ProviderFetchContext,
+        retryStale: Bool) async throws -> CodexOAuthCredentials
+    {
+        let env = context.env
+        let allowExternalSources = context.settings?.codex?.allowExternalOAuthSources == true
+        return try await Self.loadCredentials(
+            retryStale: retryStale,
+            read: {
+                try CodexOAuthCredentialsStore.loadForUsage(
+                    env: env,
+                    allowExternalSources: allowExternalSources)
+            },
+            wait: { try await Task.sleep(for: .milliseconds(50)) })
+    }
+
+    private static func loadCredentials(
+        retryStale: Bool,
+        read: @escaping @Sendable () throws -> CodexOAuthCredentials,
+        wait: @escaping @Sendable () async throws -> Void) async throws -> CodexOAuthCredentials
+    {
+        var retriesRemaining = retryStale ? 2 : 0
+        while true {
+            try Task.checkCancellation()
+            do {
+                let credentials = try read()
+                guard credentials.needsRefresh else { return credentials }
+                guard retriesRemaining > 0 else {
+                    guard retryStale else { return credentials }
+                    switch credentials.source {
+                    case .codexHome:
+                        throw CodexOAuthCredentialsError.nativeRefreshRequired
+                    case .legacyCodexHome, .openCode:
+                        throw CodexOAuthCredentialsError.readOnlySource
+                    }
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as CodexOAuthCredentialsError {
+                switch error {
+                case .nativeRefreshRequired, .readOnlySource:
+                    throw error
+                case .notFound, .unreadable, .missingTokens, .decodeFailed:
+                    guard retriesRemaining > 0 else { throw error }
+                }
+            } catch {
+                guard retriesRemaining > 0 else { throw error }
+            }
+
+            retriesRemaining -= 1
+            // Codex owns and atomically replaces auth.json. Reread a partial/stale record; never
+            // redeem its refresh token from the QuotaKit usage path.
+            try await wait()
+        }
     }
 
     private static func fetch(
@@ -873,6 +925,14 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
 
 #if DEBUG
 extension CodexOAuthFetchStrategy {
+    static func _loadCredentialsForTesting(
+        retryStale: Bool = true,
+        read: @escaping @Sendable () throws -> CodexOAuthCredentials,
+        wait: @escaping @Sendable () async throws -> Void = {}) async throws -> CodexOAuthCredentials
+    {
+        try await self.loadCredentials(retryStale: retryStale, read: read, wait: wait)
+    }
+
     static func _fetchForTesting(
         context: ProviderFetchContext,
         credentials: CodexOAuthCredentials) async throws -> ProviderFetchResult

@@ -394,38 +394,11 @@ public struct CostUsageFetcher: Sendable {
     {
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-        let projection = CostUsageStoreAccess.readCodexCatchUpProjection(
+        return CostUsageStoreAccess.readView(
             cacheRoot: options.cacheRoot,
-            calendar: options.calendar)
-        guard projection.rootMtimes == rootsFingerprint else {
-            return CodexScanCatchUpStatus(pending: false, progressKey: "scope-mismatch")
-        }
-
-        let scopedFiles = projection.files.filter {
-            CostUsageScanner.isWithinCodexRoots(
-                fileURL: URL(fileURLWithPath: $0.path),
-                roots: roots)
-        }
-        let progressKey = self.codexScanProgressKey(
-            projection: projection,
-            scopedFiles: scopedFiles)
-        let hasIncompleteFile = scopedFiles.contains { !$0.scanComplete }
-        let needsIdentityValidation = CostUsageStore.codexCatchUpProjectionNeedsIdentityValidation(
-            files: scopedFiles,
-            rootMtimes: projection.rootMtimes)
-        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation
-        let staleSnapshotUpdatedAt = projection.previousReportUpdatedAtUnixMs.flatMap { timestamp -> Date? in
-            guard timestamp > 0 else { return nil }
-            return Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
-        }
-        return CodexScanCatchUpStatus(
-            pending: pending,
-            progressKey: progressKey,
-            processedBytes: projection.processedBytes ?? 0,
-            totalBytes: projection.totalBytes ?? 0,
-            completedFiles: projection.completedFiles ?? 0,
-            totalFiles: projection.totalFiles ?? 0,
-            staleSnapshotUpdatedAt: pending ? staleSnapshotUpdatedAt : nil)
+            calendar: options.calendar,
+            purpose: .status)
+            .catchUpStatus(roots: roots, rootsFingerprint: rootsFingerprint)
     }
 
     private static func codexHistoryCoverageIsEstablished(
@@ -1353,19 +1326,6 @@ public struct CostUsageFetcher: Sendable {
             overrideScannerOptions,
             provider: .codex,
             codexHomePath: codexHomePath)
-        let projectionSince = projectionOptions.calendar.date(
-            byAdding: .day,
-            value: -(max(1, min(365, maximumDays)) - 1),
-            to: now) ?? now
-        let projectionRange = CostUsageScanner.CostUsageDayRange(
-            since: projectionSince,
-            until: now,
-            calendar: projectionOptions.calendar)
-        let persistedProjection = await CostUsageStoreAccess.readCodexReportProjection(
-            cacheRoot: projectionOptions.cacheRoot,
-            calendar: projectionOptions.calendar,
-            temporalRange: (projectionRange.sinceKey, projectionRange.untilKey),
-            loadTemporal: false)
         let cachedActivity: CostUsageTokenActivityCache?? = try? await CostUsageScanExecutor.run { _ in
             let options = projectionOptions
             let days = max(1, min(365, maximumDays))
@@ -1376,15 +1336,14 @@ public struct CostUsageFetcher: Sendable {
                 calendar: options.calendar)
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-            let cache = CostUsageScanner.codexCache(
-                persistedProjection.cache,
-                scopedTo: roots)
+            let cache = CostUsageStoreAccess.readView(
+                cacheRoot: options.cacheRoot,
+                calendar: options.calendar,
+                purpose: .activity)
+                .scoped(to: roots)
             guard cache.timeZoneIdentifier == options.calendar.timeZone.identifier,
                   cache.roots == rootsFingerprint,
-                  cache.codexScanCatchUpPending != true,
-                  !cache.files.values.contains(where: {
-                      $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-                  }),
+                  !cache.hasPendingScan,
                   let cachedSince = cache.scanSinceKey,
                   let cachedUntil = cache.scanUntilKey
             else { return nil }

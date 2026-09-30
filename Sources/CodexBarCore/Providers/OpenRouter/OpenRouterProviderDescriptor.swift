@@ -66,7 +66,7 @@ public enum OpenRouterProviderDescriptor {
                 toggleTitle: "Show OpenRouter usage",
                 cliName: "openrouter",
                 defaultEnabled: false,
-                widgetSelectable: false,
+                widgetSelectable: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 dashboardURL: "https://openrouter.ai/activity",

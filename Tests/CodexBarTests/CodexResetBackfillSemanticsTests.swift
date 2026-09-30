@@ -40,6 +40,54 @@ struct CodexResetBackfillSemanticsTests {
     }
 
     @Test
+    func `merged reset cache backfills only matching account and plan`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let weeklyReset = now.addingTimeInterval(4 * 24 * 60 * 60)
+        let cached = self.identified(
+            UsageSnapshot(
+                primary: nil,
+                secondary: RateWindow(
+                    usedPercent: 80,
+                    windowMinutes: 10080,
+                    resetsAt: weeklyReset,
+                    resetDescription: nil),
+                updatedAt: now.addingTimeInterval(-60)),
+            email: "owner@example.com",
+            plan: "Plus")
+        let current = self.identified(
+            UsageSnapshot(
+                primary: nil,
+                secondary: RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                updatedAt: now),
+            email: "owner@example.com",
+            plan: "plus plan")
+
+        let merged = try #require(UsageStore.codexMergedResetBackfillSnapshot([cached, current], now: now))
+        #expect(merged.accountEmail(for: .codex) == "owner@example.com")
+        #expect(merged.loginMethod(for: .codex) == "plus plan")
+
+        let matchingBackfill = UsageStore.codexBackfillingResetWindows(current, from: merged)
+        #expect(matchingBackfill.secondary?.resetsAt == weeklyReset)
+
+        let changedPlan = self.identified(
+            current,
+            email: "owner@example.com",
+            plan: "Pro")
+        let differentAccount = self.identified(
+            current,
+            email: "other@example.com",
+            plan: "Plus")
+        let planBackfill = UsageStore.codexBackfillingResetWindows(changedPlan, from: merged)
+        let accountBackfill = UsageStore.codexBackfillingResetWindows(differentAccount, from: merged)
+        #expect(planBackfill.secondary?.resetsAt == nil)
+        #expect(accountBackfill.secondary?.resetsAt == nil)
+    }
+
+    @Test
     func `reset backfill preserves a monthly primary window`() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let monthlyReset = now.addingTimeInterval(11 * 24 * 60 * 60)
@@ -166,6 +214,18 @@ struct CodexResetBackfillSemanticsTests {
         #expect(merged.primary?.resetsAt == monthlyReset)
         #expect(merged.secondary?.windowMinutes == 10080)
         #expect(merged.secondary?.resetsAt == weeklyReset)
+    }
+
+    private func identified(
+        _ snapshot: UsageSnapshot,
+        email: String,
+        plan: String) -> UsageSnapshot
+    {
+        snapshot.withIdentity(ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: email,
+            accountOrganization: nil,
+            loginMethod: plan))
     }
 }
 

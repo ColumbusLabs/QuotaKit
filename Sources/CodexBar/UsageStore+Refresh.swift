@@ -1006,12 +1006,15 @@ extension UsageStore {
         let stabilized = Self.commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
             current: profileStable,
             previous: self.snapshots[provider.instanceID])
-        return self.preservingCodexCost(
+        let preserved = self.preservingCodexCost(
             in: stabilized,
             for: provider,
             owner: context.codexExpectedGuard,
             includesCredits: context.includesCredits)
-            .backfillingResetTimes(from: resetBackfillSource)
+        if provider == .codex, let resetBackfillSource {
+            return Self.codexBackfillingResetWindows(preserved, from: resetBackfillSource)
+        }
+        return preserved.backfillingResetTimes(from: resetBackfillSource)
     }
 
     private func preservingDeepSeekProfileCatalog(
@@ -1410,8 +1413,8 @@ extension UsageStore {
     }
 
     private func clearClaudeCredentialDerivedStateForCredentialSwap() {
-        // A credential swap can change the account behind an unresolved observation. Preserve verified
-        // account and OAuth-owner episodes, but retire warnings whose owner was never established.
+        // Reset-aware warning reconciliation preserves unresolved episodes across credential rewrites.
+        // Clear credential-derived usage while retaining scoped notification history.
         self.widgetUsagePreservationBlockedProviders.insert(.claude)
         self.snapshots.removeValue(forKey: .claude)
         self.lastKnownResetSnapshots.removeValue(forKey: .claude)
@@ -1426,11 +1429,10 @@ extension UsageStore {
         self.tokenFailureGates[.claude]?.reset()
         self.clearSessionQuotaTransitionState(provider: .claude)
         self.quotaWarningState = self.quotaWarningState.filter { key, _ in
-            key.provider != .claude ||
-                (key.accountDiscriminator != nil && key.accountDiscriminator != "claude-account:unknown")
+            key.provider != .claude || key.accountDiscriminator != nil
         }
         self.predictivePaceWarningNotifiedKeys = PredictivePaceWarningNotificationLogic
-            .retainingVerifiedKeysAfterClaudeCredentialSwap(self.predictivePaceWarningNotifiedKeys)
+            .retainingClaudeWarningKeysAfterCredentialSwap(self.predictivePaceWarningNotifiedKeys)
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
 

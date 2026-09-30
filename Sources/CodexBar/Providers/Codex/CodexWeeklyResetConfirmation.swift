@@ -153,6 +153,7 @@ struct CodexWeeklyResetConfirmation: Sendable {
         else {
             return .publishInitial
         }
+        guard self.plansAreCompatible(previous, initial) else { return .preservePrevious }
         guard Self.validResetBoundary(initialWeekly, capturedAt: initial.updatedAt) != nil else {
             return .preservePrevious
         }
@@ -184,6 +185,11 @@ struct CodexWeeklyResetConfirmation: Sendable {
             for: .weekly,
             snapshot: previous)
         guard previousWeekly?.usedPercent.isFinite ?? true else { return .preservePrevious }
+        if let previous {
+            guard self.plansAreCompatible(previous, initial, confirmation) else { return .preservePrevious }
+        } else {
+            guard self.plansAreCompatible(initial, confirmation) else { return .preservePrevious }
+        }
         let previousBoundary = previousWeekly.flatMap(Self.finiteResetBoundary)
         let confirmationBoundary = Self.finiteResetBoundary(confirmationWeekly)
         if confirmationWeekly.resetsAt != nil,
@@ -217,13 +223,18 @@ struct CodexWeeklyResetConfirmation: Sendable {
                previousWeekly,
                capturedAt: previous.updatedAt)
         {
-            let evidencePrevious = previousEvidence ?? previous
-            let resetCreditEvidence = Self.resetCreditEvidence(
-                previous: evidencePrevious,
-                initial: initial,
-                confirmation: confirmation)
+            let evidencePrevious = [previousEvidence, previous]
+                .compactMap(\.self)
+                .first { Self.hasCompatibleResetCreditEvidence($0, with: initial, confirmation) }
+            let resetCreditEvidence = evidencePrevious.map {
+                Self.resetCreditEvidence(
+                    previous: $0,
+                    initial: initial,
+                    confirmation: confirmation)
+            } ?? .none
             if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60),
                resetCreditEvidence == .none,
+               let evidencePrevious,
                Self.haveStablePositiveCreditInventory(evidencePrevious, initial, confirmation)
             {
                 return .preservePrevious
@@ -313,7 +324,7 @@ struct CodexWeeklyResetConfirmation: Sendable {
         guard self.haveCompatibleAccountIdentities(previous, initial, confirmation) else {
             return .rejected(.accountMismatch)
         }
-        guard self.haveCompatiblePlans(previous, initial, confirmation) else {
+        guard self.haveCompatibleKnownPlans(previous, initial, confirmation) else {
             return .rejected(.planMismatch)
         }
         if let reason = delayedCreditInventoryReason([previous, initial, confirmation]) {
@@ -409,7 +420,7 @@ struct CodexWeeklyResetConfirmation: Sendable {
         guard Self.haveCompatibleAccountIdentities(previous, candidate.snapshot, current) else {
             return DelayedEvaluation(decision: .discardCandidate, reason: .accountMismatch)
         }
-        guard Self.haveCompatiblePlans(previous, candidate.snapshot, current) else {
+        guard Self.haveCompatibleKnownPlans(previous, candidate.snapshot, current) else {
             return DelayedEvaluation(decision: .discardCandidate, reason: .planMismatch)
         }
         if let reason = Self.delayedCreditInventoryReason([previous, candidate.snapshot, current]) {
@@ -459,15 +470,42 @@ struct CodexWeeklyResetConfirmation: Sendable {
         return identities.allSatisfy { $0 == first }
     }
 
-    private static func haveCompatiblePlans(_ snapshots: UsageSnapshot...) -> Bool {
-        // Codex exposes the subscription tier through loginMethod, so it is the plan identity here.
-        let plans = snapshots.map { snapshot in
-            snapshot.loginMethod(for: .codex)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-        }
-        guard let first = plans.compactMap(\.self).first else { return false }
+    static func normalizedPlan(_ snapshot: UsageSnapshot) -> String? {
+        guard let value = snapshot.loginMethod(for: .codex) else { return nil }
+        return CodexPlanFormatting.displayName(value)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func plansAreCompatible(_ snapshots: UsageSnapshot...) -> Bool {
+        self.plansAreCompatible(snapshots)
+    }
+
+    static func plansAreCompatible(_ snapshots: [UsageSnapshot]) -> Bool {
+        let plans = snapshots.map(self.normalizedPlan)
+        guard let first = plans.compactMap(\.self).first else { return true }
         return plans.allSatisfy { $0 == first }
+    }
+
+    static func accountsAreCompatible(_ snapshots: UsageSnapshot...) -> Bool {
+        self.accountsAreCompatible(snapshots)
+    }
+
+    static func accountsAreCompatible(_ snapshots: [UsageSnapshot]) -> Bool {
+        let emails = snapshots.map { CodexIdentityResolver.normalizeEmail($0.accountEmail(for: .codex)) }
+        guard let first = emails.compactMap(\.self).first else { return true }
+        return emails.allSatisfy { $0 == first }
+    }
+
+    static func hasCompatibleResetCreditEvidence(
+        _ evidence: UsageSnapshot,
+        with snapshots: UsageSnapshot...) -> Bool
+    {
+        let candidates = [evidence] + snapshots
+        return self.accountsAreCompatible(candidates) && self.plansAreCompatible(candidates)
+    }
+
+    private static func haveCompatibleKnownPlans(_ snapshots: UsageSnapshot...) -> Bool {
+        guard snapshots.allSatisfy({ self.normalizedPlan($0) != nil }) else { return false }
+        return self.plansAreCompatible(snapshots)
     }
 
     private static func haveStablePositiveCreditInventory(_ snapshots: UsageSnapshot...) -> Bool {

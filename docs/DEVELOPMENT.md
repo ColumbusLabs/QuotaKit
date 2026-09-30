@@ -137,6 +137,8 @@ make test
 
 ### Test file isolation and native test discovery
 
+`Scripts/test_environment.sh` removes inherited secret-shaped environment variables by name before test processes start. The sharded runner, plugin-engine tests, Makefile TTY/live lanes, and Linux portable-test jobs source the same helper. Nonsecret build and local dependency paths remain available; explicit live mode preserves its requested policy. `Scripts/test_test_environment.py` verifies the entrypoints through synthetic child processes without running provider requests or SwiftPM.
+
 `Scripts/test.sh` denies ambient Codex credential files and provider session files in test processes and their children. Codex credential tests use `CodexCredentialFixtures` or an explicit `CodexCredentialFileAccess.withFixtureScope` for synthetic files. A child process must receive its own `FixtureScope.childEnvironment`; it does not inherit a parent's fixture grants. `Scripts/test_codex_file_isolation_child.sh` and `Scripts/test_provider_session_file_isolation.sh` provide optimized synthetic child proofs without live account access.
 
 Settings tests skip automatic app-group migration and shared defaults discovery. Migration tests inject their own defaults, file manager, and snapshot paths. Widget snapshot tests can persist to an injected URL without reloading WidgetKit timelines.

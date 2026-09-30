@@ -57,10 +57,69 @@ struct ProviderFetchErrorTests {
         #expect(await delays.values == [10])
     }
 
-    private func context() -> ProviderFetchContext {
+    @Test
+    func `successful fallback carries a safe diagnostic for the prior live failure`() async throws {
+        let pipeline = ProviderFetchPipeline(
+            resolveStrategies: { _ in
+                [
+                    PriorFailureDiagnosticFixtureStrategy(id: "antigravity.cli-https", fails: true),
+                    PriorFailureDiagnosticFixtureStrategy(id: "antigravity.offline", fails: false),
+                ]
+            })
+        let outcome = await pipeline.fetch(context: self.context(sourceMode: .auto), provider: .antigravity)
+
+        let result = try outcome.result.get()
+        #expect(result.diagnostic == "Offline conversation metadata shown after a network error.")
+        #expect(outcome.attempts.map(\.strategyID) == ["antigravity.cli-https", "antigravity.offline"])
+        #expect(outcome.attempts.map(\.outcome.rawValue) == ["failed", "succeeded"])
+    }
+
+    @Test
+    func `antigravity offline diagnostic describes the failure category without raw details`() {
+        let diagnostic = AntigravityOfflineFetchStrategy().diagnostic(forPriorFailure:
+            AntigravityStatusProbeError.apiError("HTTP 503 token=fixture-secret")) ?? ""
+
+        #expect(diagnostic ==
+            "Live usage is unavailable; showing offline conversation metadata after an API error.")
+        #expect(!diagnostic.contains("fixture-secret"))
+    }
+
+    @Test
+    func `antigravity offline diagnostic identifies unauthorized HTTP responses as authentication failures`() {
+        for statusCode in [401, 403] {
+            let diagnostic = AntigravityOfflineFetchStrategy().diagnostic(forPriorFailure:
+                AntigravityStatusProbeError.apiError("HTTP \(statusCode) token=fixture-secret")) ?? ""
+
+            #expect(diagnostic ==
+                "Live usage is unavailable; showing offline conversation metadata after an authentication error.")
+            #expect(!diagnostic.contains("fixture-secret"))
+        }
+    }
+
+    @Test
+    func `antigravity offline diagnostic identifies missing credentials as authentication failures`() {
+        let diagnostic = AntigravityOfflineFetchStrategy().diagnostic(forPriorFailure:
+            AntigravityStatusProbeError.apiError("Antigravity provider access token is missing")) ?? ""
+
+        #expect(diagnostic ==
+            "Live usage is unavailable; showing offline conversation metadata after an authentication error.")
+        #expect(!diagnostic.localizedCaseInsensitiveContains("access token"))
+    }
+
+    @Test
+    func `antigravity offline diagnostic classifies missing local csrf as configuration`() {
+        let diagnostic = AntigravityOfflineFetchStrategy().diagnostic(forPriorFailure:
+            AntigravityStatusProbeError.missingCSRFToken) ?? ""
+
+        #expect(diagnostic ==
+            "Live usage is unavailable; showing offline conversation metadata after a configuration problem.")
+        #expect(!diagnostic.localizedCaseInsensitiveContains("csrf token"))
+    }
+
+    private func context(sourceMode: ProviderSourceMode = .api) -> ProviderFetchContext {
         ProviderFetchContext(
             runtime: .cli,
-            sourceMode: .api,
+            sourceMode: sourceMode,
             includeCredits: false,
             webTimeout: 1,
             webDebugDumpHTML: false,
@@ -70,6 +129,40 @@ struct ProviderFetchErrorTests {
             fetcher: UsageFetcher(environment: [:]),
             claudeFetcher: RetryFixtureClaudeFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0))
+    }
+}
+
+private struct PriorFailureDiagnosticFixtureStrategy: ProviderFetchStrategy {
+    let id: String
+    let fails: Bool
+    var kind: ProviderFetchKind {
+        self.fails ? .cli : .localProbe
+    }
+
+    func isAvailable(_: ProviderFetchContext) async -> Bool {
+        true
+    }
+
+    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if self.fails {
+            throw AntigravityStatusProbeError.apiError("network timeout token=fixture-secret")
+        }
+        return self.makeResult(
+            usage: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+            sourceLabel: "offline")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        self.fails
+    }
+
+    func diagnostic(forPriorFailure error: Error) -> String? {
+        guard !self.fails else { return nil }
+        let category = ProviderDiagnosticFetchAttempt.errorCategoryLabel(error.localizedDescription)
+        return "Offline conversation metadata shown after a \(category) error."
     }
 }
 

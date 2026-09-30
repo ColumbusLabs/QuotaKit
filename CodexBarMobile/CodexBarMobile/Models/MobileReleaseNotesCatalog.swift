@@ -32,6 +32,8 @@ enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(
+                            localized: "Crof is retired from active quota alerts; existing synced records remain readable."),
+                        String(
                             localized: "The app now uses refreshed provider accent colors; widget colors stay the same."),
                         String(
                             localized: "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone."),

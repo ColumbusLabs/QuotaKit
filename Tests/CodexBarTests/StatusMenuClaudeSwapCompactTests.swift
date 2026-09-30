@@ -21,6 +21,7 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
+        settings.multiAccountMenuLayout = .stacked
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {
             guard let metadata = registry.metadata[provider] else { continue }
@@ -168,7 +169,7 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         controller.menuWillOpen(menu)
         controller.menuDidClose(menu)
 
-        XCTAssertTrue(controller.compactAccountExpandedIDs.isEmpty)
+        XCTAssertEqual(controller.compactAccountExpandedIDs, [accounts[4].id])
         XCTAssertTrue(controller.compactAccountExpandedHealthyTailProviders.isEmpty)
     }
 }

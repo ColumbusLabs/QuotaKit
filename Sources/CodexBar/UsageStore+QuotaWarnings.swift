@@ -47,11 +47,7 @@ extension UsageStore {
             primaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60)
             secondaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 7 * 24 * 60)
         } else {
-            // Crof credits-only accounts publish a duration-less balance as `primary`; a drained
-            // prepaid balance is not a quota threshold crossing, so it must not raise warnings.
-            // Crof accounts that do expose request quotas (secondary present) keep normal warnings.
-            let isBalanceOnlyCrof = provider == .crof && snapshot.secondary == nil
-            let suppressWindows = provider == .mimo || provider == .qoder || isBalanceOnlyCrof
+            let suppressWindows = provider == .mimo || provider == .qoder
             primaryWindow = suppressWindows ? nil : snapshot.primary
             secondaryWindow = suppressWindows ? nil : snapshot.secondary
         }
@@ -195,11 +191,12 @@ extension UsageStore {
         transition: QuotaWarningTransition,
         account: QuotaWarningAccountContext)
     {
-        let key = QuotaWarningStateKey(
+        let unresolvedKey = QuotaWarningStateKey(
             provider: provider,
             window: transition.window,
             accountDiscriminator: account.discriminator,
             windowID: transition.windowID)
+        var key = unresolvedKey
         guard self.settings.quotaWarningEnabled(provider: provider, window: transition.window) else {
             self.quotaWarningState = self.quotaWarningState.filter { existing in
                 !(existing.key.provider == provider &&
@@ -228,12 +225,69 @@ extension UsageStore {
             provider: provider,
             window: transition.window)
         let currentRemaining = rateWindow.remainingPercent
-        let previousState = self.quotaWarningState[key]
+        var previousState = self.quotaWarningState[key]
+        if provider == .claude,
+           let accountDiscriminator = account.discriminator,
+           accountDiscriminator == "claude-account:unknown",
+           let verifiedAccount = self.lastVerifiedClaudeWarningAccountDiscriminator,
+           verifiedAccount.hasPrefix("claude-account:"),
+           verifiedAccount != accountDiscriminator
+        {
+            let verifiedKey = QuotaWarningStateKey(
+                provider: .claude,
+                window: transition.window,
+                accountDiscriminator: verifiedAccount,
+                windowID: transition.windowID)
+            let verifiedState = self.quotaWarningState[verifiedKey]
+            let resetContinues = verifiedState.map {
+                rateWindow.resetsAt != nil && rateWindow.resetsAt == $0.resetsAt &&
+                    currentRemaining <= ($0.lastRemaining ?? -Double.infinity)
+            } ?? false
+            if let reconciled = self.reconciledClaudeWarningState(
+                current: previousState,
+                candidate: verifiedState,
+                currentRemaining: currentRemaining,
+                resetsAt: rateWindow.resetsAt)
+            {
+                if resetContinues {
+                    // Continue the verified lane while this unresolved sample still proves the
+                    // same quota episode; the notification display still reflects this sample.
+                    key = verifiedKey
+                    self.quotaWarningState.removeValue(forKey: unresolvedKey)
+                } else {
+                    self.quotaWarningState[unresolvedKey] = reconciled
+                }
+                previousState = reconciled
+            }
+        } else if provider == .claude,
+                  let accountDiscriminator = account.discriminator,
+                  accountDiscriminator.hasPrefix("claude-account:"),
+                  accountDiscriminator != "claude-account:unknown"
+        {
+            let unresolvedKey = QuotaWarningStateKey(
+                provider: .claude,
+                window: transition.window,
+                accountDiscriminator: "claude-account:unknown",
+                windowID: transition.windowID)
+            if let unresolvedState = self.quotaWarningState[unresolvedKey] {
+                if let reconciled = self.reconciledClaudeWarningState(
+                    current: previousState,
+                    candidate: unresolvedState,
+                    currentRemaining: currentRemaining,
+                    resetsAt: rateWindow.resetsAt)
+                {
+                    previousState = reconciled
+                    self.quotaWarningState[key] = reconciled
+                    self.quotaWarningState.removeValue(forKey: unresolvedKey)
+                }
+            }
+        }
         if let previousState, previousState.source != transition.source {
             self.quotaWarningState[key] = QuotaWarningState(
                 lastRemaining: currentRemaining,
                 observedAt: account.observedAt,
-                source: transition.source)
+                source: transition.source,
+                resetsAt: rateWindow.resetsAt)
             return
         }
         var state = previousState ?? QuotaWarningState(source: transition.source)
@@ -264,8 +318,34 @@ extension UsageStore {
         }
 
         state.observedAt = account.observedAt
+        state.resetsAt = rateWindow.resetsAt
         state.lastRemaining = currentRemaining
         self.quotaWarningState[key] = state
+    }
+
+    private func reconciledClaudeWarningState(
+        current: QuotaWarningState?,
+        candidate: QuotaWarningState?,
+        currentRemaining: Double,
+        resetsAt: Date?) -> QuotaWarningState?
+    {
+        guard let candidate else { return nil }
+        let sameReset = resetsAt != nil && resetsAt == candidate.resetsAt
+        let nonincreasingUsage = candidate.lastRemaining.map { currentRemaining <= $0 } ?? false
+        guard (sameReset && nonincreasingUsage) || candidate.sharedWithUnresolvedAccount else { return nil }
+
+        var result = candidate
+        if let current {
+            result.firedThresholds.formUnion(current.firedThresholds)
+            if current.observedAt > result.observedAt {
+                result.lastRemaining = current.lastRemaining
+                result.observedAt = current.observedAt
+                result.source = current.source
+                result.resetsAt = current.resetsAt
+            }
+        }
+        result.sharedWithUnresolvedAccount = true
+        return result
     }
 
     func quotaWarningAccountDisplayName(provider: UsageProvider, snapshot: UsageSnapshot) -> String? {

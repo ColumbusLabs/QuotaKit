@@ -59,8 +59,9 @@ struct AntigravityProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "antigravity-usage-source",
                 title: "Usage source",
-                subtitle: "Auto tries Antigravity app, agy CLI, then IDE; " +
-                    "OAuth follows for selected or signed-in accounts.",
+                subtitle: "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE " +
+                    "reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can " +
+                    "use a different local signed-in account.",
                 binding: usageBinding,
                 options: usageOptions,
                 isVisible: nil,

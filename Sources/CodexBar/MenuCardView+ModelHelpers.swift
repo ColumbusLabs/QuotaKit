@@ -597,8 +597,7 @@ extension UsageMenuCardView.Model {
             : nil
         let primaryLabel = if let cursorLabels {
             cursorLabels.primary
-        } else if input.provider == .crof {
-            CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
+
         } else if input.provider == .grok {
             GrokProviderDescriptor.displayLabel(window: snapshot.primary, now: input.now) ?? input.metadata.sessionLabel
         } else if input.provider == .doubao {

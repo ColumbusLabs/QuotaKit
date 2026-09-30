@@ -247,11 +247,24 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
     @Test
     func `account guard ignores fetches without a selected account`() throws {
         let usage = self.makeUsage(accountEmail: "ambient@example.com")
-        let context = self.makeFetchContext(
-            sourceMode: .auto,
-            env: self.accountEnv(email: "selected@example.com"))
+        let context = self.makeFetchContext(sourceMode: .auto)
 
         try AntigravitySelectedAccountGuard.validate(usage, context: context)
+    }
+
+    @Test
+    func `account guard rejects mismatched ambient snapshot when OAuth credentials are injected`() {
+        let usage = self.makeUsage(accountEmail: "ambient@example.com")
+        let context = self.makeFetchContext(
+            sourceMode: .auto,
+            env: self.accountEnv(email: "injected@example.com"))
+
+        #expect(throws: AntigravityStatusProbeError.accountMismatch(
+            expected: "injected@example.com",
+            found: "ambient@example.com"))
+        {
+            try AntigravitySelectedAccountGuard.validate(usage, context: context)
+        }
     }
 
     @Test

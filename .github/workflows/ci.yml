@@ -442,6 +442,7 @@ jobs:
         run: |
           set -euo pipefail
           swift build --product CodexBarCLI
+          source Scripts/test_environment.sh
           swift test --filter CodexBarLinuxTests
           bin_dir="$(swift build --product CodexBarCLI --show-bin-path)"
           timeout 20 "$bin_dir/CodexBarCLI" --help >/dev/null

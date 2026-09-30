@@ -73,11 +73,13 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-invalidation")
         await store.widgetSnapshotPersistTask?.value
         if scenario == "cold-start" { saved = WidgetSnapshotStore.load(from: url) }
-        let shouldKeepDeepSeek = scenario == "partial" || scenario == "retired"
-        #expect(saved?.entries.count == (shouldKeepDeepSeek ? 1 : 0))
-        if shouldKeepDeepSeek {
-            #expect(saved?.entries.first?.provider == .deepseek)
+        let expectedProviders: Set<ProviderInstanceID> = switch scenario {
+        case "disabled", "blocked", "retired": [.deepseek]
+        case "partial": [.minimax, .deepseek]
+        case "missing-error": [.minimax]
+        default: []
         }
+        #expect(Set(saved?.entries.map(\.provider) ?? []) == expectedProviders)
     }
 
     @Test(arguments: [false, true])

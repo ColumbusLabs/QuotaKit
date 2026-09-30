@@ -28,13 +28,20 @@ actor ZoomMateBearerTokenCache {
     /// token that expires mid-flight.
     static let refreshSkew: TimeInterval = 60
 
-    struct Entry: Sendable {
+    struct Entry: Equatable, Sendable {
         let token: String
         let accountEmail: String?
         let expiry: Date
     }
 
     private var entries: [String: Entry] = [:]
+    private var generations: [String: UInt64] = [:]
+
+    struct Observation: Equatable, Sendable {
+        fileprivate let key: String
+        fileprivate let generation: UInt64
+        let entry: Entry?
+    }
 
     /// Non-reversible cache key for a cookie session. SHA-256 hex of its canonical host map.
     static func key(forCookieHeaders cookieHeaders: ZoomMateCookieHeaders) -> String {
@@ -46,19 +53,52 @@ actor ZoomMateBearerTokenCache {
     /// Returns the cached entry for `key` when it is still comfortably in-date, evicting and
     /// returning `nil` once it enters the `refreshSkew` window (or has passed `exp`).
     func validEntry(forKey key: String, now: Date) -> Entry? {
-        guard let entry = self.entries[key] else { return nil }
+        self.observeValidEntry(forKey: key, now: now).entry
+    }
+
+    func observeValidEntry(forKey key: String, now: Date) -> Observation {
+        let currentGeneration = self.generations[key, default: 0]
+        guard let entry = self.entries[key] else {
+            return Observation(key: key, generation: currentGeneration, entry: nil)
+        }
         guard entry.expiry.addingTimeInterval(-Self.refreshSkew) > now else {
             self.entries[key] = nil
-            return nil
+            let nextGeneration = currentGeneration &+ 1
+            self.generations[key] = nextGeneration
+            return Observation(key: key, generation: nextGeneration, entry: nil)
         }
-        return entry
+        return Observation(key: key, generation: currentGeneration, entry: entry)
+    }
+
+    func storeIfUnchanged(_ entry: Entry, expected: Observation) -> Observation? {
+        guard self.generations[expected.key, default: 0] == expected.generation else { return nil }
+        self.entries[expected.key] = entry
+        let nextGeneration = expected.generation &+ 1
+        self.generations[expected.key] = nextGeneration
+        return Observation(key: expected.key, generation: nextGeneration, entry: entry)
+    }
+
+    func invalidateIfCurrent(_ observation: Observation) -> Bool {
+        guard self.generations[observation.key, default: 0] == observation.generation else { return false }
+        if let expectedEntry = observation.entry {
+            guard self.entries[observation.key] == expectedEntry else { return false }
+            self.entries[observation.key] = nil
+            self.generations[observation.key] = observation.generation &+ 1
+        } else {
+            guard self.entries[observation.key] == nil else { return false }
+            // The request used a token that was not cached, so there is no bearer entry to clear.
+            return true
+        }
+        return true
     }
 
     func store(_ entry: Entry, forKey key: String) {
         self.entries[key] = entry
+        self.generations[key, default: 0] &+= 1
     }
 
     func invalidate(forKey key: String) {
         self.entries[key] = nil
+        self.generations[key, default: 0] &+= 1
     }
 }

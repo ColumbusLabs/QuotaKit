@@ -341,13 +341,34 @@ public enum AgentPSOutputParser {
         _ executablePath: String,
         homeDirectory: URL) -> Bool
     {
-        let allowedPaths = Set([
-            URL(fileURLWithPath: "/Applications/ChatGPT.app/Contents/Resources/codex")
-                .standardizedFileURL.path,
-            homeDirectory.appendingPathComponent("Applications/ChatGPT.app/Contents/Resources/codex")
-                .standardizedFileURL.path,
-        ])
-        return allowedPaths.contains(URL(fileURLWithPath: executablePath).standardizedFileURL.path)
+        self.chatGPTBundlePath(forCodexAppServerExecutable: executablePath, homeDirectory: homeDirectory) != nil
+    }
+
+    static func chatGPTBundlePath(
+        forCodexAppServerExecutable executablePath: String,
+        homeDirectory: URL) -> String?
+    {
+        let allowedBundlePaths = [
+            URL(fileURLWithPath: "/Applications/ChatGPT.app").standardizedFileURL.path,
+            homeDirectory.appendingPathComponent("Applications/ChatGPT.app").standardizedFileURL.path,
+        ]
+        let resolvedExecutablePath = URL(fileURLWithPath: executablePath)
+            .resolvingSymlinksInPath().standardizedFileURL.path
+        for bundlePath in allowedBundlePaths {
+            let resolvedBundlePath = URL(fileURLWithPath: bundlePath)
+                .resolvingSymlinksInPath().standardizedFileURL.path
+            let allowedExecutables = [
+                URL(fileURLWithPath: resolvedBundlePath)
+                    .appendingPathComponent("Contents/Resources/codex").standardizedFileURL.path,
+                URL(fileURLWithPath: resolvedBundlePath)
+                    .appendingPathComponent("Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+                    .standardizedFileURL.path,
+            ].map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().standardizedFileURL.path }
+            if allowedExecutables.contains(resolvedExecutablePath) {
+                return resolvedBundlePath
+            }
+        }
+        return nil
     }
 
     private static func arguments(_ record: AgentProcessRecord) -> [String] {

@@ -1150,7 +1150,6 @@
 "Open Augment (Log Out & Back In)" = "打开 Augment（退出后重新登录）";
 "Open Codebuff Dashboard" = "打开 Codebuff 仪表盘";
 "Open Command Code Settings" = "打开 Command Code 设置";
-"Open Crof dashboard" = "打开 Crof 仪表盘";
 "Open Manus" = "打开 Manus";
 "Open MiMo Balance" = "打开 MiMo 余额";
 "Open Moonshot Console" = "打开 Moonshot 控制台";
@@ -1221,7 +1220,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "存储在 ~/.quotakit/config.json 中。需要 Anthropic Admin API 密钥。";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "存储在 ~/.quotakit/config.json 中。用于 /v1/quota-stats。";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "存储在 ~/.quotakit/config.json 中。你也可以提供 CODEBUFF_API_KEY，或让 QuotaKit 读取由 `codebuff login` 创建的 ~/.config/manicode/credentials.json。";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "存储在 ~/.quotakit/config.json 中。你也可以提供 CROF_API_KEY。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "存储在 ~/.quotakit/config.json 中。你也可以提供 KILO_API_KEY 或 ~/.local/share/kilo/auth.json（kilo.access）。";
 "T3 Chat cookie" = "T3 Chat Cookie";
 "Team mode" = "团队模式";
@@ -1675,3 +1673,25 @@
 "Paste a Cookie header and select its tenant below." = "粘贴 Cookie 标头并在下方选择租户。";
 
 "Blocked by monthly limit" = "已达月度限额";
+
+"hooks_executable" = "可执行文件";
+
+"agent_sessions_hide_unreachable_title" = "隐藏无法连接的主机";
+
+"agent_sessions_hide_unreachable_subtitle" = "获取会话失败时隐藏该主机。";
+
+"Switch Claude Code account" = "切换 Claude Code 账户";
+
+"No active account" = "没有活跃账户";
+
+"Details for %@" = "%@ 的详情";
+
+"Switch Claude Code to %@" = "将 Claude Code 切换到 %@";
+
+"Switching account…" = "正在切换账户…";
+
+"Refreshing account status…" = "正在刷新账户状态…";
+
+"QuotaKit Help" = "QuotaKit 帮助";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "选择或传入 Google 账户后，Auto 仅在身份匹配时接受本地应用、agy CLI 和 IDE 的报告，然后尝试 OAuth。明确选择 Local API / agy CLI 时，可以使用另一个已在本地登录的账户。";

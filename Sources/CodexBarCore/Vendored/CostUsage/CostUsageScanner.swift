@@ -6592,13 +6592,13 @@ enum CostUsageScanner {
         metadata: CodexFileMetadata,
         context: CodexFileScanContext,
         cache: inout CostUsageCache,
-        state: inout CodexScanState) throws -> Bool
+        state: inout CodexScanState,
+        existingAliases: [String]) throws -> Bool
     {
-        guard let fileID = metadata.fileId,
+        guard metadata.fileId != nil,
               let historyHydrator = context.resources.historyHydrator
         else { return true }
-        let allAliases = context.resources.cachePathAliasIndex
-            .aliases(fileID: fileID, excludingPath: metadata.path)
+        let allAliases = existingAliases
         let aliases = allAliases
             .filter { cache.files[$0]?.codexTokenSnapshots == nil }
         guard !aliases.isEmpty else { return true }
@@ -6756,7 +6756,8 @@ enum CostUsageScanner {
             metadata: metadata,
             context: context,
             cache: &cache,
-            state: &state)
+            state: &state,
+            existingAliases: existingAliases)
         else { return .deferred }
         if !existingAliases.isEmpty {
             guard try Self.hydrateCodexFileHistoryIfNeeded(
@@ -6771,7 +6772,8 @@ enum CostUsageScanner {
         Self.reconcileCodexCachePathAliases(
             metadata: metadata,
             cache: &cache,
-            aliasIndex: context.resources.cachePathAliasIndex)
+            aliasIndex: context.resources.cachePathAliasIndex,
+            existingAliases: existingAliases)
 
         let cached = cache.files[metadata.path]
 
@@ -9151,10 +9153,11 @@ enum CostUsageScanner {
     private static func reconcileCodexCachePathAliases(
         metadata: CodexFileMetadata,
         cache: inout CostUsageCache,
-        aliasIndex: CodexCachePathAliasIndex)
+        aliasIndex: CodexCachePathAliasIndex,
+        existingAliases: [String])
     {
         guard let fileID = metadata.fileId else { return }
-        var aliases = aliasIndex.aliases(fileID: fileID, excludingPath: metadata.path)
+        var aliases = existingAliases
         guard !aliases.isEmpty else { return }
 
         if cache.files[metadata.path] == nil, let migratedPath = aliases.first {

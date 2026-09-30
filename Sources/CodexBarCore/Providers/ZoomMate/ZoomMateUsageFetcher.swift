@@ -3,6 +3,10 @@ import Foundation
 import FoundationNetworking
 #endif
 
+struct ZoomMateCachedCookieRejection: Error, Sendable {
+    let mayRetryWithFreshImport: Bool
+}
+
 public struct ZoomMateUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.provider(.zoommate))
     private static let refererURL = URL(string: "https://zoommate.zoom.us")!
@@ -44,6 +48,8 @@ public struct ZoomMateUsageFetcher: Sendable {
         /// caller evict the reused token from `ZoomMateBearerTokenCache` when a downstream request
         /// rejects it (`401/403`). `nil` for the manual `.web` path, which carries its own bearer.
         public let cacheKey: String?
+        let cookieObservation: CookieHeaderCache.ConditionalMutationObservation?
+        let bearerObservation: ZoomMateBearerTokenCache.Observation?
 
         public init(
             authorization: String,
@@ -59,6 +65,28 @@ public struct ZoomMateUsageFetcher: Sendable {
             self.preferredHost = preferredHost
             self.accountEmail = accountEmail
             self.cacheKey = cacheKey
+            self.cookieObservation = nil
+            self.bearerObservation = nil
+        }
+
+        init(
+            authorization: String,
+            headers: [String: String] = [:],
+            cookieHeaders: ZoomMateCookieHeaders = ZoomMateCookieHeaders(headersByHost: [:]),
+            preferredHost: String? = nil,
+            accountEmail: String? = nil,
+            cacheKey: String?,
+            cookieObservation: CookieHeaderCache.ConditionalMutationObservation?,
+            bearerObservation: ZoomMateBearerTokenCache.Observation?)
+        {
+            self.authorization = authorization
+            self.headers = headers
+            self.cookieHeaders = cookieHeaders
+            self.preferredHost = preferredHost
+            self.accountEmail = accountEmail
+            self.cacheKey = cacheKey
+            self.cookieObservation = cookieObservation
+            self.bearerObservation = bearerObservation
         }
     }
 
@@ -69,10 +97,22 @@ public struct ZoomMateUsageFetcher: Sendable {
     public struct MintedToken: Sendable {
         public let bearerToken: String
         public let accountEmail: String?
+        let bearerObservation: ZoomMateBearerTokenCache.Observation?
 
         public init(bearerToken: String, accountEmail: String?) {
             self.bearerToken = bearerToken
             self.accountEmail = accountEmail
+            self.bearerObservation = nil
+        }
+
+        init(
+            bearerToken: String,
+            accountEmail: String?,
+            bearerObservation: ZoomMateBearerTokenCache.Observation?)
+        {
+            self.bearerToken = bearerToken
+            self.accountEmail = accountEmail
+            self.bearerObservation = bearerObservation
         }
     }
 
@@ -288,19 +328,20 @@ public struct ZoomMateUsageFetcher: Sendable {
         }
 
         #if os(macOS)
+        let cookieObservation = CookieHeaderCache.observeForConditionalMutation(provider: .zoommate)
         // Cached host-scoped cookie headers first (Perplexity/OpenCode precedent): Chrome's cookie decryption
         // is gated behind user-initiated contexts (`BrowserCookieAccessGate`) to avoid Keychain
         // prompts, so background refreshes and the bundled CLI must be able to run entirely from
         // the last validated session instead of rereading the browser.
         if allowCachedCookieHeader,
-           let cached = CookieHeaderCache.load(provider: .zoommate),
+           let cached = cookieObservation.entry,
            let cookieHeaders = ZoomMateCookieHeaders.decodeFromStorage(cached.cookieHeader),
            !cookieHeaders.isEmpty
         {
             logger?("[zoommate] Using cached cookie headers from \(cached.sourceLabel)")
-            return try await Self.requestContext(
-                forCookieHeaders: cookieHeaders,
-                persistingValidatedHeaderAs: nil,
+            return try await Self.cachedCookieRequestContext(
+                cookieHeaders: cookieHeaders,
+                observation: cookieObservation,
                 cache: cache,
                 timeout: timeout,
                 transport: transport,
@@ -313,6 +354,7 @@ public struct ZoomMateUsageFetcher: Sendable {
         return try await Self.requestContext(
             forCookieSessions: sessions,
             cache: cache,
+            cookieObservation: cookieObservation,
             timeout: timeout,
             transport: transport,
             logger: logger)
@@ -322,12 +364,38 @@ public struct ZoomMateUsageFetcher: Sendable {
     }
 
     #if os(macOS)
+    static func cachedCookieRequestContext(
+        cookieHeaders: ZoomMateCookieHeaders,
+        observation: CookieHeaderCache.ConditionalMutationObservation,
+        cache: ZoomMateBearerTokenCache = .shared,
+        timeout: TimeInterval,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        logger: (@Sendable (String) -> Void)?) async throws -> RequestContext
+    {
+        do {
+            return try await self.requestContext(
+                forCookieHeaders: cookieHeaders,
+                persistingValidatedHeaderAs: nil,
+                cache: cache,
+                cookieObservation: observation,
+                timeout: timeout,
+                transport: transport,
+                logger: logger)
+        } catch ZoomMateUsageError.invalidCredentials {
+            let cleared = CookieHeaderCache.clearIfObservationCurrent(
+                provider: .zoommate,
+                expected: observation) == .stored
+            throw ZoomMateCachedCookieRejection(mayRetryWithFreshImport: cleared)
+        }
+    }
+
     /// Tries browser cookie profiles in import order, advancing only when the login bootstrap
     /// explicitly rejects a candidate. Network and parse failures surface immediately rather than
     /// being hidden by another profile. Only the first successfully minted session is persisted.
     static func requestContext(
         forCookieSessions sessions: [ZoomMateCookieImporter.SessionInfo],
         cache: ZoomMateBearerTokenCache = .shared,
+        cookieObservation: CookieHeaderCache.ConditionalMutationObservation? = nil,
         timeout: TimeInterval,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         logger: (@Sendable (String) -> Void)?) async throws -> RequestContext
@@ -341,6 +409,7 @@ public struct ZoomMateUsageFetcher: Sendable {
                     forCookieHeaders: session.cookieHeaders,
                     persistingValidatedHeaderAs: session.sourceLabel,
                     cache: cache,
+                    cookieObservation: cookieObservation,
                     timeout: timeout,
                     transport: transport,
                     logger: logger)
@@ -362,27 +431,56 @@ public struct ZoomMateUsageFetcher: Sendable {
         forCookieHeaders cookieHeaders: ZoomMateCookieHeaders,
         persistingValidatedHeaderAs sourceLabel: String?,
         cache: ZoomMateBearerTokenCache = .shared,
+        cookieObservation: CookieHeaderCache.ConditionalMutationObservation? = nil,
         timeout: TimeInterval,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         logger: (@Sendable (String) -> Void)?) async throws -> RequestContext
     {
+        let observedCookieState = cookieObservation
+            ?? CookieHeaderCache.observeForConditionalMutation(provider: .zoommate)
         let minted = try await Self.cachedOrMintedToken(
             cookieHeaders: cookieHeaders,
             cache: cache,
             timeout: timeout,
             transport: transport,
             logger: logger)
+        var requestCookieObservation = observedCookieState
         if let sourceLabel, let encodedCookieHeaders = cookieHeaders.encodedForStorage() {
-            CookieHeaderCache.store(
+            let mutation = CookieHeaderCache.storeIfObservationCurrentReceipt(
                 provider: .zoommate,
+                expected: observedCookieState,
                 cookieHeader: encodedCookieHeaders,
                 sourceLabel: sourceLabel)
+            if mutation.result == .stored, let receipt = mutation.receipt {
+                requestCookieObservation = receipt.observation
+            } else {
+                let winnerObservation = CookieHeaderCache.observeForConditionalMutation(provider: .zoommate)
+                guard let winner = winnerObservation.entry
+                    .flatMap({ ZoomMateCookieHeaders.decodeFromStorage($0.cookieHeader) }),
+                    !winner.isEmpty
+                else {
+                    throw ZoomMateUsageError.invalidCredentials
+                }
+                if winner != cookieHeaders {
+                    return try await Self.requestContext(
+                        forCookieHeaders: winner,
+                        persistingValidatedHeaderAs: nil,
+                        cache: cache,
+                        cookieObservation: winnerObservation,
+                        timeout: timeout,
+                        transport: transport,
+                        logger: logger)
+                }
+                requestCookieObservation = winnerObservation
+            }
         }
         return RequestContext(
             authorization: Self.bearerHeaderValue(from: minted.bearerToken),
             cookieHeaders: cookieHeaders,
             accountEmail: minted.accountEmail,
-            cacheKey: ZoomMateBearerTokenCache.key(forCookieHeaders: cookieHeaders))
+            cacheKey: ZoomMateBearerTokenCache.key(forCookieHeaders: cookieHeaders),
+            cookieObservation: requestCookieObservation,
+            bearerObservation: minted.bearerObservation)
     }
     #endif
 
@@ -398,26 +496,50 @@ public struct ZoomMateUsageFetcher: Sendable {
         logger: (@Sendable (String) -> Void)?) async throws -> MintedToken
     {
         let cacheKey = ZoomMateBearerTokenCache.key(forCookieHeaders: cookieHeaders)
-        if let entry = await cache.validEntry(forKey: cacheKey, now: Date()) {
+        let observation = await cache.observeValidEntry(forKey: cacheKey, now: Date())
+        if let entry = observation.entry {
             logger?("[zoommate] Reusing cached bearer token")
-            return MintedToken(bearerToken: entry.token, accountEmail: entry.accountEmail)
+            return MintedToken(
+                bearerToken: entry.token,
+                accountEmail: entry.accountEmail,
+                bearerObservation: observation)
         }
         let minted = try await Self.mintBearerToken(
             cookieHeaders: cookieHeaders,
             timeout: timeout,
             transport: transport)
         if let expiry = Self.expiry(fromJWT: minted.bearerToken) {
-            await cache.store(
-                ZoomMateBearerTokenCache.Entry(
-                    token: minted.bearerToken,
+            let entry = ZoomMateBearerTokenCache.Entry(
+                token: minted.bearerToken,
+                accountEmail: minted.accountEmail,
+                expiry: expiry)
+            if let receipt = await cache.storeIfUnchanged(entry, expected: observation) {
+                logger?("[zoommate] Minted fresh bearer token via cookie session (cached until expiry)")
+                return MintedToken(
+                    bearerToken: minted.bearerToken,
                     accountEmail: minted.accountEmail,
-                    expiry: expiry),
-                forKey: cacheKey)
-            logger?("[zoommate] Minted fresh bearer token via cookie session (cached until expiry)")
+                    bearerObservation: receipt)
+            }
+            let winner = await cache.observeValidEntry(forKey: cacheKey, now: Date())
+            if let winningEntry = winner.entry {
+                logger?("[zoommate] Reusing a bearer token stored by a concurrent refresh")
+                return MintedToken(
+                    bearerToken: winningEntry.token,
+                    accountEmail: winningEntry.accountEmail,
+                    bearerObservation: winner)
+            }
+            logger?("[zoommate] Minted fresh bearer token without caching after a concurrent cache change")
+            return MintedToken(
+                bearerToken: minted.bearerToken,
+                accountEmail: minted.accountEmail,
+                bearerObservation: winner)
         } else {
             logger?("[zoommate] Minted fresh bearer token via cookie session (not cached: no expiry claim)")
         }
-        return minted
+        return MintedToken(
+            bearerToken: minted.bearerToken,
+            accountEmail: minted.accountEmail,
+            bearerObservation: observation)
     }
 
     /// Reads the `exp` claim (seconds since epoch) from a bearer JWT, returning its expiry `Date`.

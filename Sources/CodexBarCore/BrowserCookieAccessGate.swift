@@ -200,6 +200,20 @@ public enum BrowserCookieAccessGate {
         }
     }
 
+    static func operationPreservingAccessContext<Input: Sendable, Output: Sendable>(
+        _ operation: @escaping @Sendable (Input) throws -> Output) -> @Sendable (Input) throws -> Output
+    {
+        let interaction = ProviderInteractionContext.current
+        let retryScope = self.explicitRetryScope
+        return { input in
+            try ProviderInteractionContext.$current.withValue(interaction) {
+                try self.$explicitRetryScope.withValue(retryScope) {
+                    try operation(input)
+                }
+            }
+        }
+    }
+
     static func withRecordReadInteractionPolicy<T>(_ operation: () throws -> T) rethrows -> T {
         guard ProviderInteractionContext.current == .background else {
             return try operation()

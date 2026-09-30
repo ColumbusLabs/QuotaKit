@@ -45,6 +45,39 @@ private final class AppServerTrustIdentitySpy: @unchecked Sendable {
     }
 }
 
+private final class AppServerProcessTrustSpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [Bool]
+    private var signedExecutablePaths: [String?]
+    private var calls = 0
+    private var expectedExecutablePaths: [String] = []
+
+    init(results: [Bool], signedExecutablePaths: [String?] = []) {
+        self.results = results
+        self.signedExecutablePaths = signedExecutablePaths
+    }
+
+    func validate(_: Int32, expectedExecutablePath: String) -> Bool {
+        self.lock.withLock {
+            self.calls += 1
+            self.expectedExecutablePaths.append(expectedExecutablePath)
+            guard !self.results.isEmpty, self.results.removeFirst() else { return false }
+            guard !self.signedExecutablePaths.isEmpty else { return true }
+            guard let signedExecutablePath = self.signedExecutablePaths.removeFirst() else { return false }
+            return URL(fileURLWithPath: signedExecutablePath).standardizedFileURL.path ==
+                URL(fileURLWithPath: expectedExecutablePath).standardizedFileURL.path
+        }
+    }
+
+    var callCount: Int {
+        self.lock.withLock { self.calls }
+    }
+
+    var capturedExpectedExecutablePaths: [String] {
+        self.lock.withLock { self.expectedExecutablePaths }
+    }
+}
+
 struct CodexSessionRolloutTests {
     @Test
     func `first rollout line maps to file only agent session`() throws {
@@ -214,6 +247,81 @@ struct CodexSessionRolloutTests {
             includeFileOnlySessions: false)
 
         #expect(sessions.count == 1)
+    }
+
+    @Test
+    func `nested chatgpt codex cli bundle requires process signature and revalidates it every scan`() async throws {
+        let now = Date()
+        let processTrust = AppServerProcessTrustSpy(results: [true, true])
+        let gatekeeperTrust = AppServerTrustValidatorSpy(results: [true])
+        let nestedExecutable = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/" +
+            "CodexCLI.app/Contents/MacOS/codex"
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerExecutable: nestedExecutable,
+            appServerProcessTrustValidator: { pid, path in
+                processTrust.validate(pid, expectedExecutablePath: path)
+            },
+            appServerTrustValidator: { gatekeeperTrust.validate($0) })
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let first = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+        let second = await fixture.scanner.scan(
+            now: now.addingTimeInterval(1),
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(first.count == 1)
+        #expect(second.count == 1)
+        #expect(processTrust.callCount == 2)
+        #expect(gatekeeperTrust.callCount == 1)
+    }
+
+    @Test
+    func `signed process executable must match the captured chatgpt executable path`() async throws {
+        let now = Date()
+        let chatGPTExecutable = "/Applications/ChatGPT.app/Contents/Resources/codex"
+        let processTrust = AppServerProcessTrustSpy(
+            results: [true],
+            signedExecutablePaths: ["/Applications/OtherSignedApp.app/Contents/MacOS/codex"])
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerExecutable: chatGPTExecutable,
+            appServerProcessTrustValidator: { pid, path in
+                processTrust.validate(pid, expectedExecutablePath: path)
+            })
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let sessions = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(sessions.isEmpty)
+        #expect(processTrust.callCount == 1)
+        #expect(processTrust.capturedExpectedExecutablePaths == [chatGPTExecutable])
+    }
+
+    @Test
+    func `failed chatgpt app server process signature cannot authorize adaptive rollout inspection`() async throws {
+        let now = Date()
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerProcessTrusted: false)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let sessions = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(sessions.isEmpty)
     }
 
     @Test
@@ -539,6 +647,8 @@ struct CodexSessionRolloutTests {
         appServerUsesHomeInstall: Bool = false,
         appServerActualExecutable: String? = nil,
         appServerIsTrusted: Bool = true,
+        appServerProcessTrusted: Bool = true,
+        appServerProcessTrustValidator: LocalAgentSessionScanner.AppServerProcessTrustValidator? = nil,
         appServerTrustValidator: LocalAgentSessionScanner.AppServerTrustValidator? = nil,
         appServerArguments: [String] = ["codex", "app-server"],
         appServerTrustIdentityProvider: LocalAgentSessionScanner.AppServerTrustIdentityProvider? = nil,
@@ -588,6 +698,7 @@ struct CodexSessionRolloutTests {
             },
             cwdProvider: { _, _ in [:] },
             appServerTrustValidator: appServerTrustValidator ?? { _ in appServerIsTrusted },
+            appServerProcessTrustValidator: appServerProcessTrustValidator ?? { _, _ in appServerProcessTrusted },
             appServerExecutablePathProvider: { _ in resolvedActualExecutable },
             appServerArgumentsProvider: { _ in appServerArguments },
             appServerTrustIdentityProvider: appServerTrustIdentityProvider ?? { _ in "fixture" })

@@ -80,7 +80,6 @@ public enum QuotaProviderList {
         Provider(id: "doubao", displayName: "Doubao"),
         Provider(id: "deepseek", displayName: "DeepSeek"),
         Provider(id: "codebuff", displayName: "Codebuff"),
-        Provider(id: "crof", displayName: "Crof"),
         Provider(id: "venice", displayName: "Venice"),
         Provider(id: "commandcode", displayName: "Command Code"),
         Provider(id: "stepfun", displayName: "StepFun"),

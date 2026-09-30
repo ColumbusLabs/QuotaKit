@@ -131,6 +131,13 @@ struct CodexBarApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
+            CommandGroup(replacing: .help) {
+                Button(L("QuotaKit Help")) {
+                    guard let url = URL(string: "https://github.com/ColumbusLabs/QuotaKit/blob/main/README.md")
+                    else { return }
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 

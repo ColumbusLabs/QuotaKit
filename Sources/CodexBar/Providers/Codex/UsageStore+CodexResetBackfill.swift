@@ -8,6 +8,9 @@ extension UsageStore {
         _ snapshot: UsageSnapshot,
         from cached: UsageSnapshot) -> UsageSnapshot
     {
+        guard CodexWeeklyResetConfirmation.accountsAreCompatible(snapshot, cached),
+              CodexWeeklyResetConfirmation.plansAreCompatible(snapshot, cached)
+        else { return snapshot }
         let primary = self.codexBackfilledSlotWindow(
             slotWindow: snapshot.primary,
             lane: .session,
@@ -46,20 +49,65 @@ extension UsageStore {
         _ snapshots: [UsageSnapshot],
         now: Date = Date()) -> UsageSnapshot?
     {
+        guard let latestUpdatedAt = snapshots.map(\.updatedAt).max() else { return nil }
+        let latestSnapshots = snapshots.filter { $0.updatedAt == latestUpdatedAt }
+        let latestEmails = Set(latestSnapshots.compactMap {
+            CodexIdentityResolver.normalizeEmail($0.accountEmail(for: .codex))
+        })
+        guard latestEmails.count <= 1,
+              latestEmails.isEmpty || latestSnapshots.allSatisfy({
+                  CodexIdentityResolver.normalizeEmail($0.accountEmail(for: .codex)) != nil
+              })
+        else { return nil }
+        let accountCompatibleSnapshots: [UsageSnapshot]
+        if let latestEmail = latestEmails.first {
+            accountCompatibleSnapshots = snapshots.filter {
+                CodexIdentityResolver.normalizeEmail($0.accountEmail(for: .codex)) == latestEmail
+            }
+        } else if snapshots.contains(where: {
+            CodexIdentityResolver.normalizeEmail($0.accountEmail(for: .codex)) != nil
+        }) {
+            // An unknown latest identity cannot inherit reset evidence from a known older account.
+            return nil
+        } else {
+            accountCompatibleSnapshots = snapshots
+        }
+        guard let accountCompatibleLatestAt = accountCompatibleSnapshots.map(\.updatedAt).max() else { return nil }
+        let accountCompatibleLatest = accountCompatibleSnapshots.filter { $0.updatedAt == accountCompatibleLatestAt }
+        let latestPlans = Set(accountCompatibleLatest.compactMap(CodexWeeklyResetConfirmation.normalizedPlan))
+        guard latestPlans.count <= 1,
+              latestPlans.isEmpty || accountCompatibleLatest.allSatisfy({
+                  CodexWeeklyResetConfirmation.normalizedPlan($0) != nil
+              })
+        else { return nil }
+        let latestPlan = latestPlans.first
+        let compatibleSnapshots: [UsageSnapshot]
+        if let latestPlan {
+            compatibleSnapshots = accountCompatibleSnapshots.filter {
+                CodexWeeklyResetConfirmation.normalizedPlan($0) == latestPlan
+            }
+        } else if accountCompatibleSnapshots.contains(where: {
+            CodexWeeklyResetConfirmation.normalizedPlan($0) != nil
+        }) {
+            // A newer observation with no plan cannot inherit reset evidence from an older known plan.
+            return nil
+        } else {
+            compatibleSnapshots = accountCompatibleSnapshots
+        }
         var primary = self.codexPreferredResetBackfillWindow(
-            snapshots.enumerated().compactMap { index, snapshot in
+            compatibleSnapshots.enumerated().compactMap { index, snapshot in
                 CodexConsumerProjection.sourceRateWindow(for: .session, snapshot: snapshot)
                     .map { (window: $0, updatedAt: snapshot.updatedAt, priority: index) }
             },
             now: now)
         var secondary = self.codexPreferredResetBackfillWindow(
-            snapshots.enumerated().compactMap { index, snapshot in
+            compatibleSnapshots.enumerated().compactMap { index, snapshot in
                 CodexConsumerProjection.sourceRateWindow(for: .weekly, snapshot: snapshot)
                     .map { (window: $0, updatedAt: snapshot.updatedAt, priority: index) }
             },
             now: now)
         let monthly = self.codexPreferredResetBackfillWindow(
-            snapshots.enumerated().compactMap { index, snapshot in
+            compatibleSnapshots.enumerated().compactMap { index, snapshot in
                 Self.monthlyRateWindow(in: snapshot)
                     .map { (window: $0, updatedAt: snapshot.updatedAt, priority: index) }
             },
@@ -76,10 +124,19 @@ extension UsageStore {
             }
         }
         guard primary != nil || secondary != nil else { return nil }
+        let latestCompatibleIdentity = compatibleSnapshots.enumerated()
+            .max { lhs, rhs in
+                if lhs.element.updatedAt != rhs.element.updatedAt {
+                    return lhs.element.updatedAt < rhs.element.updatedAt
+                }
+                return lhs.offset < rhs.offset
+            }?
+            .element.identity(for: UsageProvider.codex.instanceID)
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
-            updatedAt: snapshots.map(\.updatedAt).max() ?? now)
+            updatedAt: compatibleSnapshots.map(\.updatedAt).max() ?? now,
+            identity: latestCompatibleIdentity)
     }
 
     private nonisolated static func monthlyRateWindow(in snapshot: UsageSnapshot) -> RateWindow? {

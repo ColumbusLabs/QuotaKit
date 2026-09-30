@@ -467,7 +467,9 @@ struct ProviderSettingsDescriptorTests {
 
         #expect(usagePicker.options.map(\.title) == ["Auto", "Google OAuth", "Local API / agy CLI"])
         #expect(usagePicker.subtitle ==
-            "Auto tries Antigravity app, agy CLI, then IDE; OAuth follows for selected or signed-in accounts.")
+            "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE " +
+            "reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can " +
+            "use a different local signed-in account.")
     }
 
     @Test

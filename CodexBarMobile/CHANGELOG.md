@@ -24,6 +24,7 @@ current Columbus Labs product surface and recent release history.
   iPhone.
 
 ### Changed
+- Crof is retired from active quota-alert subscriptions; historical synced records remain readable.
 
 - Provider accent colors in the app now use the refreshed reviewed palette; widget colors stay the same.
 - Hugging Face billing spend and ZeroGPU quota now use QuotaKit's branded provider card, color, icon, and quota-alert subscription when synced from Mac.

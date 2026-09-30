@@ -5,6 +5,122 @@ import Testing
 @Suite(CodexCredentialFixtures())
 struct CodexOAuthCredentialReadTests {
     @Test
+    func `fetch credential reads retry transient failures up to the third read`() async throws {
+        let credentials = Self.credentials(needsRefresh: false)
+        let reads = CodexOAuthCredentialReadSequence(steps: [
+            .failure(CodexOAuthCredentialsError.unreadable),
+            .failure(CodexOAuthCredentialsError.missingTokens),
+            .credentials(credentials),
+        ])
+        let waits = CodexOAuthReadCounter()
+
+        let loaded = try await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+            read: { try reads.next() },
+            wait: { waits.increment() })
+
+        #expect(loaded.accessToken == credentials.accessToken)
+        #expect(reads.count == 3)
+        #expect(waits.count == 2)
+    }
+
+    @Test
+    func `fetch credential reads reread stale records and return a refreshed file value`() async throws {
+        let credentials = Self.credentials(needsRefresh: false)
+        let reads = CodexOAuthCredentialReadSequence(steps: [
+            .credentials(Self.credentials(needsRefresh: true)),
+            .credentials(Self.credentials(needsRefresh: true)),
+            .credentials(credentials),
+        ])
+        let waits = CodexOAuthReadCounter()
+
+        let loaded = try await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+            read: { try reads.next() },
+            wait: { waits.increment() })
+
+        #expect(loaded.accessToken == credentials.accessToken)
+        #expect(reads.count == 3)
+        #expect(waits.count == 2)
+    }
+
+    @Test
+    func `persistently unusable credentials fail after three reads`() async {
+        let reads = CodexOAuthCredentialReadSequence(steps: [
+            .failure(CodexOAuthCredentialsError.unreadable),
+            .failure(CodexOAuthCredentialsError.unreadable),
+            .failure(CodexOAuthCredentialsError.unreadable),
+        ])
+        let waits = CodexOAuthReadCounter()
+
+        await #expect(throws: CodexOAuthCredentialsError.self) {
+            try await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+                read: { try reads.next() },
+                wait: { waits.increment() })
+        }
+
+        #expect(reads.count == 3)
+        #expect(waits.count == 2)
+    }
+
+    @Test
+    func `stale third read fails closed while availability remains one non-refreshing read`() async {
+        let stale = Self.credentials(needsRefresh: true)
+        let reads = CodexOAuthCredentialReadSequence(steps: [
+            .credentials(stale), .credentials(stale), .credentials(stale),
+        ])
+        let waits = CodexOAuthReadCounter()
+
+        let error = await #expect(throws: CodexOAuthCredentialsError.self) {
+            try await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+                read: { try reads.next() },
+                wait: { waits.increment() })
+        }
+        guard case .nativeRefreshRequired = error else {
+            Issue.record("A stale Codex-owned auth file must be left for the CLI to refresh")
+            return
+        }
+        #expect(reads.count == 3)
+        #expect(waits.count == 2)
+
+        let availabilityReads = CodexOAuthCredentialReadSequence(steps: [.credentials(stale)])
+        let available = try? await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+            retryStale: false,
+            read: { try availabilityReads.next() },
+            wait: { Issue.record("Availability must not wait or retry") })
+        #expect(available?.needsRefresh == true)
+        #expect(availabilityReads.count == 1)
+    }
+
+    @Test
+    func `cancellation between stale credential reads stops without another read`() async {
+        let stale = Self.credentials(needsRefresh: true)
+        let reads = CodexOAuthCredentialReadSequence(steps: [.credentials(stale), .credentials(stale)])
+        let waits = CodexOAuthReadCounter()
+
+        await #expect(throws: CancellationError.self) {
+            try await CodexOAuthFetchStrategy._loadCredentialsForTesting(
+                read: { try reads.next() },
+                wait: {
+                    waits.increment()
+                    throw CancellationError()
+                })
+        }
+
+        #expect(reads.count == 1)
+        #expect(waits.count == 1)
+    }
+
+    private static func credentials(needsRefresh: Bool) -> CodexOAuthCredentials {
+        CodexOAuthCredentials(
+            accessToken: needsRefresh ? "stale-access" : "fresh-access",
+            refreshToken: "codex-cli-owned-refresh",
+            idToken: nil,
+            accountId: "synthetic-account",
+            lastRefresh: Date(),
+            expiresAt: Date().addingTimeInterval(needsRefresh ? -1 : 3600),
+            source: .codexHome)
+    }
+
+    @Test
     func `missing auth json maps to a not found credential error`() throws {
         let home = CodexCredentialFixtures.root
             .appendingPathComponent("codex-oauth-missing-\(UUID().uuidString)", isDirectory: true)
@@ -751,5 +867,52 @@ struct CodexOAuthCredentialReadTests {
         let header = encode(Data(#"{"alg":"none","typ":"JWT"}"#.utf8))
         let body = (try? JSONSerialization.data(withJSONObject: payload)).map(encode) ?? ""
         return "\(header).\(body).signature"
+    }
+}
+
+private final class CodexOAuthCredentialReadSequence: @unchecked Sendable {
+    enum Step {
+        case credentials(CodexOAuthCredentials)
+        case failure(CodexOAuthCredentialsError)
+    }
+
+    private let lock = NSLock()
+    private var steps: [Step]
+    private var readCount = 0
+
+    init(steps: [Step]) {
+        self.steps = steps
+    }
+
+    var count: Int {
+        self.lock.withLock { self.readCount }
+    }
+
+    func next() throws -> CodexOAuthCredentials {
+        let step = self.lock.withLock { () -> Step? in
+            self.readCount += 1
+            guard !self.steps.isEmpty else { return nil }
+            return self.steps.removeFirst()
+        }
+        guard let step else { throw CodexOAuthCredentialsError.unreadable }
+        switch step {
+        case let .credentials(credentials):
+            return credentials
+        case let .failure(error):
+            throw error
+        }
+    }
+}
+
+private final class CodexOAuthReadCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+
+    var count: Int {
+        self.lock.withLock { self.value }
+    }
+
+    func increment() {
+        self.lock.withLock { self.value += 1 }
     }
 }

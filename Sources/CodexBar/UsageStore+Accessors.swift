@@ -69,6 +69,8 @@ extension UsageStore {
                         expiresAt: cache.snapshot.subscriptionExpiresAt,
                         renewsAt: cache.snapshot.subscriptionRenewsAt)
                 }
+
+                return snapshot.withSubscriptionMetadata(expiresAt: nil, renewsAt: nil)
             }
             return snapshot
         }

@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import SwiftUI
 
 extension StatusItemController {
@@ -14,10 +15,13 @@ extension StatusItemController {
         let sections = display.showsWorkspaceGroups ? display.workspaceSections : [
             CodexAccountWorkspaceSection(title: "", accounts: display.accounts),
         ]
+        let workspaceTitles = CodexWorkspaceHeaderPrivacy.titles(
+            for: sections,
+            hidePersonalInfo: self.settings.hidePersonalInfo)
 
         for (sectionIndex, section) in sections.enumerated() {
             if display.showsWorkspaceGroups {
-                self.addCodexWorkspaceHeader(section.title, index: sectionIndex, to: menu)
+                self.addCodexWorkspaceHeader(workspaceTitles[sectionIndex], index: sectionIndex, to: menu)
             }
 
             for account in section.accounts {
@@ -122,5 +126,33 @@ extension StatusItemController {
             string: title,
             attributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor])
         menu.addItem(header)
+    }
+}
+
+enum CodexWorkspaceHeaderPrivacy {
+    static func titles(
+        for sections: [CodexAccountWorkspaceSection],
+        hidePersonalInfo: Bool) -> [String]
+    {
+        guard hidePersonalInfo else { return sections.map(\.title) }
+        let orderedKeys = Set(sections.map(self.stableKey)).sorted()
+        let ordinalByKey = Dictionary(uniqueKeysWithValues: orderedKeys.enumerated().map { index, key in
+            (key, index + 1)
+        })
+        return sections.map { section in
+            let ordinal = ordinalByKey[self.stableKey(section)] ?? 1
+            return "\(L("Workspace")) \(ordinal)"
+        }
+    }
+
+    private static func stableKey(_ section: CodexAccountWorkspaceSection) -> String {
+        let accountKeys = section.accounts.map { account in
+            account.storedAccountID?.uuidString ?? account.id
+        }.sorted()
+        let workspaceIDs = section.accounts.compactMap {
+            ManagedCodexAccount.normalizeWorkspaceAccountID($0.workspaceAccountID)
+        }.sorted()
+        let stableIdentity = workspaceIDs.isEmpty ? accountKeys : workspaceIDs
+        return stableIdentity.joined(separator: "\0")
     }
 }

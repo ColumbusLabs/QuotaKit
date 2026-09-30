@@ -25,6 +25,46 @@ struct CodexWeeklyResetConfirmationTests {
     }
 
     @Test
+    func `immediate weekly reset confirmation rejects plan changes and normalizes plan aliases`() {
+        let nextReset = self.resetAt.addingTimeInterval(7 * 24 * 60 * 60)
+        let previousChanged = self.identified(
+            self.snapshot(offset: 0, weeklyUsed: 80, weeklyReset: self.resetAt),
+            plan: "Plus")
+        let initialChanged = self.identified(
+            self.snapshot(offset: 1, weeklyUsed: 0.2, weeklyReset: nextReset),
+            plan: "Pro Lite")
+        let confirmationChanged = self.identified(
+            self.snapshot(offset: 2, weeklyUsed: 0.3, weeklyReset: nextReset),
+            plan: "Pro 5x")
+
+        #expect(CodexWeeklyResetConfirmation.initialDecision(
+            previous: previousChanged,
+            initial: initialChanged) == .preservePrevious)
+        #expect(CodexWeeklyResetConfirmation.confirmationDecision(
+            previous: previousChanged,
+            initial: initialChanged,
+            confirmation: confirmationChanged) == .preservePrevious)
+
+        let previousSamePlan = self.identified(
+            self.snapshot(offset: 0, weeklyUsed: 80, weeklyReset: self.resetAt),
+            plan: "prolite")
+        let initialSamePlan = self.identified(
+            self.snapshot(offset: 1, weeklyUsed: 0.2, weeklyReset: nextReset),
+            plan: "Pro Lite")
+        let confirmationSamePlan = self.identified(
+            self.snapshot(offset: 2, weeklyUsed: 0.3, weeklyReset: nextReset),
+            plan: "pro-lite")
+
+        #expect(CodexWeeklyResetConfirmation.initialDecision(
+            previous: previousSamePlan,
+            initial: initialSamePlan) == .requiresConfirmation)
+        #expect(CodexWeeklyResetConfirmation.confirmationDecision(
+            previous: previousSamePlan,
+            initial: initialSamePlan,
+            confirmation: confirmationSamePlan) == .publishRollingWindowConfirmation)
+    }
+
+    @Test
     func `first low observation requires matching confirmation without prior state`() {
         let reset = self.resetAt.addingTimeInterval(7 * 24 * 60 * 60)
         let previousWithoutWeekly = self.snapshot(offset: 0, weeklyUsed: nil, weeklyReset: nil)
@@ -92,6 +132,43 @@ struct CodexWeeklyResetConfirmationTests {
         #expect(backfilled.secondary?.usedPercent == 55)
         #expect(backfilled.secondary?.windowMinutes == 10080)
         #expect(backfilled.secondary?.resetsAt == weeklyReset)
+    }
+
+    @Test
+    func `Codex reset backfill and account snapshot merge keep plan and account boundaries`() {
+        let cached = self.identified(
+            self.snapshot(offset: 0, weeklyUsed: 80, weeklyReset: self.resetAt),
+            email: "owner@example.com",
+            plan: "Plus")
+        let changedPlan = self.identified(
+            self.snapshot(offset: 1, weeklyUsed: 12, weeklyReset: nil),
+            email: "owner@example.com",
+            plan: "Pro")
+        let otherAccountSamePlan = self.identified(
+            self.snapshot(offset: 1, weeklyUsed: 12, weeklyReset: nil),
+            email: "other@example.com",
+            plan: "Plus")
+
+        let planTransition = UsageStore.codexBackfillingResetWindows(changedPlan, from: cached)
+        #expect(planTransition.secondary?.usedPercent == 12)
+        #expect(planTransition.secondary?.resetsAt == nil)
+        let planMerge = UsageStore.codexMergedResetBackfillSnapshot([cached, changedPlan])
+        #expect(planMerge?.secondary?.resetsAt == nil)
+
+        let accountTransition = UsageStore.codexBackfillingResetWindows(otherAccountSamePlan, from: cached)
+        #expect(accountTransition.secondary?.usedPercent == 12)
+        #expect(accountTransition.secondary?.resetsAt == nil)
+        let accountMerge = UsageStore.codexMergedResetBackfillSnapshot([cached, otherAccountSamePlan])
+        #expect(accountMerge?.secondary?.resetsAt == nil)
+
+        let samePlanAlias = self.identified(
+            self.snapshot(offset: 1, weeklyUsed: 12, weeklyReset: nil),
+            email: "owner@example.com",
+            plan: "plus plan")
+        let samePlanBackfill = UsageStore.codexBackfillingResetWindows(samePlanAlias, from: cached)
+        #expect(samePlanBackfill.secondary?.resetsAt == self.resetAt)
+        let samePlanMerge = UsageStore.codexMergedResetBackfillSnapshot([cached, samePlanAlias])
+        #expect(samePlanMerge?.secondary?.resetsAt == self.resetAt)
     }
 
     @Test
@@ -635,6 +712,69 @@ struct CodexWeeklyResetConfirmationTests {
             previous: previous,
             initial: initial,
             confirmation: confirmation) == .publishConfirmation)
+    }
+
+    @Test
+    func `reset credit evidence from another account or plan is ignored`() {
+        let expiry = self.resetAt.addingTimeInterval(24 * 60 * 60)
+        let baseline = self.identified(
+            self.snapshot(
+                offset: 1,
+                weeklyUsed: 72,
+                weeklyReset: self.resetAt,
+                resetCredits: self.emptyResetCredits(capturedAt: self.capturedAt.addingTimeInterval(1))),
+            plan: "Pro")
+        let initial = self.identified(
+            self.snapshot(
+                offset: 2,
+                weeklyUsed: 0.2,
+                weeklyReset: self.resetAt,
+                resetCredits: self.emptyResetCredits(capturedAt: self.capturedAt.addingTimeInterval(2))),
+            plan: "Pro")
+        let confirmation = self.identified(
+            self.snapshot(
+                offset: 3,
+                weeklyUsed: 0.7,
+                weeklyReset: self.resetAt,
+                resetCredits: self.emptyResetCredits(capturedAt: self.capturedAt.addingTimeInterval(3))),
+            plan: "Pro")
+        let foreignPlan = self.identified(
+            self.snapshot(
+                offset: 0,
+                weeklyUsed: 72,
+                weeklyReset: self.resetAt,
+                resetCredits: self.resetCredits(
+                    status: .available,
+                    capturedAt: self.capturedAt,
+                    expiresAt: expiry)),
+            plan: "Plus")
+        let foreignAccount = self.identified(
+            self.snapshot(
+                offset: 0,
+                weeklyUsed: 72,
+                weeklyReset: self.resetAt,
+                resetCredits: self.resetCredits(
+                    status: .available,
+                    capturedAt: self.capturedAt,
+                    expiresAt: expiry)),
+            email: "other@example.com",
+            plan: "Pro")
+        let ownerless = self.snapshot(
+            offset: 0,
+            weeklyUsed: 72,
+            weeklyReset: self.resetAt,
+            resetCredits: self.resetCredits(
+                status: .available,
+                capturedAt: self.capturedAt,
+                expiresAt: expiry))
+
+        for evidence in [foreignPlan, foreignAccount, ownerless] {
+            #expect(CodexWeeklyResetConfirmation.confirmationDecision(
+                previous: baseline,
+                previousEvidence: evidence,
+                initial: initial,
+                confirmation: confirmation) == .preservePrevious)
+        }
     }
 }
 

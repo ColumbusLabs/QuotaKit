@@ -1023,6 +1023,15 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
+        // Claude reset credits use their dedicated live-only section; generic details remain for CLI output.
+        if input.provider == .claude {
+            details = details.compactMap { section in
+                let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
+                guard rows.count != section.rows.count else { return section }
+                guard !rows.isEmpty || section.chart != nil else { return nil }
+                return try? ProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
+            }
+        }
         // Preserve provider-owned raw titles for stable visibility IDs before localization/redaction.
         let localizedPairs = details.flatMap { rawSection in
             let localized = input.provider == .sub2api
@@ -1481,12 +1490,6 @@ extension UsageMenuCardView.Model {
            !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             weeklyDetailText = detail
-        }
-        if input.provider == .crof,
-           let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !detail.isEmpty
-        {
-            weeklyResetText = detail
         }
         if [.copilot, .zenmux].contains(input.provider),
            let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),

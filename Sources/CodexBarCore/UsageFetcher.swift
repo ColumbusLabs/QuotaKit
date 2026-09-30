@@ -178,6 +178,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
     /// Live-only display inventory; redemption token identifiers never enter the snapshot.
     public let grokResetCredits: GrokRateLimitResetCreditsSnapshot?
+    /// Live-only Claude Web inventory; never decoded from a stored or synced snapshot.
+    public let claudeResetCredits: ClaudeRateLimitResetCreditsSnapshot?
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
     public let deepgramUsage: DeepgramUsageSnapshot?
@@ -285,6 +287,7 @@ public struct UsageSnapshot: Codable, Sendable {
         groqConsoleUsage: GroqConsoleUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
         grokResetCredits: GrokRateLimitResetCreditsSnapshot? = nil,
+        claudeResetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil,
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
         deepgramUsage: DeepgramUsageSnapshot? = nil,
@@ -341,6 +344,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.groqConsoleUsage = groqConsoleUsage
         self.codexResetCredits = codexResetCredits
         self.grokResetCredits = grokResetCredits
+        self.claudeResetCredits = claudeResetCredits
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
         self.deepgramUsage = deepgramUsage
@@ -381,6 +385,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.replacing(grokResetCredits: .value(resetCredits))
     }
 
+    public func withClaudeResetCredits(_ resetCredits: ClaudeRateLimitResetCreditsSnapshot?) -> UsageSnapshot {
+        self.replacing(claudeResetCredits: .value(resetCredits))
+    }
+
     public func withSubscriptionMetadata(expiresAt: Date?, renewsAt: Date?) -> UsageSnapshot {
         self.replacing(
             subscriptionExpiresAt: .value(expiresAt),
@@ -409,9 +417,8 @@ public struct UsageSnapshot: Codable, Sendable {
         self.extraRateWindows = try container.decodeIfPresent([NamedRateWindow].self, forKey: .extraRateWindows)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
         self.costUsage = nil // Live-only provider history; refresh from the authoritative source.
-        self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
+        let decodedDetails = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
         self.hyperBalance = try? container.decodeIfPresent(Double.self, forKey: .hyperBalance)
-        try ProviderDetailSection.validateSections(self.details)
         // Rich provider payloads are additive. Ignore legacy or foreign shapes rather than
         // rejecting the entire account snapshot when another provider owns the record.
         self.kiroUsage = try? container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
@@ -442,6 +449,7 @@ public struct UsageSnapshot: Codable, Sendable {
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
         self.grokResetCredits = nil // Refresh live; do not persist redemption inventory.
+        self.claudeResetCredits = nil // Refresh from Claude Web; never restore from cached or synced data.
         self.claudeAdminAPIUsage = try? container.decodeIfPresent(
             ClaudeAdminAPIUsageSnapshot.self,
             forKey: .claudeAdminAPIUsage)
@@ -479,21 +487,39 @@ public struct UsageSnapshot: Codable, Sendable {
         } else {
             self.dataConfidence = .unknown
         }
+        let resolvedIdentity: ProviderIdentitySnapshot?
         if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {
-            self.identity = identity
+            resolvedIdentity = identity
         } else {
             let email = try container.decodeIfPresent(String.self, forKey: .accountEmail)
             let organization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
             let loginMethod = try container.decodeIfPresent(String.self, forKey: .loginMethod)
             if email != nil || organization != nil || loginMethod != nil {
-                self.identity = ProviderIdentitySnapshot(
+                resolvedIdentity = ProviderIdentitySnapshot(
                     providerID: nil,
                     accountEmail: email,
                     accountOrganization: organization,
                     loginMethod: loginMethod)
             } else {
-                self.identity = nil
+                resolvedIdentity = nil
             }
+        }
+        self.identity = resolvedIdentity
+        if resolvedIdentity?.providerID == .claude {
+            self.details = Self.removingClaudeResetCreditRows(from: decodedDetails)
+        } else {
+            self.details = decodedDetails
+        }
+        try ProviderDetailSection.validateSections(self.details)
+    }
+
+    private static func removingClaudeResetCreditRows(from details: [ProviderDetailSection])
+    -> [ProviderDetailSection] {
+        details.compactMap { section in
+            let rows = section.rows.filter { $0.label != ClaudeRateLimitResetCreditsSnapshot.detailLabel }
+            guard rows.count != section.rows.count else { return section }
+            guard !rows.isEmpty || section.chart != nil else { return nil }
+            return try? ProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
         }
     }
 
@@ -686,6 +712,7 @@ public struct UsageSnapshot: Codable, Sendable {
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
         codexResetCredits: Replacement<CodexRateLimitResetCreditsSnapshot?> = .unchanged,
         grokResetCredits: Replacement<GrokRateLimitResetCreditsSnapshot?> = .unchanged,
+        claudeResetCredits: Replacement<ClaudeRateLimitResetCreditsSnapshot?> = .unchanged,
         subscriptionExpiresAt: Replacement<Date?> = .unchanged,
         subscriptionRenewsAt: Replacement<Date?> = .unchanged,
         identity: Replacement<ProviderIdentitySnapshot?> = .unchanged,
@@ -722,6 +749,7 @@ public struct UsageSnapshot: Codable, Sendable {
             groqConsoleUsage: self.groqConsoleUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
             grokResetCredits: grokResetCredits.resolving(self.grokResetCredits),
+            claudeResetCredits: claudeResetCredits.resolving(self.claudeResetCredits),
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,

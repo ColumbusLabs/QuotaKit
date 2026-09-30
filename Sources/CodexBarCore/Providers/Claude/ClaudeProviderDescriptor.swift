@@ -754,6 +754,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
 
     fileprivate static func snapshot(
         from usage: ClaudeUsageSnapshot,
+        includeWebResetCredits: Bool = false,
         dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
     {
         let identity = ProviderIdentitySnapshot(
@@ -769,6 +770,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             tertiary: usage.opus,
             extraRateWindows: usage.extraRateWindows.isEmpty ? nil : usage.extraRateWindows,
             providerCost: usage.providerCost,
+            details: includeWebResetCredits ? usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [] : [],
+            claudeResetCredits: includeWebResetCredits ? usage.resetCredits : nil,
             updatedAt: usage.updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)
@@ -776,9 +779,10 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
 
     static func _snapshotForTesting(
         from usage: ClaudeUsageSnapshot,
+        includeWebResetCredits: Bool = false,
         dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
     {
-        self.snapshot(from: usage, dataConfidence: dataConfidence)
+        self.snapshot(from: usage, includeWebResetCredits: includeWebResetCredits, dataConfidence: dataConfidence)
     }
 }
 
@@ -863,7 +867,7 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let usage = try await self.loadUsage(before: context.webTimeout, context: context)
         return self.makeResult(
-            usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),
+            usage: ClaudeOAuthFetchStrategy.snapshot(from: usage, includeWebResetCredits: true),
             sourceLabel: "web")
     }
 
