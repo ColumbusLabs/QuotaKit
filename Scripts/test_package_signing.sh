@@ -8,10 +8,31 @@ FUNCTIONS_FILE=$(mktemp "${TMPDIR:-/tmp}/codexbar-package-signing-functions.XXXX
 trap 'rm -f "$FUNCTIONS_FILE"' EXIT
 
 python3 - "$PACKAGE_SCRIPT" "$FUNCTIONS_FILE" <<'PY'
+import plistlib
+import re
+import subprocess
 import sys
 from pathlib import Path
 
 script = Path(sys.argv[1]).read_text()
+# Exercise the production parser with real pipe input; plistlib.load requires
+# a seekable stream on Python 3.14, while security cms writes to a pipe.
+profile_parser = re.search(
+    r"PROFILE_TEAM_ID=.*?\| python3 -c\s+'([^']+)'", script
+).group(1)
+for fmt in (plistlib.FMT_XML, plistlib.FMT_BINARY):
+    payload = plistlib.dumps({"TeamIdentifier": ["FIXTURE123"]}, fmt=fmt)
+    result = subprocess.run(
+        [sys.executable, "-c", profile_parser], input=payload, capture_output=True
+    )
+    assert result.returncode == 0, result.stderr.decode()
+    assert result.stdout.strip() == b"FIXTURE123"
+for payload in (b"invalid profile", plistlib.dumps({"TeamIdentifier": []})):
+    result = subprocess.run(
+        [sys.executable, "-c", profile_parser], input=payload, capture_output=True
+    )
+    assert result.returncode != 0, "Malformed profile unexpectedly passed"
+
 functions = []
 for name in (
     'resolve_package_signing_mode',

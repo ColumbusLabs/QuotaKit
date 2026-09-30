@@ -739,7 +739,7 @@ if [[ "$LOWER_CONF" == "release" && "$SIGNING_MODE" == "identity" ]]; then
   fi
   # A local profile must belong to the resolved signing team. Embedding a
   # profile from another team can pass codesign yet fail AMFI at launch.
-  if ! PROFILE_TEAM_ID=$(/usr/bin/security cms -D -i "$PROVISION_PROFILE" | python3 -c     'import plistlib, sys; print(plistlib.load(sys.stdin.buffer)["TeamIdentifier"][0])'); then
+  if ! PROFILE_TEAM_ID=$(/usr/bin/security cms -D -i "$PROVISION_PROFILE" | python3 -c     'import plistlib, sys; print(plistlib.loads(sys.stdin.buffer.read())["TeamIdentifier"][0])'); then
     echo "FATAL: cannot read provisioning profile team from $PROVISION_PROFILE" >&2
     exit 1
   fi
