@@ -120,7 +120,7 @@ struct ZoomMateCookieCacheTests {
     }
 
     @Test
-    func `rejected cached session surfaces invalidCredentials and leaves the entry intact`() async throws {
+    func `cached-session rejection clears its observed entry and authorizes a fresh-import retry`() async throws {
         KeychainCacheStore.setTestStoreForTesting(true)
         defer {
             CookieHeaderCache.clear(provider: .zoommate)
@@ -137,20 +137,54 @@ struct ZoomMateCookieCacheTests {
         }
         let fetcher = ZoomMateUsageFetcher(browserDetection: BrowserDetection(cacheTTL: 0))
 
-        await #expect {
+        let error = await #expect(throws: ZoomMateCachedCookieRejection.self) {
             _ = try await fetcher.resolveRequestContext(
                 manualCaptureOverride: nil,
                 timeout: 1,
                 logger: nil,
                 cache: ZoomMateBearerTokenCache(),
                 transport: stub)
-        } throws: { error in
-            guard case ZoomMateUsageError.invalidCredentials = error else { return false }
-            return true
         }
-        // The fetcher never clears the cache itself — the strategy clears and retries once with a
-        // fresh import, so a transient mis-clear can't wipe a concurrently refreshed entry.
-        #expect(CookieHeaderCache.load(provider: .zoommate) != nil)
+        #expect(error?.mayRetryWithFreshImport == true)
+        #expect(CookieHeaderCache.load(provider: .zoommate) == nil)
+    }
+
+    @Test
+    func `cached-session rejection preserves a replacement entry and denies a fresh-import retry`() async throws {
+        KeychainCacheStore.setTestStoreForTesting(true)
+        defer {
+            CookieHeaderCache.clear(provider: .zoommate)
+            KeychainCacheStore.setTestStoreForTesting(false)
+        }
+        CookieHeaderCache.store(
+            provider: .zoommate,
+            cookieHeader: Self.cachedStorage,
+            sourceLabel: "Chrome (Test)")
+
+        let replacementHeader = "_zm_ssid=fake-replacement-session; cf_clearance=fake-clearance-value"
+        let replacementStorage = try #require(Self.sharedCookieHeaders(replacementHeader).encodedForStorage())
+        let stub = ProviderHTTPTransportStub { request in
+            #expect(request.value(forHTTPHeaderField: "Cookie") == Self.cachedHeader)
+            // Model a concurrent login replacing the cached session while this request is in flight.
+            CookieHeaderCache.store(
+                provider: .zoommate,
+                cookieHeader: replacementStorage,
+                sourceLabel: "Chrome (Replacement Test)")
+            let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (Data("{}".utf8), response)
+        }
+        let fetcher = ZoomMateUsageFetcher(browserDetection: BrowserDetection(cacheTTL: 0))
+
+        let error = await #expect(throws: ZoomMateCachedCookieRejection.self) {
+            _ = try await fetcher.resolveRequestContext(
+                manualCaptureOverride: nil,
+                timeout: 1,
+                logger: nil,
+                cache: ZoomMateBearerTokenCache(),
+                transport: stub)
+        }
+        #expect(error?.mayRetryWithFreshImport == false)
+        #expect(CookieHeaderCache.load(provider: .zoommate)?.cookieHeader == replacementStorage)
     }
 
     @Test

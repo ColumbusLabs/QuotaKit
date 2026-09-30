@@ -1002,18 +1002,16 @@ struct ClaudeAutoFetcherCharacterizationTests {
     }
 
     private func withClaudeWebStub<T>(
-        handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data),
+        handler: @escaping @Sendable (URLRequest) throws -> (HTTPURLResponse, Data),
         operation: () async throws -> T) async rethrows -> T
     {
-        let registered = URLProtocol.registerClass(ClaudeAutoFetcherStubURLProtocol.self)
-        ClaudeAutoFetcherStubURLProtocol.handler = handler
-        defer {
-            if registered {
-                URLProtocol.unregisterClass(ClaudeAutoFetcherStubURLProtocol.self)
-            }
-            ClaudeAutoFetcherStubURLProtocol.handler = nil
+        let transport = ProviderHTTPTransportHandler { request in
+            let (response, data) = try handler(request)
+            return (data, response)
         }
-        return try await operation()
+        return try await ClaudeWebHTTPTransport.$overrideForTesting.withValue(transport) {
+            try await operation()
+        }
     }
 
     fileprivate static func makeJSONResponse(
@@ -1315,39 +1313,6 @@ struct ClaudeAutoFetcherCharacterizationTests {
             }
         }
     }
-}
-
-final class ClaudeAutoFetcherStubURLProtocol: URLProtocol {
-    private static let _handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
-    static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
-        get { Self._handlerBox.value }
-        set { Self._handlerBox.setValue(newValue) }
-    }
-
-    override static func canInit(with request: URLRequest) -> Bool {
-        request.url?.host == "claude.ai"
-    }
-
-    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
-    }
-
-    override func startLoading() {
-        guard let handler = Self.handler else {
-            self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-            return
-        }
-        do {
-            let (response, data) = try handler(self.request)
-            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: data)
-            self.client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            self.client?.urlProtocol(self, didFailWithError: error)
-        }
-    }
-
-    override func stopLoading() {}
 }
 
 extension ClaudeAutoFetcherCharacterizationTests {

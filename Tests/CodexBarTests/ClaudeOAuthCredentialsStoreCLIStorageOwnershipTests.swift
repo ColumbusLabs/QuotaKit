@@ -697,6 +697,15 @@ struct ClaudeOAuthCredentialsStoreCLIStorageOwnershipTests {
                                     Issue.record("Expected ClaudeOAuthCredentialsError, got \(error)")
                                 }
 
+                                // The first delegation clears the expired cache entry. Restore its synthetic
+                                // owner evidence so this assertion independently covers user-initiated routing.
+                                KeychainCacheStore.store(
+                                    key: cacheKey,
+                                    entry: ClaudeOAuthCredentialsStore.CacheEntry(
+                                        data: expiredData,
+                                        storedAt: Date(),
+                                        owner: .claudeCLI))
+
                                 do {
                                     _ = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
                                         try await ClaudeOAuthCredentialsStore.loadWithAutoRefresh(

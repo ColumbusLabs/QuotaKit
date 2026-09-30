@@ -17,6 +17,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.claudeSwapEnabled = true
+        enableWidgetSnapshotProvider(.claude, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -124,6 +126,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+        enableWidgetSnapshotProvider(.cursor, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -181,6 +185,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.kimi, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -251,6 +257,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.claude, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -319,8 +327,9 @@ struct UsageStoreWidgetSnapshotTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
-        settings.statusChecksEnabled = false
-        settings.usageBarsShowUsed = true
+        settings.statusChecksEnabled = false; settings.usageBarsShowUsed = true
+
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -365,6 +374,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -431,6 +442,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -493,6 +506,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -553,6 +568,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -587,7 +604,7 @@ struct UsageStoreWidgetSnapshotTests {
     }
 
     @Test
-    func `widget snapshot excludes mimo balance from quota rows`() async throws {
+    func `widget snapshot omits nonselectable mimo provider`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-mimo-balance"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -598,6 +615,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.mimo, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -617,10 +636,10 @@ struct UsageStoreWidgetSnapshotTests {
         store.persistWidgetSnapshot(reason: "mimo-balance-test")
         await store.widgetSnapshotPersistTask?.value
 
-        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .mimo })
-        #expect(entry.primary == nil)
-        #expect(entry.secondary == nil)
-        #expect(entry.usageRows?.isEmpty == true)
+        let widgetSnapshot = try #require(widgetSnapshots.last)
+        #expect(widgetSnapshot.enabledProviders.contains(.mimo))
+        #expect(!ProviderDescriptorRegistry.descriptor(for: .mimo).metadata.widgetSelectable)
+        #expect(!widgetSnapshot.entries.contains { $0.provider == .mimo })
     }
 
     @Test
@@ -635,6 +654,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.claude, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -690,6 +711,8 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.claude, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -845,6 +868,8 @@ struct UsageStoreWidgetSnapshotTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.claude, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -906,6 +931,8 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
         settings.statusChecksEnabled = false
         settings.showOptionalCreditsAndExtraUsage = showsExtraUsage
 
+        enableWidgetSnapshotProvider(.devin, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -952,6 +979,8 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.claude, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -1006,6 +1035,8 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.cursor, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -1046,6 +1077,8 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
 
+        enableWidgetSnapshotProvider(.cursor, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -1080,6 +1113,8 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+        enableWidgetSnapshotProvider(qwen ? .qwencloud : .alibabatokenplan, in: settings)
+
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -1121,6 +1156,8 @@ struct UsageStoreWidgetSnapshotAntigravityFamilyTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+
+        enableWidgetSnapshotProvider(.antigravity, in: settings)
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -1168,4 +1205,13 @@ struct UsageStoreWidgetSnapshotAntigravityFamilyTests {
             "Grok weekly",
         ])
     }
+}
+
+@MainActor
+private func enableWidgetSnapshotProvider(_ provider: UsageProvider, in settings: SettingsStore) {
+    settings.providerDetectionCompleted = true
+    settings.setProviderEnabled(
+        provider: provider,
+        metadata: ProviderDefaults.metadata[provider]!,
+        enabled: true)
 }

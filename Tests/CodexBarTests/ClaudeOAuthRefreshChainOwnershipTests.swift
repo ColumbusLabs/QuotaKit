@@ -94,13 +94,14 @@ struct ClaudeOAuthRefreshChainOwnershipTests {
                                                 let expiredData = self.credentialsData(
                                                     accessToken: "expired-cached-access-token",
                                                     expiresAt: Date(timeIntervalSinceNow: -3600))
+                                                let cachedEntry = ClaudeOAuthCredentialsStore.CacheEntry(
+                                                    data: expiredData,
+                                                    storedAt: Date(),
+                                                    owner: .codexbar,
+                                                    profileIdentifier: profileIdentifier)
                                                 KeychainCacheStore.store(
                                                     key: cacheKey,
-                                                    entry: ClaudeOAuthCredentialsStore.CacheEntry(
-                                                        data: expiredData,
-                                                        storedAt: Date(),
-                                                        owner: .codexbar,
-                                                        profileIdentifier: profileIdentifier))
+                                                    entry: cachedEntry)
 
                                                 let record = try ClaudeOAuthCredentialsStore.loadRecord(
                                                     environment: profile.environment,
@@ -108,6 +109,10 @@ struct ClaudeOAuthRefreshChainOwnershipTests {
                                                     respectKeychainPromptCooldown: true,
                                                     allowClaudeKeychainRepairWithoutPrompt: false)
                                                 #expect(record.owner == .claudeCLI)
+
+                                                // The first load validates ownership and clears the expired cache.
+                                                // Restore the same synthetic mirror for the separate delegation check.
+                                                KeychainCacheStore.store(key: cacheKey, entry: cachedEntry)
 
                                                 do {
                                                     _ = try await ClaudeOAuthCredentialsStore

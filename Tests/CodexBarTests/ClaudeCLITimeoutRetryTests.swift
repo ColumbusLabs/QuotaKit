@@ -369,17 +369,15 @@ struct ClaudeCLITimeoutRetryTests {
     }
 
     private func withClaudeWebStub<T>(
-        handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data),
+        handler: @escaping @Sendable (URLRequest) throws -> (HTTPURLResponse, Data),
         operation: () async throws -> T) async rethrows -> T
     {
-        let registered = URLProtocol.registerClass(ClaudeAutoFetcherStubURLProtocol.self)
-        ClaudeAutoFetcherStubURLProtocol.handler = handler
-        defer {
-            if registered {
-                URLProtocol.unregisterClass(ClaudeAutoFetcherStubURLProtocol.self)
-            }
-            ClaudeAutoFetcherStubURLProtocol.handler = nil
+        let transport = ProviderHTTPTransportHandler { request in
+            let (response, data) = try handler(request)
+            return (data, response)
         }
-        return try await operation()
+        return try await ClaudeWebHTTPTransport.$overrideForTesting.withValue(transport) {
+            try await operation()
+        }
     }
 }

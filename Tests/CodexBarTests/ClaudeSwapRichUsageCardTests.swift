@@ -73,7 +73,7 @@ struct ClaudeSwapRichUsageCardTests {
             #expect(account.canActivate)
             #expect(try fixture.model(for: "1").planText == L("Re-authenticate"))
             #expect(ClaudeSwapAccountMenuDisplay.actionLabel(
-                for: account, switchingAccountID: account.id, switchInFlight: true) == L("Loading…"))
+                for: account, switchingAccountID: account.id, switchInFlight: true) == L("Switching account…"))
             #expect(ClaudeSwapAccountMenuDisplay.actionLabel(
                 for: account, switchingAccountID: nil, switchInFlight: true) == nil)
         }

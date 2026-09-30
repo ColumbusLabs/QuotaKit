@@ -235,16 +235,18 @@ struct MockProviderAdvancedScenariosTests {
         let realBorrowedMocks = snapshots.filter {
             realCatalog.contains($0.providerID)
         }
-        // 58 snapshots use real provider IDs (3 codex + 2 claude + 1
-        // perplexity + 52 simple — 35 v0.25.1-era + 2 v0.26.0 (moonshot,
+        // 57 snapshots currently use real provider IDs (3 codex + 2 claude + 1
+        // perplexity + 51 simple — 34 v0.25.1-era + 2 v0.26.0 (moonshot,
         // bedrock) + 7 Phase G multi-account second tabs + 5 v0.27.0
         // (grok, groq, elevenlabs, deepgram, llmproxy) + 3 v0.28+v0.29
-        // (azureopenai, alibabatokenplan, t3chat)). All 58 share their
+        // (azureopenai, alibabatokenplan, t3chat)). All 57 share their
         // providerID with a real provider, so iOS's existing
         // CKQuerySubscription set covers them — push notifications fire
         // on quota events without any subscription change.
-        // Phase G + iOS 1.8.0 + 1.9.0: 43 → 50 → 55 → 58.
-        #expect(realBorrowedMocks.count == 58)
+        // Crof retirement removed one v0.25.1-era simple mock: 58 → 57.
+        // Including Crof, the historical progression was 43 → 50 → 55 → 58;
+        // the current totals are 42 → 49 → 54 → 57.
+        #expect(realBorrowedMocks.count == 57)
         for snap in realBorrowedMocks {
             #expect(
                 realCatalog.contains(snap.providerID),

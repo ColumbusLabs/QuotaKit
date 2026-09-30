@@ -773,6 +773,8 @@ extension UsageStoreCoverageTests {
     func `widget snapshot projects provider derived token usage`() async throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-widget-provider-cost")
         settings.costUsageEnabled = true
+        let metadata = try #require(ProviderRegistry.shared.metadata[.mistral])
+        settings.setProviderEnabled(provider: .mistral, metadata: metadata, enabled: true)
         let store = Self.makeUsageStore(settings: settings)
         let formatter = ISO8601DateFormatter()
         let updatedAt = try #require(formatter.date(from: "2026-05-26T12:00:00Z"))
