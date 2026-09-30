@@ -18,7 +18,7 @@ The full local package suite was omitted; required hosted CI supplies the broade
 
 ### Upstream and cleanup
 
-A fresh fetch still reports upstream `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`, with no additions beyond 930. The active monitor cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5` until complete covering delivery. `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` track shipped alignment and do not advance at merge.
+A fresh fetch still reports upstream `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`, with no additions beyond 930. The active main monitor cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5` until complete covering delivery. This candidate prepares `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f` in `version.env` so the active cursor changes atomically with the verified PR217 merge. `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` track shipped alignment and do not advance at merge.
 
 Cleanup has retired 118 local and 19 remote refs and reduced 12 worktrees to one primary checkout. Fifteen local branches remain: main, unrelated battery work, the two active candidate branches and 11 old audited heads. The 11 old heads have a verified 116,352,382-byte recovery bundle (SHA-256 `86758e9dfdfbff3c9658fb698039f3bbeba4b5efb1f8f923ff73a7cfb2aa8be5`); unique changes are source-mapped or explicitly archived, and retirement follows the covering merge. Earlier private worktree patches and recovery bundles remain preserved.
 

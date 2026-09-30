@@ -182,3 +182,5 @@ All product modules and the full test bundle compile. Subsequent affected-only r
 ## Frozen final candidate
 
 Source `57c46c3d6dbe7e534169e592bd95fdf601b5d941` exactly matches the locally tested tree. All83 planned focused filters and affected widget/reset/native/plugin checks pass; full lint and independent delta reviews pass. PR217 now carries Recovery20 + final41 + fresh9 with candidate930/930 accounting, zero missing applicable implementation and zero unresolved rows. First12 historical fields remain unchanged for all existing921rows. Candidate implementation evidence is separate from merged860/921credit. Required exact-head hosted CI, covering merge, recoverable retirement of remaining old refs, final upstream refresh and cursor/tracker closeout remain the delivery steps. No product release is requested.
+
+The final candidate prepares the monitor cursor at the fully reconciled `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`. Active main remains at the earlier cursor while CI runs; branch protection and the verified covering merge make activation atomic. Shipped-upstream alignment and product/build versions remain unchanged.
