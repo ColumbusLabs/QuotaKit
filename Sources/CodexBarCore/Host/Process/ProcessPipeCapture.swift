@@ -1,5 +1,7 @@
 import Foundation
-#if canImport(Glibc)
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
 import Glibc
 #elseif canImport(Musl)
 import Musl
@@ -11,6 +13,8 @@ package final class ProcessPipeCapture: @unchecked Sendable {
     private let handle: FileHandle
     private let onData: (@Sendable () -> Void)?
     private let maxBytes: Int
+    private let readOperation: @Sendable (FileHandle, Int) throws -> Data?
+    private let readLock = NSLock()
     private let condition = NSCondition()
     private var data = Data()
     private var activeCallbacks = 0
@@ -29,19 +33,87 @@ package final class ProcessPipeCapture: @unchecked Sendable {
     package convenience init(
         pipe: Pipe,
         maxBytes: Int = ProcessPipeCapture.defaultMaxBytes,
-        onData: (@Sendable () -> Void)? = nil)
+        onData: (@Sendable () -> Void)? = nil,
+        readOperation: (@Sendable (FileHandle, Int) throws -> Data?)? = nil)
     {
-        self.init(handle: pipe.fileHandleForReading, maxBytes: maxBytes, onData: onData)
+        self.init(
+            handle: pipe.fileHandleForReading,
+            maxBytes: maxBytes,
+            onData: onData,
+            readOperation: readOperation)
     }
 
     package init(
         handle: FileHandle,
         maxBytes: Int = ProcessPipeCapture.defaultMaxBytes,
-        onData: (@Sendable () -> Void)? = nil)
+        onData: (@Sendable () -> Void)? = nil,
+        readOperation: (@Sendable (FileHandle, Int) throws -> Data?)? = nil)
     {
+        let readFileDescriptor = handle.fileDescriptor
         self.handle = handle
         self.maxBytes = max(0, maxBytes)
         self.onData = onData
+        self.readOperation = readOperation ?? { _, count in
+            try Self.readAvailableData(fileDescriptor: readFileDescriptor, upToCount: count)
+        }
+    }
+
+    /// Reads at most one bounded chunk without asking Foundation to fill the requested length.
+    package static func readAvailableData(fileDescriptor: Int32, upToCount count: Int) throws -> Data {
+        guard fileDescriptor >= 0 else { throw POSIXError(.EBADF) }
+        guard count > 0 else { throw POSIXError(.EINVAL) }
+
+        #if canImport(Darwin)
+        let flags = Darwin.fcntl(fileDescriptor, F_GETFL)
+        guard flags >= 0 else { throw Self.currentPOSIXError() }
+        // A stale or overlapping readability callback must not block after another callback drains the pipe.
+        if flags & O_NONBLOCK == 0,
+           Darwin.fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK) < 0
+        {
+            throw Self.currentPOSIXError()
+        }
+        #elseif canImport(Glibc)
+        let flags = Glibc.fcntl(fileDescriptor, F_GETFL)
+        guard flags >= 0 else { throw Self.currentPOSIXError() }
+        if flags & O_NONBLOCK == 0,
+           Glibc.fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK) < 0
+        {
+            throw Self.currentPOSIXError()
+        }
+        #elseif canImport(Musl)
+        let flags = Musl.fcntl(fileDescriptor, F_GETFL)
+        guard flags >= 0 else { throw Self.currentPOSIXError() }
+        if flags & O_NONBLOCK == 0,
+           Musl.fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK) < 0
+        {
+            throw Self.currentPOSIXError()
+        }
+        #endif
+
+        let byteCount = min(count, 16 * 1024)
+        var buffer = [UInt8](repeating: 0, count: byteCount)
+        while true {
+            let bytesRead = buffer.withUnsafeMutableBytes { bytes in
+                #if canImport(Darwin)
+                Darwin.read(fileDescriptor, bytes.baseAddress, bytes.count)
+                #elseif canImport(Glibc)
+                Glibc.read(fileDescriptor, bytes.baseAddress, bytes.count)
+                #elseif canImport(Musl)
+                Musl.read(fileDescriptor, bytes.baseAddress, bytes.count)
+                #else
+                -1
+                #endif
+            }
+            if bytesRead >= 0 {
+                return Data(buffer.prefix(bytesRead))
+            }
+            let errorCode = errno
+            if errorCode == EINTR { continue }
+            if errorCode == EAGAIN || errorCode == EWOULDBLOCK {
+                throw POSIXError(.init(rawValue: errorCode) ?? .EAGAIN)
+            }
+            throw POSIXError(.init(rawValue: errorCode) ?? .EIO)
+        }
     }
 
     package func start() {
@@ -144,11 +216,35 @@ package final class ProcessPipeCapture: @unchecked Sendable {
         self.activeCallbacks += 1
         self.condition.unlock()
 
-        let chunk = handle.availableData
+        self.readLock.lock()
+        self.condition.lock()
+        guard !self.isStopping, !self.isFinished else {
+            self.activeCallbacks -= 1
+            if self.activeCallbacks == 0 {
+                self.condition.broadcast()
+            }
+            self.condition.unlock()
+            self.readLock.unlock()
+            return
+        }
+        self.condition.unlock()
+
+        let chunk: Data
+        do {
+            chunk = try self.readOperation(handle, 16 * 1024) ?? Data()
+        } catch let error as POSIXError where Self.isWouldBlock(error) {
+            self.readLock.unlock()
+            self.finishReadWouldBlock()
+            return
+        } catch {
+            self.readLock.unlock()
+            self.finishReadFailure(from: handle)
+            return
+        }
         var continuation: CheckedContinuation<Void, Never>?
 
         self.condition.lock()
-        if chunk.isEmpty {
+        if chunk.isEmpty, !self.isStopping, !self.isFinished {
             self.isFinished = true
             self.didReachEOF = true
             continuation = self.continuation
@@ -164,6 +260,7 @@ package final class ProcessPipeCapture: @unchecked Sendable {
             self.condition.broadcast()
         }
         self.condition.unlock()
+        self.readLock.unlock()
 
         if chunk.isEmpty {
             handle.readabilityHandler = nil
@@ -171,6 +268,46 @@ package final class ProcessPipeCapture: @unchecked Sendable {
             self.onData?()
         }
         continuation?.resume()
+    }
+
+    private func finishReadWouldBlock() {
+        self.condition.lock()
+        self.activeCallbacks -= 1
+        if self.activeCallbacks == 0 {
+            self.condition.broadcast()
+        }
+        self.condition.unlock()
+    }
+
+    private func finishReadFailure(from handle: FileHandle) {
+        let continuation: CheckedContinuation<Void, Never>?
+        self.condition.lock()
+        self.isFinished = true
+        self.isStopping = true
+        self.didReachEOF = false
+        continuation = self.continuation
+        self.continuation = nil
+        self.condition.unlock()
+
+        handle.readabilityHandler = nil
+
+        self.condition.lock()
+        self.activeCallbacks -= 1
+        if self.activeCallbacks == 0 {
+            self.condition.broadcast()
+        }
+        self.condition.unlock()
+
+        continuation?.resume()
+    }
+
+    private static func isWouldBlock(_ error: POSIXError) -> Bool {
+        error.code == .EAGAIN || error.code == .EWOULDBLOCK
+    }
+
+    private static func currentPOSIXError() -> POSIXError {
+        let errorCode = errno
+        return POSIXError(.init(rawValue: errorCode) ?? .EIO)
     }
 
     #if os(Linux)
