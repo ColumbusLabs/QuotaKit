@@ -13,14 +13,14 @@ The squash tree matches that tested tree. Local main and origin/main match;
 identical-tree post-merge CI was cancelled and completion verified.
 
 The following grouped source combines
-`b4a6a7abe58221818a3bb76e874d706566450702` and
-`0d42ba2af5836e64c7fbc90a920a5e4f63e249ac` with candidate accounting:
-**859 accounted, 60 known gaps, 2 unresolved / 921**. All 140 historical merge
+`997988ae699569a923a6dd473d9bca227935394d` and
+`2d4031784d9c361a224a6a412a20c73013c1cd51` and
+`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
+**860 accounted, 60 known gaps, 1 unresolved / 921**. All 140 historical merge
 claims were reviewed against current source. Twenty-two preceding tested rows
-and nine new runtime/applicability closures have source provenance. The two
-unresolved decisions are residual shared-card context applicability (315) and
-host-aware plugin cookies (841). Explicit cookie subtitle localization is already
-tested. Candidate counts are not merged counts.
+and ten new runtime/applicability closures have source provenance. Host-aware plugin cookies (841) are the only unresolved decision. Cookie subtitle
+localization and shared-account confidence/reset context (315/451) are tested,
+including six focused account/card tests. Candidate counts are not merged counts.
 
 ### Implemented and verified in the new candidate
 
@@ -68,7 +68,7 @@ represented; three unique unbenchmarked cache experiments are archived as separa
 performance work. The current sort order is retained. No upstream row receives
 credit from this cleanup; all unique commits remain recoverable.
 
-Next: finish the residual card-context source audit,
+Next: publish this verified grouped source,
 move the tested grouped source onto the identical PR #215 squash tree, run one
 combined required CI cycle, merge and clean covered refs. Then address grouped
 account-authority/privacy, cost-history/reset and cookie-policy slices. Refresh

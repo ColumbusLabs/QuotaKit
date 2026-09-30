@@ -12,20 +12,22 @@ squashed trees match. Local main and origin/main are synchronized. The redundant
 identical-tree post-merge run was cancelled and completion verified.
 
 The following grouped tested source combines
-`b4a6a7abe58221818a3bb76e874d706566450702` and
-`0d42ba2af5836e64c7fbc90a920a5e4f63e249ac` with candidate accounting:
-**859 accounted, 60 known gaps, 2 unresolved / 921**, pending required CI and
+`997988ae699569a923a6dd473d9bca227935394d` and
+`2d4031784d9c361a224a6a412a20c73013c1cd51` and
+`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
+**860 accounted, 60 known gaps, 1 unresolved / 921**, pending required CI and
 merge. All 140 historical claims were reviewed against active source; reopened
-actual gaps remain open. Twenty-two prior implementation/test/doc rows and nine
-new numeric, recorder, balance and applicability rows have source evidence.
+actual gaps remain open. Twenty-two prior implementation/test/doc rows and ten
+new numeric, recorder, balance, localization and applicability rows have source evidence.
 
 The follow-on passed its relevant Mac and portable checks: combined 199 Mac tests
 and 8 portable tests, then 47 affected Mac and 8 portable tests after fixture and
 architecture-marker corrections. The other eight Mac suites passed and were not
 rerun. Both independent reviews, scoped lint, all 23 Mac locales and parser-hash
-checks passed. No full local suite or live probe ran. Cookie localization (315)
-is tested; its residual card-context audit remains open. Host-aware plugin cookies
-(841) are the other unresolved row. Sixty concrete gaps remain.
+checks passed. No full local suite or live probe ran. Cookie localization and shared-account context (315) are verified, including six
+focused account/card tests and the omitted shared reset-observation route451.
+Host-aware plugin cookies (841) are the only unresolved row. Sixty concrete gaps
+remain.
 
 Cleanup has removed **103 local and 18 remote refs**, leaving **28 local branches,
 three origin tracking refs including HEAD, and one worktree**. Seventy removed
