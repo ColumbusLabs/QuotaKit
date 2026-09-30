@@ -188,3 +188,7 @@ The final candidate prepares the monitor cursor at the fully reconciled `5de8b9c
 ### Portable retirement fixture repair
 
 The first combined hosted run found an obsolete Linux-only Crof credits fixture referring to removed runtime types. It is replaced by Core-only opaque-history/config/catalog compatibility checks that also run on Mac. Both new tests pass locally; no production source changed. Superseded runs were cancelled before another matrix; the covering exact-head gate remains pending.
+
+### iOS retirement fixture repair
+
+Both hosted Linux architectures and lint pass after the portable fixture repair. Hosted iOS exposed stale Crof/provider-count expectations in `QuotaProviderListTests`; the fixture now checks 71 active providers, 213 subscription zones and readable historical Crof zone names. Production source remains unchanged. All 33 provider-list tests pass in a private macOS harness with byte-identical shared source and only the unused app-module import removed. Current Mac diagnostics are collected before publishing the combined fixture repair; required exact-head CI and verified merge remain pending.
