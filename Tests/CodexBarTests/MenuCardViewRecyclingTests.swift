@@ -1002,6 +1002,8 @@ extension StatusMenuTests {
             Issue.record("expected a shared menu row container")
             return
         }
+        #expect(!gpuView.allowsVibrancy)
+        #expect(!gpuView.hostedViewAllowsVibrancyForTesting)
 
         // The menu highlights the AppKit row, but the hosted SwiftUI highlight state must stay false
         // so selection never re-invalidates the SwiftUI graph.

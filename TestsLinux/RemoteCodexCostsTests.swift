@@ -10,10 +10,12 @@ struct RemoteCodexCostsTests {
         tokens: Int? = 1500,
         cost: Double? = 0.25,
         complete: Bool = true,
-        days: Int = 30) -> CodexCostSummary
+        days: Int = 30,
+        updatedAt: Date? = nil,
+        timeZone: TimeZone = .gmt) -> CodexCostSummary
     {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .gmt
+        calendar.timeZone = timeZone
         let entry = CostUsageDailyReport.Entry(
             date: "2026-08-31",
             inputTokens: tokens,
@@ -35,13 +37,13 @@ struct RemoteCodexCostsTests {
             historyCoverageIsEstablished: complete,
             costProvenance: .listPriceEstimate,
             daily: [entry],
-            updatedAt: Self.now), calendar: calendar)
+            updatedAt: updatedAt ?? Self.now), calendar: calendar)
     }
 
     private static func wire(_ summary: CodexCostSummary) throws -> String {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        return try String(decoding: encoder.encode([summary]), as: UTF8.self)
+        return try #require(String(bytes: encoder.encode([summary]), encoding: .utf8))
     }
 
     @Test
@@ -70,11 +72,36 @@ struct RemoteCodexCostsTests {
         let text = CodexBarCLI.renderHostCostText(.init(host: "local", source: "local", summary: zero))
         #expect(text.contains("$0.00"))
         #expect(text.contains("0 tokens"))
+        #expect(text.contains("Snapshot updated: 2026-08-31T12:00:00Z"))
         let missing = CodexBarCLI.renderHostCostText(.init(
             host: "qa-linux", source: "ssh", summary: Self.summary(tokens: nil, cost: nil, complete: false)))
         #expect(!missing.contains("$0"))
         #expect(missing.contains("Partial history"))
         #expect(missing.contains("3 incomplete requests excluded"))
+        #expect(missing.contains("Snapshot updated: 2026-08-31T12:00:00Z"))
+    }
+
+    @Test
+    func `host text shows the source snapshot timestamp in UTC`() throws {
+        let local = try Self.summary(timeZone: #require(TimeZone(identifier: "America/Los_Angeles")))
+        let remote = try Self.summary(
+            updatedAt: Date(timeIntervalSince1970: 946_684_800),
+            timeZone: #require(TimeZone(identifier: "Asia/Tokyo")))
+        let localText = CodexBarCLI.renderHostCostText(.init(host: "local", source: "local", summary: local))
+        let remoteText = CodexBarCLI.renderHostCostText(.init(host: "qa-linux", source: "ssh", summary: remote))
+
+        #expect(localText.contains("Snapshot updated: 2026-08-31T12:00:00Z"))
+        #expect(remoteText.contains("Snapshot updated: 2000-01-01T00:00:00Z"))
+        #expect(localText.contains("Day boundaries: America/Los_Angeles"))
+        #expect(remoteText.contains("Day boundaries: Asia/Tokyo"))
+    }
+
+    @Test(arguments: ["local", "ssh"])
+    func `failed host text does not invent a snapshot timestamp`(source: String) {
+        let text = CodexBarCLI.renderHostCostText(.init(
+            host: "qa-linux", source: source, summary: nil, error: "Fixture unavailable."))
+        let title = source == "local" ? "This machine" : "qa-linux"
+        #expect(text == "\(title): Fixture unavailable.")
     }
 
     @Test(arguments: ["", "-oProxyCommand=bad", "user@host other", "host,other", "host\nother", "host'", "host;bad"])
@@ -113,7 +140,8 @@ struct RemoteCodexCostsTests {
             return wire
         }
         let actual = try await fetcher.fetch(
-            host: "qa-linux", historyDays: 30,
+            host: "qa-linux",
+            historyDays: 30,
             environment: ["UNRELATED_TOKEN": "fixture-secret", "SSH_AUTH_SOCK": "/tmp/synthetic-agent"])
         #expect(actual == expected)
     }
@@ -155,8 +183,9 @@ struct RemoteCodexCostsTests {
         }
         row["today"] = today
         rows = mutation == "multiple" ? [row, row] : [row]
-        let wire = try mutation == "oversized" ? String(repeating: " ", count: 16385) : String(
-            decoding: JSONSerialization.data(withJSONObject: rows), as: UTF8.self)
+        let encodedRows = try JSONSerialization.data(withJSONObject: rows)
+        let encodedRowsText = try #require(String(bytes: encodedRows, encoding: .utf8))
+        let wire = mutation == "oversized" ? String(repeating: " ", count: 16385) : encodedRowsText
         let fetcher = RemoteCodexCostFetcher { _, _ in wire }
         await #expect(throws: RemoteCodexCostError.self) {
             try await fetcher.fetch(host: "qa-linux", historyDays: 30, environment: [:])
@@ -167,7 +196,8 @@ struct RemoteCodexCostsTests {
     func `host collection calls each scanner once and keeps totals separate`() async throws {
         let calls = CostHostCallRecorder()
         let reports = try await CodexBarCLI.collectCodexHostCosts(
-            remote: "qa-linux", historyDays: 30,
+            remote: "qa-linux",
+            historyDays: 30,
             local: { await calls.add("local"); return Self.summary(tokens: 100) },
             fetchRemote: { _ in await calls.add("remote"); return Self.summary(tokens: 900) })
         #expect(await calls.values == ["local", "remote"])
@@ -178,7 +208,8 @@ struct RemoteCodexCostsTests {
     @Test
     func `remote failure preserves local results without disclosing stderr`() async throws {
         let reports = try await CodexBarCLI.collectCodexHostCosts(
-            remote: "qa-linux", historyDays: 30,
+            remote: "qa-linux",
+            historyDays: 30,
             local: { Self.summary() },
             fetchRemote: { _ in throw CostHostFixtureError() })
         #expect(reports.count == 2)
@@ -192,7 +223,8 @@ struct RemoteCodexCostsTests {
     func `cancelled local work never starts SSH`() async {
         await #expect(throws: CancellationError.self) {
             try await CodexBarCLI.collectCodexHostCosts(
-                remote: "qa-linux", historyDays: 30,
+                remote: "qa-linux",
+                historyDays: 30,
                 local: { throw CancellationError() },
                 fetchRemote: { _ in Issue.record("SSH started after cancellation"); return Self.summary() })
         }

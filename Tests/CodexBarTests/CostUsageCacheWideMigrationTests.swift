@@ -108,7 +108,7 @@ struct CostUsageCacheWideMigrationTests {
         let targetURL = try #require(fileURLs.last)
         let traceDatabaseURL = env.root.appendingPathComponent("migration-traces.sqlite")
         if migration != .priorityMetadata {
-            try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: traceDatabaseURL)
+            try CostUsageSQLiteFixtures.createTestLogsDatabase(at: traceDatabaseURL)
         }
 
         var options = Self.boundedOptions(env: env)
@@ -145,9 +145,9 @@ struct CostUsageCacheWideMigrationTests {
                 migrationCache.files[path]?.codexTurnIDs = nil
             }
         case .priorityMetadata:
-            try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: traceDatabaseURL)
+            try CostUsageSQLiteFixtures.createTestLogsDatabase(at: traceDatabaseURL)
         case .priorityTurns:
-            try CostUsageScannerCodexPriorityTests.insertTestLog(
+            try CostUsageSQLiteFixtures.insertTestLog(
                 dbURL: traceDatabaseURL,
                 timestamp: env.isoString(for: day),
                 body: "thread_id=migration-thread turn.id=migration-turn websocket request: "

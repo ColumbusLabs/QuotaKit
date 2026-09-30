@@ -137,6 +137,35 @@ struct AntigravityCLIUsageReportTests {
     }
 
     @Test
+    func `csrf gated managed spawn falls back to the usage report`() async throws {
+        let strategy = AntigravityCLIHTTPSFetchStrategy()
+        let context = self.makeFetchContext(sourceMode: .auto)
+        let report = strategy.makeResult(usage: self.makeUsage(accountEmail: nil), sourceLabel: "report")
+        let result = try await AntigravityCLIHTTPSFetchStrategy.fetchWithReportFallback(
+            context: context,
+            legacyFetch: {
+                try await strategy.fetchUsingWarmSession(
+                    binary: "/fixture/agy",
+                    idleWindow: nil,
+                    resetAfterFetch: false,
+                    environment: context.env,
+                    warmDependencies: AntigravityCLIHTTPSFetchStrategy.WarmAgyDependencies(
+                        processInfos: { _ in [] },
+                        listeningPorts: { _, _ in [] },
+                        fetchSnapshot: { _, _ in throw AntigravityStatusProbeError.notRunning }),
+                    versionProbe: { _, _ in (1, 2, 2) },
+                    spawnFetch: { _, _, _ in
+                        Issue.record("agy 1.2.2 or later must use the report fallback")
+                        throw AntigravityStatusProbeError.notRunning
+                    })
+            },
+            reportFetch: { report })
+
+        #expect(result.sourceLabel == "report")
+        #expect(result.usage.identity?.accountEmail == nil)
+    }
+
+    @Test
     func `selected and injected auto accounts never use identity free print`() async {
         let injectedKey = AntigravityOAuthCredentialsStore.environmentCredentialsKey
         let contexts = [

@@ -21,10 +21,12 @@ struct CLICostWindowTests {
     }
 
     @Test(arguments: [false, true])
-    func `empty long history window does not claim zero`(openCodex: Bool) throws {
+    func `empty partially scanned long history window stays unknown`(openCodex: Bool) throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
-        let snapshot = Self.snapshot(rows: [Self.entry("2024-05-31", tokens: 1000, cost: 10)])
+        let snapshot = Self.snapshot(
+            rows: [Self.entry("2024-05-31", tokens: 1000, cost: 10)],
+            historyScanIsPartial: true)
         let payload = openCodex
             ? CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
             : CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil, calendar: calendar)
@@ -32,13 +34,63 @@ struct CLICostWindowTests {
         #expect(payload.last30DaysCostUSD == nil)
     }
 
-    private static func snapshot(rows: [CostUsageDailyReport.Entry]) -> CostUsageTokenSnapshot {
+    @Test(arguments: [false, true])
+    func `empty fully scanned window preserves per metric knownness`(openCodex: Bool) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let snapshot = Self.snapshot(
+            rows: [Self.entry("2024-05-31", tokens: 1000, cost: 10)],
+            last30DaysTokens: nil,
+            last30DaysCostUSD: 10)
+        let payload = openCodex
+            ? CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
+            : CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil, calendar: calendar)
+        #expect(payload.last30DaysTokens == nil)
+        #expect(payload.last30DaysCostUSD == 0)
+    }
+
+    @Test(arguments: [false, true])
+    func `empty fully scanned long history reports known zero totals`(openCodex: Bool) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let snapshot = Self.snapshot(
+            rows: [Self.entry("2024-05-31", tokens: 1000, cost: 10)],
+            historyScanIsPartial: false)
+        let payload = openCodex
+            ? CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
+            : CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil, calendar: calendar)
+        #expect(payload.last30DaysTokens == 0)
+        #expect(payload.last30DaysCostUSD == 0)
+    }
+
+    @Test(arguments: [false, true])
+    func `empty partially scanned long history keeps totals unknown`(openCodex: Bool) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let snapshot = Self.snapshot(
+            rows: [Self.entry("2024-05-31", tokens: 1000, cost: 10)],
+            historyScanIsPartial: true)
+        let payload = openCodex
+            ? CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
+            : CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil, calendar: calendar)
+        #expect(payload.last30DaysTokens == nil)
+        #expect(payload.last30DaysCostUSD == nil)
+    }
+
+    private static func snapshot(
+        rows: [CostUsageDailyReport.Entry],
+        last30DaysTokens: Int? = 1000,
+        last30DaysCostUSD: Double? = 10,
+        historyScanIsPartial: Bool = false) -> CostUsageTokenSnapshot
+    {
         CostUsageTokenSnapshot(
             sessionTokens: nil,
             sessionCostUSD: nil,
-            last30DaysTokens: 1000,
-            last30DaysCostUSD: 10,
+            last30DaysTokens: last30DaysTokens,
+            last30DaysCostUSD: last30DaysCostUSD,
             historyDays: 365,
+            historyCoverageIsEstablished: true,
+            historyScanIsPartial: historyScanIsPartial,
             daily: rows,
             updatedAt: Date(timeIntervalSince1970: 1_719_793_800))
     }

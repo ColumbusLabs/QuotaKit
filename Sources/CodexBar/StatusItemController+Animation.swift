@@ -1073,6 +1073,12 @@ extension StatusItemController {
                 mode: self.settings.kiroMenuBarDisplayMode,
                 showUsed: self.settings.usageBarsShowUsed)
         }
+        if self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
+           self.menuBarMetricWindow(for: provider, snapshot: snapshot, now: now) == nil,
+           let balance = MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
+        {
+            return balance
+        }
         if mode != .resetTime,
            self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .extraUsage,
            provider != .cursor || mode == .pace,
@@ -1212,6 +1218,18 @@ extension StatusItemController {
             from: snapshot?.identity?.loginMethod,
             prefix: "API spend:",
             removingSuffix: " this month")
+    }
+
+    nonisolated static func menuBarLayoutAutomaticText(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        automatic: MenuBarLayoutRenderWindow?) -> String?
+    {
+        // Provider-specific by design: DeepInfra's real billing window has no balance detail.
+        let balanceOnly = provider == .deepseek
+            || (provider == .deepinfra && automatic?.resetDescription != nil && automatic?.resetsAt == nil)
+        guard automatic == nil || balanceOnly else { return nil }
+        return MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
     }
 
     nonisolated static func extraUsageSpendDisplayText(snapshot: UsageSnapshot?) -> String? {

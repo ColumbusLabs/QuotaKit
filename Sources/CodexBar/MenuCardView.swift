@@ -27,20 +27,20 @@ struct UsageMenuCardView: View {
         struct Metric: Identifiable {
             struct LinePresentation: Equatable {
                 let titleText: String
-                let resetText: String?
+                var resetText: String?
                 let metaText: String?
             }
 
             let id: String
             let title: String
-            let percent: Double
+            var percent: Double
             let percentStyle: PercentStyle
-            let statusText: String?
-            let resetText: String?
-            let detailText: String?
-            let detailLeftText: String?
-            let detailRightText: String?
-            let pacePercent: Double?
+            var statusText: String?
+            var resetText: String?
+            var detailText: String?
+            var detailLeftText: String?
+            var detailRightText: String?
+            var pacePercent: Double?
             /// True when detailLeftText/detailRightText came from a pace forecast.
             let detailIsPaceDerived: Bool
             let paceOnTop: Bool
@@ -48,7 +48,7 @@ struct UsageMenuCardView: View {
             let workdayMarkerPercents: [Double]
             let workdayTickAppearance: WorkdayTickAppearance
             let cardStyle: Bool
-            let sessionEquivalentDetail: UsagePaceText.SessionEquivalentDetail?
+            var sessionEquivalentDetail: UsagePaceText.SessionEquivalentDetail?
 
             init(
                 id: String,
@@ -1023,6 +1023,15 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
+        // Claude reset credits use their dedicated live-only section; generic details remain for CLI output.
+        if input.provider == .claude {
+            details = details.compactMap { section in
+                let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
+                guard rows.count != section.rows.count else { return section }
+                guard !rows.isEmpty || section.chart != nil else { return nil }
+                return try? ProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
+            }
+        }
         // Preserve provider-owned raw titles for stable visibility IDs before localization/redaction.
         let localizedPairs = details.flatMap { rawSection in
             let localized = input.provider == .sub2api
@@ -1358,7 +1367,7 @@ extension UsageMenuCardView.Model {
                 pacePercent: nil,
                 paceOnTop: true))
         }
-        return metrics
+        return Self.blockingQuotaMetrics(metrics, input: input, snapshot: snapshot)
     }
 
     private static func primaryMetric(
@@ -1481,12 +1490,6 @@ extension UsageMenuCardView.Model {
            !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             weeklyDetailText = detail
-        }
-        if input.provider == .crof,
-           let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !detail.isEmpty
-        {
-            weeklyResetText = detail
         }
         if [.copilot, .zenmux].contains(input.provider),
            let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),

@@ -7,7 +7,9 @@ import Testing
 
 struct AbacusPluginTests {
     @Test(arguments: BundledPluginTestSupport.engines)
-    func `credits billing calendar and formatting match native fixtures`(engine: ProviderPluginEngineKind) async throws {
+    func `credits billing calendar and formatting match native fixtures`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         for (total, left) in [(1000.0, 750.0), (500, 500), (1000, -500), (0, 0), (100, 57.5), (2000, 999.5)] {
             for zone in ["UTC", "America/Los_Angeles"] {
                 let reset = "2024-03-31T12:30:00Z"
@@ -94,8 +96,13 @@ struct AbacusPluginTests {
                 return Self.response(request, body: request.httpMethod == "POST" ? Self.billing : Self.points)
             })
         let context = ProviderFetchContext(
-            runtime: .cli, sourceMode: .web, includeCredits: false, webTimeout: timeout,
-            webDebugDumpHTML: false, verbose: false, env: [:],
+            runtime: .cli,
+            sourceMode: .web,
+            includeCredits: false,
+            webTimeout: timeout,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: [:],
             settings: .make(abacus: .init(cookieSource: .manual, manualCookieHeader: "session=fixture")),
             fetcher: UsageFetcher(environment: [:]),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: BrowserDetection()),
@@ -113,8 +120,13 @@ struct AbacusPluginTests {
                 return Self.response(request, body: request.httpMethod == "POST" ? Self.billing : Self.points)
             })
         let context = ProviderFetchContext(
-            runtime: .cli, sourceMode: .web, includeCredits: false, webTimeout: 60,
-            webDebugDumpHTML: false, verbose: false, env: [:],
+            runtime: .cli,
+            sourceMode: .web,
+            includeCredits: false,
+            webTimeout: 60,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: [:],
             settings: .make(abacus: .init(cookieSource: .manual, manualCookieHeader: "session=fixture")),
             fetcher: UsageFetcher(environment: [:]),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: BrowserDetection()),
@@ -122,11 +134,13 @@ struct AbacusPluginTests {
         #expect(try await strategy.fetch(context).usage.primary?.usedPercent == 25)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `slow first candidate leaves time for a successful second candidate`(
         engine: ProviderPluginEngineKind) async throws
     {
         let sessions = Sessions()
+        let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+        defer { cancelled.finish() }
         let requestTimeout = 2.0
         let bundle = try #require(CodexBarCoreResources.bundle)
         let url = try #require(bundle.url(forResource: "abacus", withExtension: "js"))
@@ -137,7 +151,12 @@ struct AbacusPluginTests {
                 #expect(request.timeoutInterval == requestTimeout)
                 if request.httpMethod == "POST" { return Self.response(request, body: Self.billing) }
                 if request.value(forHTTPHeaderField: "Cookie") == "session=stale" {
-                    try await Task.sleep(for: .seconds(30))
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                    } catch {
+                        cancelled.yield(Task.isCancelled)
+                        throw error
+                    }
                 } else {
                     try await Task.sleep(for: .seconds(1.5))
                 }
@@ -145,15 +164,14 @@ struct AbacusPluginTests {
             },
             timeout: AbacusProviderDescriptor.refreshTimeout(for: requestTimeout),
             engine: engine)
-        let start = ContinuousClock.now
         let usage = try await runtime.fetchUsage(
             settings: ["REQUEST_TIMEOUT": String(requestTimeout)],
             cookieSessionResolver: { _, _ in sessions.next() },
             cookieSessionInvalidator: { _, id in sessions.reject(id) })
         #expect(usage.primary?.usedPercent == 25)
         #expect(sessions.rejected.isEmpty)
-        #expect(start.duration(to: .now) >= .seconds(3))
-        #expect(start.duration(to: .now) < .seconds(12))
+        var iterator = cancellations.makeAsyncIterator()
+        #expect(await iterator.next() == true)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -178,7 +196,9 @@ struct AbacusPluginTests {
     }
 
     private static let points = #"{"success":true,"result":{"totalComputePoints":1000,"computePointsLeft":750}}"#
-    private static let billing = #"{"success":true,"result":{"currentTier":"Pro","nextBillingDate":"2024-03-31T12:30:00Z"}}"#
+    private static let billing = """
+    {"success":true,"result":{"currentTier":"Pro","nextBillingDate":"2024-03-31T12:30:00Z"}}
+    """
     private static let cookie: ProviderPluginRuntime.CookieResolver = { _, domain in
         #expect(domain == "apps.abacus.ai")
         return "session=fixture"
@@ -257,8 +277,12 @@ struct AbacusPluginTests {
         func reject(_ id: String) { self.lock.withLock { self.rejections.append(id) } }
         func next() -> ProviderPluginCookieSession? {
             self.lock.withLock {
-                guard self.count < 2 else { return nil }
-                let id = self.count == 0 ? "stale" : "fresh"
+                let id: String
+                switch self.count {
+                case 0: id = "stale"
+                case 1: id = "fresh"
+                default: return nil
+                }
                 self.count += 1
                 return .init(header: "session=\(id)", source: "Fixture", origin: "https://apps.abacus.ai", id: id)
             }

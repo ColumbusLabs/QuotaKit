@@ -8,6 +8,11 @@ read_when:
 # UI & icon
 
 ## Settings
+- Usage & Spend keeps Refresh beside the title and places the period picker on its own bounded row so narrow preference panes retain readable controls.
+- Hooks fields expose distinct threshold, executable, and argument accessibility labels.
+- Agent session menus can hide unreachable hosts; the option defaults off.
+- Compact account expansion choices persist locally across menu closes; temporary tail expansion does not.
+- The Help command opens QuotaKit’s README.
 - General → Default terminal supports installed Terminal, iTerm, Ghostty, and stable Warp. Terminal is the default and fallback. Warp launches target its app directly and use owner-only temporary tab configs, removed after one minute; interrupted-launch leftovers are cleaned on the next app start.
 - Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
 

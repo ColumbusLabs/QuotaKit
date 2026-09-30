@@ -1,6 +1,35 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Crof is retired from active quota alerts; existing synced records remain readable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crof is retired from active quota alerts; existing synced records remain readable."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crof は有効なクォータ通知の対象から外れました。既存の同期レコードは引き続き読み取れます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crof 已从活跃配额提醒中移除；现有同步记录仍可读取。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crof 已從使用中的配額提醒移除；現有同步記錄仍可讀取。"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
     "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone.": {
       "extractionState": "manual",
       "localizations": {

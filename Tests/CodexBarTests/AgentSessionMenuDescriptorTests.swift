@@ -205,6 +205,43 @@ struct AgentSessionMenuDescriptorTests {
         #expect(tooltip == "Connection timed out")
     }
 
+    @Test(arguments: [false, true])
+    func `failed host filtering happens before the visible count`(hidden: Bool) {
+        let now = Date(timeIntervalSince1970: 1000)
+        let local = Self.session(id: "local-filter", host: "local", activity: now)
+        let stale = Self.session(id: "stale-filter", host: "offline", activity: now)
+        let section = MenuDescriptor.agentSessionsSection(
+            localSessions: [local],
+            remoteHosts: [RemoteSessionHostResult(host: "offline", sessions: [stale], error: "Offline")],
+            hideUnreachableHosts: hidden,
+            now: now)
+        guard case let .text(header, .headline) = section.entries[0] else {
+            Issue.record("Expected visible session count")
+            return
+        }
+        #expect(header == "Agent Sessions (\(hidden ? 1 : 2))")
+        #expect(section.entries.contains { entry in
+            if case let .unavailable(title, _) = entry { return title == "offline — unreachable" }
+            return false
+        } == !hidden)
+    }
+
+    @Test
+    func `failed host hiding defaults off and survives reopening settings`() {
+        let defaults = InMemoryUserDefaults()
+        let settings = testSettingsStore(
+            suiteName: "AgentSessionVisibilitySettings",
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: defaults)
+        #expect(!settings.agentSessionsHideUnreachableHosts)
+        settings.agentSessionsHideUnreachableHosts = true
+        let reopened = testSettingsStore(
+            suiteName: "AgentSessionVisibilitySettings",
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: defaults)
+        #expect(reopened.agentSessionsHideUnreachableHosts)
+    }
+
     @Test
     func `reachable empty remote host keeps zero count section actionable`() {
         let section = MenuDescriptor.agentSessionsSection(

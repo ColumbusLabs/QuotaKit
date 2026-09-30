@@ -168,7 +168,7 @@ struct PredictivePaceWarningTests {
     }
 
     @Test
-    func `credential swap retires unresolved Claude predictive warning only`() {
+    func `credential swap preserves unresolved Claude predictive warning only`() {
         let reset = self.resetWindow(minutes: 300, resetsAt: 1_780_000_000)
         let unresolved = PredictivePaceWarningStateKey(
             provider: .claude,
@@ -190,15 +190,15 @@ struct PredictivePaceWarningTests {
             accountDiscriminator: "codex-owner:account-a",
             window: .session,
             resetWindow: reset)
-        var retained = PredictivePaceWarningNotificationLogic.retainingVerifiedKeysAfterClaudeCredentialSwap(
+        var retained = PredictivePaceWarningNotificationLogic.retainingClaudeWarningKeysAfterCredentialSwap(
             [unresolved, known, owner, codex])
 
-        #expect(!retained.contains(unresolved))
+        #expect(retained.contains(unresolved))
         #expect(retained.contains(known))
         #expect(retained.contains(owner))
         #expect(retained.contains(codex))
-        // A new unresolved account with the same reset can raise its own warning.
-        #expect(PredictivePaceWarningNotificationLogic.recordObservation(
+        // The same unresolved risk episode does not notify again after credentials are rewritten.
+        #expect(!PredictivePaceWarningNotificationLogic.recordObservation(
             key: unresolved,
             pace: self.pace(willLastToReset: false, etaSeconds: 60),
             notifiedKeys: &retained))

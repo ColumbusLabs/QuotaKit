@@ -1194,7 +1194,6 @@
 "Open Augment (Log Out & Back In)" = "Buka Augment (Keluar & Masuk Kembali)";
 "Open Codebuff Dashboard" = "Buka Dasbor Codebuff";
 "Open Command Code Settings" = "Buka Pengaturan Command Code";
-"Open Crof dashboard" = "Buka dasbor Crof";
 "Open Manus" = "Buka Manus";
 "Open MiMo Balance" = "Buka Saldo MiMo";
 "Open Moonshot Console" = "Buka Konsol Moonshot";
@@ -1265,7 +1264,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "Disimpan di ~/.quotakit/config.json. Memerlukan kunci API Admin Anthropic.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "Disimpan di ~/.quotakit/config.json. Digunakan untuk /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "Disimpan di ~/.quotakit/config.json. Anda juga dapat menyediakan CODEBUFF_API_KEY atau biarkan QuotaKit membaca ~/.config/manicode/credentials.json (dibuat oleh `codebuff login`).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Disimpan di ~/.quotakit/config.json. Anda juga dapat menyediakan CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Disimpan di ~/.quotakit/config.json. Anda juga dapat menyediakan KILO_API_KEY atau ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "Cookie T3 Chat";
 "Team mode" = "Mode tim";
@@ -1664,3 +1662,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "Cookie browser dinonaktifkan; kunci API tetap digunakan jika tersedia.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Login editor digunakan untuk prediksi, siklus tagihan, dan faktur; pengeluaran browser dinonaktifkan.";
 "Paste a Cookie header and select its tenant below." = "Tempel header Cookie dan pilih tenant di bawah.";
+
+"Blocked by monthly limit" = "Diblokir oleh batas bulanan";
+
+"hooks_executable" = "Berkas yang dapat dijalankan";
+
+"agent_sessions_hide_unreachable_title" = "Sembunyikan host yang tidak terjangkau";
+
+"agent_sessions_hide_unreachable_subtitle" = "Sembunyikan host saat pengambilan sesinya gagal.";
+
+"Switch Claude Code account" = "Ganti akun Claude Code";
+
+"No active account" = "Tidak ada akun aktif";
+
+"Details for %@" = "Detail %@";
+
+"Switch Claude Code to %@" = "Ganti Claude Code ke %@";
+
+"Switching account…" = "Mengganti akun…";
+
+"Refreshing account status…" = "Memperbarui status akun…";
+
+"QuotaKit Help" = "Bantuan QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Dengan akun Google yang dipilih atau disuntikkan, Auto hanya menerima laporan aplikasi lokal, agy CLI, dan IDE jika identitas cocok, lalu mencoba OAuth. Local API / agy CLI yang dipilih secara eksplisit dapat memakai akun lokal lain yang sudah masuk.";

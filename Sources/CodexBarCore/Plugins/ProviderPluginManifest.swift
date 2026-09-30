@@ -67,6 +67,10 @@ public enum ProviderPluginCapability: String, Hashable, Sendable {
     case persistentStorage = "persistent-storage"
 }
 
+struct ProviderPluginCookiePolicy: Sendable {
+    static let requestURLNonpersistent = Self()
+}
+
 public struct ProviderPluginManifest: Sendable {
     public let id: ProviderInstanceID
     public let name: String
@@ -77,6 +81,10 @@ public struct ProviderPluginManifest: Sendable {
     public let settings: [ProviderPluginSetting]
     public let capabilities: Set<ProviderPluginCapability>
     public let cookieDomains: Set<String>
+    let cookiePolicy: ProviderPluginCookiePolicy?
+    var usesCookieJar: Bool {
+        self.cookiePolicy != nil
+    }
 
     func cookieDomain(_ rawDomain: String) throws -> String {
         let domain = rawDomain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -287,6 +295,33 @@ public struct ProviderPluginManifest: Sendable {
                 "the browser-cookies capability requires at least one declared cookie domain")
         }
         self.cookieDomains = cookieDomains
+
+        if let value = definition.property("cookiePolicy"), !value.isUndefined, !value.isNull {
+            guard !allowsDynamicID,
+                  capabilities.contains(.browserCookies),
+                  value.isObject,
+                  !value.isArray,
+                  try Set(value.propertyNames()) == ["selection", "cache"],
+                  let selection = value.property("selection"), selection.isString,
+                  selection.stringValue() == "request-url",
+                  let cache = value.property("cache"), cache.isString,
+                  cache.stringValue() == "nonpersistent",
+                  endpoints.allSatisfy({
+                      if case let .fixed(origin) = $0,
+                         let url = URL(string: origin), url.scheme?.lowercased() == "https"
+                      { return true }
+                      if case .setting(_, .https) = $0 { return true }
+                      return false
+                  })
+            else {
+                throw ProviderPluginError.invalidManifest(
+                    "cookiePolicy requires bundled browser cookies, HTTPS origins, " +
+                        "request-url selection, and nonpersistent storage")
+            }
+            self.cookiePolicy = .requestURLNonpersistent
+        } else {
+            self.cookiePolicy = nil
+        }
     }
 
     private static func requiredString(_ object: any ProviderPluginValue, property: String) throws -> String {

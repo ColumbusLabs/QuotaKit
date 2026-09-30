@@ -1017,7 +1017,6 @@
 "Open Augment (Log Out & Back In)" = "Abrir Augment (pechar sesión e volver entrar)";
 "Open Codebuff Dashboard" = "Abrir o panel de Codebuff";
 "Open Command Code Settings" = "Abrir os axustes de Command Code";
-"Open Crof dashboard" = "Abrir o panel de Crof";
 "Open Manus" = "Abrir Manus";
 "Open MiMo Balance" = "Abrir o saldo de MiMo";
 "Open Moonshot Console" = "Abrir a consola de Moonshot";
@@ -1088,7 +1087,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "Gardado en ~/.quotakit/config.json. Require unha chave da API de administración de Anthropic.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "Gardado en ~/.quotakit/config.json. Úsase para /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "Gardado en ~/.quotakit/config.json. Tamén podes fornecer CODEBUFF_API_KEY ou deixar que QuotaKit lea ~/.config/manicode/credentials.json (creado por `codebuff login`).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Gardado en ~/.quotakit/config.json. Tamén podes fornecer CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Gardado en ~/.quotakit/config.json. Tamén podes fornecer KILO_API_KEY ou ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "Cookie de T3 Chat";
 "Team mode" = "Modo de equipo";
@@ -1660,3 +1658,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "As cookies do navegador están desactivadas; unha clave da API seguirá en uso cando estea dispoñible.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Para predicións, ciclo de facturación e facturas úsase o inicio de sesión do editor; os gastos do navegador están desactivados.";
 "Paste a Cookie header and select its tenant below." = "Pega unha cabeceira Cookie e selecciona o arrendatario a continuación.";
+
+"Blocked by monthly limit" = "Bloqueado polo límite mensual";
+
+"hooks_executable" = "Executable";
+
+"agent_sessions_hide_unreachable_title" = "Agochar os hosts inaccesibles";
+
+"agent_sessions_hide_unreachable_subtitle" = "Agocha os hosts cando falla a consulta das súas sesións.";
+
+"Switch Claude Code account" = "Cambiar a conta de Claude Code";
+
+"No active account" = "Non hai ningunha conta activa";
+
+"Details for %@" = "Detalles de %@";
+
+"Switch Claude Code to %@" = "Cambiar Claude Code a %@";
+
+"Switching account…" = "Cambiando a conta…";
+
+"Refreshing account status…" = "Actualizando o estado da conta…";
+
+"QuotaKit Help" = "Axuda de QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Cunha conta de Google seleccionada ou inxectada, Auto só acepta informes da aplicación local, agy CLI e IDE se a identidade coincide; despois proba OAuth. Local API ou agy CLI seleccionados explicitamente poden usar outra conta local coa sesión iniciada.";

@@ -78,6 +78,7 @@ extension SettingsStore {
         _ = self.agentSessionsEnabled
         _ = self.agentSessionLabelStyle
         _ = self.agentSessionsManualHosts
+        _ = self.agentSessionsHideUnreachableHosts
         _ = self.macFleetSyncEnabled
         _ = self.macFleetSyncSnapshotsEnabled
         _ = self.macFleetSyncShowFleetAccounts

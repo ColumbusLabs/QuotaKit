@@ -7,6 +7,74 @@ import Testing
 
 extension ProviderPluginRuntimeTests {
     @Test(arguments: Self.labelValidationEngines)
+    func `bundled cookie jar returns opaque sessions and injects cookies into requests`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let requests = RequestRecorder()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(
+                id: "manus",
+                endpoints: #"["https://api.manus.im"]"#,
+                capabilities: """
+                capabilities: ["browser-cookies"],
+                cookieDomains: ["manus.im"],
+                cookiePolicy: { selection: "request-url", cache: "nonpersistent" },
+                """,
+                fetchBody: """
+                for await (const session of ctx.browser.sessions("manus.im")) {
+                  if (session.header !== undefined) throw new Error("cookie header leaked");
+                  const response = await ctx.http.getJSON("https://api.manus.im/usage", { cookieSession: session.id });
+                  return { primary: { usedPercent: response.json.used } };
+                }
+                throw new Error("no session");
+                """),
+            transport: Self.transport(recorder: requests, body: #"{"used":23}"#),
+            engine: engine)
+        let session = ProviderPluginCookieSession(
+            header: "",
+            source: "Fixture",
+            origin: "https://manus.im",
+            records: [ProviderPluginCookieRecord(
+                name: "session",
+                value: "synthetic-cookie",
+                domain: "manus.im",
+                hostOnly: false,
+                path: "/",
+                secure: true,
+                expires: nil)])
+        let jar = ProviderPluginCookieJar()
+        jar.register(session)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["TEST_KEY": "fixture"],
+            cookieSource: .auto,
+            cookieSessionResolver: { domain, cachedOnly in
+                #expect(domain == "manus.im")
+                #expect(!cachedOnly)
+                return session
+            },
+            cookieJar: jar,
+            cookieResolver: { _, _ in
+                Issue.record("Jar-enabled manifests must not request a raw header")
+                return ""
+            })
+        #expect(snapshot.primary?.usedPercent == 23)
+        #expect(await requests.first?.value(forHTTPHeaderField: "Cookie") == "session=synthetic-cookie")
+    }
+
+    @Test
+    func `dynamic plugins cannot opt into the bundled cookie jar policy`() {
+        let source = Self.plugin(
+            capabilities: """
+            capabilities: ["browser-cookies"],
+            cookieDomains: ["example.test"],
+            cookiePolicy: { selection: "request-url", cache: "nonpersistent" },
+            """)
+        #expect(throws: ProviderPluginError.self) {
+            try ProviderPluginRuntime(source: source, allowsDynamicID: true)
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
     func `cookie availability is policy only and Off blocks resolution`(engine: ProviderPluginEngineKind) async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(
             capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,

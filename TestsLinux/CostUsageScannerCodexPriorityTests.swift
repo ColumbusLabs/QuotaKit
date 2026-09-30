@@ -1,6 +1,10 @@
 import Foundation
+#if canImport(SQLite3) || canImport(CSQLite3)
 #if canImport(SQLite3)
 import SQLite3
+#else
+import CSQLite3
+#endif
 import Testing
 @testable import CodexBarCore
 
@@ -107,7 +111,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `reads priority turns from sqlite logs table`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -132,7 +136,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `reads current priority submission rows from sqlite logs table`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -152,7 +156,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `cold scan uses timestamp index and warm scan uses rowid cursor`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -191,7 +195,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `sqlite scan upgrades priority request alias with completed response model`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -213,7 +217,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `sqlite scan matches spaced completed response json`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -235,7 +239,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `sqlite scan only returns priority turns in requested day range`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -263,7 +267,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `sqlite scan uses local day boundaries for integer timestamps`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -299,7 +303,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `incremental memo picks up rows appended after the first query`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -330,7 +334,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo drops pruned requests while ids keep increasing`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -359,7 +363,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo drops a pruned completion model without losing its request`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -389,7 +393,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo falls back to retained duplicate request and completion rows`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -433,7 +437,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `failed incremental scan does not report completion`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -467,7 +471,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo rescans when requested window expands earlier than accumulated coverage`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -503,7 +507,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo rescans when the database shrinks or is replaced`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -533,7 +537,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `database replacement during open is rejected`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         let oldURL = env.root.appendingPathComponent("logs-old.sqlite")
@@ -558,7 +562,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `overlapping refresh writeback cannot replace newer memo state`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -606,7 +610,7 @@ struct CostUsageScannerCodexPriorityTests {
 
     @Test
     func `memo bounds retained completion metadata for non-priority turns`() throws {
-        let env = try CostUsageTestEnvironment()
+        let env = try CodexPriorityTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
         try Self.createTestLogsDatabase(at: dbURL)
@@ -763,6 +767,44 @@ struct CostUsageScannerCodexPriorityTests {
         case prepare
         case step
         case exec
+    }
+}
+
+private struct CodexPriorityTestEnvironment {
+    let root: URL
+
+    init() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "codexbar-codex-priority-\(UUID().uuidString)",
+            isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        self.root = root
+    }
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: self.root)
+    }
+
+    func makeLocalNoon(year: Int, month: Int, day: Int) throws -> Date {
+        var components = DateComponents()
+        components.calendar = Calendar.current
+        components.timeZone = TimeZone.current
+        components.year = year
+        components.month = month
+        components.day = day
+        components.hour = 12
+        components.minute = 0
+        components.second = 0
+        guard let date = components.date else {
+            throw NSError(domain: "CodexPriorityTestEnvironment", code: 1)
+        }
+        return date
+    }
+
+    func isoString(for date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.string(from: date)
     }
 }
 #endif

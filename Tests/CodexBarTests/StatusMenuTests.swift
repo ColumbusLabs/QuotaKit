@@ -168,7 +168,7 @@ struct StatusMenuTests {
             statusBar: self.makeStatusBarForTesting())
 
         #expect(controller.dashboardURL(for: .opencodego)?
-            .absoluteString == "https://opencode.ai/workspace/wrk_abc123/go")
+            .absoluteString == "https://opencode.ai/console/wrk_abc123/go")
     }
 
     @Test

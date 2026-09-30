@@ -44,7 +44,8 @@ MOBILE_ALIAS_TARGETS = {
     "vertex": "vertexai",
     "xiaomimimo": "mimo",
 }
-MOBILE_LEGACY_ONLY = {"kimik2", "crossmodel"}
+# Retain colors for historical synced records after their active Mac provider retires.
+MOBILE_LEGACY_ONLY = {"kimik2", "crossmodel", "crof"}
 
 
 def evaluate_channel(expression: str) -> float:

@@ -77,6 +77,33 @@ struct CodexResetCreditsPresentation: Equatable {
             availableCount: expirations.count)
     }
 
+    static func make(
+        snapshot: ClaudeRateLimitResetCreditsSnapshot,
+        resetStyle: ResetTimeDisplayStyle,
+        now: Date) -> CodexResetCreditsPresentation?
+    {
+        let expirations = snapshot.availableExpirations(at: now)
+        guard !expirations.isEmpty else { return nil }
+        let items = expirations.map { expiresAt -> CodexResetCreditPresentationItem in
+            guard let expiresAt else {
+                return CodexResetCreditPresentationItem(
+                    exactTimeText: nil,
+                    expiryText: L("No expiry"),
+                    relativeExpiryText: nil)
+            }
+            let exact = Self.exactExpiryTimeText(expiresAt)
+            return CodexResetCreditPresentationItem(
+                exactTimeText: exact,
+                expiryText: String(format: L("Expires %@"), exact),
+                relativeExpiryText: resetStyle == .countdown
+                    ? Self.relativeExpiryTimeText(expiresAt, now: now) : nil)
+        }
+        return CodexResetCreditsPresentation(
+            text: Self.availableText(count: expirations.count),
+            items: items,
+            availableCount: expirations.count)
+    }
+
     private static func availableText(count: Int) -> String {
         count == 1 ? L("1 available") : String(format: L("%d available"), count)
     }
@@ -172,9 +199,16 @@ struct CodexResetCreditsContent: View {
 
 extension UsageMenuCardView.Model {
     static func codexResetCredits(input: Input) -> CodexResetCreditsPresentation? {
-        if input.provider == .grok,
-           input.showOptionalCreditsAndExtraUsage,
+        if input.provider == .grok, input.showOptionalCreditsAndExtraUsage,
            let credits = input.snapshot?.grokResetCredits
+        {
+            return CodexResetCreditsPresentation.make(
+                snapshot: credits,
+                resetStyle: input.resetTimeDisplayStyle,
+                now: input.now)
+        }
+        if input.provider == .claude, input.showOptionalCreditsAndExtraUsage,
+           let credits = input.snapshot?.claudeResetCredits
         {
             return CodexResetCreditsPresentation.make(
                 snapshot: credits,

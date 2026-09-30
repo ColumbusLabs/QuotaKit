@@ -118,7 +118,7 @@ extension CodexBarCLI {
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
-                       [--no-color] [--pretty] [--refresh] [--provider-native-only]
+                       [--no-color] [--pretty] [--refresh] [--provider-native-only] [--breakdown]
                        [--days <days>] [--period month-to-date|all] [--group-by project|session]
                        [--remote <ssh-host> | --summary-only]
 
@@ -129,12 +129,15 @@ extension CodexBarCLI {
           Local readers need no web or provider CLI access; Cursor uses its authenticated dashboard API.
           Use --refresh to bypass cached scan results.
           Experimental: use --provider-native-only to exclude pi and OMP session mirrors.
+          --breakdown adds Claude daily and top-model details using the latest seven calendar days
+          or shorter requested interval. Stale history is labeled as recorded days; partial attribution is marked.
           Use --provider codex --remote <host> for separate local and SSH-host summaries.
           --summary-only emits versioned Codex JSON totals without account or session details.
 
         Examples:
           quotakit cost
           quotakit cost --provider codex --group-by project
+          quotakit cost --provider claude --breakdown
           quotakit cost --provider claude --format json --pretty
           quotakit cost --period month-to-date --format json
           quotakit cost --provider codex --remote build-host --format json

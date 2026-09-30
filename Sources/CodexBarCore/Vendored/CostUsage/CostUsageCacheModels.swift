@@ -24,9 +24,29 @@ struct CostUsageCache: Codable, Equatable, @unchecked Sendable {
     var codexPreviousReport: CostUsageCodexPreviousReport?
     var codexSessionDiscovery: CostUsageCodexSessionDiscovery?
     var codexActiveLookbackState: CostUsageCodexActiveLookbackState?
+    /// Receipt-bound lazy token-history failures that must be retried by a later scan.
+    var codexHistoryHydrationRetries: [String: CodexHistoryHydrationRetry]?
+    /// Paths whose normalized file-details JSON is malformed and must remain opaque until parsed.
+    var codexMalformedDetailsPaths: Set<String>?
     var files: [String: CostUsageFileUsage] = [:]
     var days: [String: [String: [Int]]] = [:]
     var roots: [String: Int64]?
+}
+
+struct CodexHistoryHydrationRetry: Codable, Equatable, Sendable {
+    /// Exact persisted file keys whose complete baseline must survive until the retry resolves.
+    var retainedPaths: [String]
+    var forceFullRescan: Bool
+
+    init(retainedPaths: some Sequence<String>, forceFullRescan: Bool) {
+        self.retainedPaths = Array(Set(retainedPaths)).sorted()
+        self.forceFullRescan = forceFullRescan
+    }
+
+    mutating func merge(_ other: Self) {
+        self.retainedPaths = Array(Set(self.retainedPaths).union(other.retainedPaths)).sorted()
+        self.forceFullRescan = self.forceFullRescan || other.forceFullRescan
+    }
 }
 
 struct CostUsageCodexActiveLookbackState: Codable, Equatable {

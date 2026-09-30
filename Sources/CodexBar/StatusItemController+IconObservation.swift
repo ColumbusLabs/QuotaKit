@@ -171,8 +171,15 @@ extension StatusItemController {
         // The rendered text only carries the remaining row. A `balance used` predicate reads the "Used"
         // row instead, which no display token surfaces, so sign both amounts exactly.
         let amounts = MenuBarLayoutBalanceResolver.balanceAmountsUSD(provider: provider, snapshot: snapshot)
+        let balance = MenuBarLayoutBalanceResolver.balance(
+            provider: provider,
+            snapshot: snapshot,
+            codexCredits: self.store.codexConsumerProjectionIfNeeded(
+                for: provider,
+                surface: .menuBar,
+                snapshotOverride: snapshot)?.credits?.snapshot)
         return [
-            "text=\(MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot) ?? "nil")",
+            "text=\(balance ?? "nil")",
             "remaining=\(Self.exactSignatureValue(amounts.remaining))",
             "used=\(Self.exactSignatureValue(amounts.used))",
         ].joined(separator: ",")

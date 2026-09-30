@@ -7,9 +7,10 @@ read_when:
 
 # Provider plugin conversion matrix
 
-This matrix evaluates all 67 providers in the 2026-08-02 capability audit against the prototype documented in
-[`plugin-prototype.md`](plugin-prototype.md). The current checkout has 66 `UsageProvider` cases; Notion is retained here
-because it is the 67th audited provider explicitly requested by this work order. Each provider has one primary blocker.
+This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
+catalog. The current checkout registers 87 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
+for the prototype context.
 
 `convertible-now` means the canonical first-party flow is GET-only, uses a fixed HTTPS origin and header secret, and fits
 the generic snapshot. Optional canonical-origin endpoint overrides do not change that bucket; user-selected origins
@@ -17,10 +18,11 @@ require a provider-specific endpoint policy and are assessed in their matrix row
 against the current Swift request methods and snapshot projections; Azure OpenAI, StepFun, and Warp were removed from the audit's
 earlier “fully expressible” baseline because their current implementations issue POST requests.
 
-`converted` means the bundled JavaScript conversion is present behind `CODEXBAR_JS_PROVIDERS=1`. `cut-over` means the
-bundled script is the only JavaScriptCore implementation, with any retained native core serving Linux only. The Converted column
-makes implementation state explicit and the totals are mutually exclusive: `convertible-now` counts only providers
-that remain cheap to convert. Remaining buckets name the next blocker after this host-extension slice.
+`converted` and `cut-over` describe the audited implementation state, not a guarantee of current provider support.
+`cut-over` meant the bundled script was the only JavaScriptCore implementation, with any retained native core serving
+Linux only. The Crof row is now marked `retired` and does not represent live support. The totals are mutually exclusive:
+`convertible-now` counted providers that remained cheap to convert at audit time; other buckets named the next blocker
+after that host-extension slice.
 
 ## Totals
 
@@ -32,7 +34,8 @@ classifications or registry count below.
 
 | Status | Count |
 |---|---:|
-| `cut-over` | 17 |
+| `cut-over` | 16 |
+| `retired` | 1 |
 | `converted` | 4 |
 | `convertible-now` | 4 |
 | `needs-cookie-import` | 9 |
@@ -89,7 +92,7 @@ classifications or registry count below.
 | deepseek | `needs-files/subprocess/oauth-broker` | No | Platform auth/profile selection reads Chromium localStorage, and the result has a bespoke history model. |
 | deepinfra | `cut-over` | Yes | Both engines use fixed-origin bearer GETs for required billing data, preserving cents conversion, balance deductions, suspension, spending limits, and bounded retries. The native fetcher and parser are deleted. |
 | codebuff | `needs-files/subprocess/oauth-broker` | No | Full credential parity reads a local Manicode credential file; environment-key mode is partial. |
-| crof | `cut-over` | Yes | Cut over on JavaScriptCore: fixed-origin bearer GET with exact credit formatting and America/Chicago daily reset; native fetch code is Linux-only. |
+| crof | `retired` | No | Crof was removed from QuotaKit's active provider catalog and runtime; this row remains only as historical audit context. |
 | venice | `cut-over` | Yes | Cut over on JavaScriptCore: fixed-origin bearer GET with DIEM/USD allocation projection; native fetch code is Linux-only. |
 | commandcode | `needs-host-extension` | No | Optional subscription enrichment races a two-second grace after required credits finish; per-request timeouts cannot preserve that join boundary. |
 | qoder | `cut-over` | Yes | Bundled plugin iterates regional sessions and reports merged quotas. |

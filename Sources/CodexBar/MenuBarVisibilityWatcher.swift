@@ -245,6 +245,12 @@ enum MenuBarVisibilityWatcher {
 extension StatusItemController {
     func scheduleStartupStatusItemVisibilityCheck(appLaunchedAt: Date = Date()) {
         guard !SettingsStore.isRunningTests else { return }
+        self.traceStatusItems("rendered")
+        if MenuBarStatusItemWindowProbe.diagnosticsEnabled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
+                self?.traceStatusItems("settled")
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + MenuBarVisibilityWatcher.startupCheckDelay) { [weak self] in
             Task { @MainActor [weak self] in
                 self?.checkStartupStatusItemVisibility(appLaunchedAt: appLaunchedAt)
@@ -253,6 +259,7 @@ extension StatusItemController {
     }
 
     private func checkStartupStatusItemVisibility(appLaunchedAt: Date, now: Date = Date()) {
+        self.traceStatusItems("startup-check")
         let evidence = self.startupStatusItemVisibilityEvidence()
         let snapshots = evidence.map(\.snapshot)
         let windowSnapshots = self.statusItemWindowSnapshots()
@@ -306,6 +313,16 @@ extension StatusItemController {
             return
         }
         MenuBarVisibilityWatcher.presentGuidance(defaults: self.settings.userDefaults, now: now)
+    }
+
+    private func traceStatusItems(_ stage: String) {
+        guard MenuBarStatusItemWindowProbe.diagnosticsEnabled else { return }
+        for (index, (item, evidence)) in zip(
+            self.startupVisibilityStatusItems,
+            self.startupStatusItemVisibilityEvidence()).enumerated()
+        {
+            MenuBarStatusItemWindowProbe.trace(stage, item: item, evidence: evidence, itemIndex: index)
+        }
     }
 
     @objc func handleScreenParametersDidChange(_: Notification) {

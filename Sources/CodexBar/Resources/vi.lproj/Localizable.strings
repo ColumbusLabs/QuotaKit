@@ -1171,7 +1171,6 @@
 "Open Augment (Log Out & Back In)" = "Mở phần mở rộng (Đăng xuất và quay lại)";
 "Open Codebuff Dashboard" = "Mở bảng điều khiển Codebuff";
 "Open Command Code Settings" = "Mở mã lệnh Cài đặt";
-"Open Crof dashboard" = "Mở bảng điều khiển Crof";
 "Open Manus" = "Mở Manus";
 "Open MiMo Balance" = "Mở MiMo Balance";
 "Open Moonshot Console" = "Mở Bảng điều khiển Moonshot";
@@ -1242,7 +1241,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "Được lưu trữ trong ~/.quotakit/config.json. Yêu cầu khóa Anthropic Quản trị viên API.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "Được lưu trữ trong ~/.quotakit/config.json. Được sử dụng cho /v1/ Hạn mức -stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "Được lưu trữ trong ~/.quotakit/config.json. Bạn cũng có thể cung cấp CODEBUFF_API_KEY hoặc để QuotaKit đọc ~/.config/manicode/credentials.json (được tạo bởi `codebuff login`).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Được lưu trữ trong ~/.quotakit/config.json. Bạn cũng có thể cung cấp CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Được lưu trữ trong ~/.quotakit/config.json. Bạn cũng có thể cung cấp KILO_API_KEY hoặc ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "Cookie trò chuyện T3";
 "Team mode" = "Chế độ nhóm";
@@ -1662,3 +1660,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "Cookie trình duyệt đã tắt; khóa API vẫn được dùng khi có sẵn.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Dùng đăng nhập trình chỉnh sửa cho dự đoán, chu kỳ thanh toán và hóa đơn; chi tiêu qua trình duyệt đã tắt.";
 "Paste a Cookie header and select its tenant below." = "Dán tiêu đề Cookie rồi chọn đối tượng thuê bên dưới.";
+
+"Blocked by monthly limit" = "Bị chặn do giới hạn hằng tháng";
+
+"hooks_executable" = "Tệp thực thi";
+
+"agent_sessions_hide_unreachable_title" = "Ẩn máy chủ không thể truy cập";
+
+"agent_sessions_hide_unreachable_subtitle" = "Ẩn máy chủ khi không lấy được các phiên của máy chủ đó.";
+
+"Switch Claude Code account" = "Chuyển tài khoản Claude Code";
+
+"No active account" = "Không có tài khoản đang hoạt động";
+
+"Details for %@" = "Chi tiết về %@";
+
+"Switch Claude Code to %@" = "Chuyển Claude Code sang %@";
+
+"Switching account…" = "Đang chuyển tài khoản…";
+
+"Refreshing account status…" = "Đang làm mới trạng thái tài khoản…";
+
+"QuotaKit Help" = "Trợ giúp QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Với tài khoản Google được chọn hoặc truyền vào, Auto chỉ nhận báo cáo từ ứng dụng cục bộ, agy CLI và IDE khi danh tính khớp, rồi thử OAuth. Local API / agy CLI được chọn rõ ràng có thể dùng một tài khoản khác đã đăng nhập cục bộ.";

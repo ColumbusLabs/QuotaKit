@@ -13,9 +13,10 @@ This document describes the bundled first-party conversion prototype. User-insta
 
 This prototype proves that an existing first-party `UsageProvider` can define its manifest, HTTP requests, response
 parsing, and generic `UsageSnapshot` projection in one bundled JavaScript file. It is deliberately not a user-plugin
-system: IDs remain compile-time `UsageProvider` cases and scripts ship inside QuotaKit. Crof and Venice have cut over
-to the bundled script on JavaScriptCore platforms. QuotaKit keeps OpenRouter, ClawRouter, Deepgram, and sub2api native
-by default so their typed compatibility payloads continue reaching iCloud and iOS.
+system: IDs remain compile-time `UsageProvider` cases and scripts ship inside QuotaKit. In the original conversion
+audit, Crof and Venice had moved to bundled scripts on JavaScriptCore platforms. Crof was later retired from active
+support; Venice remains active. QuotaKit keeps OpenRouter, ClawRouter, Deepgram, and sub2api native by default so their
+typed compatibility payloads continue reaching iCloud and iOS.
 
 The portable runtime selects JavaScriptCore by default on Apple platforms and QuickJS on Linux for local plugin
 execution. Set
@@ -35,8 +36,9 @@ to their existing pipeline.
 A missing required secret or disabled cookie source leaves the script
 strategy unavailable and permits the Swift strategy to run; a loaded script that fails does not fall back, so parity
 defects stay visible. Without the variable, the resolver returns the original Swift strategy only and does not load
-an engine or plugin resource for those providers. Crof and Venice always resolve only their script strategy on
-JavaScriptCore platforms and keep their native Linux implementations; `CODEXBAR_JS_PROVIDERS` does not affect them.
+an engine or plugin resource for those providers. At that historical point, Crof and Venice resolved only their script
+strategy on JavaScriptCore platforms and kept native Linux implementations; `CODEXBAR_JS_PROVIDERS` did not affect them.
+Crof no longer has an active provider descriptor or fetch strategy.
 
 Run the focused proof with:
 
@@ -123,7 +125,7 @@ built-ins, but no browser or Node host environment. Tests assert that `fetch`, `
   positive and capped at 24 hours.
 - `ctx.date.iso(text)`, `unixSeconds(number)`, and `unixMillis(number)` return JavaScript `Date` objects.
 - `ctx.date.nextDailyReset(timeZoneIdentifier, hour)` returns the next wall-clock hour in an IANA time zone, including
-  DST transitions. Crof uses `America/Chicago` at hour `0`.
+  DST transitions. The retired Crof implementation used `America/Chicago` at hour `0`.
 - `ctx.jwt.decode(token)` decodes the JSON payload segment without verifying a signature.
 - `ctx.pct(used, limit)` returns a finite percentage clamped to 0–100; a non-positive limit maps to 100.
 

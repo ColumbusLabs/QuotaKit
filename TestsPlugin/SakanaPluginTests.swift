@@ -80,45 +80,69 @@ struct SakanaPluginTests {
         ])
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `slow optional request is cancelled without waiting for its timeout`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let transport = SakanaScriptedTransport(
-            statusCode: 200,
-            body: Self.billingHTML,
-            billingWaitsForPayAsYouGo: true,
-            payAsYouGoBlocksUntilCancelled: true)
-        let task = Task {
-            try await Self.fetch(
-                transport,
-                engine: engine,
-                collectionBudget: ProviderPluginContextOptions.production.optionalCollectionBudget)
-        }
-        let usage: UsageSnapshot
-        switch await BoundedTaskJoin(sourceTask: task).value(joinGrace: .seconds(10)) {
-        case let .value(value): usage = value
-        case .failure, .timedOut:
-            Issue.record("Optional request held the primary result")
-            return
-        }
-        #expect(usage.primary?.usedPercent == 92)
-        #expect(usage.details.isEmpty)
-        #expect(try await transport.waitForPayAsYouGoCancellation())
-        #expect(await transport.payAsYouGoCancellationDuration() < .seconds(4))
+        try await Self.checkOptionalCancellation(engine, failsPrimary: false)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `required HTTP failure cancels optional work and preserves login diagnosis`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let transport = SakanaScriptedTransport(
-            statusCode: 401,
-            body: "expired",
-            billingWaitsForPayAsYouGo: true,
-            payAsYouGoBlocksUntilCancelled: true)
-        await Self.expectFailure(.authenticationExpired) { try await Self.fetch(transport, engine: engine) }
-        #expect(try await transport.waitForPayAsYouGoCancellation())
+        try await Self.checkOptionalCancellation(engine, failsPrimary: true)
+    }
+
+    private static func checkOptionalCancellation(
+        _ engine: ProviderPluginEngineKind,
+        failsPrimary: Bool) async throws
+    {
+        let (starts, started) = AsyncStream<Void>.makeStream()
+        let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+        defer {
+            started.finish()
+            cancelled.finish()
+        }
+        let runtime = try BundledPluginTestSupport.runtime(
+            "sakana",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                if request.url?.query == "tab=payAsYouGo" {
+                    started.yield()
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                    } catch {
+                        cancelled.yield(Task.isCancelled)
+                        throw error
+                    }
+                } else {
+                    var iterator = starts.makeAsyncIterator()
+                    _ = try #require(await iterator.next())
+                }
+                return (Data(Self.billingHTML.utf8), HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: failsPrimary ? 401 : 200,
+                    httpVersion: nil,
+                    headerFields: nil)!)
+            },
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                optionalCollectionBudget: ProviderPluginContextOptions.production.optionalCollectionBudget))
+        let fetch: @Sendable () async throws -> UsageSnapshot = {
+            try await runtime.fetchUsage(
+                settings: ["OPTIONAL_USAGE": "true"],
+                secrets: ["SAKANA_COOKIE": "session=fixture"])
+        }
+        if failsPrimary {
+            await Self.expectFailure(.authenticationExpired, operation: fetch)
+        } else {
+            let usage = try await fetch()
+            #expect(usage.primary?.usedPercent == 92)
+            #expect(usage.details.isEmpty)
+        }
+        var iterator = cancellations.makeAsyncIterator()
+        #expect(await iterator.next() == true)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines, [401, 403, 302])
@@ -217,8 +241,7 @@ struct SakanaPluginTests {
         _ transport: any ProviderHTTPTransport,
         engine: ProviderPluginEngineKind,
         optional: Bool = true,
-        now: Date = Date(),
-        collectionBudget: Duration = .seconds(3)) async throws -> UsageSnapshot
+        now: Date = Date()) async throws -> UsageSnapshot
     {
         // Parser fixtures must not race loaded CI runners against the production 200 ms budget.
         let runtime = try BundledPluginTestSupport.runtime(
@@ -227,7 +250,7 @@ struct SakanaPluginTests {
             transport: transport,
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
-                optionalCollectionBudget: collectionBudget))
+                optionalCollectionBudget: .seconds(3)))
         return try await runtime.fetchUsage(
             settings: ["OPTIONAL_USAGE": String(optional)],
             secrets: ["SAKANA_COOKIE": "session=fixture"],
@@ -298,15 +321,12 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
     /// `(statusCode, body)` for any URL not present here.
     private let overridesByURL: [String: (statusCode: Int, body: String)]
     private let billingWaitsForPayAsYouGo: Bool
-    private let payAsYouGoBlocksUntilCancelled: Bool
     private let payAsYouGoDelayAfterBilling: Duration?
     private let billingCompletions: AsyncStream<Void>
     private let billingCompleted: AsyncStream<Void>.Continuation
     private var capturedRequests: [CapturedRequest] = []
     private var payAsYouGoStarted = false
     private var payAsYouGoCompleted = false
-    private var payAsYouGoWasCancelled = false
-    private var cancellationDuration: Duration = .seconds(30)
     private var payAsYouGoStartWaiters: [CheckedContinuation<Void, Never>] = []
     private var payAsYouGoCompletionWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -317,7 +337,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         headers: [String: String] = [:],
         overridesByURL: [String: (statusCode: Int, body: String)] = [:],
         billingWaitsForPayAsYouGo: Bool = false,
-        payAsYouGoBlocksUntilCancelled: Bool = false,
         payAsYouGoDelayAfterBilling: Duration? = nil)
     {
         self.statusCode = statusCode
@@ -326,7 +345,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         self.headers = headers
         self.overridesByURL = overridesByURL
         self.billingWaitsForPayAsYouGo = billingWaitsForPayAsYouGo
-        self.payAsYouGoBlocksUntilCancelled = payAsYouGoBlocksUntilCancelled
         self.payAsYouGoDelayAfterBilling = payAsYouGoDelayAfterBilling
         (self.billingCompletions, self.billingCompleted) = AsyncStream<Void>.makeStream()
     }
@@ -339,17 +357,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         self.capturedRequests
     }
 
-    func payAsYouGoCancellationDuration() -> Duration { self.cancellationDuration }
-
-    func waitForPayAsYouGoCancellation() async throws -> Bool {
-        // Stay below the optional request's five-second fallback timeout.
-        let deadline = ContinuousClock.now.advanced(by: .seconds(1))
-        while !self.payAsYouGoWasCancelled, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        return self.payAsYouGoWasCancelled
-    }
-
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         let isPayAsYouGo = request.url?.query == "tab=payAsYouGo"
         if isPayAsYouGo {
@@ -358,21 +365,9 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
                 for await _ in self.billingCompletions {}
                 try await Task.sleep(for: payAsYouGoDelayAfterBilling)
             }
-            if self.payAsYouGoBlocksUntilCancelled {
-                let startedAt = ContinuousClock.now
-                do {
-                    try await Task.sleep(for: .seconds(30))
-                } catch {
-                    self.cancellationDuration = startedAt.duration(to: .now)
-                    self.payAsYouGoWasCancelled = true
-                    throw error
-                }
-            }
         } else if self.billingWaitsForPayAsYouGo {
             await self.waitForPayAsYouGoStart()
-            if !self.payAsYouGoBlocksUntilCancelled {
-                await self.waitForPayAsYouGoCompletion()
-            }
+            await self.waitForPayAsYouGoCompletion()
         }
 
         self.capturedRequests.append(CapturedRequest(

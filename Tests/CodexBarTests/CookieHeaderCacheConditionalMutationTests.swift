@@ -53,6 +53,39 @@ struct CookieHeaderCacheConditionalMutationTests {
     }
 
     @Test
+    func `conditional receipt clears only the exact committed cookie entry`() {
+        self.withIsolatedCookieCache {
+            let before = CookieHeaderCache.observeForConditionalMutation(provider: .notion)
+            let mutation = CookieHeaderCache.storeIfObservationCurrentReceipt(
+                provider: .notion,
+                expected: before,
+                cookieHeader: "token_v2=fixture-a",
+                sourceLabel: "Fixture A")
+            #expect(mutation.result == .stored)
+            guard let receipt = mutation.receipt else {
+                Issue.record("A committed cookie write must return its receipt")
+                return
+            }
+            #expect(receipt.entry.cookieHeader == "token_v2=fixture-a")
+
+            CookieHeaderCache.store(
+                provider: .notion,
+                cookieHeader: "token_v2=fixture-b",
+                sourceLabel: "Fixture B")
+            #expect(CookieHeaderCache.clearIfObservationCurrent(
+                provider: .notion,
+                expected: receipt.observation) == .rejected)
+            #expect(CookieHeaderCache.load(provider: .notion)?.cookieHeader == "token_v2=fixture-b")
+
+            let current = CookieHeaderCache.observeForConditionalMutation(provider: .notion)
+            #expect(CookieHeaderCache.clearIfObservationCurrent(
+                provider: .notion,
+                expected: current) == .stored)
+            #expect(CookieHeaderCache.load(provider: .notion) == nil)
+        }
+    }
+
+    @Test
     func `observable store failure preserves the current cookie entry`() {
         self.withIsolatedCookieCache {
             let initiallyStored = CookieHeaderCache.storeResult(

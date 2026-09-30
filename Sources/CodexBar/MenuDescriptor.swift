@@ -101,6 +101,7 @@ struct MenuDescriptor {
         isKeepingAwake: Bool = false,
         agentSessionsEnabled: Bool = false,
         agentSessionLabelStyle: AgentSessionLabelStyle = .project,
+        agentSessionsHideUnreachableHosts: Bool = false,
         localAgentSessions: [AgentSession] = [],
         remoteAgentHosts: [RemoteSessionHostResult] = [],
         now: Date = Date()) -> MenuDescriptor
@@ -163,6 +164,7 @@ struct MenuDescriptor {
                 localSessions: localAgentSessions,
                 remoteHosts: remoteAgentHosts,
                 labelStyle: agentSessionLabelStyle,
+                hideUnreachableHosts: agentSessionsHideUnreachableHosts,
                 now: now))
         }
         sections.append(Self.metaSection(
@@ -177,9 +179,11 @@ struct MenuDescriptor {
         localSessions: [AgentSession],
         remoteHosts: [RemoteSessionHostResult],
         labelStyle: AgentSessionLabelStyle = .project,
+        hideUnreachableHosts: Bool = false,
         now: Date = Date()) -> Section
     {
-        let totalCount = localSessions.count + remoteHosts.reduce(0) { $0 + $1.sessions.count }
+        let visibleRemoteHosts = hideUnreachableHosts ? remoteHosts.filter(\.isReachable) : remoteHosts
+        let totalCount = localSessions.count + visibleRemoteHosts.reduce(0) { $0 + $1.sessions.count }
         var entries: [Entry] = [.text("Agent Sessions (\(totalCount))", .headline)]
 
         for session in localSessions {
@@ -187,7 +191,7 @@ struct MenuDescriptor {
                 self.agentSessionRowTitle(session, labelStyle: labelStyle, now: now),
                 .focusAgentSession(session, remoteHost: nil)))
         }
-        for remoteHost in remoteHosts {
+        for remoteHost in visibleRemoteHosts {
             if let error = remoteHost.error {
                 entries.append(.unavailable("\(remoteHost.host) — unreachable", error))
                 continue
@@ -764,8 +768,7 @@ struct MenuDescriptor {
                 weeklyLabel: metadata.weeklyLabel)
         } else if provider == .grok {
             GrokProviderDescriptor.displayLabel(window: snapshot.primary) ?? metadata.sessionLabel
-        } else if provider == .crof {
-            CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
+
         } else if provider == .doubao {
             DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .sub2api {

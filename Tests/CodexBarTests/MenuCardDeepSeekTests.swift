@@ -117,6 +117,7 @@ struct MenuCardDeepSeekTests {
 
         #expect(model.inlineUsageDashboard == nil)
         #expect(model.usageNotes.isEmpty)
+        #expect(model.providerDetails.isEmpty)
     }
 
     @Test

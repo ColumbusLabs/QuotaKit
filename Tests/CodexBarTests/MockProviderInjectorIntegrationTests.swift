@@ -74,7 +74,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR2 Extensibility / determinism
 
     @Test
-    func `MR2.1: enabled count is exactly 60 (50 IDs, 6 rich + 52 simple + 2 fallback entries)`() {
+    func `MR2.1: enabled count is exactly 59 (49 IDs, 6 rich + 51 simple + 2 fallback entries)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
@@ -83,15 +83,16 @@ struct MockProviderInjectorIntegrationTests {
         // second-tab mocks for openai/deepseek/antigravity/manus/
         // copilot/venice/stepfun. iOS 1.8.0: +5 v0.27.0 simple mocks.
         // iOS 1.9.0: +3 v0.28+v0.29 simple mocks (azureopenai,
-        // alibabatokenplan, t3chat) → 60.
-        #expect(MockProviderInjector.allMocks().count == 60)
+        // alibabatokenplan, t3chat) → 60 before Crof retirement; its
+        // removed simple profile leaves 59 current snapshots.
+        #expect(MockProviderInjector.allMocks().count == 59)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
     /// (second tabs for openai/deepseek/... that already had a first
-    /// entry), so unique providerID count stays at 50.
+    /// entry), so Crof retirement leaves 49 unique IDs (47 real + 2 synthetic).
     @Test
-    func `MR2.2: 50 distinct providerIDs match the published allowlists (48 real + 2 synthetic)`() {
+    func `MR2.2: 49 distinct providerIDs match the published allowlists (47 real + 2 synthetic)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -102,11 +103,11 @@ struct MockProviderInjectorIntegrationTests {
         // (moonshot, bedrock) → 40 real + 2 synthetic = 42 unique IDs.
         // Phase G additions REUSE existing providerIDs (second tabs
         // for openai/deepseek/... that already had a first entry), so
-        // unique ID count stays at 50.
+        // unique ID count stays at 50 before Crof retirement; removing
+        // its real provider ID leaves 49 (47 real + 2 synthetic).
         #expect(
-            uniqueIDs.count == 50,
-            // swiftlint:disable:next line_length
-            "should be 50 distinct mock provider IDs (48 real + 2 synthetic; v0.28+v0.29 added azureopenai/alibabatokenplan/t3chat)")
+            uniqueIDs.count == 49,
+            "should be 49 distinct mock provider IDs (47 real + 2 synthetic after Crof retirement)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
@@ -155,7 +156,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR3 SyncCoordinator integration
 
     @Test
-    func `MR3.1: enabled mock causes 52 mock providers in lastSnapshot`() async throws {
+    func `MR3.1: enabled mock causes 59 mock providers in lastSnapshot`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-1-Enable")
@@ -173,10 +174,9 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockProviders = mock.lastSnapshot?.providers
             .filter { self.isMockSnapshot($0) } ?? []
-        // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        // Phase G: 45 → 52 (+7 multi-account second tabs).
-        // iOS 1.8.0: +5 v0.27.0 → 57. iOS 1.9.0: +3 v0.28+v0.29 → 60.
-        #expect(mockProviders.count == 60)
+        // Historical totals including Crof: 43 → 45 → 52 → 57 → 60.
+        // Retiring Crof's simple profile leaves 59 current mock providers.
+        #expect(mockProviders.count == 59)
     }
 
     @Test
@@ -219,16 +219,15 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        // All 45 mocks must reach the per-provider write path. Ollama
+        // All current mock snapshots must reach the per-provider write path. Ollama
         // gets a synthetic 0% "Local inference" rate window (despite
         // having no real quota in production) specifically to avoid
         // ghost-filter drop. Per Codex MCP review feedback (R2 audit):
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
-        // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         #expect(
-            mockEnvelopes.count == 60,
-            "Phase G + iOS 1.8/1.9: 45→52→57→60 (+7 multi-account, +5 v0.27, +3 v0.28/v0.29).")
+            mockEnvelopes.count == 59,
+            "59 current mock envelopes after Crof retirement (previously 60).")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -267,7 +266,7 @@ struct MockProviderInjectorIntegrationTests {
                 mockSwitch.enabled ? MockProviderInjector.allMocks() : []
             })
 
-        // Cycle 1: mock enabled → emit 8 mocks. No deletes (first push).
+        // Cycle 1: mock enabled → emit the current mock set. No deletes (first push).
         await coordinator.pushCurrentSnapshot()
         #expect(mock.lastSnapshot?.providers.contains { self.isMockSnapshot($0) } == true)
         #expect(mock.deleteCallCount == 0)
@@ -275,7 +274,7 @@ struct MockProviderInjectorIntegrationTests {
         // Flip the in-memory switch.
         mockSwitch.enabled = false
 
-        // Cycle 2: no mocks emitted. All 43 mock recordNames must be
+        // Cycle 2: no mocks emitted. All prior mock recordNames must be
         // delete-targeted via either whole-provider-gone (synthetic IDs
         // disappear entirely) or account-identity drift (real-borrowed
         // IDs where the only emitted account was a mock).
@@ -288,9 +287,9 @@ struct MockProviderInjectorIntegrationTests {
         let mockDeletes = lastDeletes.filter { self.isMockRecordName($0) }
         // Note: codex (3 mock accounts) is the only enabled real provider
         // that wasn't disabled, so its 3 mock recordNames stay tracked
-        // as drift candidates. The 29 others get delete-targeted in this
-        // cycle. The remaining 3 are caught in subsequent cycles via
-        // 2-cycle confirmation.
+        // as drift candidates. Other mock recordNames are delete-targeted
+        // in this cycle; any remaining candidates are caught by the
+        // 2-cycle confirmation on subsequent cycles.
         #expect(
             mockDeletes.count >= 29,
             "≥29 mock per-account recordNames should be delete-targeted; got \(mockDeletes.count)")
@@ -340,9 +339,9 @@ struct MockProviderInjectorIntegrationTests {
         let mockProviders = allProviders.filter { self.isMockSnapshot($0) }
         #expect(realCodex.count == 1, "real Codex still emits its 1 record")
         #expect(realCodex.first?.accountEmail == "real@example.com")
-        // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 60, "60 mock providers also emit")
+        // Historical totals including Crof: 43 → 45 → 52 → 57 → 60.
+        // Crof retirement leaves 59 mock providers alongside real Codex.
+        #expect(mockProviders.count == 59, "59 current mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -389,7 +388,9 @@ struct MockProviderInjectorIntegrationTests {
                 providerID: snap.providerID,
                 accountEmail: snap.accountEmail)
         }
-        #expect(Set(recordNames).count == recordNames.count, "all 43 mock record names must be distinct")
+        #expect(
+            Set(recordNames).count == recordNames.count,
+            "all \(recordNames.count) mock record names must be distinct")
     }
 
     @Test
@@ -699,7 +700,7 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 60 mocks total; 9 intentionally have nil costSummary:
+        // 59 mocks total; 9 intentionally have nil costSummary:
         // _mock_cursor_unknown (error), _mock_synthetic_unknown (budget-
         // only), antigravity-balance (preview), antigravity-team (Phase G,
         // also preview/no-billing → thirtyDayCostUSD: 0 deliberately;
@@ -708,8 +709,9 @@ struct MockProviderInjectorIntegrationTests {
         // $0/$0 cost — usage is character count, not USD spend), and the
         // 3 v0.28+v0.29 providers azureopenai / alibabatokenplan / t3chat
         // (quota/subscription based, no USD spend).
-        // Remaining 51 carry cost data.
-        #expect(withCost.count == 51, "expected 51 mocks with cost data; got \(withCost.count)")
+        // Crof retirement removed one cost-bearing profile, leaving 50
+        // cost-bearing mocks (previously 51).
+        #expect(withCost.count == 50, "expected 50 mocks with cost data; got \(withCost.count)")
     }
 
     @Test

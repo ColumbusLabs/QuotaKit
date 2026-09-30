@@ -148,6 +148,43 @@ struct CodexOAuthRequestTests {
         #expect(requests.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
         #expect(requests.allSatisfy { $0.url?.path == "/backend-api/me" })
     }
+
+    @MainActor
+    @Test
+    func `subscription metadata requires the expected identity from the same cookie header`() async {
+        defer { CodexOAuthAccountURLProtocol.reset() }
+        CodexOAuthAccountURLProtocol.reset()
+        let configuration = CodexAuthenticatedHTTPTransport.makeConfiguration()
+        configuration.protocolClasses = [CodexOAuthAccountURLProtocol.self]
+        let transport = CodexAuthenticatedHTTPTransport.makeClient(configuration: configuration)
+
+        let mismatch = await CodexAuthenticatedHTTPTransport.$overrideForTesting
+            .withValue(transport) {
+                await OpenAIDashboardFetcher.fetchSubscriptionFromAPI(
+                    cookieHeader: "session=a",
+                    deadline: nil,
+                    expectedSignedInEmail: "account-b@example.com",
+                    logger: { _ in })
+            }
+        #expect(mismatch == .unavailable)
+        #expect(CodexOAuthAccountURLProtocol.recordedRequests.count == 1)
+        #expect(CodexOAuthAccountURLProtocol.recordedRequests.first?.value(forHTTPHeaderField: "Cookie") == "session=a")
+
+        CodexOAuthAccountURLProtocol.reset()
+        let match = await CodexAuthenticatedHTTPTransport.$overrideForTesting
+            .withValue(transport) {
+                await OpenAIDashboardFetcher.fetchSubscriptionFromAPI(
+                    cookieHeader: "session=a",
+                    deadline: nil,
+                    expectedSignedInEmail: "account-a@example.com",
+                    logger: { _ in })
+            }
+        #expect(match.succeeded)
+        #expect(CodexOAuthAccountURLProtocol.recordedRequests.count == 2)
+        #expect(CodexOAuthAccountURLProtocol.recordedRequests.allSatisfy {
+            $0.value(forHTTPHeaderField: "Cookie") == "session=a"
+        })
+    }
     #endif
 
     @Test
@@ -218,6 +255,23 @@ private final class CodexOAuthAccountURLProtocol: URLProtocol {
             }
             self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .allowed)
             self.client?.urlProtocol(self, didLoad: Data(#"{"email":"\#(email)"}"#.utf8))
+            self.client?.urlProtocolDidFinishLoading(self)
+            return
+        }
+        if self.request.url?.path == "/backend-api/subscriptions" {
+            guard let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Cache-Control": "public, max-age=300"])
+            else {
+                self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+                return
+            }
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .allowed)
+            self.client?.urlProtocol(
+                self,
+                didLoad: Data(#"{"active_until":"2027-01-01T00:00:00Z","will_renew":true}"#.utf8))
             self.client?.urlProtocolDidFinishLoading(self)
             return
         }

@@ -22,6 +22,88 @@ struct PlaceholderSettingsWindowGuardTests {
     }
 
     @Test
+    func `closes a retained placeholder only once across repeated sweeps`() {
+        _ = NSApplication.shared
+        let placeholder = self.makeWindow(identifier: "com_apple_SwiftUI_Settings_window")
+        var closed: [NSWindow] = []
+        let guardian = PlaceholderSettingsWindowGuard(
+            windows: { [placeholder] },
+            closeWindow: { closed.append($0) })
+
+        #expect(guardian.sweep() == 1)
+        for _ in 0..<3 {
+            #expect(guardian.sweep() == 0)
+        }
+        #expect(closed.count == 1)
+        #expect(closed.first === placeholder)
+    }
+
+    @Test
+    func `contains a synchronous reentrant window update while closing`() {
+        _ = NSApplication.shared
+        let placeholder = self.makeWindow(identifier: "com_apple_SwiftUI_Settings_window")
+        var closed: [NSWindow] = []
+        let guardian = PlaceholderSettingsWindowGuard(
+            windows: { [placeholder] },
+            isVisible: { _ in true },
+            closeWindow: {
+                closed.append($0)
+                NotificationCenter.default.post(name: NSWindow.didUpdateNotification, object: $0)
+            })
+
+        guardian.start()
+
+        #expect(closed.count == 1)
+        #expect(closed.first === placeholder)
+    }
+
+    @Test
+    func `closes the same retained placeholder after it is presented again`() {
+        _ = NSApplication.shared
+        let placeholder = self.makeWindow(identifier: "com_apple_SwiftUI_Settings_window")
+        var isVisible = true
+        var closed: [NSWindow] = []
+        let guardian = PlaceholderSettingsWindowGuard(
+            windows: { [placeholder] },
+            isVisible: { _ in isVisible },
+            closeWindow: {
+                closed.append($0)
+                isVisible = false
+            })
+
+        #expect(guardian.sweep() == 1)
+        #expect(guardian.sweep() == 0)
+        isVisible = true
+        #expect(guardian.sweep() == 1)
+        #expect(closed.count == 2)
+        #expect(closed.allSatisfy { $0 === placeholder })
+        #expect(guardian.sweep() == 0)
+    }
+
+    @Test
+    func `closes new placeholders and windows that become placeholders later`() {
+        _ = NSApplication.shared
+        let placeholder = self.makeWindow(identifier: "com_apple_SwiftUI_Settings_window")
+        let laterPlaceholder = self.makeWindow(identifier: "unrelated")
+        let state = PlaceholderWindowCollection([placeholder, laterPlaceholder])
+        var closed: [NSWindow] = []
+        let guardian = PlaceholderSettingsWindowGuard(
+            windows: { state.windows },
+            closeWindow: { closed.append($0) })
+
+        #expect(guardian.sweep() == 1)
+        let newPlaceholder = self.makeWindow(identifier: "com_apple_SwiftUI_Settings_window")
+        state.windows.append(newPlaceholder)
+        laterPlaceholder.identifier = placeholder.identifier
+
+        #expect(guardian.sweep() == 2)
+        #expect(closed.count == 3)
+        #expect(closed.contains { $0 === laterPlaceholder })
+        #expect(closed.contains { $0 === newPlaceholder })
+        #expect(guardian.sweep() == 0)
+    }
+
+    @Test
     func `keeps the AppKit Settings window and unrelated windows onscreen`() {
         _ = NSApplication.shared
         let settingsWindow = self.makeWindow(identifier: SettingsWindowIdentity.identifier)
@@ -76,5 +158,14 @@ struct PlaceholderSettingsWindowGuardTests {
         }
         window.isReleasedWhenClosed = false
         return window
+    }
+}
+
+@MainActor
+private final class PlaceholderWindowCollection {
+    var windows: [NSWindow]
+
+    init(_ windows: [NSWindow]) {
+        self.windows = windows
     }
 }

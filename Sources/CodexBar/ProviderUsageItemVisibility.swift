@@ -72,7 +72,9 @@ extension UsageMenuCardView.Model {
                 title: UsageMenuCardView.popupMetricTitle(provider: self.provider, metric: metric))
         }
         // Provider-specific by design: reset credits are a non-metric section with their own visibility choice.
-        if self.provider == .codex || self.provider == .grok, self.codexResetCredits != nil {
+        if self.provider == .codex || self.provider == .grok || self.provider == .claude,
+           self.codexResetCredits != nil
+        {
             descriptors.append(ProviderUsageItemDescriptor(
                 id: .codexResetCredits,
                 title: L("Limit Reset Credits")))

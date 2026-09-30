@@ -653,7 +653,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 secrets: state.secrets,
                 manifest: self.manifest,
                 enforcesUserResponsePolicy: self.enforcesUserResponsePolicy,
-                redactionValues: state.redactionValues)
+                redactionValues: state.redactionValues,
+                cookieJar: state.contextOptions.cookieJar)
             // Paired GETs run in the host, even while this confined worker waits for their result.
             let payload = try self.blockingValue(timeout: self.timeout) {
                 try await ProviderPluginHTTPResponse.fetch(
@@ -684,14 +685,16 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             }
             let header: String
             let payload: String
+            var jarRecordsForRedaction: [ProviderPluginCookieRecord] = []
             if session, let resolver = state.contextOptions.cookieSessionResolver {
                 let cachedOnly = JS_ToBool(self.context, arguments[1]) == 1
                 let candidate = try self.blockingValue(timeout: self.timeout) { try await resolver(domain, cachedOnly) }
                 guard candidate == nil || candidate?.origin == "https://\(domain)" else {
                     throw ProviderPluginError.secretAccess("cookie session origin does not match its domain")
                 }
+                jarRecordsForRedaction = candidate?.records ?? []
                 header = candidate?.header ?? ""
-                payload = try candidate?.json() ?? "null"
+                payload = try candidate?.json(opaque: self.manifest.usesCookieJar) ?? "null"
             } else if !session, let provider = self.manifest.id.firstPartyProvider,
                       let resolver = state.cookieResolver
             {
@@ -706,6 +709,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             state.redactionValues.insert(header)
             for pair in CookieHeaderNormalizer.pairs(from: header) {
                 state.redactionValues.insert(pair.value)
+            }
+            if self.manifest.usesCookieJar {
+                for record in jarRecordsForRedaction {
+                    state.redactionValues.insert(record.value)
+                }
             }
             let value = self.makeString(payload)
             defer { cqjs_free_value(self.context, value) }

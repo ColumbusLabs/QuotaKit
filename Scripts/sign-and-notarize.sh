@@ -14,6 +14,15 @@ CLI_EXECUTABLE_NAME="${MAC_RELEASE_CLI_EXECUTABLE:-QuotaKitCLI}"
 WATCHDOG_EXECUTABLE_NAME="${MAC_RELEASE_WATCHDOG_EXECUTABLE:-QuotaKitClaudeWatchdog}"
 WIDGET_PRODUCT_NAME="${MAC_RELEASE_WIDGET_PRODUCT_NAME:-QuotaKitWidget}"
 APP_BUNDLE="${APP_NAME}.app"
+NOTARYTOOL_OPTIONS=(--wait)
+case "${QUOTAKIT_NOTARY_S3_ACCELERATION-1}" in
+  0) NOTARYTOOL_OPTIONS+=(--no-s3-acceleration) ;;
+  1) ;;
+  *)
+    echo "QUOTAKIT_NOTARY_S3_ACCELERATION must be 0 or 1." >&2
+    exit 1
+    ;;
+esac
 # Load local-only release secrets from ~/.quotakit-secrets if available.
 source "$ROOT/Scripts/load-release-secrets.sh"
 if [[ -z "$APP_IDENTITY" ]]; then
@@ -148,7 +157,7 @@ xcrun notarytool submit "$NOTARIZATION_ZIP" \
   --key "$API_KEY_PATH" \
   --key-id "$APP_STORE_CONNECT_KEY_ID" \
   --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
-  --wait
+  "${NOTARYTOOL_OPTIONS[@]}"
 
 echo "Stapling ticket"
 xcrun stapler staple "$APP_BUNDLE"
@@ -166,7 +175,7 @@ xcrun notarytool submit "$DMG_NAME" \
   --key "$API_KEY_PATH" \
   --key-id "$APP_STORE_CONNECT_KEY_ID" \
   --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
-  --wait
+  "${NOTARYTOOL_OPTIONS[@]}"
 
 echo "Stapling DMG ticket"
 xcrun stapler staple "$DMG_NAME"

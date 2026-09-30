@@ -185,6 +185,7 @@ extension StatusItemController {
             self.refreshOpenMenusAfterHostedSubviewClose()
         }
         if self.openMenus.isEmpty {
+            self.resetClaudeSwapAccountInspection()
             self.cancelMergedSwitcherSiblingWarmup()
         }
         self.resetCompactAccountMenuExpansionStateIfIdle()
@@ -1110,6 +1111,7 @@ extension StatusItemController {
             accounts: display.accounts,
             selectedAccountID: display.activeVisibleAccountID,
             width: width,
+            hidePersonalInfo: self.settings.hidePersonalInfo,
             onSelect: { [weak self, weak menu] account in
                 guard let self else { return }
                 self.handleCodexVisibleAccountSelection(account, menu: menu)
@@ -1138,11 +1140,10 @@ extension StatusItemController {
                     allowDisabled: true,
                     phaseDidChange: { [weak controller, weak menu, settings] _ in
                         guard let controller, let menu else { return }
-                        guard settings.codexVisibleAccountProjection.activeVisibleAccountID == visibleAccountID
-                        else {
-                            return
+                        // Recheck account ownership when scheduling and when the tracking-safe rebuild runs.
+                        controller.scheduleOpenRootMenuDataRebuildIfStillVisible(menu, provider: .codex) {
+                            settings.codexVisibleAccountProjection.activeVisibleAccountID == visibleAccountID
                         }
-                        controller.refreshOpenMenuIfStillVisible(menu, provider: .codex)
                     })
             }
         }

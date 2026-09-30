@@ -13,6 +13,11 @@ Track live Codex, Claude Code, pi, and OMP agent sessions — local Mac first, o
 
 QuotaKit already parses `~/.claude/projects` JSONL (cost scanner) and ships a bundled CLI on macOS + Linux. Sessions reuse both: the local scanner feeds the menu UI, and the same scanner exposed as `quotakit sessions --json` is what remote Macs run over SSH. No daemon, no new app.
 
+The store's final release can occur off the main actor. Its nonisolated teardown
+cancels the four stored task handles before reading the observed assertion ID and
+releasing a synthetic or live assertion. Task fields retain their actor isolation;
+teardown does not require scheduling a main-actor hop.
+
 ## Data model (CodexBarCore)
 
 ```swift

@@ -105,6 +105,43 @@ struct AntigravityQuotaSummaryTests {
         #expect(usage.extraRateWindows?.first?.window.remainingPercent == 50)
     }
 
+    @Test
+    func `explicit weekly window classifies an opaque quota bucket`() throws {
+        let json = """
+        {
+          "groups": [
+            {
+              "displayName": "Gemini Models",
+              "buckets": [
+                {
+                  "bucketId": "opaque-capacity-17",
+                  "displayName": "Generation capacity",
+                  "window": "weekly",
+                  "remaining": { "remainingFraction": 0.75 }
+                }
+              ]
+            }
+          ]
+        }
+        """
+
+        let snapshot = try AntigravityStatusProbe.parseQuotaSummaryResponse(Data(json.utf8))
+        let window = try #require(snapshot.toUsageSnapshot().extraRateWindows?.first)
+
+        #expect(window.id == "antigravity-quota-summary-opaque-capacity-17")
+        #expect(window.title == "Gemini weekly")
+        #expect(window.window.windowMinutes == 10080)
+        #expect(window.window.remainingPercent == 75)
+    }
+
+    @Test
+    func `menu metrics expose named Gemini and Claude GPT weekly summary lanes`() {
+        #expect(AntigravityProviderDescriptor.descriptor.menuBarMetrics.namedExtras == [
+            "antigravity-quota-summary-gemini-weekly": "Gemini weekly",
+            "antigravity-quota-summary-3p-weekly": "Claude/GPT weekly",
+        ])
+    }
+
     @Test(arguments: ["session", "5h", "5-hour", "five hour", "five-hour"])
     func `normalizes supported session cadence aliases without rewriting bucket IDs`(alias: String) throws {
         let bucketID = "gemini-\(alias)"

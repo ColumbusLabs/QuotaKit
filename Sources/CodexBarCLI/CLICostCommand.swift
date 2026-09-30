@@ -31,6 +31,7 @@ extension CodexBarCLI {
 
         let format = output.format
         let forceRefresh = values.flags.contains("refresh")
+        let includeBreakdown = values.flags.contains("breakdown")
         let includePiSessions = Self.decodeCostIncludePiSessions(from: values)
         let useColor = Self.shouldUseColor(noColor: values.flags.contains("noColor"), format: format)
         let now = Date()
@@ -120,7 +121,9 @@ extension CodexBarCLI {
                         provider: provider,
                         snapshot: snapshot,
                         groupBy: groupBy,
-                        useColor: useColor))
+                        useColor: useColor,
+                        calendar: bucketCalendar,
+                        includeBreakdown: includeBreakdown))
                 case .json:
                     payload.append(Self.makeCostPayload(
                         provider: provider,
@@ -180,7 +183,8 @@ extension CodexBarCLI {
         snapshot: CostUsageTokenSnapshot,
         groupBy: CostGroupBy = .none,
         useColor: Bool,
-        calendar: Calendar = .current) -> String
+        calendar: Calendar = .current,
+        includeBreakdown: Bool = false) -> String
     {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let name = descriptor.metadata.displayName
@@ -238,6 +242,12 @@ extension CodexBarCLI {
             monthLine + (incomplete > 0 ? " · Incomplete" : ""),
             meteredLine,
         ]
+        if includeBreakdown, provider == .claude {
+            lines.append(contentsOf: Self.claudeTokenDetailLines(
+                snapshot: snapshot,
+                calendar: calendar,
+                useColor: useColor))
+        }
         if incomplete > 0 {
             lines
                 .append("Incomplete: \(incomplete) requests lacked final usage and were excluded from tokens and cost.")
@@ -250,6 +260,158 @@ extension CodexBarCLI {
         }
         lines.append(hintLine)
         return lines.compactMap(\.self).joined(separator: "\n")
+    }
+
+    private static func claudeTokenDetailLines(
+        snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar,
+        useColor: Bool) -> [String]
+    {
+        let selection = Self.claudeRecentEntries(snapshot: snapshot, calendar: calendar)
+        guard !selection.entries.isEmpty else { return [] }
+        return Self.claudeDailyLines(
+            entries: selection.entries,
+            snapshot: snapshot,
+            periodLabel: selection.periodLabel,
+            useColor: useColor) + Self.claudeTopModelsLines(
+            entries: selection.entries,
+            snapshot: snapshot,
+            periodLabel: selection.periodLabel,
+            useColor: useColor)
+    }
+
+    private static func claudeRecentEntries(
+        snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) -> (entries: [CostUsageDailyReport.Entry], periodLabel: String)
+    {
+        guard !snapshot.daily.isEmpty else { return ([], "") }
+        let today = calendar.startOfDay(for: snapshot.updatedAt)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        let intervalDays = min(7, max(1, snapshot.historyDays))
+        let recentDayKeys = (0..<intervalDays).compactMap { offset -> String? in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return formatter.string(from: day)
+        }
+        let recent = snapshot.daily.filter { recentDayKeys.contains($0.date) }
+            .sorted { $0.date > $1.date }
+        if !recent.isEmpty {
+            let label = "last \(intervalDays) calendar day\(intervalDays == 1 ? "" : "s")"
+            return (Array(recent.prefix(intervalDays)), label)
+        }
+
+        // Cached rows can lag behind the current calendar window; label their dates as recorded days.
+        let recorded = snapshot.daily.sorted { $0.date > $1.date }.prefix(intervalDays)
+        let label = "last \(recorded.count) recorded day\(recorded.count == 1 ? "" : "s")"
+        return (Array(recorded), label)
+    }
+
+    private static func claudeDailyLines(
+        entries: [CostUsageDailyReport.Entry],
+        snapshot: CostUsageTokenSnapshot,
+        periodLabel: String,
+        useColor: Bool) -> [String]
+    {
+        let title = "Daily breakdown (\(periodLabel)):"
+        var lines = ["", useColor ? "\u{001B}[1m\(title)\u{001B}[0m" : title]
+        for entry in entries.reversed() {
+            let hasUnpricedUsage = (entry.unpricedRequestCount ?? 0) > 0 || (entry.modelBreakdowns?.contains {
+                $0.costUSD == nil && ($0.totalTokens ?? 0) > 0
+            } ?? false)
+            let cost = (hasUnpricedUsage ? nil : entry.costUSD)
+                .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
+            let tokens = entry.totalTokens.map { UsageFormatter.tokenCountString($0) } ?? "—"
+            var parts: [String] = []
+            if let value = entry.inputTokens { parts.append("in \(UsageFormatter.tokenCountString(value))") }
+            if let value = entry.outputTokens { parts.append("out \(UsageFormatter.tokenCountString(value))") }
+            if let value = entry.cacheReadTokens, value > 0 {
+                parts.append("cacheRead \(UsageFormatter.tokenCountString(value))")
+            }
+            if let value = entry.cacheCreationTokens, value > 0 {
+                parts.append("cacheCreate \(UsageFormatter.tokenCountString(value))")
+            }
+            let mix = parts.isEmpty ? "" : " (" + parts.joined(separator: ", ") + ")"
+            let models = if let names = entry.modelsUsed, !names.isEmpty {
+                " · " + names.prefix(2).joined(separator: ", ")
+                    + (names.count > 2 ? " +\(names.count - 2)" : "")
+            } else {
+                ""
+            }
+            lines.append("\(entry.date): \(cost) · \(tokens) tokens\(mix)\(models)")
+        }
+        return lines
+    }
+
+    private static func claudeTopModelsLines(
+        entries: [CostUsageDailyReport.Entry],
+        snapshot: CostUsageTokenSnapshot,
+        periodLabel: String,
+        useColor: Bool) -> [String]
+    {
+        var hasUnattributedDay = false
+        var modelTotals: [String: (cost: Double?, tokens: Int?, days: Set<String>)] = [:]
+        for entry in entries {
+            if (entry.unpricedRequestCount ?? 0) > 0 { hasUnattributedDay = true }
+            guard let breakdowns = entry.modelBreakdowns, !breakdowns.isEmpty else {
+                if (entry.costUSD ?? 0) != 0 || (entry.totalTokens ?? 0) > 0 {
+                    hasUnattributedDay = true
+                }
+                continue
+            }
+            for breakdown in breakdowns {
+                var total = modelTotals[breakdown.modelName] ?? (cost: 0, tokens: 0, days: [])
+                if let previousCost = total.cost {
+                    if let cost = breakdown.costUSD {
+                        let sum = previousCost + cost
+                        total.cost = sum.isFinite ? sum : nil
+                    } else {
+                        total.cost = nil
+                    }
+                }
+                if let previousTokens = total.tokens {
+                    if let tokens = breakdown.totalTokens {
+                        let (sum, overflow) = previousTokens.addingReportingOverflow(tokens)
+                        total.tokens = overflow ? nil : sum
+                    } else {
+                        total.tokens = nil
+                    }
+                }
+                total.days.insert(entry.date)
+                modelTotals[breakdown.modelName] = total
+            }
+        }
+        guard !modelTotals.isEmpty else { return [] }
+        let isPartial = !snapshot.historyIsFullyScanned || hasUnattributedDay
+            || modelTotals.values.contains { $0.cost == nil || $0.tokens == nil }
+        let sorted = modelTotals.sorted { left, right in
+            let leftCost = left.value.cost ?? -1
+            let rightCost = right.value.cost ?? -1
+            if leftCost != rightCost { return leftCost > rightCost }
+            let leftTokens = left.value.tokens ?? -1
+            let rightTokens = right.value.tokens ?? -1
+            if leftTokens != rightTokens { return leftTokens > rightTokens }
+            return left.key < right.key
+        }
+        let title = isPartial
+            ? "Top models (\(periodLabel) — partial):"
+            : "Top models (\(periodLabel)):"
+        var lines = ["", useColor ? "\u{001B}[1m\(title)\u{001B}[0m" : title]
+        for (index, item) in sorted.prefix(5).enumerated() {
+            let cost = item.value.cost
+                .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
+            let tokens = item.value.tokens.map { UsageFormatter.tokenCountString($0) } ?? "—"
+            let dayCount = item.value.days.count
+            let unit = dayCount == 1 ? "day" : "days"
+            let modelName = UsageFormatter.modelDisplayName(item.key)
+            lines.append("\(index + 1). \(modelName) — \(cost) · \(tokens) tokens (\(dayCount) \(unit))")
+        }
+        if isPartial {
+            lines.append("Note: Ranking is partial (incomplete history or unattributed cost/tokens).")
+        }
+        return lines
     }
 
     private static func renderLocalTokenHistoryText(
@@ -555,7 +717,10 @@ extension CodexBarCLI {
         }
         let summary = snapshot.summary(forLastDays: 30, calendar: calendar)
         if summary.entryCount == 0 {
-            // This fork has no full-scan marker. An empty window cannot establish zero.
+            // Only a known aggregate plus a complete scan can establish zero for an empty window.
+            if snapshot.historyIsFullyScanned {
+                return (snapshot.last30DaysTokens == nil ? nil : 0, snapshot.last30DaysCostUSD == nil ? nil : 0)
+            }
             return (nil, nil)
         }
         return (summary.totalTokens, summary.totalCostUSD)
@@ -819,6 +984,9 @@ struct CostOptions: CommanderParsable {
 
     @Flag(name: .long("refresh"), help: "Force refresh by ignoring cached scans")
     var refresh: Bool = false
+
+    @Flag(name: .long("breakdown"), help: "Add Claude daily and top-model details to text output")
+    var breakdown: Bool = false
 
     @Flag(
         name: .long("provider-native-only"),

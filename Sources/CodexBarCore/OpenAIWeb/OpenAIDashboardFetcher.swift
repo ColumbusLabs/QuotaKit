@@ -721,9 +721,23 @@ public struct OpenAIDashboardFetcher {
     static func fetchSubscriptionFromAPI(
         cookieHeader: String,
         deadline: Date?,
+        expectedSignedInEmail: String? = nil,
         logger: @escaping (String) -> Void) async -> OpenAISubscriptionFetchResult
     {
         guard !cookieHeader.isEmpty else { return .unavailable }
+        if let expectedSignedInEmail {
+            guard let expectedEmail = CodexIdentityResolver.normalizeEmail(expectedSignedInEmail) else {
+                return .unavailable
+            }
+            let verifiedEmail = await self.fetchSignedInEmailFromAPI(
+                cookieHeader: cookieHeader,
+                deadline: deadline,
+                logger: logger)
+            guard CodexIdentityResolver.normalizeEmail(verifiedEmail) == expectedEmail else {
+                return .unavailable
+            }
+        }
+        guard !Task.isCancelled else { return .unavailable }
         let remaining = deadline.map { self.remainingTimeout(until: $0) } ?? 2
         guard remaining > 0 else { return .unavailable }
 
@@ -1257,9 +1271,12 @@ extension OpenAIDashboardFetcher {
         accountEmail: String?,
         cacheScope: CookieHeaderCache.Scope? = nil,
         logger: ((String) -> Void)? = nil,
-        timeout: TimeInterval = 8) async -> OpenAISubscriptionFetchResult
+        timeout: TimeInterval = 8,
+        expectedSignedInEmail: String? = nil) async -> OpenAISubscriptionFetchResult
     {
         guard !Task.isCancelled, timeout > 0 else { return .unavailable }
+        let expectedEmail = expectedSignedInEmail.flatMap(CodexIdentityResolver.normalizeEmail)
+        if expectedSignedInEmail != nil, expectedEmail == nil { return .unavailable }
         let deadline = Self.deadline(startingAt: Date(), timeout: timeout)
         let logLine: (String) -> Void = { logger?($0) }
         let websiteDataStore = OpenAIDashboardWebsiteDataStore.store(
@@ -1277,9 +1294,13 @@ extension OpenAIDashboardFetcher {
         let apiResult = await Self.fetchSubscriptionFromAPI(
             cookieHeader: cookieHeader,
             deadline: min(deadline, Date().addingTimeInterval(2)),
+            expectedSignedInEmail: expectedEmail,
             logger: logLine)
         guard !Task.isCancelled, Date() < deadline else { return .unavailable }
         guard !apiResult.succeeded else { return apiResult }
+        // With an expected identity, billing data from WebView cannot be tied to the immutable cookie
+        // header verified above. Fail closed instead of falling back to a potentially changed session.
+        guard expectedEmail == nil else { return .unavailable }
 
         do {
             let lease = try await self.makeWebView(

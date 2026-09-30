@@ -8,6 +8,31 @@ public enum KimiCookieImporter {
         KimiDesktopAuthToken.load(region: region)
     }
 
+    static func localStorageTokens(
+        region: KimiRegion,
+        browserDetection: BrowserDetection = BrowserDetection(),
+        localStorage: BrowserLocalStorageAPI = .live,
+        now: Date = Date()) -> [String]
+    {
+        var seen = Set<String>()
+        return localStorage.profiles(
+            for: region.webBaseURL.absoluteString,
+            browsers: ChromiumLocalStorageDiscovery.defaultBrowsers,
+            using: browserDetection,
+            logger: { Self.log.debug($0) })
+            .flatMap(\.entries).compactMap { entry in
+                guard entry.key == "access_token" else { return nil }
+                let token = (try? JSONDecoder().decode(String.self, from: Data(entry.value.utf8)))
+                    ?? entry.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard token.split(separator: ".", omittingEmptySubsequences: false).count == 3,
+                      token.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-_.".contains($0)) }),
+                      let expiry = UsageFetcher.parseJWT(token)?["exp"] as? Double,
+                      expiry.isFinite, expiry > now.timeIntervalSince1970,
+                      seen.insert(token).inserted else { return nil }
+                return token
+            }
+    }
+
     private static let log = CodexBarLog.logger(LogCategories.provider(.kimi, scope: "cookie"))
     private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =

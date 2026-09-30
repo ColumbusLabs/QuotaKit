@@ -94,7 +94,23 @@ public enum ClaudeOAuthKeychainPromptPreference {
     }
 
     static var applicationUserDefaults: UserDefaults {
-        self.userDefaults(or: UserDefaults(suiteName: self.applicationDefaultsDomain) ?? .standard)
+        self.userDefaults(or: resolveUserDefaults(
+            domain: self.applicationDefaultsDomain,
+            bundleIdentifier: Bundle.main.bundleIdentifier,
+            standard: .standard,
+            suiteFactory: { UserDefaults(suiteName: $0) },
+            fallback: .standard))
+    }
+
+    static func resolveUserDefaults(
+        domain: String,
+        bundleIdentifier: String?,
+        standard: UserDefaults,
+        suiteFactory: (String) -> UserDefaults?,
+        fallback: UserDefaults) -> UserDefaults
+    {
+        guard domain != bundleIdentifier else { return standard }
+        return suiteFactory(domain) ?? fallback
     }
 
     static func userDefaults(or fallback: @autoclosure () -> UserDefaults) -> UserDefaults {

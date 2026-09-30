@@ -29,6 +29,15 @@ struct ClaudeSwapAccountMenuDisplay {
             ordinal: self.privacyOrdinal(for: account))
     }
 
+    static func activatesAccount(_ account: ProviderAccountUsageSnapshot) -> Bool {
+        !account.isActive && account.canActivate
+    }
+
+    static func chipHelp(for account: ProviderAccountUsageSnapshot, hidePersonalInfo: Bool) -> String {
+        let label = self.label(for: account, hidePersonalInfo: hidePersonalInfo)
+        return self.activatesAccount(account) ? L("Switch Claude Code to %@", label) : L("Details for %@", label)
+    }
+
     static func privacyOrdinal(for account: ProviderAccountUsageSnapshot) -> PersonalInfoRedactor.AccountOrdinal? {
         guard account.provider == .claude,
               account.id.source == ClaudeSwapAccountProjection.sourceName,
@@ -60,10 +69,20 @@ struct ClaudeSwapAccountMenuDisplay {
     static func actionLabel(
         for account: ProviderAccountUsageSnapshot,
         switchingAccountID: ProviderAccountIdentity?,
-        switchInFlight: Bool) -> String?
+        switchInFlight: Bool,
+        switchPhase: ClaudeSwapSwitchPhase? = nil) -> String?
     {
+        if switchingAccountID == account.id {
+            switch switchPhase {
+            case .activating:
+                return L("Switching account…")
+            case .reconciling:
+                return L("Refreshing account status…")
+            case nil:
+                return L("Switching account…")
+            }
+        }
         if account.isActive, !account.canActivate { return L("Active") }
-        if switchingAccountID == account.id { return L("Loading…") }
         guard !switchInFlight, account.canActivate else { return nil }
         return account.isActive ? L("Re-authenticate") : L("Switch Account...")
     }

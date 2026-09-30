@@ -49,6 +49,11 @@ What it does:
 - Creates `QuotaKit-macos-universal-<version>.dmg`, `QuotaKit-macos-universal-<version>.zip`, and `QuotaKit-macos-universal-<version>.dSYM.zip`
 - Submits to notarytool, waits, staples, validates
 
+If a notarization upload times out using S3 acceleration, retry with
+`QUOTAKIT_NOTARY_S3_ACCELERATION=0 ./Scripts/sign-and-notarize.sh`. The switch
+accepts only `0` or `1` (default `1`) and applies to both app ZIP and DMG
+submissions. It changes upload transport; all signing and validation gates remain.
+
 Gotchas fixed:
 - Sparkle needs signing for framework, Autoupdate, Updater, XPCs (Downloader/Installer) or notarization fails.
 - Use `--timestamp` and `--deep` when signing the app to avoid invalid signature errors.
@@ -128,7 +133,7 @@ profile.
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast via `Scripts/release.sh` or `Scripts/make_appcast.sh`; use `SPARKLE_PRIVATE_KEY_FILE` only if overriding Keychain signing.
   - Upload the dSYM archive alongside the app zip on the GitHub release; the release script now automates this and will fail if it’s missing.
-  - After publishing the release, run `Scripts/check-release-assets.sh <tag>` to confirm the app DMG, app zip, and dSYM zip are present on GitHub.
+  - After publishing the release, run `Scripts/check-release-assets.sh <tag>` to confirm the app DMG, app zip, and dSYM zip are present on GitHub and verify the downloaded app ZIP's strict Developer ID signature across all architectures. The expected bundle identifier comes from `.mac-release.env`; the signing team comes from `MAC_RELEASE_TEAM_ID`, `APP_TEAM_ID` or `QUOTAKIT_TEAM_ID` in the normal release environment. A missing team, missing or symlinked app, damaged signature, wrong team or wrong bundle identifier fails the gate. This verifies the downloaded ZIP; installed behavior and the separate DMG validation remain distinct checks.
   - Generate the appcast + HTML release notes: `./Scripts/make_appcast.sh QuotaKit-macos-universal-<ver>.zip https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`
   - Beta channel: prefix the command with `SPARKLE_CHANNEL=beta` to tag the entry.
   - Verify the enclosure signature + size: `./Scripts/verify_appcast.sh <ver>`

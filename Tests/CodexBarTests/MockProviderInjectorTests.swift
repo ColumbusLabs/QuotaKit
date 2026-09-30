@@ -52,10 +52,11 @@ struct MockProviderInjectorTests {
         // iOS 1.8.0 adds 5 v0.27.0 provider simple mocks
         // (grok/groq/elevenlabs/deepgram/llmproxy). 52 → 57.
         // iOS 1.9.0 adds 3 v0.28+v0.29 provider simple mocks
-        // (azureopenai/alibabatokenplan/t3chat). 57 → 60.
+        // (azureopenai/alibabatokenplan/t3chat). Historical total: 57 → 60;
+        // retiring Crof's simple profile leaves 59 current mocks.
         #expect(
-            MockProviderInjector.allMocks().count == 60,
-            "iOS 1.9.0: 57 → 60 (+3 v0.28+v0.29 simple mocks: azureopenai, alibabatokenplan, t3chat).")
+            MockProviderInjector.allMocks().count == 59,
+            "59 current mocks after Crof retirement (previously 60).")
     }
 
     @Test

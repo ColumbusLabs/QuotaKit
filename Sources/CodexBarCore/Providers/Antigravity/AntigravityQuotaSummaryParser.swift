@@ -21,6 +21,7 @@ struct AntigravityQuotaSummaryBucket: Sendable, Equatable {
     let resetTime: Date?
     let resetDescription: String?
     let disabled: Bool
+    let window: String?
 
     init(
         bucketId: String,
@@ -28,7 +29,8 @@ struct AntigravityQuotaSummaryBucket: Sendable, Equatable {
         remainingFraction: Double?,
         resetTime: Date? = nil,
         resetDescription: String?,
-        disabled: Bool)
+        disabled: Bool,
+        window: String? = nil)
     {
         self.bucketId = bucketId
         self.displayName = displayName
@@ -36,11 +38,17 @@ struct AntigravityQuotaSummaryBucket: Sendable, Equatable {
         self.resetTime = resetTime
         self.resetDescription = resetDescription
         self.disabled = disabled
+        self.window = window
     }
 }
 
 extension AntigravityStatusProbe {
-    static func parseQuotaSummaryResponse(_ data: Data) throws -> AntigravityStatusSnapshot {
+    static func parseQuotaSummaryResponse(
+        _ data: Data,
+        accountEmail: String? = nil,
+        accountPlan: String? = nil,
+        source: AntigravityModelQuotaSource = .local) throws -> AntigravityStatusSnapshot
+    {
         let response = try JSONDecoder().decode(QuotaSummaryResponse.self, from: data)
         if let invalid = Self.invalidCode(response.code) {
             throw AntigravityStatusProbeError.apiError(invalid)
@@ -48,7 +56,11 @@ extension AntigravityStatusProbe {
         guard let payload = response.response ?? response.summary ?? response.rootPayload else {
             throw AntigravityStatusProbeError.parseFailed("Missing quota summary")
         }
-        return try Self.quotaSummarySnapshot(payload)
+        return try Self.quotaSummarySnapshot(
+            payload,
+            accountEmail: accountEmail,
+            accountPlan: accountPlan,
+            source: source)
     }
 
     static func parseCLIUsageReport(_ data: Data) throws -> AntigravityStatusSnapshot {
@@ -67,16 +79,21 @@ extension AntigravityStatusProbe {
         return snapshot
     }
 
-    private static func quotaSummarySnapshot(_ payload: QuotaSummaryPayload) throws -> AntigravityStatusSnapshot {
+    private static func quotaSummarySnapshot(
+        _ payload: QuotaSummaryPayload,
+        accountEmail: String? = nil,
+        accountPlan: String? = nil,
+        source: AntigravityModelQuotaSource = .local) throws -> AntigravityStatusSnapshot
+    {
         let groups = (payload.groups ?? []).compactMap(self.quotaSummaryGroup(from:))
         guard !groups.isEmpty else {
             throw AntigravityStatusProbeError.parseFailed("Missing quota groups")
         }
         return AntigravityStatusSnapshot(
             quotaSummary: AntigravityQuotaSummary(description: payload.description, groups: groups),
-            accountEmail: nil,
-            accountPlan: nil,
-            source: .local)
+            accountEmail: accountEmail,
+            accountPlan: accountPlan,
+            source: source)
     }
 
     private static func quotaSummaryGroup(from payload: QuotaSummaryGroupPayload) -> AntigravityQuotaSummaryGroup? {
@@ -100,7 +117,8 @@ extension AntigravityStatusProbe {
             remainingFraction: payload.remainingFraction ?? payload.remaining?.remainingFraction,
             resetTime: resetTime,
             resetDescription: payload.description,
-            disabled: payload.disabled ?? false)
+            disabled: payload.disabled ?? false,
+            window: payload.window)
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
@@ -153,6 +171,7 @@ private struct QuotaSummaryBucketPayload: Decodable {
     let remainingFraction: Double?
     let remaining: QuotaSummaryRemainingPayload?
     let resetTime: String?
+    let window: String?
 }
 
 private struct QuotaSummaryRemainingPayload: Decodable {

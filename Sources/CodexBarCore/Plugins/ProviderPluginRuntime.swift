@@ -172,6 +172,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         cookieInvalidator: CookieInvalidator? = nil,
         cookieSessionResolver: CookieSessionResolver? = nil,
         cookieSessionInvalidator: CookieSessionInvalidator? = nil,
+        cookieJar: ProviderPluginCookieJar? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> UsageSnapshot
     {
@@ -185,6 +186,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             cookieInvalidator: cookieInvalidator,
             cookieSessionResolver: cookieSessionResolver,
             cookieSessionInvalidator: cookieSessionInvalidator,
+            cookieJar: cookieJar,
             cookieResolver: cookieResolver,
             instanceCookieResolver: instanceCookieResolver).usage
     }
@@ -199,6 +201,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         cookieInvalidator: CookieInvalidator? = nil,
         cookieSessionResolver: CookieSessionResolver? = nil,
         cookieSessionInvalidator: CookieSessionInvalidator? = nil,
+        cookieJar: ProviderPluginCookieJar? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> ProviderPluginResult
     {
@@ -224,6 +227,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             resolver: cookieResolver,
             instanceResolver: instanceCookieResolver)
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
+        contextOptions.cookieJar = cookieJar
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<ProviderPluginResult>()
         let finish: @Sendable (Result<ProviderPluginResult, Error>) -> Void = { [weak worker] result in
@@ -859,7 +863,8 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 secrets: secrets,
                 manifest: self.manifest,
                 enforcesUserResponsePolicy: self.enforcesUserResponsePolicy,
-                redactionValues: redactionValues)
+                redactionValues: redactionValues,
+                cookieJar: contextOptions.cookieJar)
         } catch {
             self.reject(callbacks.reject, error: error, transportErrors: redactionValues.transportErrors)
             return
@@ -924,21 +929,24 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                     error: ProviderPluginError.secretAccess("browser cookies are disabled for this provider"))
                 return
             }
-            let resolveCookie: @Sendable () async throws -> (header: String, payload: String)
+            let resolveCookie: @Sendable () async throws -> (header: String, payload: String, sensitive: [String])
             if let sessionResolver {
                 resolveCookie = {
-                    guard let session = try await sessionResolver(domain, cachedOnly) else { return ("", "null") }
+                    guard let session = try await sessionResolver(domain, cachedOnly) else { return ("", "null", []) }
                     guard session.origin == "https://\(domain)" else {
                         throw ProviderPluginError.secretAccess("cookie session origin does not match its domain")
                     }
-                    return try (session.header, session.json())
+                    return try (
+                        session.header,
+                        session.json(opaque: self.manifest.usesCookieJar),
+                        (session.records ?? []).map(\.value))
                 }
             } else if let provider = self.manifest.id.firstPartyProvider, let resolver {
-                resolveCookie = { let header = try await resolver(provider, domain); return (header, header) }
+                resolveCookie = { let header = try await resolver(provider, domain); return (header, header, []) }
             } else if let instanceResolver {
                 resolveCookie = {
                     let header = try await instanceResolver(self.manifest.id, domain)
-                    return (header, header)
+                    return (header, header, [])
                 }
             } else {
                 self.reject(
@@ -951,11 +959,12 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             let rejectBox = ProviderPluginJSValueBox(reject)
             Task.detached {
                 do {
-                    let (header, payload) = try await resolveCookie()
+                    let (header, payload, sensitive) = try await resolveCookie()
                     redactionValues.insert(header)
                     for pair in CookieHeaderNormalizer.pairs(from: header) {
                         redactionValues.insert(pair.value)
                     }
+                    sensitive.forEach(redactionValues.insert)
                     worker.queue.async {
                         _ = resolveBox.value.call(withArguments: [payload])
                     }

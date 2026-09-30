@@ -90,30 +90,11 @@ struct ProviderPluginOptionalRequestTests {
         #expect(payload.value["optional"] is NSNull)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `caller cancellation reaches both requests`(engine: ProviderPluginEngineKind) async throws {
-        let calls = RequestCalls()
-        let runtime = try Self.runtime(engine: engine) { request in
-            calls.start()
-            do { try await Task.sleep(for: .seconds(30)) } catch {
-                calls.cancel()
-                throw error
-            }
-            return try Self.response(request, body: "unexpected")
-        }
-        let task = Task { try await runtime.fetchUsage() }
-        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
-        while calls.counts.0 < 2, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.counts.0 == 2)
-        task.cancel()
-        await #expect(throws: CancellationError.self) { _ = try await task.value }
-        let cancelledDeadline = ContinuousClock.now.advanced(by: .seconds(10))
-        while calls.counts.1 < 2, ContinuousClock.now < cancelledDeadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.counts.1 == 2)
+        try await ProviderPluginCancellationTestSupport.checkCallerCancellation(
+            engine: engine,
+            optionalMethod: "GET")
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -169,6 +150,21 @@ struct ProviderPluginOptionalRequestTests {
             engine: engine)
     }
 
+    private final class RequestCalls: @unchecked Sendable {
+        private let lock = NSLock()
+        private var startedAt: ContinuousClock.Instant?
+
+        var elapsed: Duration? {
+            self.lock.withLock { self.startedAt?.duration(to: .now) }
+        }
+
+        func start() {
+            self.lock.withLock {
+                self.startedAt = self.startedAt ?? .now
+            }
+        }
+    }
+
     private static func response(
         _ request: URLRequest,
         body: String,
@@ -181,28 +177,5 @@ struct ProviderPluginOptionalRequestTests {
             httpVersion: nil,
             headerFields: headers))
         return (Data(body.utf8), response)
-    }
-
-    private final class RequestCalls: @unchecked Sendable {
-        private let lock = NSLock()
-        private var started = 0
-        private var startedAt: ContinuousClock.Instant?
-        var elapsed: Duration? {
-            self.lock.withLock { self.startedAt?.duration(to: .now) }
-        }
-
-        private var cancelled = 0
-        var counts: (Int, Int) {
-            self.lock.withLock { (self.started, self.cancelled) }
-        }
-
-        func start() {
-            self.lock.withLock {
-                self.startedAt = self.startedAt ?? .now
-                self.started += 1
-            }
-        }
-
-        func cancel() { self.lock.withLock { self.cancelled += 1 } }
     }
 }

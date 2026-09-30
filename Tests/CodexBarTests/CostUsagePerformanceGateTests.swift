@@ -587,7 +587,7 @@ struct CostUsagePerformanceGateTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
 
         let epoch: Int64 = 1_760_000_000
         var rows: [(epochSeconds: Int64, body: String)] = (0..<50).map { index in
@@ -597,7 +597,7 @@ struct CostUsagePerformanceGateTests {
             epochSeconds: epoch,
             body: "thread_id=thread-a turn.id=turn-a websocket request: "
                 + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#))
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: rows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: rows)
 
         let full = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         #expect(full.keys.sorted() == ["turn-a"])
@@ -608,7 +608,7 @@ struct CostUsagePerformanceGateTests {
             rowID: 1,
             body: "thread_id=mutated turn.id=mutated-old websocket request: "
                 + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#)
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: [(
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: [(
             epochSeconds: epoch,
             body: "thread_id=thread-b turn.id=turn-b websocket request: "
                 + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#)])
@@ -1232,8 +1232,8 @@ struct CostUsagePerformanceGateTests {
         // subset of input, not an additional token bucket.
         #expect(complete.summary?.totalTokens == 110)
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: iso,
             body: "thread_id=thread turn.id=priority-turn websocket request: "
@@ -1289,7 +1289,7 @@ struct CostUsagePerformanceGateTests {
                 contents: body)
         }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             claudeProjectsRoots: nil,
@@ -1308,7 +1308,7 @@ struct CostUsagePerformanceGateTests {
         let originalTurnKeys = originalCache.codexPriorityTurnKeys
         let originalCursor = originalCache.codexPriorityTurnsCursor
 
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: iso,
             body: "thread_id=thread turn.id=priority-turn websocket request: "

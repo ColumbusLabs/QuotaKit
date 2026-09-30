@@ -17,10 +17,15 @@
     },
     getWithOptional(url, optional, opts) {
       try {
+        const optionalOptions =
+          typeof optional === "string" ? { ...(opts || {}) } : postOptions(optional);
+        if (optionalOptions.cookieSession === undefined && opts?.cookieSession !== undefined) {
+          optionalOptions.cookieSession = opts.cookieSession;
+        }
         const request =
           typeof optional === "string"
-            ? { url: optional, method: "GET", options: opts || {} }
-            : { url: optional.url, method: optional.method, options: postOptions(optional) };
+            ? { url: optional, method: "GET", options: optionalOptions }
+            : { url: optional.url, method: optional.method, options: optionalOptions };
         return get(url, { ...opts, optionalRequest: request }, false);
       } catch (error) {
         return Promise.reject(error);
@@ -53,7 +58,7 @@
       hostOptions.bodyJSON = JSON.stringify(opts.body);
       if (hostOptions.bodyJSON === undefined) throw new TypeError("postJSON body is not JSON-serializable");
     }
-    for (const key of ["headers", "timeoutSeconds", "retryPolicy", "openRouterManagementAuth"]) {
+    for (const key of ["headers", "cookieSession", "timeoutSeconds", "retryPolicy", "openRouterManagementAuth"]) {
       if (opts[key] !== undefined) hostOptions[key] = opts[key];
     }
     return hostOptions;

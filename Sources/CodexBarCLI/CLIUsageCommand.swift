@@ -542,7 +542,10 @@ extension CodexBarCLI {
             resolvedCLIVersion: resolvedCLIVersion)
         let outcome = await Self.fetchProviderUsage(provider: provider, context: fetchContext)
         if command.verbose, !command.jsonOnly {
-            Self.printFetchAttempts(provider: provider, attempts: outcome.attempts)
+            Self.printFetchAttempts(
+                provider: provider,
+                attempts: outcome.attempts,
+                sourceMode: effectiveSourceMode)
         }
 
         switch Self.providerResultWithCredentialGuidance(outcome.result, provider: provider, environment: env) {
@@ -609,7 +612,10 @@ extension CodexBarCLI {
                     status: status,
                     error: error,
                     kind: .provider,
-                    diagnostic: Self.appAutoBackgroundSafeDenialDiagnostic(
+                    diagnostic: Self.antigravityAutoFallbackSummary(
+                        provider: provider,
+                        sourceMode: effectiveSourceMode,
+                        attempts: outcome.attempts) ?? Self.appAutoBackgroundSafeDenialDiagnostic(
                         provider: provider,
                         sourceMode: effectiveSourceMode,
                         runtime: command.providerRuntime,
@@ -631,6 +637,14 @@ extension CodexBarCLI {
                     provider: provider,
                     sourceMode: effectiveSourceMode,
                     attempts: outcome.attempts)
+                {
+                    Self.writeStderr("\(summary)\n")
+                }
+                if !command.verbose,
+                   let summary = Self.antigravityAutoFallbackSummary(
+                       provider: provider,
+                       sourceMode: effectiveSourceMode,
+                       attempts: outcome.attempts)
                 {
                     Self.writeStderr("\(summary)\n")
                 }

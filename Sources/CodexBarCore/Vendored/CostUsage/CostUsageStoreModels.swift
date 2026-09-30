@@ -250,6 +250,8 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
     var verifiedLedgerVersion: Int?
     var priorityTurnStatePayload: Data?
     var projectMetadataVersion: Int?
+    /// Optional metadata-only retry intent for receipt-bound Codex history hydration.
+    var codexHistoryHydrationRetries: [String: CodexHistoryHydrationRetry]?
 
     static let empty = Self(
         lastScanUnixMs: 0,
@@ -274,7 +276,8 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
         verifiedRootPaths: nil,
         verifiedLedgerVersion: nil,
         priorityTurnStatePayload: nil,
-        projectMetadataVersion: nil)
+        projectMetadataVersion: nil,
+        codexHistoryHydrationRetries: nil)
 }
 
 struct CostUsageStoreReport: Equatable, Sendable {
@@ -350,6 +353,11 @@ struct CostUsageStoreSnapshot: Equatable, Sendable {
     var discoveryState: CostUsageStoreDiscoveryState?
     var lookbackState: CostUsageStoreLookbackState?
     var accumulators: [CostUsageStoreAccumulator]
+    /// Optional count-only index used by the ordinary Codex scan baseline when event payloads
+    /// stay in SQLite. Nil means callers did not request a count-only read.
+    var tokenSnapshotCounts: [String: Int]?
+    /// False when the snapshot deliberately omitted raw token history.
+    var tokenSnapshotsLoaded: Bool = true
 }
 
 struct CostUsageStoreRetentionResult: Equatable, Sendable {

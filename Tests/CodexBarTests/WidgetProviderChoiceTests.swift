@@ -24,6 +24,8 @@ struct WidgetProviderChoiceTests {
         "mistral": "Mistral",
         "kimi": "Kimi Code",
         "pi": "Pi",
+        "deepseek": "DeepSeek",
+        "openrouter": "OpenRouter",
     ]
 
     @Test

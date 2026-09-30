@@ -1,7 +1,7 @@
-/** A secret header bound to one declared origin; reject with its opaque ID to advance safely. */
+/** A secret session bound to one declared origin; opaque IDs omit the header for host cookie jars. */
 interface CodexBarCookieSession {
   readonly id: string;
-  readonly header: string;
+  readonly header?: string;
   readonly source: string;
   readonly origin: string;
   readonly cachedAt?: number;
@@ -158,6 +158,8 @@ interface CodexBarFetchResult {
 
 interface CodexBarHTTPRequestOptions {
   headers?: Readonly<Record<string, string>>;
+  /** Opaque session ID returned by browser.sessions for manifests using cookiePolicy. */
+  cookieSession?: string;
   /** Hard deadline from transport start, 1–90 seconds (default 15); also bounded by the overall fetch deadline. */
   timeoutSeconds?: number;
   /** One native delayed retry for transient GET failures; POST is never retried. */
@@ -286,6 +288,8 @@ interface CodexBarProviderDefinition {
   /** Grants declared cookie access, HTTP status handling, or bounded non-secret persistent state. */
   capabilities?: Array<"browser-cookies" | "http-status" | "persistent-storage">;
   cookieDomains?: string[];
+  /** Use host-side request-URL cookie matching without persistent cookie storage. Bundled plugins only. */
+  cookiePolicy?: { selection: "request-url"; cache: "nonpersistent" };
   fetchUsage(
     ctx: CodexBarPluginContext,
   ): CodexBarUsageSnapshot | CodexBarFetchResult | Promise<CodexBarUsageSnapshot | CodexBarFetchResult>;

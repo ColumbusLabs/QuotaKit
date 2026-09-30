@@ -14,7 +14,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
         let epoch = Int64(now.timeIntervalSince1970)
         var rows: [(epochSeconds: Int64, body: String)] = (0..<50).map { index in
@@ -23,7 +23,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         rows.append((
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a")))
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: rows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: rows)
 
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
         let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
@@ -44,7 +44,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             dbURL: dbURL,
             rowID: 1,
             body: Self.priorityRequestBody(threadID: "mutated", turnID: "mutated-old"))
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: [(
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: [(
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-b", turnID: "turn-b"))])
 
@@ -73,14 +73,14 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
         let timestamp = ISO8601DateFormatter().string(from: now)
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a"))
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-b", turnID: "turn-b"))
@@ -91,12 +91,12 @@ struct CostUsageScannerCodexPriorityCursorTests {
 
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         try FileManager.default.removeItem(at: dbURL)
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-c", turnID: "turn-c"))
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-d", turnID: "turn-d"))
@@ -122,7 +122,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let epoch = Int64(Date().timeIntervalSince1970)
         let originalRowCount = 20
         var originalRows: [(epochSeconds: Int64, body: String)] = (0..<(originalRowCount - 1)).map { index in
@@ -131,7 +131,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         originalRows.append((
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a")))
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: originalRows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: originalRows)
 
         _ = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         let persisted = try #require(CostUsageScanner.codexPriorityTurnsPersistedCursor(databaseURL: dbURL))
@@ -142,14 +142,14 @@ struct CostUsageScannerCodexPriorityCursorTests {
 
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         try FileManager.default.removeItem(at: dbURL)
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         var replacementRows: [(epochSeconds: Int64, body: String)] = [
             (epochSeconds: epoch, body: Self.priorityRequestBody(threadID: "thread-x", turnID: "turn-x")),
         ]
         replacementRows.append(contentsOf: (1..<originalRowCount).map { index in
             (epochSeconds: epoch, body: "thread_id=r-\(index) turn.id=v-\(index) replacement filler")
         })
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: replacementRows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: replacementRows)
 
         let freshTurns = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         let freshMemo = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
@@ -178,7 +178,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             dbURL: dbURL,
             rowID: 1,
             body: Self.priorityRequestBody(threadID: "thread-y", turnID: "turn-y"))
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: [(
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: [(
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-z", turnID: "turn-z"))])
         let incremental = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
@@ -197,7 +197,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let epoch = Int64(Date().timeIntervalSince1970)
         var rows: [(epochSeconds: Int64, body: String)] = [
             (epochSeconds: epoch, body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a")),
@@ -205,7 +205,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         rows.append(contentsOf: (1..<8).map { index in
             (epochSeconds: epoch, body: "thread_id=t-\(index) turn.id=u-\(index) routine trace row")
         })
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: rows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: rows)
 
         _ = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         let persisted = try #require(CostUsageScanner.codexPriorityTurnsPersistedCursor(databaseURL: dbURL))
@@ -219,7 +219,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             rowID: 1,
             body: Self.priorityRequestBody(threadID: "thread-x", turnID: "turn-x"))
         try Self.deleteTestLog(dbURL: dbURL, rowID: persisted.lastRowID)
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: [(
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: [(
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-new", turnID: "turn-new"))])
 
@@ -243,17 +243,17 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let today = Date()
         let thirtyDaysAgo = try #require(Calendar.current.date(byAdding: .day, value: -30, to: today))
         let fortyFiveDaysAgo = try #require(Calendar.current.date(byAdding: .day, value: -45, to: today))
         let sixtyDaysAgo = try #require(Calendar.current.date(byAdding: .day, value: -60, to: today))
         let formatter = ISO8601DateFormatter()
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: formatter.string(from: fortyFiveDaysAgo),
             body: Self.priorityRequestBody(threadID: "thread-old", turnID: "turn-old"))
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: formatter.string(from: today),
             body: Self.priorityRequestBody(threadID: "thread-new", turnID: "turn-new"))
@@ -290,9 +290,9 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: ISO8601DateFormatter().string(from: now),
             body: Self.priorityRequestBody(threadID: "thread-cold", turnID: "turn-cold"))
@@ -367,7 +367,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let epoch = Int64(Date().timeIntervalSince1970)
         let matchingRows: [(epochSeconds: Int64, body: String)] = [
             (epoch, Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a")),
@@ -378,7 +378,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             (epoch, Self.completedBody(turnID: "orphan-1", model: "pending-1")),
             (epoch, Self.completedBody(turnID: "orphan-2", model: "pending-2")),
         ]
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: matchingRows)
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: matchingRows)
 
         let freshTurns = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         let freshMemo = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
@@ -420,10 +420,10 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
         let epoch = Int64(now.timeIntervalSince1970)
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: [(
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: [(
             epochSeconds: epoch,
             body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a"))])
         try Self.writeCodexSession(env: env, now: now)
@@ -438,7 +438,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageStore.saveCycleCheckpointForTesting = { _ in persistedFileCount += 1 }
         defer { CostUsageStore.saveCycleCheckpointForTesting = nil }
 
-        try CostUsageScannerCodexPriorityTests.insertTestLogs(dbURL: dbURL, rows: (0..<3).map { index in
+        try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: (0..<3).map { index in
             (epochSeconds: epoch, body: "routine trace row \(index)")
         })
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now.addingTimeInterval(2))
@@ -478,9 +478,9 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: ISO8601DateFormatter().string(from: now),
             body: Self.priorityRequestBody(threadID: "thread-cold", turnID: "turn-cold"))
@@ -535,14 +535,14 @@ struct CostUsageScannerCodexPriorityCursorTests {
         CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path)
         defer { CostUsageScanner._test_resetCodexPriorityTurnsMemo(forPath: dbURL.path) }
 
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
         let now = Date()
         let timestamp = ISO8601DateFormatter().string(from: now)
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-a", turnID: "turn-a"))
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-b", turnID: "turn-b"))

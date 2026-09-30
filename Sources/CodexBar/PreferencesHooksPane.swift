@@ -59,7 +59,7 @@ struct HooksPane: View {
 }
 
 @MainActor
-private struct HookRuleRow: View {
+struct HookRuleRow: View {
     @Binding var rule: HookRule
     let onDelete: () -> Void
     @State private var argumentRows: [ArgumentRow]
@@ -107,17 +107,30 @@ private struct HookRuleRow: View {
                 HStack {
                     Text(L("hooks_threshold"))
                         .foregroundStyle(.secondary)
-                    TextField(L("hooks_threshold_placeholder"), value: self.thresholdPercentBinding, format: .number)
+                    TextField(
+                        L("hooks_threshold"),
+                        value: self.thresholdPercentBinding,
+                        format: .number,
+                        prompt: Text(L("hooks_threshold_placeholder")))
+                        .labelsHidden()
                         .frame(width: 60)
+                        .accessibilityLabel(L("hooks_threshold"))
+                        .accessibilityIdentifier("hooks-threshold")
                     Text(verbatim: "%")
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)
             }
 
-            TextField(L("hooks_executable_placeholder"), text: self.$rule.executable)
+            TextField(
+                L("hooks_executable"),
+                text: self.$rule.executable,
+                prompt: Text(L("hooks_executable_placeholder")))
+                .labelsHidden()
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.caption, design: .monospaced))
+                .accessibilityLabel(L("hooks_executable"))
+                .accessibilityIdentifier("hooks-executable")
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -137,9 +150,15 @@ private struct HookRuleRow: View {
 
                 ForEach(self.$argumentRows) { $argument in
                     HStack {
-                        TextField(L("hooks_argument_placeholder"), text: $argument.value)
+                        TextField(
+                            L("hooks_argument_placeholder"),
+                            text: $argument.value,
+                            prompt: Text(L("hooks_argument_placeholder")))
+                            .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.caption, design: .monospaced))
+                            .accessibilityLabel(L("hooks_argument_placeholder"))
+                            .accessibilityIdentifier("hooks-argument")
                         Button {
                             self.argumentRows.removeAll(where: { $0.id == argument.id })
                         } label: {

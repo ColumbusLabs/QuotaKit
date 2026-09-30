@@ -2,6 +2,9 @@ import Foundation
 #if canImport(Darwin)
 import Darwin
 #endif
+#if os(macOS)
+import Security
+#endif
 
 final class FutureModificationDateClamp: @unchecked Sendable {
     private let lock = NSLock()
@@ -34,25 +37,25 @@ private final class TrustedCodexAppServerCache: @unchecked Sendable {
     private var trustedIdentities: [String: Entry] = [:]
 
     func isTrusted(
-        executablePath: String,
+        bundlePath: String,
         now: Date,
         identityProvider: @Sendable (String) -> String?,
         validator: @Sendable (String) -> Bool) -> Bool
     {
-        guard let identity = identityProvider(executablePath) else { return false }
+        guard let identity = identityProvider(bundlePath) else { return false }
         return self.lock.withLock {
-            if let cached = self.trustedIdentities[executablePath],
+            if let cached = self.trustedIdentities[bundlePath],
                cached.identity == identity,
                now.timeIntervalSince(cached.validatedAt) >= 0,
                now.timeIntervalSince(cached.validatedAt) < Self.maximumTrustAge
             {
                 return true
             }
-            guard validator(executablePath) else {
-                self.trustedIdentities.removeValue(forKey: executablePath)
+            guard validator(bundlePath) else {
+                self.trustedIdentities.removeValue(forKey: bundlePath)
                 return false
             }
-            self.trustedIdentities[executablePath] = Entry(identity: identity, validatedAt: now)
+            self.trustedIdentities[bundlePath] = Entry(identity: identity, validatedAt: now)
             return true
         }
     }
@@ -63,6 +66,7 @@ public struct LocalAgentSessionScanner: Sendable {
     typealias CWDProvider = @Sendable ([Int32], [String: String]) async -> [Int32: String]
     typealias ProcessEnvironmentProvider = @Sendable ([Int32]) async -> [Int32: [String: String]]
     typealias AppServerTrustValidator = @Sendable (String) -> Bool
+    typealias AppServerProcessTrustValidator = @Sendable (Int32, String) -> Bool
     typealias AppServerExecutablePathProvider = @Sendable (Int32) -> String?
     typealias AppServerArgumentsProvider = @Sendable (Int32) -> [String]?
     typealias AppServerTrustIdentityProvider = @Sendable (String) -> String?
@@ -91,6 +95,7 @@ public struct LocalAgentSessionScanner: Sendable {
     private let cwdProvider: CWDProvider?
     private let processEnvironmentProvider: ProcessEnvironmentProvider?
     private let appServerTrustValidator: AppServerTrustValidator
+    private let appServerProcessTrustValidator: AppServerProcessTrustValidator
     private let appServerExecutablePathProvider: AppServerExecutablePathProvider
     private let appServerArgumentsProvider: AppServerArgumentsProvider
     private let appServerTrustIdentityProvider: AppServerTrustIdentityProvider
@@ -102,6 +107,7 @@ public struct LocalAgentSessionScanner: Sendable {
         self.cwdProvider = nil
         self.processEnvironmentProvider = nil
         self.appServerTrustValidator = { CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0) }
+        self.appServerProcessTrustValidator = Self.processSignatureIsTrusted
         self.appServerExecutablePathProvider = Self.runningExecutablePath
         self.appServerArgumentsProvider = Self.runningArguments
         self.appServerTrustIdentityProvider = Self.trustIdentity
@@ -116,6 +122,8 @@ public struct LocalAgentSessionScanner: Sendable {
         appServerTrustValidator: @escaping AppServerTrustValidator = {
             CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0)
         },
+        appServerProcessTrustValidator: @escaping AppServerProcessTrustValidator = LocalAgentSessionScanner
+            .processSignatureIsTrusted,
         appServerExecutablePathProvider: @escaping AppServerExecutablePathProvider = LocalAgentSessionScanner
             .runningExecutablePath,
         appServerArgumentsProvider: @escaping AppServerArgumentsProvider = LocalAgentSessionScanner.runningArguments,
@@ -128,6 +136,7 @@ public struct LocalAgentSessionScanner: Sendable {
         self.cwdProvider = cwdProvider
         self.processEnvironmentProvider = processEnvironmentProvider
         self.appServerTrustValidator = appServerTrustValidator
+        self.appServerProcessTrustValidator = appServerProcessTrustValidator
         self.appServerExecutablePathProvider = appServerExecutablePathProvider
         self.appServerArgumentsProvider = appServerArgumentsProvider
         self.appServerTrustIdentityProvider = appServerTrustIdentityProvider
@@ -149,15 +158,16 @@ public struct LocalAgentSessionScanner: Sendable {
             guard let executablePath = process.executablePath ??
                 self.appServerExecutablePathProvider(process.pid)
             else { return false }
-            let standardizedPath = URL(fileURLWithPath: executablePath).standardizedFileURL.path
-            guard AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
-                standardizedPath,
+            let resolvedExecutablePath = Self.normalizedExecutablePath(executablePath)
+            guard let bundlePath = AgentPSOutputParser.chatGPTBundlePath(
+                forCodexAppServerExecutable: resolvedExecutablePath,
                 homeDirectory: homeDirectory),
                 let arguments = process.arguments ?? self.appServerArgumentsProvider(process.pid),
-                arguments.contains("app-server")
+                arguments.contains("app-server"),
+                self.appServerProcessTrustValidator(process.pid, resolvedExecutablePath)
             else { return false }
             return self.trustedCodexAppServerCache.isTrusted(
-                executablePath: standardizedPath,
+                bundlePath: bundlePath,
                 now: now,
                 identityProvider: self.appServerTrustIdentityProvider,
                 validator: self.appServerTrustValidator)
@@ -326,27 +336,57 @@ public struct LocalAgentSessionScanner: Sendable {
     }
 
     private static func trustIdentity(executablePath: String) -> String? {
-        let executableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath()
-        guard let bundleURL = self.containingAppBundle(of: executableURL),
+        let bundleURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().standardizedFileURL
+        let informationURL = bundleURL.appendingPathComponent("Contents/Info.plist")
+        let executableURL = bundleURL.appendingPathComponent("Contents/MacOS/ChatGPT")
+        let codeResourcesURL = bundleURL.appendingPathComponent("Contents/_CodeSignature/CodeResources")
+        guard let bundleIdentity = self.fileIdentity(bundleURL),
+              let informationIdentity = self.fileIdentity(informationURL),
               let executableIdentity = self.fileIdentity(executableURL),
-              let bundleIdentity = self.fileIdentity(bundleURL),
-              let codeResourcesIdentity = self.fileIdentity(
-                  bundleURL.appendingPathComponent("Contents/_CodeSignature/CodeResources"))
+              let codeResourcesIdentity = self.fileIdentity(codeResourcesURL)
         else { return nil }
-        return [executableIdentity, bundleIdentity, codeResourcesIdentity].joined(separator: "|")
+        return [bundleIdentity, informationIdentity, executableIdentity, codeResourcesIdentity]
+            .joined(separator: "|")
     }
 
-    private static func containingAppBundle(of url: URL) -> URL? {
-        var candidate = url.standardizedFileURL
-        while candidate.path != "/" {
-            if candidate.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
-                return candidate
-            }
-            let parent = candidate.deletingLastPathComponent()
-            guard parent.path != candidate.path else { return nil }
-            candidate = parent
+    private static func processSignatureIsTrusted(pid: Int32, expectedExecutablePath: String) -> Bool {
+        #if os(macOS)
+        guard pid > 0 else { return false }
+        let attributes = [kSecGuestAttributePid as String: NSNumber(value: pid)]
+        var code: SecCode?
+        guard SecCodeCopyGuestWithAttributes(
+            nil,
+            attributes as CFDictionary,
+            SecCSFlags(),
+            &code) == errSecSuccess,
+            let code
+        else { return false }
+        guard SecCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSStrictValidate), nil) == errSecSuccess else {
+            return false
         }
-        return nil
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, SecCSFlags(), &staticCode) == errSecSuccess,
+              let staticCode
+        else { return false }
+        var signingInformation: CFDictionary?
+        guard SecCodeCopySigningInformation(
+            staticCode,
+            SecCSFlags(rawValue: kSecCSSigningInformation),
+            &signingInformation) == errSecSuccess,
+            let signingInformation,
+            let details = signingInformation as? [String: Any],
+            let signedExecutableURL = details[kSecCodeInfoMainExecutable as String] as? URL
+        else { return false }
+        return self.normalizedExecutablePath(signedExecutableURL.path) == expectedExecutablePath
+        #else
+        _ = pid
+        _ = expectedExecutablePath
+        return false
+        #endif
+    }
+
+    private static func normalizedExecutablePath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     private static func fileIdentity(_ url: URL) -> String? {

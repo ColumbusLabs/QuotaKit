@@ -537,6 +537,14 @@ actor SequencedCodexSnapshotLoader {
 }
 
 extension CodexAccountScopedRefreshTests {
+    func codexIdentitySnapshot(email: String, loginMethod: String = "Pro") -> ProviderIdentitySnapshot {
+        ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: email,
+            accountOrganization: nil,
+            loginMethod: loginMethod)
+    }
+
     func codexWeeklySnapshot(
         email: String,
         weeklyUsedPercent: Double?,

@@ -5,7 +5,7 @@ import Testing
 @Suite(.serialized)
 struct CostUsageStoreCutoverTests {
     @Test
-    func `legacy artifact is retained while SQLite rebuilds from source`() async throws {
+    func `legacy artifact is retained while stale in-window SQLite rows are pruned`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 8, day: 8)
@@ -14,9 +14,12 @@ struct CostUsageStoreCutoverTests {
             day: day,
             filename: "current.jsonl",
             contents: Self.session(timestamp: timestamp, sessionID: "current", input: 7))
+        let staleFile = try env.writeCodexSessionFile(
+            day: day,
+            filename: "stale.jsonl",
+            contents: Self.session(timestamp: timestamp, sessionID: "stale", input: 2))
 
         let store = CostUsageStore(cacheRoot: env.cacheRoot)
-        #expect(await store.upsertFile(Self.staleStoreFile()))
         let directory = store.databaseURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let legacy = directory.appendingPathComponent("codex-v11.json")
@@ -28,11 +31,23 @@ struct CostUsageStoreCutoverTests {
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot)
         options.refreshMinIntervalSeconds = 0
-        let report = CostUsageScanner.loadDailyReport(
+        let firstReport = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
             now: day,
+            options: options)
+
+        #expect(firstReport.summary?.totalInputTokens == 9)
+        let firstSnapshot = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
+        #expect(firstSnapshot.files.contains { $0.path == staleFile.standardizedFileURL.path })
+
+        try FileManager.default.removeItem(at: staleFile)
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
             options: options)
 
         #expect(report.summary?.totalInputTokens == 7)
@@ -40,7 +55,7 @@ struct CostUsageStoreCutoverTests {
         #expect(FileManager.default.fileExists(atPath: temporary.path))
         #expect(FileManager.default.fileExists(atPath: store.databaseURL.path))
         let snapshot = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
-        #expect(snapshot.files.map(\.path).contains("/stale.jsonl") == false)
+        #expect(snapshot.files.contains { $0.path == staleFile.standardizedFileURL.path } == false)
         #expect(snapshot.files.contains { $0.path.hasSuffix("current.jsonl") })
     }
 
@@ -135,30 +150,6 @@ struct CostUsageStoreCutoverTests {
         #expect(stableRecorder.snapshot().usageRowsRepriced == 0)
         #expect(stable.data == appended.data)
         #expect(stable.summary == appended.summary)
-    }
-
-    private static func staleStoreFile() -> CostUsageStoreFile {
-        CostUsageStoreFile(
-            path: "/stale.jsonl",
-            inode: 1,
-            mtimeUnixMs: 1,
-            size: 1,
-            parsedBytes: 1,
-            anchor: nil,
-            scanState: CostUsageStoreScanState(
-                targetSize: 1,
-                isComplete: true,
-                resumePayload: nil,
-                tokenTimestampsMonotonic: true,
-                nextUsageRowIndex: 0,
-                lastModel: nil,
-                lastTurnID: nil,
-                fileIdentity: "1:1",
-                detailsPayload: Data()),
-            sessionID: "stale",
-            coverageSinceDay: "2020-01-01",
-            coverageUntilDay: "2020-01-01",
-            updatedAtUnixMs: 1)
     }
 
     private static func session(timestamp: String, sessionID: String, input: Int) -> String {

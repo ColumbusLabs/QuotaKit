@@ -1192,7 +1192,6 @@
 "Open Augment (Log Out & Back In)" = "เปิด Augment (ออกจากระบบและกลับเข้ามาใหม่)";
 "Open Codebuff Dashboard" = "เปิดแดชบอร์ด Codebuff";
 "Open Command Code Settings" = "เปิดการตั้งค่า Command Code";
-"Open Crof dashboard" = "เปิดแดชบอร์ด Crof";
 "Open Manus" = "เปิด Manus";
 "Open MiMo Balance" = "เปิดยอดคงเหลือ MiMo";
 "Open Moonshot Console" = "เปิดคอนโซล Moonshot";
@@ -1263,7 +1262,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "เก็บไว้ใน ~/.quotakit/config.json. ต้องใช้คีย์ API ผู้ดูแลระบบ Anthropic";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "เก็บไว้ใน ~/.quotakit/config.json. ใช้สําหรับ /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "เก็บไว้ใน ~/.quotakit/config.json. คุณยังสามารถระบุ CODEBUFF_API_KEY หรือให้ QuotaKit อ่าน ~/.config/manicode/credentials.json (สร้างโดย `codebuff login`)";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "เก็บไว้ใน ~/.quotakit/config.json. คุณยังสามารถให้ CROF_API_KEY";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "เก็บไว้ใน ~/.quotakit/config.json. คุณยังสามารถระบุ KILO_API_KEY หรือ ~/.local/share/kilo/auth.json (kilo.access) ได้อีกด้วย";
 "T3 Chat cookie" = "คุกกี้ T3 Chat";
 "Team mode" = "โหมดทีม";
@@ -1665,3 +1663,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "ปิดใช้คุกกี้ของเบราว์เซอร์แล้ว แต่ยังใช้คีย์ API เมื่อมีให้ใช้งาน";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "ใช้การเข้าสู่ระบบของตัวแก้ไขสำหรับการคาดการณ์ รอบบิล และใบแจ้งหนี้ ปิดค่าใช้จ่ายจากเบราว์เซอร์แล้ว";
 "Paste a Cookie header and select its tenant below." = "วางส่วนหัว Cookie แล้วเลือกผู้เช่าด้านล่าง";
+
+"Blocked by monthly limit" = "ถูกบล็อกเนื่องจากขีดจำกัดรายเดือน";
+
+"hooks_executable" = "ไฟล์ปฏิบัติการ";
+
+"agent_sessions_hide_unreachable_title" = "ซ่อนโฮสต์ที่เข้าถึงไม่ได้";
+
+"agent_sessions_hide_unreachable_subtitle" = "ซ่อนโฮสต์เมื่อดึงข้อมูลเซสชันไม่สำเร็จ";
+
+"Switch Claude Code account" = "สลับบัญชี Claude Code";
+
+"No active account" = "ไม่มีบัญชีที่ใช้งานอยู่";
+
+"Details for %@" = "รายละเอียดของ %@";
+
+"Switch Claude Code to %@" = "สลับ Claude Code ไปยัง %@";
+
+"Switching account…" = "กำลังสลับบัญชี…";
+
+"Refreshing account status…" = "กำลังรีเฟรชสถานะบัญชี…";
+
+"QuotaKit Help" = "ความช่วยเหลือ QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "เมื่อเลือกหรือระบุบัญชี Google แล้ว Auto จะยอมรับรายงานจากแอปในเครื่อง agy CLI และ IDE เฉพาะเมื่อข้อมูลระบุตัวตนตรงกัน จากนั้นจึงลอง OAuth หากเลือก Local API / agy CLI โดยตรง สามารถใช้บัญชีอื่นที่ลงชื่อเข้าใช้ในเครื่องได้";

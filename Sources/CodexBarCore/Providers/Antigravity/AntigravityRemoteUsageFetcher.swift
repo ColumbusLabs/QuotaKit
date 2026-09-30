@@ -38,6 +38,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     private static let onboardUserEndpoint = "\(baseURL)/v1internal:onboardUser"
     private static let fetchAvailableModelsEndpoint = "\(baseURL)/v1internal:fetchAvailableModels"
     private static let retrieveUserQuotaEndpoint = "\(baseURL)/v1internal:retrieveUserQuota"
+    private static let retrieveUserQuotaSummaryEndpoint = "\(baseURL)/v1internal:retrieveUserQuotaSummary"
     private static let refreshSafetyWindow: TimeInterval = 60
 
     private struct FetchContext {
@@ -137,6 +138,39 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
                 Self.log.warning("Could not persist Antigravity project ID: \(error.localizedDescription)")
             }
         }
+        let plan = Self.resolvePlan(response: codeAssist, claims: claims)
+        do {
+            let summaryBody: [String: Any] = if let projectId = projectId?.trimmedNonEmpty {
+                ["project": projectId]
+            } else {
+                [:]
+            }
+            let data = try await Self.sendRequestData(
+                endpoint: Self.retrieveUserQuotaSummaryEndpoint,
+                accessToken: accessToken,
+                body: summaryBody,
+                timeout: min(self.timeout, 2),
+                dataLoader: self.dataLoader)
+            try Task.checkCancellation()
+            let summary = try AntigravityStatusProbe.parseQuotaSummaryResponse(
+                data,
+                accountEmail: claims.email,
+                accountPlan: plan,
+                source: .remote)
+            if summary.hasKnownQuotaSummary {
+                return summary
+            }
+        } catch {
+            if error is CancellationError ||
+                (error as? URLError)?.code == .cancelled ||
+                (error as? AntigravityRemoteFetchError) == .notLoggedIn
+            {
+                throw error
+            }
+            try Task.checkCancellation()
+        }
+        Self.log.debug("Antigravity OAuth quota summary unavailable; falling back to model quotas")
+
         let models = try await Self.fetchModelQuotas(
             accessToken: accessToken,
             projectId: projectId,
@@ -146,7 +180,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         return AntigravityStatusSnapshot(
             modelQuotas: models,
             accountEmail: claims.email,
-            accountPlan: Self.resolvePlan(response: codeAssist, claims: claims),
+            accountPlan: plan,
             source: .remote)
     }
 
@@ -389,6 +423,26 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws
         -> Response
     {
+        let data = try await Self.sendRequestData(
+            endpoint: endpoint,
+            accessToken: accessToken,
+            body: body,
+            timeout: timeout,
+            dataLoader: dataLoader)
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw AntigravityRemoteFetchError.parseFailed(error.localizedDescription)
+        }
+    }
+
+    private static func sendRequestData(
+        endpoint: String,
+        accessToken: String,
+        body: [String: Any],
+        timeout: TimeInterval,
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws -> Data
+    {
         guard let url = URL(string: endpoint) else {
             throw AntigravityRemoteFetchError.apiError("Invalid endpoint URL")
         }
@@ -417,11 +471,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
             throw AntigravityRemoteFetchError.apiError("HTTP \(httpResponse.statusCode): \(message)")
         }
 
-        do {
-            return try JSONDecoder().decode(Response.self, from: httpResponse.data)
-        } catch {
-            throw AntigravityRemoteFetchError.parseFailed(error.localizedDescription)
-        }
+        return httpResponse.data
     }
 
     private static func parseModelQuotas(_ response: FetchAvailableModelsResponse) throws -> [AntigravityModelQuota] {

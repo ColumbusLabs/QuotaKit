@@ -51,7 +51,6 @@ public enum ProviderManifest {
         DeepSeekProviderDescriptor.descriptor,
         DeepInfraProviderDescriptor.descriptor,
         CodebuffProviderDescriptor.descriptor,
-        CrofProviderDescriptor.descriptor,
         VeniceProviderDescriptor.descriptor,
         CommandCodeProviderDescriptor.descriptor,
         QoderProviderDescriptor.descriptor,

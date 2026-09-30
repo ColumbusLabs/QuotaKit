@@ -205,10 +205,12 @@ public struct NotionUsageFetcher: Sendable {
         }
 
         #if os(macOS)
+        var cookieObservation = CookieHeaderCache.observeForConditionalMutation(provider: .notion)
+        var sessionSnapshot = try await NotionSessionStore.shared.snapshot()
         // Chromium cookie imports only run on a user-initiated refresh, so a timer tick has no way
         // to read the browser store. Reusing the header cached by the last successful import is what
         // keeps background refreshes working instead of reporting "no cookies found".
-        if let cached = CookieHeaderCache.load(provider: .notion),
+        if let cached = cookieObservation.entry,
            !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             log("Using cached cookie header from \(cached.sourceLabel)")
@@ -217,14 +219,26 @@ public struct NotionUsageFetcher: Sendable {
                     context: RequestContext(cookieHeader: cached.cookieHeader),
                     options: options)
             } catch NotionUsageError.invalidCredentials {
-                CookieHeaderCache.clear(provider: .notion)
-                await NotionSessionStore.shared.clearSession()
-                log("Cached session was rejected; cleared persisted copies and retrying with a fresh import")
+                let clearResult = CookieHeaderCache.clearIfObservationCurrent(
+                    provider: .notion,
+                    expected: cookieObservation)
+                if let token = Self.sessionToken(in: cached.cookieHeader) {
+                    _ = try? await NotionSessionStore.shared.clearSessionIfCurrent(
+                        sessionSnapshot.observation,
+                        matchingTokenV2: token)
+                }
+                guard clearResult == .stored else {
+                    log("Cached session was rejected after the cookie cache changed; preserving the newer state")
+                    throw NotionUsageError.invalidCredentials
+                }
+                cookieObservation = cookieObservation.afterOwnedClear()
+                sessionSnapshot = try await NotionSessionStore.shared.snapshot()
+                log("Cached session was rejected; cleared only the session used by this request")
             }
         }
 
         if ProviderInteractionContext.current != .userInitiated,
-           let stored = await NotionSessionStore.shared.getSession()
+           let stored = sessionSnapshot.session
         {
             log("Using stored session from \(stored.sourceLabel)")
             do {
@@ -232,11 +246,24 @@ public struct NotionUsageFetcher: Sendable {
                     context: RequestContext(cookieHeader: stored.cookieHeader),
                     options: options)
             } catch NotionUsageError.invalidCredentials {
-                await NotionSessionStore.shared.clearSession()
-                log("Stored session was rejected; cleared it and retrying with a fresh import")
+                let clearResult = CookieHeaderCache.clearIfObservationCurrent(
+                    provider: .notion,
+                    expected: cookieObservation)
+                _ = try? await NotionSessionStore.shared.clearSessionIfCurrent(
+                    sessionSnapshot.observation,
+                    matchingTokenV2: stored.tokenV2)
+                guard clearResult == .stored else {
+                    log("Stored session was rejected after credentials changed; preserving the newer state")
+                    throw NotionUsageError.invalidCredentials
+                }
+                cookieObservation = cookieObservation.afterOwnedClear()
+                sessionSnapshot = try await NotionSessionStore.shared.snapshot()
+                log("Stored session was rejected; cleared only the session used by this request")
             }
         }
 
+        cookieObservation = CookieHeaderCache.observeForConditionalMutation(provider: .notion)
+        let importSessionObservation = try await NotionSessionStore.shared.observe()
         let session = try NotionCookieImporter.importSession(
             browserDetection: self.browserDetection,
             logger: logger)
@@ -245,16 +272,27 @@ public struct NotionUsageFetcher: Sendable {
             context: RequestContext(cookieHeader: session.cookieHeader),
             options: options)
         if let tokenV2 = session.tokenV2 {
-            await NotionSessionStore.shared.setSession(tokenV2: tokenV2, sourceLabel: session.sourceLabel)
+            _ = try await NotionSessionStore.shared.setSessionIfCurrentAndStoreCookie(
+                importSessionObservation,
+                tokenV2: tokenV2,
+                sourceLabel: session.sourceLabel,
+                cookieObservation: cookieObservation,
+                cookieHeader: session.cookieHeader)
+        } else {
+            _ = await NotionSessionStore.shared.storeCookieIfCurrent(
+                cookieObservation: cookieObservation,
+                cookieHeader: session.cookieHeader,
+                sourceLabel: session.sourceLabel)
         }
-        CookieHeaderCache.store(
-            provider: .notion,
-            cookieHeader: session.cookieHeader,
-            sourceLabel: session.sourceLabel)
         return snapshot
         #else
         throw NotionUsageError.noSessionCookie
         #endif
+    }
+
+    private static func sessionToken(in cookieHeader: String) -> String? {
+        CookieHeaderNormalizer.pairs(from: cookieHeader)
+            .first(where: { $0.name == Self.sessionCookieName })?.value
     }
 
     /// The per-call inputs that stay the same across every attempt a single `fetch` makes.

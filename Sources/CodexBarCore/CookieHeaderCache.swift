@@ -1237,6 +1237,11 @@ extension CookieHeaderCache {
         }
     }
 
+    struct ConditionalMutationReceipt: Sendable {
+        let entry: Entry
+        let observation: ConditionalMutationObservation
+    }
+
     enum ConditionalMutationResult: Equatable, Sendable {
         case stored
         case rejected
@@ -1333,10 +1338,80 @@ extension CookieHeaderCache {
         sourceLabel: String,
         now: Date = Date()) -> ConditionalMutationResult
     {
+        self.storeIfObservationCurrentReceipt(
+            provider: provider,
+            scope: scope,
+            expected: expected,
+            cookieHeader: cookieHeader,
+            sourceLabel: sourceLabel,
+            now: now).result
+    }
+
+    static func storeIfObservationCurrentReceipt(
+        provider: UsageProvider,
+        scope: Scope? = nil,
+        expected: ConditionalMutationObservation,
+        cookieHeader: String,
+        sourceLabel: String,
+        now: Date = Date()) -> (result: ConditionalMutationResult, receipt: ConditionalMutationReceipt?)
+    {
         let trimmed = cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let normalized = CookieHeaderNormalizer.normalize(trimmed), !normalized.isEmpty else { return .rejected }
+        guard let normalized = CookieHeaderNormalizer.normalize(trimmed), !normalized.isEmpty else {
+            return (.rejected, nil)
+        }
         let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
         return expected.coordinator.lock.withLock {
+            let key = self.key(for: provider, scope: scope)
+            let gateState = expected.coordinator.gates[key] ?? ConditionalMutationGateState()
+            guard gateState.activeTokens.isEmpty,
+                  gateState.generation == expected.gateGeneration
+            else { return (.rejected, nil) }
+            do {
+                return try self.withLegacyMutationLock {
+                    switch self.currentObservationMatch(expected, provider: provider, scope: scope) {
+                    case .changed:
+                        return (.rejected, nil)
+                    case .storageUnavailable:
+                        return (.storageUnavailable, nil)
+                    case .matches:
+                        break
+                    }
+                    if self.storeLocked(
+                        entry: entry,
+                        provider: provider,
+                        scope: scope,
+                        sourceLabel: sourceLabel)
+                    {
+                        let observation = ConditionalMutationObservation.authoritative(
+                            entry,
+                            gateGeneration: gateState.generation,
+                            coordinator: expected.coordinator)
+                        return (.stored, ConditionalMutationReceipt(entry: entry, observation: observation))
+                    }
+                    switch KeychainCacheStore.load(key: key, as: Entry.self) {
+                    case .interactionRequired, .temporarilyUnavailable:
+                        return (.storageUnavailable, nil)
+                    case .found, .invalid, .missing:
+                        break
+                    }
+                    return (.rejected, nil)
+                }
+            } catch {
+                self.log.error("Cookie cache observed store lock failed: \(error)")
+                return (.rejected, nil)
+            }
+        }
+    }
+
+    /// Clears only while the entry and mutation-gate generation captured before async work are current.
+    /// During an explicit refresh-read suppression transaction, the clear is staged for that transaction.
+    @discardableResult
+    static func clearIfObservationCurrent(
+        provider: UsageProvider,
+        scope: Scope? = nil,
+        expected: ConditionalMutationObservation) -> ConditionalMutationResult
+    {
+        expected.coordinator.lock.withLock {
             let key = self.key(for: provider, scope: scope)
             let gateState = expected.coordinator.gates[key] ?? ConditionalMutationGateState()
             guard gateState.activeTokens.isEmpty,
@@ -1352,24 +1427,19 @@ extension CookieHeaderCache {
                     case .matches:
                         break
                     }
-                    if self.storeLocked(
-                        entry: entry,
-                        provider: provider,
-                        scope: scope,
-                        sourceLabel: sourceLabel)
-                    {
+                    if self.stageRefreshMutation(.clear, key: key) {
                         return .stored
                     }
-                    switch KeychainCacheStore.load(key: key, as: Entry.self) {
-                    case .interactionRequired, .temporarilyUnavailable:
+                    if scope == nil, self.removeLegacyEntry(for: provider) == .failed {
                         return .storageUnavailable
-                    case .found, .invalid, .missing:
-                        break
                     }
-                    return .rejected
+                    let result = KeychainCacheStore.clearResult(key: key)
+                    guard result != .failed else { return .storageUnavailable }
+                    self.updateDisplaySnapshot(key: key, entry: nil)
+                    return .stored
                 }
             } catch {
-                self.log.error("Cookie cache observed store lock failed: \(error)")
+                self.log.error("Cookie cache observed clear lock failed: \(error)")
                 return .rejected
             }
         }

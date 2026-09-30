@@ -2,14 +2,17 @@ import CodexBarCore
 import Foundation
 
 extension UsageStore {
+    @discardableResult
     func persistCodexWeeklyResetPublicationCandidate(
         _ candidate: CodexWeeklyResetPublicationCandidate?,
         expectedGuard: CodexAccountScopedRefreshGuard?,
-        previousSnapshot: UsageSnapshot?)
+        previousSnapshot: UsageSnapshot?) -> CodexWeeklyResetPersistenceDecision
     {
-        guard let expectedGuard else { return }
+        guard let expectedGuard else { return self.recordCodexWeeklyResetPersistenceDecision(.missingExpectedGuard) }
         let currentGuard = self.freshCodexAccountScopedRefreshGuard()
-        guard Self.codexScopedRefreshGuardsMatchAccount(expectedGuard, currentGuard) else { return }
+        guard Self.codexScopedRefreshGuardsMatchAccount(expectedGuard, currentGuard) else {
+            return self.recordCodexWeeklyResetPersistenceDecision(.accountChanged)
+        }
 
         let visibleAccounts = self.freshCodexVisibleAccountsForSnapshotHydration()
         let activeMatches = visibleAccounts.filter {
@@ -17,7 +20,9 @@ extension UsageStore {
                 currentGuard,
                 Self.codexScopedRefreshGuard(for: $0))
         }
-        guard activeMatches.count == 1, let account = activeMatches.first else { return }
+        guard activeMatches.count == 1, let account = activeMatches.first else {
+            return self.recordCodexWeeklyResetPersistenceDecision(.ambiguousActiveAccount)
+        }
 
         // Single-account refresh clears memory before admission; keep persisted rows and credits intact.
         var records = self.codexAccountSnapshots
@@ -28,8 +33,10 @@ extension UsageStore {
             guard Self.codexScopedRefreshGuardsMatchAccount(
                 currentGuard,
                 Self.codexScopedRefreshGuard(for: existing.account))
-            else { return }
-            guard existing.weeklyResetCandidate != nil || candidate != nil else { return }
+            else { return self.recordCodexWeeklyResetPersistenceDecision(.existingAccountChanged) }
+            guard existing.weeklyResetCandidate != nil || candidate != nil else {
+                return self.recordCodexWeeklyResetPersistenceDecision(.noCandidateChange)
+            }
             records[index] = CodexAccountUsageSnapshot(
                 account: existing.account,
                 snapshot: existing.snapshot,
@@ -38,7 +45,9 @@ extension UsageStore {
                 credits: existing.credits,
                 weeklyResetCandidate: candidate)
         } else {
-            guard let candidate, let previousSnapshot else { return }
+            guard let candidate, let previousSnapshot else {
+                return self.recordCodexWeeklyResetPersistenceDecision(.missingCandidateOrBaseline)
+            }
             let identity = previousSnapshot.identity(for: .codex)
             let relabeled = previousSnapshot.withIdentity(ProviderIdentitySnapshot(
                 providerID: .codex,
@@ -54,6 +63,19 @@ extension UsageStore {
                 weeklyResetCandidate: candidate))
         }
         self.codexAccountSnapshots = records
-        self.codexAccountUsageSnapshotStore?.store(records)
+        guard let store = self.codexAccountUsageSnapshotStore else {
+            return self.recordCodexWeeklyResetPersistenceDecision(.storeUnavailable)
+        }
+        store.store(records)
+        return self.recordCodexWeeklyResetPersistenceDecision(.storeRequested)
+    }
+
+    private func recordCodexWeeklyResetPersistenceDecision(
+        _ decision: CodexWeeklyResetPersistenceDecision) -> CodexWeeklyResetPersistenceDecision
+    {
+        CodexBarLog.logger(LogCategories.provider(.codex, scope: "weekly-reset-publication")).debug(
+            "Codex weekly reset candidate persistence decision",
+            metadata: decision.diagnosticMetadata)
+        return decision
     }
 }

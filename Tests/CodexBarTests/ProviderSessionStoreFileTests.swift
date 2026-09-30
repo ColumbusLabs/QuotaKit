@@ -83,7 +83,20 @@ struct ProviderSessionStoreFileTests {
         await augment.clearCookies()
         await factory.clearSession()
         await notion.clearSession()
-        #expect(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        #expect(files.dropLast().allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+
+        // Notion retains a revision tombstone after logout so a stale cross-process login cannot
+        // restore the cleared session. Its isolated file should remain without session content.
+        let notionFile = files[3]
+        #expect(FileManager.default.fileExists(atPath: notionFile.path))
+        let notionStateData = try Data(contentsOf: notionFile)
+        let notionStateJSON = try #require(String(data: notionStateData, encoding: .utf8))
+        let notionState = try #require(JSONSerialization.jsonObject(with: notionStateData) as? [String: Any])
+        let notionRevision = try #require(notionState["revision"] as? Int)
+        #expect(notionRevision > 0)
+        #expect(notionState["session"] == nil || notionState["session"] is NSNull)
+        #expect(!notionStateJSON.contains("synthetic-notion"))
+        #expect(await NotionSessionStore().getSession() == nil)
     }
 
     @Test

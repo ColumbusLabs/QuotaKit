@@ -333,6 +333,69 @@ struct CostHistoryChartMenuViewTests {
 
     @Test
     @MainActor
+    func `grok history shows observed model names without inventing model totals`() {
+        let entry = CostUsageDailyReport.Entry(
+            date: "2026-06-07",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 150,
+            costUSD: nil,
+            modelsUsed: ["fictional-model-a", " fictional-model-b ", "fictional-model-a", " "],
+            modelBreakdowns: nil)
+        let rows = CostHistoryChartMenuView._detailRowsForTesting(
+            provider: .grok,
+            daily: [entry],
+            selectedDateKey: entry.date)
+
+        #expect(rows.map(\.title) == ["fictional-model-a", "fictional-model-b"])
+        #expect(rows.allSatisfy { $0.subtitle == nil })
+        #expect(CostHistoryChartMenuView._detailViewportConfigurationForTesting(
+            provider: .grok,
+            daily: [entry]).rowCount == 2)
+        #expect(CostHistoryChartMenuView._detailRowsForTesting(
+            provider: .codex,
+            daily: [entry],
+            selectedDateKey: entry.date).isEmpty)
+
+        let fingerprint = CostHistoryChartMenuView.renderFingerprint(
+            from: Self.makeSnapshot(daily: [entry]),
+            provider: .grok)
+        #expect(fingerprint.daily.first?.modelBreakdowns.map(\.modelName) == [
+            "fictional-model-a", "fictional-model-b",
+        ])
+        #expect(fingerprint.daily.first?.modelBreakdowns.allSatisfy {
+            $0.totalTokens == nil && $0.costBitPattern == nil
+        } == true)
+
+        let changedNames = CostUsageDailyReport.Entry(
+            date: entry.date,
+            inputTokens: entry.inputTokens,
+            outputTokens: entry.outputTokens,
+            totalTokens: entry.totalTokens,
+            costUSD: entry.costUSD,
+            modelsUsed: ["fictional-model-c"],
+            modelBreakdowns: nil)
+        let changedFingerprint = CostHistoryChartMenuView.renderFingerprint(
+            from: Self.makeSnapshot(daily: [changedNames]),
+            provider: .grok)
+        #expect(fingerprint.daily.first != changedFingerprint.daily.first)
+
+        let measured = CostUsageDailyReport.Entry(
+            date: entry.date,
+            inputTokens: 100,
+            outputTokens: 50,
+            totalTokens: 150,
+            costUSD: 1,
+            modelsUsed: ["measured-model"],
+            modelBreakdowns: [.init(modelName: "measured-model", costUSD: nil, totalTokens: 150)])
+        #expect(CostHistoryChartMenuView._detailRowsForTesting(
+            provider: .grok,
+            daily: [measured],
+            selectedDateKey: measured.date).map(\.title) == ["measured-model"])
+    }
+
+    @Test
+    @MainActor
     func `cost history expands every row only when the range contains mode details`() {
         let compact = CostHistoryChartMenuView._detailViewportConfigurationForTesting(
             provider: .codex,

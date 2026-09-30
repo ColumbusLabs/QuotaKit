@@ -59,6 +59,9 @@ enum CLIRenderer {
             snapshot: snapshot,
             useColor: context.useColor,
             lines: &lines)
+        if let history = self.liveHistoryLine(snapshot: snapshot, useColor: context.useColor) {
+            lines.append(history)
+        }
         self.appendLimitsUnavailableLine(
             provider: provider,
             snapshot: snapshot,
@@ -414,7 +417,9 @@ enum CLIRenderer {
             metadata: descriptor.metadata,
             snapshot: snapshot)
         var metrics: [CLICardMetric] = []
-        if let primary = snapshot.primary, !primary.isSyntheticPlaceholder {
+        let antigravitySummaryWindows = Self.antigravityQuotaSummaryWindows(provider: provider, snapshot: snapshot)
+        let hasAntigravityQuotaSummary = antigravitySummaryWindows != nil
+        if !hasAntigravityQuotaSummary, let primary = snapshot.primary, !primary.isSyntheticPlaceholder {
             metrics.append(self.makeCardMetric(
                 provider: provider,
                 label: labels.primary,
@@ -422,7 +427,7 @@ enum CLIRenderer {
                 resetStyle: resetStyle,
                 now: now))
         }
-        if let secondary = snapshot.secondary, !secondary.isSyntheticPlaceholder {
+        if !hasAntigravityQuotaSummary, let secondary = snapshot.secondary, !secondary.isSyntheticPlaceholder {
             metrics.append(self.makeCardMetric(
                 provider: provider,
                 label: labels.secondary,
@@ -430,7 +435,9 @@ enum CLIRenderer {
                 resetStyle: resetStyle,
                 now: now))
         }
-        if labels.showsTertiary, let tertiary = snapshot.tertiary, !tertiary.isSyntheticPlaceholder {
+        if !hasAntigravityQuotaSummary, labels.showsTertiary, let tertiary = snapshot.tertiary,
+           !tertiary.isSyntheticPlaceholder
+        {
             metrics.append(self.makeCardMetric(
                 provider: provider,
                 label: labels.tertiary,
@@ -438,7 +445,14 @@ enum CLIRenderer {
                 resetStyle: resetStyle,
                 now: now))
         }
-        for extra in descriptor.presentation.extraRateWindows(snapshot: snapshot) {
+        let extras = antigravitySummaryWindows ?? descriptor.presentation.extraRateWindows(snapshot: snapshot)
+        for extra in extras {
+            if hasAntigravityQuotaSummary,
+               AntigravityStatusSnapshot.isQuotaSummaryWindowID(extra.id),
+               !extra.usageKnown
+            {
+                continue
+            }
             metrics.append(self.makeCardMetric(
                 provider: provider,
                 label: extra.title,
@@ -501,6 +515,13 @@ enum CLIRenderer {
                 context: context,
                 now: now,
                 lines: &lines)
+        }
+        if provider == .antigravity {
+            for extra in Self.antigravityQuotaSummaryWindows(provider: provider, snapshot: snapshot) ?? []
+                where !extra.usageKnown
+            {
+                lines.append(self.labelValueLine(extra.title, value: "Unavailable", useColor: context.useColor))
+            }
         }
         self.appendProviderDetails(
             snapshot.details,
@@ -613,6 +634,9 @@ enum CLIRenderer {
         now: Date,
         lines: inout [String])
     {
+        if self.hasAntigravityQuotaSummaryLanes(provider: provider, snapshot: snapshot), snapshot.primary != nil {
+            return
+        }
         if let primary = snapshot.primary {
             self.appendRateWindowLines(
                 provider: provider,
@@ -643,6 +667,7 @@ enum CLIRenderer {
         now: Date,
         lines: inout [String])
     {
+        if self.hasAntigravityQuotaSummaryLanes(provider: provider, snapshot: snapshot) { return }
         guard let weekly = snapshot.secondary else { return }
         self.appendRateWindowLines(
             provider: provider,
@@ -703,6 +728,34 @@ enum CLIRenderer {
         }
     }
 
+    static func liveHistoryLine(snapshot: UsageSnapshot, useColor: Bool) -> String? {
+        guard let history = snapshot.costUsage else { return nil }
+        var values: [String] = []
+        if let amount = history.last30DaysCostUSD {
+            let value = UsageFormatter.currencyString(amount, currencyCode: history.currencyCode)
+            let provenance: String? = switch history.costProvenance {
+            case .vendorMetered: "reported"
+            case .listPriceEstimate: "estimated"
+            case .mixed: "includes estimates"
+            case .unknown: nil
+            }
+            values.append(provenance.map { "\(value) (\($0))" } ?? value)
+        }
+        if let tokens = history.last30DaysTokens {
+            let unit = tokens == 1 ? "token" : "tokens"
+            values.append("\(UsageFormatter.tokenCountString(tokens)) \(unit)")
+        }
+        guard !values.isEmpty else { return nil }
+        let label: String = if let custom = history.historyLabel,
+                               !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            custom
+        } else {
+            history.historyDays == 1 ? "Last 1 day" : "Last \(history.historyDays) days"
+        }
+        return self.labelValueLine(label, value: values.joined(separator: " · "), useColor: useColor)
+    }
+
     // swiftlint:disable:next function_parameter_count
     private static func appendTertiaryLines(
         provider: UsageProvider,
@@ -712,6 +765,7 @@ enum CLIRenderer {
         now: Date,
         lines: inout [String])
     {
+        if self.hasAntigravityQuotaSummaryLanes(provider: provider, snapshot: snapshot) { return }
         guard labels.showsTertiary, let tertiary = snapshot.tertiary else { return }
         self.appendRateWindowLines(
             provider: provider,
@@ -732,8 +786,16 @@ enum CLIRenderer {
         lines: inout [String])
     {
         let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
-        let extras = presentation.extraRateWindows(snapshot: snapshot)
+        let extras = Self.antigravityQuotaSummaryWindows(provider: provider, snapshot: snapshot)
+            ?? presentation.extraRateWindows(snapshot: snapshot)
         for extra in extras {
+            if provider == .antigravity,
+               AntigravityStatusSnapshot.isQuotaSummaryWindowID(extra.id),
+               !extra.usageKnown
+            {
+                lines.append(self.labelValueLine(extra.title, value: "Unavailable", useColor: context.useColor))
+                continue
+            }
             lines.append(self.rateLine(title: extra.title, window: extra.window, useColor: context.useColor))
             self.appendResetAndDetailLines(
                 usesDetail: presentation.menuCard.extraRateWindowShowsResetDescriptionAsDetail(extra),
@@ -742,6 +804,22 @@ enum CLIRenderer {
                 now: now,
                 lines: &lines)
         }
+    }
+
+    private static func antigravityQuotaSummaryWindows(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot) -> [NamedRateWindow]?
+    {
+        guard provider == .antigravity, let windows = snapshot.extraRateWindows else { return nil }
+        let summaryWindows = windows.filter { AntigravityStatusSnapshot.isQuotaSummaryWindowID($0.id) }
+        return summaryWindows.isEmpty ? nil : summaryWindows
+    }
+
+    private static func hasAntigravityQuotaSummaryLanes(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot) -> Bool
+    {
+        self.antigravityQuotaSummaryWindows(provider: provider, snapshot: snapshot) != nil
     }
 
     private static func appendCreditsLine(

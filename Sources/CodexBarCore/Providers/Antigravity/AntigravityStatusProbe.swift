@@ -90,6 +90,12 @@ public struct AntigravityStatusSnapshot: Sendable {
     public let source: AntigravityModelQuotaSource
     let quotaSummary: AntigravityQuotaSummary?
 
+    var hasKnownQuotaSummary: Bool {
+        self.quotaSummary?.groups.contains { group in
+            group.buckets.contains { !$0.disabled && $0.remainingFraction != nil }
+        } == true
+    }
+
     public init(
         modelQuotas: [AntigravityModelQuota],
         accountEmail: String?,
@@ -370,8 +376,14 @@ public struct AntigravityStatusSnapshot: Sendable {
     ]
 
     private static func quotaCadenceCandidates(for bucket: AntigravityQuotaSummaryBucket) -> Set<String> {
+        let explicit = bucket.window?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let values = if let explicit, !explicit.isEmpty {
+            [explicit]
+        } else {
+            [bucket.bucketId, bucket.displayName]
+        }
         var candidates: Set<String> = []
-        for rawValue in [bucket.bucketId, bucket.displayName] {
+        for rawValue in values {
             let normalized = rawValue
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
@@ -1575,7 +1587,9 @@ public struct AntigravityStatusProbe: Sendable {
                     body: ["forceRefresh": true]),
                 context: self.quotaSummaryRequestContext(from: context),
                 send: send,
-                parse: self.parseQuotaSummaryResponse)
+                parse: { data in
+                    try self.parseQuotaSummaryResponse(data)
+                })
             guard quotaSummary.quotaSummary?.groups.contains(where: { group in
                 group.buckets.contains { !$0.disabled && $0.remainingFraction != nil }
             }) == true else {

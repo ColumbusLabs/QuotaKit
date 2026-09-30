@@ -2,46 +2,35 @@
 
 ## Current checkpoint
 
-[PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215) is verified merged
-as `64bd8cd644ce7bc82ab98d4084b913f1a4540c79`:
-**808 accounted, 73 known gaps, 40 unresolved / 921**. Required CI
-[36671868151](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36671868151)
-passed at `e28c5f7812533fa334be46fa216537610fc7e91e`: lint, both Linux
-architectures, iOS, all four Mac shards and the aggregate gate. The tested and
-squashed trees match. Local main and origin/main are synchronized. The redundant
-identical-tree post-merge run was cancelled and completion verified.
+[PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as
+`7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`: **860 accounted,60 known gaps,1 unresolved /921**.
+Exact head `caa71f847b013d10d9edf4a75f721e32590499d5` passed every required
+[CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039)
+gate. The squash tree exactly matches the tested tree; main and origin/main are
+synchronized. Its isolated native pipe fix preserves prefix/error/EOF semantics.
+Identical-tree post-merge CI36706769713 was cancelled and completion verified.
 
-The following grouped tested source combines
-`997988ae699569a923a6dd473d9bca227935394d` and
-`2d4031784d9c361a224a6a412a20c73013c1cd51` and
-`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
-**860 accounted, 60 known gaps, 1 unresolved / 921**, pending required CI and
-merge. All 140 historical claims were reviewed against active source; reopened
-actual gaps remain open. Twenty-two prior implementation/test/doc rows and ten
-new numeric, recorder, balance, localization and applicability rows have source evidence.
+Runtime-recovery source `778882884196e59cf4ead0a405cd2cadef4df852` has exactly the locally verified
+source tree from `c245ec6a0d0a4e19e2c53e564f0495f6896b0be9`. It closes20 concrete rows in its candidate:
+**880 accounted,40 known gaps,1 unresolved /921**. All planned focused filters
+passed across42 suite names in affected-only runs; full lint passed with zero
+violations across2644 files plus locale/parser/package/release-helper gates.
+Publication and required exact-head hosted CI remain delivery gates; this candidate
+is not a verified merge. The next wave is active on the primary checkout for the
+remaining41 rows and applicable fresh-tail behavior with GPT6 Luna max owners.
 
-The follow-on passed its relevant Mac and portable checks: combined 199 Mac tests
-and 8 portable tests, then 47 affected Mac and 8 portable tests after fixture and
-architecture-marker corrections. The other eight Mac suites passed and were not
-rerun. Both independent reviews, scoped lint, all 23 Mac locales and parser-hash
-checks passed. No full local suite or live probe ran. Cookie localization and shared-account context (315) are verified, including six
-focused account/card tests and the omitted shared reset-observation route451.
-Host-aware plugin cookies (841) are the only unresolved row. Sixty concrete gaps
-remain.
+A safe upstream refresh found nine additional objects through
+`5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f` (930 observed total).
+Those nine are audited separately and receive no ledger credit here. The monitor
+cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
 
-Cleanup has removed **103 local and 18 remote refs**, leaving **28 local branches,
-three origin tracking refs including HEAD, and one worktree**. Seventy removed
-ancestor refs retain their commits in retained descendant tips and a verified
-private recovery bundle. PR #215 refs and five provider snapshot refs were removed
-after source coverage, exact merge and recovery proof. Their removal does not claim
-all unfinished work is merged. Preserve and reconcile remaining unique source as
-slices close.
-
-The stale remote optimization branch was also removed after a verified private
-recovery bundle and expected-OID lease. Its repeated-stat optimization is already
-represented; three unique unbenchmarked cache experiments are archived as separate
-performance work. The current sort order is retained. No upstream row receives
-credit from this cleanup; all unique commits remain recoverable.
+Cleanup removed **118 local and19 remote refs**. **15 local branches and one
+primary worktree** remain before this publication. Fourteen source-covered
+intermediate branches and PR216's slice branch were retired with expected-OID
+checks, complete source audits and a verified self-contained recovery bundle.
+Unique unfinished work and unrelated battery work remain protected. No full local
+suite, live provider/browser/Keychain/SSH probe, product release, app relaunch or
+product-version/cursor advance ran.
 
 ## Finish line
 
@@ -179,3 +168,31 @@ PR #213's temporary branch. Continue cleanup as each subsequent slice closes.
 Code candidate `773099859e5beed780f3b6b8bb401496a5efeb3c` covers recorded quota burndown, retained-environment diagnostics, owned probe cleanup and bounded parsing, reserve/product aliases with historical/current pricing, Azure version settings and Ollama recovery/diagnostics. Focused checks, strict lint and independent reviews passed. Required hosted CI includes Mac and the current research-document-triggered iOS gate. See the current reconciliation for exact rows, counts, check limits and verified recovery directories.
 
 Nine more completed local snapshots were removed after semantic source/test/doc review and a verified private bundle. The unfinished cost/Codex snapshot remains for performance parity and branch-specific source decisions; branch cleanup is not evidence that those changes were implemented.
+
+## Combined final verification checkpoint — 2026-09-30
+
+PR #217’s Recovery20 exact-head CI passed lint, Linux, iOS and macOS compatibility, but Mac shards exposed a locally reproduced stack overflow during fork-history hydration and redundant alias lookups in warm scans. The obsolete remaining run was cancelled. A dedicated history-hydration thread prevents a synchronous actor-queue hop from reusing the parser’s nearly exhausted stack; a per-job autorelease pool bounds temporary Foundation objects. Status-only reads avoid duplicate identity reconciliation, and warm scans reuse one alias snapshot. These changes preserve receipt, parser, schema, path-moved and retry guards. The POSIX identity helper alone did not resolve the crash. The scanner edit updates the generated parser hash to `c52728bbaeedeb90`; the prior published `7607317f30850961` compatibility path is retained, with no unmerged intermediate producer whitelisted.
+
+All 41 original-cut rows remaining after Recovery20 map to the integrated final wave. The combined source remains uncredited until coordinated focused tests, lint, exact-head hosted CI and covering merge pass. Extend #217 with this integrated wave and the reviewed nine-object fresh tail, then perform one required CI matrix. Merged credit remains 860/921; 930 objects have been observed. There is one worktree and 15 local branches.
+
+### Integrated runtime verification
+
+All product modules and the full test bundle compile. Subsequent affected-only runs pass fork source recovery, executor isolation, physical-row read semantics, the 512-visit catch-up bound and warm-scan performance. Account/plan reset-credit admission and warning/widget ownership regressions pass after the reviewed repairs. The native hooks fixture verifies editable empty fields, AX roles/prompts and unchanged bindings; offscreen hosting cannot establish onscreen VoiceOver names. The remaining checks are one architecture anchor and the OpenRouter widget fixture, then final lint and the required exact-head hosted matrix. Candidate rows receive no merged credit until that matrix and covering merge pass. A fresh upstream fetch still reports the same 930-object head.
+
+## Frozen final candidate
+
+Source `57c46c3d6dbe7e534169e592bd95fdf601b5d941` exactly matches the locally tested tree. All83 planned focused filters and affected widget/reset/native/plugin checks pass; full lint and independent delta reviews pass. PR217 now carries Recovery20 + final41 + fresh9 with candidate930/930 accounting, zero missing applicable implementation and zero unresolved rows. First12 historical fields remain unchanged for all existing921rows. Candidate implementation evidence is separate from merged860/921credit. Required exact-head hosted CI, covering merge, recoverable retirement of remaining old refs, final upstream refresh and cursor/tracker closeout remain the delivery steps. No product release is requested.
+
+The final candidate prepares the monitor cursor at the fully reconciled `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`. Active main remains at the earlier cursor while CI runs; branch protection and the verified covering merge make activation atomic. Shipped-upstream alignment and product/build versions remain unchanged.
+
+### Portable retirement fixture repair
+
+The first combined hosted run found an obsolete Linux-only Crof credits fixture referring to removed runtime types. It is replaced by Core-only opaque-history/config/catalog compatibility checks that also run on Mac. Both new tests pass locally; no production source changed. Superseded runs were cancelled before another matrix; the covering exact-head gate remains pending.
+
+### iOS retirement fixture repair
+
+Both hosted Linux architectures and lint pass after the portable fixture repair. Hosted iOS exposed stale Crof/provider-count expectations in `QuotaProviderListTests`; the fixture now checks 71 active providers, 213 subscription zones and readable historical Crof zone names. Production source remains unchanged. All 33 provider-list tests pass in a private macOS harness with byte-identical shared source and only the unused app-module import removed. All Mac diagnostics are collected before publishing the combined fixture repair; required exact-head CI and verified merge remain pending.
+
+### Full-matrix fixture audit
+
+All four Mac shards exposed stale provider retirement/count, decoration, account-label, safety-source-anchor, logout-revision and enabled-widget fixture expectations. The run is terminal with no timeouts. All 20 affected suites have latest passing focused evidence across a 233-test/20-suite batch and the affected 20-test/3-suite rerun. Production source remains unchanged; all scoped format/lint checks pass. The repaired head is prepared for one complete required matrix. The prior Claude web fixture missed the uncached request client and allowed synthetic placeholder-cookie CI requests to escape; the replacement TaskLocal transport captures both clients without account credentials. Required repaired-head CI, covering delivery and recoverable branch retirement remain pending.

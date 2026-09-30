@@ -1172,7 +1172,6 @@
 "Open Augment (Log Out & Back In)" = "Augment を開く(ログアウトして再ログイン)";
 "Open Codebuff Dashboard" = "Codebuff ダッシュボードを開く";
 "Open Command Code Settings" = "Command Code 設定を開く";
-"Open Crof dashboard" = "Crof ダッシュボードを開く";
 "Open Manus" = "Manus を開く";
 "Open MiMo Balance" = "MiMo 残高を開く";
 "Open Moonshot Console" = "Moonshot コンソールを開く";
@@ -1243,7 +1242,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "~/.quotakit/config.json に保存されます。Anthropic の Admin API キーが必要です。";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "~/.quotakit/config.json に保存されます。/v1/quota-stats に使用されます。";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "~/.quotakit/config.json に保存されます。CODEBUFF_API_KEY を指定するか、QuotaKit に ~/.config/manicode/credentials.json(`codebuff login` で作成)を読み込ませることもできます。";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "~/.quotakit/config.json に保存されます。CROF_API_KEY を指定することもできます。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "~/.quotakit/config.json に保存されます。KILO_API_KEY または ~/.local/share/kilo/auth.json(kilo.access)を指定することもできます。";
 "T3 Chat cookie" = "T3 Chat Cookie";
 "Team mode" = "チームモード";
@@ -1661,3 +1659,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "ブラウザ Cookie は無効ですが、API キーがあれば引き続き使用します。";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "予測、請求サイクル、請求書にはエディターのログインを使用します。ブラウザの支出機能はオフです。";
 "Paste a Cookie header and select its tenant below." = "Cookieヘッダーを貼り付けて、下でテナントを選択してください。";
+
+"Blocked by monthly limit" = "月間上限により利用不可";
+
+"hooks_executable" = "実行ファイル";
+
+"agent_sessions_hide_unreachable_title" = "接続できないホストを非表示";
+
+"agent_sessions_hide_unreachable_subtitle" = "セッションの取得に失敗したホストを非表示にします。";
+
+"Switch Claude Code account" = "Claude Code のアカウントを切り替える";
+
+"No active account" = "有効なアカウントはありません";
+
+"Details for %@" = "%@ の詳細";
+
+"Switch Claude Code to %@" = "Claude Code を %@ に切り替える";
+
+"Switching account…" = "アカウントを切り替え中…";
+
+"Refreshing account status…" = "アカウントの状態を更新中…";
+
+"QuotaKit Help" = "QuotaKit ヘルプ";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Google アカウントを選択または指定した場合、Auto は本人情報が一致するローカルアプリ、agy CLI、IDE のレポートのみを受け入れ、その後 OAuth を試します。Local API / agy CLI を明示的に選択すると、ローカルでログイン済みの別アカウントを使用できます。";

@@ -391,16 +391,31 @@ struct SpendDashboardPane: View {
         self.store.sharedSpendDashboardController()
     }
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L("Usage & Spend"))
-                    .font(.title2.weight(.semibold))
-                Text(L("Local estimated cost history across supported providers."))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("Usage & Spend"))
+                        .font(.title2.weight(.semibold))
+                        .lineLimit(1)
+                    Text(L("Local estimated cost history across supported providers."))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .layoutPriority(1)
+                Spacer(minLength: 0)
+                Button {
+                    self.controller.refresh()
+                } label: {
+                    if self.controller.isRefreshing {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label(L("Refresh"), systemImage: "arrow.clockwise")
+                    }
+                }
+                .disabled(self.controller.isRefreshing || !self.settings.costUsageEnabled)
             }
-            Spacer()
             Picker(L("Time range"), selection: self.periodBinding) {
                 Text(spendDashboardDayRangeText(7)).tag(CostReportingPeriod.rolling(days: 7))
                 Text(spendDashboardDayRangeText(30)).tag(CostReportingPeriod.rolling(days: 30))
@@ -413,18 +428,8 @@ struct SpendDashboardPane: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 248)
-
-            Button {
-                self.controller.refresh()
-            } label: {
-                if self.controller.isRefreshing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Label(L("Refresh"), systemImage: "arrow.clockwise")
-                }
-            }
-            .disabled(self.controller.isRefreshing || !self.settings.costUsageEnabled)
+            .frame(maxWidth: 480, alignment: .leading)
+            .accessibilityIdentifier("spend-dashboard-range-picker")
         }
     }
 

@@ -289,8 +289,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastTokenAccountMenuDisplay: TokenAccountMenuDisplay?
     /// Cancellation token for the run-loop-scheduled sibling switcher warmup.
     var mergedSwitcherWarmupTask: Task<Void, Never>?
-    /// Compact multi-account layout: accounts the user expanded to full cards this menu session.
-    var compactAccountExpandedIDs: Set<ProviderAccountIdentity> = []
+    /// Explicit account-card expansion persists locally using opaque source-issued identity.
+    var compactAccountExpandedIDs: Set<ProviderAccountIdentity> {
+        get { self.settings.compactAccountExpandedIDs }
+        set { self.settings.compactAccountExpandedIDs = newValue }
+    }
+
+    var claudeSwapInspectedAccountID: ProviderAccountIdentity?
     /// Compact multi-account layout: providers whose collapsed healthy tail is revealed this menu session.
     var compactAccountExpandedHealthyTailProviders: Set<ProviderInstanceID> = []
     /// Keeps detached merged-menu tab content reusable while the same menu remains open.

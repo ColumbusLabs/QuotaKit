@@ -51,7 +51,6 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .copilot, environmentKey: "COPILOT_API_TOKEN"),
             .init(provider: .warp, environmentKey: "WARP_API_KEY"),
             .init(provider: .codebuff, environmentKey: "CODEBUFF_API_KEY"),
-            .init(provider: .crof, environmentKey: "CROF_API_KEY"),
             .init(provider: .doubao, environmentKey: "ARK_API_KEY"),
             .init(provider: .hyper, environmentKey: "HYPER_API_KEY"),
             .init(provider: .atlascloud, environmentKey: "ATLASCLOUD_API_KEY"),
@@ -69,14 +68,14 @@ struct ProviderCredentialCharacterizationTests {
             #expect(ProviderConfigEnvironment.supportsAPIKeyOverride(for: fixture.provider))
         }
 
-        for fixture in fixtures where fixture.provider != .codebuff && fixture.provider != .crof {
+        for fixture in fixtures where fixture.provider != .codebuff {
             let environment = ProviderConfigEnvironment.applyAPIKeyOverride(
                 base: [fixture.environmentKey: "environment-token"],
                 provider: fixture.provider,
                 config: ProviderConfig(id: fixture.provider.instanceID, apiKey: "config-token"))
             #expect(environment[fixture.environmentKey] == "config-token", Comment(rawValue: fixture.provider.rawValue))
         }
-        for fixture in fixtures where fixture.provider == .codebuff || fixture.provider == .crof {
+        for fixture in fixtures where fixture.provider == .codebuff {
             let environment = ProviderConfigEnvironment.applyAPIKeyOverride(
                 base: [fixture.environmentKey: "environment-token"],
                 provider: fixture.provider,
@@ -393,7 +392,6 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .chutes, environment: ["CHUTES_API_KEY": "token"], mode: "api"),
             .init(provider: .zenmux, environment: ["ZENMUX_MANAGEMENT_API_KEY": "token"], mode: "api"),
             .init(provider: .aiand, environment: ["AIAND_API_KEY": "token"], mode: "api"),
-            .init(provider: .crof, environment: ["CROF_API_KEY": "token"], mode: "api"),
             .init(provider: .deepgram, environment: ["DEEPGRAM_API_KEY": "token"], mode: "api"),
             .init(provider: .deepseek, environment: ["DEEPSEEK_API_KEY": "token"], mode: "api"),
             .init(provider: .deepinfra, environment: ["DEEPINFRA_API_KEY": "token"], mode: "api"),

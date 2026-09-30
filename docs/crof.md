@@ -1,43 +1,25 @@
 ---
-summary: "Crof provider data source: API key + usage_api credit balance and optional request quota."
+summary: "Retired Crof provider compatibility for historical iCloud records and preserved configuration."
 read_when:
-  - Adding or tweaking Crof usage parsing
-  - Updating Crof API key handling
+  - Reviewing historical Crof sync records or stored settings
 ---
 
-# Crof provider
+# Crof support retired
 
-Crof is API-only. CodexBar reads `GET https://crof.ai/usage_api/` with a Bearer token
-and displays the returned dollar credit balance plus request quota fields when available.
+QuotaKit no longer provides live Crof usage on macOS. Crof is absent from the active provider catalog and has no
+current settings, credential import, or usage-fetch path. This page documents data compatibility only.
 
-## Data sources
+## Preserved compatibility
 
-1. **API key** supplied via `CROF_API_KEY`, `CROFAI_API_KEY`, or Settings →
-   Providers → Crof. Settings values are stored in `~/.codexbar/config.json`.
-2. **Usage endpoint**
-   - `GET https://crof.ai/usage_api/`
-   - Request headers: `Authorization: Bearer <api key>`, `Accept: application/json`
-   - Response fields used: `credits`, plus optional `requests_plan` / `usable_requests`
-   - Ignored: per-model `usage` token totals
+- The shared Crof provider identifier remains available for historical iPhone and iCloud records. Those records are
+  retained as opaque data so existing sync data can roundtrip without the Mac app interpreting or deleting it.
+- Configuration for unavailable providers is preserved as opaque data during config read/write. Existing Crof-specific
+  values may therefore roundtrip, but they do not expose Crof in Settings, trigger a request, or restore live support.
+- The iPhone and shared sync compatibility data remain in place for records created before the macOS provider was
+  retired. New live Crof usage is not produced by QuotaKit.
 
-## Usage details
+## Historical behavior
 
-- When both request-quota fields are present, the primary row shows request quota and
-  the exact usable request count; the secondary row shows the dollar balance.
-- When the request-quota fields are null or absent, the primary row falls back to the
-  dollar balance so PAYG-only accounts still render successfully.
-- Dollar balances are floored to cents so tiny microcent-level burns never overstate
-  the remaining balance.
-- With no credit cap in the API, the bar only indicates present vs. exhausted credits.
-- Request reset timing is inferred as the next `America/Chicago` midnight only for
-  accounts that return request-quota fields.
-- The provider icon is SVG and CodexBar renders it as a template image so it
-  matches the other monochrome provider icons.
-- Dashboard: `https://crof.ai/dashboard`.
-
-## Related files
-
-- `Sources/CodexBarCore/Resources/Plugins/crof.js` (macOS implementation)
-- `Sources/CodexBarCore/Providers/Crof/` (descriptor/settings plus Linux compatibility fetcher)
-- `Sources/CodexBar/Providers/Crof/`
-- `Tests/CodexBarTests/CrofUsageFetcherTests.swift` (JavaScript goldens)
+Before retirement, the macOS provider queried `GET https://crof.ai/usage_api/` with a bearer API key and read the
+`credits` field plus optional `requests_plan` and `usable_requests` fields. That describes the former implementation;
+QuotaKit no longer makes this request.

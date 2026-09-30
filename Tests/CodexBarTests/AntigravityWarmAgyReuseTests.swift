@@ -271,6 +271,7 @@ struct AntigravityWarmAgyReuseTests {
     @Test
     func `warm reuse skips spawn path`() async throws {
         let spawnCallCount = AntigravityWarmLockedCounter()
+        let versionProbeCallCount = AntigravityWarmLockedCounter()
         let strategy = AntigravityCLIHTTPSFetchStrategy()
 
         let result = try await strategy.fetchUsingWarmSession(
@@ -281,6 +282,10 @@ struct AntigravityWarmAgyReuseTests {
                 processInfos: { _ in [Self.cliProcessInfo(pid: 1234)] },
                 listeningPorts: { _, _ in [40000] },
                 fetchSnapshot: { _, _ in Self.usableSnapshot(email: "warm@example.com") }),
+            versionProbe: { _, _ in
+                versionProbeCallCount.increment()
+                return (1, 2, 2)
+            },
             spawnFetch: { _, _, _ in
                 spawnCallCount.increment()
                 Issue.record("spawn path must not run when a warm agy is reused")
@@ -292,6 +297,7 @@ struct AntigravityWarmAgyReuseTests {
         // The warm path never touches AntigravityCLISession: the spawn seam (the
         // only place beginProbe/finishProbe run) was never invoked.
         #expect(spawnCallCount.value == 0)
+        #expect(versionProbeCallCount.value == 0)
     }
 
     @Test
@@ -307,6 +313,7 @@ struct AntigravityWarmAgyReuseTests {
                 processInfos: { _ in [] },
                 listeningPorts: { _, _ in [] },
                 fetchSnapshot: { _, _ in throw AntigravityStatusProbeError.notRunning }),
+            versionProbe: { _, _ in nil },
             spawnFetch: { binary, _, resetAfterFetch in
                 spawnCallCount.increment()
                 #expect(binary == "/usr/local/bin/agy")
@@ -318,6 +325,41 @@ struct AntigravityWarmAgyReuseTests {
 
         #expect(result.usage.identity?.accountEmail == "spawned@example.com")
         #expect(spawnCallCount.value == 1)
+    }
+
+    @Test
+    func `unavailable version probe fails open to managed spawn`() async throws {
+        let versionProbeCallCount = AntigravityWarmLockedCounter()
+        let spawnCallCount = AntigravityWarmLockedCounter()
+        let strategy = AntigravityCLIHTTPSFetchStrategy()
+
+        let result = try await strategy.fetchUsingWarmSession(
+            binary: "/usr/local/bin/agy",
+            idleWindow: nil,
+            resetAfterFetch: true,
+            warmDependencies: AntigravityCLIHTTPSFetchStrategy.WarmAgyDependencies(
+                processInfos: { _ in [] },
+                listeningPorts: { _, _ in [] },
+                fetchSnapshot: { _, _ in throw AntigravityStatusProbeError.notRunning }),
+            versionProbe: { _, _ in
+                versionProbeCallCount.increment()
+                return nil
+            },
+            spawnFetch: { _, _, _ in
+                spawnCallCount.increment()
+                return strategy.makeResult(
+                    usage: Self.usableUsage(email: "spawned@example.com"),
+                    sourceLabel: AntigravityCLIHTTPSFetchStrategy.sourceLabel)
+            })
+
+        #expect(result.usage.identity?.accountEmail == "spawned@example.com")
+        #expect(versionProbeCallCount.value == 1)
+        #expect(spawnCallCount.value == 1)
+        #expect(AntigravityCLIHTTPSFetchStrategy.parseVersion("agy 1.2.2")?.0 == nil)
+        #expect(AntigravityCLIHTTPSFetchStrategy.spawnCanReachLocalServer(version: nil))
+        #expect(AntigravityCLIHTTPSFetchStrategy.spawnCanReachLocalServer(version: (1, 2, 1)))
+        #expect(!AntigravityCLIHTTPSFetchStrategy.spawnCanReachLocalServer(version: (1, 2, 2)))
+        #expect(!AntigravityCLIHTTPSFetchStrategy.spawnCanReachLocalServer(version: (2, 0, 0)))
     }
 
     @Test
@@ -334,6 +376,7 @@ struct AntigravityWarmAgyReuseTests {
                     processInfos: { _ in throw CancellationError() },
                     listeningPorts: { _, _ in [] },
                     fetchSnapshot: { _, _ in throw AntigravityStatusProbeError.notRunning }),
+                versionProbe: { _, _ in nil },
                 spawnFetch: { _, _, _ in
                     spawnCallCount.increment()
                     return strategy.makeResult(
@@ -366,6 +409,7 @@ struct AntigravityWarmAgyReuseTests {
                     commandLine: "agy language-server --verbose")] },
                 listeningPorts: { _, _ in [50080] },
                 fetchSnapshot: { _, _ in Self.usableSnapshot(email: "TERMINAL@example.com") }),
+            versionProbe: { _, _ in nil },
             spawnFetch: { _, _, _ in
                 spawnCallCount.increment()
                 Issue.record("persistent hosts must reuse an authenticated user-owned agy")
@@ -390,6 +434,7 @@ struct AntigravityWarmAgyReuseTests {
                 processInfos: { _ in [Self.cliProcessInfo(pid: 6301)] },
                 listeningPorts: { _, _ in [50080] },
                 fetchSnapshot: { _, _ in Self.usableSnapshot(email: "other@example.com") }),
+            versionProbe: { _, _ in nil },
             spawnFetch: { _, idleWindow, resetAfterFetch in
                 spawnCallCount.increment()
                 #expect(idleWindow == 60)
@@ -421,6 +466,7 @@ struct AntigravityWarmAgyReuseTests {
                 },
                 fetchSnapshot: { _, _ in Self.usableSnapshot(email: "owned@example.com") },
                 ownedPID: { 6301 }),
+            versionProbe: { _, _ in nil },
             spawnFetch: { _, _, _ in
                 spawnCallCount.increment()
                 return strategy.makeResult(
@@ -454,6 +500,7 @@ struct AntigravityWarmAgyReuseTests {
                 },
                 fetchSnapshot: { _, _ in throw AntigravityStatusProbeError.notRunning },
                 now: { clock.now() }),
+            versionProbe: { _, _ in nil },
             spawnFetch: { _, _, _ in
                 spawnCallCount.increment()
                 return strategy.makeResult(

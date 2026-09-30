@@ -1,79 +1,32 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: cost, provider contracts and maintenance clearance
+## Current status: complete locally verified candidate
 
-Verified merged main is `64bd8cd644ce7bc82ab98d4084b913f1a4540c79`
-([PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215)):
-**808 accounted, 73 known gaps, 40 unresolved / 921**.
+[PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as `7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`. Its exact tested head passed [CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039), and the squash tree matches. **Actual merged accounting remains 860 accounted, 60 known gaps, 1 unresolved / 921 reviewed** until the next covering merge.
 
-Required [CI run 36671868151](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36671868151)
-passed at exact head `e28c5f7812533fa334be46fa216537610fc7e91e`: lint,
-both Linux architectures, iOS, all four Mac shards and the aggregate gate.
-The squash tree matches that tested tree. Local main and origin/main match;
-identical-tree post-merge CI was cancelled and completion verified.
+[PR #217](https://github.com/ColumbusLabs/QuotaKit/pull/217) combines Recovery20, all remaining 41 original-cut contracts, the nine-object fresh tail and the CI-discovered hydration/performance repairs. Locally verified source is `57c46c3d6dbe7e534169e592bd95fdf601b5d941` at tree `d62f426ecf5727b47d9617b7ac845df6950b8cd0`; it exactly matches the original tested source tree. **Candidate accounting is 930 accounted, zero missing applicable implementations and zero unresolved / 930 objects**. Required exact-head hosted CI and merge remain pending; candidate implementation evidence is not merged credit.
 
-The following grouped source combines
-`997988ae699569a923a6dd473d9bca227935394d` and
-`2d4031784d9c361a224a6a412a20c73013c1cd51` and
-`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
-**860 accounted, 60 known gaps, 1 unresolved / 921**. All 140 historical merge
-claims were reviewed against current source. Twenty-two preceding tested rows
-and ten new runtime/applicability closures have source provenance. Host-aware plugin cookies (841) are the only unresolved decision. Cookie subtitle
-localization and shared-account confidence/reset context (315/451) are tested,
-including six focused account/card tests. Candidate counts are not merged counts.
+The original 875 rows retain their exact SHAs and first 12 historical fields. Existing tail rows 876–921 also retain those fields. Fresh rows 922–930 are appended to the same 16-column tail ledger. The 20 recovery and 41 final contracts update existing rows rather than adding rows. Explicit merge/release/exclusion decisions count as reviewed dispositions without inventing runtime implementations.
 
-### Implemented and verified in the new candidate
+### Local verification
 
-- Native cost timestamp parsing, incremental order validation and lean workspace
-  reads; normal scanner history hydration remains tracked in row 149.
-- Compact per-window reset policies, valid Linux Devin manual credentials, bounded
-  shell capture, safe OAuth/RPC numeric resets and truthful CLI account identity.
-- Opt-in, matching-account Hugging Face wallet credits; unavailable plugin config
-  retention and consistent ordered descriptor replacement.
-- Compatible dependency/lock updates, pinned actions, the required Xcode 26.3
-  build-tests gate, focused test-runner/PTY maintenance and accurate recovery and
-  distribution documentation.
-- Final provider app accents on Mac/iPhone with established widget colors and
-  explicit retained fork-color decisions. Recorder placeholder observation (334), metadata balance resolution (789/801)
-  and numeric boundary fixes (466) are verified; native conditional session
-  mutation (866) remains open.
+All 83 planned focused filters have latest passing completed evidence across affected-only runs. Additional account/plan reset-credit, native hooks, enabled OpenRouter widget and final optional-request fixtures pass. The last optional-request batch passed 37 tests in four suites with both JavaScriptCore and QuickJS parameter cases. The repaired history worker passes source recovery, physical-row read semantics and executor isolation; catch-up status stays within 512 identity visits and warm scans reuse the alias snapshot. All local product and test targets compile. Hosted Linux initially exposed an obsolete Crof fixture, replaced with two passing Core-only portable retirement compatibility tests; production source was unchanged. Both hosted Linux architectures now pass. Hosted iOS then exposed stale Crof/provider-count expectations in its push-subscription fixture; the test now asserts 71 active providers and 213 zones while retaining legacy Crof zone parsing. All 33 repaired provider-list tests pass in a private macOS SwiftPM harness using byte-identical shared sources; only the unused app-module import is removed. No production source changed for either fixture repair; hosted iOS and the complete repaired-head gate remain required.
 
-Focused Mac checks ran 361 tests, then 111 affected tests after repairs, then
-94 CLI/registry/architecture tests. Independent review found and fixed implicit
-Antigravity CLI attribution; its 43 affected tests passed. Eight focused iPhone
-palette tests passed. Full lint passed across 2,627 files, followed by scoped lint
-for final fixes. Both package resolvers, CI path-gate checks and synthetic
-TERM/KILL process-group cleanup passed. Parser hash is `7607317f30850961`.
-The follow-on ran 199 focused Mac and 8 portable tests, then passed 47 affected
-Mac and 8 portable tests after a formatting-fixture correction and retained
-OpenRouter architecture marker. Other passing suites were not rerun. Cookie
-localization spans all 39 active pickers and 23 catalogs; independent reviews and
-scoped format/strict lint passed. Homebrew rows386/459/687 are excluded under the
-supported no-cask policy; plugin-tabs242 are implemented and default-on838 is an
-explicit retained placement policy.
-Required exact-head hosted CI and merge are pending. No full local suite, live
-provider/browser/Keychain probe, product release, version or cursor advance ran.
+Full lint gates pass: zero strict violations across 2,670 Swift files, formatting, 22 Mac localization catalogs, all 287 iOS localized source keys, generated parser/provider registries, package/release helpers, shell/docs/CI gates, customer branding and 87-provider palette. Independent static reviews cover cost data integrity, account/reset authority, cookie/session mutation and shared UI; final review deltas retain earlier resolved findings. See [Research057](../CodexBarMobile/Research/057-upstream-final-runtime-clearance.md).
 
-### Cleanup and next
+The full local package suite was omitted; required hosted CI supplies the broader gate. No live provider/browser/Keychain/SSH probe, app installation/relaunch or product release ran. Hooks native proof verifies editable empty AX fields, prompts and unchanged bindings; offscreen SwiftUI hosting does not prove onscreen VoiceOver names. Product build numbers and shipped-upstream metadata remain unchanged.
 
-One primary worktree and 28 local branches remain; 103 local and 18 remote refs
-have been removed with source/containment/recovery proofs. PR #215 refs and five
-covered provider snapshot branches were removed after the verified merge.
-Remaining unique branch content is being reconciled against current source before
-removal.
+### Hosted fixture repair checkpoint
 
-The stale remote optimization branch was also removed after a verified private
-recovery bundle and expected-OID lease. Its repeated-stat optimization is already
-represented; three unique unbenchmarked cache experiments are archived as separate
-performance work. The current sort order is retained. No upstream row receives
-credit from this cleanup; all unique commits remain recoverable.
+The combined hosted matrix passed lint, both Linux architectures and the Xcode 26.3 compatibility build. All four Mac shards exposed stale retirement/provider-count, Grok decoration, account-label, source-anchor, revision-tombstone and enabled-widget fixture expectations; the run is terminal with no timeouts. These bounded repairs preserve production contracts rather than relaxing the assertions. The old Claude URLProtocol fixture also missed the new uncached client: placeholder-cookie requests escaped to a real endpoint in failed hosted tests, without real account credentials. The repaired TaskLocal transport intercepts both clients for the entire fixture operation. All 20 affected suites now have latest passing focused evidence: the initial 233-test/20-suite batch exposed one remaining Mimo capability expectation, and the affected 20-test/3-suite rerun passes after repair. Counts overlap and are not summed. Formatting/strict lint pass for all 18 changed Swift test files, with 219 valid documentation links. Production source remains byte-identical to the independently reviewed code source. The complete repaired-head hosted matrix and verified merge remain required.
 
-Next: publish this verified grouped source,
-move the tested grouped source onto the identical PR #215 squash tree, run one
-combined required CI cycle, merge and clean covered refs. Then address grouped
-account-authority/privacy, cost-history/reset and cookie-policy slices. Refresh
-upstream for final clearance proof; keep the monitor cursor fixed until every
-applicable row closes.
+### Upstream and cleanup
+
+A fresh fetch still reports upstream `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`, with no additions beyond 930. The active main monitor cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5` until complete covering delivery. This candidate prepares `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f` in `version.env` so the active cursor changes atomically with the verified PR217 merge. `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` track shipped alignment and do not advance at merge.
+
+Cleanup has retired 118 local and 19 remote refs and reduced 12 worktrees to one primary checkout. Fifteen local branches remain: main, unrelated battery work, the two active candidate branches and 11 old audited heads. The 11 old heads have a verified 116,352,382-byte recovery bundle (SHA-256 `86758e9dfdfbff3c9658fb698039f3bbeba4b5efb1f8f923ff73a7cfb2aa8be5`); unique changes are source-mapped or explicitly archived, and retirement follows the covering merge. Earlier private worktree patches and recovery bundles remain preserved.
+
+**Next:** pass PR217 exact-head CI, verify its merge/tree on main, retire the covered refs with expected-OID checks, refresh upstream once more, advance the fully reconciled cursor and close issue #149 and the persistent goal. Preserve unrelated battery work and the primary checkout.
 
 ---
 
@@ -900,3 +853,9 @@ mobile identity code and tests. Do not merge either old stack wholesale.
 
 No builds, tests, PRs, merges, cursor changes, or releases were started during
 this short cleanup and ledger pass.
+
+## Combined final verification checkpoint — 2026-09-30
+
+PR #217’s Recovery20 exact-head CI passed lint, Linux, iOS and macOS compatibility, but Mac shards exposed a locally reproduced stack overflow during fork-history hydration and redundant alias lookups in warm scans. The obsolete remaining run was cancelled. A coherent POSIX file-identity helper and reuse of one alias snapshot repair those paths without weakening receipt, parser, schema, path-moved or retry guards. The scanner edit updates the generated parser hash to `c52728bbaeedeb90`; the prior published `7607317f30850961` compatibility path is retained, with no unmerged intermediate producer whitelisted.
+
+All 41 original-cut rows remaining after Recovery20 map to the integrated final wave. The combined source remains uncredited until coordinated focused tests, lint, exact-head hosted CI and covering merge pass. Extend #217 with this integrated wave and the reviewed nine-object fresh tail, then perform one required CI matrix. Merged credit remains 860/921; 930 objects have been observed. There is one worktree and 15 local branches.

@@ -1192,7 +1192,6 @@
 "Open Augment (Log Out & Back In)" = "Augment باز (خروج و ورود دوباره)";
 "Open Codebuff Dashboard" = "داشبورد Open Codebuff";
 "Open Command Code Settings" = "تنظیمات باز Command Code";
-"Open Crof dashboard" = "داشبورد Open Crof";
 "Open Manus" = "Manus باز";
 "Open MiMo Balance" = "تعادل باز MiMo";
 "Open Moonshot Console" = "کنسول Moonshot باز";
@@ -1263,7 +1262,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "ذخیره سازی در ~/.quotakit/config.json. نیاز به کلید API مدیریت انسان شناسی دارد.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "ذخیره شده در ~/.quotakit/config.json. برای /v1/quota-stats.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "ذخیره شده در ~/.quotakit/config.json. همچنین می توانید CODEBUFF_API_KEY ارائه دهید یا اجازه دهید QuotaKit ~/.config/manicode/credentials.json (ایجاد شده توسط `codebuff login`) را بخوانند.";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "ذخیره شده در ~/.quotakit/config.json. همچنین می توانید CROF_API_KEY ارائه دهید.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "ذخیره شده در ~/.quotakit/config.json. همچنین می توانید KILO_API_KEY یا ~/.local/share/kilo/auth.json (kilo.access) ارائه دهید.";
 "T3 Chat cookie" = "T3 Chat کوکی";
 "Team mode" = "حالت تیم";
@@ -1665,3 +1663,27 @@
 "Browser cookies are disabled; an API key is still used when available." = "کوکی‌های مرورگر غیرفعال‌اند؛ در صورت وجود، کلید API همچنان استفاده می‌شود.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "برای پیش‌بینی‌ها، چرخهٔ صورتحساب و فاکتورها از ورود ویرایشگر استفاده می‌شود؛ هزینهٔ مرورگر غیرفعال است.";
 "Paste a Cookie header and select its tenant below." = "یک سربرگ Cookie را جای‌گذاری کنید و مستأجر را در ادامه انتخاب کنید.";
+
+"Blocked by monthly limit" = "به دلیل سقف ماهانه مسدود شده";
+
+"hooks_executable" = "فایل اجرایی";
+
+"agent_sessions_hide_unreachable_title" = "پنهان کردن میزبان‌های در دسترس نبودنی";
+
+"agent_sessions_hide_unreachable_subtitle" = "میزبان‌ها را در صورت ناموفق بودن دریافت نشست‌هایشان پنهان کنید.";
+
+"Switch Claude Code account" = "تغییر حساب Claude Code";
+
+"No active account" = "حساب فعالی وجود ندارد";
+
+"Details for %@" = "جزئیات %@";
+
+"Switch Claude Code to %@" = "تغییر Claude Code به %@";
+
+"Switching account…" = "در حال تغییر حساب…";
+
+"Refreshing account status…" = "در حال به‌روزرسانی وضعیت حساب…";
+
+"QuotaKit Help" = "راهنمای QuotaKit";
+
+"With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "با انتخاب یا تزریق حساب Google، حالت Auto فقط در صورت تطابق هویت، گزارش‌های برنامهٔ محلی، agy CLI و IDE را می‌پذیرد و سپس OAuth را امتحان می‌کند. انتخاب صریح Local API یا agy CLI می‌تواند از حساب محلی دیگری که وارد شده است استفاده کند.";

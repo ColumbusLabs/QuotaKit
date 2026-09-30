@@ -98,8 +98,20 @@ extension CodexBarCLI {
         return "\(name) (\(source))"
     }
 
-    static func printFetchAttempts(provider: UsageProvider, attempts: [ProviderFetchAttempt]) {
+    static func printFetchAttempts(
+        provider: UsageProvider,
+        attempts: [ProviderFetchAttempt],
+        sourceMode: ProviderSourceMode? = nil)
+    {
         guard !attempts.isEmpty else { return }
+        if let summary = self.antigravityAutoFallbackSummary(
+            provider: provider,
+            sourceMode: sourceMode,
+            attempts: attempts)
+        {
+            self.writeStderr("\(summary)\n")
+            return
+        }
         self.writeStderr("[\(provider.rawValue)] fetch strategies:\n")
         for attempt in attempts {
             let kindLabel = Self.fetchKindLabel(attempt.kind)
@@ -110,6 +122,26 @@ extension CodexBarCLI {
             }
             self.writeStderr("\(line)\n")
         }
+    }
+
+    static func antigravityAutoFallbackSummary(
+        provider: UsageProvider,
+        sourceMode: ProviderSourceMode?,
+        attempts: [ProviderFetchAttempt]) -> String?
+    {
+        guard provider == .antigravity, sourceMode == .auto, !attempts.isEmpty else { return nil }
+        let sources = attempts.map { attempt in
+            let outcome = switch attempt.outcome {
+            case .succeeded:
+                "succeeded"
+            case .skipped:
+                "skipped"
+            case .failed:
+                "failed (\(ProviderDiagnosticFetchAttempt.errorCategoryLabel(attempt.errorDescription)))"
+            }
+            return "\(attempt.strategyID): \(outcome)"
+        }
+        return "Antigravity Auto source outcomes: " + sources.joined(separator: " -> ")
     }
 
     static func usageTextNotes(

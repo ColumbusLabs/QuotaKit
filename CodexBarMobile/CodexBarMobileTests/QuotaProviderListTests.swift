@@ -22,14 +22,14 @@ struct QuotaProviderListTests {
         "antigravity", "copilot", "zai", "perplexity", "minimax", "kimi", "kilo", "kiro",
         "vertexai", "augment", "jetbrains", "kimik2", "amp", "ollama", "synthetic", "warp",
         "openrouter", "abacus", "mistral", "openai", "manus", "windsurf", "mimo", "doubao",
-        "deepseek", "codebuff", "crof", "venice", "commandcode", "stepfun", "moonshot", "bedrock",
+        "deepseek", "codebuff", "venice", "commandcode", "stepfun", "moonshot", "bedrock",
         "grok", "groq", "elevenlabs", "deepgram", "llmproxy", "azureopenai", "alibabatokenplan", "t3chat",
         "sakana", "qoder", "sub2api", "zenmux", "clinepass", "longcat", "neuralwatt", "deepinfra",
         "qwencloud", "zoommate", "xai", "notion", "ibmbob",
     ]
 
     @Test
-    func `Total count is 72 after Nous Portal and Muse Code`() {
+    func `Total count is 71 after Crof retirement`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -44,18 +44,19 @@ struct QuotaProviderListTests {
         // after Notion AI, 61 after IBM Bob, 62 after GitKraken AI, 63 after v0 billing,
         // 64 after Hugging Face ZeroGPU quota, 66 after Bifrost and DevPass,
         // 69 after Aixy, xKiro, and Raycast, 70 after Helmcode,
-        // and 72 after Nous Portal and Muse Code.
+        // and 72 after Nous Portal and Muse Code; Crof's retirement reduces
+        // the active alert list to 71 without changing the remaining order.
         // Fireworks is spend-only.
         // ai& is spend-only and has no quota transitions, so it intentionally
         // does not consume three CloudKit quota-zone subscriptions.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 72)
+        #expect(QuotaProviderList.providers.count == 71)
     }
 
     @Test
-    func `Subscription zone count is 216 (72 providers × 3 states)`() {
+    func `Subscription zone count is 213 (71 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -74,9 +75,10 @@ struct QuotaProviderListTests {
         // GitKraken AI catch-up: 62 × 3 = 186 zones; Fireworks has no quota transitions.
         // v0 catch-up: 63 × 3 = 189 zones without renumbering earlier IDs.
         // Hugging Face catch-up: 64 × 3 = 192 zones. Eight appended providers add 24 zones.
+        // Crof retirement: 71 × 3 = 213 active zones (down from 72 × 3 = 216).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state).
-        #expect(QuotaProviderList.providers.count * 3 == 216)
+        #expect(QuotaProviderList.providers.count * 3 == 213)
     }
 
     @Test
@@ -256,10 +258,12 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `Crof present (v0.25 #872)`() {
-        let crof = QuotaProviderList.providers.first(where: { $0.id == "crof" })
-        #expect(crof != nil)
-        #expect(crof?.displayName == "Crof")
+    func `Crof is absent from active subscriptions while existing quota zones remain readable`() {
+        #expect(!QuotaProviderList.providers.contains { $0.id == "crof" })
+
+        let legacyZone = QuotaZoneNotificationParser.parseQuotaZoneName("Quota-crof-depletedZone")
+        #expect(legacyZone?.providerID == "crof")
+        #expect(legacyZone?.state == .depleted)
     }
 
     @Test
@@ -296,9 +300,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 72/216 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 72)
-        #expect(QuotaProviderList.providers.count * 3 == 216)
+    func `Cause: catalog 71/213 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 71)
+        #expect(QuotaProviderList.providers.count * 3 == 213)
     }
 
     @Test

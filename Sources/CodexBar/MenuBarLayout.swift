@@ -598,22 +598,71 @@ enum MenuBarLayoutSemanticWindowResolver {
 enum MenuBarLayoutBalanceResolver {
     static func balance(
         provider: UsageProvider,
-        snapshot: UsageSnapshot?)
+        snapshot: UsageSnapshot?,
+        codexCredits: CreditsSnapshot? = nil)
         -> String?
     {
+        // Provider-specific by design: shared extraction for stored layouts, previews, and legacy text.
+        // Explicit Balance tokens can coexist with quota windows; automatic callers select the fallback.
         switch provider {
-        // Provider-specific by design: OpenRouter exposes its balance as the structured Remaining detail row.
+        case .codex:
+            guard let codexCredits, codexCredits.balanceReadSucceeded else { return nil }
+            return UsageFormatter.creditsNumberString(from: codexCredits.remaining)
         case .openrouter:
             return snapshot?.detailRow(label: "Remaining")?.value
-        default:
-            let prefix = "Balance:"
-            guard ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow.stripsBalancePrefix,
-                  let text = snapshot?.loginMethod(for: provider)?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  text.hasPrefix(prefix)
+        case .deepseek:
+            return MenuBarDisplayText.deepSeekBalanceText(snapshot: snapshot)
+        case .deepinfra:
+            guard let detail = snapshot?.primary?.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let balanceDetail = detail.components(separatedBy: " · ").dropLast().last?
+                      .trimmingCharacters(in: .whitespacesAndNewlines),
+                      balanceDetail.hasPrefix("$"),
+                      let value = balanceDetail.split(separator: " ", maxSplits: 1).first
             else { return nil }
-            let value = text.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
-            return value.isEmpty ? nil : value
+            return (balanceDetail.contains(" owed") ? "-" : "") + String(value)
+        case .moonshot, .poe:
+            let value = self.displayValue(
+                from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")
+            return provider == .moonshot
+                ? value?.split(separator: "·", maxSplits: 1).first?.trimmingCharacters(in: .whitespacesAndNewlines)
+                : value
+        case .mistral:
+            return self.displayValue(
+                from: snapshot?.identity?.loginMethod, prefix: "API spend:", removingSuffix: " this month")
+        case .opencodego:
+            guard let cost = snapshot?.providerCost, cost.period == "Zen balance" else { return nil }
+            return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+        case .mimo, .hyper:
+            return snapshot?.detailRow(label: "Balance")?.value.components(separatedBy: " (Paid:").first
+        case .atlascloud, .vercel:
+            return snapshot?.detailRow(label: "Available balance")?.value
+        case .devpass:
+            return snapshot?.detailRow(label: "Cycle remaining")?.value
+        default:
+            guard ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow.stripsBalancePrefix
+            else { return nil }
+            return self.displayValue(from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")
         }
+    }
+
+    private static func displayValue(
+        from text: String?,
+        prefix: String,
+        removingSuffix suffix: String)
+        -> String?
+    {
+        guard let rawValue = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.hasPrefix(prefix)
+        else {
+            return nil
+        }
+        let valueStart = rawValue.index(rawValue.startIndex, offsetBy: prefix.count)
+        var value = rawValue[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
+        if !suffix.isEmpty, value.hasSuffix(suffix) {
+            value = String(value.dropLast(suffix.count)).trimmingCharacters(
+                in: .whitespacesAndNewlines)
+        }
+        return value.isEmpty ? nil : value
     }
 
     /// Numeric USD amounts behind OpenRouter's "Credits" detail rows. The plugin formats both rows as

@@ -417,10 +417,11 @@ public enum KeychainAccessPreflight {
             named: "SecTrustedApplicationValidateWithPath",
             as: SecTrustedApplicationValidateWithPathFunction.self)
         else { return nil }
+        let retainedApplication = TrustedApplicationValidation(application)
         return self.validationMemo.validate(
             trustedApplication: self.trustedApplicationRepresentation(application), path: path)
         {
-            path.withCString { validate(application, $0) }
+            retainedApplication.validate(path: path, using: validate)
         }
     }
 
@@ -452,6 +453,24 @@ public enum KeychainAccessPreflight {
     private typealias SecTrustedApplicationCopyExternalRepresentationFunction = @convention(c) (
         SecTrustedApplication,
         UnsafeMutablePointer<Unmanaged<CFData>?>) -> OSStatus
+
+    /// Retains the opaque Security object for one read-only native validation worker.
+    /// The worker closure owns this holder until the non-cancellable Security call returns,
+    /// including when the synchronous caller has already hit its wait deadline.
+    private final class TrustedApplicationValidation: @unchecked Sendable {
+        private let application: SecTrustedApplication
+
+        init(_ application: SecTrustedApplication) {
+            self.application = application
+        }
+
+        func validate(
+            path: String,
+            using function: SecTrustedApplicationValidateWithPathFunction) -> OSStatus
+        {
+            path.withCString { function(self.application, $0) }
+        }
+    }
 
     private nonisolated(unsafe) static let securityFrameworkHandle: UnsafeMutableRawPointer? = dlopen(
         "/System/Library/Frameworks/Security.framework/Security",

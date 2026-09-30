@@ -6,6 +6,7 @@ import Testing
 
 @Suite(.serialized)
 @MainActor
+// swiftlint:disable:next type_body_length
 struct StatusMenuCodexSwitcherTests {
     private func disableMenuCardsForTesting() {
         StatusItemController.menuCardRenderingEnabled = false
@@ -555,6 +556,101 @@ struct StatusMenuCodexSwitcherTests {
         #expect(view.frame.width == 310)
         #expect(view.intrinsicContentSize.width == 310)
         #expect(view.fittingSize.width == 310)
+    }
+
+    @Test
+    func `codex switcher hides account and workspace labels with stable distinct ordinals`() throws {
+        let firstID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        let secondID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+        let accounts = [
+            CodexVisibleAccount(
+                id: "managed-b",
+                email: "blair@example.com",
+                workspaceLabel: "Private Workspace",
+                storedAccountID: secondID,
+                selectionSource: .managedAccount(id: secondID),
+                isActive: false,
+                isLive: false,
+                canReauthenticate: true,
+                canRemove: true),
+            CodexVisibleAccount(
+                id: "managed-a",
+                email: "alex@example.com",
+                workspaceLabel: "Private Org",
+                storedAccountID: firstID,
+                selectionSource: .managedAccount(id: firstID),
+                isActive: true,
+                isLive: true,
+                canReauthenticate: true,
+                canRemove: false),
+        ]
+
+        let view = CodexAccountSwitcherView(
+            accounts: accounts,
+            selectedAccountID: accounts.last?.id,
+            width: 220,
+            hidePersonalInfo: true,
+            onSelect: { _ in })
+        let titles = view._test_buttonTitles()
+        let toolTips = view._test_buttonToolTips()
+
+        #expect(titles == ["Account 2", "Account 1"])
+        #expect(toolTips == ["Account 2", "Account 1"])
+        #expect((titles + toolTips.compactMap(\.self)).allSatisfy {
+            !$0.contains("@") && !$0.contains("Private") && !$0.contains("Workspace")
+        })
+
+        let reordered = CodexAccountSwitcherView(
+            accounts: Array(accounts.reversed()),
+            selectedAccountID: accounts.last?.id,
+            width: 220,
+            hidePersonalInfo: true,
+            onSelect: { _ in })
+        #expect(reordered._test_buttonTitles() == ["Account 1", "Account 2"])
+    }
+
+    @Test
+    func `Codex grouped workspace headers redact personal names with stable ordinals`() throws {
+        let northID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000011"))
+        let southID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000012"))
+        let accounts = [
+            CodexVisibleAccount(
+                id: "south",
+                email: "south@example.com",
+                workspaceLabel: "Private South Org",
+                workspaceAccountID: "workspace-south",
+                storedAccountID: southID,
+                selectionSource: .managedAccount(id: southID),
+                isActive: false,
+                isLive: false,
+                canReauthenticate: true,
+                canRemove: true),
+            CodexVisibleAccount(
+                id: "north",
+                email: "north@example.com",
+                workspaceLabel: "Private North Org",
+                workspaceAccountID: "workspace-north",
+                storedAccountID: northID,
+                selectionSource: .managedAccount(id: northID),
+                isActive: true,
+                isLive: true,
+                canReauthenticate: true,
+                canRemove: false),
+        ]
+        let sections = accounts.codexWorkspaceSections()
+        let privateTitles = CodexWorkspaceHeaderPrivacy.titles(for: sections, hidePersonalInfo: true)
+        #expect(privateTitles == ["Workspace 2", "Workspace 1"])
+        #expect(privateTitles.allSatisfy { !$0.contains("Private") && !$0.contains("@") })
+        #expect(CodexWorkspaceHeaderPrivacy.titles(for: sections, hidePersonalInfo: false) ==
+            sections.map(\.title))
+
+        let reordered = Array(sections.reversed())
+        let reorderedTitles = CodexWorkspaceHeaderPrivacy.titles(for: reordered, hidePersonalInfo: true)
+        let labelsByWorkspace = Dictionary(uniqueKeysWithValues: zip(
+            reordered.compactMap { $0.accounts.first?.workspaceAccountID },
+            reorderedTitles))
+        #expect(labelsByWorkspace["workspace-north"] == privateTitles[1])
+        #expect(labelsByWorkspace["workspace-south"] == privateTitles[0])
     }
 
     @Test

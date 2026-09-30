@@ -1139,6 +1139,11 @@ extension SettingsStore {
         set { self.setDefault(\.agentSessionLabelStyleRaw, newValue.rawValue, key: "agentSessionLabelStyle") }
     }
 
+    var agentSessionsHideUnreachableHosts: Bool {
+        get { self.defaultsState.agentSessionsHideUnreachableHosts }
+        set { self.setDefault(\.agentSessionsHideUnreachableHosts, newValue, key: "agentSessionsHideUnreachableHosts") }
+    }
+
     var agentSessionsManualHosts: String {
         get { self.defaultsState.agentSessionsManualHosts }
         set { self.setDefault(\.agentSessionsManualHosts, newValue, key: "agentSessionsManualHosts") }

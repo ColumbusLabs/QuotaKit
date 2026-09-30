@@ -402,26 +402,25 @@ extension UsageStore {
         let previousGeneration = self.lastQueuedWidgetSnapshot?.generatedAt ?? previousSnapshot?.generatedAt
         let generatedAt = previousGeneration.map { max(now, $0.addingTimeInterval(0.001)) } ?? now
         let enabledProviders = self.enabledProviders()
-        var entries = UsageProvider.allCases.compactMap { provider in
-            self.makeWidgetEntry(
+        let entries = UsageProvider.allCases.compactMap { provider -> WidgetSnapshot.ProviderEntry? in
+            guard enabledProviders.contains(provider.instanceID),
+                  ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable
+            else { return nil }
+            if let entry = self.makeWidgetEntry(
                 for: provider,
                 now: now,
                 previousEntry: previousSnapshot?.entries.first { $0.provider == provider.instanceID })
-        }
-        // Disk snapshots do not prove current-account ownership. Reuse only the in-process queue and only
-        // when every entry remains enabled, failed, unblocked, and visible under current settings.
-        if entries.isEmpty,
-           let previousSnapshot = self.lastQueuedWidgetSnapshot,
-           previousSnapshot.enabledProviders.allSatisfy(enabledProviders.contains),
-           previousSnapshot.entries.allSatisfy({ entry in
-               // Provider-specific by design: Claude retention uses makeWidgetEntry owner-key checks.
-               entry.provider != .claude && enabledProviders.contains(entry.provider) &&
-                   self.errors[entry.provider] != nil &&
-                   (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage) &&
-                   !self.widgetUsagePreservationBlockedProviders.contains(entry.provider)
-           })
-        {
-            entries = previousSnapshot.entries.map { self.preservedWidgetEntryForCurrentMetric($0) }
+            { return entry }
+            // Claude retention requires its owner-aware path. Other providers require this process's queue.
+            // Account invalidation removes old queued entries synchronously, even before a later successful fetch.
+            guard provider != .claude,
+                  self.errors[provider.instanceID] != nil,
+                  !self.widgetUsagePreservationBlockedProviders.contains(provider.instanceID),
+                  let entry = self.lastQueuedWidgetSnapshot?.entries
+                      .first(where: { $0.provider == provider.instanceID }),
+                      entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage
+            else { return nil }
+            return self.preservedWidgetEntryForCurrentMetric(entry)
         }
         return WidgetSnapshot(
             entries: entries,
@@ -526,6 +525,16 @@ extension UsageStore {
             nil
         }
 
+        // Provider-specific by design: balance-only providers expose text without a synthetic quota denominator.
+        let balanceText: String? = switch provider {
+        case .deepseek:
+            MenuBarDisplayText.deepSeekBalanceText(snapshot: snapshot)
+        case .openrouter:
+            snapshot?.detailRow(label: "Remaining")?.value
+        default:
+            nil
+        }
+
         // Provider-specific by design: Pi's local strategy has no quota measurement; age belongs to its history.
         let historyUpdatedAt = provider == .pi ? tokenSnapshot?.updatedAt : nil
         return WidgetSnapshot.ProviderEntry(
@@ -541,7 +550,8 @@ extension UsageStore {
             tokenUsage: tokenUsage,
             dailyUsage: dailyUsage,
             providerCost: providerCost,
-            quotaOwnerKey: quotaOwnerKey)
+            quotaOwnerKey: quotaOwnerKey,
+            balanceText: balanceText)
     }
 
     private struct PreservedClaudeWidgetUsage {
@@ -894,9 +904,6 @@ extension UsageStore {
         {
             return dyn
         }
-        if provider == .crof {
-            return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
-        }
         if provider == .alibabatokenplan,
            let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot)
         {
@@ -967,6 +974,7 @@ extension UsageStore {
             tokenUsage: entry.tokenUsage,
             dailyUsage: entry.dailyUsage,
             providerCost: entry.providerCost,
-            quotaOwnerKey: entry.quotaOwnerKey)
+            quotaOwnerKey: entry.quotaOwnerKey,
+            balanceText: entry.balanceText)
     }
 }

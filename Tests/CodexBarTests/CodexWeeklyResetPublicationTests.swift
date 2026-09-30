@@ -793,6 +793,63 @@ extension CodexAccountScopedRefreshTests {
     }
 
     @Test
+    func `incompatible prior account or plan is not used as publication baseline`() async throws {
+        let email = "current-reset-owner@example.com"
+        let now = Date()
+        let boundary = now.addingTimeInterval(6 * 24 * 60 * 60)
+        let priorForOtherAccount = self.codexWeeklySnapshot(
+            email: "other-reset-owner@example.com",
+            weeklyUsedPercent: 72,
+            weeklyReset: boundary,
+            updatedAt: now.addingTimeInterval(-180),
+            dataConfidence: .exact)
+        let priorForOtherPlanBase = self.codexWeeklySnapshot(
+            email: email,
+            weeklyUsedPercent: 72,
+            weeklyReset: boundary,
+            updatedAt: now.addingTimeInterval(-180),
+            dataConfidence: .exact)
+        let priorForOtherPlan = UsageSnapshot(
+            primary: priorForOtherPlanBase.primary,
+            secondary: priorForOtherPlanBase.secondary,
+            updatedAt: priorForOtherPlanBase.updatedAt,
+            identity: ProviderIdentitySnapshot(
+                providerID: .codex,
+                accountEmail: email,
+                accountOrganization: nil,
+                loginMethod: "Plus"),
+            dataConfidence: .exact)
+        let initial = self.codexWeeklySnapshot(
+            email: email,
+            weeklyUsedPercent: 0.2,
+            weeklyReset: boundary,
+            updatedAt: now.addingTimeInterval(-120),
+            dataConfidence: .exact)
+        let confirmation = self.codexWeeklySnapshot(
+            email: email,
+            weeklyUsedPercent: 0.7,
+            weeklyReset: boundary,
+            updatedAt: now.addingTimeInterval(-119),
+            dataConfidence: .exact)
+
+        for previous in [priorForOtherAccount, priorForOtherPlan] {
+            let admission = await UsageStore.codexOutcomeAdmittedForPublication(
+                initialOutcome: codexWeeklyFetchOutcome(initial),
+                previousSnapshot: previous,
+                previousSourceLabel: "oauth",
+                missingWindowBackfillSnapshot: nil,
+                observedAt: initial.updatedAt,
+                fetchConfirmation: { codexWeeklyFetchOutcome(confirmation) })
+            let outcome = try #require(admission.outcome)
+            let usage = try outcome.result.get().usage
+
+            #expect(usage.accountEmail(for: .codex) == email)
+            #expect(usage.secondary?.usedPercent == 0.7)
+            #expect(admission.pendingCandidate == nil)
+        }
+    }
+
+    @Test
     func `expired delayed candidate stays discarded when immediate confirmation fails`() async throws {
         let email = "expired-candidate@example.com"
         let now = Date()

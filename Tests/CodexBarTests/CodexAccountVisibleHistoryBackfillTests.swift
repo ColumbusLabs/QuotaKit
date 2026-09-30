@@ -7,8 +7,7 @@ import Testing
 extension CodexAccountScopedRefreshTests {
     @Test
     func `provider only history never backfills account quota publication`() async throws {
-        let settings = self.makeSettingsStore(
-            suite: "CodexAccountVisibleHistoryBackfillTests")
+        let settings = self.makeSettingsStore(suite: "CodexAccountVisibleHistoryBackfillTests")
         settings.refreshFrequency = .manual
         settings.multiAccountMenuLayout = .stacked
 
@@ -534,6 +533,7 @@ extension CodexAccountScopedRefreshTests {
                 accountEmail: "current@example.com",
                 accountOrganization: nil,
                 loginMethod: "Pro"))
+        let matchingPlanIdentity = self.codexIdentitySnapshot(email: "current@example.com")
         self.installContextualCodexProvider(on: store) { context in
             let isTarget = context.env["CODEX_HOME"] == targetHome.path
             return UsageSnapshot(
@@ -543,7 +543,8 @@ extension CodexAccountScopedRefreshTests {
                     resetsAt: nil,
                     resetDescription: nil),
                 secondary: nil,
-                updatedAt: now)
+                updatedAt: now,
+                identity: matchingPlanIdentity)
         }
 
         await store.refreshCodexVisibleAccountsForMenu()
@@ -566,8 +567,7 @@ extension CodexAccountScopedRefreshTests {
 
     @Test
     func `ignores prior snapshot from same email different codex workspace`() async throws {
-        let settings = self.makeSettingsStore(
-            suite: "CodexAccountVisibleHistoryBackfillTests-prior-workspace")
+        let settings = self.makeSettingsStore(suite: "CodexAccountVisibleHistoryBackfillTests-prior-workspace")
         settings.refreshFrequency = .manual
         settings.multiAccountMenuLayout = .stacked
 
