@@ -6,13 +6,27 @@ PR #214 is verified merged as `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`:
 **693 accounted, 59 known gaps, 169 unresolved / 921**. Its required CI passed
 and the tested/squashed trees match. One primary worktree remains.
 
-The next candidate implements 14 gap rows and includes 143 original-row source
-audits plus focused documentation parity. Its proposed counts are **808 accounted,
-73 known gaps, 40 unresolved / 921**, pending exact-head hosted CI and merge.
-Implementation and independent review are verified locally; the goal stays active.
-Cleanup has removed 27 local and 16 remote branches, leaving 103 local refs and
-four origin tracking refs including HEAD. Preserve the remaining unique source
-until its applicable behavior is integrated or specifically dispositioned.
+PR #215 contains the quota/process/pricing/provider slice. Its proposed counts are
+**808 accounted, 73 known gaps, 40 unresolved / 921**, pending exact-head CI and
+merge. The compiler and fixture repairs are pushed at
+`e28c5f7812533fa334be46fa216537610fc7e91e`; required CI run `36671868151`
+is in progress. Lint, both Linux builds and iOS tests have passed; Mac shards
+remain in progress. The verified merged counts above remain unchanged.
+
+The following tested source candidate `b4a6a7abe58221818a3bb76e874d706566450702`
+has **850 accounted, 69 known gaps, 2 unresolved / 921**, pending required CI and
+merge. All 140 historical claims were reviewed against active source; reopened
+claims remain gaps. Devin's hidden-daily guard was already active and the
+intermediate shortest-file-first policy is superseded by final FIFO rotation.
+Twenty-two implemented/test/doc rows have tested source provenance. Focused checks
+and independent review passed, including 8 iPhone palette tests. Localization
+315 and host-aware cookie policy841 remain unresolved; 69 concrete gaps remain.
+
+Cleanup has removed **97 local and 16 remote refs**, leaving **34 local branches,
+five origin tracking refs including HEAD, and one worktree**. Seventy removed
+ancestor refs retain their commits in retained descendant tips and a verified
+private recovery bundle. Their removal does not claim unfinished work is merged.
+Preserve and reconcile remaining unique source as slices close.
 
 ## Finish line
 

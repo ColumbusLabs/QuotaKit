@@ -1,6 +1,65 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: grouped quota, process, pricing and provider clearance
+## Current status: cost, provider contracts and maintenance clearance
+
+Verified merged main remains `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`
+([PR #214](https://github.com/ColumbusLabs/QuotaKit/pull/214)):
+**693 accounted, 59 known gaps, 169 unresolved / 921**.
+
+[PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215) is frozen at
+`e28c5f7812533fa334be46fa216537610fc7e91e`, with proposed counts
+**808 accounted, 73 known gaps, 40 unresolved / 921**. Its compiler and fixture
+repairs are pushed. Required CI run `36671868151` has passed lint, both Linux
+builds and iOS tests; Mac shards remain pending. No merged credit is claimed yet.
+
+The following source candidate `b4a6a7abe58221818a3bb76e874d706566450702`
+has ledger counts **850 accounted, 69 known gaps, 2 unresolved / 921** after
+current-source review of all 140 historical merge claims and 22 tested
+implementation/test/documentation closures. The two unresolved reviews are
+provider-cookie localization (315) and the host-aware plugin cookie contract
+(841). The 69 gaps still require implementation or a specific final-source
+supersession/applicability decision. Candidate counts are not merged counts.
+
+### Implemented and verified in the new candidate
+
+- Native cost timestamp parsing, incremental order validation and lean workspace
+  reads; normal scanner history hydration remains tracked in row 149.
+- Compact per-window reset policies, valid Linux Devin manual credentials, bounded
+  shell capture, safe OAuth/RPC numeric resets and truthful CLI account identity.
+- Opt-in, matching-account Hugging Face wallet credits; unavailable plugin config
+  retention and consistent ordered descriptor replacement.
+- Compatible dependency/lock updates, pinned actions, the required Xcode 26.3
+  build-tests gate, focused test-runner/PTY maintenance and accurate recovery and
+  distribution documentation.
+- Final provider app accents on Mac/iPhone with established widget colors and
+  explicit retained fork-color decisions. Recorder placeholder observation (334)
+  and native conditional session mutation (866) remain open.
+
+Focused Mac checks ran 361 tests, then 111 affected tests after repairs, then
+94 CLI/registry/architecture tests. Independent review found and fixed implicit
+Antigravity CLI attribution; its 43 affected tests passed. Eight focused iPhone
+palette tests passed. Full lint passed across 2,627 files, followed by scoped lint
+for final fixes. Both package resolvers, CI path-gate checks and synthetic
+TERM/KILL process-group cleanup passed. Parser hash is `7607317f30850961`.
+Required exact-head hosted CI and merge are pending. No full local suite, live
+provider/browser/Keychain probe, product release, version or cursor advance ran.
+
+### Cleanup and next
+
+One primary worktree and 34 local branches remain; 97 local and 16 remote refs
+have been removed with source/containment/recovery proofs. Five provider snapshot
+branches have full source proofs for removal after the covering merge. Remaining
+unique branch content is being reconciled against current source before removal.
+
+Next: close PR #215 at its passing exact head, move this verified source onto the
+identical squash tree, run one combined required CI cycle, merge and clean its
+covered refs. Then address the grouped numeric, account-authority/privacy,
+cost-history/reset and cookie-policy slices. Refresh upstream only for final
+clearance proof; keep the monitor cursor fixed until every applicable row closes.
+
+---
+
+## Previous candidate record: grouped quota, process, pricing and provider clearance
 
 Verified merged main is `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`
 ([PR #214](https://github.com/ColumbusLabs/QuotaKit/pull/214)): **693 accounted,
