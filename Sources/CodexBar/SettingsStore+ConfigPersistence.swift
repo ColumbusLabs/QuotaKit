@@ -155,6 +155,12 @@ extension SettingsStore {
 
             for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
                 ordered.append(configsByID[provider.instanceID] ?? ProviderConfig(id: provider.instanceID))
+                seen.insert(provider.instanceID)
+            }
+
+            // Keep configuration for a plugin that is temporarily unavailable in the UI.
+            for providerConfig in config.providers where seen.insert(providerConfig.id).inserted {
+                ordered.append(providerConfig)
             }
 
             config.providers = ordered

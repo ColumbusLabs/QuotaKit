@@ -49,7 +49,8 @@ public struct ProviderCredentialSettingsContext: Sendable {
 
     public func cookieSettings(
         for provider: UsageProvider,
-        configuredHeader: String? = nil) -> CookieProviderSettings
+        configuredHeader: String? = nil,
+        defaultSource: ProviderCookieSource = .auto) -> CookieProviderSettings
     {
         let configuredSource: ProviderCookieSource = if let override = self.config?.cookieSource {
             override
@@ -58,7 +59,7 @@ public struct ProviderCredentialSettingsContext: Sendable {
         } else if self.config?.sanitizedCookieHeader != nil {
             .manual
         } else {
-            .auto
+            defaultSource
         }
         return ProviderCookieSettingsResolver.resolve(
             provider: provider,

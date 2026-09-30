@@ -24,6 +24,19 @@ public enum AccountMenuLayoutPlanner {
         case healthy
     }
 
+    public enum ResetPresentation: Equatable, Sendable {
+        case standard
+        case hidden
+        case providerDescription
+    }
+
+    public struct WindowDetail: Equatable, Sendable {
+        public let metricID: String
+        public let label: String
+        public let window: RateWindow
+        public let resetPresentation: ResetPresentation
+    }
+
     public struct CompactRow: Equatable, Sendable {
         public struct Constraint: Equatable, Sendable {
             public let label: String
@@ -44,6 +57,9 @@ public enum AccountMenuLayoutPlanner {
         /// Structured constrained windows. Rendering stays in the app layer so
         /// provider metadata labels can be localized without changing planning.
         public let constraints: [Constraint]
+        /// Constrained windows, or the least remaining visible window when healthy.
+        /// Keep reset metadata attached to its own quota until the app formats it.
+        public let windowDetails: [WindowDetail]
         public let lastKnownUsageCapturedAt: Date?
         /// Unlocalized summary retained for non-UI consumers and diagnostics.
         public var constraintDetail: String? {
@@ -65,6 +81,7 @@ public enum AccountMenuLayoutPlanner {
             headroomPercent: Double?,
             severity: Severity?,
             constraints: [Constraint],
+            windowDetails: [WindowDetail] = [],
             lastKnownUsageCapturedAt: Date? = nil,
             hasError: Bool,
             canActivate: Bool,
@@ -75,6 +92,7 @@ public enum AccountMenuLayoutPlanner {
             self.headroomPercent = headroomPercent
             self.severity = severity
             self.constraints = constraints
+            self.windowDetails = windowDetails
             self.lastKnownUsageCapturedAt = lastKnownUsageCapturedAt
             self.hasError = hasError
             self.canActivate = canActivate
@@ -145,7 +163,7 @@ public enum AccountMenuLayoutPlanner {
 
     /// Lowest remaining percent across the account's real usage windows.
     public static func headroomPercent(for account: ProviderAccountUsageSnapshot) -> Double? {
-        self.labeledWindows(for: account).map(\.remainingPercent).min()
+        self.labeledWindows(for: account).map(\.window.remainingPercent).min()
     }
 
     private static func sortedCompactRows(
@@ -174,22 +192,27 @@ public enum AccountMenuLayoutPlanner {
         hiddenMetricIDs: Set<String>) -> CompactRow
     {
         let windows = self.labeledWindows(for: account)
-        let headroom = windows.map(\.remainingPercent).min()
-        let constraints = windows
-            .filter { !hiddenMetricIDs.contains($0.id) && $0.remainingPercent <= self.warningHeadroomPercent }
-            .sorted { $0.remainingPercent < $1.remainingPercent }
+            .sorted { $0.window.remainingPercent < $1.window.remainingPercent }
+        let headroom = windows.first?.window.remainingPercent
+        let visibleWindows = windows.filter { !hiddenMetricIDs.contains($0.metricID) }
+        let constrained = visibleWindows.filter { $0.window.remainingPercent <= self.warningHeadroomPercent }
+        let constraints = constrained
             .prefix(self.constraintDetailWindowLimit)
             .map {
                 CompactRow.Constraint(
                     label: $0.label,
-                    remainingPercent: Int($0.remainingPercent.rounded()))
+                    remainingPercent: Int($0.window.remainingPercent.rounded()))
             }
+        let windowDetails = constrained.isEmpty
+            ? Array(visibleWindows.prefix(1))
+            : Array(constrained.prefix(self.constraintDetailWindowLimit))
         return CompactRow(
             accountID: account.id,
             label: account.displayLabel,
             headroomPercent: headroom,
             severity: headroom.map(self.severity(forHeadroom:)),
             constraints: Array(constraints),
+            windowDetails: windowDetails,
             lastKnownUsageCapturedAt: account.usesLastKnownUsage ? account.snapshot?.updatedAt : nil,
             hasError: account.error != nil,
             canActivate: account.canActivate,
@@ -212,24 +235,63 @@ public enum AccountMenuLayoutPlanner {
     }
 
     private static func labeledWindows(
-        for account: ProviderAccountUsageSnapshot) -> [(id: String, label: String, remainingPercent: Double)]
+        for account: ProviderAccountUsageSnapshot) -> [WindowDetail]
     {
         guard let snapshot = account.snapshot else { return [] }
         let metadata = ProviderDefaults.metadata[account.provider]
-        var windows: [(id: String, label: String, remainingPercent: Double)] = []
+        var windows: [WindowDetail] = []
         if let primary = snapshot.primary, !primary.isSyntheticPlaceholder {
-            windows.append(("primary", metadata?.sessionLabel ?? "Session", primary.remainingPercent))
+            windows.append(WindowDetail(
+                metricID: "primary",
+                label: metadata?.sessionLabel ?? "Session",
+                window: primary,
+                resetPresentation: self.primaryResetPresentation(for: account, window: primary)))
         }
         if let secondary = snapshot.secondary {
-            windows.append(("secondary", metadata?.weeklyLabel ?? "Weekly", secondary.remainingPercent))
+            windows.append(WindowDetail(
+                metricID: "secondary",
+                label: metadata?.weeklyLabel ?? "Weekly",
+                window: secondary,
+                resetPresentation: .standard))
         }
         if let tertiary = snapshot.tertiary {
-            windows.append(("tertiary", metadata?.opusLabel ?? "Monthly", tertiary.remainingPercent))
+            windows.append(WindowDetail(
+                metricID: "tertiary",
+                label: metadata?.opusLabel ?? "Monthly",
+                window: tertiary,
+                resetPresentation: .standard))
         }
         for extra in snapshot.extraRateWindows ?? [] where extra.usageKnown {
-            windows.append((extra.id, self.shortLabel(forWindowTitle: extra.title), extra.window.remainingPercent))
+            windows.append(WindowDetail(
+                metricID: extra.id,
+                label: self.shortLabel(forWindowTitle: extra.title),
+                window: extra.window,
+                resetPresentation: .standard))
         }
         return windows
+    }
+
+    private static func primaryResetPresentation(
+        for account: ProviderAccountUsageSnapshot,
+        window: RateWindow) -> ResetPresentation
+    {
+        let policy = ProviderDescriptorRegistry.descriptor(for: account.provider).presentation.menuCard
+        if policy.clearsPrimaryReset ||
+            ((policy.hidesPrimaryResetWithoutDate || policy.usesAbacusPace) && window.resetsAt == nil) ||
+            (policy.hidesPrimaryResetWithoutSecondary && account.snapshot?.secondary == nil)
+        {
+            return .hidden
+        }
+        if policy.usesRawPrimaryResetDescription {
+            return .providerDescription
+        }
+        if case .reset = policy.primaryDescriptionPlacement,
+           let description = window.resetDescription,
+           !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return .providerDescription
+        }
+        return .standard
     }
 
     /// Scoped weekly windows are titled "<model> only" for the card view; the

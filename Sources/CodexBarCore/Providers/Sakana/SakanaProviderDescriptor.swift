@@ -54,7 +54,7 @@ public enum SakanaProviderDescriptor {
                     ProviderColor(hex: 0x0D0D0D),
                     ProviderColor(hex: 0xFFFFFF),
                 ],
-                widgetColor: ProviderColor(red: 41 / 255, green: 117 / 255, blue: 219 / 255)),
+                widgetColor: ProviderColor(hex: 0x2975DB)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Sakana AI cost summary is not supported." }),

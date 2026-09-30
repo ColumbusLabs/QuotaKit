@@ -983,6 +983,9 @@
 "Base URL" = "Base URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy 執行個體的 Base URL。";
 "Browser cookies" = "瀏覽器 Cookie";
+"Browser cookies are used only for the optional prepaid balance." = "瀏覽器 Cookie 僅用於選用的預付餘額。";
+"Imports browser cookies to read the optional prepaid balance." = "匯入瀏覽器 Cookie 以讀取選用的預付餘額。";
+"Paste the Cookie header captured from your Hugging Face billing page." = "貼上從 Hugging Face 帳單頁面取得的 Cookie 標頭。";
 "Cap end" = "上限終點";
 "Cap start" = "上限起點";
 "Capacity End" = "容量終點";
@@ -1671,3 +1674,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "預設使用已設定的 AZURE_OPENAI_API_VERSION。";
 "No cookie header pasted." = "尚未貼上 Cookie 標頭。";
 "Use automatic cookies" = "使用自動 Cookie";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "為 %@ / %@ 匯入 Chrome 工作階段；優先使用 Cloud。";
+"Paste a Cookie header from the selected console." = "貼上所選主控台中的 Cookie 標頭。";
+"Paste the %@ JSON bundle from localStorage." = "貼上來自 localStorage 的 %@ JSON 套件。";
+"Automatically imports browser cookies for %@." = "自動為 %@ 匯入瀏覽器 Cookie。";
+"Automatically imports the %@ session from supported Chromium browsers." = "自動從支援的 Chromium 瀏覽器匯入 %@ 工作階段。";
+"Automatically imports %@ cookies from %@." = "自動從 %@ 匯入 %@ Cookie。";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "自動匯入 Chrome 工作階段 Cookie，之後改用 API 金鑰。";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "使用 %@ 瀏覽器工作階段查看支出和預測；編輯器專用的帳單週期和發票資料無法使用。";
+"Automatically signs in using your %@ session cookies from Chrome." = "自動使用來自 Chrome 的 %@ 工作階段 Cookie 登入。";
+"Paste an Authorization Bearer token from %@." = "貼上來自 %@ 的 Authorization 標頭中的 Bearer 權杖。";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "使用貼上的 %@ Cookie 標頭，之後改用 API 金鑰。";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "使用從 %@ 貼上的 Cookie 查看支出和預測；編輯器專用的帳單週期和發票資料無法使用。";
+"Paste a cURL capture from %@." = "貼上來自 %@ 的 cURL 擷取內容。";
+"Browser cookies are disabled; an API key is still used when available." = "瀏覽器 Cookie 已停用；有可用的 API 金鑰時仍會使用。";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "預測、帳單週期和發票使用編輯器登入；瀏覽器支出已關閉。";
+"Paste a Cookie header and select its tenant below." = "貼上 Cookie 標頭，並在下方選擇租用戶。";

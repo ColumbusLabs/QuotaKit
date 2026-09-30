@@ -37,14 +37,15 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
         return [ProviderSettingsPickerDescriptor(
             id: "typesafe-cookie-source",
             title: "Cookie source",
-            subtitle: "Choose how QuotaKit reads your TypeSafe session.",
+            subtitle: L("Automatically imports browser cookies for %@.", "typesafe.ai"),
             dynamicSubtitle: {
                 ProviderCookieSourceUI.subtitle(
                     source: context.settings.typesafeCookieSource,
                     keychainDisabled: context.settings.debugDisableKeychainAccess,
-                    auto: "Automatic imports Chrome cookies from typesafe.ai.",
-                    manual: "Paste a Cookie header captured from the TypeSafe billing page.",
-                    off: "TypeSafe cookies are disabled.")
+                    subtitles: ProviderCookieSourceUI.Subtitles(
+                        auto: L("Automatically imports browser cookies for %@.", "typesafe.ai"),
+                        manual: L("Paste a Cookie header captured from %@.", "typesafe.ai"),
+                        off: L("%@ cookies are disabled.", "TypeSafe")))
             },
             binding: binding,
             options: ProviderCookieSourceUI.options(

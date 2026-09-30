@@ -1195,7 +1195,7 @@ extension CostUsageScanner {
         } else {
             (migratedCached.codexTokenSnapshots ?? []) + delta.tokenSnapshots
         }
-        var fileUsage = Self.makeFileUsage(
+        var fileUsage = try Self.makeFileUsage(
             mtimeUnixMs: input.metadata.mtimeUnixMs,
             size: input.metadata.size,
             days: mergedDays,
@@ -1249,7 +1249,17 @@ extension CostUsageScanner {
                     to: migratedCached.codexTokenCheckpoints ?? [],
                     startingEventIndex: migratedCached.codexTokenSnapshots?.count ?? 0,
                     initialState: initialAccumulatorState),
-            codexTokenTimestampsMonotonic: Self.codexTokenTimestampsAreMonotonic(mergedTokenSnapshots),
+            codexTokenTimestampsMonotonic: needsBufferedSnapshotRecovery
+                ? Self.codexTokenTimestampsAreMonotonic(
+                    mergedTokenSnapshots,
+                    checkCancellation: context.checkCancellation,
+                    workRecorder: context.workRecorder)
+                : Self.appendingCodexTokenTimestampsAreMonotonic(
+                    isBufferedForkResume && startOffset == input.metadata.size ? [] : delta.tokenSnapshots,
+                    to: migratedCached.codexTokenSnapshots ?? [],
+                    prefixIsMonotonic: migratedCached.codexTokenTimestampsMonotonic,
+                    checkCancellation: context.checkCancellation,
+                    workRecorder: context.workRecorder),
             codexTokenIndexAnchor: Self.codexTokenIndexAnchor(
                 fileURL: input.fileURL,
                 indexedBytes: delta.parsedBytes),

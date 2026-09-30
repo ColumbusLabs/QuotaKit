@@ -267,8 +267,16 @@ func testConfigWithAllProvidersDisabled() -> CodexBarConfig {
 }
 
 @MainActor
-func enableTestProviders(_ providers: [UsageProvider], settings: SettingsStore) {
+func enableTestProviders(_ providers: Set<UsageProvider>, settings: SettingsStore) {
+    let metadataByProvider = ProviderRegistry.shared.metadata
     for provider in UsageProvider.allCases {
-        settings.updateProviderConfig(provider: provider) { $0.enabled = providers.contains(provider) }
+        guard let metadata = metadataByProvider[provider] else { continue }
+        let enabled = providers.contains(provider)
+        let isSelected = settings.selectedMenuProvider == provider.instanceID
+        let wasEnabled = settings.isProviderEnabledCached(
+            provider: provider,
+            metadataByProvider: metadataByProvider)
+        guard wasEnabled != enabled || (isSelected && !enabled) else { continue }
+        settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: enabled)
     }
 }

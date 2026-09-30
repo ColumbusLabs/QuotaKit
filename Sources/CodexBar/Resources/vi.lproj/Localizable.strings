@@ -1113,6 +1113,9 @@
 "Base URL" = "Base URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "Base URL cho phiên bản LLM- API -Key-Proxy.";
 "Browser cookies" = "Cookie trình duyệt";
+"Browser cookies are used only for the optional prepaid balance." = "Cookie trình duyệt chỉ được dùng cho số dư trả trước tùy chọn.";
+"Imports browser cookies to read the optional prepaid balance." = "Nhập cookie trình duyệt để đọc số dư trả trước tùy chọn.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Dán tiêu đề Cookie được lấy từ trang thanh toán Hugging Face của bạn.";
 "Cap end" = "Cap end";
 "Cap start" = "Cap start";
 "Capacity End" = "Dung lượng End";
@@ -1641,3 +1644,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Mặc định dùng AZURE_OPENAI_API_VERSION nếu được đặt.";
 "No cookie header pasted." = "Chưa dán tiêu đề Cookie.";
 "Use automatic cookies" = "Dùng cookie tự động";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Nhập các phiên Chrome cho %@ / %@; ưu tiên Cloud.";
+"Paste a Cookie header from the selected console." = "Dán tiêu đề Cookie từ bảng điều khiển đã chọn.";
+"Paste the %@ JSON bundle from localStorage." = "Dán gói JSON %@ từ localStorage.";
+"Automatically imports browser cookies for %@." = "Tự động nhập cookie trình duyệt cho %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Tự động nhập phiên %@ từ các trình duyệt Chromium được hỗ trợ.";
+"Automatically imports %@ cookies from %@." = "Tự động nhập cookie %@ từ %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Tự động nhập cookie phiên Chrome, sau đó dùng khóa API dự phòng.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Dùng phiên trình duyệt %@ cho chi tiêu và dự đoán; dữ liệu chu kỳ thanh toán và hóa đơn riêng của trình chỉnh sửa không khả dụng.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Tự động đăng nhập bằng cookie phiên %@ từ Chrome.";
+"Paste an Authorization Bearer token from %@." = "Dán mã thông báo Bearer từ tiêu đề Authorization của %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Dùng tiêu đề Cookie đã dán cho %@, sau đó chuyển sang khóa API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Dùng Cookie đã dán từ %@ cho chi tiêu và dự đoán; dữ liệu chu kỳ thanh toán và hóa đơn riêng của trình chỉnh sửa không khả dụng.";
+"Paste a cURL capture from %@." = "Dán bản ghi cURL từ %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Cookie trình duyệt đã tắt; khóa API vẫn được dùng khi có sẵn.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Dùng đăng nhập trình chỉnh sửa cho dự đoán, chu kỳ thanh toán và hóa đơn; chi tiêu qua trình duyệt đã tắt.";
+"Paste a Cookie header and select its tenant below." = "Dán tiêu đề Cookie rồi chọn đối tượng thuê bên dưới.";

@@ -24,6 +24,16 @@ struct ShellCommandLocatorProcessTests {
     }
 
     @Test
+    func `shell runner rejects output beyond its capture limit`() {
+        let output = ShellCommandLocator.test_runShellCommand(
+            shell: "/bin/sh",
+            arguments: ["-c", "head -c \(ProcessPipeCapture.defaultMaxBytes + 1) /dev/zero"],
+            timeout: 5)
+
+        #expect(output == nil)
+    }
+
+    @Test
     func `shell runner terminates session escaped partial output holders after timeout`() throws {
         let pidFile = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-shell-runner-timeout-\(UUID().uuidString)")

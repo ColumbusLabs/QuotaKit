@@ -16,7 +16,7 @@ public enum DeepgramProviderDescriptor {
             green: 0.23,
             blue: 0.93),
         confetti: [0x13EF95, 0x149AFB, 0x1A1A1F],
-        widgetColor: ProviderColor(red: 10 / 255, green: 18 / 255, blue: 27 / 255),
+        widgetColor: ProviderColor(hex: 0x0A121B),
         noDataMessage: "Deepgram cost summary is not yet supported.",
         environmentKey: DeepgramSettingsReader.apiKeyEnvironmentKey,
         config: ProviderConfigCapabilities(workspaceIDValidationOrder: 5),

@@ -11,9 +11,9 @@ public enum ChutesProviderDescriptor {
         debugLogUnavailableMessage: "Chutes debug log not yet implemented",
         usesDetailBackedWindow: true,
         dashboardURL: "https://chutes.ai",
-        color: ProviderColor(red: 0, green: 184 / 255, blue: 1),
+        color: ProviderColor(hex: 0x00B8FF),
         confetti: [0x121212, 0xFFFFFF, 0x63D297],
-        widgetColor: ProviderColor(red: 24 / 255, green: 160 / 255, blue: 88 / 255),
+        widgetColor: ProviderColor(hex: 0x18A058),
         noDataMessage: "Chutes cost history is not available from QuotaKit.",
         environmentKey: ChutesSettingsReader.apiKeyEnvironmentKey,
         presentation: ProviderUsagePresentation(

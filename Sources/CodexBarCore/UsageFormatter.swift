@@ -198,6 +198,9 @@ public enum UsageFormatter {
 
     public static func updatedString(from date: Date, now: Date = .init()) -> String {
         let delta = now.timeIntervalSince(date)
+        guard let deltaSeconds = Int(exactly: delta.rounded(.towardZero)) else {
+            return self.localized("Updated %@", self.localized("Unknown"))
+        }
         if abs(delta) < 60 {
             return self.localized("Updated just now")
         }
@@ -208,7 +211,7 @@ public enum UsageFormatter {
             rel.unitsStyle = .abbreviated
             return self.localized("Updated relative %@", rel.localizedString(for: date, relativeTo: now))
             #else
-            let seconds = max(0, Int(now.timeIntervalSince(date)))
+            let seconds = max(0, deltaSeconds)
             if seconds < 3600 {
                 let minutes = max(1, seconds / 60)
                 return self.localized("Updated %@m ago", String(minutes))

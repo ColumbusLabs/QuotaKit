@@ -1136,6 +1136,9 @@
 "Base URL" = "Bazowy URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "Bazowy URL dla instancji LLM-API-Key-Proxy.";
 "Browser cookies" = "Pliki cookie przeglądarki";
+"Browser cookies are used only for the optional prepaid balance." = "Pliki cookie przeglądarki są używane wyłącznie do opcjonalnego salda przedpłaconego.";
+"Imports browser cookies to read the optional prepaid balance." = "Importuje pliki cookie przeglądarki, aby odczytać opcjonalne saldo przedpłacone.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Wklej nagłówek Cookie przechwycony na stronie rozliczeń Hugging Face.";
 "Cap end" = "Koniec limitu";
 "Cap start" = "Początek limitu";
 "Capacity End" = "Koniec pojemności";
@@ -1643,3 +1646,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Opcja domyślna używa AZURE_OPENAI_API_VERSION, jeśli jest ustawiona.";
 "No cookie header pasted." = "Nie wklejono nagłówka Cookie.";
 "Use automatic cookies" = "Użyj automatycznych plików cookie";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Importuje sesje Chrome dla %@ / %@; Cloud ma pierwszeństwo.";
+"Paste a Cookie header from the selected console." = "Wklej nagłówek Cookie z wybranej konsoli.";
+"Paste the %@ JSON bundle from localStorage." = "Wklej pakiet JSON %@ z localStorage.";
+"Automatically imports browser cookies for %@." = "Automatycznie importuje pliki cookie przeglądarki dla %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Automatycznie importuje sesję %@ z obsługiwanych przeglądarek Chromium.";
+"Automatically imports %@ cookies from %@." = "Automatycznie importuje pliki cookie %@ z %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Automatycznie importuje plik cookie sesji Chrome, a następnie używa klucza API jako rozwiązania zapasowego.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Używa sesji przeglądarki %@ do wydatków i prognoz; dane cyklu rozliczeniowego i faktur edytora są niedostępne.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Automatycznie loguje się przy użyciu plików cookie sesji %@ z Chrome.";
+"Paste an Authorization Bearer token from %@." = "Wklej token Bearer z nagłówka Authorization dla %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Używa wklejonego nagłówka Cookie dla %@, a następnie przechodzi na klucz API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Używa wklejonego pliku Cookie z %@ do wydatków i prognoz; dane cyklu rozliczeniowego i faktur edytora są niedostępne.";
+"Paste a cURL capture from %@." = "Wklej przechwycone żądanie cURL z %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Pliki cookie przeglądarki są wyłączone; dostępny klucz API nadal będzie używany.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Logowanie edytora służy do prognoz, cyklu rozliczeniowego i faktur; wydatki przeglądarki są wyłączone.";
+"Paste a Cookie header and select its tenant below." = "Wklej nagłówek Cookie i wybierz poniżej dzierżawcę.";

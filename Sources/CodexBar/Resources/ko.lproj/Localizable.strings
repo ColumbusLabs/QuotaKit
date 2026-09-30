@@ -1083,6 +1083,9 @@
 "Base URL" = "기본 URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "LLM-API-Key-Proxy 인스턴스의 기본 URL.";
 "Browser cookies" = "브라우저 쿠키";
+"Browser cookies are used only for the optional prepaid balance." = "브라우저 쿠키는 선택적인 선불 잔액에만 사용됩니다.";
+"Imports browser cookies to read the optional prepaid balance." = "선택적인 선불 잔액을 읽기 위해 브라우저 쿠키를 가져옵니다.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Hugging Face 결제 페이지에서 가져온 Cookie 헤더를 붙여넣으세요.";
 "Cap end" = "한도 종료";
 "Cap start" = "한도 시작";
 "Capacity End" = "용량 종료";
@@ -1609,3 +1612,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "기본값은 설정된 경우 AZURE_OPENAI_API_VERSION을 사용합니다.";
 "No cookie header pasted." = "붙여넣은 Cookie 헤더가 없습니다.";
 "Use automatic cookies" = "자동 쿠키 사용";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "%@ / %@용 Chrome 세션을 가져옵니다. Cloud를 우선합니다.";
+"Paste a Cookie header from the selected console." = "선택한 콘솔의 Cookie 헤더를 붙여넣으세요.";
+"Paste the %@ JSON bundle from localStorage." = "localStorage에서 %@ JSON 번들을 붙여넣으세요.";
+"Automatically imports browser cookies for %@." = "%@용 브라우저 쿠키를 자동으로 가져옵니다.";
+"Automatically imports the %@ session from supported Chromium browsers." = "지원되는 Chromium 브라우저에서 %@ 세션을 자동으로 가져옵니다.";
+"Automatically imports %@ cookies from %@." = "%@ 쿠키를 %@에서 자동으로 가져옵니다.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Chrome 세션 쿠키를 자동으로 가져온 다음 API 키를 대체 수단으로 사용합니다.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "지출 및 예측에 %@ 브라우저 세션을 사용합니다. 편집기 전용 청구 주기 및 송장 데이터는 사용할 수 없습니다.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Chrome에서 %@ 세션 쿠키를 사용해 자동으로 로그인합니다.";
+"Paste an Authorization Bearer token from %@." = "%@의 Authorization 헤더에서 Bearer 토큰을 붙여 넣으세요.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "%@에서 붙여 넣은 Cookie 헤더를 사용한 다음 API 키로 전환합니다.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "지출 및 예측에 %@에서 붙여 넣은 Cookie를 사용합니다. 편집기 전용 청구 주기 및 송장 데이터는 사용할 수 없습니다.";
+"Paste a cURL capture from %@." = "%@의 cURL 캡처를 붙여 넣으세요.";
+"Browser cookies are disabled; an API key is still used when available." = "브라우저 쿠키는 비활성화되어 있지만, 사용 가능한 경우 API 키는 계속 사용됩니다.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "예측, 청구 주기 및 송장에는 편집기 로그인을 사용하며 브라우저 지출은 꺼져 있습니다.";
+"Paste a Cookie header and select its tenant below." = "Cookie 헤더를 붙여넣고 아래에서 테넌트를 선택하세요.";

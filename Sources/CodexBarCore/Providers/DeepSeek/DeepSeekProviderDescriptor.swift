@@ -95,7 +95,7 @@ public enum DeepSeekProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .deepseek),
                 iconResourceName: "ProviderIcon-deepseek",
-                color: ProviderColor(red: 0.32, green: 0.49, blue: 0.94),
+                color: ProviderColor(hex: 0x4D6BFE),
                 confettiPalette: [
                     ProviderColor(hex: 0x4D6BFE),
                     ProviderColor(hex: 0x3982FF),

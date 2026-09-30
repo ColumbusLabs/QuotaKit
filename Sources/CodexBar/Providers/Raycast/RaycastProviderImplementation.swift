@@ -32,14 +32,15 @@ struct RaycastProviderImplementation: ProviderImplementation {
         return [ProviderSettingsPickerDescriptor(
             id: "raycast-cookie-source",
             title: "Cookie source",
-            subtitle: "Choose how QuotaKit reads your Raycast session.",
+            subtitle: L("Automatically imports browser cookies for %@.", "www.raycast.com"),
             dynamicSubtitle: {
                 ProviderCookieSourceUI.subtitle(
                     source: context.settings.raycastCookieSource,
                     keychainDisabled: context.settings.debugDisableKeychainAccess,
-                    auto: "Automatic imports Chrome cookies from www.raycast.com.",
-                    manual: "Paste a Cookie header captured from the account settings page.",
-                    off: "Raycast cookies are disabled.")
+                    subtitles: ProviderCookieSourceUI.Subtitles(
+                        auto: L("Automatically imports browser cookies for %@.", "www.raycast.com"),
+                        manual: L("Paste a Cookie header captured from %@.", "www.raycast.com"),
+                        off: L("%@ cookies are disabled.", "Raycast")))
             },
             binding: binding,
             options: ProviderCookieSourceUI.options(

@@ -1783,6 +1783,7 @@ extension CostUsageStoreTests {
         "4e2ff98d27e5c601",
         "053a4fb6aa6156c2",
         "005a869f36400f7e",
+        "15a7d46518e83cc0",
     ])
     func `compatible predecessor parser hash adopts without rebuilding`(predecessorHash: String) async throws {
         let fixture = try StoreFixture()
@@ -1833,6 +1834,7 @@ extension CostUsageStoreTests {
             "794d08208e8b4be3",
             "a9e63a41a2306504",
             "005a869f36400f7e",
+            "15a7d46518e83cc0",
         ])
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,

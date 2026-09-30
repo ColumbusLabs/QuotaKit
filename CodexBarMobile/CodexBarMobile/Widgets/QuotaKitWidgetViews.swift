@@ -208,7 +208,7 @@ private struct WidgetCompactWindowRow: View {
             }
             WidgetUsageBar(
                 window: self.displayWindow.window,
-                tint: ProviderColorPalette.color(for: self.providerID))
+                tint: ProviderColorPalette.widgetColor(for: self.providerID))
                 .frame(height: 5)
         }
     }
@@ -233,7 +233,7 @@ private struct WidgetCompactWindowColumn: View {
             }
             WidgetUsageBar(
                 window: self.displayWindow.window,
-                tint: ProviderColorPalette.color(for: self.providerID))
+                tint: ProviderColorPalette.widgetColor(for: self.providerID))
                 .frame(height: 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -253,7 +253,7 @@ private struct QuotaKitWidgetSmallView: View {
                     ProviderBrandMark(
                         providerID: self.provider.id,
                         size: 15,
-                        tint: ProviderColorPalette.color(for: self.provider.id))
+                        tint: ProviderColorPalette.widgetColor(for: self.provider.id))
                     Text(self.provider.providerName)
                         .font(.system(size: 17, weight: .semibold))
                         .lineLimit(1)
@@ -422,7 +422,7 @@ private struct QuotaKitWidgetMediumView: View {
                         ProviderBrandMark(
                             providerID: provider.id,
                             size: 14,
-                            tint: ProviderColorPalette.color(for: provider.id))
+                            tint: ProviderColorPalette.widgetColor(for: provider.id))
                         Text(provider.providerName)
                             .font(.subheadline)
                             .fontWeight(.semibold)
@@ -470,7 +470,7 @@ private struct QuotaKitWidgetMediumView: View {
                     } else if let window {
                         WidgetUsageBar(
                             window: window,
-                            tint: ProviderColorPalette.color(for: provider.id))
+                            tint: ProviderColorPalette.widgetColor(for: provider.id))
                     }
                 }
             }
@@ -507,7 +507,7 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
                 ProviderBrandMark(
                     providerID: self.provider.id,
                     size: 11,
-                    tint: ProviderColorPalette.color(for: self.provider.id))
+                    tint: ProviderColorPalette.widgetColor(for: self.provider.id))
                 Text(self.provider.providerName)
                     .font(.headline)
                     .lineLimit(1)

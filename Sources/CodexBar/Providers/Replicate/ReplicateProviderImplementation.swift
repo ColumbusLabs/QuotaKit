@@ -42,14 +42,15 @@ struct ReplicateProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "replicate-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports Chrome cookies from replicate.com.",
+                subtitle: L("Automatically imports browser cookies for %@.", "replicate.com"),
                 dynamicSubtitle: {
                     ProviderCookieSourceUI.subtitle(
                         source: context.settings.replicateCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
-                        auto: "Automatic imports Chrome cookies from replicate.com.",
-                        manual: "Paste a Cookie header captured from the billing page.",
-                        off: "Replicate cookies are disabled.")
+                        subtitles: ProviderCookieSourceUI.Subtitles(
+                            auto: L("Automatically imports browser cookies for %@.", "replicate.com"),
+                            manual: L("Paste a Cookie header captured from %@.", "replicate.com"),
+                            off: L("%@ cookies are disabled.", "Replicate")))
                 },
                 binding: binding,
                 options: ProviderCookieSourceUI.options(

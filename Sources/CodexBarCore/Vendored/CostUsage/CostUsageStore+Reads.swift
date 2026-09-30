@@ -21,7 +21,7 @@ extension CostUsageStore {
 
     func fetchTokenSnapshots(path: String) -> [CostUsageStoreTokenSnapshot] {
         self.withDatabase(default: []) { database in
-            try Self.readTokenSnapshots(database, path: path)
+            try Self.readTokenSnapshots(database, path: path, storeURL: self.databaseURL)
         }
     }
 
@@ -182,13 +182,16 @@ extension CostUsageStore {
         }
     }
 
-    func readSnapshot() -> CostUsageStoreSnapshot {
+    func readSnapshot(loadTokenSnapshots: Bool = true) -> CostUsageStoreSnapshot {
         #if DEBUG
         Self.snapshotReadForTesting?(self.databaseURL)
         #endif
         return self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
-                try Self.readSnapshot(database)
+                try Self.readSnapshot(
+                    database,
+                    loadTokenSnapshots: loadTokenSnapshots,
+                    storeURL: self.databaseURL)
             }
         }
     }
@@ -202,7 +205,7 @@ extension CostUsageStore {
             Self.snapshotReadForTesting?(self.databaseURL)
             #endif
             let snapshot = try Self.inReadTransaction(database) {
-                try Self.readSnapshot(database)
+                try Self.readSnapshot(database, storeURL: self.databaseURL)
             }
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }
             return (snapshot, after)
@@ -213,7 +216,7 @@ extension CostUsageStore {
     /// its writer lock so content identity and the following write share one SQLite snapshot.
     func readSnapshotInCurrentTransaction() -> CostUsageStoreSnapshot {
         self.withDatabase(default: Self.emptySnapshot) { database in
-            try Self.readSnapshot(database)
+            try Self.readSnapshot(database, storeURL: self.databaseURL)
         }
     }
 
@@ -259,7 +262,8 @@ extension CostUsageStore {
                     files: files,
                     tokenSnapshots: Self.readTokenSnapshots(
                         database,
-                        paths: hydratedPaths),
+                        paths: hydratedPaths,
+                        storeURL: self.databaseURL),
                     usageRows: Self.readUsageRows(
                         database,
                         paths: hydratedPaths),
@@ -411,14 +415,19 @@ extension CostUsageStore {
             accumulators: [])
     }
 
-    private static func readSnapshot(_ database: OpaquePointer) throws -> CostUsageStoreSnapshot {
+    private static func readSnapshot(
+        _ database: OpaquePointer,
+        loadTokenSnapshots: Bool = true,
+        storeURL: URL) throws -> CostUsageStoreSnapshot
+    {
         try CostUsageStoreSnapshot(
             metadata: self.readSingleton(
                 CostUsageStoreMetadata.self,
                 database: database,
                 table: "scan_metadata") ?? .empty,
             files: self.readFiles(database),
-            tokenSnapshots: self.readTokenSnapshots(database, path: nil),
+            tokenSnapshots: loadTokenSnapshots
+                ? self.readTokenSnapshots(database, path: nil, storeURL: storeURL) : [],
             usageRows: self.readUsageRows(database, path: nil),
             fileDayAggregates: self.readFileDayAggregates(database, path: nil),
             dayAggregates: self.readDayAggregates(database, sinceDay: nil, untilDay: nil),
@@ -621,8 +630,12 @@ extension CostUsageStore {
 
     static func readTokenSnapshots(
         _ database: OpaquePointer,
-        path: String?) throws -> [CostUsageStoreTokenSnapshot]
+        path: String?,
+        storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
+        #if DEBUG
+        CostUsageStore.tokenSnapshotsReadForTesting?(storeURL)
+        #endif
         var sql = """
         SELECT f.path, t.event_index, t.timestamp, t.timestamp_ms, t.day,
                t.last_input, t.last_cached, t.last_output, t.last_reasoning,
@@ -662,11 +675,12 @@ extension CostUsageStore {
 
     private static func readTokenSnapshots(
         _ database: OpaquePointer,
-        paths: Set<String>) throws -> [CostUsageStoreTokenSnapshot]
+        paths: Set<String>,
+        storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
         guard !paths.isEmpty else { return [] }
         return try paths.sorted().flatMap {
-            try self.readTokenSnapshots(database, path: $0)
+            try self.readTokenSnapshots(database, path: $0, storeURL: storeURL)
         }
     }
 

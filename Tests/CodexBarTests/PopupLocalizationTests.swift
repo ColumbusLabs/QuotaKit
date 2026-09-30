@@ -201,27 +201,33 @@ struct PopupLocalizationTests {
             let subtitle = ProviderCookieSourceUI.subtitle(
                 source: .manual,
                 keychainDisabled: false,
-                auto: "Automatically imports browser cookies.",
-                manual: "Paste a Cookie header or cURL capture from T3 Chat settings.",
-                off: "T3 Chat cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies."),
+                    manual: L("Paste a Cookie header or full cURL capture from T3 Chat settings."),
+                    off: L("%@ cookies are disabled.", "T3 Chat")))
             let disabledSubtitle = ProviderCookieSourceUI.subtitle(
                 source: .manual,
                 keychainDisabled: true,
-                auto: "Automatically imports browser cookies.",
-                manual: "Paste a Cookie header or cURL capture from T3 Chat settings.",
-                off: "T3 Chat cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies."),
+                    manual: L("Paste a Cookie header or full cURL capture from T3 Chat settings."),
+                    off: L("%@ cookies are disabled.", "T3 Chat")))
             let jsonBundleSubtitle = ProviderCookieSourceUI.subtitle(
                 source: .manual,
                 keychainDisabled: false,
-                auto: "Automatically imports browser cookies.",
-                manual: "Paste the localStorage JSON bundle from Windsurf session.",
-                off: "Windsurf cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies."),
+                    manual: L("Paste the %@ JSON bundle from localStorage.", "Windsurf"),
+                    off: L("%@ cookies are disabled.", "Windsurf")))
 
             #expect(subtitle.contains("貼上"))
             #expect(!subtitle.contains("Paste a Cookie"))
             #expect(disabledSubtitle.contains("鑰匙圈"))
             #expect(!disabledSubtitle.contains("Keychain access"))
-            #expect(jsonBundleSubtitle.contains("來自 Windsurf session 的 localStorage JSON"))
+            #expect(jsonBundleSubtitle.contains("Windsurf"))
+            #expect(jsonBundleSubtitle.contains("localStorage"))
+            #expect(jsonBundleSubtitle.contains("貼上"))
+            #expect(!jsonBundleSubtitle.contains("Paste"))
         }
     }
 

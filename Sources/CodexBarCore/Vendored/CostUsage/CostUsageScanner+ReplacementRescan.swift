@@ -58,7 +58,7 @@ extension CostUsageScanner {
         if !plan.replacementPending, let cached = plan.cached {
             Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
         }
-        guard let materialized = Self.materializeCodexRescan(
+        guard let materialized = try Self.materializeCodexRescan(
             plan: plan,
             input: input,
             context: context,
@@ -287,7 +287,7 @@ extension CostUsageScanner {
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
         context: CodexFileScanContext,
-        state: inout CodexScanState) -> CodexRescanMaterialized?
+        state: inout CodexScanState) throws -> CodexRescanMaterialized?
     {
         let parsed = plan.parsed
         let migratedCached = plan.migratedCached
@@ -347,7 +347,7 @@ extension CostUsageScanner {
             context: context,
             uniqueRows: classifiedRows,
             sessionId: sessionId)
-        var usage = Self.makeFileUsage(
+        var usage = try Self.makeFileUsage(
             mtimeUnixMs: input.metadata.mtimeUnixMs,
             size: input.metadata.size,
             days: accounting.usageDays,
@@ -401,7 +401,10 @@ extension CostUsageScanner {
                 : Self.codexTokenCheckpoints(for: replayedSnapshots),
             codexTokenTimestampsMonotonic: plan.replacementPending
                 ? migratedCached?.codexTokenTimestampsMonotonic
-                : Self.codexTokenTimestampsAreMonotonic(replayedSnapshots),
+                : Self.codexTokenTimestampsAreMonotonic(
+                    replayedSnapshots,
+                    checkCancellation: context.checkCancellation,
+                    workRecorder: context.workRecorder),
             codexTokenIndexAnchor: Self.codexTokenIndexAnchor(
                 fileURL: input.fileURL,
                 indexedBytes: parsed.parsedBytes),

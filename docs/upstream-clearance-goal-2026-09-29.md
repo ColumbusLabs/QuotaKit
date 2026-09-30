@@ -2,17 +2,46 @@
 
 ## Current checkpoint
 
-PR #214 is verified merged as `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`:
-**693 accounted, 59 known gaps, 169 unresolved / 921**. Its required CI passed
-and the tested/squashed trees match. One primary worktree remains.
+[PR #215](https://github.com/ColumbusLabs/QuotaKit/pull/215) is verified merged
+as `64bd8cd644ce7bc82ab98d4084b913f1a4540c79`:
+**808 accounted, 73 known gaps, 40 unresolved / 921**. Required CI
+[36671868151](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36671868151)
+passed at `e28c5f7812533fa334be46fa216537610fc7e91e`: lint, both Linux
+architectures, iOS, all four Mac shards and the aggregate gate. The tested and
+squashed trees match. Local main and origin/main are synchronized. The redundant
+identical-tree post-merge run was cancelled and completion verified.
 
-The next candidate implements 14 gap rows and includes 143 original-row source
-audits plus focused documentation parity. Its proposed counts are **808 accounted,
-73 known gaps, 40 unresolved / 921**, pending exact-head hosted CI and merge.
-Implementation and independent review are verified locally; the goal stays active.
-Cleanup has removed 27 local and 16 remote branches, leaving 103 local refs and
-four origin tracking refs including HEAD. Preserve the remaining unique source
-until its applicable behavior is integrated or specifically dispositioned.
+The following grouped tested source combines
+`997988ae699569a923a6dd473d9bca227935394d` and
+`2d4031784d9c361a224a6a412a20c73013c1cd51` and
+`b1e12947ee73f36593580848418a2f17844a1c85` with candidate accounting:
+**860 accounted, 60 known gaps, 1 unresolved / 921**, pending required CI and
+merge. All 140 historical claims were reviewed against active source; reopened
+actual gaps remain open. Twenty-two prior implementation/test/doc rows and ten
+new numeric, recorder, balance, localization and applicability rows have source evidence.
+
+The follow-on passed its relevant Mac and portable checks: combined 199 Mac tests
+and 8 portable tests, then 47 affected Mac and 8 portable tests after fixture and
+architecture-marker corrections. The other eight Mac suites passed and were not
+rerun. Both independent reviews, scoped lint, all 23 Mac locales and parser-hash
+checks passed. No full local suite or live probe ran. Cookie localization and shared-account context (315) are verified, including six
+focused account/card tests and the omitted shared reset-observation route451.
+Host-aware plugin cookies (841) are the only unresolved row. Sixty concrete gaps
+remain.
+
+Cleanup has removed **103 local and 18 remote refs**, leaving **28 local branches,
+three origin tracking refs including HEAD, and one worktree**. Seventy removed
+ancestor refs retain their commits in retained descendant tips and a verified
+private recovery bundle. PR #215 refs and five provider snapshot refs were removed
+after source coverage, exact merge and recovery proof. Their removal does not claim
+all unfinished work is merged. Preserve and reconcile remaining unique source as
+slices close.
+
+The stale remote optimization branch was also removed after a verified private
+recovery bundle and expected-OID lease. Its repeated-stat optimization is already
+represented; three unique unbenchmarked cache experiments are archived as separate
+performance work. The current sort order is retained. No upstream row receives
+credit from this cleanup; all unique commits remain recoverable.
 
 ## Finish line
 

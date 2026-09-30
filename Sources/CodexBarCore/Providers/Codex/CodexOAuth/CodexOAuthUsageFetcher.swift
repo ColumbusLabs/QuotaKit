@@ -328,7 +328,7 @@ public struct CodexUsageResponse: Decodable, Sendable {
                 return value
             }
             if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
-                return Int(value)
+                return Int(exactly: value.rounded(.towardZero))
             }
             if let value = try? container.decodeIfPresent(String.self, forKey: key) {
                 return Int(value.trimmingCharacters(in: .whitespacesAndNewlines))

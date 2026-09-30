@@ -52,9 +52,10 @@ struct WindsurfProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.windsurfCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports Windsurf session data from Chromium browser localStorage.",
-                manual: "Paste the Windsurf session JSON bundle from localStorage.",
-                off: "Windsurf web API access is disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports Windsurf session data from Chromium browser localStorage."),
+                    manual: L("Paste the %@ JSON bundle from localStorage.", "Windsurf"),
+                    off: L("%@ web API access is disabled.", "Windsurf")))
         }
 
         return [
@@ -74,7 +75,7 @@ struct WindsurfProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "windsurf-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports Windsurf session data from Chromium browser localStorage.",
+                subtitle: L("Automatic imports Windsurf session data from Chromium browser localStorage."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

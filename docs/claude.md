@@ -157,6 +157,28 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - Remaining Usage credits balance (if enabled).
   - Account email + inferred plan.
 
+### Recovering an existing browser session
+
+If Claude works in Chrome but QuotaKit cannot read its Web usage:
+
+1. Confirm the intended account is signed in at `claude.ai` in the browser.
+2. In Preferences → Providers → Claude, choose **Web** as the usage source and
+   **Auto** or the signed-in browser as the cookie source. Manual mode uses only
+   the configured Cookie header; it does not discover the browser session.
+3. Check Preferences → Advanced → **Disable Keychain access**. Enable Keychain
+   access if you want QuotaKit to decrypt Chromium cookies. Claude’s OAuth
+   **Keychain prompt policy** controls OAuth credentials, not browser-cookie access.
+4. Explicitly refresh the provider. For a CLI recovery attempt, use
+   `quotakit cookie refresh --provider claude`. If it requests acknowledgement,
+   run `quotakit cookie refresh --provider claude --allow-keychain-prompt` only
+   when you intend an interactive browser-cookie retry; macOS may ask for access.
+   A previous denial has a six-hour cooldown; this explicit retry is the supported
+   way to request access again. Background refresh does not bypass the denial.
+5. After the refresh, confirm the Claude card shows the intended account and a
+   fresh usage timestamp. A refreshed cookie alone does not prove the next usage
+   fetch succeeded. If Claude shows a Cloudflare challenge, complete it in the
+   browser before retrying; an OAuth refresh does not fix a Web challenge.
+
 ## claude-swap accounts (opt-in)
 
 The accepted multi-account design in

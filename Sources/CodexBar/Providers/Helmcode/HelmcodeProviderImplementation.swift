@@ -32,14 +32,21 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "helmcode-cookie-source",
                 title: "Cookie source",
-                subtitle: "Choose how QuotaKit reads Helmcode and NaN Builders sessions.",
+                subtitle: L(
+                    "Imports Chrome sessions for %@ / %@; Cloud is preferred.",
+                    "Helmcode Cloud",
+                    "NaN Builders"),
                 dynamicSubtitle: {
                     ProviderCookieSourceUI.subtitle(
                         source: context.settings.helmcodeCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
-                        auto: "Imports Chrome sessions for Helmcode Cloud or NaN Builders; Cloud is preferred.",
-                        manual: "Paste a Cookie header and select its tenant below.",
-                        off: "Helmcode dashboard cookies are disabled.")
+                        subtitles: ProviderCookieSourceUI.Subtitles(
+                            auto: L(
+                                "Imports Chrome sessions for %@ / %@; Cloud is preferred.",
+                                "Helmcode Cloud",
+                                "NaN Builders"),
+                            manual: L("Paste a Cookie header and select its tenant below."),
+                            off: L("%@ cookies are disabled.", "Helmcode")))
                 },
                 binding: cookieBinding,
                 options: ProviderCookieSourceUI.options(

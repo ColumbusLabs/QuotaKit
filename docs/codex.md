@@ -221,6 +221,9 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode). Manual disables
   that recurring timer, while startup refreshes, explicit refreshes, and pending Codex catch-up may still scan.
   The scanner's 60-second debounce is an internal limit, not the app refresh cadence.
+- Pending local-history files receive bounded turns alongside fresh sessions. Unfinished files that received a turn
+  rotate behind waiting files, and the queue persists across refreshes. Rotation alone does not count as scan progress;
+  byte and time limits still bound each refresh.
 
 ### Usage & Spend account rows
 

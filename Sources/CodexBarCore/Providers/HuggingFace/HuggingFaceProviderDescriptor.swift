@@ -20,6 +20,10 @@ public enum HuggingFaceProviderDescriptor {
         ProviderDescriptor(
             id: .huggingface,
             menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .secondary]),
+            settingsSection: .init(
+                HuggingFaceProviderSettingsKey.self,
+                cookieSettings: HuggingFaceProviderSettings.self,
+                credentialDefaultCookieSource: .off),
             credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .huggingface,
@@ -49,8 +53,17 @@ public enum HuggingFaceProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Hugging Face usage comes from the billing API; cost history is not tracked." }),
             presentation: ProviderUsagePresentation(
-                costPresenter: { _ in
-                    ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)
+                costPresenter: { snapshot in
+                    guard snapshot.providerCost?.balance != nil else {
+                        return ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)
+                    }
+                    return ProviderCostPresentation(
+                        showsGenericFallback: false,
+                        menuCardStyle: .payAsYouGoSpend,
+                        replacedDetailRows: [
+                            "Inference Providers": ["Billable usage"],
+                            "Credits": ["Prepaid balance"],
+                        ])
                 }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],

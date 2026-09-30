@@ -35,7 +35,7 @@ struct MenuCardProviderRegressionTests {
     @Test
     func `command code progress color stays visible while preserving its distinct brand`() {
         let branding = ProviderDescriptorRegistry.descriptor(for: .commandcode).branding.color
-        let expected = ProviderColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)
+        let expected = ProviderColor(red: 140.0 / 255.0, green: 78.0 / 255.0, blue: 221.0 / 255.0)
 
         #expect(branding == expected)
         #expect(UsageMenuCardView.Model.progressColor(for: .commandcode) == Color(nsColor: .labelColor))

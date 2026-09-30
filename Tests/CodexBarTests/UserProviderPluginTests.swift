@@ -51,6 +51,60 @@ struct UserProviderPluginTests {
 
     @MainActor
     @Test
+    func `reordering providers retains configuration for an unavailable plugin`() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        _ = try fixture.write(
+            name: "reorder.js",
+            source: Self.javaScriptPlugin(id: "reorder-meter"))
+        let plugin = try #require(UserProviderPluginRegistry.refresh(
+            loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).first?.plugin)
+
+        var config = CodexBarConfig.makeDefault()
+        config.providers.append(ProviderConfig(
+            id: plugin.manifest.id,
+            pluginSettings: ["REGION": "west"],
+            pluginSecrets: ["TOKEN": "fixture-secret"]))
+        let settings = testSettingsStore(
+            suiteName: "UserProviderPluginTests.reorderUnavailablePlugin",
+            config: config,
+            userDefaults: InMemoryUserDefaults())
+        defer { try? settings.configStore.deleteIfPresent() }
+
+        UserProviderPluginRegistry.refresh(loader: UserProviderPluginLoader(
+            providersDirectory: fixture.root.appendingPathComponent("empty"),
+            cacheDirectory: fixture.cache))
+        settings.updateProviderState(config: settings.configSnapshot)
+        let visibleBefore = settings.orderedProviders()
+        #expect(!visibleBefore.contains(plugin.manifest.id))
+
+        settings.moveProvider(fromOffsets: IndexSet(integer: 0), toOffset: visibleBefore.count)
+
+        let visibleAfter = settings.orderedProviders()
+        #expect(visibleAfter.count == visibleBefore.count)
+        #expect(visibleAfter.last == visibleBefore.first)
+        let preserved = settings.configSnapshot.providers.filter { $0.id == plugin.manifest.id }
+        #expect(preserved.count == 1)
+        #expect(preserved.first?.pluginSettings == ["REGION": "west"])
+        #expect(preserved.first?.pluginSecrets == ["TOKEN": "fixture-secret"])
+
+        let savedData = try Data(contentsOf: settings.configStore.fileURL)
+        let savedRoot = try #require(
+            JSONSerialization.jsonObject(with: savedData) as? [String: Any])
+        let savedProviders = try #require(savedRoot["providers"] as? [[String: Any]])
+        let savedPluginRecords = savedProviders.filter {
+            $0["id"] as? String == plugin.manifest.id.rawValue
+        }
+        #expect(savedPluginRecords.count == 1)
+        #expect(savedProviders.last?["id"] as? String == plugin.manifest.id.rawValue)
+        #expect(
+            savedPluginRecords.first?["pluginSettings"] as? [String: String] == ["REGION": "west"])
+        #expect(
+            savedPluginRecords.first?["pluginSecrets"] as? [String: String] == ["TOKEN": "fixture-secret"])
+    }
+
+    @MainActor
+    @Test
     func `top level plugin becomes a stable provider switcher segment`() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

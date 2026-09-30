@@ -38,16 +38,17 @@ struct HyperProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.hyperCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatically imports a Chrome session cookie, then falls back to an API key.",
-                manual: "Uses a pasted hyper.charm.land Cookie header, then falls back to an API key.",
-                off: "Browser cookies are disabled; an API key is still used when available.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports a Chrome session cookie, then falls back to an API key."),
+                    manual: L("Uses a pasted %@ Cookie header, then falls back to an API key.", "hyper.charm.land"),
+                    off: L("Browser cookies are disabled; an API key is still used when available.")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "hyper-cookie-source",
                 title: "Cookie source",
-                subtitle: "Choose how QuotaKit reads your Charm Hyper session.",
+                subtitle: L("Automatically imports a Chrome session cookie, then falls back to an API key."),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

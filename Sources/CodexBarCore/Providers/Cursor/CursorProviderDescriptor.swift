@@ -62,11 +62,12 @@ public enum CursorProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .cursor),
                 iconResourceName: "ProviderIcon-cursor",
-                color: ProviderColor(red: 0, green: 0, blue: 0),
+                color: ProviderColor(hex: 0xF54E00),
                 confettiPalette: [
                     ProviderColor(hex: 0x1B1913),
                     ProviderColor(hex: 0xEDECEC),
                 ],
+                widgetColor: ProviderColor(hex: 0x000000),
                 progressColorStyle: .label),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,

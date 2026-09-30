@@ -47,6 +47,7 @@ struct HuggingFacePluginTests {
         #expect(snapshot.providerCost?.used == 0.3)
         #expect(snapshot.providerCost?.limit == 0)
         #expect(snapshot.identity == nil)
+        #expect(HuggingFaceProviderDescriptor.descriptor.presentation.cost(snapshot: snapshot).menuCardStyle == .hidden)
     }
 
     @Test(arguments: HuggingFacePluginTestSupport.engines)
@@ -119,17 +120,24 @@ struct HuggingFacePluginTests {
             engine: engine,
             billing: Self.billing.replacingOccurrences(of: ",\"periodEnd\":\"2025-09-01T00:00:00Z\"", with: ""),
             calls: calls)
-        let first = try await runtime.fetchUsage(secrets: ["HF_TOKEN": "fixture-a"], now: Self.now)
-        let other = try await runtime.fetchUsage(secrets: ["HF_TOKEN": "fixture-b"], now: Self.now)
+        let first = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-a"], now: Self.now, sourceMode: .api, cookieSource: .off)
+        let other = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-b"], now: Self.now, sourceMode: .api, cookieSource: .off)
         let again = try await runtime.fetchUsage(
             secrets: ["HF_TOKEN": "fixture-a"],
-            now: Self.now.addingTimeInterval(60))
+            now: Self.now.addingTimeInterval(60),
+            sourceMode: .api,
+            cookieSource: .off)
         #expect(first.identity?.accountID == "fixture-a")
         #expect(other.identity?.accountID == "fixture-b")
         #expect(again.identity?.accountID == "fixture-a")
         #expect(await calls.whoamiCount == 2)
         _ = try await runtime.fetchUsage(
-            secrets: ["HF_TOKEN": "fixture-a"], now: Self.now.addingTimeInterval(13 * 60 * 60))
+            secrets: ["HF_TOKEN": "fixture-a"],
+            now: Self.now.addingTimeInterval(13 * 60 * 60),
+            sourceMode: .api,
+            cookieSource: .off)
         #expect(await calls.whoamiCount == 3)
     }
 
@@ -149,16 +157,22 @@ struct HuggingFacePluginTests {
                         ? Self.billing
                         : Self.billing.replacingOccurrences(of: "2025-09-01", with: "2025-10-01")
                 case "/api/whoami-v2":
-                    #"{"name":"fixture-a","periodEnd":1756684800}"#
+                    #"{"type":"user","id":"fixture-a","name":"fixture-a","periodEnd":1756684800}"#
                 default:
                     Self.gpu
                 }
                 return try Self.response(request, body: body)
             })
         let before = try await runtime.fetchUsage(
-            secrets: ["HF_TOKEN": "fixture-a"], now: Date(timeIntervalSince1970: 1_756_684_790))
+            secrets: ["HF_TOKEN": "fixture-a"],
+            now: Date(timeIntervalSince1970: 1_756_684_790),
+            sourceMode: .api,
+            cookieSource: .off)
         let after = try await runtime.fetchUsage(
-            secrets: ["HF_TOKEN": "fixture-a"], now: Date(timeIntervalSince1970: 1_756_684_810))
+            secrets: ["HF_TOKEN": "fixture-a"],
+            now: Date(timeIntervalSince1970: 1_756_684_810),
+            sourceMode: .api,
+            cookieSource: .off)
         #expect(before.primary == nil)
         #expect(after.primary == nil)
         #expect(before.providerCost?.resetsAt == nil)
@@ -172,7 +186,10 @@ struct HuggingFacePluginTests {
             engine: engine,
             billing: Self.billing.replacingOccurrences(of: ",\"periodEnd\":\"2025-09-01T00:00:00Z\"", with: ""))
         let snapshot = try await runtime.fetchUsage(
-            secrets: ["HF_TOKEN": "fixture-a"], now: Date(timeIntervalSince1970: 1_756_900_000))
+            secrets: ["HF_TOKEN": "fixture-a"],
+            now: Date(timeIntervalSince1970: 1_756_900_000),
+            sourceMode: .api,
+            cookieSource: .off)
         #expect(snapshot.primary?.resetsAt == nil)
         #expect(snapshot.providerCost?.resetsAt == nil)
     }
@@ -181,7 +198,8 @@ struct HuggingFacePluginTests {
     func `billing request uses UTC month bounds and required authority`(engine: ProviderPluginEngineKind) async throws {
         let calls = HuggingFaceRequestLog()
         let runtime = try Self.runtime(engine: engine, calls: calls)
-        _ = try await runtime.fetchUsage(secrets: ["HF_TOKEN": "fixture-a"], now: Self.now)
+        _ = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-a"], now: Self.now, sourceMode: .api, cookieSource: .off)
         let request = try #require(await calls.requests.first)
         #expect(request.url?.host == "huggingface.co")
         #expect(request.httpMethod == "GET")
@@ -204,6 +222,196 @@ struct HuggingFacePluginTests {
         #expect(await calls.whoamiCount == 2)
     }
 
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `prepaid balance requires matching API and browser user identities`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(engine: engine, browserUserID: "account-a", calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+
+        #expect(snapshot.providerCost?.balance == 12.5)
+        #expect(snapshot.details.last?.title == "Credits")
+        #expect(snapshot.details.last?.rows.first?.value == "$12.50")
+        let presentation = HuggingFaceProviderDescriptor.descriptor.presentation.cost(snapshot: snapshot)
+        #expect(presentation.menuCardStyle == .payAsYouGoSpend)
+        #expect(presentation.replacedDetailRows["Credits"]?.contains("Prepaid balance") == true)
+        let requests = await calls.requests
+        let apiRequests = requests.filter { $0.value(forHTTPHeaderField: "Authorization") != nil }
+        let cookieRequests = requests.filter { $0.value(forHTTPHeaderField: "Cookie") != nil }
+        #expect(apiRequests.count == 3)
+        #expect(apiRequests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-token" })
+        #expect(cookieRequests.count == 2)
+        #expect(cookieRequests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == nil })
+        #expect(cookieRequests.allSatisfy { $0.value(forHTTPHeaderField: "Cookie") == "session=synthetic-cookie" })
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `billing entity id matching the API user keeps the prepaid balance`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(
+            engine: engine,
+            billingHTML: Self.billingHTML(entityIDJSON: #""account-a""#),
+            browserUserID: "account-a",
+            calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+
+        #expect(snapshot.providerCost?.balance == 12.5)
+    }
+
+    @Test(
+        arguments: [#""account-b""#, "null", "42", #""  ""#, #"" account-a ""#],
+        HuggingFacePluginTestSupport.engines)
+    func `malformed or mismatched billing entity id omits the prepaid balance`(
+        entityIDJSON: String,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(
+            engine: engine,
+            billingHTML: Self.billingHTML(entityIDJSON: entityIDJSON),
+            browserUserID: "account-a",
+            calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+
+        #expect(snapshot.providerCost?.balance == nil)
+        #expect(try abs(#require(snapshot.providerCost?.used) - 0.45) < 1e-12)
+        #expect(snapshot.details.last?.title == "ZeroGPU")
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `legacy prepaid balance converts unique invoice cents`(engine: ProviderPluginEngineKind) async throws {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(
+            engine: engine,
+            billingHTML: #"<div data-props="{&quot;invoiceCreditsCents&quot;:425}"></div>"#,
+            browserUserID: "account-a",
+            calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+        #expect(snapshot.providerCost?.balance == 4.25)
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `legacy balance with a matching entity id remains supported`(engine: ProviderPluginEngineKind) async throws {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(
+            engine: engine,
+            billingHTML: Self.legacyBillingHTML(entityIDJSON: #""account-a""#),
+            browserUserID: "account-a",
+            calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+
+        #expect(snapshot.providerCost?.balance == 4.25)
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `legacy balance with a mismatched entity id is omitted`(engine: ProviderPluginEngineKind) async throws {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(
+            engine: engine,
+            billingHTML: Self.legacyBillingHTML(entityIDJSON: #""account-b""#),
+            browserUserID: "account-a",
+            calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+
+        #expect(snapshot.providerCost?.balance == nil)
+        #expect(try abs(#require(snapshot.providerCost?.used) - 0.45) < 1e-12)
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `mismatched browser identity suppresses prepaid balance`(engine: ProviderPluginEngineKind) async throws {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(engine: engine, browserUserID: "account-b", calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+        #expect(snapshot.providerCost?.balance == nil)
+        #expect(try abs(#require(snapshot.providerCost?.used) - 0.45) < 1e-12)
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `ambiguous prepaid balances are omitted without failing usage`(engine: ProviderPluginEngineKind) async throws {
+        let calls = HuggingFaceRequestLog()
+        let first = #"{&quot;entity&quot;:{&quot;type&quot;:&quot;user&quot;,&quot;currentBalanceUsd&quot;:5}}"#
+        let second = #"{&quot;entity&quot;:{&quot;type&quot;:&quot;user&quot;,&quot;currentBalanceUsd&quot;:7}}"#
+        let html = "<div data-props=\"\(first)\"></div><div data-props=\"\(second)\"></div>"
+        let runtime = try Self.walletRuntime(
+            engine: engine, billingHTML: html, browserUserID: "account-a", calls: calls)
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .manual,
+            cookieResolver: { _, _ in "session=synthetic-cookie" })
+        #expect(snapshot.providerCost?.balance == nil)
+        #expect(try abs(#require(snapshot.providerCost?.used) - 0.45) < 1e-12)
+        #expect(snapshot.details.last?.title == "ZeroGPU")
+    }
+
+    @Test(arguments: HuggingFacePluginTestSupport.engines)
+    func `disabled cookies and API mode never request the browser wallet`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let calls = HuggingFaceRequestLog()
+        let runtime = try Self.walletRuntime(engine: engine, browserUserID: "account-a", calls: calls)
+        let cookieResolver: ProviderPluginRuntime.CookieResolver = { _, _ in
+            await calls.noteCookieResolverCall()
+            return "session=synthetic-cookie"
+        }
+        let apiSnapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .api,
+            cookieSource: .auto,
+            cookieResolver: cookieResolver)
+        let disabledSnapshot = try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-token"],
+            now: Self.now,
+            sourceMode: .auto,
+            cookieSource: .off,
+            cookieResolver: cookieResolver)
+        #expect(apiSnapshot.providerCost?.balance == nil)
+        #expect(disabledSnapshot.providerCost?.balance == nil)
+        #expect(await calls.cookieResolverCalls == 0)
+        let requests = await calls.requests
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Cookie") == nil })
+    }
+
     static func fetch(
         billing: String = Self.billing,
         engine: ProviderPluginEngineKind,
@@ -212,7 +420,8 @@ struct HuggingFacePluginTests {
     {
         let runtime = try Self.runtime(
             engine: engine, billing: billing, billingStatus: billingStatus, optionalStatus: optionalStatus)
-        return try await runtime.fetchUsage(secrets: ["HF_TOKEN": "fixture-a"], now: Self.now)
+        return try await runtime.fetchUsage(
+            secrets: ["HF_TOKEN": "fixture-a"], now: Self.now, sourceMode: .api, cookieSource: .off)
     }
 
     private static func runtime(
@@ -229,6 +438,52 @@ struct HuggingFacePluginTests {
                 billing: billing, billingStatus: billingStatus, optionalStatus: optionalStatus, calls: calls))
     }
 
+    private static func walletRuntime(
+        engine: ProviderPluginEngineKind,
+        billingHTML: String = #"""
+        <div
+        data-props="{&quot;entity&quot;:{&quot;type&quot;:&quot;user&quot;,&quot;currentBalanceUsd&quot;:12.5}}"></div>
+        """#,
+        browserUserID: String,
+        calls: HuggingFaceRequestLog) throws -> ProviderPluginRuntime
+    {
+        try HuggingFacePluginTestSupport.runtime(
+            "huggingface",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                await calls.append(request)
+                switch request.url?.path {
+                case "/api/settings/billing/usage-v2":
+                    return try Self.response(request, body: Self.billing)
+                case "/api/spaces/zero-gpu/quota":
+                    return try Self.response(request, body: Self.gpu)
+                case "/settings/billing":
+                    return try Self.response(request, body: billingHTML, contentType: "text/html")
+                case "/api/whoami-v2":
+                    let id = request.value(forHTTPHeaderField: "Authorization") == nil
+                        ? browserUserID
+                        : "account-a"
+                    return try Self.response(
+                        request,
+                        body: #"{"type":"user","id":"\#(id)","name":"fixture-user"}"#)
+                default:
+                    return try Self.response(request, body: "{}")
+                }
+            })
+    }
+
+    private static func billingHTML(entityIDJSON: String) -> String {
+        let props = #"{"entity":{"id":\#(entityIDJSON),"type":"user","currentBalanceUsd":12.5}}"#
+        let escapedProps = props.replacingOccurrences(of: "\"", with: "&quot;")
+        return #"<div data-props="\#(escapedProps)"></div>"#
+    }
+
+    private static func legacyBillingHTML(entityIDJSON: String) -> String {
+        let props = #"{"entity":{"id":\#(entityIDJSON)},"invoiceCreditsCents":425}"#
+        let escapedProps = props.replacingOccurrences(of: "\"", with: "&quot;")
+        return #"<div data-props="\#(escapedProps)"></div>"#
+    }
+
     private static func transport(
         billing: String = Self.billing,
         billingStatus: Int = 200,
@@ -243,7 +498,8 @@ struct HuggingFacePluginTests {
                 of: "Bearer ",
                 with: "")
                 ?? "missing"
-            let profile = "{\"name\":\"\(token)\",\"email\":\"tester@example.com\",\"isPro\":true,"
+            let profile = "{\"type\":\"user\",\"id\":\"\(token)\",\"name\":\"\(token)\","
+                + "\"email\":\"tester@example.com\",\"isPro\":true,"
                 + "\"periodEnd\":\(token == "fixture-a" ? 1_756_700_000 : 1_756_800_000)}"
             let body = isBilling ? billing : path == "/api/whoami-v2" ? profile : Self.gpu
             return try Self.response(request, body: body, status: isBilling ? billingStatus : optionalStatus)
@@ -253,14 +509,15 @@ struct HuggingFacePluginTests {
     private static func response(
         _ request: URLRequest,
         body: String,
-        status: Int = 200) throws -> (Data, URLResponse)
+        status: Int = 200,
+        contentType: String = "application/json") throws -> (Data, URLResponse)
     {
         let url = try #require(request.url)
         let response = try #require(HTTPURLResponse(
             url: url,
             statusCode: status,
             httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]))
+            headerFields: ["Content-Type": contentType]))
         return (Data(body.utf8), response)
     }
 
@@ -297,6 +554,7 @@ struct HuggingFacePluginTests {
 
 private actor HuggingFaceRequestLog {
     private(set) var requests: [URLRequest] = []
+    private(set) var cookieResolverCalls = 0
     var whoamiCount: Int {
         self.requests.count(where: { $0.url?.path == "/api/whoami-v2" })
     }
@@ -307,6 +565,10 @@ private actor HuggingFaceRequestLog {
 
     func append(_ request: URLRequest) {
         self.requests.append(request)
+    }
+
+    func noteCookieResolverCall() {
+        self.cookieResolverCalls += 1
     }
 }
 

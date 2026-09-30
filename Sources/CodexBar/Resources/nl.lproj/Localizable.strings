@@ -1117,6 +1117,9 @@
 "Base URL" = "Basis-URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "Basis-URL voor de LLM-API-Key-Proxy-instantie.";
 "Browser cookies" = "Browser-cookies";
+"Browser cookies are used only for the optional prepaid balance." = "Browsercookies worden alleen gebruikt voor het optionele prepaidtegoed.";
+"Imports browser cookies to read the optional prepaid balance." = "Importeert browsercookies om het optionele prepaidtegoed te lezen.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Plak de Cookie-header die je hebt vastgelegd op je factureringspagina van Hugging Face.";
 "Cap end" = "Dop uiteinde";
 "Cap start" = "Kap begin";
 "Capacity End" = "Einde capaciteit";
@@ -1639,3 +1642,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Standaard gebruikt AZURE_OPENAI_API_VERSION als deze is ingesteld.";
 "No cookie header pasted." = "Geen Cookie-header geplakt.";
 "Use automatic cookies" = "Automatische cookies gebruiken";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Importeert Chrome-sessies voor %@ / %@; Cloud heeft de voorkeur.";
+"Paste a Cookie header from the selected console." = "Plak een Cookie-header van de geselecteerde console.";
+"Paste the %@ JSON bundle from localStorage." = "Plak de %@-JSON-bundel uit localStorage.";
+"Automatically imports browser cookies for %@." = "Importeert automatisch browsercookies voor %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Importeert automatisch de %@-sessie uit ondersteunde Chromium-browsers.";
+"Automatically imports %@ cookies from %@." = "Importeert automatisch %@-cookies uit %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Importeert automatisch een Chrome-sessiecookie en valt daarna terug op een API-sleutel.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Gebruikt een %@-browsersessie voor uitgaven en voorspellingen; editorgegevens voor factureringscycli en facturen zijn niet beschikbaar.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Meldt automatisch aan met de %@-sessiecookies uit Chrome.";
+"Paste an Authorization Bearer token from %@." = "Plak een Bearer-token uit de Authorization-header van %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Gebruikt een geplakte Cookie-header voor %@ en schakelt daarna over op een API-sleutel.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Gebruikt een geplakte Cookie van %@ voor uitgaven en voorspellingen; editorgegevens voor factureringscycli en facturen zijn niet beschikbaar.";
+"Paste a cURL capture from %@." = "Plak een cURL-opname van %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Browsercookies zijn uitgeschakeld; een API-sleutel wordt nog steeds gebruikt wanneer die beschikbaar is.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Voor voorspellingen, factureringscyclus en facturen wordt de editorlogin gebruikt; browseruitgaven staan uit.";
+"Paste a Cookie header and select its tenant below." = "Plak een Cookie-header en selecteer hieronder de tenant.";

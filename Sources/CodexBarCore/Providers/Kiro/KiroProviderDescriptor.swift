@@ -28,12 +28,13 @@ public enum KiroProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .kiro),
                 iconResourceName: "ProviderIcon-kiro",
-                color: ProviderColor(red: 217 / 255, green: 119 / 255, blue: 6 / 255),
+                color: ProviderColor(hex: 0x9046FF),
                 confettiPalette: [
                     ProviderColor(hex: 0x8F4AFF),
                     ProviderColor(hex: 0xCAA9FF),
                     ProviderColor(hex: 0x2B2B2B),
-                ]),
+                ],
+                widgetColor: ProviderColor(hex: 0xD97706)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kiro cost summary is not supported." }),

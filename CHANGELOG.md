@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Hugging Face: optionally show browser wallet credits after explicit opt-in and a matching account check, while keeping inference allowances separate.
 - Plan Usage: show recorded Codex and Claude quota burndown beside utilization history, with reset-scoped windows and capture age.
 - Azure OpenAI: select the API version in Settings while sharing the override with CLI configuration and preserving environment inheritance.
 - Muse Code can show a user-selected dev.meta.ai team quota when the CLI login omits windows, using an opt-in, domain-scoped browser session.
@@ -48,6 +49,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Amp and Kilo: omit invalid oversized numeric projections while preserving valid credits and subscription periods.
+- TypeSafe: show its credit balance through shared menu-layout metadata.
+- Settings: keep shortcut-recorder prompts and provider cookie-source subtitles localized.
+- Compact account menus respect each provider's reset-display policy for visible windows while preserving quota ordering and privacy.
+- Devin CLI: accept valid manual bearer credentials on Linux without requiring a browser source.
+- CLI shell discovery rejects oversized output and drains subprocess pipes within the existing timeout.
+- Codex numeric reset fields omit values outside the supported integer range instead of trapping.
+- CLI saved-account labels stay separate from provider identity; Antigravity's local CLI uses its own login without selecting a saved Google account.
+- Provider reordering preserves settings and secrets for temporarily unavailable plugins, and descriptor replacement keeps registry views consistent.
 - Security: redact retained process-environment values from automatic descriptions, reflection, dumps, and test diagnostics while preserving execution access.
 - Antigravity: clean detached usage-probe descendants using a fresh inherited marker, current-user checks, and process-start identity before each signal.
 - Local costs: resolve Codex reserve and Antigravity product aliases, honor historical Sol rates, and recalculate derived reports without discarding compatible parsed rows or scan checkpoints.
@@ -104,6 +114,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 
 ### Improved
+- Local cost scans parse common timestamps directly and validate appended timestamp order without rescanning a known ordered prefix; workspace reports avoid loading raw token histories.
+- Provider colors follow verified current accents while widgets retain their established colors.
+- Build infrastructure aligns dependency pins and checks Mac test compilation with Xcode 26.3.
 - Usage & Spend initially lays out the newest 30 daily ledger rows; Show all reveals the full selected range.
 - Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
 - Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.

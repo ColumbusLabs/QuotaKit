@@ -1136,6 +1136,9 @@
 "Base URL" = "URL Dasar";
 "Base URL for the LLM-API-Key-Proxy instance." = "URL dasar untuk instance LLM-API-Key-Proxy.";
 "Browser cookies" = "Cookie browser";
+"Browser cookies are used only for the optional prepaid balance." = "Cookie browser hanya digunakan untuk saldo prabayar opsional.";
+"Imports browser cookies to read the optional prepaid balance." = "Mengimpor cookie browser untuk membaca saldo prabayar opsional.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "Tempel header Cookie yang ditangkap dari halaman penagihan Hugging Face Anda.";
 "Cap end" = "Akhir batas";
 "Cap start" = "Awal batas";
 "Capacity End" = "Akhir Kapasitas";
@@ -1643,3 +1646,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Default menggunakan AZURE_OPENAI_API_VERSION jika ditetapkan.";
 "No cookie header pasted." = "Belum ada header Cookie yang ditempel.";
 "Use automatic cookies" = "Gunakan cookie otomatis";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Mengimpor sesi Chrome untuk %@ / %@; Cloud diprioritaskan.";
+"Paste a Cookie header from the selected console." = "Tempel header Cookie dari konsol yang dipilih.";
+"Paste the %@ JSON bundle from localStorage." = "Tempel bundel JSON %@ dari localStorage.";
+"Automatically imports browser cookies for %@." = "Mengimpor cookie browser untuk %@ secara otomatis.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Mengimpor sesi %@ secara otomatis dari browser Chromium yang didukung.";
+"Automatically imports %@ cookies from %@." = "Mengimpor cookie %@ dari %@ secara otomatis.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Mengimpor cookie sesi Chrome secara otomatis, lalu menggunakan kunci API sebagai cadangan.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Menggunakan sesi browser %@ untuk pengeluaran dan prediksi; data siklus tagihan dan faktur editor tidak tersedia.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Login otomatis menggunakan cookie sesi %@ dari Chrome.";
+"Paste an Authorization Bearer token from %@." = "Tempel token Bearer dari header Authorization %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Menggunakan header Cookie yang ditempel untuk %@, lalu beralih ke kunci API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Menggunakan Cookie yang ditempel dari %@ untuk pengeluaran dan prediksi; data siklus tagihan dan faktur editor tidak tersedia.";
+"Paste a cURL capture from %@." = "Tempel tangkapan cURL dari %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Cookie browser dinonaktifkan; kunci API tetap digunakan jika tersedia.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Login editor digunakan untuk prediksi, siklus tagihan, dan faktur; pengeluaran browser dinonaktifkan.";
+"Paste a Cookie header and select its tenant below." = "Tempel header Cookie dan pilih tenant di bawah.";

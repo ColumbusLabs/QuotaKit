@@ -88,11 +88,20 @@ enum AmpUsageParser {
             // Agent dollars are authoritative; the displayed percentage is rounded. Orb text is independent.
             if let tier = self.captures(in: text, pattern: tierPattern),
                let remaining = self.number(from: tier[1]),
-               let limit = self.number(from: tier[2]), limit > 0,
-               let renewalValue = Int(tier[4].replacingOccurrences(of: ",", with: "")),
-               let resetsAt = self.subscriptionResetDate(value: renewalValue, unit: tier[5], now: now)
+               let limit = self.number(from: tier[2]), limit > 0
             {
                 let period = self.tierPeriod(in: tier[3])
+                let renewalValue = Int(tier[4].replacingOccurrences(of: ",", with: ""))
+                let renewalDate = renewalValue.flatMap { value in
+                    self.subscriptionResetDate(value: value, unit: tier[5], now: now)
+                }
+                guard let resetsAt = period?.end ?? renewalDate else { return nil }
+                let resetDescription = if let renewalValue, renewalDate != nil {
+                    "renews in \(renewalValue) \(tier[5].lowercased())"
+                } else {
+                    "renews in period"
+                }
+
                 let orbPattern = #"(?i)\borb\s+usage\s+"# +
                     amountPattern + #"h\s+of\s+"# + amountPattern + #"h\s+a1\.small\s+orb\s+hours\s+remaining\b"#
                 let orb = self.captures(in: tier[3], pattern: orbPattern)
@@ -107,8 +116,8 @@ enum AmpUsageParser {
                     plan: tier[0],
                     otherUsedPercent: min(100, max(0, (limit - remaining) / limit * 100)),
                     orbUsedPercent: orbUsedPercent,
-                    resetsAt: period?.end ?? resetsAt,
-                    resetDescription: "renews in \(renewalValue) \(tier[5].lowercased())",
+                    resetsAt: resetsAt,
+                    resetDescription: resetDescription,
                     agentRemaining: remaining,
                     agentLimit: limit,
                     periodStart: period?.start,
@@ -176,10 +185,31 @@ enum AmpUsageParser {
     }
 
     private static func subscriptionResetDate(value: Int, unit: String, now: Date) -> Date? {
+        guard value >= 0, now.timeIntervalSinceReferenceDate.isFinite else { return nil }
+
+        let distantFuture = Date.distantFuture
+        guard distantFuture.timeIntervalSinceReferenceDate.isFinite else { return nil }
+
         if unit.lowercased().hasPrefix("month") {
-            return Calendar(identifier: .gregorian).date(byAdding: .month, value: value, to: now)
+            let calendar = Calendar(identifier: .gregorian)
+            guard let maximumMonths = calendar.dateComponents([.month], from: now, to: distantFuture).month,
+                  maximumMonths >= 0, value <= maximumMonths,
+                  let resetDate = calendar.date(byAdding: .month, value: value, to: now),
+                  resetDate.timeIntervalSinceReferenceDate.isFinite,
+                  resetDate <= distantFuture
+            else { return nil }
+            return resetDate
         }
-        return now.addingTimeInterval(TimeInterval(value) * 24 * 60 * 60)
+
+        let secondsPerDay: TimeInterval = 24 * 60 * 60
+        let availableSeconds = distantFuture.timeIntervalSince(now)
+        guard availableSeconds.isFinite, availableSeconds >= 0,
+              let maximumDays = Int(exactly: floor(availableSeconds / secondsPerDay)),
+              value <= maximumDays
+        else { return nil }
+        let resetDate = now.addingTimeInterval(TimeInterval(value) * secondsPerDay)
+        guard resetDate.timeIntervalSinceReferenceDate.isFinite, resetDate <= distantFuture else { return nil }
+        return resetDate
     }
 
     private struct FreeTierUsage {

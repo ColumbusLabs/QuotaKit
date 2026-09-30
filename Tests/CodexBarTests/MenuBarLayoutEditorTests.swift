@@ -248,6 +248,36 @@ struct MenuBarLayoutEditorTests {
     }
 
     @Test
+    func `balance prefix follows provider presentation metadata and identity`() {
+        func snapshot(provider: UsageProvider, loginMethod: String?) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(),
+                identity: ProviderIdentitySnapshot(
+                    providerID: provider.instanceID,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: loginMethod))
+        }
+
+        let typeSafeSnapshot = snapshot(provider: .typesafe, loginMethod: "  Balance: $4.98  ")
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .typesafe, snapshot: typeSafeSnapshot) == "$4.98")
+
+        // Poe exercises the same metadata fallback without a TypeSafe-specific branch.
+        let poeSnapshot = snapshot(provider: .poe, loginMethod: "Balance: €5.00")
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .poe, snapshot: poeSnapshot) == "€5.00")
+
+        let mismatchedSnapshot = snapshot(provider: .claude, loginMethod: "Balance: $9.00")
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .typesafe, snapshot: mismatchedSnapshot) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .claude, snapshot: mismatchedSnapshot) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .typesafe, snapshot: nil) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balance(
+            provider: .typesafe,
+            snapshot: snapshot(provider: .typesafe, loginMethod: "Spend: $4.98")) == nil)
+    }
+
+    @Test
     func `conditional palette chips wrap instead of overflowing the pane`() {
         let spacing: CGFloat = 6
 

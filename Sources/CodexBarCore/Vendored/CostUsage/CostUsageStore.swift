@@ -136,6 +136,7 @@ actor CostUsageStore {
         "a9e63a41a2306504", // Shipped live parser hash before scanner scheduling changes;
         // persisted rows remain compatible.
         "005a869f36400f7e", // Alias and historical-price routing changes; parsed rows/checkpoints remain compatible.
+        "15a7d46518e83cc0", // Timestamp/order and lean report reads preserve parsed rows and checkpoints.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "f22371c47d2e006f",
@@ -175,6 +176,8 @@ actor CostUsageStore {
     #if DEBUG
     /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
     nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
+    /// Test-only observation of token snapshot table materialization.
+    nonisolated(unsafe) static var tokenSnapshotsReadForTesting: ((URL) -> Void)?
     #endif
 
     /// Process-wide serialization keeps every writable store connection on the same queue.
@@ -302,9 +305,12 @@ extension CostUsageStore {
         }
     }
 
-    nonisolated func syncLoadCodexCache(calendar: Calendar) -> CostUsageCache {
+    nonisolated func syncLoadCodexCache(
+        calendar: Calendar,
+        loadTokenSnapshots: Bool = true) -> CostUsageCache
+    {
         self.syncWithStoreIsolation { store in
-            store.loadCodexCache(calendar: calendar)
+            store.loadCodexCache(calendar: calendar, loadTokenSnapshots: loadTokenSnapshots)
         }
     }
 

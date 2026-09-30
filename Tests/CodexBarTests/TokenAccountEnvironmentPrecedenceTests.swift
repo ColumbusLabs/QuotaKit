@@ -798,7 +798,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
     }
 
     @Test
-    func `apply account label in CLI preserves snapshot fields`() throws {
+    func `CLI saved label preserves fields without inventing provider email`() throws {
         let context = try TokenAccountCLIContext(
             selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
             config: CodexBarConfig(providers: []),
@@ -815,7 +815,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
 
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
         #expect(labeled.identity?.providerID == .zai)
-        #expect(labeled.identity?.accountEmail == "CLI Account")
+        #expect(labeled.identity?.accountEmail == nil)
         #expect(labeled.identity?.accountID == "stable-account")
     }
 

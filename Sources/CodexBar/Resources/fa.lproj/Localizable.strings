@@ -1134,6 +1134,9 @@
 "Base URL" = "پایگاه URL";
 "Base URL for the LLM-API-Key-Proxy instance." = "URL پایه برای نمونه LLM-API-Key-Proxy.";
 "Browser cookies" = "کوکی های مرورگر";
+"Browser cookies are used only for the optional prepaid balance." = "کوکی‌های مرورگر فقط برای موجودی پیش‌پرداخت اختیاری استفاده می‌شوند.";
+"Imports browser cookies to read the optional prepaid balance." = "کوکی‌های مرورگر را برای خواندن موجودی پیش‌پرداخت اختیاری وارد می‌کند.";
+"Paste the Cookie header captured from your Hugging Face billing page." = "هدر Cookie را که از صفحه صورتحساب Hugging Face گرفته‌اید، جای‌گذاری کنید.";
 "Cap end" = "انتهای نهایی";
 "Cap start" = "شروع کپ";
 "Capacity End" = "پایان ظرفیت";
@@ -1644,3 +1647,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "گزینهٔ پیش‌فرض در صورت تنظیم از AZURE_OPENAI_API_VERSION استفاده می‌کند.";
 "No cookie header pasted." = "سرآیند Cookie وارد نشده است.";
 "Use automatic cookies" = "استفاده از کوکی‌های خودکار";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "جلسه‌های Chrome را برای %@ / %@ وارد می‌کند؛ Cloud در اولویت است.";
+"Paste a Cookie header from the selected console." = "یک سربرگ Cookie از کنسول انتخاب‌شده جای‌گذاری کنید.";
+"Paste the %@ JSON bundle from localStorage." = "بسته JSON مربوط به %@ را از localStorage جای‌گذاری کنید.";
+"Automatically imports browser cookies for %@." = "کوکی‌های مرورگر را به‌طور خودکار برای %@ وارد می‌کند.";
+"Automatically imports the %@ session from supported Chromium browsers." = "جلسهٔ %@ را به‌طور خودکار از مرورگرهای Chromium پشتیبانی‌شده وارد می‌کند.";
+"Automatically imports %@ cookies from %@." = "کوکی‌های %@ را به‌طور خودکار از %@ وارد می‌کند.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "کوکی جلسهٔ Chrome را خودکار وارد می‌کند و سپس از کلید API استفاده می‌کند.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "برای هزینه و پیش‌بینی‌ها از جلسهٔ مرورگر %@ استفاده می‌کند؛ داده‌های چرخهٔ صورتحساب و فاکتورهای ویرایشگر در دسترس نیست.";
+"Automatically signs in using your %@ session cookies from Chrome." = "با کوکی‌های جلسهٔ %@ از Chrome به‌طور خودکار وارد می‌شود.";
+"Paste an Authorization Bearer token from %@." = "یک توکن Bearer از سرآیند Authorization در %@ جای‌گذاری کنید.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "از سرآیند Cookie جای‌گذاری‌شدهٔ %@ استفاده می‌کند و سپس به کلید API برمی‌گردد.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "برای هزینه و پیش‌بینی‌ها از Cookie جای‌گذاری‌شدهٔ %@ استفاده می‌کند؛ داده‌های چرخهٔ صورتحساب و فاکتورهای ویرایشگر در دسترس نیست.";
+"Paste a cURL capture from %@." = "یک ضبط cURL از %@ جای‌گذاری کنید.";
+"Browser cookies are disabled; an API key is still used when available." = "کوکی‌های مرورگر غیرفعال‌اند؛ در صورت وجود، کلید API همچنان استفاده می‌شود.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "برای پیش‌بینی‌ها، چرخهٔ صورتحساب و فاکتورها از ورود ویرایشگر استفاده می‌شود؛ هزینهٔ مرورگر غیرفعال است.";
+"Paste a Cookie header and select its tenant below." = "یک سربرگ Cookie را جای‌گذاری کنید و مستأجر را در ادامه انتخاب کنید.";
