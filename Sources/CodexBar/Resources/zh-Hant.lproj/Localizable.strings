@@ -1692,3 +1692,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "瀏覽器 Cookie 已停用；有可用的 API 金鑰時仍會使用。";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "預測、帳單週期和發票使用編輯器登入；瀏覽器支出已關閉。";
 "Paste a Cookie header and select its tenant below." = "貼上 Cookie 標頭，並在下方選擇租用戶。";
+
+"Blocked by monthly limit" = "已達月度限額";

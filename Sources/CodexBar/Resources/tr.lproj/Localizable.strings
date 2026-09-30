@@ -1663,3 +1663,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Tarayıcı çerezleri devre dışı; varsa API anahtarı kullanılmaya devam eder.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Tahminler, faturalama dönemi ve faturalar için düzenleyici oturumu kullanılır; tarayıcı harcamaları kapalıdır.";
 "Paste a Cookie header and select its tenant below." = "Bir Cookie başlığı yapıştırın ve aşağıdan kiracıyı seçin.";
+
+"Blocked by monthly limit" = "Aylık sınır nedeniyle engellendi";

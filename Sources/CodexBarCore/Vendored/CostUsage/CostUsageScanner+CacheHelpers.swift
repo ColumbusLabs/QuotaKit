@@ -850,6 +850,8 @@ extension CostUsageScanner {
         cache: inout CostUsageCache,
         state: inout CodexScanState) throws -> Bool
     {
+        let forceFullScan = context.forceFullScan
+            || context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
         guard let cached = input.cached, cached.hasCurrentCodexParser,
               !cached.hasBufferedCodexForkRetryLines else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
@@ -859,7 +861,7 @@ extension CostUsageScanner {
               cached.size == input.metadata.size,
               cached.codexScanComplete != false,
               !needsSessionId,
-              !context.forceFullScan
+              !forceFullScan
         else { return false }
 
         let needsPriorityReclassification = Self.cachedCodexFileNeedsPriorityRescan(cached, context: context)
@@ -961,11 +963,14 @@ extension CostUsageScanner {
         maxBytesToRead: Int64? = nil) throws -> Bool
     {
         try context.checkCancellation?()
+        let forceFullScanForRetry = context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
+        let forceFullScan = context.forceFullScan || forceFullScanForRetry
         guard let cached = input.cached, cached.hasCurrentCodexParser,
-              cached.sessionId != nil,
-              !context.forceFullScan || Self.isValidatedSameSizeBufferedCodexForkRetry(
-                  metadata: input.metadata,
-                  cached: cached) else { return false }
+              cached.sessionId != nil else { return false }
+        let allowsBufferedForkRetry = !forceFullScanForRetry && Self.isValidatedSameSizeBufferedCodexForkRetry(
+            metadata: input.metadata,
+            cached: cached)
+        guard !forceFullScan || allowsBufferedForkRetry else { return false }
         if cached.hasBufferedCodexForkRetryLines, !Self.codexBufferedForkHasMetadata(cached) {
             return false
         }
@@ -1364,24 +1369,6 @@ extension CostUsageScanner {
     static func pruneDays(cache: inout CostUsageCache, sinceKey: String, untilKey: String) {
         for key in cache.days.keys where !CostUsageDayRange.isInRange(dayKey: key, since: sinceKey, until: untilKey) {
             cache.days.removeValue(forKey: key)
-        }
-    }
-
-    static func pruneForceRescanFilesOutsideWindow(
-        cache: inout CostUsageCache,
-        range: CostUsageDayRange,
-        isForceRescan: Bool)
-    {
-        guard isForceRescan else { return }
-        for key in cache.files.keys {
-            guard let old = cache.files[key] else { continue }
-            guard !old.touchesCodexScanWindow(
-                sinceKey: range.scanSinceKey,
-                untilKey: range.scanUntilKey,
-                calendar: range.calendar)
-            else { continue }
-            Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
-            cache.files.removeValue(forKey: key)
         }
     }
 

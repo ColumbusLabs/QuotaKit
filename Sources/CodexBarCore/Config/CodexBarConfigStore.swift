@@ -45,6 +45,7 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         }
         guard self.fileManager.fileExists(atPath: self.fileURL.path) else { return nil }
         let data = try Data(contentsOf: self.fileURL)
+        guard !data.allSatisfy({ $0 == 0x20 || $0 == 0x09 || $0 == 0x0A || $0 == 0x0D }) else { return nil }
         do {
             let decoded = try CodexBarConfig.decode(from: data)
             return self.applyingCodexCookieDenial(to: decoded.normalized())

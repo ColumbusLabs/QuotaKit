@@ -14,6 +14,10 @@ New installs use `~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths res
 for migrated installs.
 The CLI stages writes in a private `0700` directory on the destination volume, creates the file with `0600` permissions before writing any bytes, then syncs and atomically replaces the config.
 
+A missing, empty or JSON-whitespace-only config uses defaults without rewriting
+the file on read. The next explicit config write creates valid JSON with `0600`
+permissions. Nonempty malformed JSON remains an error and is not overwritten.
+
 ## Providers
 
 List persistent provider toggles:

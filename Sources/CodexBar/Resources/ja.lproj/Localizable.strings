@@ -1661,3 +1661,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "ブラウザ Cookie は無効ですが、API キーがあれば引き続き使用します。";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "予測、請求サイクル、請求書にはエディターのログインを使用します。ブラウザの支出機能はオフです。";
 "Paste a Cookie header and select its tenant below." = "Cookieヘッダーを貼り付けて、下でテナントを選択してください。";
+
+"Blocked by monthly limit" = "月間上限により利用不可";

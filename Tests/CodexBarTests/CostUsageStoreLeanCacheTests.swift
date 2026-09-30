@@ -5,6 +5,244 @@ import Testing
 @Suite(.serialized)
 struct CostUsageStoreLeanCacheTests {
     @Test
+    func `ordinary Codex load hydrates only requested raw history`() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKit-LazyHistory-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let requestedPath = "/sessions/requested-history.jsonl"
+        let untouchedPath = "/sessions/untouched-history.jsonl"
+        let emptyPath = "/sessions/empty-history.jsonl"
+
+        func snapshots(_ input: Int) -> [CostUsageCodexTokenSnapshot] {
+            [0, 1].map { index in
+                CostUsageCodexTokenSnapshot(
+                    timestamp: "2026-08-30T12:00:0\(index)Z",
+                    last: CostUsageCodexTotals(input: input + index, cached: 0, output: 1),
+                    total: CostUsageCodexTotals(input: input + index, cached: 0, output: index + 1),
+                    endOffset: Int64(100 + index))
+            }
+        }
+
+        func usage(fileID: String, snapshots: [CostUsageCodexTokenSnapshot]) -> CostUsageFileUsage {
+            var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 200, days: [:])
+            usage.parsedBytes = 200
+            usage.codexScanFileId = fileID
+            usage.codexScanTargetSize = 200
+            usage.codexScanComplete = true
+            usage.codexTokenTimestampsMonotonic = true
+            usage.codexTokenSnapshots = snapshots
+            return usage
+        }
+
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-30"
+        cache.scanUntilKey = "2026-08-30"
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        let requestedSnapshots = snapshots(10)
+        let untouchedSnapshots = snapshots(20)
+        cache.files[requestedPath] = usage(fileID: "1:101", snapshots: requestedSnapshots)
+        cache.files[untouchedPath] = usage(fileID: "1:102", snapshots: untouchedSnapshots)
+        cache.files[emptyPath] = usage(fileID: "1:103", snapshots: [])
+        let writer = CostUsageStore(cacheRoot: root)
+        let saved = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"))
+        #expect(!saved.catchUpRequired)
+        let expectedRequestedRows = await writer.fetchTokenSnapshots(path: requestedPath)
+        let expectedUntouchedRows = await writer.fetchTokenSnapshots(path: untouchedPath)
+
+        var tokenTableReads = 0
+        var tokenSnapshotPaths: [String?] = []
+        let observedStorePath = writer.databaseURL.standardizedFileURL.path
+        CostUsageStore.tokenSnapshotsReadForTesting = { storeURL in
+            guard storeURL.standardizedFileURL.path == observedStorePath else { return }
+            tokenTableReads += 1
+        }
+        CostUsageStore.tokenSnapshotPathReadForTesting = { storeURL, path in
+            guard storeURL.standardizedFileURL.path == observedStorePath else { return }
+            tokenSnapshotPaths.append(path)
+        }
+        defer {
+            CostUsageStore.tokenSnapshotsReadForTesting = nil
+            CostUsageStore.tokenSnapshotPathReadForTesting = nil
+        }
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
+        defer { loaded.release() }
+        #expect(tokenTableReads == 0)
+        #expect(tokenSnapshotPaths.isEmpty)
+        #expect(loaded.cache.files[requestedPath]?.codexTokenSnapshots == nil)
+        #expect(loaded.cache.files[untouchedPath]?.codexTokenSnapshots == nil)
+        #expect(loaded.cache.files[emptyPath]?.codexTokenSnapshots == [])
+
+        let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
+        #expect(try hydrator.hydrate(paths: [requestedPath]) == .ready)
+        var hydratedCache = loaded.cache
+        hydrator.applyHydratedSnapshots(to: &hydratedCache)
+        #expect(hydratedCache.files[requestedPath]?.codexTokenSnapshots == requestedSnapshots)
+        #expect(hydratedCache.files[untouchedPath]?.codexTokenSnapshots == nil)
+        #expect(tokenTableReads == 1)
+        #expect(tokenSnapshotPaths == [requestedPath])
+
+        let savedAfterHydration = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: hydratedCache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
+            requireScanStamp: true)
+        #expect(!savedAfterHydration.catchUpRequired)
+
+        CostUsageStore.tokenSnapshotsReadForTesting = nil
+        CostUsageStore.tokenSnapshotPathReadForTesting = nil
+        #expect(await loaded.store.fetchTokenSnapshots(path: requestedPath) == expectedRequestedRows)
+        #expect(await loaded.store.fetchTokenSnapshots(path: untouchedPath) == expectedUntouchedRows)
+        #expect(await loaded.store.fetchDetailCounts(path: untouchedPath).snapshotCount == untouchedSnapshots.count)
+        let untouchedFile = try #require(await loaded.store.fetchFile(path: untouchedPath))
+        let detailsPayload = try #require(untouchedFile.scanState.detailsPayload)
+        let details = try #require(JSONSerialization.jsonObject(with: detailsPayload) as? [String: Any])
+        #expect(details["hasTokenSnapshots"] as? Bool == true)
+
+        let reopened = CostUsageStoreAccess.read(cacheRoot: root, calendar: calendar)
+        #expect(reopened.files[requestedPath]?.codexTokenSnapshots == requestedSnapshots)
+        #expect(reopened.files[untouchedPath]?.codexTokenSnapshots == untouchedSnapshots)
+        #expect(reopened.files[emptyPath]?.codexTokenSnapshots == [])
+    }
+
+    @Test
+    func `unavailable raw history hydration preserves stored rows`() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKit-LazyHistoryFailure-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/unavailable-history.jsonl"
+        let snapshots = [
+            CostUsageCodexTokenSnapshot(
+                timestamp: "2026-08-30T12:00:00Z",
+                last: CostUsageCodexTotals(input: 3, cached: 0, output: 1),
+                total: CostUsageCodexTotals(input: 3, cached: 0, output: 1),
+                endOffset: 100),
+        ]
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [:])
+        usage.parsedBytes = 100
+        usage.codexScanFileId = "1:201"
+        usage.codexScanTargetSize = 100
+        usage.codexScanComplete = true
+        usage.codexTokenTimestampsMonotonic = true
+        usage.codexTokenSnapshots = snapshots
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-30"
+        cache.scanUntilKey = "2026-08-30"
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.files[path] = usage
+        let writer = CostUsageStore(cacheRoot: root)
+        let initialSave = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"))
+        #expect(!initialSave.catchUpRequired)
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
+        defer { loaded.release() }
+        let storedRows = await loaded.store.fetchTokenSnapshots(path: path)
+        CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = { storeURL, paths in
+            storeURL.standardizedFileURL.path == writer.databaseURL.standardizedFileURL.path
+                && paths == [path]
+        }
+        defer { CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = nil }
+
+        let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
+        #expect(try hydrator.hydrate(paths: [path]) == .unavailable)
+        #expect(loaded.cache.files[path]?.codexTokenSnapshots == nil)
+
+        let savedAfterFailure = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: loaded.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
+            requireScanStamp: true)
+        #expect(!savedAfterFailure.catchUpRequired)
+        #expect(await loaded.store.fetchTokenSnapshots(path: path) == storedRows)
+        #expect(await loaded.store.fetchDetailCounts(path: path).snapshotCount == snapshots.count)
+    }
+
+    @Test
+    func `lazy baseline keeps malformed history manifests visible`() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKit-LazyHistoryMalformed-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/malformed-history-manifest.jsonl"
+        let snapshots = [
+            CostUsageCodexTokenSnapshot(
+                timestamp: "2026-08-30T12:00:00Z",
+                last: CostUsageCodexTotals(input: 5, cached: 0, output: 1),
+                total: CostUsageCodexTotals(input: 5, cached: 0, output: 1),
+                endOffset: 100),
+        ]
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [:])
+        usage.parsedBytes = 100
+        usage.codexScanFileId = "1:301"
+        usage.codexScanTargetSize = 100
+        usage.codexScanComplete = true
+        usage.codexTokenTimestampsMonotonic = true
+        usage.codexTokenSnapshots = snapshots
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-30"
+        cache.scanUntilKey = "2026-08-30"
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.files[path] = usage
+        let writer = CostUsageStore(cacheRoot: root)
+        let initialSave = writer.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"))
+        #expect(!initialSave.catchUpRequired)
+        let storedRows = await writer.fetchTokenSnapshots(path: path)
+        var malformedFile = try #require(await writer.fetchFile(path: path))
+        malformedFile.scanState.detailsPayload = Data("{malformed".utf8)
+        #expect(await writer.upsertFile(malformedFile))
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
+        defer { loaded.release() }
+        #expect(loaded.cache.files[path] != nil)
+        #expect(loaded.cache.files[path]?.codexTokenSnapshots == nil)
+        let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
+        #expect(try hydrator.hydrate(paths: [path]) == .ready)
+        let malformedUsage = try #require(loaded.cache.files[path])
+        #expect(hydrator.usageWithHydratedSnapshots(malformedUsage, path: path).codexTokenSnapshots == snapshots)
+
+        let savedAfterMalformedManifest = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: loaded.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
+            requireScanStamp: true)
+        #expect(!savedAfterMalformedManifest.catchUpRequired)
+        #expect(await loaded.store.fetchTokenSnapshots(path: path) == storedRows)
+        #expect(await loaded.store.fetchFile(path: path) == malformedFile)
+    }
+
+    @Test
     func `lean cache skips token snapshot materialization and preserves report fields`() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("QuotaKit-LeanCache-\(UUID().uuidString)", isDirectory: true)

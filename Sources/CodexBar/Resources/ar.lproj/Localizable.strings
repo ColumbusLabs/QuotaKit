@@ -1665,3 +1665,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "ملفات تعريف ارتباط المتصفح معطلة؛ سيظل مفتاح API مستخدمًا عند توفره.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "يُستخدم تسجيل دخول المحرر للتنبؤات ودورة الفوترة والفواتير؛ إنفاق المتصفح متوقف.";
 "Paste a Cookie header and select its tenant below." = "الصق ترويسة Cookie وحدد المستأجر أدناه.";
+
+"Blocked by monthly limit" = "تم الحظر بسبب الحد الشهري";

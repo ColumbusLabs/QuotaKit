@@ -25,6 +25,93 @@ extension CostUsageStore {
         }
     }
 
+    func hydrateCodexTokenSnapshots(
+        paths: Set<String>,
+        receipt: CodexBaselineReceipt,
+        expectedScanStamp: CodexScanStamp) -> CodexTokenSnapshotHydrationResult
+    {
+        guard !paths.isEmpty,
+              let retained = self.retainedCodexBaseline,
+              retained.id == receipt.id,
+              let baseline = retained.baseline,
+              baseline.stamp == expectedScanStamp,
+              self.currentCodexScanStamp() == expectedScanStamp
+        else { return .stale }
+
+        let unloadedPaths = paths.intersection(baseline.persistence.unloadedTokenSnapshotPaths)
+        guard unloadedPaths.allSatisfy({
+            baseline.persistence.malformedDetailsPaths.contains($0)
+                || (baseline.persistence.tokenSnapshotMarkersByPath[$0] == true
+                    && (baseline.persistence.snapshotCounts[$0] ?? 0) > 0)
+        }) else { return .unavailable }
+        guard !unloadedPaths.isEmpty else { return .loaded([:]) }
+        #if DEBUG
+        if Self.codexTokenSnapshotHydrationFailureForTesting?(self.databaseURL, unloadedPaths) == true {
+            return .unavailable
+        }
+        #endif
+
+        let read = self.withDatabase(default: nil) { database -> (
+            snapshots: [CostUsageStoreTokenSnapshot],
+            counts: [String: Int])? in
+            try Self.inReadTransaction(database) {
+                try (
+                    snapshots: Self.readTokenSnapshots(
+                        database,
+                        paths: unloadedPaths,
+                        storeURL: self.databaseURL),
+                    counts: Self.readTokenSnapshotCounts(database, paths: unloadedPaths))
+            }
+        }
+        guard let read else { return .unavailable }
+        guard self.currentCodexScanStamp() == expectedScanStamp,
+              self.retainedCodexBaseline?.id == receipt.id
+        else { return .stale }
+
+        let snapshotsByPath = Dictionary(grouping: read.snapshots, by: \.path)
+        var hydratedByPath: [String: [CostUsageStoreTokenSnapshot]] = [:]
+        for path in unloadedPaths {
+            let expectedCount = baseline.persistence.snapshotCounts[path] ?? -1
+            let snapshots = snapshotsByPath[path] ?? []
+            if baseline.persistence.malformedDetailsPaths.contains(path), expectedCount == 0 {
+                guard read.counts[path] == 0, snapshots.isEmpty else { return .unavailable }
+                hydratedByPath[path] = []
+            } else {
+                guard expectedCount > 0,
+                      read.counts[path] == expectedCount,
+                      snapshots.count == expectedCount,
+                      snapshots.enumerated().allSatisfy({ $0.offset == $0.element.eventIndex })
+                else { return .unavailable }
+                hydratedByPath[path] = snapshots
+            }
+        }
+
+        var updatedBaseline = baseline
+        for path in unloadedPaths {
+            let snapshots = (hydratedByPath[path] ?? []).map(Self.tokenSnapshot(from:))
+            if var usage = updatedBaseline.decoded.files[path] {
+                usage.codexTokenSnapshots = snapshots
+                usage.codexTokenCheckpoints = CostUsageScanner.codexTokenCheckpoints(for: snapshots)
+                updatedBaseline.decoded.files[path] = usage
+            }
+            updatedBaseline.persistence.unloadedTokenSnapshotPaths.remove(path)
+        }
+        self.retainedCodexBaseline = RetainedCodexBaseline(id: receipt.id, baseline: updatedBaseline)
+
+        if let retainedCache = self.retainedCodexScan, retainedCache.stamp == expectedScanStamp {
+            var cache = retainedCache.cache
+            for path in unloadedPaths {
+                guard var usage = cache.files[path] else { continue }
+                let snapshots = (hydratedByPath[path] ?? []).map(Self.tokenSnapshot(from:))
+                usage.codexTokenSnapshots = snapshots
+                usage.codexTokenCheckpoints = CostUsageScanner.codexTokenCheckpoints(for: snapshots)
+                cache.files[path] = usage
+            }
+            self.retainedCodexScan = (expectedScanStamp, cache)
+        }
+        return .loaded(hydratedByPath)
+    }
+
     func fetchUsageRows(path: String) -> [CostUsageStoreUsageRow] {
         self.withDatabase(default: []) { database in
             try Self.readUsageRows(database, path: path)
@@ -198,18 +285,96 @@ extension CostUsageStore {
 
     /// Attach the stamp only after the read transaction commits. A concurrent writer must not
     /// let a decoded older snapshot borrow a newer stamp.
-    func readStampedCodexScanSnapshot() -> (snapshot: CostUsageStoreSnapshot, stamp: CodexScanStamp)? {
+    func readStampedCodexScanSnapshot(
+        loadTokenSnapshots: Bool = true) -> (snapshot: CostUsageStoreSnapshot, stamp: CodexScanStamp)?
+    {
         self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
             #if DEBUG
             Self.snapshotReadForTesting?(self.databaseURL)
             #endif
-            let snapshot = try Self.inReadTransaction(database) {
-                try Self.readSnapshot(database, storeURL: self.databaseURL)
+            let snapshot = try Self.inReadTransaction(database) { () -> CostUsageStoreSnapshot in
+                var snapshot = try Self.readSnapshot(
+                    database,
+                    loadTokenSnapshots: loadTokenSnapshots,
+                    storeURL: self.databaseURL)
+                if !loadTokenSnapshots {
+                    let markers = Self.codexTokenSnapshotMarkersByPath(from: snapshot.files)
+                    let accumulators = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
+                    var counts: [String: Int] = [:]
+                    var fallbackPaths: Set<String> = []
+                    for file in snapshot.files {
+                        guard file.scanState.replacementScanPending != true,
+                              markers[file.path] == true,
+                              let accumulator = accumulators[file.path],
+                              accumulator.eventCount > 0
+                        else {
+                            fallbackPaths.insert(file.path)
+                            continue
+                        }
+                        counts[file.path] = accumulator.eventCount
+                    }
+                    if !fallbackPaths.isEmpty {
+                        try counts.merge(
+                            Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
+                            uniquingKeysWith: { _, exact in exact })
+                    }
+                    snapshot.tokenSnapshotCounts = counts
+                    snapshot.tokenSnapshotsLoaded = false
+                }
+                return snapshot
             }
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }
             return (snapshot, after)
         }
+    }
+
+    /// Reads only indexed row counts; event payloads remain in SQLite until a requested path is
+    /// hydrated under its retained scan receipt.
+    private static func readTokenSnapshotCounts(
+        _ database: OpaquePointer,
+        paths: Set<String>? = nil) throws -> [String: Int]
+    {
+        if let paths, paths.isEmpty { return [:] }
+        let pathGroups: [[String]?]
+        if let paths {
+            let sortedPaths = paths.sorted()
+            pathGroups = stride(from: 0, to: sortedPaths.count, by: 500).map { start in
+                Array(sortedPaths[start..<min(start + 500, sortedPaths.count)])
+            }
+        } else {
+            pathGroups = [nil]
+        }
+        var counts: [String: Int] = [:]
+        for pathGroup in pathGroups {
+            var sql = """
+            SELECT f.path, COUNT(t.event_index)
+            FROM files f
+            LEFT JOIN token_snapshots t ON t.file_id = f.id
+            """
+            if let pathGroup {
+                sql += " WHERE f.path IN (" + Array(repeating: "?", count: pathGroup.count).joined(separator: ",") + ")"
+                counts.merge(
+                    Dictionary(uniqueKeysWithValues: pathGroup.map { ($0, 0) }),
+                    uniquingKeysWith: { old, _ in old })
+            }
+            sql += " GROUP BY f.id ORDER BY f.path"
+            let statement = try Self.prepare(database, sql)
+            defer { sqlite3_finalize(statement) }
+            for (index, path) in (pathGroup ?? []).enumerated() {
+                Self.bind(path, to: statement, at: Int32(index + 1))
+            }
+            var result = sqlite3_step(statement)
+            while result == SQLITE_ROW {
+                guard let path = Self.columnText(statement, at: 0),
+                      let count = Int(exactly: sqlite3_column_int64(statement, 1))
+                else { throw StoreError.invalidData }
+                counts[path] = count
+                result = sqlite3_step(statement)
+            }
+            guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+        }
+        return counts
     }
 
     /// Reads from the caller's current transaction. The save path uses this after acquiring
@@ -635,6 +800,7 @@ extension CostUsageStore {
     {
         #if DEBUG
         CostUsageStore.tokenSnapshotsReadForTesting?(storeURL)
+        CostUsageStore.tokenSnapshotPathReadForTesting?(storeURL, path)
         #endif
         var sql = """
         SELECT f.path, t.event_index, t.timestamp, t.timestamp_ms, t.day,

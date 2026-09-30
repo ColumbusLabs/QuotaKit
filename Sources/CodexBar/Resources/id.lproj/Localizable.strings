@@ -1664,3 +1664,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Cookie browser dinonaktifkan; kunci API tetap digunakan jika tersedia.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Login editor digunakan untuk prediksi, siklus tagihan, dan faktur; pengeluaran browser dinonaktifkan.";
 "Paste a Cookie header and select its tenant below." = "Tempel header Cookie dan pilih tenant di bawah.";
+
+"Blocked by monthly limit" = "Diblokir oleh batas bulanan";

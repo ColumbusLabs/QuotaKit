@@ -1664,3 +1664,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Pliki cookie przeglądarki są wyłączone; dostępny klucz API nadal będzie używany.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Logowanie edytora służy do prognoz, cyklu rozliczeniowego i faktur; wydatki przeglądarki są wyłączone.";
 "Paste a Cookie header and select its tenant below." = "Wklej nagłówek Cookie i wybierz poniżej dzierżawcę.";
+
+"Blocked by monthly limit" = "Zablokowano przez limit miesięczny";

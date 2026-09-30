@@ -1662,3 +1662,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Cookie trình duyệt đã tắt; khóa API vẫn được dùng khi có sẵn.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Dùng đăng nhập trình chỉnh sửa cho dự đoán, chu kỳ thanh toán và hóa đơn; chi tiêu qua trình duyệt đã tắt.";
 "Paste a Cookie header and select its tenant below." = "Dán tiêu đề Cookie rồi chọn đối tượng thuê bên dưới.";
+
+"Blocked by monthly limit" = "Bị chặn do giới hạn hằng tháng";

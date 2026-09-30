@@ -41,6 +41,67 @@ struct CommandCodeUsageFetcherTests {
     }
 
     @Test
+    func `parses granted monthly credits`() throws {
+        let data = Data("""
+        {"credits":{"monthlyCredits":4,"purchasedCredits":0,"premiumMonthlyCredits":0,
+        "opensourceMonthlyCredits":4,"monthlyCreditsGranted":10}}
+        """.utf8)
+        let payload = try CommandCodeUsageFetcher.parseCredits(data: data)
+        #expect(payload.monthlyCreditsGranted == 10)
+
+        let legacy = try CommandCodeUsageFetcher.parseCredits(data: #require(Self.creditsJSON.data(using: .utf8)))
+        #expect(legacy.monthlyCreditsGranted == nil)
+    }
+
+    @Test(arguments: [(4.0, 60.0), (0.0, 100.0)])
+    func `credits response grant sizes monthly usage when subscription lookup fails`(
+        remaining: Double,
+        expectedUsedPercent: Double) async throws
+    {
+        try await CommandCodeUsageFetcher.withIsolatedPlanCacheForTesting {
+            let transport = ProviderHTTPTransportStub { request in
+                let path = try #require(request.url?.path)
+                if path.hasSuffix("/credits") {
+                    let body = """
+                    {"credits":{"monthlyCredits":\(remaining),"purchasedCredits":0,"premiumMonthlyCredits":0,
+                    "opensourceMonthlyCredits":\(remaining),"monthlyCreditsGranted":10}}
+                    """
+                    return try Self.response(request: request, statusCode: 200, body: body)
+                }
+                return try Self.response(request: request, statusCode: 503, body: #"{"error":"unavailable"}"#)
+            }
+
+            let snapshot = try await CommandCodeUsageFetcher._fetchUsageForTesting(
+                cookieHeader: "session=fixture",
+                transport: transport,
+                subscriptionGrace: .seconds(5))
+
+            #expect(snapshot.subscriptionEnrichmentUnavailable)
+            #expect(snapshot.plan == nil)
+            let monthly = try #require(snapshot.toUsageSnapshot().tertiary)
+            #expect(abs(monthly.usedPercent - expectedUsedPercent) < 0.0001)
+            #expect(monthly.resetsAt == nil)
+        }
+    }
+
+    @Test
+    func `reported grant size takes precedence over the plan catalog`() throws {
+        let plan = try #require(CommandCodePlanCatalog.plan(forID: "individual-go"))
+        let snapshot = CommandCodeUsageSnapshot(
+            monthlyCreditsRemaining: 9,
+            purchasedCredits: 0,
+            premiumMonthlyCredits: 0,
+            opensourceMonthlyCredits: 9,
+            monthlyCreditsGranted: 12,
+            plan: plan,
+            billingPeriodEnd: nil,
+            subscriptionStatus: "active")
+
+        #expect(snapshot.monthlyCreditsTotal == 12)
+        #expect(snapshot.toUsageSnapshot().tertiary?.usedPercent == 25)
+    }
+
+    @Test
     func `parses rolling windows at response root`() throws {
         let payload = try CommandCodeUsageFetcher.parseCredits(
             data: Self.creditsFixture("window-limits-root"))

@@ -92,9 +92,9 @@ extension CostUsageStore {
         }
         self.retainedCodexBaseline = nil
         if retainedCache == nil { self.retainedCodexScan = nil }
-        let firstRead = self.readStampedCodexScanSnapshot()
+        let firstRead = self.readStampedCodexScanSnapshot(loadTokenSnapshots: false)
         if firstRead == nil { self.reopenCodexScanConnection() }
-        guard let read = firstRead ?? self.readStampedCodexScanSnapshot() else {
+        guard let read = firstRead ?? self.readStampedCodexScanSnapshot(loadTokenSnapshots: false) else {
             self.retainedCodexBaseline = RetainedCodexBaseline(id: receipt.id, baseline: nil)
             return CostUsageStoreLoad(
                 store: self,
@@ -171,6 +171,8 @@ extension CostUsageStore {
         // their cached snapshots. Keep those rows until the bounded proof has finished.
         let deferRetention = cache.codexActiveLookbackState != nil
             && cache.codexScanCatchUpPending == true
+            || cache.codexHistoryHydrationRetries?.isEmpty == false
+            || cache.codexMalformedDetailsPaths?.isEmpty == false
         if skipIdenticalContent,
            Self.persistedContentMatches(
                baseline: baseline,
@@ -269,13 +271,20 @@ extension CostUsageStore {
                 baseline.decoded,
                 persistence: baseline.persistence).files
             let canReuseStoredRows = lockedPrevious.metadata.timeZoneIdentifier == calendar.timeZone.identifier
-            self.deleteRemovedFiles(previous: lockedPrevious, cache: cache)
+            let preservedPaths = Self.codexHistoryPathsToPreserve(cache: cache)
+            self.deleteRemovedFiles(
+                previous: lockedPrevious,
+                cache: cache,
+                preservingPaths: preservedPaths)
             let previousFilesByPath = Dictionary(uniqueKeysWithValues: lockedPrevious.files.map { ($0.path, $0) })
             let snapshotCountsByPath = lockedPrevious.snapshotCounts
             let rowCountsByPath = lockedPrevious.rowCounts
             let aggregatesByPath = lockedPrevious.fileAggregatesByPath
             var persistedFiles = 0
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
+                guard !preservedPaths.contains(path),
+                      !Self.shouldPreserveMalformedCodexDetails(path: path, usage: usage, cache: cache)
+                else { continue }
                 self.persistFile(
                     path: path,
                     usage: usage,
@@ -284,6 +293,8 @@ extension CostUsageStore {
                         snapshotCount: snapshotCountsByPath[path] ?? 0,
                         rowCount: rowCountsByPath[path] ?? 0,
                         canReuseRows: canReuseStoredRows,
+                        tokenSnapshotsLoaded: !lockedPrevious.unloadedTokenSnapshotPaths.contains(path)
+                            || usage.codexTokenSnapshots != nil,
                         usage: restoredFiles[path],
                         aggregates: aggregatesByPath[path] ?? []),
                     calendar: calendar,
@@ -356,6 +367,7 @@ extension CostUsageStore {
         requestedScanWindow: (sinceKey: String, untilKey: String),
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
         hydratedPaths: Set<String>,
+        confirmedAbsentHistoryRetryPaths: Set<String> = [],
         rowBudget: Int = CostUsageStore.defaultRowBudget,
         fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes) -> CostUsageStoreBudgetResult
     {
@@ -366,6 +378,8 @@ extension CostUsageStore {
             requestedScanWindow: requestedScanWindow)
         let deferRetention = cache.codexActiveLookbackState != nil
             && cache.codexScanCatchUpPending == true
+            || cache.codexHistoryHydrationRetries?.isEmpty == false
+            || cache.codexMalformedDetailsPaths?.isEmpty == false
         let previousMetadata = self.fetchMetadata()
         let aggregatePricing = self.aggregatePricingContext()
         let maintainsSparseVerifiedDays = previousMetadata.verifiedScanSinceDay == nil
@@ -404,6 +418,8 @@ extension CostUsageStore {
                 let oldDetailCounts = self.fetchDetailCounts(path: path)
                 let oldAggregates = self.fetchFileDayAggregates(path: path)
                 if let usage = cache.files[path] {
+                    guard !Self.shouldPreserveMalformedCodexDetails(path: path, usage: usage, cache: cache)
+                    else { continue }
                     if usage.codexReplacementScanPending == true {
                         // Staging updates only the manifest, accumulator, and buffers. Keep the
                         // committed file rows, snapshots, aliases, and aggregate contribution
@@ -459,6 +475,12 @@ extension CostUsageStore {
                     }
                 }
             }
+            self.deleteConfirmedAbsentHistoryRetryFiles(
+                confirmedAbsentHistoryRetryPaths,
+                cache: cache,
+                processedPaths: &processedPaths,
+                maintainsSparseVerifiedDays: maintainsSparseVerifiedDays,
+                invalidatedVerifiedDays: &invalidatedVerifiedDays)
             if maintainsSparseVerifiedDays {
                 try Self.clearVerifiedDayAggregates(
                     database,
@@ -512,6 +534,23 @@ extension CostUsageStore {
             _ = self.setMetadata(metadata)
         }
         return result
+    }
+
+    private func deleteConfirmedAbsentHistoryRetryFiles(
+        _ paths: Set<String>,
+        cache: CostUsageCache,
+        processedPaths: inout Set<String>,
+        maintainsSparseVerifiedDays: Bool,
+        invalidatedVerifiedDays: inout Set<String>)
+    {
+        for path in paths.sorted() where cache.files[path] == nil && processedPaths.insert(path).inserted {
+            let oldAggregates = self.fetchFileDayAggregates(path: path)
+            _ = self.deleteFile(path: path)
+            _ = self.mergeDayAggregates(oldAggregates.map(Self.negated))
+            if maintainsSparseVerifiedDays {
+                invalidatedVerifiedDays.formUnion(oldAggregates.map(\.day))
+            }
+        }
     }
 
     private static func persistedAliases(
@@ -694,6 +733,7 @@ extension CostUsageStore {
         var snapshotCount: Int
         var rowCount: Int
         var canReuseRows: Bool
+        var tokenSnapshotsLoaded: Bool = true
         var usage: CostUsageFileUsage?
         var aggregates: [CostUsageStoreDayAggregate]?
     }
@@ -707,6 +747,26 @@ extension CostUsageStore {
         var identity: String?
         var isComplete: Bool
         var validatedCurrentSnapshot = false
+    }
+
+    static func codexTokenSnapshotMarkersByPath(from files: [CostUsageStoreFile]) -> [String: Bool] {
+        let decoder = JSONDecoder()
+        return Dictionary(uniqueKeysWithValues: files.compactMap { file in
+            guard let payload = file.scanState.detailsPayload,
+                  let details = try? decoder.decode(StoredFileDetails.self, from: payload)
+            else { return nil }
+            return (file.path, details.hasTokenSnapshots)
+        })
+    }
+
+    static func codexMalformedDetailsPaths(from files: [CostUsageStoreFile]) -> Set<String> {
+        let decoder = JSONDecoder()
+        return Set(files.compactMap { file in
+            guard let payload = file.scanState.detailsPayload,
+                  (try? decoder.decode(StoredFileDetails.self, from: payload)) != nil
+            else { return file.path }
+            return nil
+        })
     }
 
     private static func cache(
@@ -728,7 +788,8 @@ extension CostUsageStore {
     static func decodeCodexCache(
         from snapshot: CostUsageStoreSnapshot,
         hydratingPaths: Set<String>? = nil,
-        tokenSnapshotsLoaded: Bool = true) -> CostUsageCache
+        tokenSnapshotsLoaded: Bool = true,
+        preserveMalformedFiles: Bool = false) -> CostUsageCache
     {
         var cache = CostUsageCache()
         let metadata = snapshot.metadata
@@ -745,6 +806,11 @@ extension CostUsageStore {
         cache.codexScanCompletedFiles = metadata.completedFiles
         cache.codexScanTotalFiles = metadata.totalFiles
         cache.codexScanInventoryPaths = metadata.scanInventoryPaths
+        cache.codexHistoryHydrationRetries = metadata.codexHistoryHydrationRetries
+        cache.codexMalformedDetailsPaths = Self.codexMalformedDetailsPaths(from: snapshot.files)
+        if cache.codexHistoryHydrationRetries?.isEmpty == false {
+            cache.codexScanCatchUpPending = true
+        }
         cache.roots = metadata.rootMtimes
         cache.codexProjectMetadataVersion = metadata.projectMetadataVersion
         cache.codexPreviousReport = metadata.previousReportPayload.flatMap {
@@ -766,16 +832,18 @@ extension CostUsageStore {
         let lineageByPath = Dictionary(uniqueKeysWithValues: snapshot.forkLineage.map { ($0.path, $0) })
         let buffersByPath = Dictionary(grouping: snapshot.bufferedLines, by: \.path)
         let accumulatorByPath = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
+        let malformedDetailsPaths = Self.codexMalformedDetailsPaths(from: snapshot.files)
         for file in snapshot.files {
+            let hasMalformedDetails = malformedDetailsPaths.contains(file.path)
             let details: StoredFileDetails
             if let detailsData = file.scanState.detailsPayload,
                let decoded = try? JSONDecoder().decode(StoredFileDetails.self, from: detailsData)
             {
                 details = decoded
-            } else if hydratingPaths != nil {
-                // Keep a malformed/legacy manifest entry visible to bounded discovery. Its
-                // selected path will be reparsed by the scanner; unrelated paths retain only
-                // compact metadata until they become candidates.
+            } else if hydratingPaths != nil || preserveMalformedFiles {
+                // Keep a malformed/legacy manifest entry visible to bounded discovery and the
+                // receipt-backed scanner. A lazy baseline cannot safely drop the file: its raw
+                // token history may still be in SQLite and must survive a deferred parse.
                 details = StoredFileDetails(
                     lastTotals: nil,
                     projectPath: nil,
@@ -799,6 +867,19 @@ extension CostUsageStore {
             }
             let restoredRows = rows.isEmpty ? Self.aggregateRows(from: aggregates) : rows
             let tokenSnapshots = (snapshotsByPath[file.path] ?? []).map(Self.tokenSnapshot(from:))
+            let restoredTokenSnapshots: [CostUsageCodexTokenSnapshot]? = if
+                details.hasTokenSnapshots || hasMalformedDetails, isHydrated
+            {
+                if tokenSnapshotsLoaded {
+                    tokenSnapshots
+                } else if !hasMalformedDetails, snapshot.tokenSnapshotCounts?[file.path] == 0 {
+                    []
+                } else {
+                    nil
+                }
+            } else {
+                nil
+            }
             let lineage = lineageByPath[file.path]
             let accumulator = accumulatorByPath[file.path]
             let buffers = buffersByPath[file.path] ?? []
@@ -833,7 +914,8 @@ extension CostUsageStore {
                 codexTurnIDs: details.hasTurnIDs && isHydrated
                     ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
                 codexWorkspaceContentFingerprint: details.workspaceFingerprint,
-                codexRows: details.hasRows && isHydrated ? restoredRows : nil,
+                codexRows: (details.hasRows || (hasMalformedDetails && !rows.isEmpty)) && isHydrated
+                    ? restoredRows : nil,
                 codexNextUsageRowIndex: details.hasExactUsageRowIndex == true
                     ? file.scanState.nextUsageRowIndex : nil,
                 codexPendingPricing: isHydrated ? Self.bufferedPricingEvidence(buffers) : nil,
@@ -853,10 +935,8 @@ extension CostUsageStore {
                     .flatMap {
                         try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
                     } : nil,
-                codexTokenSnapshots: details.hasTokenSnapshots && isHydrated && tokenSnapshotsLoaded
-                    ? tokenSnapshots : nil,
-                codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated && tokenSnapshotsLoaded
-                    ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
+                codexTokenSnapshots: restoredTokenSnapshots,
+                codexTokenCheckpoints: restoredTokenSnapshots.map(CostUsageScanner.codexTokenCheckpoints(for:)),
                 codexTokenTimestampsMonotonic: file.scanState.tokenTimestampsMonotonic,
                 codexTokenIndexAnchor: file.anchor.map {
                     CostUsageCodexTokenIndexAnchor(
@@ -1105,6 +1185,10 @@ extension CostUsageStore {
         cache: inout CostUsageCache,
         visitLimit: Int = CostUsageScanner.codexCatchUpScanCandidateLimit)
     {
+        guard cache.codexHistoryHydrationRetries?.isEmpty != false else {
+            cache.codexScanCatchUpPending = true
+            return
+        }
         if var lookback = cache.codexActiveLookbackState {
             let reconciliationLimit = max(0, min(
                 visitLimit,
@@ -1291,7 +1375,8 @@ extension CostUsageStore {
     {
         let sourceSnapshots = usage.codexTokenSnapshots ?? []
         let sourceRows = usage.codexRows ?? []
-        let snapshotCount = sourceSnapshots.count
+        let snapshotsAreUnloaded = !baseline.tokenSnapshotsLoaded
+        let snapshotCount = snapshotsAreUnloaded ? baseline.snapshotCount : sourceSnapshots.count
         let rowCount = sourceRows.count
         let replacementPending = usage.codexReplacementScanPending == true
         if baseline.canReuseRows,
@@ -1326,7 +1411,9 @@ extension CostUsageStore {
             workspaceFingerprint: usage.codexWorkspaceContentFingerprint,
             hasRows: usage.codexRows != nil,
             hasTurnIDs: usage.codexTurnIDs != nil,
-            hasTokenSnapshots: usage.codexTokenSnapshots != nil,
+            hasTokenSnapshots: snapshotsAreUnloaded
+                ? committedDetails?.hasTokenSnapshots ?? (baseline.snapshotCount > 0)
+                : usage.codexTokenSnapshots != nil,
             hasSeenRawTotals: usage.seenRawTotals != nil,
             divergentTotals: usage.hasDivergentTotals,
             interleavedTotals: usage.hasInterleavedTotals,
@@ -1434,7 +1521,7 @@ extension CostUsageStore {
         // Metadata-only repricing can change the payload without changing either value. Check
         // the prefix only when the planner could reuse or append it, and stream cold baselines.
         let reuseCandidate = canReuseRows && !replacingStagedGeneration
-        let snapshotPrefixMatches = reuseCandidate
+        let snapshotPrefixMatches = !snapshotsAreUnloaded && reuseCandidate
             && ((stableCursor && baseline.snapshotCount == snapshotCount)
                 || (appendSafe && baseline.snapshotCount <= snapshotCount))
             && (appendProof || self.snapshotPrefixMatches(
@@ -1450,14 +1537,18 @@ extension CostUsageStore {
                 storedCount: baseline.rowCount,
                 source: sourceRows,
                 cached: baseline.usage?.codexRows))
-        let snapshotAction: CostUsagePersistenceAction = replacingStagedGeneration
-            ? .replace
-            : CostUsagePersistencePlanner.action(
+        let snapshotAction: CostUsagePersistenceAction = if snapshotsAreUnloaded, baseline.file != nil {
+            .reuse
+        } else if replacingStagedGeneration {
+            .replace
+        } else {
+            CostUsagePersistencePlanner.action(
                 canReuse: canReuseRows && snapshotPrefixMatches,
                 stableCursor: stableCursor,
                 appendSafe: appendSafe && canReuseRows && snapshotPrefixMatches,
                 persistedCount: baseline.snapshotCount,
                 sourceCount: snapshotCount)
+        }
         let snapshots = snapshotAction.materialize(sourceSnapshots) { index, snapshot in
             Self.tokenSnapshot(path: path, eventIndex: index, snapshot: snapshot, calendar: calendar)
         }
@@ -1633,7 +1724,9 @@ extension CostUsageStore {
             rootMtimes: cache.roots,
             previousReportPayload: cache.codexPreviousReport.flatMap { try? JSONEncoder().encode($0) },
             priorityTurnStatePayload: self.priorityTurnStatePayload(cache: cache),
-            projectMetadataVersion: cache.codexProjectMetadataVersion)
+            projectMetadataVersion: cache.codexProjectMetadataVersion,
+            codexHistoryHydrationRetries: cache.codexHistoryHydrationRetries?.isEmpty == false
+                ? cache.codexHistoryHydrationRetries : nil)
         metadata.verifiedScanSinceDay = prior?.verifiedScanSinceDay
         metadata.verifiedScanUntilDay = prior?.verifiedScanUntilDay
         metadata.verifiedUpdatedAtUnixMs = prior?.verifiedUpdatedAtUnixMs
@@ -2129,7 +2222,7 @@ extension CostUsageStore {
             endOffset: snapshot.endOffset)
     }
 
-    private static func tokenSnapshot(from value: CostUsageStoreTokenSnapshot) -> CostUsageCodexTokenSnapshot {
+    static func tokenSnapshot(from value: CostUsageStoreTokenSnapshot) -> CostUsageCodexTokenSnapshot {
         CostUsageCodexTokenSnapshot(
             timestamp: value.timestamp,
             last: self.totals(from: value.last),
@@ -2197,11 +2290,29 @@ extension CostUsageStore {
 
     private func deleteRemovedFiles(
         previous: CodexPersistenceState,
-        cache: CostUsageCache)
+        cache: CostUsageCache,
+        preservingPaths: Set<String>)
     {
-        for path in previous.files.map(\.path) where cache.files[path] == nil {
+        for path in previous.files.map(\.path)
+            where cache.files[path] == nil && !preservingPaths.contains(path)
+        {
             _ = self.deleteFile(path: path)
         }
+    }
+
+    private static func codexHistoryPathsToPreserve(cache: CostUsageCache) -> Set<String> {
+        var paths = Set(cache.codexHistoryHydrationRetries?.values.flatMap(\.retainedPaths) ?? [])
+        paths.formUnion(cache.codexMalformedDetailsPaths ?? [])
+        return paths
+    }
+
+    private static func shouldPreserveMalformedCodexDetails(
+        path: String,
+        usage: CostUsageFileUsage,
+        cache: CostUsageCache) -> Bool
+    {
+        cache.codexMalformedDetailsPaths?.contains(path) == true
+            && usage.codexParserRevision == nil
     }
 
     private static func inode(from identity: String?) -> Int64? {
@@ -2411,13 +2522,15 @@ enum CostUsageStoreAccess {
         calendar: Calendar,
         requestedScanWindow: (sinceKey: String, untilKey: String),
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
-        hydratedPaths: Set<String>) -> CostUsageStoreBudgetResult
+        hydratedPaths: Set<String>,
+        confirmedAbsentHistoryRetryPaths: Set<String> = []) -> CostUsageStoreBudgetResult
     {
         store.syncSaveCodexCatchUpCache(
             cache,
             calendar: calendar,
             requestedScanWindow: requestedScanWindow,
             reportWindow: reportWindow,
-            hydratedPaths: hydratedPaths)
+            hydratedPaths: hydratedPaths,
+            confirmedAbsentHistoryRetryPaths: confirmedAbsentHistoryRetryPaths)
     }
 }

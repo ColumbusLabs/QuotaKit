@@ -833,8 +833,8 @@ extension CostUsageScannerForkSplitTests {
             ]))
 
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
-        try CostUsageScannerCodexPriorityTests.insertTestLog(
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
             timestamp: parentUsageTimestamp,
             body: "thread_id=thread turn.id=priority-turn websocket request: "

@@ -1660,3 +1660,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Webbläsarkakor är inaktiverade; en API-nyckel används fortfarande när den är tillgänglig.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Editorinloggningen används för prognoser, faktureringscykel och fakturor; webbläsarutgifter är avstängda.";
 "Paste a Cookie header and select its tenant below." = "Klistra in en Cookie-header och välj klientorganisation nedan.";
+
+"Blocked by monthly limit" = "Blockerat av månadsgränsen";

@@ -1102,7 +1102,7 @@ struct CostUsageScannerBreakdownTests {
                     last: (input: 10, cached: 0, output: 0)),
             ]))
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
-        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: dbURL)
 
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,

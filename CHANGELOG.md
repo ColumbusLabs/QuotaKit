@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- CLI: optional Claude daily and model cost breakdowns, complete recorded quota history, and capture timestamps for remote Codex cost summaries.
 - Hugging Face: optionally show browser wallet credits after explicit opt-in and a matching account check, while keeping inference allowances separate.
 - Plan Usage: show recorded Codex and Claude quota burndown beside utilization history, with reset-scoped windows and capture age.
 - Azure OpenAI: select the API version in Settings while sharing the override with CLI configuration and preserving environment inheritance.
@@ -49,6 +50,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Kimi: show the monthly quota that blocks a shorter window, preserve unknown reset times, and guide expired CLI credentials through sign-in.
+- Provider recovery: keep Z.ai quota available when optional analytics fails, label StepFun credits accurately, and use Command Code reported monthly grants.
+- Mac menus: improve tinted card readability, guard placeholder window closure, and simplify the persistent Refresh row.
+- Configuration: treat empty or whitespace-only JSON files as absent while protecting nonempty invalid files. Agent-session teardown cancels monitoring before releasing its awake assertion.
 - Amp and Kilo: omit invalid oversized numeric projections while preserving valid credits and subscription periods.
 - TypeSafe: show its credit balance through shared menu-layout metadata.
 - Settings: keep shortcut-recorder prompts and provider cookie-source subtitles localized.

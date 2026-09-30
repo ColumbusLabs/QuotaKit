@@ -1662,3 +1662,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Файлы cookie браузера отключены; доступный ключ API по-прежнему будет использоваться.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Для прогнозов, цикла оплаты и счетов используется вход редактора; расходы через браузер отключены.";
 "Paste a Cookie header and select its tenant below." = "Вставьте заголовок Cookie и выберите организацию ниже.";
+
+"Blocked by monthly limit" = "Заблокировано месячным лимитом";

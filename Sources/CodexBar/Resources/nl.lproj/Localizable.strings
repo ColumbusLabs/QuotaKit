@@ -1660,3 +1660,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Browsercookies zijn uitgeschakeld; een API-sleutel wordt nog steeds gebruikt wanneer die beschikbaar is.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Voor voorspellingen, factureringscyclus en facturen wordt de editorlogin gebruikt; browseruitgaven staan uit.";
 "Paste a Cookie header and select its tenant below." = "Plak een Cookie-header en selecteer hieronder de tenant.";
+
+"Blocked by monthly limit" = "Geblokkeerd door de maandlimiet";

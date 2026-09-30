@@ -238,6 +238,38 @@ extension UsageMenuCardView.Model {
         return PersonalInfoRedactor.redactEmails(in: "Team\(detail[separator.lowerBound...])", isEnabled: true)
     }
 
+    static func blockingQuotaMetrics(_ metrics: [Metric], input: Input, snapshot: UsageSnapshot) -> [Metric] {
+        guard let policy = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.menuCard
+            .blockingQuota,
+            let blocker = snapshot.extraRateWindows?.first(where: {
+                $0.id == policy.windowID && $0.usageKnown && !$0.window.isSyntheticPlaceholder
+            })
+        else { return metrics }
+        return metrics.map { metric in
+            let window: RateWindow? = switch metric.id {
+            case "primary": snapshot.primary
+            case "secondary": snapshot.secondary
+            case "tertiary": snapshot.tertiary
+            default: snapshot.extraRateWindows?.first { $0.id == metric.id && $0.usageKnown }?.window
+            }
+            guard let window, !window.isSyntheticPlaceholder,
+                  let projection = RateWindow.bindingQuotaProjection(
+                      primary: window, bindingLanes: [blocker.window], now: input.now)
+            else { return metric }
+            var blocked = metric
+            blocked.percent = input.usageBarsShowUsed ? projection.usedPercent : 100 - projection.usedPercent
+            blocked.statusText = L(policy.message)
+            // The blocking quota's own row owns its reset; shorter resets cannot restore access.
+            blocked.resetText = nil
+            blocked.detailText = nil
+            blocked.detailLeftText = nil
+            blocked.detailRightText = nil
+            blocked.pacePercent = nil
+            blocked.sessionEquivalentDetail = nil
+            return blocked
+        }
+    }
+
     /// Clears the pace stripe and the forecast text when the user hides pace.
     /// Copies every `Metric` field so unrelated decorations (quota and workday
     /// ticks) survive; dropping one here would silently disable them.

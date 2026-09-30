@@ -26,6 +26,12 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 - The directory is created if missing.
 - Writes on macOS and Linux create a `0600` file inside a private `0700` staging directory beside the destination before writing any bytes, then sync and atomically replace the destination. Failed writes preserve the previous file and remove staging.
 
+Empty files and files containing only JSON whitespace (spaces, tabs, CR or LF)
+are treated as absent. Reads leave their bytes unchanged; a settings/config save
+writes valid private JSON. An already-running app retains its in-memory settings
+when an external edit blanks the file. Nonempty malformed JSON still produces a
+decode error and is protected from automatic replacement.
+
 ## Root shape
 ```json
 {

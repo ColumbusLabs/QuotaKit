@@ -1,6 +1,12 @@
 import Foundation
 
 extension CostUsageStore {
+    enum CodexTokenSnapshotHydrationResult: Sendable {
+        case loaded([String: [CostUsageStoreTokenSnapshot]])
+        case stale
+        case unavailable
+    }
+
     /// An unforgeable handle to the one decoded store snapshot retained for a scanner pass.
     /// It intentionally carries no cache state or SQLite connection across the scanner boundary.
     final class CodexBaselineReceipt: Sendable {
@@ -22,10 +28,16 @@ extension CostUsageStore {
         var metadata: CostUsageStoreMetadata
         var files: [CostUsageStoreFile]
         var snapshotCounts: [String: Int]
+        var tokenSnapshotMarkersByPath: [String: Bool]
+        var unloadedTokenSnapshotPaths: Set<String>
+        var malformedDetailsPaths: Set<String>
         var rowCounts: [String: Int]
         var fileAggregatesByPath: [String: [CostUsageStoreDayAggregate]]
 
-        init(snapshot: CostUsageStoreSnapshot) {
+        init(
+            snapshot: CostUsageStoreSnapshot,
+            tokenSnapshotMarkersByPath: [String: Bool] = [:])
+        {
             self.metadata = snapshot.metadata
             self.files = snapshot.files.map { file in
                 var file = file
@@ -34,7 +46,14 @@ extension CostUsageStore {
                 file.scanState.resumePayload = nil
                 return file
             }
-            self.snapshotCounts = snapshot.tokenSnapshots.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
+            self.snapshotCounts = snapshot.tokenSnapshotCounts
+                ?? snapshot.tokenSnapshots.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
+            self.tokenSnapshotMarkersByPath = tokenSnapshotMarkersByPath
+            self.malformedDetailsPaths = CostUsageStore.codexMalformedDetailsPaths(from: snapshot.files)
+            self.unloadedTokenSnapshotPaths = snapshot.tokenSnapshotsLoaded
+                ? []
+                : Set(self.snapshotCounts.compactMap { path, count in count > 0 ? path : nil })
+                .union(self.malformedDetailsPaths)
             self.rowCounts = snapshot.usageRows.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
             self.fileAggregatesByPath = Dictionary(grouping: snapshot.fileDayAggregates, by: \.path)
                 .mapValues { $0.map(\.aggregate) }
@@ -86,9 +105,22 @@ extension CostUsageStore {
         stamp: CodexScanStamp,
         decoded: CostUsageCache? = nil) -> CodexDecodedBaseline
     {
-        CodexDecodedBaseline(
-            decoded: decoded ?? decodeCodexCache(from: snapshot),
-            persistence: CodexPersistenceState(snapshot: snapshot),
+        let decoded = decoded ?? Self.decodeCodexCache(
+            from: snapshot,
+            tokenSnapshotsLoaded: snapshot.tokenSnapshotsLoaded,
+            preserveMalformedFiles: !snapshot.tokenSnapshotsLoaded)
+        var persistence = CodexPersistenceState(
+            snapshot: snapshot,
+            tokenSnapshotMarkersByPath: Self.codexTokenSnapshotMarkersByPath(from: snapshot.files))
+        if !snapshot.tokenSnapshotsLoaded {
+            persistence.unloadedTokenSnapshotPaths = Set(persistence.snapshotCounts.compactMap { path, count in
+                guard count > 0, decoded.files[path]?.codexTokenSnapshots == nil else { return nil }
+                return path
+            }).union(persistence.malformedDetailsPaths)
+        }
+        return CodexDecodedBaseline(
+            decoded: decoded,
+            persistence: persistence,
             stamp: stamp)
     }
 

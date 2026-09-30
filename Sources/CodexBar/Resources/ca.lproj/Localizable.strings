@@ -1663,3 +1663,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "Les galetes del navegador estan desactivades; la clau d’API encara s’utilitza quan està disponible.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Per a les prediccions, el cicle de facturació i les factures s’utilitza l’inici de sessió de l’editor; la despesa del navegador està desactivada.";
 "Paste a Cookie header and select its tenant below." = "Enganxa una capçalera Cookie i selecciona el tenant a continuació.";
+
+"Blocked by monthly limit" = "Blocat pel límit mensual";

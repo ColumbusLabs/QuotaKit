@@ -168,6 +168,11 @@ is limited, using additional rows when needed.
 - When a balance has no reported monthly cap, the menu chooses the next power-of-ten token scale for its bar and label.
   Reported caps keep their own scale.
 
+## Weekly reset publication
+- A suspicious drop from above 1% to 1% or lower is confirmed before publication. If confirmation stays ambiguous, QuotaKit may retain a delayed candidate only when the previous, initial, and confirmation observations are exact OAuth data with compatible account and plan identity, matching reset boundaries, and a stable positive reset-credit inventory.
+- A later exact OAuth observation can publish the reset after the 60-second minimum delay. Candidates expire after 30 minutes, and a stale or incompatible observation discards them.
+- Reset diagnostics use fixed reason codes for candidate creation, delayed evaluation, and persistence decisions. They do not include account emails, workspace names, plan labels, credit IDs, or provider payloads. A persistence decision of `storeRequested` means the configured store API was called; it does not claim that durable storage succeeded.
+
 ## Cost usage (local log scan)
 
 For a manual comparison with another development machine, run `quotakit cost --provider codex --remote <ssh-host>`.

@@ -137,6 +137,7 @@ actor CostUsageStore {
         // persisted rows remain compatible.
         "005a869f36400f7e", // Alias and historical-price routing changes; parsed rows/checkpoints remain compatible.
         "15a7d46518e83cc0", // Timestamp/order and lean report reads preserve parsed rows and checkpoints.
+        "7607317f30850961", // Lazy history materialization changes reads; persisted parser rows remain compatible.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "f22371c47d2e006f",
@@ -178,6 +179,10 @@ actor CostUsageStore {
     nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
     /// Test-only observation of token snapshot table materialization.
     nonisolated(unsafe) static var tokenSnapshotsReadForTesting: ((URL) -> Void)?
+    /// Test-only path-scoped proof for receipt-bound history hydration.
+    nonisolated(unsafe) static var tokenSnapshotPathReadForTesting: ((URL, String?) -> Void)?
+    /// Test-only strict-hydration failure injection; a true result makes the read unavailable.
+    nonisolated(unsafe) static var codexTokenSnapshotHydrationFailureForTesting: ((URL, Set<String>) -> Bool)?
     #endif
 
     /// Process-wide serialization keeps every writable store connection on the same queue.
@@ -320,6 +325,19 @@ extension CostUsageStore {
         }
     }
 
+    nonisolated func syncHydrateCodexTokenSnapshots(
+        paths: Set<String>,
+        receipt: CodexBaselineReceipt,
+        expectedScanStamp: CodexScanStamp) -> CodexTokenSnapshotHydrationResult
+    {
+        self.syncWithStoreIsolation { store in
+            store.hydrateCodexTokenSnapshots(
+                paths: paths,
+                receipt: receipt,
+                expectedScanStamp: expectedScanStamp)
+        }
+    }
+
     nonisolated func syncReleaseCodexBaseline(_ receipt: CodexBaselineReceipt) {
         self.syncWithStoreIsolation { store in
             store.releaseCodexBaseline(receipt)
@@ -405,7 +423,8 @@ extension CostUsageStore {
         calendar: Calendar,
         requestedScanWindow: (sinceKey: String, untilKey: String),
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
-        hydratedPaths: Set<String>) -> CostUsageStoreBudgetResult
+        hydratedPaths: Set<String>,
+        confirmedAbsentHistoryRetryPaths: Set<String> = []) -> CostUsageStoreBudgetResult
     {
         self.syncWithStoreIsolation { store in
             store.saveCodexCatchUpCache(
@@ -413,7 +432,8 @@ extension CostUsageStore {
                 calendar: calendar,
                 requestedScanWindow: requestedScanWindow,
                 reportWindow: reportWindow,
-                hydratedPaths: hydratedPaths)
+                hydratedPaths: hydratedPaths,
+                confirmedAbsentHistoryRetryPaths: confirmedAbsentHistoryRetryPaths)
         }
     }
 

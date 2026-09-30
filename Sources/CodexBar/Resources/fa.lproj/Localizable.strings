@@ -1665,3 +1665,5 @@
 "Browser cookies are disabled; an API key is still used when available." = "کوکی‌های مرورگر غیرفعال‌اند؛ در صورت وجود، کلید API همچنان استفاده می‌شود.";
 "Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "برای پیش‌بینی‌ها، چرخهٔ صورتحساب و فاکتورها از ورود ویرایشگر استفاده می‌شود؛ هزینهٔ مرورگر غیرفعال است.";
 "Paste a Cookie header and select its tenant below." = "یک سربرگ Cookie را جای‌گذاری کنید و مستأجر را در ادامه انتخاب کنید.";
+
+"Blocked by monthly limit" = "به دلیل سقف ماهانه مسدود شده";

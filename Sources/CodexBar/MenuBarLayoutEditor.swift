@@ -753,10 +753,6 @@ struct MenuBarLayoutEditor: View {
             }
 
             Spacer()
-
-            Text(L("menu_bar_layout_keyboard_hint"))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
     }
 

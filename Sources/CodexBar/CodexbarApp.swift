@@ -424,6 +424,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        MenuBarStatusItemWindowProbe.trace("will-finish-launching")
         self.configureAppIconForMacOSVersion()
         // The SwiftUI `Settings` scene is an empty placeholder; macOS otherwise presents it at launch.
         self.placeholderSettingsWindowGuard.start()
@@ -435,6 +436,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MenuBarStatusItemWindowProbe.trace("did-finish-launching")
         self.dockIconController.start()
         self.memoryPressureMonitor.start()
         if !self.hasStartedKeychainMigration {
