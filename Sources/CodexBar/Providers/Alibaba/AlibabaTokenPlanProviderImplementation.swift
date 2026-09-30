@@ -66,9 +66,10 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
             return ProviderCookieSourceUI.subtitle(
                 source: context.settings.alibabaTokenPlanCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from Model Studio/Bailian.",
-                manual: "Paste a Cookie header from \(host ?? "the selected console").",
-                off: "Alibaba Token Plan cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports browser cookies from Model Studio/Bailian."),
+                    manual: Self.manualCookieHeaderSubtitle(host: host),
+                    off: L("%@ cookies are disabled.", "Alibaba Token Plan")))
         }
 
         let regionBinding = Binding(
@@ -98,7 +99,7 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "alibaba-token-plan-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from Model Studio/Bailian.",
+                subtitle: L("Automatic imports browser cookies from Model Studio/Bailian."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
@@ -153,5 +154,12 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
                 },
                 onActivate: nil),
         ]
+    }
+
+    static func manualCookieHeaderSubtitle(host: String?) -> String {
+        guard let host, !host.isEmpty else {
+            return L("Paste a Cookie header from the selected console.")
+        }
+        return L("Paste a Cookie header from %@.", host)
     }
 }

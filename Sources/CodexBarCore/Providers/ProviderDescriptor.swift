@@ -313,7 +313,7 @@ public struct ProviderPaceCapability: Sendable {
         guard let startsAt = calendar.date(byAdding: .month, value: -1, to: resetsAt) else { return nil }
         let minutes = resetsAt.timeIntervalSince(startsAt) / 60
         guard minutes.isFinite, minutes > 0 else { return nil }
-        return Int(minutes.rounded())
+        return Int(exactly: minutes.rounded())
     }
 }
 

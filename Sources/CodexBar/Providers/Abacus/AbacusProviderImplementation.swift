@@ -46,16 +46,17 @@ struct AbacusProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.abacusCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies.",
-                manual: "Paste a Cookie header or cURL capture from the Abacus AI dashboard.",
-                off: "Abacus AI cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports browser cookies."),
+                    manual: L("Paste a Cookie header or cURL capture from %@.", "Abacus AI dashboard"),
+                    off: L("%@ cookies are disabled.", "Abacus AI")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "abacus-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies.",
+                subtitle: L("Automatic imports browser cookies."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

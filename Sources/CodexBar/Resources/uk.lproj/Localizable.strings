@@ -1643,3 +1643,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "За замовчуванням використовується AZURE_OPENAI_API_VERSION, якщо її задано.";
 "No cookie header pasted." = "Заголовок Cookie не вставлено.";
 "Use automatic cookies" = "Використовувати автоматичні cookie";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Імпортує сеанси Chrome для %@ / %@; Cloud має пріоритет.";
+"Paste a Cookie header from the selected console." = "Вставте заголовок Cookie з вибраної консолі.";
+"Paste the %@ JSON bundle from localStorage." = "Вставте JSON-пакет %@ з localStorage.";
+"Automatically imports browser cookies for %@." = "Автоматично імпортує файли cookie браузера для %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Автоматично імпортує сеанс %@ із підтримуваних браузерів Chromium.";
+"Automatically imports %@ cookies from %@." = "Автоматично імпортує файли cookie %@ з %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Автоматично імпортує файл cookie сеансу Chrome, а потім використовує ключ API як резервний варіант.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Використовує сеанс браузера %@ для витрат і прогнозів; дані редактора про цикли оплати й рахунки недоступні.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Автоматично входить за допомогою файлів cookie сеансу %@ з Chrome.";
+"Paste an Authorization Bearer token from %@." = "Вставте токен Bearer із заголовка Authorization для %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Використовує вставлений заголовок Cookie для %@, а потім переходить на ключ API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Використовує вставлений Cookie з %@ для витрат і прогнозів; дані редактора про цикли оплати й рахунки недоступні.";
+"Paste a cURL capture from %@." = "Вставте запис cURL з %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Файли cookie браузера вимкнено; доступний ключ API і надалі використовуватиметься.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Для прогнозів, циклу оплати й рахунків використовується вхід редактора; витрати через браузер вимкнено.";
+"Paste a Cookie header and select its tenant below." = "Вставте заголовок Cookie і виберіть клієнта нижче.";

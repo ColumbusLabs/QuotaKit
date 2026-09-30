@@ -1643,3 +1643,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "デフォルトでは、設定されている場合にAZURE_OPENAI_API_VERSIONを使用します。";
 "No cookie header pasted." = "Cookieヘッダーが貼り付けられていません。";
 "Use automatic cookies" = "Cookieを自動取得";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "%@ / %@ 用に Chrome セッションを読み込みます。Cloud を優先します。";
+"Paste a Cookie header from the selected console." = "選択したコンソールのCookieヘッダーを貼り付けてください。";
+"Paste the %@ JSON bundle from localStorage." = "localStorageから%@のJSONバンドルを貼り付けてください。";
+"Automatically imports browser cookies for %@." = "ブラウザ Cookie を %@ 用に自動で読み込みます。";
+"Automatically imports the %@ session from supported Chromium browsers." = "対応する Chromium ブラウザから %@ セッションを自動で読み込みます。";
+"Automatically imports %@ cookies from %@." = "%@ の Cookie を %@ から自動で読み込みます。";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Chrome セッション Cookie を自動で読み込み、次に API キーへフォールバックします。";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "支出と予測には %@ のブラウザセッションを使用します。エディター専用の請求サイクルと請求書データは利用できません。";
+"Automatically signs in using your %@ session cookies from Chrome." = "Chrome から %@ セッション Cookie を使って自動でサインインします。";
+"Paste an Authorization Bearer token from %@." = "%@ の Authorization ヘッダーから Bearer トークンを貼り付けます。";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "%@ の貼り付けた Cookie ヘッダーを使い、その後 API キーにフォールバックします。";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "支出と予測には %@ の貼り付けた Cookie を使用します。エディター専用の請求サイクルと請求書データは利用できません。";
+"Paste a cURL capture from %@." = "%@ の cURL キャプチャを貼り付けます。";
+"Browser cookies are disabled; an API key is still used when available." = "ブラウザ Cookie は無効ですが、API キーがあれば引き続き使用します。";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "予測、請求サイクル、請求書にはエディターのログインを使用します。ブラウザの支出機能はオフです。";
+"Paste a Cookie header and select its tenant below." = "Cookieヘッダーを貼り付けて、下でテナントを選択してください。";

@@ -49,6 +49,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Amp and Kilo: omit invalid oversized numeric projections while preserving valid credits and subscription periods.
+- TypeSafe: show its credit balance through shared menu-layout metadata.
+- Settings: keep shortcut-recorder prompts and provider cookie-source subtitles localized.
 - Compact account menus respect each provider's reset-display policy for visible windows while preserving quota ordering and privacy.
 - Devin CLI: accept valid manual bearer credentials on Linux without requiring a browser source.
 - CLI shell discovery rejects oversized output and drains subprocess pipes within the existing timeout.

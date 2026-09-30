@@ -1642,3 +1642,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Standard använder AZURE_OPENAI_API_VERSION om den är angiven.";
 "No cookie header pasted." = "Ingen Cookie-header har klistrats in.";
 "Use automatic cookies" = "Använd automatiska kakor";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Importerar Chrome-sessioner för %@ / %@; Cloud prioriteras.";
+"Paste a Cookie header from the selected console." = "Klistra in en Cookie-header från den valda konsolen.";
+"Paste the %@ JSON bundle from localStorage." = "Klistra in %@ JSON-paketet från localStorage.";
+"Automatically imports browser cookies for %@." = "Importerar automatiskt webbläsarkakor för %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Importerar automatiskt %@-sessionen från webbläsare med stöd för Chromium.";
+"Automatically imports %@ cookies from %@." = "Importerar automatiskt %@-kakor från %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Importerar automatiskt en Chrome-sessionskaka och använder sedan en API-nyckel som reserv.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Använder en %@-webbläsarsession för utgifter och prognoser; editorns data om faktureringscykler och fakturor är inte tillgängliga.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Loggar in automatiskt med %@-sessionskakor från Chrome.";
+"Paste an Authorization Bearer token from %@." = "Klistra in en Bearer-token från Authorization-headern för %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Använder en inklistrad Cookie-header för %@ och växlar sedan till en API-nyckel.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Använder en inklistrad Cookie från %@ för utgifter och prognoser; editorns data om faktureringscykler och fakturor är inte tillgängliga.";
+"Paste a cURL capture from %@." = "Klistra in en cURL-fångst från %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Webbläsarkakor är inaktiverade; en API-nyckel används fortfarande när den är tillgänglig.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Editorinloggningen används för prognoser, faktureringscykel och fakturor; webbläsarutgifter är avstängda.";
+"Paste a Cookie header and select its tenant below." = "Klistra in en Cookie-header och välj klientorganisation nedan.";

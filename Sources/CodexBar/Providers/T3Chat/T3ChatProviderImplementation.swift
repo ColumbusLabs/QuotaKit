@@ -32,16 +32,17 @@ struct T3ChatProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.t3ChatCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatically imports browser cookies.",
-                manual: "Paste a Cookie header or cURL capture from T3 Chat settings.",
-                off: "Paste a Cookie header or cURL capture from T3 Chat settings.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies."),
+                    manual: L("Paste a Cookie header or full cURL capture from T3 Chat settings."),
+                    off: L("Paste a Cookie header or full cURL capture from T3 Chat settings.")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "t3chat-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatically imports browser cookies.",
+                subtitle: L("Automatically imports browser cookies."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

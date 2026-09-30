@@ -66,9 +66,10 @@ struct VeniceProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.veniceCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports Venice cookies from Chrome.",
-                manual: "Paste a Cookie header from venice.ai.",
-                off: "Venice cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies for %@.", "venice.ai"),
+                    manual: L("Paste a Cookie header from %@.", "venice.ai"),
+                    off: L("%@ cookies are disabled.", "Venice")))
         }
         return [
             ProviderSettingsPickerDescriptor(
@@ -84,7 +85,7 @@ struct VeniceProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "venice-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports Venice cookies from Chrome.",
+                subtitle: L("Automatically imports browser cookies for %@.", "venice.ai"),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: ProviderCookieSourceUI.options(

@@ -54,14 +54,15 @@ struct MuseProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "muse-cookie-source",
                 title: "Cookie source",
-                subtitle: "Choose how QuotaKit reads your dev.meta.ai session.",
+                subtitle: L("Automatically imports browser cookies."),
                 dynamicSubtitle: {
                     ProviderCookieSourceUI.subtitle(
                         source: context.settings.museCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
-                        auto: "Automatically imports browser cookies.",
-                        manual: "Paste a Cookie header or cURL capture from dev.meta.ai.",
-                        off: "Muse Code cookies are disabled.")
+                        subtitles: ProviderCookieSourceUI.Subtitles(
+                            auto: L("Automatically imports browser cookies."),
+                            manual: L("Paste a Cookie header from %@.", "dev.meta.ai"),
+                            off: L("%@ cookies are disabled.", "Muse Code")))
                 },
                 binding: cookieBinding,
                 options: ProviderCookieSourceUI.options(

@@ -337,6 +337,11 @@ built-in provider.
 
 ## Provider switcher tabs
 
+QuotaKit intentionally keeps `topLevel` opt-in. An omitted field preserves the
+existing appended-card placement; upgrading the app does not move existing plugin
+cards into tabs. This differs from upstream's default-on policy and is a placement
+choice, independent of installation, enablement and capability approval.
+
 Set `topLevel: true` in the manifest to give an enabled plugin its own tab when **Merge Icons** is enabled. The tab uses
 the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins using the original
 appended-card placement. With Merge Icons disabled, plugins retain appended-card placement.

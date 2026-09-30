@@ -97,9 +97,10 @@ struct CopilotProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.copilotBudgetCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatically imports browser cookies for github.com budget extras.",
-                manual: "Paste a Cookie header from github.com.",
-                off: "GitHub cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies for %@.", "github.com"),
+                    manual: L("Paste a Cookie header from %@.", "github.com"),
+                    off: L("%@ cookies are disabled.", "GitHub")))
         }
         let options = [
             ProviderSettingsPickerOption(
@@ -139,7 +140,7 @@ struct CopilotProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "copilot-budget-cookie-source",
                 title: "GitHub cookies",
-                subtitle: "Automatically imports browser cookies for budget extras.",
+                subtitle: L("Automatically imports browser cookies for %@.", "github.com"),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

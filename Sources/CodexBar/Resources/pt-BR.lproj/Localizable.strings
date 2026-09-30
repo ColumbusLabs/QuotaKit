@@ -1643,3 +1643,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "O padrão usa AZURE_OPENAI_API_VERSION quando definida.";
 "No cookie header pasted." = "Nenhum cabeçalho Cookie colado.";
 "Use automatic cookies" = "Usar cookies automáticos";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "Importa sessões do Chrome para %@ / %@; Cloud tem prioridade.";
+"Paste a Cookie header from the selected console." = "Cole um cabeçalho Cookie do console selecionado.";
+"Paste the %@ JSON bundle from localStorage." = "Cole o pacote JSON de %@ do localStorage.";
+"Automatically imports browser cookies for %@." = "Importa automaticamente cookies do navegador para %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Importa automaticamente a sessão %@ dos navegadores Chromium compatíveis.";
+"Automatically imports %@ cookies from %@." = "Importa automaticamente cookies de %@ do %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Importa automaticamente um cookie de sessão do Chrome e depois usa uma chave de API como alternativa.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Usa uma sessão do navegador %@ para gastos e previsões; os dados de ciclo de cobrança e faturas do editor não estão disponíveis.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Faz login automaticamente usando os cookies de sessão %@ do Chrome.";
+"Paste an Authorization Bearer token from %@." = "Cole um token Bearer do cabeçalho Authorization de %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "Usa um cabeçalho Cookie colado de %@ e depois recorre a uma chave de API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Usa um Cookie colado de %@ para gastos e previsões; os dados de ciclo de cobrança e faturas do editor não estão disponíveis.";
+"Paste a cURL capture from %@." = "Cole uma captura cURL de %@.";
+"Browser cookies are disabled; an API key is still used when available." = "Os cookies do navegador estão desativados; uma chave de API ainda será usada quando estiver disponível.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "O login do editor é usado para previsões, ciclo de cobrança e faturas; os gastos do navegador estão desativados.";
+"Paste a Cookie header and select its tenant below." = "Cole um cabeçalho Cookie e selecione o locatário abaixo.";

@@ -1647,3 +1647,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "ค่าเริ่มต้นใช้ AZURE_OPENAI_API_VERSION หากตั้งค่าไว้";
 "No cookie header pasted." = "ยังไม่ได้วางส่วนหัว Cookie";
 "Use automatic cookies" = "ใช้คุกกี้อัตโนมัติ";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "นำเข้าเซสชัน Chrome สำหรับ %@ / %@ โดยให้ Cloud มาก่อน";
+"Paste a Cookie header from the selected console." = "วางส่วนหัว Cookie จากคอนโซลที่เลือก";
+"Paste the %@ JSON bundle from localStorage." = "วางชุด JSON ของ %@ จาก localStorage";
+"Automatically imports browser cookies for %@." = "นำเข้าคุกกี้ของเบราว์เซอร์สำหรับ %@ โดยอัตโนมัติ";
+"Automatically imports the %@ session from supported Chromium browsers." = "นำเข้าเซสชัน %@ จากเบราว์เซอร์ Chromium ที่รองรับโดยอัตโนมัติ";
+"Automatically imports %@ cookies from %@." = "นำเข้าคุกกี้ %@ จาก %@ โดยอัตโนมัติ";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "นำเข้าคุกกี้เซสชัน Chrome โดยอัตโนมัติ แล้วใช้คีย์ API สำรอง";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "ใช้เซสชันเบราว์เซอร์ %@ สำหรับค่าใช้จ่ายและการคาดการณ์ ข้อมูลรอบบิลและใบแจ้งหนี้ของตัวแก้ไขไม่พร้อมใช้งาน";
+"Automatically signs in using your %@ session cookies from Chrome." = "ลงชื่อเข้าใช้โดยอัตโนมัติโดยใช้คุกกี้เซสชัน %@ จาก Chrome";
+"Paste an Authorization Bearer token from %@." = "วางโทเค็น Bearer จากส่วนหัว Authorization ของ %@";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "ใช้ส่วนหัว Cookie ที่วางจาก %@ แล้วสลับไปใช้คีย์ API สำรอง";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "ใช้ Cookie ที่วางจาก %@ สำหรับค่าใช้จ่ายและการคาดการณ์ ข้อมูลรอบบิลและใบแจ้งหนี้ของตัวแก้ไขไม่พร้อมใช้งาน";
+"Paste a cURL capture from %@." = "วางข้อมูล cURL ที่จับจาก %@";
+"Browser cookies are disabled; an API key is still used when available." = "ปิดใช้คุกกี้ของเบราว์เซอร์แล้ว แต่ยังใช้คีย์ API เมื่อมีให้ใช้งาน";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "ใช้การเข้าสู่ระบบของตัวแก้ไขสำหรับการคาดการณ์ รอบบิล และใบแจ้งหนี้ ปิดค่าใช้จ่ายจากเบราว์เซอร์แล้ว";
+"Paste a Cookie header and select its tenant below." = "วางส่วนหัว Cookie แล้วเลือกผู้เช่าด้านล่าง";

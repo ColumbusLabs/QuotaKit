@@ -54,16 +54,17 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.opencodeCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from opencode.ai.",
-                manual: "Paste a Cookie header captured from the billing page.",
-                off: "OpenCode cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports browser cookies from opencode.ai."),
+                    manual: L("Paste a Cookie header captured from %@.", "opencode.ai"),
+                    off: L("%@ cookies are disabled.", "OpenCode")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "opencode-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from opencode.ai.",
+                subtitle: L("Automatic imports browser cookies from opencode.ai."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

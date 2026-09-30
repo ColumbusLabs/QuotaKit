@@ -1645,3 +1645,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "Varsayılan seçenek, ayarlanmışsa AZURE_OPENAI_API_VERSION değerini kullanır.";
 "No cookie header pasted." = "Cookie başlığı yapıştırılmadı.";
 "Use automatic cookies" = "Otomatik çerezleri kullan";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "%@ / %@ için Chrome oturumlarını içe aktarır; Cloud önceliklidir.";
+"Paste a Cookie header from the selected console." = "Seçili konsoldan bir Cookie başlığı yapıştırın.";
+"Paste the %@ JSON bundle from localStorage." = "localStorage içindeki %@ JSON paketini yapıştırın.";
+"Automatically imports browser cookies for %@." = "Tarayıcı çerezlerini %@ için otomatik olarak içe aktarır.";
+"Automatically imports the %@ session from supported Chromium browsers." = "Desteklenen Chromium tarayıcılarından %@ oturumunu otomatik olarak içe aktarır.";
+"Automatically imports %@ cookies from %@." = "%@ çerezlerini %@ kaynağından otomatik olarak içe aktarır.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "Bir Chrome oturum çerezini otomatik olarak içe aktarır, ardından yedek olarak API anahtarını kullanır.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "Harcama ve tahminler için %@ tarayıcı oturumunu kullanır; düzenleyiciye özel faturalama dönemi ve fatura verileri kullanılamaz.";
+"Automatically signs in using your %@ session cookies from Chrome." = "Chrome üzerinden %@ oturum çerezleriyle otomatik olarak oturum açar.";
+"Paste an Authorization Bearer token from %@." = "%@ için Authorization başlığındaki Bearer belirtecini yapıştırın.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "%@ için yapıştırılan Cookie başlığını kullanır, ardından API anahtarına geçer.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "Harcama ve tahminler için %@ üzerinden yapıştırılan Cookie değerini kullanır; düzenleyiciye özel faturalama dönemi ve fatura verileri kullanılamaz.";
+"Paste a cURL capture from %@." = "%@ kaynağından cURL yakalamasını yapıştırın.";
+"Browser cookies are disabled; an API key is still used when available." = "Tarayıcı çerezleri devre dışı; varsa API anahtarı kullanılmaya devam eder.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "Tahminler, faturalama dönemi ve faturalar için düzenleyici oturumu kullanılır; tarayıcı harcamaları kapalıdır.";
+"Paste a Cookie header and select its tenant below." = "Bir Cookie başlığı yapıştırın ve aşağıdan kiracıyı seçin.";

@@ -45,15 +45,16 @@ struct HuggingFaceProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.huggingFaceCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: L("Imports browser cookies to read the optional prepaid balance."),
-                manual: "Paste a Cookie header captured from Hugging Face billing.",
-                off: "Hugging Face browser cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Imports browser cookies to read the optional prepaid balance."),
+                    manual: L("Paste the Cookie header captured from your Hugging Face billing page."),
+                    off: L("%@ cookies are disabled.", "Hugging Face")))
         }
         return [
             ProviderSettingsPickerDescriptor(
                 id: "huggingface-cookie-source",
                 title: "Cookie source",
-                subtitle: "Browser cookies are used only for the optional prepaid balance.",
+                subtitle: L("Imports browser cookies to read the optional prepaid balance."),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: ProviderCookieSourceUI.options(

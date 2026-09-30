@@ -1655,3 +1655,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "默认使用已设置的 AZURE_OPENAI_API_VERSION。";
 "No cookie header pasted." = "尚未粘贴 Cookie 标头。";
 "Use automatic cookies" = "使用自动 Cookie";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "为 %@ / %@ 导入 Chrome 会话；优先使用 Cloud。";
+"Paste a Cookie header from the selected console." = "粘贴所选控制台中的 Cookie 标头。";
+"Paste the %@ JSON bundle from localStorage." = "粘贴来自 localStorage 的 %@ JSON 包。";
+"Automatically imports browser cookies for %@." = "自动为 %@ 导入浏览器 Cookie。";
+"Automatically imports the %@ session from supported Chromium browsers." = "自动从受支持的 Chromium 浏览器导入 %@ 会话。";
+"Automatically imports %@ cookies from %@." = "自动从 %@ 导入 %@ Cookie。";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "自动导入 Chrome 会话 Cookie，之后回退到 API 密钥。";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "使用 %@ 浏览器会话查看支出和预测；编辑器专属的账单周期和发票数据不可用。";
+"Automatically signs in using your %@ session cookies from Chrome." = "自动使用来自 Chrome 的 %@ 会话 Cookie 登录。";
+"Paste an Authorization Bearer token from %@." = "粘贴来自 %@ 的 Authorization 标头中的 Bearer 令牌。";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "使用粘贴的 %@ Cookie 标头，之后回退到 API 密钥。";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "使用从 %@ 粘贴的 Cookie 查看支出和预测；编辑器专属的账单周期和发票数据不可用。";
+"Paste a cURL capture from %@." = "粘贴来自 %@ 的 cURL 捕获内容。";
+"Browser cookies are disabled; an API key is still used when available." = "浏览器 Cookie 已停用；有可用的 API 密钥时仍会使用。";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "预测、账单周期和发票使用编辑器登录；浏览器支出已关闭。";
+"Paste a Cookie header and select its tenant below." = "粘贴 Cookie 标头并在下方选择租户。";

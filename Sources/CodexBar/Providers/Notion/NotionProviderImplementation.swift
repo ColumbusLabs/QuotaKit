@@ -47,16 +47,17 @@ struct NotionProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.notionCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatically imports the browser session cookie.",
-                manual: "Paste a full cookie header or the token_v2 value.",
-                off: "Notion cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser session cookie."),
+                    manual: L("Paste a full cookie header or the %@ value.", "token_v2"),
+                    off: L("%@ cookies are disabled.", "Notion")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "notion-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatically imports the browser session cookie.",
+                subtitle: L("Automatically imports browser session cookie."),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

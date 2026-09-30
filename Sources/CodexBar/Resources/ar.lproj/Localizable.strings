@@ -1647,3 +1647,21 @@
 "Default uses AZURE_OPENAI_API_VERSION when set." = "يستخدم الخيار الافتراضي AZURE_OPENAI_API_VERSION عند تعيينه.";
 "No cookie header pasted." = "لم يتم لصق ترويسة Cookie.";
 "Use automatic cookies" = "استخدام ملفات تعريف الارتباط تلقائيًا";
+
+// Provider cookie-source picker subtitles.
+"Imports Chrome sessions for %@ / %@; Cloud is preferred." = "يستورد جلسات Chrome لـ %@ / %@؛ السحابة هي الخيار المفضل.";
+"Paste a Cookie header from the selected console." = "الصق ترويسة Cookie من وحدة التحكم المحددة.";
+"Paste the %@ JSON bundle from localStorage." = "الصق حزمة JSON لـ %@ من localStorage.";
+"Automatically imports browser cookies for %@." = "يستورد ملفات تعريف ارتباط المتصفح تلقائيًا لـ %@.";
+"Automatically imports the %@ session from supported Chromium browsers." = "يستورد جلسة %@ تلقائيًا من متصفحات Chromium المدعومة.";
+"Automatically imports %@ cookies from %@." = "يستورد ملفات تعريف ارتباط %@ تلقائيًا من %@.";
+"Automatically imports a Chrome session cookie, then falls back to an API key." = "يستورد ملف تعريف ارتباط جلسة Chrome تلقائيًا، ثم يستخدم مفتاح API عند الحاجة.";
+"Uses a %@ browser session for spend and predictions; editor-only cycle and invoice data are unavailable." = "يستخدم جلسة متصفح %@ للإنفاق والتنبؤات؛ بيانات دورة الفوترة والفواتير الخاصة بالمحرر غير متاحة.";
+"Automatically signs in using your %@ session cookies from Chrome." = "يسجّل الدخول تلقائيًا باستخدام ملفات تعريف ارتباط جلسة %@ من Chrome.";
+"Paste an Authorization Bearer token from %@." = "الصق رمز Bearer في ترويسة Authorization من %@.";
+"Uses a pasted %@ Cookie header, then falls back to an API key." = "يستخدم ترويسة Cookie ملصقة لـ %@، ثم ينتقل إلى مفتاح API.";
+"Uses a pasted %@ Cookie for spend and predictions; editor-only cycle and invoice data are unavailable." = "يستخدم Cookie ملصقًا لـ %@ للإنفاق والتنبؤات؛ بيانات دورة الفوترة والفواتير الخاصة بالمحرر غير متاحة.";
+"Paste a cURL capture from %@." = "الصق التقاط cURL من %@.";
+"Browser cookies are disabled; an API key is still used when available." = "ملفات تعريف ارتباط المتصفح معطلة؛ سيظل مفتاح API مستخدمًا عند توفره.";
+"Uses editor login for predictions, billing cycle, and invoices; browser spend is off." = "يُستخدم تسجيل دخول المحرر للتنبؤات ودورة الفوترة والفواتير؛ إنفاق المتصفح متوقف.";
+"Paste a Cookie header and select its tenant below." = "الصق ترويسة Cookie وحدد المستأجر أدناه.";

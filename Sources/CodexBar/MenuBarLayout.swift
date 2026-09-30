@@ -601,9 +601,19 @@ enum MenuBarLayoutBalanceResolver {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        // Provider-specific by design: only OpenRouter exposes its credit balance as the "Remaining" detail row.
-        guard provider == .openrouter else { return nil }
-        return snapshot?.detailRow(label: "Remaining")?.value
+        switch provider {
+        // Provider-specific by design: OpenRouter exposes its balance as the structured Remaining detail row.
+        case .openrouter:
+            return snapshot?.detailRow(label: "Remaining")?.value
+        default:
+            let prefix = "Balance:"
+            guard ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow.stripsBalancePrefix,
+                  let text = snapshot?.loginMethod(for: provider)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  text.hasPrefix(prefix)
+            else { return nil }
+            let value = text.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
+        }
     }
 
     /// Numeric USD amounts behind OpenRouter's "Credits" detail rows. The plugin formats both rows as

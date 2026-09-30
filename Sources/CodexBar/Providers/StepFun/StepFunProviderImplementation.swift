@@ -78,16 +78,17 @@ struct StepFunProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.stepfunCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Uses username + password to login and obtain an Oasis-Token automatically.",
-                manual: "Manually paste an Oasis-Token from a browser session.",
-                off: "StepFun authentication is disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Uses username + password to login and obtain an Oasis-Token automatically."),
+                    manual: L("Manually paste an %@ from a browser session.", "Oasis-Token"),
+                    off: L("%@ authentication is disabled.", "StepFun")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "stepfun-cookie-source",
                 title: "Auth source",
-                subtitle: "Uses username + password to login and obtain an Oasis-Token automatically.",
+                subtitle: L("Uses username + password to login and obtain an Oasis-Token automatically."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

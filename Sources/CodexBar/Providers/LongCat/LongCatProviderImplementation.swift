@@ -53,16 +53,17 @@ struct LongCatProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.longcatCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports longcat.chat cookies from your browser.",
-                manual: "Paste a Cookie header copied from longcat.chat.",
-                off: "LongCat cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatically imports browser cookies for %@.", "longcat.chat"),
+                    manual: L("Paste a Cookie header from %@.", "longcat.chat"),
+                    off: L("%@ cookies are disabled.", "LongCat")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "longcat-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports longcat.chat cookies from your browser.",
+                subtitle: L("Automatically imports browser cookies for %@.", "longcat.chat"),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

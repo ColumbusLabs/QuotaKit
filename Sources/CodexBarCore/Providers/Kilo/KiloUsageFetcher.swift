@@ -50,7 +50,7 @@ public struct KiloUsageSnapshot: Sendable {
         let used = self.resolvedUsed
 
         let primary: RateWindow?
-        if let total {
+        if let total, total.isFinite, let used, used.isFinite {
             let usedPercent: Double = if total > 0 {
                 min(100, max(0, (used / total) * 100))
             } else {
@@ -87,58 +87,80 @@ public struct KiloUsageSnapshot: Sendable {
     }
 
     private var resolvedTotal: Double? {
-        if let creditsTotal { return max(0, creditsTotal) }
+        if let creditsTotal {
+            guard creditsTotal.isFinite else { return nil }
+            return max(0, creditsTotal)
+        }
         if let creditsUsed, let creditsRemaining {
-            return max(0, creditsUsed + creditsRemaining)
+            guard creditsUsed.isFinite, creditsRemaining.isFinite else { return nil }
+            let total = creditsUsed + creditsRemaining
+            guard total.isFinite else { return nil }
+            return max(0, total)
         }
         return nil
     }
 
-    private var resolvedUsed: Double {
+    private var resolvedUsed: Double? {
         if let creditsUsed {
+            guard creditsUsed.isFinite else { return nil }
             return max(0, creditsUsed)
         }
         if let total = self.resolvedTotal,
            let creditsRemaining
         {
-            return max(0, total - creditsRemaining)
+            guard creditsRemaining.isFinite else { return nil }
+            let used = total - creditsRemaining
+            guard used.isFinite else { return nil }
+            return max(0, used)
         }
         return 0
     }
 
     private var resolvedPassTotal: Double? {
-        if let passTotal { return max(0, passTotal) }
+        if let passTotal {
+            guard passTotal.isFinite else { return nil }
+            return max(0, passTotal)
+        }
         if let passUsed, let passRemaining {
-            return max(0, passUsed + passRemaining)
+            guard passUsed.isFinite, passRemaining.isFinite else { return nil }
+            let total = passUsed + passRemaining
+            guard total.isFinite else { return nil }
+            return max(0, total)
         }
         return nil
     }
 
-    private var resolvedPassUsed: Double {
+    private var resolvedPassUsed: Double? {
         if let passUsed {
+            guard passUsed.isFinite else { return nil }
             return max(0, passUsed)
         }
         if let total = self.resolvedPassTotal,
            let passRemaining
         {
-            return max(0, total - passRemaining)
+            guard passRemaining.isFinite else { return nil }
+            let used = total - passRemaining
+            guard used.isFinite else { return nil }
+            return max(0, used)
         }
         return 0
     }
 
     private var passWindow: RateWindow? {
-        guard let total = self.resolvedPassTotal else {
-            return nil
-        }
-
-        let used = self.resolvedPassUsed
-        let bonus = max(0, self.passBonus ?? 0)
+        guard let total = self.resolvedPassTotal, total.isFinite,
+              let used = self.resolvedPassUsed, used.isFinite
+        else { return nil }
+        let rawBonus = self.passBonus ?? 0
+        guard rawBonus.isFinite else { return nil }
+        let bonus = max(0, rawBonus)
         let baseCredits = max(0, total - bonus)
+        guard baseCredits.isFinite else { return nil }
         let usedPercent: Double = if total > 0 {
             min(100, max(0, (used / total) * 100))
         } else {
             100
         }
+        guard usedPercent.isFinite else { return nil }
 
         var detail = "$\(Self.currencyNumber(used)) / $\(Self.currencyNumber(baseCredits))"
         if bonus > 0 {
@@ -153,8 +175,9 @@ public struct KiloUsageSnapshot: Sendable {
     }
 
     private static func compactNumber(_ value: Double) -> String {
+        if value == 0 { return "0" }
         if value.rounded(.towardZero) == value {
-            return String(Int(value))
+            return String(format: "%.0f", value)
         }
         return String(format: "%.2f", value)
     }
@@ -638,8 +661,8 @@ public struct KiloUsageFetcher: Sendable {
             }
 
             if sawTotal || sawRemaining {
-                let total = sawTotal ? max(0, totalFromBlocks) : nil
-                let remaining = sawRemaining ? max(0, remainingFromBlocks) : nil
+                let total = sawTotal && totalFromBlocks.isFinite ? max(0, totalFromBlocks) : nil
+                let remaining = sawRemaining && remainingFromBlocks.isFinite ? max(0, remainingFromBlocks) : nil
                 let used: Double? = if let total, let remaining {
                     max(0, total - remaining)
                 } else {
@@ -678,7 +701,8 @@ public struct KiloUsageFetcher: Sendable {
            let used,
            let remaining
         {
-            total = used + remaining
+            let combined = used + remaining
+            total = combined.isFinite ? combined : nil
         }
 
         if used == nil, total == nil, remaining == nil,
@@ -707,11 +731,16 @@ public struct KiloUsageFetcher: Sendable {
             let used = self.double(from: subscription["currentPeriodUsageUsd"]).map { max(0, $0) }
             let baseCredits = self.double(from: subscription["currentPeriodBaseCreditsUsd"]).map { max(0, $0) }
             let bonusCredits = max(0, self.double(from: subscription["currentPeriodBonusCreditsUsd"]) ?? 0)
-            let total = baseCredits.map { $0 + bonusCredits }
-            let remaining: Double? = if let total, let used {
-                max(0, total - used)
+            let total = baseCredits.flatMap { base in
+                let total = base + bonusCredits
+                return total.isFinite ? total : nil
+            }
+            let remaining: Double?
+            if let total, let used {
+                let derivedRemaining = total - used
+                remaining = derivedRemaining.isFinite ? max(0, derivedRemaining) : nil
             } else {
-                nil
+                remaining = nil
             }
             let resetsAt = self.date(from: subscription["nextBillingAt"])
                 ?? self.date(from: subscription["nextRenewalAt"])
@@ -849,19 +878,22 @@ public struct KiloUsageFetcher: Sendable {
            let used,
            let remaining
         {
-            total = used + remaining
+            let combined = used + remaining
+            total = combined.isFinite ? combined : nil
         }
         if used == nil,
            let total,
            let remaining
         {
-            used = max(0, total - remaining)
+            let derivedUsed = total - remaining
+            used = derivedUsed.isFinite ? max(0, derivedUsed) : nil
         }
         if remaining == nil,
            let total,
            let used
         {
-            remaining = max(0, total - used)
+            let derivedRemaining = total - used
+            remaining = derivedRemaining.isFinite ? max(0, derivedRemaining) : nil
         }
 
         return KiloPassFields(

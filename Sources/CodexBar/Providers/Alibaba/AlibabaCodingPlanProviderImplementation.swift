@@ -51,16 +51,17 @@ struct AlibabaCodingPlanProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.alibabaCodingPlanCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from Model Studio/Bailian.",
-                manual: "Paste a Cookie header from modelstudio.console.alibabacloud.com.",
-                off: "Alibaba cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports browser cookies from Model Studio/Bailian."),
+                    manual: L("Paste a Cookie header from %@.", "modelstudio.console.alibabacloud.com"),
+                    off: L("%@ cookies are disabled.", "Alibaba")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "alibaba-coding-plan-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from Model Studio/Bailian.",
+                subtitle: L("Automatic imports browser cookies from Model Studio/Bailian."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

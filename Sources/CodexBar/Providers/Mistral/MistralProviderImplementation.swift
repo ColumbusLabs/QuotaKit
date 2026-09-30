@@ -51,16 +51,17 @@ struct MistralProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.mistralCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from admin.mistral.ai.",
-                manual: "Paste a Cookie header captured from the billing page.",
-                off: "Mistral cookies are disabled.")
+                subtitles: ProviderCookieSourceUI.Subtitles(
+                    auto: L("Automatic imports browser cookies from admin.mistral.ai."),
+                    manual: L("Paste a Cookie header captured from %@.", "admin.mistral.ai"),
+                    off: L("%@ cookies are disabled.", "Mistral")))
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "mistral-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from admin.mistral.ai.",
+                subtitle: L("Automatic imports browser cookies from admin.mistral.ai."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
