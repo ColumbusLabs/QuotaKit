@@ -35,6 +35,25 @@ struct MenuBarPercentWindowPreferenceTests {
     }
 
     @Test
+    func `stored Monthly Plan follows automatic layouts but not explicit or mixed windows`() {
+        let iconOnly = MenuBarLayout(lines: [[.icon]])
+        let automatic = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
+        let session = MenuBarLayout(lines: [[.icon, .percent(window: .session)]])
+        let mixed = MenuBarLayout(lines: [[
+            .icon,
+            .percent(window: .session),
+            .separatorDot,
+            .percent(window: .weekly),
+        ]])
+
+        #expect(MenuBarPercentWindowPreference.current(in: iconOnly, metric: .monthlyPlan) == .monthlyPlan)
+        #expect(MenuBarPercentWindowPreference.current(in: automatic, metric: .monthlyPlan) == .monthlyPlan)
+        #expect(MenuBarPercentWindowPreference.current(in: session, metric: .monthlyPlan) == .session)
+        #expect(MenuBarPercentWindowPreference.current(in: mixed, metric: .monthlyPlan) == nil)
+        #expect(MenuBarPercentWindowPreference.current(in: iconOnly) == nil)
+    }
+
+    @Test
     func `applying a preference rewrites only the percent tokens`() {
         let layout = MenuBarLayout(lines: [
             [.icon, .percent(window: .weekly), .separatorDot, .runsOut],
@@ -63,7 +82,7 @@ struct MenuBarPercentWindowPreferenceTests {
     @Test
     func `picker stays hidden unless the global style is icon and percent`() {
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
-        let options = MenuBarPercentWindowPreference.allCases
+        let options = MenuBarPercentWindowPreference.allCases.filter { $0 != .monthlyPlan }
 
         #expect(MenuBarPercentWindowPreference.isVisible(
             iconStyle: .iconAndPercent,
@@ -87,7 +106,7 @@ struct MenuBarPercentWindowPreferenceTests {
     func `picker hides when session and weekly cannot apply`() {
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
         let automaticOnly = MenuBarPercentWindowPreference.available(
-            metrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .monthlyPlan]))
+            metrics: ProviderMenuBarMetricCapabilities(supported: [.automatic]))
 
         #expect(automaticOnly == [.automatic])
         #expect(MenuBarPercentWindowPreference.isVisible(
@@ -101,9 +120,26 @@ struct MenuBarPercentWindowPreferenceTests {
     }
 
     @Test
+    func `Monthly Plan stays available across icon styles without a percent token`() {
+        let layout = MenuBarLayout(lines: [[.icon]])
+
+        #expect(MenuBarPercentWindowPreference.available(for: .mistral, layout: layout) == [.automatic, .monthlyPlan])
+        for iconStyle in MenuBarIconStyle.allCases {
+            #expect(MenuBarPercentWindowPreference.isVisible(
+                iconStyle: iconStyle,
+                layout: layout,
+                provider: .mistral))
+            #expect(!MenuBarPercentWindowPreference.isVisible(
+                iconStyle: iconStyle,
+                layout: layout,
+                provider: .codex))
+        }
+    }
+
+    @Test
     func `available options follow provider percent-window capabilities`() {
         let mistralLike = ProviderMenuBarMetricCapabilities(supported: [.automatic, .monthlyPlan])
-        #expect(MenuBarPercentWindowPreference.available(metrics: mistralLike) == [.automatic])
+        #expect(MenuBarPercentWindowPreference.available(metrics: mistralLike) == [.automatic, .monthlyPlan])
 
         let sessionOnlyPrimary = ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary])
         #expect(MenuBarPercentWindowPreference.available(metrics: sessionOnlyPrimary) == [.automatic, .session])
@@ -115,7 +151,7 @@ struct MenuBarPercentWindowPreferenceTests {
 
         #expect(MenuBarPercentWindowPreference.available(
             metrics: .standard) == [.automatic, .session, .weekly])
-        #expect(MenuBarPercentWindowPreference.available(for: .mistral) == [.automatic, .session])
+        #expect(MenuBarPercentWindowPreference.available(for: .mistral) == [.automatic, .session, .monthlyPlan])
         #expect(MenuBarPercentWindowPreference.available(for: .openrouter) == [.automatic, .session])
         #expect(MenuBarPercentWindowPreference.available(for: .codex) == [.automatic, .session, .weekly])
         #expect(MenuBarPercentWindowPreference.isVisible(
@@ -145,5 +181,18 @@ struct MenuBarPercentWindowPreferenceTests {
             .icon,
             .percent(window: .session),
         ]]))
+    }
+
+    @Test
+    @MainActor
+    func `setting a provider metric rejects unsupported Monthly Plan`() {
+        let settings = testSettingsStore(
+            suiteName: "MenuBarPercentWindowPreferenceTests-unsupported-monthly-plan",
+            userDefaults: InMemoryUserDefaults())
+
+        settings.setMenuBarMetricPreference(.monthlyPlan, for: .codex)
+
+        #expect(settings.menuBarMetricPreference(for: .codex) == .automatic)
+        #expect(!MenuBarPercentWindowPreference.available(for: .codex).contains(.monthlyPlan))
     }
 }

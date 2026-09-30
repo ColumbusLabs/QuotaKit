@@ -46,6 +46,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Mistral: choose Monthly Plan across menu bar icon styles, preserving custom layouts and per-provider selection.
+- Mistral billing matches prices by event, API zone, and service tier, with exact legacy fallback for older unqualified price tables.
 - Remote sessions preserve SSH username case while deduplicating hostnames without case.
 - Codex System Account menus honor Hide Personal Info without changing account promotion actions.
 - Cursor costs stop immediate retries for unchanged, unconfirmed credentials while allowing account and settings changes to refresh.

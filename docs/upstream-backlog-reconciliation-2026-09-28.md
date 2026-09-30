@@ -1,6 +1,100 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: clearance goal, Mac UX audit and fresh upstream tail
+## Current status: Mistral picker/billing and security/persistence audit
+
+Code commit `7cdf18ad2b4e8845cbb3b744e58f86ac097bd43f` implements the Mistral picker and qualified billing-price
+fixes. The previous merged documentation baseline is
+`7294c03e3d22f7fe364cc3075dd18c41c63cf33d` ([PR #213](https://github.com/ColumbusLabs/QuotaKit/pull/213)).
+This batch closes **six confirmed gap rows** (877/880/883/884/893/894), and source
+audits all **17** unresolved `security and persistence` rows: 14 represented,
+two test-only and one justified distribution-scope exclusion.
+
+| Current combined evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in current source | 381 |
+| Source-audited justified exclusions | 81 |
+| Release-only or no distinct merge runtime delta | 188 |
+| Test/CI-only rows with no standalone runtime port | 43 |
+| **Clear runtime gaps** | **59** |
+| **Unresolved current-source/applicability decisions** | **169** |
+| **Total** | **921** |
+
+**693 accounted + 59 confirmed gap rows + 169 unresolved rows**, compared with
+670/65/186 before this batch. These are commit rows, not missing feature counts
+or required PRs. The [original ledger](upstream-backlog-ledger-2026-09-28.tsv)
+changes only 17 current-source records; the [tail ledger](upstream-backlog-ledger-2026-09-29-tail.tsv)
+changes seven records (six closures plus narrowed remaining pricing action 902).
+All exact SHAs and the 12 historical columns stay intact.
+
+### Implemented behavior and retained decisions
+
+- Monthly Plan is an explicit supported provider choice across icon styles.
+  It writes the existing stored metric. Icon-only layouts offer Auto/Monthly Plan
+  without pinning an inherited global layout; explicit and mixed windows retain
+  their precedence and Custom selection. Existing translated labels and the
+  generic picker footer are reused.
+- Billing prices match event, metric, group, API zone and service tier. Exact keys
+  win; only a same-event price with both zone and tier absent can serve legacy
+  tables. Nil and blank dimensions remain distinct, and another zone/tier price
+  is not guessed. Consumed units, billed units, checked arithmetic and finite-cost
+  guards retain their existing roles.
+- The category-table refactor preserves the previous month/day token and model
+  count rules. It does not claim a second token-accounting bug fix. Provider-local
+  aliases and dated model pricing remain explicit gaps on their source rows;
+  902 no longer asks for already implemented Mistral billing work.
+- Security source evidence confirms cookie-domain scoping, no-prompt Muse access,
+  opaque provider configuration, secure credential staging, iCloud device removal,
+  portable preferences/shortcuts, opt-in power/expiry notifications, and daemon
+  home/socket symlink handling. Existing tests referenced by those audit rows were
+  inspected, not executed as part of the source-only audit.
+- Row 481 concerns the upstream Linux/Omarchy desktop installer, absent from the
+  QuotaKit distribution. [README](../README.md) now states the existing CLI-versus-
+  separately maintained desktop boundary explicitly. QuotaKit's independent Linux
+  CLI workflow already installs a regular executable before packaging, avoiding
+  the upstream symlinked-binary concern. This does not remove Linux CLI support.
+
+### Verification
+
+**156 focused tests across 11 suites passed**, including 11 new regression test
+methods for picker state and billing dimensions. The five-method billing suite
+passed again after the only lint repair simplified a synthetic JSON helper.
+The debug build passed. Full repository checks completed through branding,
+localization, parser hash, manifests, packaging, shell, documentation and formatter
+checks; full SwiftLint reported one violation in that new helper, and its focused
+strict lint/format check passed after repair. No other source changed afterward.
+Independent Luna review of the seven code/test files found no actionable issue.
+
+Required hosted CI remains the merge gate. Existing path rules require the full
+Mac suite for these runtime paths and skip iOS. No full local suite, app launch,
+live provider/Keychain probe, release, or product-version change ran. This records
+verified code and source accounting, not an installed app or live account result.
+
+### Cleanup and next work
+
+There is **one primary worktree**, 115 local branches and five origin tracking
+refs at this slice's source inventory. The previous documentation branch was
+removed after its exact tested tree matched the merged tree. Cleanup so far is
+14 local and 14 remote branches; this batch's temporary branch will close with
+its verified merge. Unique unfinished source and patches remain privately
+recoverable. Primary app/build caches, signing material and release artifacts
+are untouched.
+
+**Next:** bounded Luna source audits of the remaining provider contracts, quota
+correctness, catalog/architecture and additions groups run independently against
+the pinned code commit while required CI completes. Record precise current-source
+decisions, then group the next missing runtime work by dependencies. Do not rerun
+CI for new audit documents on this already frozen runtime batch.
+
+The [clearance goal](upstream-clearance-goal-2026-09-29.md) remains active. Both
+broad upstream automations remain paused. Combined inventory stays exactly 921
+rows through `25bba9b7fd9ce83c33053958f7366e23b2dc8a82`; refresh again at final
+goal closeout. The monitor cursor remains
+`cf79d1310493f2d028af62cc21e422b5f33c70a5` until all applicable work is merged
+or specifically excluded. Version metadata, build numbers and appcast stay unchanged.
+
+The sections below are historical snapshots; their counts are not current.
+
+## Historical snapshot: clearance goal, Mac UX audit and fresh upstream tail (PR #213)
 
 The persistent [clearance goal](upstream-clearance-goal-2026-09-29.md) is active.
 The current implementation/source audit baseline is

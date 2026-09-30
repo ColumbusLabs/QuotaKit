@@ -53,12 +53,17 @@ For the console request, QuotaKit forwards only the `csrftoken` and `ory_session
 - The optional **Monthly Plan** window shows the separate Vibe Code allowance with the same details.
 - API spend is computed from billed units (`value_paid`, falling back to `value`) and the pricing table. Token totals
   and daily buckets use consumed units (`value`, falling back to `value_paid`), so plan-covered usage still counts.
+- Price matching includes the billing event, API zone, and service tier. A matching price with both zone and tier
+  absent can serve older billing tables; prices qualified for another zone or tier are not guessed.
 - Token totals include API completions, Le Chat, and Vibe Code completions from the billing usage response.
 - Daily usage buckets feed the inline usage dashboard.
 - The provider card can show credit balance when the credits endpoint returns it.
 - Allowance amounts derive from Mistral's reported percentage and allowance size, independently of billed API spend.
   Zero or malformed allowances are omitted without discarding a valid sibling allowance.
 - The Automatic menu bar selection retains API spend; Included API and Monthly Plan select their quota percentages.
+- The provider's menu bar metric picker offers **Monthly Plan** in every icon style. With an icon-only layout,
+  Automatic and Monthly Plan change only the stored provider metric, preserving the inherited layout. Explicit
+  percent windows and mixed custom layouts retain their own window selection until changed in the picker/editor.
 - Token-cost history is supported through the billing web session; no local log scan is used.
 - Signed billing adjustments are supported when the final input, cached, and output totals remain representable.
 - Unrepresentable token totals fail parsing safely. If only a display model ranking overflows, QuotaKit omits that
