@@ -76,3 +76,13 @@ Six focused card-context/quota-window tests passed. They verify account confiden
 is independent of live confidence, nil/identityless cards do not borrow reset
 history, explicit history selections work, and rendering does not mutate history.
 Scoped SwiftFormat and strict SwiftLint passed for both affected files.
+
+The ClaudeSwap route was separately checked against upstream row451. The adapter
+stores its latest external slot measurements, without collecting plan-history
+samples or proving a slot-to-OAuth history owner. A matching email or active slot
+therefore cannot authorize reading OAuth history. Synthetic real-projection card
+fixtures for both active and inactive slots preserve their own reset and return
+no unrelated history, without changing buckets or their revision. The focused
+UsageStoreMenuCardModelTests run passed (three tests, two parameterized). Adding
+external slot history collection would be a separate feature; the upstream
+account-owned reset resolver is represented without inventing an owner mapping.

@@ -61,6 +61,44 @@ struct UsageStoreMenuCardModelTests {
         #expect(store.planUtilizationHistoryRevision == revision)
     }
 
+    @Test(arguments: [true, false])
+    func `ClaudeSwap cards do not infer OAuth history ownership from an email or active slot`(active: Bool) throws {
+        let store = self.makeStore()
+        let snapshot = self.snapshot()
+        let reset = try #require(snapshot.secondary?.resetsAt)
+        let history = PlanUtilizationSeriesHistory(name: .weekly, windowMinutes: 10080, entries: [
+            .init(capturedAt: snapshot.updatedAt, usedPercent: 50, resetsAt: reset),
+        ])
+        let oauthKey = "__claude_oauth__:fixture-owner"
+        store.planUtilizationHistory[.claude] = PlanUtilizationHistoryBuckets(
+            preferredAccountKey: oauthKey,
+            accounts: [oauthKey: [history]])
+        store.snapshots[.claude] = snapshot
+        let account = try #require(ClaudeSwapAccountProjection.accountSnapshots(
+            from: .init(activeAccountNumber: active ? 1 : nil, accounts: [
+                .init(
+                    number: 1,
+                    email: "fixture@example.com",
+                    isActive: active,
+                    usageStatus: .ok,
+                    fiveHour: .init(usedPercent: 25, resetsAt: reset),
+                    sevenDay: .init(usedPercent: 50, resetsAt: reset)),
+            ]),
+            now: snapshot.updatedAt).first)
+        let original = store.planUtilizationHistory
+        let revision = store.planUtilizationHistoryRevision
+        let input = store.menuCardInput(
+            for: .claude,
+            context: ClaudeSwapAccountMenuDisplay.cardContext(
+                for: account, planLabel: nil, adapterError: nil, switchError: nil),
+            now: snapshot.updatedAt)
+
+        #expect(input.snapshot?.secondary?.resetsAt == reset)
+        #expect(input.observedWeeklyResets.isEmpty)
+        #expect(store.planUtilizationHistory == original)
+        #expect(store.planUtilizationHistoryRevision == revision)
+    }
+
     private func makeStore() -> UsageStore {
         let settings = testSettingsStore(
             suiteName: "UsageStoreMenuCardModelTests",
