@@ -1,0 +1,82 @@
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
+import Foundation
+
+/// Uses a fresh inherited marker as proof of ownership for leftover probe processes.
+/// Working directories and command lines are never used to infer ownership.
+struct ProcessOwnershipReaper: Sendable {
+    static let environmentKey = "CODEXBAR_PROBE_OWNER"
+    let marker = UUID().uuidString
+
+    func reap() {
+        let deadline = Date().addingTimeInterval(0.4)
+        repeat {
+            let identities = self.ownedProcesses()
+            if identities.isEmpty { return }
+            for identity in identities {
+                Self.signal(identity, SIGTERM, owns: self.owns)
+            }
+            usleep(50000)
+        } while Date() < deadline
+
+        // Re-enumerate at escalation. Cached PIDs never authorize a later signal.
+        for identity in self.ownedProcesses() {
+            Self.signal(identity, SIGKILL, owns: self.owns)
+        }
+    }
+
+    private func ownedProcesses() -> [TTYProcessTreeTerminator.ProcessIdentity] {
+        #if canImport(Darwin)
+        let pids = DarwinProcessEnumerator.allPIDs()
+        #else
+        let pids = ((try? FileManager.default.contentsOfDirectory(atPath: "/proc")) ?? [])
+            .compactMap { pid_t($0) }
+        #endif
+        return pids.compactMap { pid in
+            guard let identity = TTYProcessTreeTerminator.processIdentity(for: pid),
+                  self.owns(pid),
+                  TTYProcessTreeTerminator.isCurrent(identity)
+            else { return nil }
+            return identity
+        }
+    }
+
+    private func owns(_ pid: pid_t) -> Bool {
+        guard pid > 0, pid != getpid() else { return false }
+        #if canImport(Darwin)
+        var info = proc_bsdinfo()
+        guard proc_pidinfo(
+            pid,
+            PROC_PIDTBSDINFO,
+            0,
+            &info,
+            Int32(MemoryLayout<proc_bsdinfo>.size)) == MemoryLayout<proc_bsdinfo>.size,
+            info.pbi_uid == getuid()
+        else { return false }
+        let environment = DarwinProcessEnumerator.environment(pid: pid, names: [Self.environmentKey])
+        #else
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: "/proc/\(pid)"),
+              (attributes[.ownerAccountID] as? NSNumber)?.uint32Value == getuid()
+        else { return false }
+        let environment = PiProcessEnvironment.readLinuxEnvironment(pid: pid, names: [Self.environmentKey])
+        #endif
+        return environment?[Self.environmentKey] == self.marker
+    }
+
+    /// Rechecks marker ownership and process start identity for every individual signal.
+    static func signal(
+        _ identity: TTYProcessTreeTerminator.ProcessIdentity,
+        _ signal: Int32,
+        owns: (pid_t) -> Bool,
+        isCurrent: (TTYProcessTreeTerminator.ProcessIdentity) -> Bool = TTYProcessTreeTerminator.isCurrent,
+        send: (pid_t, Int32) -> Void = { kill($0, $1) })
+    {
+        guard owns(identity.pid), isCurrent(identity) else { return }
+        send(identity.pid, signal)
+    }
+}

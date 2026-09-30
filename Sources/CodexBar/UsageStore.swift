@@ -349,7 +349,7 @@ final class UsageStore {
     @ObservationIgnored let browserDetection: BrowserDetection
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
-    @ObservationIgnored let environmentBase: [String: String]
+    @ObservationIgnored @ProcessEnvironment private(set) var environmentBase: [String: String]
     @ObservationIgnored let pluginApprovalStore: ProviderPluginApprovalStore
     @ObservationIgnored let sessionQuotaNotifier: any SessionQuotaNotifying
     @ObservationIgnored let quotaTransitionWriter: any QuotaTransitionWriting

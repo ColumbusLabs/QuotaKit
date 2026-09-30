@@ -398,3 +398,11 @@ and source-linked, not private captures or proof of live installation/UI behavio
 - `Sources/CodexBarCore/Providers/Antigravity/AntigravityProviderDescriptor.swift`
 - `Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift`
 - `Sources/CodexBar/Providers/Antigravity/AntigravityProviderImplementation.swift`
+
+## Probe descendant cleanup
+
+The print-report usage probe opts into a fresh per-launch ownership marker. Cleanup enumerates marker-inheriting descendants, including detached or reparented processes, and rechecks the marker, current user, and process-start identity before each individual TERM or KILL signal. It does not infer ownership from a working directory or command arguments, and it does not broadcast a group signal based on one marked process. A descendant that clears its marker is outside this reaper’s authority. The temporary probe directory is removed after cleanup.
+
+## Local pricing aliases
+
+Local history retains recorded model IDs in breakdowns. Pricing first checks that exact model ID, then falls back from Gemini 3.1 Pro product aliases to the public preview model. These are API-equivalent estimates, not measured subscription charges.

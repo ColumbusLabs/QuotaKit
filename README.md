@@ -70,7 +70,7 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
 - [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
 - [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
-- [OpenCode Go](docs/opencode.md) — Usage API, browser fallback, and local SQLite cost history.
+- [OpenCode Go](docs/opencodego.md) — Usage API, browser fallback, and local SQLite cost history.
 - [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
 - [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
 - [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.
@@ -116,7 +116,7 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
 - [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer spend, monthly budgets, and optional CloudWatch Claude activity.
 - [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
-- [GroqCloud](docs/groqcloud.md) — API key for Enterprise Prometheus request/token/cache-hit metrics.
+- [GroqCloud](docs/groqcloud.md) — Console session for spend and token usage, with an Enterprise Prometheus API-key fallback.
 - [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
 - [ClawRouter](docs/clawrouter.md) — API key for monthly budget, spend, requests, tokens, and routed-provider usage.
 - [Wayfinder](docs/wayfinder.md) — Local router gateway polling for health, per-route breakdown, savings, and decision latency.

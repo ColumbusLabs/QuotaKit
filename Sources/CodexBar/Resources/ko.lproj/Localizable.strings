@@ -1602,3 +1602,10 @@
 
 "Color Pace Indicator" = "사용 속도 색상 표시";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "사용량이 예상 속도보다 낮으면 초록색(여유), 높으면 빨간색(조기 소진 위험)으로 표시합니다.";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API 버전";
+"OpenAI-compatible v1" = "OpenAI 호환 v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "기본값은 설정된 경우 AZURE_OPENAI_API_VERSION을 사용합니다.";
+"No cookie header pasted." = "붙여넣은 Cookie 헤더가 없습니다.";
+"Use automatic cookies" = "자동 쿠키 사용";

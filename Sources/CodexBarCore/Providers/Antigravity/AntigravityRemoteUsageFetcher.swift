@@ -26,7 +26,7 @@ public enum AntigravityRemoteFetchError: LocalizedError, Sendable, Equatable {
 public struct AntigravityRemoteUsageFetcher: Sendable {
     public var timeout: TimeInterval = 10.0
     public var homeDirectory: String
-    public var environment: [String: String]
+    @ProcessEnvironment public var environment: [String: String]
     public var dataLoader: @Sendable (URLRequest) async throws -> (Data, URLResponse)
     public var oauthClientResolver: @Sendable () -> AntigravityOAuthClient?
     public var credentialsUpdateHandler: @Sendable (AntigravityOAuthCredentials) async throws -> Void

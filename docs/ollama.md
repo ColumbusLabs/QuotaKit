@@ -64,3 +64,7 @@ Sign out and back in at `https://ollama.com/signin`, then refresh.
 ### “Could not parse Ollama usage”
 
 The settings page HTML may have changed. Capture the latest page HTML and update `OllamaUsageParser`.
+
+### Manual source without a cookie header
+
+An empty Manual cookie source has a separate error with instructions to paste a Cookie header from the settings page or choose Auto. The settings picker shows **No cookie header pasted.** and offers **Use automatic cookies** when browser usage is selected, no saved cookie account supplies a value, and Keychain access is enabled. The action changes the cookie source explicitly; it is hidden in API mode or when Keychain access is disabled.

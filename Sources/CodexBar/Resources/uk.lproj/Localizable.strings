@@ -1633,3 +1633,10 @@
 
 "Color Pace Indicator" = "Кольорова індикація темпу";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелений — витрати нижчі за очікуваний темп (є запас); червоний — вищі (ризик дострокового вичерпання квоти).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "Версія API";
+"OpenAI-compatible v1" = "v1, сумісна з OpenAI";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "За замовчуванням використовується AZURE_OPENAI_API_VERSION, якщо її задано.";
+"No cookie header pasted." = "Заголовок Cookie не вставлено.";
+"Use automatic cookies" = "Використовувати автоматичні cookie";

@@ -41,6 +41,15 @@ struct PiProcessEnvironmentTests {
         ])
     }
 
+    @Test
+    func `NUL environment parsing can select an explicit marker name`() {
+        let markerKey = ProcessOwnershipReaper.environmentKey
+        let data = Data("PATH=/synthetic/bin\0\(markerKey)=fixture\0".utf8)
+
+        #expect(PiProcessEnvironment.parseNULSeparated(data) == [:])
+        #expect(PiProcessEnvironment.parseNULSeparated(data, names: [markerKey]) == [markerKey: "fixture"])
+    }
+
     @Test(arguments: [
         "OMP_PROFILE=work",
         "OMP_PROFILE=work\0partial",

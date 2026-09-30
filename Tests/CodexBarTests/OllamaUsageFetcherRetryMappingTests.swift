@@ -921,6 +921,79 @@ struct OllamaUsageFetcherRetryMappingTests {
     }
 }
 
+extension OllamaUsageFetcherRetryMappingTests {
+    @Test(arguments: [nil, "", " \n\t"] as [String?])
+    func `empty manual fetch and debug probe stop before any request`(header: String?) async {
+        defer { OllamaRetryMappingStubURLProtocol.handler = nil }
+        OllamaRetryMappingStubURLProtocol.handler = { _ in
+            Issue.record("Empty Manual configuration must not make a network request")
+            throw URLError(.badServerResponse)
+        }
+        let fetcher = self.makeCookieFetcher()
+        do {
+            _ = try await fetcher.fetch(cookieHeaderOverride: header, manualCookieMode: true)
+            Issue.record("Expected manualCookieHeaderEmpty")
+        } catch OllamaUsageError.manualCookieHeaderEmpty {
+            // Expected before cookie import or HTTP.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        let dump = await fetcher.debugRawProbe(cookieHeaderOverride: header, manualCookieMode: true)
+        #expect(dump.contains(OllamaUsageError.manualCookieHeaderEmpty.localizedDescription))
+        #expect(!dump.contains("Fetch Success"))
+    }
+
+    @Test
+    func `debug probe uses the shared manual cookie candidate`() async {
+        defer { OllamaRetryMappingStubURLProtocol.handler = nil }
+        OllamaRetryMappingStubURLProtocol.handler = { request in
+            #expect(request.value(forHTTPHeaderField: "Cookie") == "session=fixture")
+            let url = try #require(request.url)
+            return Self.makeResponse(url: url, body: ollamaUsageHTML, statusCode: 200)
+        }
+        let dump = await self.makeCookieFetcher().debugRawProbe(
+            cookieHeaderOverride: "session=fixture", manualCookieMode: true)
+        #expect(dump.contains("Fetch Success"))
+        #expect(dump.contains("Session: 1.2%"))
+        #expect(dump.contains("Weekly: 3.4%"))
+        #expect(!dump.contains("session=fixture"))
+    }
+
+    @Test
+    func `debug probe retries later cookie candidates after a stale session`() async {
+        defer { OllamaRetryMappingStubURLProtocol.handler = nil }
+        let cookieHeaders = LockIsolated<[String]>([])
+        OllamaRetryMappingStubURLProtocol.handler = { request in
+            let cookie = request.value(forHTTPHeaderField: "Cookie") ?? ""
+            cookieHeaders.setValue(cookieHeaders.value + [cookie])
+            let url = try #require(request.url)
+            if cookie == "wos-session=stale-fixture" {
+                return Self.makeResponse(url: url, body: "Expired session", statusCode: 401)
+            }
+            #expect(cookie == "wos-session=valid-fixture")
+            return Self.makeResponse(url: url, body: ollamaUsageHTML, statusCode: 200)
+        }
+
+        let dump = await self.makeCookieFetcher().debugRawProbe(cookieCandidates: [
+            OllamaUsageFetcher.CookieCandidate(
+                cookieHeader: "wos-session=stale-fixture",
+                sourceLabel: "Stale profile"),
+            OllamaUsageFetcher.CookieCandidate(
+                cookieHeader: "wos-session=valid-fixture",
+                sourceLabel: "Valid profile"),
+        ])
+
+        #expect(cookieHeaders.value == ["wos-session=stale-fixture", "wos-session=valid-fixture"])
+        #expect(dump.contains("Stale profile"))
+        #expect(dump.contains("Valid profile"))
+        #expect(dump.contains("trying next cookie candidate"))
+        #expect(dump.contains("Fetch Success"))
+        #expect(dump.contains("Session: 1.2%"))
+        #expect(!dump.contains("stale-fixture"))
+        #expect(!dump.contains("valid-fixture"))
+    }
+}
+
 private final class OllamaSessionFinishRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var sessions: [URLSession] = []

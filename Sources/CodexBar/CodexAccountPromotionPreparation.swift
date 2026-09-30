@@ -103,7 +103,7 @@ struct PreparedPromotionContextBuilder {
     private let workspaceResolver: any ManagedCodexWorkspaceResolving
     private let snapshotLoader: any CodexAccountReconciliationSnapshotLoading
     private let authMaterialReader: any CodexAuthMaterialReading
-    private let baseEnvironment: [String: String]
+    @ProcessEnvironment private(set) var baseEnvironment: [String: String]
     private let fileManager: FileManager
 
     init(

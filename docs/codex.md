@@ -245,3 +245,11 @@ After a managed account is promoted to the system Codex home, QuotaKit restarts 
   `Sources/QuotaKitCore/PiSessionCostScanner.swift`,
   `Sources/QuotaKitCore/PiSessionCostCache.swift`,
   `Sources/QuotaKitCore/Vendored/CostUsage/*`
+
+### Recorded quota burndown
+
+Plan Usage shows remaining quota from recorded samples in the active reset window alongside the existing utilization history chart. It labels the capture age and does not project a stale observation forward. Legacy 30-day Codex lanes use the same monthly normalization in both charts.
+
+### Pricing aliases and historical reports
+
+Codex `gpt-reserve` telemetry falls back to GPT-5.6 Luna pricing after an exact provider-qualified catalog lookup. Known historical Sol rates use each recorded event’s timestamp. Compatible parsed rows and scan checkpoints survive the pricing migration; derived report payloads are recalculated so stale estimates do not hide the alias correction.

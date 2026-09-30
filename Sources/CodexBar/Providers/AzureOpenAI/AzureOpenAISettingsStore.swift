@@ -2,6 +2,15 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var azureOpenAIAPIVersion: String {
+        get { self.configSnapshot.providerConfig(for: .azureopenai)?.sanitizedAzureOpenAIAPIVersion ?? "" }
+        set {
+            self.updateProviderConfig(provider: .azureopenai) { entry in
+                entry.azureOpenAIAPIVersion = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
+
     var azureOpenAIAPIKey: String {
         get { self.configSnapshot.providerConfig(for: .azureopenai)?.sanitizedAPIKey ?? "" }
         set {

@@ -1637,3 +1637,10 @@
 
 "Color Pace Indicator" = "แสดงสีอัตราการใช้งาน";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "สีเขียวเมื่อใช้งานช้ากว่าอัตราที่คาดไว้ (มีโควตาสำรอง) สีแดงเมื่อเร็วกว่า (เสี่ยงหมดโควตาก่อนเวลา)";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "เวอร์ชัน API";
+"OpenAI-compatible v1" = "v1 ที่เข้ากันได้กับ OpenAI";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "ค่าเริ่มต้นใช้ AZURE_OPENAI_API_VERSION หากตั้งค่าไว้";
+"No cookie header pasted." = "ยังไม่ได้วางส่วนหัว Cookie";
+"Use automatic cookies" = "ใช้คุกกี้อัตโนมัติ";

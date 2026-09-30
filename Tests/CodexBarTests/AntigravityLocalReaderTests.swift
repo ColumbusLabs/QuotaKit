@@ -128,50 +128,6 @@ struct AntigravityLocalReaderTests {
             == CostUsageCoverageCounts(unpriced: 1, estimated: 1))
     }
 
-    @Test
-    func `routing variants price from their base model without widening shared Claude pricing`()
-        async throws
-    {
-        let fixture = try Fixture()
-        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
-        {
-            "google": {
-                "id": "google",
-                "name": "Google",
-                "models": {
-                    "gemini-fixture-a": {
-                        "id": "gemini-fixture-a",
-                        "cost": {"input": 1, "output": 2, "cache_read": 0.2}
-                    }
-                }
-            }
-        }
-        """#.utf8))
-        let cacheRoot = fixture.root.appendingPathComponent("scanner-cache")
-        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: Fixture.now, cacheRoot: cacheRoot))
-        try fixture.database(blobs: [Fixture.blob(model: "gemini-fixture-a-tiered")])
-
-        let snapshot = try await fixture.snapshot()
-        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
-        // The recorded variant keeps its own identity in the breakdown; only pricing falls back.
-        #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-fixture-a-tiered")
-
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.8-flash-tiered")
-            == "gemini-3.8-flash")
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.1-pro-low") == "gemini-3.1-pro")
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "claude-opus-4-6-thinking")
-            == "claude-opus-4-6")
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.8-flash") == nil)
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "-low") == nil)
-
-        // The shared Claude resolver must keep reporting an unknown variant as unpriced rather
-        // than silently billing it at the base model's rate.
-        let claudeTargets = CostUsagePricing.claudeModelsDevPricingTargets(for: "claude-fixture-9-thinking")
-        #expect(claudeTargets.isEmpty == false)
-        #expect(claudeTargets.contains { $0.modelID == "claude-fixture-9" } == false)
-    }
-
     @Test(arguments: ["claude-sonnet-4-6", "claude-sonnet-4-6-thinking"])
     func `historical long context prices use event time for exact and routed models`(model: String) throws {
         let fixture = try Fixture()

@@ -200,7 +200,7 @@ public struct AgentProcessRecord: Equatable, Sendable {
     public let executablePath: String?
     public let arguments: [String]?
     /// Only Pi root selectors; nil means unavailable and an empty map means a known empty selection.
-    public let piSelectorEnvironment: [String: String]?
+    @ProcessEnvironment public private(set) var piSelectorEnvironment: [String: String]?
 
     public init(
         pid: Int32,

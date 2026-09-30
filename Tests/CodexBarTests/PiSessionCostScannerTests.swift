@@ -722,6 +722,7 @@ struct PiSessionCostScannerTests {
             cachedInputTokens: 10,
             outputTokens: 5,
             cacheWriteInputTokens: 20,
+            pricingDate: day,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
         // Stale: writes folded into uncached input at 1× (pre-v5 behavior).
         let staleCost = CostUsagePricing.codexCostUSD(
@@ -729,6 +730,7 @@ struct PiSessionCostScannerTests {
             inputTokens: 100,
             cachedInputTokens: 10,
             outputTokens: 5,
+            pricingDate: day,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
         #expect(abs(expectedCost - staleCost) > 0.000001)
 
@@ -1052,7 +1054,7 @@ extension PiSessionCostScannerTests {
         defer { env.cleanup() }
 
         let day = try env.makeLocalNoon(year: 2026, month: 7, day: 10)
-        let model = "gpt-5.6-sol"
+        let model = "pi-catalog-pricing-fixture"
         func assistant(at timestamp: Date) -> [String: Any] {
             [
                 "type": "message",
@@ -1077,7 +1079,7 @@ extension PiSessionCostScannerTests {
                 assistant(at: day),
             ]))
 
-        let firstCatalog = try Self.modelsDevCatalog(inputCostPerMillion: 4)
+        let firstCatalog = try Self.modelsDevCatalog(inputCostPerMillion: 4, model: model)
         #expect(ModelsDevCache.save(catalog: firstCatalog, fetchedAt: day, cacheRoot: env.cacheRoot))
         let options = PiSessionCostScanner.Options(
             piSessionsRoot: env.piSessionsRoot,
@@ -1094,7 +1096,7 @@ extension PiSessionCostScannerTests {
         #expect(firstReport.data.first?.totalTokens == 300_000)
         #expect(abs((firstReport.data.first?.costUSD ?? 0) - 1.2) < 0.0000001)
 
-        let secondCatalog = try Self.modelsDevCatalog(inputCostPerMillion: 8)
+        let secondCatalog = try Self.modelsDevCatalog(inputCostPerMillion: 8, model: model)
         #expect(ModelsDevCache.save(
             catalog: secondCatalog,
             fetchedAt: day.addingTimeInterval(1),
@@ -1474,14 +1476,17 @@ extension PiSessionCostScannerTests {
         #expect(expandedReport.summary?.totalTokens == 45)
     }
 
-    private static func modelsDevCatalog(inputCostPerMillion: Double) throws -> ModelsDevCatalog {
+    private static func modelsDevCatalog(
+        inputCostPerMillion: Double,
+        model: String = "gpt-5.6-sol") throws -> ModelsDevCatalog
+    {
         let json = """
         {
           "openai": {
             "id": "openai",
             "models": {
-              "gpt-5.6-sol": {
-                "id": "gpt-5.6-sol",
+              "\(model)": {
+                "id": "\(model)",
                 "cost": {
                   "input": \(inputCostPerMillion),
                   "output": 30,

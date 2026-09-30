@@ -1778,7 +1778,12 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test(arguments: ["295616a4e7dcfc3f", "4e2ff98d27e5c601", "053a4fb6aa6156c2"])
+    @Test(arguments: [
+        "295616a4e7dcfc3f",
+        "4e2ff98d27e5c601",
+        "053a4fb6aa6156c2",
+        "005a869f36400f7e",
+    ])
     func `compatible predecessor parser hash adopts without rebuilding`(predecessorHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -1827,6 +1832,7 @@ extension CostUsageStoreTests {
             "3053f2f21b526cb2",
             "794d08208e8b4be3",
             "a9e63a41a2306504",
+            "005a869f36400f7e",
         ])
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
@@ -1868,7 +1874,11 @@ extension CostUsageStoreTests {
         #expect(await predecessor.setLookbackState(lookback))
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
-        let before = await predecessor.readSnapshot()
+        var before = await predecessor.readSnapshot()
+        if predecessorHash == "005a869f36400f7e" {
+            // Only the derived report is invalidated; every parsed row and resume cursor survives.
+            before.metadata.previousReportPayload = nil
+        }
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         let after = await current.readSnapshot()
@@ -1928,7 +1938,12 @@ extension CostUsageStoreTests {
             "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
-    @Test(arguments: ["f22371c47d2e006f", "8050a4faf4fddb96", "dd19ffa2dcfa8d47"])
+    @Test(arguments: [
+        "f22371c47d2e006f",
+        "8050a4faf4fddb96",
+        "dd19ffa2dcfa8d47",
+        "005a869f36400f7e",
+    ])
     func `retained report migration preserves compatible rows and clears stale payload`(
         predecessorHash: String) async throws
     {

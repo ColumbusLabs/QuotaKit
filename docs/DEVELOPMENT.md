@@ -163,3 +163,9 @@ Mac release defaults live in `.mac-release.env`. Public release targets should u
 - Appcast: `https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`
 
 See `docs/RELEASING-MOBILE.md` and `docs/RELEASE-CHECKLIST.md` before publishing.
+
+## Retained process environments
+
+Retained process-environment dictionaries use `@ProcessEnvironment`, including optional dictionaries. Its getter and setter preserve execution values, while automatic descriptions, reflection, dumps, and Swift Testing diagnostics expose only an entry count. Computed accessors and function-local dictionaries are not retained properties. Avoid explicit logging of the unwrapped dictionary.
+
+`ProcessEnvironmentTests` exercises dictionary access and diagnostics with synthetic values; `ProcessEnvironmentStorageTests` checks declaration scopes in shipped source. Do not use real credentials or live provider imports to test redaction.

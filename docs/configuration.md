@@ -131,11 +131,11 @@ All provider fields are optional unless noted.
 - `enabled`: enable/disable provider (defaults to provider default).
 - `source`: preferred source mode.
   - `auto|web|cli|oauth|api`
-  - `auto` uses provider-specific fallback order (see `docs/providers.md`).
+  - `auto` uses the [provider-specific fallback order](providers.md#fetch-strategies-current).
   - `api` uses the provider's API-backed mode; only some providers consume the `apiKey` field.
 - `apiKey`: raw API token for providers that support config-backed direct API usage.
 - `enterpriseHost`: provider-specific API host/base URL override. Used by Azure OpenAI, Copilot, LLM Proxy, LiteLLM,
-  ClawRouter, and Wayfinder.
+  ClawRouter, sub2api, and Wayfinder.
 - `cookieSource`: cookie selection policy.
   - `auto` (browser import), `manual` (use `cookieHeader`), `off` (disable cookies)
 - `cookieHeader`: raw cookie header value (e.g. `key=value; other=...`).
@@ -170,10 +170,10 @@ Example placeholder config:
   "version": 1,
   "providers": [
     {
-      "id": "example-provider",
+      "id": "claude",
       "enabled": true,
       "cookieSource": "manual",
-      "cookieHeader": "session=<REDACTED>; other=<REDACTED>"
+      "cookieHeader": "sessionKey=<REDACTED>"
     }
   ]
 }
@@ -183,8 +183,10 @@ Validate after editing:
 
 ```bash
 quotakit config validate
-quotakit usage --provider example-provider --verbose
 ```
+
+Replace the placeholder with your own cookie before fetching usage with `quotakit usage --provider claude`. For another
+provider, use its registered [ID](provider-ids.md) and the cookie format in its [setup guide](providers.md).
 
 CLI shortcuts:
 

@@ -1426,7 +1426,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This tagged diagnostic payload encodes MiniMax details under the matching wire key."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/UsageFetcher.swift",
-            line: 1473,
+            line: 1469,
             anchor: "providerID: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
@@ -3318,7 +3318,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 237,
+            line: 249,
             anchor: "guard let pricing = self.codex[model] else { continue }",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -3326,7 +3326,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 468,
+            line: 493,
             anchor: "static let codexModelsDevProviderID = \"openai\"",
             expectedProviderIDs: ["deepseek", "openai", "opencode"],
             expectedReferenceCount: 4,
@@ -3334,7 +3334,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 536,
+            line: 561,
             anchor: "if self.codex[trimmed] != nil {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -3342,7 +3342,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 579,
+            line: 604,
             anchor: "if self.claude[base] != nil {",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
@@ -3350,7 +3350,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 802,
+            line: 827,
             anchor: "self.codex[self.normalizeCodexModel(raw)] != nil",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 3,
@@ -3358,7 +3358,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact Codex pricing boundary normalizes model families before fallback pricing."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 930,
+            line: 955,
             anchor: "self.claude[self.normalizeClaudeModel(raw)] != nil",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 3,
@@ -3366,7 +3366,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact Claude pricing boundary normalizes model families before fallback pricing."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 503,
+            line: 528,
             anchor: "providerIDs.append(\"opencode\")",
             expectedProviderIDs: ["opencode"],
             expectedReferenceCount: 1,
@@ -5035,7 +5035,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 615,
+            line: 640,
             anchor: "let bundled = lookup.pricing.providerID == self.codexModelsDevProviderID ? self.codex[key] : nil",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -5312,7 +5312,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/UsageFetcher.swift",
-            line: 1854,
+            line: 1850,
             anchor: "providerID: .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -5320,7 +5320,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift",
-            line: 913,
+            line: 938,
             anchor: "? self.codex[self.normalizeCodexModel(pricing.modelID)]?.thresholdTokens",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,

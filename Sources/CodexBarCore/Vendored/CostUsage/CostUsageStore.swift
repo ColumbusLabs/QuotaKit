@@ -135,12 +135,14 @@ actor CostUsageStore {
         "794d08208e8b4be3", // Formatter-only successor; persisted parser rows remain byte-compatible.
         "a9e63a41a2306504", // Shipped live parser hash before scanner scheduling changes;
         // persisted rows remain compatible.
+        "005a869f36400f7e", // Alias and historical-price routing changes; parsed rows/checkpoints remain compatible.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "f22371c47d2e006f",
         "dd19ffa2dcfa8d47",
         "2d17f4981b78d07f",
         "8050a4faf4fddb96",
+        "005a869f36400f7e", // Recompute the retained report after Codex alias pricing changes.
     ]
 
     nonisolated static func defaultCacheRoot() -> URL {

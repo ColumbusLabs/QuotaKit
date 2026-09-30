@@ -105,3 +105,7 @@ codexbar usage --provider aoai
 - `Sources/CodexBarCore/Providers/AzureOpenAI/AzureOpenAIUsageFetcher.swift`
 - `Sources/CodexBar/Providers/AzureOpenAI/AzureOpenAIProviderImplementation.swift`
 - `Tests/CodexBarTests/AzureOpenAIUsageFetcherTests.swift`
+
+## API version override
+
+Settings → Providers → Azure OpenAI → API version offers **Default**, **OpenAI-compatible v1**, and any saved custom version. Default leaves `AZURE_OPENAI_API_VERSION` inheritance intact. A saved choice uses the provider config’s `azureOpenAIAPIVersion` field, so Mac settings and CLI requests share the same override. Clearing the choice removes that override. This setting changes the existing request configuration; it does not add spend or quota reporting.

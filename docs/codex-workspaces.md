@@ -1,3 +1,10 @@
+---
+summary: "Codex Workspaces local cost index, Mac inspector, and refresh behavior."
+read_when:
+  - Modifying Codex project or session cost attribution
+  - Troubleshooting the local Workspaces inspector
+---
+
 # Codex Workspaces local index
 
 Codex Workspaces attributes the existing local Codex cost scan to projects,

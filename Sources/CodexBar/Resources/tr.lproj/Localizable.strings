@@ -1635,3 +1635,10 @@
 
 "Color Pace Indicator" = "Kullanım hızını renklendir";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API sürümü";
+"OpenAI-compatible v1" = "OpenAI uyumlu v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Varsayılan seçenek, ayarlanmışsa AZURE_OPENAI_API_VERSION değerini kullanır.";
+"No cookie header pasted." = "Cookie başlığı yapıştırılmadı.";
+"Use automatic cookies" = "Otomatik çerezleri kullan";

@@ -586,7 +586,11 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         try FileManager.default.createDirectory(
             at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
-        func run(_ arguments: [String], timeout: TimeInterval) async throws -> SubprocessResult {
+        func run(
+            _ arguments: [String],
+            timeout: TimeInterval,
+            reapDescendants: Bool = false) async throws -> SubprocessResult
+        {
             try await SubprocessRunner.run(
                 binary: binary,
                 arguments: arguments,
@@ -595,6 +599,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                 maxOutputBytes: 1_048_576,
                 standardInput: FileHandle.nullDevice,
                 currentDirectoryURL: directory,
+                reapDescendants: reapDescendants,
                 label: "antigravity-cli-usage")
         }
         let result: SubprocessResult
@@ -607,7 +612,9 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                   parts.count == 3, (parts[0], parts[1], parts[2]) >= (1, 1, 11)
             else { throw AntigravityStatusProbeError.parseFailed("CLI usage reports require agy 1.1.11 or later") }
             result = try await run(
-                ["-p", "/usage", "--output-format", "json", "--print-timeout", "90s"], timeout: timeout)
+                ["-p", "/usage", "--output-format", "json", "--print-timeout", "90s"],
+                timeout: timeout,
+                reapDescendants: true)
         } catch let error as SubprocessRunnerError {
             try Task.checkCancellation()
             if case .timedOut = error { throw AntigravityStatusProbeError.timedOut }

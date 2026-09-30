@@ -1,6 +1,99 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: Mistral picker/billing and security/persistence audit
+## Current status: grouped quota, process, pricing and provider clearance
+
+Verified merged main is `80dac739a375b3dd6ca54ce2f8e192b3ca2175cd`
+([PR #214](https://github.com/ColumbusLabs/QuotaKit/pull/214)): **693 accounted,
+59 known gap rows and 169 unresolved rows**. All required checks passed at
+`45a196240bc90a4fc777e209241b359b20d41a12` in CI run `36656402072`; its
+exact tree matches the squash merge. The redundant identical-tree post-merge
+run was cancelled and cancellation was verified.
+
+The next reviewed code/doc candidate is `773099859e5beed780f3b6b8bb401496a5efeb3c`.
+Its ledger proposal is **808 accounted + 73 known gap rows + 40 unresolved rows
+= 921 total**, pending exact-head hosted CI and merge. These are commit-row
+counts; source audits can discover gaps while implemented slices close them.
+No cursor, product version, build number or release metadata advances.
+
+| Candidate evidence tier | Rows |
+| --- | ---: |
+| Documented merged or observed in reviewed source | 481 |
+| Source-audited justified exclusions | 86 |
+| Release-only or no distinct merge behavior | 189 |
+| Test/CI-only accounted rows | 52 |
+| Known applicable gap rows | 73 |
+| Unresolved source/applicability decisions | 40 |
+| **Total** | **921** |
+
+### Implemented and audited
+
+- Close 14 runtime rows: quota burndown 876/889/890/899; owned Antigravity
+  process cleanup 853/855/859/862/911; stored environment privacy 907;
+  pricing 214/902; Azure version settings 407; Ollama recovery 603.
+- Burndown preserves normalized provider/account reset windows, recorded capture
+  age and utilization history. It does not extrapolate old readings.
+- Environment wrappers redact automatic diagnostics without changing execution
+  values. Process cleanup requires a fresh marker, same user and start identity
+  before individual signals. Bounded parsing rejects truncated/conflicting
+  evidence and empty-environment Apple vectors; unmarked siblings remain outside
+  the new reaper's authority.
+- Pricing resolves exact provider routes before aliases, preserves raw report
+  identities, and uses historical event dates plus current Sol fallback rates.
+  Parser predecessor `005a869f36400f7e` retains parsed rows and checkpoints while
+  stale derived reports are recalculated. Mistral category policies were already
+  delivered in #214; numeric row 462 was already represented in active paths.
+- Azure shares its version override with CLI config while Default inherits the
+  environment. Ollama explains empty Manual configuration, offers explicit
+  guarded Auto recovery and retries recognized diagnostic candidates safely.
+- Source audits cover 143 original rows across provider additions, quota,
+  catalog/contracts, Claude/account behavior and maintenance. Remaining broad
+  refactors, dependency/toolchain choices and unresolved policies stay open.
+  Documentation rows 488/743 close through accurate QuotaKit provider/config
+  guidance and preserved historical provenance.
+
+### Verification and limits
+
+Focused model/config/parser/provider and synthetic subprocess tests passed across
+an integrated run and affected reruns. The final pricing/store run passed **149
+tests**, the portable ownership run passed **seven**, and an isolated unchanged
+Kimi timing suite passed **23**. Other affected suites passed in the preceding
+run, including alias/historical pricing, Ollama diagnostic retry and source
+architecture checks. Full repository lint reported **zero violations in 2,616
+Swift files**; the last two fixture edits also passed focused strict lint.
+Generated parser hash `15a7d46518e83cc0` is current.
+
+Initial failures exposed stale pricing/cache expectations, shifted source anchors,
+a Darwin environment boundary defect and the incomplete current Sol fallback.
+These were corrected without weakening guards, process authority or timing budgets.
+Independent security/process and provider/pricing reviews have no remaining
+findings. The new research record is
+[053](../CodexBarMobile/Research/053-upstream-quota-process-pricing-clearance.md).
+
+Required hosted CI remains pending. Runtime paths require the full Mac shards;
+the existing broad iOS path gate also matches the research document. No full local
+suite, app launch, live provider/Keychain probe, archive/upload or release ran.
+
+### Cleanup and next slice
+
+There is **one primary worktree**, **103 local branches**, and **four origin
+tracking refs including origin/HEAD** at this candidate checkpoint. Cleanup totals
+**27 local and 16 remote branches removed**. Nine more completed snapshots were
+source/test/doc reconciled to #214 main, bundled with SHA-256/exact-head proof,
+and removed using expected-OID local ref deletion. Their private recovery bundle
+is under `.git/upstream-cleanup-recovery/2026-09-29-nine-source-reconciled-refs/`.
+The unfinished cost/Codex branch and unrelated battery work remain preserved.
+
+Next: merge this exact candidate after required CI, remove its branch, update
+issue #149 with verified merged counts, then group the remaining performance,
+provider/UI, maintenance and source-verification work. Reconcile unique branch
+contents and clean completed refs alongside each slice. All 140 historically
+recorded merged/doc rows still require current-source spot checks before the full
+goal closes. Refresh upstream at final closeout; do not advance the cursor merely
+to reduce the raw backlog counter.
+
+---
+
+## Previous slice record: Mistral picker/billing and security/persistence audit
 
 Code commit `7cdf18ad2b4e8845cbb3b744e58f86ac097bd43f` implements the Mistral picker and qualified billing-price
 fixes. The previous merged documentation baseline is

@@ -4,20 +4,22 @@ import Testing
 
 @Suite(.serialized)
 struct PiSessionCostRefreshReliabilityTests {
+    private static let model = "pi-refresh-pricing-fixture"
+
     @Test
     func `an incomplete catalog reprice retains the previous report until every source can be repriced`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 7, day: 10)
         let contents = try env.jsonl([
-            self.row(env, day, input: 150_000, model: "gpt-5.6-sol"),
+            self.row(env, day, input: 150_000, model: Self.model),
         ])
         _ = try env.writePiSessionFile(relativePath: "a-good.jsonl", contents: contents)
         let badFile = try env.writePiSessionFile(relativePath: "b-bad.jsonl", contents: contents)
         var options = try self.options(env)
         options.refreshMinIntervalSeconds = 3600
         #expect(try ModelsDevCache.save(
-            catalog: Self.catalog(inputCostPerMillion: 4), fetchedAt: day, cacheRoot: env.cacheRoot))
+            catalog: Self.catalog(inputCostPerMillion: 4, model: Self.model), fetchedAt: day, cacheRoot: env.cacheRoot))
         let original = try self.scan(day, now: day, options: options)
         #expect(original.isComplete)
         #expect(original.report.summary?.totalTokens == 300_000)
@@ -28,7 +30,7 @@ struct PiSessionCostRefreshReliabilityTests {
         let oldPricingKey = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot).pricingKey
 
         #expect(try ModelsDevCache.save(
-            catalog: Self.catalog(inputCostPerMillion: 8),
+            catalog: Self.catalog(inputCostPerMillion: 8, model: Self.model),
             fetchedAt: day.addingTimeInterval(1),
             cacheRoot: env.cacheRoot))
         try self.append("{broken}\n", to: badFile)
@@ -158,10 +160,10 @@ struct PiSessionCostRefreshReliabilityTests {
         try writer.write(contentsOf: Data(contents.utf8))
     }
 
-    private static func catalog(inputCostPerMillion: Double) throws -> ModelsDevCatalog {
+    private static func catalog(inputCostPerMillion: Double, model: String) throws -> ModelsDevCatalog {
         let json = """
-        {"openai":{"id":"openai","models":{"gpt-5.6-sol":{
-          "id":"gpt-5.6-sol",
+        {"openai":{"id":"openai","models":{"\(model)":{
+          "id":"\(model)",
           "cost":{"input":\(inputCostPerMillion),"output":30,"cache_read":0.5,"cache_write":6.25}
         }}}}
         """

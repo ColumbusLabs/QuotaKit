@@ -1636,3 +1636,10 @@
 
 "Color Pace Indicator" = "Warnai laju penggunaan";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Hijau saat penggunaan lebih lambat dari laju perkiraan (cadangan); merah saat lebih cepat (risiko kuota habis lebih awal).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "Versi API";
+"OpenAI-compatible v1" = "v1 kompatibel dengan OpenAI";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Default menggunakan AZURE_OPENAI_API_VERSION jika ditetapkan.";
+"No cookie header pasted." = "Belum ada header Cookie yang ditempel.";
+"Use automatic cookies" = "Gunakan cookie otomatis";

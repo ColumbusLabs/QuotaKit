@@ -323,7 +323,7 @@ public struct DeepgramUsageFetcher: Sendable {
         let apiKey: String
         let query: DeepgramUsageQuery
         let timeout: TimeInterval
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let transport: ProviderHTTPTransport
         let updatedAt: Date
     }

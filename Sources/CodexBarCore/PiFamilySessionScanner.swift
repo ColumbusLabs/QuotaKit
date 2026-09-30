@@ -168,7 +168,7 @@ struct PiFamilySessionScanner: Sendable {
     struct ScanInput: Sendable {
         let processes: [AgentProcessRecord]
         let cwdByPID: [Int32: String]
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
         let host: String
         let config: SessionScanConfig
