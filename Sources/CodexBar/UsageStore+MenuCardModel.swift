@@ -79,6 +79,7 @@ extension UsageStore {
             self.weeklyPace(
                 provider: provider,
                 window: $0,
+                dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: now)
         }
         let forecast = isSettings ? nil : self.menuCardSessionEquivalentForecast(
@@ -142,7 +143,14 @@ extension UsageStore {
             usesLiveSubtitle: !isSettings && isLive,
             preferredCurrencyCode: isSettings ? "auto" : self.settings.preferredCurrencyCode,
             costUsageBucketCalendar: self.settings.costUsageBucketCalendar,
-            now: now)
+            now: now,
+            observedWeeklyResets: descriptor.presentation.menuCard.showsQuotaWeekCost
+                ? self.weeklyQuotaWindowResetObservations(
+                    for: provider,
+                    snapshot: snapshot,
+                    historySelection: account?.historySelection,
+                    usesLiveAccount: isLive)
+                : [])
     }
 
     private func menuCardSessionEquivalentForecast(

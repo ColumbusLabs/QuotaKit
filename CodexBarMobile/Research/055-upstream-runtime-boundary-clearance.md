@@ -4,7 +4,7 @@ Status: done — implemented and locally verified; hosted CI and merge pending
 
 ## Scope and design
 
-Continue from tested cost/provider source `b4a6a7abe58221818a3bb76e874d706566450702`
+Continue from tested cost/provider source `997988ae699569a923a6dd473d9bca227935394d`
 against final reviewed upstream `25bba9b7fd9ce83c33053958f7366e23b2dc8a82`.
 This bounded follow-on covers Mac/Core numeric row 466, structured balance rows
 789/801, recorder localization row 334 and cookie-picker localization row 315.
@@ -62,3 +62,17 @@ behavior is verified, then merge and remove covered refs after exact-head proof.
   generated parser-hash check passed. Hash remains `7607317f30850961`.
 - No full local suite, live provider/browser/Keychain probe, product release or
   version/build/cursor advance ran. Required combined hosted CI is next.
+
+## Final card-context reconciliation
+
+The residual row315 audit confirmed live/settings contexts are represented without
+requiring a construction refactor. The shared account-capable input now forwards
+the selected snapshot's confidence and explicit account history/reset observations
+(the latter completes an omitted helper route from row451). Claude itself permits
+estimated pace, so confidence isolation is exercised using OpenCode Go's differing
+estimated/exact eligibility rather than claiming a Claude-specific effect.
+
+Six focused card-context/quota-window tests passed. They verify account confidence
+is independent of live confidence, nil/identityless cards do not borrow reset
+history, explicit history selections work, and rendering does not mutate history.
+Scoped SwiftFormat and strict SwiftLint passed for both affected files.
