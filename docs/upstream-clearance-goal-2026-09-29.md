@@ -51,7 +51,7 @@ Do not restart per-commit automation alongside these batches.
 - Combined inventory: **921 rows**. The original SHA and historical fields
   remain intact; the tail uses the same 16-column schema and ordinals 876–921.
 
-The current verified implementation baseline is PR #212's squash merge
+The initial verified implementation baseline was PR #212's squash merge
 `ac6c4c966f6012fffbc3144d40271b01a7646dfe`. Counts and cleanup state at each
 subsequent slice live in the
 [reconciliation](upstream-backlog-reconciliation-2026-09-28.md).
@@ -59,7 +59,7 @@ subsequent slice live in the
 ## First goal slice
 
 The first goal slice audits 72 rows: the 26 unresolved `Mac UX and reporting`
-rows and the 46-row refreshed tail. Current combined accounting is
+rows and the 46-row refreshed tail. That slice's combined accounting was
 **670 accounted, 65 runtime gaps, 186 unresolved / 921 total**.
 The older Mac UX rows yield 18 represented decisions and eight gap/partial rows.
 No runtime behavior changes in this source-accounting slice.
@@ -116,3 +116,17 @@ recovery bundle under `.git/upstream-cleanup-recovery/2026-09-29-remote-merged/`
 Later, unmerged local heads on similarly named branches remain preserved. Total
 cleanup is 13 local and 13 remote branches; the current origin inventory has
 five tracking refs, including `origin/HEAD` and `origin/main`.
+
+## Mistral and security/persistence slice
+
+The next runtime/source slice implements six Mistral picker and billing gap rows
+and resolves all 17 security/persistence audit rows. Combined accounting becomes
+**693 accounted, 59 runtime gaps, 169 unresolved / 921 total**, with exact SHAs
+and historical fields preserved. Independent review and 156 focused tests passed;
+required hosted CI is the delivery gate. The separate monthly/daily category
+rules were preserved, not counted as another fixed feature.
+
+Provider contracts, quota correctness, catalog/architecture and provider additions
+are the next independent source audit groups, using the pinned tested code commit.
+One worktree remains; cleanup now totals 14 local and 14 remote branches, including
+PR #213's temporary branch. Continue cleanup as each subsequent slice closes.
