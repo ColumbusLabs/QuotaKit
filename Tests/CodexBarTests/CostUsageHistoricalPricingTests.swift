@@ -59,11 +59,15 @@ struct CostUsageHistoricalPricingTests {
             pricingDate: afterCutoff,
             modelsDevCacheRoot: root)
 
-        #expect(abs((terraOld ?? 0) - ((90.0 * 2.5e-6) + (10.0 * 2.5e-7) + (5.0 * 1.5e-5))) < 1e-12)
-        #expect(abs((terraNew ?? 0) - ((90.0 * 2e-6) + (10.0 * 2e-7) + (5.0 * 1.2e-5))) < 1e-12)
+        let expectedTerraOld: Double = (90 * 2.5e-6) + (10 * 2.5e-7) + (5 * 1.5e-5)
+        let expectedTerraNew: Double = (90 * 2e-6) + (10 * 2e-7) + (5 * 1.2e-5)
+        #expect(abs((terraOld ?? 0) - expectedTerraOld) < 1e-12)
+        #expect(abs((terraNew ?? 0) - expectedTerraNew) < 1e-12)
         #expect((terraOld ?? 0) > (terraNew ?? 0))
-        #expect(abs((lunaOld ?? 0) - ((90.0 * 1e-6) + (10.0 * 1e-7) + (5.0 * 6e-6))) < 1e-12)
-        #expect(abs((lunaNew ?? 0) - ((90.0 * 2e-7) + (10.0 * 2e-8) + (5.0 * 1.2e-6))) < 1e-12)
+        let expectedLunaOld: Double = (90 * 1e-6) + (10 * 1e-7) + (5 * 6e-6)
+        let expectedLunaNew: Double = (90 * 2e-7) + (10 * 2e-8) + (5 * 1.2e-6)
+        #expect(abs((lunaOld ?? 0) - expectedLunaOld) < 1e-12)
+        #expect(abs((lunaNew ?? 0) - expectedLunaNew) < 1e-12)
         #expect((lunaOld ?? 0) > (lunaNew ?? 0))
     }
 
