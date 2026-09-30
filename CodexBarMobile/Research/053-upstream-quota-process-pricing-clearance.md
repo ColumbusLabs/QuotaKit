@@ -1,6 +1,8 @@
 # Upstream quota, process privacy and pricing clearance
 
-Status: done (implementation verified locally; hosted CI and merge tracked by the integration PR)
+Status: done — included in verified PR #215 merge 64bd8cd644ce7bc82ab98d4084b913f1a4540c79; retained by the final PR #217 delivery.
+
+Delivery record: see the [current reconciliation](../../docs/upstream-backlog-reconciliation-2026-09-28.md). The scope, verification counts, limitations and pending statements below are historical slice checkpoints; the current delivery record supersedes their delivery status.
 
 ## Scope and design
 

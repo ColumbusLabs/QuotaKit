@@ -1,6 +1,8 @@
 # Upstream cost, provider and maintenance clearance
 
-Status: done — implemented behavior verified locally; hosted CI and merge pending
+Status: done — included in verified PR #216 merge 7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2, exact-head CI36701444039; retained by the final PR #217 delivery.
+
+Delivery record: see the [current reconciliation](../../docs/upstream-backlog-reconciliation-2026-09-28.md). The scope, verification counts, limitations and pending statements below are historical slice checkpoints; the current delivery record supersedes their delivery status.
 
 ## Scope and design
 

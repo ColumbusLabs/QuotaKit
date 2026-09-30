@@ -1,6 +1,22 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: complete locally verified candidate
+## Final reconciliation record
+
+[PR #217](https://github.com/ColumbusLabs/QuotaKit/pull/217) is verified merged as `842481ade2579f4b00e3188a99c2b8b7db0aa799`. Exact head `0cc4a2c5432418e0310d28e518109fac1d549056` passed all 11 jobs in [CI36745942110](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36745942110); squash tree `a15eaefd0bec1b81b926bd8fbf48174c246c939a` exactly matches the tested tree. The redundant identical-tree post-merge run was cancelled and cancellation verified.
+
+The final reviewed cut is **930 accounted, zero missing applicable runtime implementations and zero unresolved / 930 objects**, through upstream `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`. A fresh post-merge fetch at 2026-09-30 17:42 UTC found no additions. `UPSTREAM_MONITOR_BASE` activated that fully reconciled head with the covering merge. Shipped alignment remains `UPSTREAM_VERSION=v0.55.0` / `UPSTREAM_SYNC_DATE=2026-08-24`; product versions and build numbers are unchanged.
+
+The closeout ledgers retain every original SHA and the first 12 historical fields of all 921 pre-existing rows, with fresh rows 922–930 appended. Current dispositions are 343 verified merged behaviors, 241 represented behaviors, 96 source-audited exclusions, 55 test-only rows, 9 child-accounted wrappers, 94 release-only exclusions and 92 merges without distinct source behavior. Obsolete delivery-pending instructions from earlier delivered slices are replaced with exact CI/merge/tree evidence.
+
+The completion audit also resolved two test-harness records. Row88 is an explicit fork exclusion: the upstream observer-continuity failure requires `TestProcessOwnership`, which QuotaKit's direct process-group runner does not have. This does not establish cleanup of independently detached descendants. Row487's live Claude PTY fixture now requires both exact live-fetch and real-Keychain consent flags before constructing or calling the provider. Its synthetic environment and source-order checks passed **16 tests in two suites**; independent review found no issues. This test-only closeout is subject to the pull request's required CI/merge gates. No live provider, browser, Keychain or SSH probe was run for this fix.
+
+After runtime delivery, expected-OID cleanup retired 13 covered local refs and the runtime delivery remote ref. Cumulative cleanup is **131 local and 20 origin refs retired**, and **12 worktrees reduced to one**. At that verified checkpoint, only `main` and `feature/mac-battery-status` remain. The battery branch at `3d1a62553171343095493a6f9e772052a3a46c9c` has two separate, unintegrated feature commits and is preserved. Self-contained recovery bundles, private patches and ignored product/local state remain intact. The temporary final-closeout branch retires after its own verified delivery.
+
+The runtime batch has all 83 planned focused filters passing, the affected fixture suites passing, full lint and independent review, and the successful hosted integration matrix. The final closeout adds only the synthetic consent tests and accounting/research status documentation; the local full suite is not repeated. Required path gates apply to its changed files, including iOS CI for the research notes. No product release, upload, installation or app relaunch is part of this goal. Tracking remains [issue #149](https://github.com/ColumbusLabs/QuotaKit/issues/149).
+
+---
+
+## Historical checkpoint: PR #217 before final CI and merge
 
 [PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as `7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`. Its exact tested head passed [CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039), and the squash tree matches. **Actual merged accounting remains 860 accounted, 60 known gaps, 1 unresolved / 921 reviewed** until the next covering merge.
 
