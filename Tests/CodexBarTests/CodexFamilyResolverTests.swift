@@ -149,8 +149,8 @@ struct CodexFamilyResolverTests {
             outputTokens: 100,
             modelsDevCacheRoot: emptyCacheRoot,
             customPricing: .empty)
-        // Upstream maps the unsuffixed alias to Sol pricing.
-        #expect(cost == 0.008)
+        // The current Sol rate is $4/$20 per million input/output tokens.
+        #expect(cost == 0.006)
     }
 
     @Test

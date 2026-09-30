@@ -72,12 +72,14 @@ struct CostUsageScannerForkSplitTests {
             model: model,
             inputTokens: 200_000,
             cachedInputTokens: 0,
-            outputTokens: 100))
+            outputTokens: 100,
+            pricingDate: day))
         let aggregateCost = try #require(CostUsagePricing.codexCostUSD(
             model: model,
             inputTokens: 400_000,
             cachedInputTokens: 0,
-            outputTokens: 200))
+            outputTokens: 200,
+            pricingDate: day))
         let reportCost = try #require(report.summary?.totalCostUSD)
         let requestCostSum = requestCost * 2
 
@@ -192,17 +194,20 @@ struct CostUsageScannerForkSplitTests {
             model: model,
             inputTokens: 300_000,
             cachedInputTokens: 0,
-            outputTokens: 100))
+            outputTokens: 100,
+            pricingDate: day))
         let shortCost = try #require(CostUsagePricing.codexCostUSD(
             model: model,
             inputTokens: 100_000,
             cachedInputTokens: 0,
-            outputTokens: 100))
+            outputTokens: 100,
+            pricingDate: day))
         let aggregateCost = try #require(CostUsagePricing.codexCostUSD(
             model: model,
             inputTokens: 400_000,
             cachedInputTokens: 0,
-            outputTokens: 200))
+            outputTokens: 200,
+            pricingDate: day))
 
         #expect(abs((report.summary?.totalCostUSD ?? 0) - (longCost + shortCost)) < 1e-12)
         #expect(abs((report.summary?.totalCostUSD ?? 0) - aggregateCost) > 0.4)
@@ -429,12 +434,14 @@ struct CostUsageScannerForkSplitTests {
             model: model,
             inputTokens: 100_000,
             cachedInputTokens: 0,
-            outputTokens: 10))
+            outputTokens: 10,
+            pricingDate: Date(timeIntervalSince1970: Double(child.timestampUnixMs ?? 0) / 1000)))
         let priorityCost = try #require(CostUsagePricing.codexPriorityCostUSD(
             model: model,
             inputTokens: 100_000,
             cachedInputTokens: 0,
-            outputTokens: 10))
+            outputTokens: 10,
+            pricingDate: Date(timeIntervalSince1970: Double(parent.timestampUnixMs ?? 0) / 1000)))
         #expect(abs((breakdown.standardCostUSD ?? 0) - standardCost) < 1e-12)
         #expect(abs((breakdown.priorityCostUSD ?? 0) - priorityCost) < 1e-12)
         #expect(breakdown.standardTokens == 100_010)
@@ -487,7 +494,8 @@ struct CostUsageScannerForkSplitTests {
             model: model,
             inputTokens: 300_000,
             cachedInputTokens: 0,
-            outputTokens: 10))
+            outputTokens: 10,
+            pricingDate: Date(timeIntervalSince1970: Double(parentRow.timestampUnixMs ?? 0) / 1000)))
         #expect(abs((report.summary?.totalCostUSD ?? 0) - expected) < 1e-12)
     }
 

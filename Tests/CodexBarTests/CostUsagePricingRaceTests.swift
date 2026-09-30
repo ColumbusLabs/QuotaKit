@@ -173,6 +173,8 @@ struct CostUsagePricingRaceTests {
 }
 
 private struct PricingRaceFixture {
+    private static let modelName = "gpt-5.5-pricing-fixture"
+
     let environment: CostUsageTestEnvironment
     let day: Date
     let options: CostUsageScanner.Options
@@ -184,7 +186,7 @@ private struct PricingRaceFixture {
         let day = try environment.makeLocalNoon(year: 2026, month: 8, day: 7)
         let timestamp = environment.isoString(for: day)
         let entries: [[String: Any]] = [
-            ["type": "turn_context", "timestamp": timestamp, "payload": ["model": "gpt-5.6-sol"]],
+            ["type": "turn_context", "timestamp": timestamp, "payload": ["model": Self.modelName]],
             [
                 "type": "event_msg",
                 "timestamp": timestamp,
@@ -213,7 +215,7 @@ private struct PricingRaceFixture {
             forceRescan: true)
         self.range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
         self.catalog = try CostUsagePricingRaceTests.catalog(
-            model: "gpt-5.6-sol",
+            model: Self.modelName,
             input: 10,
             output: 20,
             cacheRead: 0.1)
