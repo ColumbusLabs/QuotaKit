@@ -190,7 +190,10 @@ struct AntigravityCLIUsageReportTests {
         let fixture = try Self.printExecutable("""
         [ "$*" = '-p /usage --output-format json --print-timeout 90s' ] || exit 9
         [ "$PWD" != "$HOME" ] || exit 10
+        [ -n "$CODEXBAR_PROBE_OWNER" ] || exit 12
+        [ "$CODEXBAR_PROBE_OWNER" != 'caller-supplied-marker' ] || exit 13
         [ -z "${ANTIGRAVITY_OAUTH_CREDENTIALS_JSON+x}" ] || exit 11
+        printf '%s' "$PWD" > "$HOME/probe-directory"
         /bin/cat <<'REPORT'
         \(report)
         REPORT
@@ -200,10 +203,15 @@ struct AntigravityCLIUsageReportTests {
         #expect(binary == fixture.binary.path)
         var environment = fixture.environment
         environment[AntigravityOAuthCredentialsStore.environmentCredentialsKey] = "synthetic-app-owned-credential"
+        environment[ProcessOwnershipReaper.environmentKey] = "caller-supplied-marker"
         let result = try await AntigravityCLIHTTPSFetchStrategy().fetchPrintUsage(
             binary: binary, environment: environment)
+        let probeDirectory = try String(
+            contentsOf: fixture.directory.appendingPathComponent("probe-directory"), encoding: .utf8)
         #expect(environment[AntigravityOAuthCredentialsStore.environmentCredentialsKey] ==
             "synthetic-app-owned-credential")
+        #expect(environment[ProcessOwnershipReaper.environmentKey] == "caller-supplied-marker")
+        #expect(!FileManager.default.fileExists(atPath: probeDirectory))
         #expect(abs((result.usage.primary?.usedPercent ?? -1) - 40) < 0.001)
         #expect(result.usage.identity?.accountEmail == nil)
         #expect(result.usage.identity?.loginMethod == nil)

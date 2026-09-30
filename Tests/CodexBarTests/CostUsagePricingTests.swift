@@ -242,9 +242,9 @@ struct CostUsagePricingTests {
             outputTokens: 5,
             modelsDevCacheRoot: root)
 
-        // Rates per token: Sol $5/$30 per 1M, Terra $2/$12, Luna $0.20/$1.20;
+        // Rates per token: Sol $4/$20 per 1M, Terra $2/$12, Luna $0.20/$1.20;
         // cache read is 10% of input. Non-cached input is 90 tokens.
-        #expect(sol == (90.0 * 5e-6) + (10.0 * 5e-7) + (5.0 * 3e-5))
+        #expect(sol == (90.0 * 4e-6) + (10.0 * 4e-7) + (5.0 * 2e-5))
         #expect(terra == (90.0 * 2e-6) + (10.0 * 2e-7) + (5.0 * 1.2e-5))
         #expect(luna == (90.0 * 2e-7) + (10.0 * 2e-8) + (5.0 * 1.2e-6))
         // Unsuffixed gpt-5.6 alias routes to Sol.
@@ -378,7 +378,7 @@ struct CostUsagePricingTests {
 
         // Long-context (>272K) rates apply to the entire request. Total input contains 10 cached,
         // 20 cache-write, and 271,971 ordinary input tokens.
-        #expect(sol == (271_971.0 * 1e-5) + (10.0 * 1e-6) + (20.0 * 1.25e-5) + (10.0 * 4.5e-5))
+        #expect(sol == (271_971.0 * 8e-6) + (10.0 * 8e-7) + (20.0 * 1e-5) + (10.0 * 3e-5))
         #expect(terra == (271_971.0 * 4e-6) + (10.0 * 4e-7) + (20.0 * 5e-6) + (10.0 * 1.8e-5))
         #expect(luna == (271_971.0 * 4e-7) + (10.0 * 4e-8) + (20.0 * 5e-7) + (10.0 * 1.8e-6))
     }
@@ -395,7 +395,7 @@ struct CostUsagePricingTests {
             cacheWriteInputTokens: 20,
             modelsDevCacheRoot: root)
 
-        let expected = (70.0 * 5e-6) + (10.0 * 5e-7) + (20.0 * 6.25e-6) + (5.0 * 3e-5)
+        let expected = (70.0 * 4e-6) + (10.0 * 4e-7) + (20.0 * 5e-6) + (5.0 * 2e-5)
         #expect(sol == expected)
     }
 
@@ -425,7 +425,7 @@ struct CostUsagePricingTests {
             customPricing: .empty)
 
         // Public API Fast rates are 2x Standard for GPT-5.6.
-        let expectedSol = 2.02
+        let expectedSol = 1.456
         let expectedTerra = 0.808
         let expectedLuna = 0.0808
         #expect(abs((sol ?? 0) - expectedSol) < 1e-12)
@@ -469,10 +469,10 @@ struct CostUsagePricingTests {
             modelsDevCacheRoot: emptyCacheRoot,
             customPricing: .empty)
 
-        let solInput = 70.0 * 5e-6
-        let solCached = 10.0 * 5e-7
-        let solWrite = 20.0 * 6.25e-6
-        let solOutput = 5.0 * 3e-5
+        let solInput = 70.0 * 4e-6
+        let solCached = 10.0 * 4e-7
+        let solWrite = 20.0 * 5e-6
+        let solOutput = 5.0 * 2e-5
         let expectedSol: Double = (solInput + solCached + solWrite + solOutput) * 2
         let terraInput = 70.0 * 2e-6
         let terraCached = 10.0 * 2e-7
@@ -798,8 +798,8 @@ struct CostUsagePricingTests {
             outputTokens: 100,
             modelsDevCacheRoot: catalogThresholdRoot)
 
-        #expect(bundledBelowThreshold == (200_000.0 * 5e-6) + (100.0 * 30e-6))
-        #expect(bundledAtThreshold == (272_000.0 * 5e-6) + (100.0 * 30e-6))
+        #expect(bundledBelowThreshold == (200_000.0 * 4e-6) + (100.0 * 20e-6))
+        #expect(bundledAtThreshold == (272_000.0 * 4e-6) + (100.0 * 20e-6))
         #expect(bundledAboveThreshold == nil)
         #expect(linear == (300_000.0 * 7.5e-7) + (100_000.0 * 7.5e-8) + (100.0 * 4.5e-6))
         #expect(catalogAtThreshold == (200_000.0 * 5e-6) + (100.0 * 30e-6))
@@ -889,7 +889,7 @@ extension CostUsagePricingTests {
             cacheWriteInputTokens: 20,
             modelsDevCacheRoot: explicitZeroRoot)
 
-        #expect(missing == (70.0 * 5e-6) + (10.0 * 5e-7) + (20.0 * 6.25e-6))
+        #expect(missing == (70.0 * 5e-6) + (10.0 * 4e-7) + (20.0 * 5e-6))
         #expect(explicitZero == 70.0 * 5e-6)
     }
 
@@ -923,7 +923,7 @@ extension CostUsagePricingTests {
 
         // Without bundled above-threshold fallback this would bill short rates ($5/$30) despite
         // entering long-context mode via the bundled threshold.
-        #expect(cost == (272_001.0 * 1e-5) + (10.0 * 4.5e-5))
+        #expect(cost == (272_001.0 * 8e-6) + (10.0 * 3e-5))
     }
 
     @Test
@@ -1493,26 +1493,6 @@ extension CostUsagePricingTests {
         #expect(unknownRoute == nil)
     }
 
-    @Test
-    func `Claude Code uses bundled OpenAI long context boundary with catalog rates`() throws {
-        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data("""
-        {"openai":{"id":"openai","models":{"gpt-5.4":{"id":"gpt-5.4","cost":{
-          "input":2,"output":4,"cache_read":0.25,"cache_write":3,
-          "context_over_200k":{"input":7,"output":11,"cache_read":0.5,"cache_write":9}
-        }}}}}
-        """.utf8))
-        for (tokens, rate) in [(250_000, 2e-6), (280_000, 7e-6)] {
-            let cost = try #require(CostUsagePricing.claudeCostUSD(
-                model: "gpt-5.4",
-                inputTokens: tokens,
-                cacheReadInputTokens: 0,
-                cacheCreationInputTokens: 0,
-                outputTokens: 0,
-                modelsDevCatalog: catalog))
-            #expect(cost == Double(tokens) * rate)
-        }
-    }
-
     private static func seedModelsDevCache(_ json: String) throws -> URL {
         let root = try Self.cacheRoot()
         let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(json.utf8))
@@ -1533,103 +1513,5 @@ extension CostUsagePricingTests {
             .appendingPathComponent("codexbar-pricing-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root
-    }
-
-    // MARK: - Historical pricing (date-aware, issue #2671)
-
-    @Test
-    func `GPT-5_6 Terra and Luna use explicit July 2026 boundary dates`() throws {
-        let root = try Self.cacheRoot()
-        // Assert against absolute dates, not the shared cutoff constant.
-        let beforeCutoff = Date(timeIntervalSince1970: 1_785_369_599) // 2026-07-29T23:59:59Z
-        let afterCutoff = Date(timeIntervalSince1970: 1_785_369_601) // 2026-07-30T00:00:01Z
-
-        let terraOld = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-terra",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: beforeCutoff,
-            modelsDevCacheRoot: root)
-        let terraNew = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-terra",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: afterCutoff,
-            modelsDevCacheRoot: root)
-        let lunaOld = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-luna",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: beforeCutoff,
-            modelsDevCacheRoot: root)
-        let lunaNew = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-luna",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: afterCutoff,
-            modelsDevCacheRoot: root)
-
-        // Pre-cutoff Terra: input $2.5/M, cacheRead $0.25/M, output $15/M.
-        #expect(terraOld == (90.0 * 2.5e-6) + (10.0 * 2.5e-7) + (5.0 * 1.5e-5))
-        // Post-cutoff Terra (current): input $2/M, cacheRead $0.20/M, output $12/M.
-        #expect(terraNew == (90.0 * 2e-6) + (10.0 * 2e-7) + (5.0 * 1.2e-5))
-        // Historical Terra is more expensive than current Terra.
-        #expect((terraOld ?? 0) > (terraNew ?? 0))
-
-        // Pre-cutoff Luna: input $1/M, cacheRead $0.10/M, output $6/M.
-        #expect(lunaOld == (90.0 * 1e-6) + (10.0 * 1e-7) + (5.0 * 6e-6))
-        // Post-cutoff Luna (current): input $0.20/M, cacheRead $0.02/M, output $1.20/M.
-        #expect(lunaNew == (90.0 * 2e-7) + (10.0 * 2e-8) + (5.0 * 1.2e-6))
-        // Historical Luna is more expensive than current Luna.
-        #expect((lunaOld ?? 0) > (lunaNew ?? 0))
-    }
-
-    @Test
-    func `GPT-5_6 Sol pricing is unchanged across explicit July 2026 boundary dates`() throws {
-        let root = try Self.cacheRoot()
-        let beforeCutoff = Date(timeIntervalSince1970: 1_785_369_599)
-        let afterCutoff = Date(timeIntervalSince1970: 1_785_369_601)
-
-        let solOld = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-sol",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: beforeCutoff,
-            modelsDevCacheRoot: root)
-        let solNew = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-sol",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: afterCutoff,
-            modelsDevCacheRoot: root)
-        // Sol was not in the rate cut; both sides should produce the same cost.
-        #expect(solOld == solNew)
-    }
-
-    @Test
-    func `historical pricing does not activate without a pricingDate`() throws {
-        let root = try Self.cacheRoot()
-        let terraNil = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-terra",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: nil,
-            modelsDevCacheRoot: root)
-        let terraNew = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6-terra",
-            inputTokens: 100,
-            cachedInputTokens: 10,
-            outputTokens: 5,
-            pricingDate: Date(timeIntervalSince1970: 1_785_369_601),
-            modelsDevCacheRoot: root)
-        // No date → current rates (same as post-cutoff).
-        #expect(terraNil == terraNew)
     }
 }

@@ -1636,3 +1636,10 @@
 
 "Color Pace Indicator" = "Color Pace Indicator";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API version";
+"OpenAI-compatible v1" = "OpenAI-compatible v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Default uses AZURE_OPENAI_API_VERSION when set.";
+"No cookie header pasted." = "No cookie header pasted.";
+"Use automatic cookies" = "Use automatic cookies";

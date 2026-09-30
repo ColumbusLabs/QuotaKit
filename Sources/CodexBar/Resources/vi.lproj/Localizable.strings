@@ -1634,3 +1634,10 @@
 
 "Color Pace Indicator" = "Tô màu nhịp sử dụng";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Xanh khi mức sử dụng chậm hơn nhịp dự kiến (còn dư); đỏ khi nhanh hơn (nguy cơ hết hạn mức sớm).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "Phiên bản API";
+"OpenAI-compatible v1" = "v1 tương thích với OpenAI";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Mặc định dùng AZURE_OPENAI_API_VERSION nếu được đặt.";
+"No cookie header pasted." = "Chưa dán tiêu đề Cookie.";
+"Use automatic cookies" = "Dùng cookie tự động";

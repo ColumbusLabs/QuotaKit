@@ -8,6 +8,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Plan Usage: show recorded Codex and Claude quota burndown beside utilization history, with reset-scoped windows and capture age.
+- Azure OpenAI: select the API version in Settings while sharing the override with CLI configuration and preserving environment inheritance.
 - Muse Code can show a user-selected dev.meta.ai team quota when the CLI login omits windows, using an opt-in, domain-scoped browser session.
 - Claude local Usage & Spend now includes claude-swap session homes without counting shared or copied history twice.
 - Abacus AI now reads credits and optional billing through the bundled plugin, with bounded cookie retries and calendar-month pacing.
@@ -46,6 +48,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Security: redact retained process-environment values from automatic descriptions, reflection, dumps, and test diagnostics while preserving execution access.
+- Antigravity: clean detached usage-probe descendants using a fresh inherited marker, current-user checks, and process-start identity before each signal.
+- Local costs: resolve Codex reserve and Antigravity product aliases, honor historical Sol rates, and recalculate derived reports without discarding compatible parsed rows or scan checkpoints.
+- Ollama: distinguish an empty Manual cookie header and offer explicit recovery to automatic cookies.
 - Mistral: choose Monthly Plan across menu bar icon styles, preserving custom layouts and per-provider selection.
 - Mistral billing matches prices by event, API zone, and service tier, with exact legacy fallback for older unqualified price tables.
 - Remote sessions preserve SSH username case while deduplicating hostnames without case.

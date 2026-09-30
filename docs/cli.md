@@ -42,9 +42,10 @@ tar -xzf QuotaKitCLI-v0.17.0-macos-x86_64.tar.gz
 
 ## Configuration
 QuotaKit reads the resolved config file for provider settings, secrets, and ordering. New installs use
-`~/.config/quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths and `CODEXBAR_CONFIG` are supported, and existing
-`~/.quotakit/config.json` installs keep using the legacy file when no XDG config exists.
-See `docs/configuration.md` for the schema.
+`~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths, `QUOTAKIT_CONFIG`, and the compatibility
+`CODEXBAR_CONFIG` override are supported. An existing `~/.config/quotakit/config.json` is preferred when no override is set. See [Configuration](configuration.md) for the schema and [Providers](providers.md)
+for registered sources and setup guides. The [provider ID list](provider-ids.md) is generated from the registry, and
+`quotakit config providers` lists registered providers and their configured enablement without fetching usage.
 
 ## Command
 - `quotakit` defaults to the `usage` command.
@@ -141,11 +142,11 @@ See `docs/configuration.md` for the schema.
   - `--status` (fetch provider status pages and include them in output).
   - `--antigravity-plan-debug` (debug: print Antigravity planInfo fields to stderr).
 - `--source <auto|web|cli|oauth|api>` (default: `auto`).
-    - `auto`: provider-specific fallback order from `docs/providers.md`.
+    - `auto`: provider-specific fallback order in [Providers](providers.md#fetch-strategies-current).
     - `web`: web-only where that provider exposes an explicit web source; no CLI/API fallback. Browser import is macOS-only, while supported providers can use configured manual cookies on Linux.
     - `cli`: CLI/local-helper source where the provider exposes one (for example Codex RPC/PTy, Claude PTY, Kilo CLI fallback, Kiro CLI, local probes).
     - `oauth`: OAuth-backed source where supported (Codex, Claude, Vertex AI).
-    - `api`: API-key/token flow when the provider supports it (OpenAI, Claude Admin API, z.ai, Gemini, Alibaba, Copilot, OpenCode Go, Kilo, Kimi, MiniMax, Ollama, Warp, OpenRouter, ElevenLabs, Deepgram, Synthetic, DeepSeek, DeepInfra, Moonshot, Doubao, Codebuff, Crof, Venice, AWS Bedrock, v0).
+    - `api`: API-backed flow where supported; credentials may be API keys or existing tokens. See the [provider source table](providers.md#fetch-strategies-current) and each provider guide for supported modes.
     - v0: set `V0_API_KEY`; optional project scope is `V0_SCOPE`. Both values can also be set in provider config.
     - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
@@ -157,7 +158,7 @@ See `docs/configuration.md` for the schema.
       command delegates authentication to Claude Code; the app keeps its stricter prompt-free background availability
       gate for scheduled refreshes.
     - Command Code web: commandcode.ai browser session cookies on macOS, or a configured manual cookie on Linux, for monthly credit usage.
-    - OpenCode Go auto: local SQLite cost history on macOS and Linux with API usage-window enrichment when
+    - OpenCode Go auto: local SQLite cost history on macOS with API usage-window enrichment when
       `OPENCODE_API_KEY` is configured, plus legacy manual-cookie web fallback.
     - Kilo auto: app.kilo.ai API first, then CLI auth fallback (`~/.local/share/kilo/auth.json`) on missing/unauthorized API credentials.
     - Linux: automatic browser import is unavailable. Cursor `auto`/`cli` can read the signed-in app token, including Cursor and Grok Bot usage; explicit Cursor `web` requires a manual cookie. Other local sources and configured manual-cookie paths remain available where documented.
@@ -167,7 +168,7 @@ See `docs/configuration.md` for the schema.
 - `quotakit config validate` checks the resolved config file for invalid fields.
   - `--format text|json`, `--pretty`, and `--json-only` are supported.
   - Warnings keep exit code 0; errors exit non-zero.
-- `quotakit config dump` prints the normalized config JSON.
+- `quotakit config dump` prints normalized config JSON with credentials redacted by default. `--show-secrets` explicitly includes raw credentials; `--pretty` formats the output.
 - `quotakit hooks list` shows the local hook configuration; `--format json` and `--pretty` are supported.
 - `quotakit hooks enable|disable` changes the explicit top-level opt-in switch in the local config file.
 - `quotakit hooks test <event> --provider <id>` invokes matching enabled rules with a representative event. Hook

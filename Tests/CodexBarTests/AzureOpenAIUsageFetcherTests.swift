@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexBar
 
@@ -283,5 +284,148 @@ struct AzureOpenAIMenuDescriptorTests {
 
         #expect(lines.contains("Azure OpenAI"))
         #expect(lines.contains("Deployment: chat-prod · Model: gpt-4o-mini"))
+    }
+}
+
+struct AzureOpenAIAPIVersionProjectionTests {
+    @Test(arguments: [
+        (nil as String?, nil as String?, "2024-10-21"),
+        (nil, "v1", "v1"),
+        ("v1", nil, "v1"),
+        ("v1", "2024-10-21", "v1"),
+        ("2024-10-21", "v1", "2024-10-21"),
+        ("  ", "v1", "v1"),
+        (" \"v1\" ", "2024-10-21", "v1"),
+        ("custom &version=#value", "v1", "custom &version=#value"),
+    ])
+    func `config version precedence keeps the established request variants`(
+        configured: String?,
+        environmentVersion: String?,
+        expected: String) async throws
+    {
+        var config = ProviderConfig(id: .azureopenai)
+        config.azureOpenAIAPIVersion = configured
+        let credentials = try #require(AzureOpenAIProviderDescriptor.descriptor.credentials)
+        var base: [String: String] = [:]
+        base[AzureOpenAISettingsReader.apiVersionEnvironmentKey] = environmentVersion
+        let environment = credentials.applyConfig(
+            base: base,
+            config: config)
+        let version = AzureOpenAISettingsReader.apiVersion(environment: environment)
+        #expect(version == expected)
+
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            #expect(request.httpMethod == "POST")
+            #expect(url.host == "example-resource.openai.azure.com")
+            #expect(url.fragment == nil)
+            #expect(request.value(forHTTPHeaderField: "api-key") == "test-key")
+            let body = try #require(request.httpBody)
+            let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            if expected == "v1" {
+                #expect(url.path == "/openai/v1/chat/completions")
+                #expect(url.query == nil)
+                #expect(json["model"] as? String == "chat-prod")
+                #expect(json["max_completion_tokens"] as? Int == 64)
+                #expect(json["max_tokens"] == nil)
+            } else {
+                #expect(url.path == "/openai/deployments/chat-prod/chat/completions")
+                let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+                #expect(components.queryItems == [URLQueryItem(name: "api-version", value: expected)])
+                #expect(json["max_tokens"] as? Int == 1)
+                #expect(json["max_completion_tokens"] == nil)
+                #expect(json["model"] == nil)
+            }
+            let response = try #require(HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: nil, headerFields: nil))
+            return (Data(#"{"model":"gpt-4o-mini"}"#.utf8), response)
+        }
+        let snapshot = try await AzureOpenAIUsageFetcher.fetchUsage(
+            apiKey: "test-key",
+            endpoint: #require(URL(string: "https://example-resource.openai.azure.com")),
+            deploymentName: "chat-prod",
+            apiVersion: version,
+            transport: transport)
+        #expect(snapshot.apiVersion == expected)
+    }
+}
+
+@MainActor
+struct AzureOpenAISettingsPickerTests {
+    @Test
+    func `picker persists custom value and default resumes environment inheritance`() throws {
+        let initial = try JSONDecoder().decode(CodexBarConfig.self, from: Data(#"""
+        {"version":1,"providers":[
+          {"id":"openai","apiKey":"other-provider-key"},
+          {"id":"azureopenai","apiKey":"azure-key","enterpriseHost":"https://example-resource.openai.azure.com",
+           "workspaceID":"chat-prod","futureAzureSetting":"keep-me"}
+        ]}
+        """#.utf8))
+        let settings = testSettingsStore(
+            suiteName: #function,
+            config: initial,
+            userDefaults: InMemoryUserDefaults())
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let context = ProviderSettingsContext(
+            provider: .azureopenai,
+            settings: settings,
+            store: store,
+            boolBinding: { keyPath in
+                Binding(get: { settings[keyPath: keyPath] }, set: { settings[keyPath: keyPath] = $0 })
+            },
+            stringBinding: { keyPath in
+                Binding(get: { settings[keyPath: keyPath] }, set: { settings[keyPath: keyPath] = $0 })
+            },
+            statusText: { _ in nil },
+            setStatusText: { _, _ in },
+            lastAppActiveRunAt: { _ in nil },
+            setLastAppActiveRunAt: { _, _ in },
+            requestConfirmation: { _ in })
+        let implementation = AzureOpenAIProviderImplementation()
+        let picker = try #require(implementation.settingsPickers(context: context).first)
+        #expect(picker.options.map(\.id) == ["", "v1"])
+        #expect(picker.binding.wrappedValue.isEmpty)
+
+        picker.binding.wrappedValue = "v1"
+        let reader = CodexBarConfigStore(fileURL: settings.configStore.fileURL)
+        let saved = try #require(try reader.load())
+        #expect(saved.providerConfig(for: .azureopenai)?.azureOpenAIAPIVersion == "v1")
+        #expect(saved.providerConfig(for: .openai)?.apiKey == "other-provider-key")
+        let v1Environment = ProviderRegistry.makeEnvironment(
+            base: [AzureOpenAISettingsReader.apiVersionEnvironmentKey: "2024-10-21"],
+            provider: .azureopenai,
+            settings: settings,
+            tokenOverride: nil)
+        #expect(AzureOpenAISettingsReader.apiVersion(environment: v1Environment) == "v1")
+
+        settings.azureOpenAIAPIVersion = "2025-01-01-preview"
+        #expect(implementation.settingsPickers(context: context).first?.options.last?.id == "2025-01-01-preview")
+        picker.binding.wrappedValue = ""
+
+        let cleared = try #require(try reader.load())
+        let azureConfig = try #require(cleared.providerConfig(for: .azureopenai))
+        #expect(azureConfig.azureOpenAIAPIVersion == nil)
+        #expect(azureConfig.apiKey == "azure-key")
+        #expect(azureConfig.enterpriseHost == "https://example-resource.openai.azure.com")
+        #expect(azureConfig.workspaceID == "chat-prod")
+        #expect(cleared.providerConfig(for: .openai)?.apiKey == "other-provider-key")
+        let inheritedEnvironment = ProviderRegistry.makeEnvironment(
+            base: [AzureOpenAISettingsReader.apiVersionEnvironmentKey: "v1"],
+            provider: .azureopenai,
+            settings: settings,
+            tokenOverride: nil)
+        #expect(AzureOpenAISettingsReader.apiVersion(environment: inheritedEnvironment) == "v1")
+
+        let savedJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(cleared))
+        let root = try #require(savedJSON as? [String: Any])
+        let providers = try #require(root["providers"] as? [[String: Any]])
+        let persistedAzure = try #require(providers.first { $0["id"] as? String == "azureopenai" })
+        #expect(persistedAzure["futureAzureSetting"] as? String == "keep-me")
+        #expect(persistedAzure["azureOpenAIAPIVersion"] == nil)
     }
 }

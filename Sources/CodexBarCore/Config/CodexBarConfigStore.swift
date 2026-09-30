@@ -25,7 +25,7 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     public let fileURL: URL
     private let fileManager: FileManager
     private let openAIWebAccessEnabledOverride: Bool?
-    private let environment: [String: String]
+    @ProcessEnvironment private var environment: [String: String]
 
     public init(
         fileURL: URL = Self.defaultURL(),

@@ -60,7 +60,7 @@ extension UsageStore {
     private struct ClaudeRefreshReconciliationInput {
         let provider: UsageProvider
         let outcome: ProviderFetchOutcome
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let dataSource: ClaudeUsageDataSource?
         let priorSourceLabel: String?
         let beforeFetch: ClaudeRefreshAuthState?

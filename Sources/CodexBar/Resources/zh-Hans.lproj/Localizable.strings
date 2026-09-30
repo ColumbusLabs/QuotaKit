@@ -1645,3 +1645,10 @@
 
 "Color Pace Indicator" = "用颜色显示使用节奏";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "使用量低于预期进度时显示绿色（有余量）；高于预期时显示红色（可能提前耗尽配额）。";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API 版本";
+"OpenAI-compatible v1" = "兼容 OpenAI 的 v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "默认使用已设置的 AZURE_OPENAI_API_VERSION。";
+"No cookie header pasted." = "尚未粘贴 Cookie 标头。";
+"Use automatic cookies" = "使用自动 Cookie";

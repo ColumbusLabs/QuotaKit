@@ -193,17 +193,18 @@ enum CostUsagePricing {
         // Long context: prompts with >272K input tokens are 2x input / 1.5x output for the full
         // request. Cache writes: 1.25x uncached input. API Fast support and multipliers are applied
         // separately after Standard pricing resolves from models.dev or this bundled fallback.
+        // Sol was repriced from $5/$30 to $4/$20 on 2026-08-21.
         "gpt-5.6-sol": CodexPricing(
-            inputCostPerToken: 5e-6,
-            outputCostPerToken: 3e-5,
-            cacheReadInputCostPerToken: 5e-7,
+            inputCostPerToken: 4e-6,
+            outputCostPerToken: 2e-5,
+            cacheReadInputCostPerToken: 4e-7,
             displayLabel: nil,
-            cacheWriteInputCostPerToken: 6.25e-6,
+            cacheWriteInputCostPerToken: 5e-6,
             thresholdTokens: 272_000,
-            inputCostPerTokenAboveThreshold: 1e-5,
-            outputCostPerTokenAboveThreshold: 4.5e-5,
-            cacheReadInputCostPerTokenAboveThreshold: 1e-6,
-            cacheWriteInputCostPerTokenAboveThreshold: 1.25e-5),
+            inputCostPerTokenAboveThreshold: 8e-6,
+            outputCostPerTokenAboveThreshold: 3e-5,
+            cacheReadInputCostPerTokenAboveThreshold: 8e-7,
+            cacheWriteInputCostPerTokenAboveThreshold: 1e-5),
         "gpt-5.6-terra": CodexPricing(
             inputCostPerToken: 2e-6,
             outputCostPerToken: 1.2e-5,
@@ -228,11 +229,22 @@ enum CostUsagePricing {
             cacheWriteInputCostPerTokenAboveThreshold: 5e-7),
     ]
 
+    /// Subscription and model aliases whose API-equivalent estimates use a canonical OpenAI rate.
+    /// Keep these in the pricing fingerprint so cached reports are recomputed when routing changes.
+    private static let codexModelAliases = [
+        "gpt-5.6": "gpt-5.6-sol",
+        "gpt-reserve": "gpt-5.6-luna",
+    ]
+
     static func codexBuiltInPricingFingerprint() -> String {
         var parts = [
             "priorityInputTokenLimit=\(self.codexPriorityInputTokenLimit)",
             "fastPricingDefinition=api-fast-usd-v1",
         ]
+        for alias in self.codexModelAliases.keys.sorted() {
+            guard let model = self.codexModelAliases[alias] else { continue }
+            parts.append("modelAlias=\(alias)->\(model)")
+        }
         for model in self.codex.keys.sorted() {
             guard let pricing = self.codex[model] else { continue }
             parts.append([
@@ -413,11 +425,24 @@ enum CostUsagePricing {
     ]
 
     // GPT-5.6 Terra and Luna rates effective before 2026-07-30 (Unix 1785369600).
-    // Sol pricing was unchanged. Values from OpenAI pricing page snapshot in PR #2521.
+    // Values from OpenAI pricing page snapshot in PR #2521.
     // Co-authored-by: iam-brain (historical rate values).
     static let codexGPT56PricingCutoff = Date(timeIntervalSince1970: 1_785_369_600)
-    private static let codexHistoricalPricing: [String: CodexPricing] = [
-        "gpt-5.6-terra": CodexPricing(
+    // Sol's reduced rates became effective 2026-08-21 per the OpenAI API changelog.
+    private static let codexSolPricingCutoff = Date(timeIntervalSince1970: 1_787_270_400)
+    private static let codexHistoricalPricing: [String: (cutoff: Date, pricing: CodexPricing)] = [
+        "gpt-5.6-sol": (Self.codexSolPricingCutoff, CodexPricing(
+            inputCostPerToken: 5e-6,
+            outputCostPerToken: 3e-5,
+            cacheReadInputCostPerToken: 5e-7,
+            displayLabel: nil,
+            cacheWriteInputCostPerToken: 6.25e-6,
+            thresholdTokens: 272_000,
+            inputCostPerTokenAboveThreshold: 1e-5,
+            outputCostPerTokenAboveThreshold: 4.5e-5,
+            cacheReadInputCostPerTokenAboveThreshold: 1e-6,
+            cacheWriteInputCostPerTokenAboveThreshold: 1.25e-5)),
+        "gpt-5.6-terra": (Self.codexGPT56PricingCutoff, CodexPricing(
             inputCostPerToken: 2.5e-6,
             outputCostPerToken: 1.5e-5,
             cacheReadInputCostPerToken: 2.5e-7,
@@ -427,8 +452,8 @@ enum CostUsagePricing {
             inputCostPerTokenAboveThreshold: 5e-6,
             outputCostPerTokenAboveThreshold: 2.25e-5,
             cacheReadInputCostPerTokenAboveThreshold: 5e-7,
-            cacheWriteInputCostPerTokenAboveThreshold: 6.25e-6),
-        "gpt-5.6-luna": CodexPricing(
+            cacheWriteInputCostPerTokenAboveThreshold: 6.25e-6)),
+        "gpt-5.6-luna": (Self.codexGPT56PricingCutoff, CodexPricing(
             inputCostPerToken: 1e-6,
             outputCostPerToken: 6e-6,
             cacheReadInputCostPerToken: 1e-7,
@@ -438,7 +463,7 @@ enum CostUsagePricing {
             inputCostPerTokenAboveThreshold: 2e-6,
             outputCostPerTokenAboveThreshold: 9e-6,
             cacheReadInputCostPerTokenAboveThreshold: 2e-7,
-            cacheWriteInputCostPerTokenAboveThreshold: 2.5e-6),
+            cacheWriteInputCostPerTokenAboveThreshold: 2.5e-6)),
     ]
 
     private static let claudeFullContextStandardPricingCutoff = Date(timeIntervalSince1970: 1_773_360_000)
@@ -529,8 +554,8 @@ enum CostUsagePricing {
         }
 
         // OpenAI routes the unsuffixed gpt-5.6 alias to Sol.
-        if trimmed == "gpt-5.6" {
-            return "gpt-5.6-sol"
+        if let alias = self.codexModelAliases[trimmed] {
+            return alias
         }
 
         if self.codex[trimmed] != nil {
@@ -597,13 +622,13 @@ enum CostUsagePricing {
     {
         let key = pricingResolver?.normalize(model) ?? self.normalizeCodexModel(model)
         guard key != self.codexUnattributedModel else { return nil }
-        // Use historical bundled rates when the usage predates a known pricing change and
-        // no custom overlay or models.dev catalog entry overrides the lookup.
+        // Known historical rates take precedence over today's catalog. Callers resolve custom
+        // overlays before reaching this lookup.
         if let pricingDate,
-           pricingDate < self.codexGPT56PricingCutoff,
-           let historical = self.codexHistoricalPricing[key]
+           let historical = self.codexHistoricalPricing[key],
+           pricingDate < historical.cutoff
         {
-            return historical
+            return historical.pricing
         }
         let modelsDevLookup = if let pricingResolver {
             pricingResolver.lookup(model)

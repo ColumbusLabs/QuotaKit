@@ -1632,3 +1632,10 @@
 
 "Color Pace Indicator" = "Gebruikstempo kleuren";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Groen als het verbruik achterloopt op het verwachte tempo (reserve); rood als het voorloopt (risico op vroegtijdige uitputting).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API-versie";
+"OpenAI-compatible v1" = "OpenAI-compatibele v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Standaard gebruikt AZURE_OPENAI_API_VERSION als deze is ingesteld.";
+"No cookie header pasted." = "Geen Cookie-header geplakt.";
+"Use automatic cookies" = "Automatische cookies gebruiken";

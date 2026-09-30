@@ -1,4 +1,5 @@
 import Foundation
+
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -111,6 +112,7 @@ public enum OllamaUsageError: LocalizedError, Sendable {
     case parseFailed(String)
     case networkError(String)
     case noSessionCookie
+    case manualCookieHeaderEmpty
     case safariCookieAccessDenied
     case browserCookieDecryptionDenied(String)
     case browserCookieDecryptionDisabled(String)
@@ -131,6 +133,9 @@ public enum OllamaUsageError: LocalizedError, Sendable {
             "Ollama request failed: \(message)"
         case .noSessionCookie:
             "No Ollama session cookie found. Please sign in at \(Self.signInURL) in your browser."
+        case .manualCookieHeaderEmpty:
+            "Ollama cookie source is Manual, but no cookie header is configured. "
+                + "Paste a Cookie header from https://ollama.com/settings, or set Cookie source to Auto."
         case .safariCookieAccessDenied:
             "Safari cookies need Full Disk Access for QuotaKit (System Settings > Privacy & Security)."
         case let .browserCookieDecryptionDenied(browserName):
@@ -281,16 +286,6 @@ public enum OllamaCookieImporter {
         return recognized
     }
 
-    static func selectSessionInfo(
-        from candidates: [SessionInfo],
-        logger: ((String) -> Void)? = nil) throws -> SessionInfo
-    {
-        guard let first = try self.selectSessionInfos(from: candidates, logger: logger).first else {
-            throw OllamaUsageError.noSessionCookie
-        }
-        return first
-    }
-
     static func selectSessionInfosWithFallback(
         preferredCandidates: [SessionInfo],
         allowFallbackBrowsers: Bool,
@@ -306,23 +301,6 @@ public enum OllamaCookieImporter {
             let fallbackCandidates = loadFallbackCandidates()
             return try self.selectSessionInfos(from: fallbackCandidates, logger: logger)
         }
-    }
-
-    static func selectSessionInfoWithFallback(
-        preferredCandidates: [SessionInfo],
-        allowFallbackBrowsers: Bool,
-        loadFallbackCandidates: () -> [SessionInfo],
-        logger: ((String) -> Void)? = nil) throws -> SessionInfo
-    {
-        guard let first = try self.selectSessionInfosWithFallback(
-            preferredCandidates: preferredCandidates,
-            allowFallbackBrowsers: allowFallbackBrowsers,
-            loadFallbackCandidates: loadFallbackCandidates,
-            logger: logger).first
-        else {
-            throw OllamaUsageError.noSessionCookie
-        }
-        return first
     }
 
     static func accessError(from error: Error) -> OllamaUsageError? {
@@ -438,7 +416,7 @@ public struct OllamaUsageFetcher: Sendable {
     private static let settingsURL = URL(string: "https://ollama.com/settings")!
     @MainActor private static var recentDumps: [String] = []
 
-    private struct CookieCandidate {
+    struct CookieCandidate: Sendable {
         let cookieHeader: String
         let sourceLabel: String
     }
@@ -604,9 +582,11 @@ public struct OllamaUsageFetcher: Sendable {
             manualCookieMode: manualCookieMode,
             logger: logger)
         {
-            return [CookieCandidate(
-                cookieHeader: manualHeader,
-                sourceLabel: overrideSourceLabel ?? "manual cookie header")]
+            return [
+                CookieCandidate(
+                    cookieHeader: manualHeader,
+                    sourceLabel: overrideSourceLabel ?? "manual cookie header"),
+            ]
         }
         #if os(macOS)
         let sessions = try OllamaCookieImporter.importSessions(
@@ -626,32 +606,77 @@ public struct OllamaUsageFetcher: Sendable {
         cookieHeaderOverride: String? = nil,
         manualCookieMode: Bool = false) async -> String
     {
-        let stamp = ISO8601DateFormatter().string(from: Date())
-        var lines: [String] = []
-        lines.append("=== Ollama Debug Probe @ \(stamp) ===")
-        lines.append("")
-
+        var lines = Self.debugProbeHeader()
         do {
-            let cookieHeader = try await self.resolveCookieHeader(
+            let candidates = try await self.resolveCookieCandidates(
                 override: cookieHeaderOverride,
                 manualCookieMode: manualCookieMode,
                 logger: { msg in lines.append("[cookie] \(msg)") })
-            let diagnostics = RedirectDiagnostics(cookieHeader: cookieHeader, logger: nil)
-            let cookieNames = CookieHeaderNormalizer.pairs(from: cookieHeader).map(\.name)
-            lines.append("Cookie names: \(cookieNames.joined(separator: ", "))")
+            return await self.debugRawProbe(cookieCandidates: candidates, startingLines: lines)
+        } catch {
+            lines.append("")
+            lines.append("Probe Failed: \(Self.surfacedError(from: error).localizedDescription)")
+            return await Self.recordDebugDump(lines)
+        }
+    }
 
-            let (snapshot, responseInfo) = try await self.fetchWithDiagnostics(
-                cookieHeader: cookieHeader,
-                diagnostics: diagnostics)
+    func debugRawProbe(cookieCandidates: [CookieCandidate]) async -> String {
+        await self.debugRawProbe(
+            cookieCandidates: cookieCandidates, startingLines: Self.debugProbeHeader())
+    }
+
+    private func debugRawProbe(cookieCandidates: [CookieCandidate], startingLines: [String]) async
+        -> String
+    {
+        var lines = startingLines
+        let now = Date()
+
+        do {
+            let (snapshot, responseInfo, redirects) = try await ProviderCandidateRetryRunner.run(
+                cookieCandidates,
+                shouldRetry: { Self.shouldRetryWithNextCookieCandidate(after: $0) },
+                onRetry: { candidate, error in
+                    let surfacedError = Self.surfacedError(from: error)
+                    lines.append(
+                        "[cookie] [ollama] Request failed for \(candidate.sourceLabel): "
+                            + "\(surfacedError.localizedDescription); trying next cookie candidate")
+                },
+                attempt: { candidate in
+                    lines.append("[cookie] [ollama] Using cookies from \(candidate.sourceLabel)")
+                    let cookieNames = self.cookieNames(from: candidate.cookieHeader)
+                    if !cookieNames.isEmpty {
+                        lines.append("[cookie] Cookie names: \(cookieNames.joined(separator: ", "))")
+                    }
+
+                    let diagnostics = RedirectDiagnostics(cookieHeader: candidate.cookieHeader, logger: nil)
+                    var html: String?
+                    do {
+                        let (responseHTML, responseInfo) = try await self.fetchHTMLWithDiagnostics(
+                            cookieHeader: candidate.cookieHeader,
+                            diagnostics: diagnostics)
+                        html = responseHTML
+                        let snapshot = try Self.parseSnapshotForRetry(html: responseHTML, now: now)
+                        return (snapshot, responseInfo, diagnostics.redirects)
+                    } catch {
+                        self.logDiagnostics(
+                            responseInfo: nil,
+                            diagnostics: diagnostics,
+                            logger: { lines.append("[cookie] \($0)") })
+                        if let html {
+                            self.logHTMLHints(html: html, logger: { lines.append("[cookie] \($0)") })
+                        }
+                        throw error
+                    }
+                })
 
             lines.append("")
             lines.append("Fetch Success")
             lines.append("Status: \(responseInfo.statusCode) \(responseInfo.url)")
 
-            if !diagnostics.redirects.isEmpty {
+            if !redirects.isEmpty {
                 lines.append("")
                 lines.append("Redirects:")
-                for entry in diagnostics.redirects {
+                for entry in redirects {
                     lines.append("  \(entry)")
                 }
             }
@@ -664,17 +689,23 @@ public struct OllamaUsageFetcher: Sendable {
             lines.append("Monthly resetsAt: \(snapshot.monthlyResetsAt?.description ?? "nil")")
             lines.append("Session resetsAt: \(snapshot.sessionResetsAt?.description ?? "nil")")
             lines.append("Weekly resetsAt: \(snapshot.weeklyResetsAt?.description ?? "nil")")
-
-            let output = lines.joined(separator: "\n")
-            Task { @MainActor in Self.recordDump(output) }
-            return output
         } catch {
             lines.append("")
-            lines.append("Probe Failed: \(error.localizedDescription)")
-            let output = lines.joined(separator: "\n")
-            Task { @MainActor in Self.recordDump(output) }
-            return output
+            lines.append("Probe Failed: \(Self.surfacedError(from: error).localizedDescription)")
         }
+
+        return await Self.recordDebugDump(lines)
+    }
+
+    private static func debugProbeHeader() -> [String] {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        return ["=== Ollama Debug Probe @ \(stamp) ===", ""]
+    }
+
+    private static func recordDebugDump(_ lines: [String]) async -> String {
+        let output = lines.joined(separator: "\n")
+        Task { @MainActor in Self.recordDump(output) }
+        return output
     }
 
     public static func latestDumps() async -> String {
@@ -682,31 +713,6 @@ public struct OllamaUsageFetcher: Sendable {
             let result = Self.recentDumps.joined(separator: "\n\n---\n\n")
             return result.isEmpty ? "No Ollama probe dumps captured yet." : result
         }
-    }
-
-    private func resolveCookieHeader(
-        override: String?,
-        manualCookieMode: Bool,
-        logger: ((String) -> Void)?) async throws -> String
-    {
-        if let manualHeader = try Self.resolveManualCookieHeader(
-            override: override,
-            manualCookieMode: manualCookieMode,
-            logger: logger)
-        {
-            return manualHeader
-        }
-        #if os(macOS)
-        let session = try OllamaCookieImporter.importSession(
-            browserDetection: self.browserDetection,
-            preferredBrowsers: OllamaCookieImporter.defaultPreferredBrowsers,
-            allowFallbackBrowsers: OllamaCookieImporter.defaultAllowFallbackBrowsers,
-            logger: logger)
-        logger?("[ollama] Using cookies from \(session.sourceLabel)")
-        return session.cookieHeader
-        #else
-        throw OllamaUsageError.noSessionCookie
-        #endif
     }
 
     static func resolveManualCookieHeader(
@@ -734,7 +740,7 @@ public struct OllamaUsageFetcher: Sendable {
             return normalized
         }
         if manualCookieMode {
-            throw OllamaUsageError.noSessionCookie
+            throw OllamaUsageError.manualCookieHeaderEmpty
         }
         return nil
     }

@@ -1633,3 +1633,10 @@
 
 "Color Pace Indicator" = "使用ペースを色分け";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "想定より使用が遅い場合は緑（余裕あり）、速い場合は赤（上限に早く達するおそれ）で表示します。";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "APIバージョン";
+"OpenAI-compatible v1" = "OpenAI互換のv1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "デフォルトでは、設定されている場合にAZURE_OPENAI_API_VERSIONを使用します。";
+"No cookie header pasted." = "Cookieヘッダーが貼り付けられていません。";
+"Use automatic cookies" = "Cookieを自動取得";

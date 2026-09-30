@@ -1633,3 +1633,10 @@
 
 "Color Pace Indicator" = "Colorir o ritmo";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verde quando o uso está abaixo do ritmo previsto (reserva); vermelho quando está acima (risco de esgotar a cota antes da hora).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "Versão da API";
+"OpenAI-compatible v1" = "v1 compatível com OpenAI";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "O padrão usa AZURE_OPENAI_API_VERSION quando definida.";
+"No cookie header pasted." = "Nenhum cabeçalho Cookie colado.";
+"Use automatic cookies" = "Usar cookies automáticos";

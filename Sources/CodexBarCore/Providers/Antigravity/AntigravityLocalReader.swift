@@ -92,17 +92,27 @@ enum AntigravityLocalReader {
         return trimmed.isEmpty ? "unknown" : trimmed
     }
 
-    /// Antigravity records routing variants of a vendor model (`-tiered`, `-low`, `-thinking`)
-    /// that bill at the base model's public price. The alias stays provider-local so shared
-    /// Claude pricing keeps reporting unknown Claude variants as unpriced.
+    /// Antigravity records product aliases and routing variants that bill at a catalog model's
+    /// public price. The aliases stay provider-local so shared Claude pricing keeps reporting
+    /// unknown Claude variants as unpriced.
     static func pricingBaseModelID(for model: String) -> String? {
         let lowered = model.lowercased()
+        if let alias = self.pricingModelAliases[lowered] { return alias }
         guard let suffix = self.routingVariantSuffixes.first(where: lowered.hasSuffix) else { return nil }
         let base = String(model.dropLast(suffix.count))
-        return base.isEmpty ? nil : base
+        return base.isEmpty ? nil : self.pricingModelAliases[base.lowercased()] ?? base
     }
 
     private static let routingVariantSuffixes = ["-tiered", "-low", "-thinking"]
+
+    /// Antigravity's Gemini 3.1 Pro product IDs map to the public preview model in models.dev.
+    private static let pricingModelAliases = [
+        "gemini-pro-default": "gemini-3.1-pro-preview",
+        "gemini-pro-agent": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro-high": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro-low": "gemini-3.1-pro-preview",
+    ]
 
     static func checkedAdd(_ lhs: Int, _ rhs: Int) -> Int? {
         let (result, overflow) = lhs.addingReportingOverflow(rhs)

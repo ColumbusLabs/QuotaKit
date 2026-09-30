@@ -1,3 +1,10 @@
+---
+summary: "QuotaKit Agent Sessions architecture, local discovery, remote SSH refresh, and privacy boundaries."
+read_when:
+  - Changing Agent Sessions discovery or focus behavior
+  - Reviewing remote session transport or displayed title metadata
+---
+
 # Agent Sessions design
 
 Track live Codex, Claude Code, pi, and OMP agent sessions — local Mac first, other hosts on the tailnet second — and surface them in the QuotaKit menu with click-to-focus of the owning terminal window.

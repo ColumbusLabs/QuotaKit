@@ -1632,3 +1632,10 @@
 
 "Color Pace Indicator" = "Färglägg förbrukningstakten";
 "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grönt när förbrukningen ligger under förväntad takt (reserv); rött när den ligger över (risk att kvoten tar slut i förtid).";
+
+// Provider API-version and manual-cookie recovery settings.
+"API version" = "API-version";
+"OpenAI-compatible v1" = "OpenAI-kompatibel v1";
+"Default uses AZURE_OPENAI_API_VERSION when set." = "Standard använder AZURE_OPENAI_API_VERSION om den är angiven.";
+"No cookie header pasted." = "Ingen Cookie-header har klistrats in.";
+"Use automatic cookies" = "Använd automatiska kakor";
