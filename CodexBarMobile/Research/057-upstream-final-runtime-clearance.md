@@ -1,6 +1,8 @@
 # Final upstream runtime clearance
 
-Status: done for implementation and focused local verification; required exact-head hosted CI and merge pending.
+Status: done — final source 0cc4a2c5432418e0310d28e518109fac1d549056 passed exact-head CI36745942110 and merged through PR #217 as 842481ade2579f4b00e3188a99c2b8b7db0aa799.
+
+Delivery record: see the [current reconciliation](../../docs/upstream-backlog-reconciliation-2026-09-28.md). The scope, verification counts, limitations and pending statements below are historical slice checkpoints; the current delivery record supersedes their delivery status.
 Date: 2026-09-30
 
 ## Scope

@@ -1,6 +1,14 @@
 # Upstream clearance goal — 2026-09-29
 
-## Current checkpoint
+## Final runtime delivery and closeout record
+
+PR #217 delivered exact tested head `0cc4a2c5432418e0310d28e518109fac1d549056` as merge `842481ade2579f4b00e3188a99c2b8b7db0aa799`; all 11 [required CI jobs](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36745942110) passed and the merge tree is exactly `a15eaefd0bec1b81b926bd8fbf48174c246c939a`. The reviewed cut is 930 objects through `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`, with no missing applicable runtime behavior or unresolved dispositions. A fresh post-merge fetch found no additions; the active monitor cursor matches that head.
+
+Runtime cleanup left one primary worktree and two preserved branches (`main` and the separate battery feature), after 131 local and 20 origin refs were retired recoverably. The final closeout corrects older delivered ledger provenance, marks Research053–057 delivered, records the row88 observer-specific fork exclusion, and closes row487's missing live-PTY double-consent guard with synthetic checks. The guard passed 16 tests in two suites and independent review. Its covering pull request must pass the required gates before delivery; its temporary branch retires with expected-OID and recovery checks.
+
+Current row-level evidence, test limits, cursor and cleanup facts are in the [reconciliation record](upstream-backlog-reconciliation-2026-09-28.md) and the two ledgers. Historical checkpoints below preserve the counts and pending statements observed at each earlier slice. Issue #149 and the persistent goal close only after final delivery, fresh-upstream and cleanup verification. Product release metadata remains unchanged.
+
+## Historical checkpoint: PR #216 delivered; PR #217 then pending
 
 [PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as
 `7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`: **860 accounted,60 known gaps,1 unresolved /921**.
@@ -44,8 +52,8 @@ Completion requires:
    disposition. Every applicable missing runtime behavior is implemented,
    verified, and merged. Exclusions need specific fork/applicability evidence.
 2. Refresh upstream again before closeout and reconcile any intervening commits.
-   Advance the monitor cursor and upstream-alignment metadata only after this
-   condition is met. An empty raw counter is not proof of product equivalence.
+   Advance the monitor cursor only after this condition is met. Shipped
+   upstream-alignment metadata follows a separately authorized product release. An empty raw counter is not proof of product equivalence.
 3. Remove completed side worktrees and local/remote branches after an audit of
    their exact heads, PR state, dirtiness, unique commits and net behavior.
    Recover or integrate unique unfinished work; do not discard unrelated work.

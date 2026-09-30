@@ -31,6 +31,23 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
+    func `live Claude fetch denies before constructing its provider or calling the CLI`() throws {
+        let source = try Self.readRepoFile("Tests/CodexBarTests/ClaudeUsageTests.swift")
+        let start = try #require(source.range(of: "func `live claude fetch PTY`()"))
+        let end = try #require(source.range(
+            of: "func `live claude fetch web API`()",
+            range: start.upperBound..<source.endIndex))
+        let liveTest = source[start.lowerBound..<end.lowerBound]
+        let gate = try #require(liveTest.range(of:
+            "guard Self.allowsLiveClaudeFetch(environment: ProcessInfo.processInfo.environment) else"))
+        let fetcher = try #require(liveTest.range(of: "let fetcher = ClaudeUsageFetcher("))
+        let cliCall = try #require(liveTest.range(of: "fetcher.loadLatestUsage()"))
+
+        #expect(gate.upperBound < fetcher.lowerBound)
+        #expect(gate.upperBound < cliCall.lowerBound)
+    }
+
+    @Test
     func `interactive keychain prompt test paths use test doubles`() throws {
         let promptLiteral = "allowKeychainPrompt: true"
         let testFiles = try Self.swiftTestFiles(excludingSelf: true)
