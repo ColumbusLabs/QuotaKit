@@ -1,80 +1,28 @@
 # Upstream backlog reconciliation — 2026-09-28
 
-## Current status: locally verified runtime recovery
+## Current status: complete locally verified candidate
 
-[PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as
-`7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`: **860 accounted,60 known gaps,1 unresolved /921**.
-Exact head `caa71f847b013d10d9edf4a75f721e32590499d5` passed every required
-[CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039)
-gate. The squash tree exactly matches the tested tree; main and origin/main are
-synchronized. Its isolated native pipe fix preserves prefix/error/EOF semantics.
-Identical-tree post-merge CI36706769713 was cancelled and completion verified.
+[PR #216](https://github.com/ColumbusLabs/QuotaKit/pull/216) is verified merged as `7b6935bfdfd109fe4bfb49e7c1e1402f2ae303b2`. Its exact tested head passed [CI36701444039](https://github.com/ColumbusLabs/QuotaKit/actions/runs/36701444039), and the squash tree matches. **Actual merged accounting remains 860 accounted, 60 known gaps, 1 unresolved / 921 reviewed** until the next covering merge.
 
-Runtime-recovery source `778882884196e59cf4ead0a405cd2cadef4df852` has exactly the locally verified
-source tree from `c245ec6a0d0a4e19e2c53e564f0495f6896b0be9`. It closes20 concrete rows in its candidate:
-**880 accounted,40 known gaps,1 unresolved /921**. All planned focused filters
-passed across42 suite names in affected-only runs; full lint passed with zero
-violations across2644 files plus locale/parser/package/release-helper gates.
-Publication and required exact-head hosted CI remain delivery gates; this candidate
-is not a verified merge. The next wave is active on the primary checkout for the
-remaining41 rows and applicable fresh-tail behavior with GPT6 Luna max owners.
+[PR #217](https://github.com/ColumbusLabs/QuotaKit/pull/217) combines Recovery20, all remaining 41 original-cut contracts, the nine-object fresh tail and the CI-discovered hydration/performance repairs. Locally verified source is `57c46c3d6dbe7e534169e592bd95fdf601b5d941` at tree `d62f426ecf5727b47d9617b7ac845df6950b8cd0`; it exactly matches the original tested source tree. **Candidate accounting is 930 accounted, zero missing applicable implementations and zero unresolved / 930 objects**. Required exact-head hosted CI and merge remain pending; candidate implementation evidence is not merged credit.
 
-A safe upstream refresh found nine additional objects through
-`5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f` (930 observed total).
-Those nine are audited separately and receive no ledger credit here. The monitor
-cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5`.
+The original 875 rows retain their exact SHAs and first 12 historical fields. Existing tail rows 876–921 also retain those fields. Fresh rows 922–930 are appended to the same 16-column tail ledger. The 20 recovery and 41 final contracts update existing rows rather than adding rows. Explicit merge/release/exclusion decisions count as reviewed dispositions without inventing runtime implementations.
 
-Cleanup removed **118 local and19 remote refs**. **15 local branches and one
-primary worktree** remain before this publication. Fourteen source-covered
-intermediate branches and PR216's slice branch were retired with expected-OID
-checks, complete source audits and a verified self-contained recovery bundle.
-Unique unfinished work and unrelated battery work remain protected. No full local
-suite, live provider/browser/Keychain/SSH probe, product release, app relaunch or
-product-version/cursor advance ran.
+### Local verification
 
-### Earlier PR216 candidate scope
+All 83 planned focused filters have latest passing completed evidence across affected-only runs. Additional account/plan reset-credit, native hooks, enabled OpenRouter widget and final optional-request fixtures pass. The last optional-request batch passed 37 tests in four suites with both JavaScriptCore and QuickJS parameter cases. The repaired history worker passes source recovery, physical-row read semantics and executor isolation; catch-up status stays within 512 identity visits and warm scans reuse the alias snapshot. All product and test targets compile.
 
-- Native cost timestamp parsing, incremental order validation and lean workspace
-  reads; normal scanner history hydration remains tracked in row 149.
-- Compact per-window reset policies, valid Linux Devin manual credentials, bounded
-  shell capture, safe OAuth/RPC numeric resets and truthful CLI account identity.
-- Opt-in, matching-account Hugging Face wallet credits; unavailable plugin config
-  retention and consistent ordered descriptor replacement.
-- Compatible dependency/lock updates, pinned actions, the required Xcode 26.3
-  build-tests gate, focused test-runner/PTY maintenance and accurate recovery and
-  distribution documentation.
-- Final provider app accents on Mac/iPhone with established widget colors and
-  explicit retained fork-color decisions. Recorder placeholder observation (334), metadata balance resolution (789/801)
-  and numeric boundary fixes (466) are verified; native conditional session
-  mutation (866) remains open.
+Full lint gates pass: zero strict violations across 2,670 Swift files, formatting, 22 Mac localization catalogs, all 287 iOS localized source keys, generated parser/provider registries, package/release helpers, shell/docs/CI gates, customer branding and 87-provider palette. Independent static reviews cover cost data integrity, account/reset authority, cookie/session mutation and shared UI; final review deltas retain earlier resolved findings. See [Research057](../CodexBarMobile/Research/057-upstream-final-runtime-clearance.md).
 
-Focused Mac checks ran 361 tests, then 111 affected tests after repairs, then
-94 CLI/registry/architecture tests. Independent review found and fixed implicit
-Antigravity CLI attribution; its 43 affected tests passed. Eight focused iPhone
-palette tests passed. Full lint passed across 2,627 files, followed by scoped lint
-for final fixes. Both package resolvers, CI path-gate checks and synthetic
-TERM/KILL process-group cleanup passed. Parser hash is `7607317f30850961`.
-The follow-on ran 199 focused Mac and 8 portable tests, then passed 47 affected
-Mac and 8 portable tests after a formatting-fixture correction and retained
-OpenRouter architecture marker. Other passing suites were not rerun. Cookie
-localization spans all 39 active pickers and 23 catalogs; independent reviews and
-scoped format/strict lint passed. Homebrew rows386/459/687 are excluded under the
-supported no-cask policy; plugin-tabs242 are implemented and default-on838 is an
-explicit retained placement policy.
-PR216 exact-head hosted CI and merge passed. The recovery candidate has its own pending gates. No full local suite, live
-provider/browser/Keychain probe, product release, version or cursor advance ran.
+The full local package suite was omitted; required hosted CI supplies the broader gate. No live provider/browser/Keychain/SSH probe, app installation/relaunch or product release ran. Hooks native proof verifies editable empty AX fields, prompts and unchanged bindings; offscreen SwiftUI hosting does not prove onscreen VoiceOver names. Product build numbers and shipped-upstream metadata remain unchanged.
 
-### Cleanup and next
+### Upstream and cleanup
 
-One primary worktree and15 local branches remain;118 local and19 remote refs
-have been retired with source/containment/recovery proofs. PR216's exact tested
-merge is verified, and all14 fully covered intermediate tips remain recoverable.
+A fresh fetch still reports upstream `5de8b9ccfdcf3ed13d7c67e3639a2dd18d11230f`, with no additions beyond 930. The active monitor cursor remains `cf79d1310493f2d028af62cc21e422b5f33c70a5` until complete covering delivery. `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` track shipped alignment and do not advance at merge.
 
-Next: publish the locally verified recovery slice on PR216's squash without any
-source change, run its required hosted CI, merge and retire its branch. Continue
-the remaining41 original-cut rows and applicable fresh-tail behavior in grouped
-Luna-owned slices. Reconcile every remaining branch and refresh upstream again
-before advancing the cursor or completing the goal.
+Cleanup has retired 118 local and 19 remote refs and reduced 12 worktrees to one primary checkout. Fifteen local branches remain: main, unrelated battery work, the two active candidate branches and 11 old audited heads. The 11 old heads have a verified 116,352,382-byte recovery bundle (SHA-256 `86758e9dfdfbff3c9658fb698039f3bbeba4b5efb1f8f923ff73a7cfb2aa8be5`); unique changes are source-mapped or explicitly archived, and retirement follows the covering merge. Earlier private worktree patches and recovery bundles remain preserved.
+
+**Next:** pass PR217 exact-head CI, verify its merge/tree on main, retire the covered refs with expected-OID checks, refresh upstream once more, advance the fully reconciled cursor and close issue #149 and the persistent goal. Preserve unrelated battery work and the primary checkout.
 
 ---
 
