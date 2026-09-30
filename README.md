@@ -137,6 +137,9 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 
 ## Linux desktop integration
 
+QuotaKit distributes the portable Linux CLI. Desktop panel apps are maintained separately;
+QuotaKit does not ship a Linux desktop installer.
+
 - [codexbar-cosmic-applet](https://github.com/andrew-verde/codexbar-cosmic-applet) — Native COSMIC (System76) desktop panel applet with provider tabs, pace projections, and cost/token stats, built on QuotaKit's bundled Linux CLI.
 
 ## Upstream And Credits

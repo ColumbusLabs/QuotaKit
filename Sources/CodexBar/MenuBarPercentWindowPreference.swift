@@ -10,12 +10,13 @@ import Foundation
 /// percent in the layout reading the same window — onto one picker.
 ///
 /// Only top-level percent tokens are considered. A conditional token carries its own then/else
-/// tokens, which stay under the layout editor's control. The picker hides when no top-level percent
-/// exists; mixed layouts expose only their top-level percent choice.
+/// tokens, which stay under the layout editor's control. Monthly Plan is also exposed as a stored
+/// provider metric, including when the layout has no percent token.
 enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendable {
     case automatic
     case session
     case weekly
+    case monthlyPlan
 
     var id: String {
         self.rawValue
@@ -26,7 +27,14 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         case .automatic: .automatic
         case .session: .session
         case .weekly: .weekly
+        case .monthlyPlan: .automatic
         }
+    }
+
+    /// Metric stored for providers that expose Monthly Plan. Other picker choices return the
+    /// metric to Automatic while applying their explicit percent window to the layout.
+    var menuBarMetric: MenuBarMetricPreference {
+        self == .monthlyPlan ? .monthlyPlan : .automatic
     }
 
     var label: String {
@@ -34,11 +42,13 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         case .automatic: L("menu_bar_layout_token_auto")
         case .session: L("menu_bar_layout_token_session")
         case .weekly: L("menu_bar_layout_token_weekly")
+        case .monthlyPlan: MenuBarMetricPreference.monthlyPlan.label
         }
     }
 
     func label(for provider: UsageProvider) -> String {
         guard self != .automatic else { return self.label }
+        if self == .monthlyPlan { return self.label }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let primary = Self.percentWindow(descriptor.presentation.primarySemanticWindow)
         let presentation = descriptor.presentation
@@ -49,8 +59,8 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
 
     /// Windows this provider can actually render as a menu-bar percent, in picker order.
     ///
-    /// Extra-rate and plan metrics (monthly plan, extra usage, tertiary, average) still resolve
-    /// through Automatic — they do not invent a session/weekly lane the snapshot cannot feed.
+    /// Extra-rate metrics and Monthly Plan map to Automatic for the percent token; Monthly Plan
+    /// also gets a distinct option for providers that support the stored metric.
     static func available(
         metrics: ProviderMenuBarMetricCapabilities,
         primarySemanticWindow: ProviderSemanticWindow = .session,
@@ -63,27 +73,36 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
                 primarySemanticWindow: primarySemanticWindow,
                 secondarySemanticWindow: secondarySemanticWindow))
         }
-        return Self.allCases.filter { windows.contains($0.percentWindow) }
+        var options = Self.allCases.filter { preference in
+            preference != .monthlyPlan && windows.contains(preference.percentWindow)
+        }
+        if metrics.supported.contains(.monthlyPlan) {
+            options.append(.monthlyPlan)
+        }
+        return options
     }
 
-    static func available(for provider: UsageProvider) -> [Self] {
+    static func available(for provider: UsageProvider, layout: MenuBarLayout? = nil) -> [Self] {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        return Self.available(
+        let options = Self.available(
             metrics: descriptor.menuBarMetrics,
             primarySemanticWindow: descriptor.presentation.primarySemanticWindow,
             secondarySemanticWindow: descriptor.presentation.secondarySemanticWindow)
+        guard let layout, !Self.hasPercentToken(in: layout) else { return options }
+        // With no percent token to rewrite, the picker only controls the metric-backed choices.
+        return options.filter { $0 == .automatic || $0 == .monthlyPlan }
     }
 
-    /// The simplified picker is a percent-layout control. Critters and Bars keep their global style,
-    /// and a single remaining option (or no session/weekly lane at all) is not worth a dead control.
+    /// Ordinary window choices control percent layouts. Monthly Plan controls the stored provider
+    /// metric too, so it remains available in every style and with an icon-only layout.
     static func isVisible(
         iconStyle: MenuBarIconStyle,
         layout: MenuBarLayout,
         available: [Self]) -> Bool
     {
-        iconStyle == .iconAndPercent
-            && self.hasPercentToken(in: layout)
-            && available.count > 1
+        guard available.count > 1 else { return false }
+        if available.contains(.monthlyPlan) { return true }
+        return iconStyle == .iconAndPercent && self.hasPercentToken(in: layout)
     }
 
     static func isVisible(
@@ -94,7 +113,7 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         self.isVisible(
             iconStyle: iconStyle,
             layout: layout,
-            available: self.available(for: provider))
+            available: self.available(for: provider, layout: layout))
     }
 
     /// Writes the per-provider layout override without flipping `menuBarIconStyle`.
@@ -110,9 +129,14 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
 
     /// The preference a layout expresses, or nil when its percent tokens mix windows — a
     /// combination only the layout editor can describe, which the picker must not silently flatten.
-    static func current(in layout: MenuBarLayout) -> Self? {
+    static func current(in layout: MenuBarLayout, metric: MenuBarMetricPreference? = nil) -> Self? {
         let windows = Self.percentWindows(in: layout)
-        guard let first = windows.first, windows.allSatisfy({ $0 == first }) else { return nil }
+        guard let first = windows.first else {
+            guard let metric else { return nil }
+            return metric == .monthlyPlan ? .monthlyPlan : .automatic
+        }
+        guard windows.allSatisfy({ $0 == first }) else { return nil }
+        if first == .automatic, metric == .monthlyPlan { return .monthlyPlan }
         return Self.allCases.first { $0.percentWindow == first }
     }
 
