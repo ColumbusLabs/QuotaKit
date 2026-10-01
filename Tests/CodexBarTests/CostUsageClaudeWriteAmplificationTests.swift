@@ -10,6 +10,8 @@ struct CostUsageClaudeWriteAmplificationTests {
         defer { fixture.env.cleanup() }
         for context in [CostUsageReportContext.regular, .spendDashboard] {
             let initial = try fixture.load(context: context)
+            let initialScanTime = CostUsageClaudeCacheIO.loadArtifact(
+                provider: .claude, cacheRoot: fixture.env.cacheRoot, reportContext: context).usage.lastScanUnixMs
             for cycle in 1...3 {
                 // Drop the in-process memo as well, exercising the cross-launch baseline.
                 CostUsageScanner.evictClaudeReportMemoForTesting(
@@ -25,8 +27,88 @@ struct CostUsageClaudeWriteAmplificationTests {
                 #expect(report.quotaSlices == initial.quotaSlices)
                 #expect(after == before)
                 #expect(bytes == 0)
+                #expect(CostUsageClaudeCacheIO.loadArtifact(
+                    provider: .claude,
+                    cacheRoot: fixture.env.cacheRoot,
+                    reportContext: context).usage.lastScanUnixMs == initialScanTime)
             }
         }
+    }
+
+    @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
+    func `forced rescan detects same stamp content changes and advances the scan time`(
+        context: CostUsageReportContext) throws
+    {
+        let fixture = try Fixture(rowCount: 1)
+        defer { fixture.env.cleanup() }
+        #expect(try fixture.load(context: context).summary?.totalInputTokens == 10)
+        let before = try fixture.stamps(context: context)
+        let source = fixture.env.claudeProjectsRoot.appendingPathComponent("session.jsonl")
+        let sourceStamp = try #require(CostUsageClaudeFileStamp.read(at: source))
+        let original = try String(contentsOf: source, encoding: .utf8)
+        let replacement = original.replacingOccurrences(of: "\"input_tokens\":10", with: "\"input_tokens\":20")
+        #expect(replacement != original)
+        // Write in place and restore nanosecond mtime so only a full parse can detect this change.
+        try Data(replacement.utf8).write(to: source)
+        let modifiedTime = timespec(
+            tv_sec: Int(sourceStamp.modifiedSeconds), tv_nsec: Int(sourceStamp.modifiedNanoseconds))
+        let times = [modifiedTime, modifiedTime]
+        let restoredTime = times.withUnsafeBufferPointer { buffer in
+            source.path.withCString { utimensat(AT_FDCWD, $0, buffer.baseAddress, 0) }
+        }
+        #expect(restoredTime == 0)
+        #expect(CostUsageClaudeFileStamp.read(at: source) == sourceStamp)
+        let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let report = try CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) {
+            try fixture.load(context: context, cycle: 1, forceRescan: true)
+        }
+        #expect(report.summary?.totalInputTokens == 20)
+        #expect(recorder.snapshot().transcriptParses == 1)
+        #expect(recorder.snapshot().incrementalTranscriptParses == 0)
+        #expect(recorder.snapshot().reconciliations == 1)
+        #expect(recorder.persistenceSnapshot().writes == 2)
+        #expect(try fixture.stamps(context: context) != before)
+        let cache = CostUsageClaudeCacheIO.loadArtifact(
+            provider: .claude, cacheRoot: fixture.env.cacheRoot, reportContext: context)
+        let expectedScanTime = Int64(fixture.day.addingTimeInterval(900).timeIntervalSince1970 * 1000)
+        #expect(cache.usage.lastScanUnixMs == expectedScanTime)
+    }
+
+    @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
+    func `forced same stamp rescan persists canonically equal model bytes`(
+        context: CostUsageReportContext) throws
+    {
+        let fixture = try Fixture(rowCount: 1)
+        defer { fixture.env.cleanup() }
+        let composed = "synthetic-\u{00E9}"
+        let decomposed = "synthetic-e\u{0301}"
+        #expect(composed == decomposed)
+        let event = try fixture.event(index: 0)
+        let first = event.replacingOccurrences(of: "claude-sonnet-4-20250514", with: composed)
+            .trimmingCharacters(in: .newlines) + " \n"
+        let source = try fixture.env.writeClaudeProjectFile(relativePath: "session.jsonl", contents: first)
+        _ = try fixture.load(context: context)
+        let cacheURL = fixture.cacheURL(context: context)
+        let initialCacheStamp = try #require(CostUsageClaudeFileStamp.read(at: cacheURL))
+        let sourceStamp = try #require(CostUsageClaudeFileStamp.read(at: source))
+        // Drop the padding byte to preserve size when the decomposed spelling grows by one UTF8 byte.
+        let replacement = first.replacingOccurrences(of: composed, with: decomposed)
+            .trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
+        #expect(replacement.utf8.count == first.utf8.count)
+        try Data(replacement.utf8).write(to: source)
+        let modifiedTime = timespec(
+            tv_sec: Int(sourceStamp.modifiedSeconds), tv_nsec: Int(sourceStamp.modifiedNanoseconds))
+        let times = [modifiedTime, modifiedTime]
+        let restoredTime = times.withUnsafeBufferPointer { buffer in
+            source.path.withCString { utimensat(AT_FDCWD, $0, buffer.baseAddress, 0) }
+        }
+        #expect(restoredTime == 0)
+        #expect(CostUsageClaudeFileStamp.read(at: source) == sourceStamp)
+        _ = try fixture.load(context: context, cycle: 1, forceRescan: true)
+        let stored = try JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: Data(contentsOf: cacheURL))
+        let row = try #require(stored.usage.files.values.first?.claudeRows?.first)
+        #expect(row.model.utf8.elementsEqual(decomposed.utf8))
+        #expect(CostUsageClaudeFileStamp.read(at: cacheURL) != initialCacheStamp)
     }
 
     @Test

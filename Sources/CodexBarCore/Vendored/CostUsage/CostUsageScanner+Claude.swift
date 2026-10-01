@@ -824,7 +824,12 @@ extension CostUsageScanner {
         if shouldMutateCache {
             try checkCancellation?()
             if options.forceRescan {
-                cache = CostUsageCache()
+                // Clear retained content while preserving persistence metadata for the no-op comparison.
+                // A full parse still advances the scan timestamp when its rows or window change.
+                cache = Self.emptyClaudeCachePreservingMetadata(priorCache)
+                // Compare rebuilt usage against cleared rows, so Swift's canonical string equality
+                // cannot hide exact UTF8 changes in a forced parse. The writer deduplicates identical bytes.
+                artifact.usage = cache
                 artifact.sourceFileIDs = [:]
             }
             let changedPaths = inventory.changedPaths(comparedWith: priorMemo?.sourceInventory)
@@ -911,6 +916,13 @@ extension CostUsageScanner {
                 hasWindowScopedRows: hasWindowScopedBaseline || (shouldMutateCache && forceFullScan))
         }
         return report
+    }
+
+    private static func emptyClaudeCachePreservingMetadata(_ cache: CostUsageCache) -> CostUsageCache {
+        CostUsageCache(
+            version: cache.version,
+            lastScanUnixMs: cache.lastScanUnixMs,
+            timeZoneIdentifier: cache.timeZoneIdentifier)
     }
 
     private static func claudeReportMemoKey(
