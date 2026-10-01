@@ -7,6 +7,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Improved
+
+- Local agent refreshes classify process names with less filesystem work while retaining executable ownership checks.
+- Local usage and spend reuse time-zone-aware day keys and Gregorian calendars without changing daily totals.
+- Codex cost refreshes reuse log-listing metadata, cache paths, and conversation-title database discovery.
+- Claude and Vertex cost refreshes reuse reconciliation and persistence identities, reducing work for unchanged history.
+- Model pricing refreshes use indexed fallback merges and preserve catalog stamps when rates are unchanged.
+
 ### Fixed
 
 - Menu bar: show the remaining quota when only the third usage window is available, including Gemini Flash Lite-only accounts. Preferred lanes and two-window averages retain their existing behavior.

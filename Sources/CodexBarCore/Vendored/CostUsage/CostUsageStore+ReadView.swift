@@ -108,7 +108,8 @@ struct CostUsageStoreReadView: Sendable {
             return .init(pending: false, progressKey: "scope-mismatch")
         }
         let scopedFiles = projection.files.filter {
-            CostUsageScanner.isWithinCodexRoots(fileURL: URL(fileURLWithPath: $0.path), roots: roots)
+            CostUsageScanner.isWithinCodexRoots(
+                fileURL: URL(fileURLWithPath: $0.path, isDirectory: false), roots: roots)
         }
         let needsIdentityValidation = CostUsageStore.codexCatchUpProjectionNeedsIdentityValidation(
             files: scopedFiles,

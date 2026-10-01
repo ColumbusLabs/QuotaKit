@@ -108,7 +108,55 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v13.json")
+                == "claude-v14.json")
+    }
+
+    @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
+    func `parser generation rebuild leaves the prior artifact and memo intact`(
+        context: CostUsageReportContext) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 1)
+        _ = try self.writeEvent(env: env, day: day, path: "project/session.jsonl", id: "first", input: 10)
+        let options = self.options(env: env)
+        func load() throws -> CostUsageDailyReport {
+            try CostUsageScanner.loadDailyReportCancellable(
+                provider: .claude,
+                since: day,
+                until: day,
+                now: day,
+                options: options,
+                reportContext: context,
+                checkCancellation: nil)
+        }
+        let initial = try load()
+        let currentURL = CostUsageClaudeCacheIO.cacheFileURL(
+            provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
+        let priorURL = currentURL.deletingLastPathComponent().appendingPathComponent(
+            context == .regular ? "claude-v13.json" : "claude-history-v13.json")
+        let currentMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: currentURL)
+        let priorMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: priorURL)
+        let priorBytes = try Data(contentsOf: currentURL)
+        let priorMemoBytes = try Data(contentsOf: currentMemoURL)
+        try priorBytes.write(to: priorURL)
+        try priorMemoBytes.write(to: priorMemoURL)
+        try FileManager.default.removeItem(at: currentURL)
+        try FileManager.default.removeItem(at: currentMemoURL)
+        CostUsageScanner.evictClaudeReportMemoForTesting(
+            provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
+        let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let rebuilt = try CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) { try load() }
+        #expect(rebuilt.data == initial.data)
+        #expect(rebuilt.hourly == initial.hourly)
+        #expect(rebuilt.quotaSlices == initial.quotaSlices)
+        #expect(recorder.snapshot().transcriptParses == 1)
+        #expect(recorder.snapshot().incrementalTranscriptParses == 0)
+        #expect(recorder.snapshot().reconciliations == 1)
+        #expect(try Data(contentsOf: priorURL) == priorBytes)
+        #expect(try Data(contentsOf: priorMemoURL) == priorMemoBytes)
+        #expect(CostUsageClaudeFileStamp.read(at: currentURL) != nil)
+        #expect(CostUsageClaudeFileStamp.read(at: currentMemoURL) != nil)
     }
 
     @Test
@@ -395,6 +443,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(report.summary?.totalInputTokens == 30)
         #expect(metrics.transcriptParses == 1)
+        #expect(metrics.reconciliations == 1)
         #expect(metrics.cacheEncodes == 1)
     }
 
