@@ -20,6 +20,14 @@ QuotaKit uses models.dev as an additive pricing source alongside bundled fallbac
 
 The pipeline lets future scanner code read the last valid cache synchronously with `ModelsDevPricingPipeline.lookup` and refresh stale metadata separately with `ModelsDevPricingPipeline.refreshIfNeeded`. If a refresh fails, the last valid cache remains usable.
 
+Changed catalogs are atomically replaced. When a refreshed catalog has identical rates and identities,
+`models-dev-v1.json.refresh` records successful fetch freshness without rewriting the catalog or invalidating
+compatible Claude cost reports. Its metadata is bound to the catalog's full file identity. Missing, corrupt,
+or mismatched sidecars fall back to the embedded fetch time. Existing catalogs stay readable by older versions.
+
+Fallback pricing merges use a provider-local stable-identity index. Model-ID normalization is memoized only
+within the current merge or lookup; provider boundaries, alias precedence and dated rates remain unchanged.
+
 ## Lookup rules
 
 Pricing is scoped by provider id and model id. This prevents two providers with the same model id or display name from sharing pricing accidentally.

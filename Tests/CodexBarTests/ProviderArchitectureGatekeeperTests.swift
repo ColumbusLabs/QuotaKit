@@ -1444,19 +1444,19 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This logged-out-page classifier matches OpenAI's public landing-page brand token."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 476,
+            line: 513,
             anchor: ".appendingPathComponent(\".claude\", isDirectory: true)",
             expectedProviderIDs: ["claude"],
             reason: "The Claude transcript locator follows Claude Code's fixed default projects directory."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 550,
+            line: 587,
             anchor: ".appendingPathComponent(\".claude\", isDirectory: true)",
             expectedProviderIDs: ["claude"],
             reason: "The budgeted Claude transcript locator follows Claude Code's fixed default projects directory."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 657,
+            line: 694,
             anchor: "if value.contains(\"ide\") || value.contains(\"vscode\") || value.contains(\"cursor\") || value.contains(\"zed\") {",
             expectedProviderIDs: ["cursor", "zed"],
             reason: "This session-source classifier recognizes editor-origin strings emitted by upstream clients."),
@@ -1582,19 +1582,19 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1327,
+            line: 1336,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1412,
+            line: 1421,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1435,
+            line: 1444,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
@@ -3119,7 +3119,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact CLI construct preserves the provider-specific command and output contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 232,
+            line: 256,
             anchor: "return AgentSession.Provider.claude.rawValue",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
@@ -3127,7 +3127,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration normalizes the Claude Desktop wrapper to its agent provider name."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 265,
+            line: 289,
             anchor: "if basename == AgentSession.Provider.codex.rawValue {",
             expectedProviderIDs: ["claude", "codex", "pi"],
             expectedReferenceCount: 7,
@@ -3137,7 +3137,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration maps a provider-owned process, path, or window contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 321,
+            line: 358,
             anchor: "guard self.provider(for: record) == .claude else { return .cli }",
             expectedProviderIDs: ["claude", "codex", "pi"],
             expectedReferenceCount: 5,
@@ -3145,8 +3145,8 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact host integration identifies ChatGPT Codex app-server candidates before verifying their running executable."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",
-            line: 388,
-            anchor: "URL(fileURLWithPath: $0).lastPathComponent == AgentSession.Provider.claude.rawValue",
+            line: 425,
+            anchor: "AgentProcessPath.basename($0) == AgentSession.Provider.claude.rawValue",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["claude@0"],
@@ -3372,7 +3372,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/ModelsDevPricing.swift",
-            line: 84,
+            line: 79,
             anchor: "[\"anthropic\", \"openai\"].allSatisfy { providerID in",
             expectedProviderIDs: ["openai"],
             expectedReferenceCount: 1,
@@ -4995,7 +4995,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1144,
+            line: 1153,
             anchor: "options.provider == .codex || options.provider == .claude || options.provider == .antigravity",
             expectedProviderIDs: ["antigravity", "claude", "codex"],
             expectedReferenceCount: 3,
@@ -5003,7 +5003,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1219,
+            line: 1228,
             anchor: "guard provider == .codex || provider == .claude || provider == .antigravity else { return nil }",
             expectedProviderIDs: ["antigravity", "claude", "codex"],
             expectedReferenceCount: 5,
@@ -5276,7 +5276,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1621,
+            line: 1630,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -5284,7 +5284,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 2361,
+            line: 2370,
             anchor: "if provider == .vertexai {",
             expectedProviderIDs: ["claude", "vertexai"],
             expectedReferenceCount: 2,
@@ -5308,7 +5308,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift",
-            line: 13,
+            line: 20,
             anchor: "guard let reportContext, provider == .claude || provider == .vertexai else {",
             expectedProviderIDs: ["claude", "vertexai"],
             expectedReferenceCount: 3,

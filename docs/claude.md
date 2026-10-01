@@ -316,7 +316,9 @@ Compact multi-account layout proof (synthetic accounts and usage data):
   - Claude-swap history contributes to the combined Claude total, even when `$CLAUDE_CONFIG_DIR` is set. Shared-history symlinks are scanned once, copied responses use the same deduplication as native logs, and missing profile directories do not prevent other homes from contributing. Local cost records do not establish per-account attribution.
 - Cache:
   - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart. Dashboard and regular report windows keep separate cache files so duplicate proxy responses cannot leak a winner between ranges. Oversized token components remain unavailable independently while representable components and costs stay visible.
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v11.json`
+  - Claude and Vertex cache saves retain a bounded set of file-stamped content identities independently of decoded-cache eviction. Unchanged artifacts avoid re-encoding; byte-identical reconstructed content preserves its file stamp. Changed artifacts and report memos use atomic replacement, with full file identity checks rejecting externally replaced data.
+  - Raw-line prechecks skip impossible Vertex-only transcript records before decoding or recursively visiting metadata; escaped marker forms still receive full classification.
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v14.json`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Quota warnings

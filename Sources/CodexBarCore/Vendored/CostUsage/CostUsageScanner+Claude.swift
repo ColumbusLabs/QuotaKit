@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 extension CostUsageScanner {
     static func loadDailyReportCancellable(
@@ -174,16 +181,26 @@ extension CostUsageScanner {
                     guard !line.wasTruncated else { return }
                     guard line.bytes.containsAscii(#""type":"assistant""#) else { return }
                     guard line.bytes.containsAscii(#""usage""#) else { return }
+                    let couldContainMetadata = providerFilter != .all && Self.couldContainVertexAIMetadata(line.bytes)
+                    if providerFilter == .vertexAIOnly, !couldContainMetadata,
+                       !line.bytes.containsAscii("@"), !line.bytes.containsAscii("_vrtx_")
+                    { return }
 
                     autoreleasepool {
+                        #if DEBUG
+                        recordClaudeScanWork(.claudeLineDecode)
+                        #endif
                         guard
                             let obj = try? ClaudeJSONObject.decode(line.bytes),
                             let type = obj["type"] as? String,
                             type == "assistant"
                         else { return }
                         let message = obj.dictionary("message")
-                        guard Self.matchesClaudeProviderFilter(obj: obj, message: message, filter: providerFilter)
-                        else { return }
+                        if providerFilter != .all {
+                            let isVertex = Self.isVertexAIUsageEntry(
+                                obj: obj, message: message, scanMetadata: couldContainMetadata)
+                            if isVertex != (providerFilter == .vertexAIOnly) { return }
+                        }
 
                         guard let tsText = obj["timestamp"] as? String,
                               let parsedTimestamp = Self.claudeTimestampAndDayKey(tsText, calendar: range.calendar)
@@ -344,7 +361,7 @@ extension CostUsageScanner {
         return lhs.path < rhs.path
     }
 
-    private static func reconciledClaudeRows(cache: CostUsageCache) -> [ClaudeUsageRow] {
+    static func reconciledClaudeRows(cache: CostUsageCache) -> [ClaudeUsageRow] {
         #if DEBUG
         recordClaudeScanWork(.reconcile)
         #endif
@@ -373,46 +390,45 @@ extension CostUsageScanner {
         return rows
     }
 
-    private static func rebuildClaudeDays(cache: inout CostUsageCache) {
+    static func rebuildClaudeDays(cache: inout CostUsageCache, rows: [ClaudeUsageRow]) {
         var days: [String: [String: [Int]]] = [:]
         var overflowed: Set<ClaudeDayModelKey> = []
 
-        for row in Self.reconciledClaudeRows(cache: cache) {
+        for row in rows {
             let key = ClaudeDayModelKey(day: row.dayKey, model: row.model)
             guard !overflowed.contains(key) else { continue }
-            var dayModels = days[row.dayKey] ?? [:]
-            let packed = dayModels[row.model] ?? [0, 0, 0, 0, 0, 0, 0, 0]
-            if row.isIncomplete == true {
-                // Retain the day/model so missing usage is visible without treating it as zero activity.
-                dayModels[row.model] = packed
-                days[row.dayKey] = dayModels
-                continue
-            }
-            let delta = [
-                row.input,
-                row.cacheRead,
-                row.cacheCreate,
-                row.output,
-                row.costNanos,
-                1,
-                (row.costPriced ?? (row.costNanos > 0)) ? 1 : 0,
-                row.cacheCreate1h ?? 0,
-            ]
-            let summed = zip(packed, delta).compactMap { current, incoming -> Int? in
-                let sum = current.addingReportingOverflow(incoming)
-                return sum.overflow ? nil : sum.partialValue
-            }
-            if summed.count == packed.count {
-                dayModels[row.model] = summed
-            } else {
+            if !Self.addClaudeRow(
+                row,
+                to: &days[row.dayKey, default: [:]][row.model, default: [0, 0, 0, 0, 0, 0, 0, 0]])
+            {
                 // Raw rows retain every metric; the legacy packed format cannot represent an unavailable total.
                 overflowed.insert(key)
-                dayModels.removeValue(forKey: row.model)
+                days[row.dayKey]?.removeValue(forKey: row.model)
             }
-            days[row.dayKey] = dayModels
         }
 
         cache.days = days
+    }
+
+    private static func addClaudeRow(_ row: ClaudeUsageRow, to packed: inout [Int]) -> Bool {
+        // Retain incomplete day/models without treating their missing usage as zero activity.
+        guard row.isIncomplete != true else { return true }
+        let delta = [
+            row.input,
+            row.cacheRead,
+            row.cacheCreate,
+            row.output,
+            row.costNanos,
+            1,
+            (row.costPriced ?? (row.costNanos > 0)) ? 1 : 0,
+            row.cacheCreate1h ?? 0,
+        ]
+        for (index, incoming) in delta.enumerated() {
+            let sum = packed[index].addingReportingOverflow(incoming)
+            guard !sum.overflow else { return false }
+            packed[index] = sum.partialValue
+        }
+        return true
     }
 
     private static func makeClaudeFileUsage(
@@ -442,18 +458,32 @@ extension CostUsageScanner {
         "client",
     ]
 
-    private static func matchesClaudeProviderFilter(
-        obj: ClaudeJSONObject,
-        message: ClaudeJSONObject?,
-        filter: ClaudeLogProviderFilter) -> Bool
-    {
-        switch filter {
-        case .all:
-            true
-        case .vertexAIOnly:
-            self.isVertexAIUsageEntry(obj: obj, message: message)
-        case .excludeVertexAI:
-            !self.isVertexAIUsageEntry(obj: obj, message: message)
+    private static let vertexMetadataRawMarkers: [StaticString] = [
+        "vertex", "Vertex", "gcp", "Gcp", #"\u004"#, #"\u005"#, #"\u006"#, #"\u007"#,
+    ]
+
+    private static func couldContainVertexAIMetadata(_ line: Data) -> Bool {
+        line.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
+            guard let base = bytes.baseAddress else { return false }
+            // Foundation's lowercase/canonical substring matching cannot create these ASCII markers
+            // from non-ASCII. Combining scalars can prevent matches; the decoded classifier decides positives.
+            // Escape prefixes cover ASCII letters, @, and underscores regardless of the final hex digit's case.
+            return self.vertexMetadataRawMarkers.contains { marker in
+                marker.withUTF8Buffer { needle in
+                    var offset = 0
+                    while offset <= bytes.count - needle.count {
+                        // Skip payload bytes in libc; inspect only candidate starts in Swift.
+                        guard let found = memchr(base + offset, Int32(needle[0]), bytes.count - offset)
+                        else { return false }
+                        offset = base.distance(to: found)
+                        if needle.count <= bytes.count - offset,
+                           needle.indices.allSatisfy({ bytes[offset + $0] | 0x20 == needle[$0] | 0x20 })
+                        { return true }
+                        offset += 1
+                    }
+                    return false
+                }
+            }
         }
     }
 
@@ -466,7 +496,11 @@ extension CostUsageScanner {
         self.isVertexAIUsageEntry(obj: obj, message: obj.dictionary("message"))
     }
 
-    private static func isVertexAIUsageEntry(obj: ClaudeJSONObject, message: ClaudeJSONObject?) -> Bool {
+    private static func isVertexAIUsageEntry(
+        obj: ClaudeJSONObject,
+        message: ClaudeJSONObject?,
+        scanMetadata: Bool = true) -> Bool
+    {
         // Primary detection: Vertex AI message IDs and request IDs have "vrtx" prefix
         // e.g., "msg_vrtx_0154LUXjFVzQGUca3yK2RUeo", "req_vrtx_011CWjK86SWeFuXqZKUtgB1H"
         if let messageId = message?["id"] as? String,
@@ -483,27 +517,20 @@ extension CostUsageScanner {
         // Secondary detection: model name with @ version separator (Vertex AI format)
         // e.g., "claude-opus-4-5@20251101" vs "claude-opus-4-5-20251101"
         if let model = message?["model"] as? String,
-           Self.modelNameLooksVertex(model)
+           model.hasPrefix("claude-"), model.contains("@")
         {
             return true
         }
 
         // The recursive walk already includes root and message metadata, requests, context, and client.
-        return Self.containsVertexAIMetadata(in: obj)
-    }
-
-    /// Detects Vertex AI model names by format.
-    /// Vertex AI uses @ for version separator: claude-opus-4-5@20251101
-    /// Anthropic API uses -: claude-opus-4-5-20251101
-    private static func modelNameLooksVertex(_ model: String) -> Bool {
-        // Vertex AI model format: claude-{variant}@{version}
-        // Examples: claude-opus-4-5@20251101, claude-sonnet-4-5@20250514
-        guard model.hasPrefix("claude-") else { return false }
-        return model.contains("@")
+        return scanMetadata && Self.containsVertexAIMetadata(in: obj)
     }
 
     private static func containsVertexAIMetadata(in dict: ClaudeJSONObject) -> Bool {
-        dict.contains { key, value in
+        #if DEBUG
+        recordClaudeScanWork(.vertexMetadataWalk)
+        #endif
+        return dict.contains { key, value in
             if self.containsClaudeVertexMarker(key, includeGCP: true) { return true }
             if self.vertexProviderKeys.contains(key.lowercased()),
                let text = value.string,
@@ -571,6 +598,11 @@ extension CostUsageScanner {
 
         var stamps: [String: CostUsageClaudeFileStamp] {
             self.files.mapValues(\.stamp)
+        }
+
+        func changedPaths(comparedWith prior: [String: CostUsageClaudeFileStamp]?) -> Set<String> {
+            guard let prior else { return [] }
+            return Set(self.files.keys.filter { prior[$0] != self.files[$0]?.stamp })
         }
 
         func replacedPaths(comparedWith prior: [String: CostUsageClaudeFileStamp]?) -> Set<String> {
@@ -788,20 +820,19 @@ extension CostUsageScanner {
             || needsWindowScopedRebuild
         let pricingResolver = CostUsagePricing.ClaudeResolver(now: now, cacheRoot: options.cacheRoot)
 
+        let priorCache = cache
         if shouldMutateCache {
             try checkCancellation?()
-            let priorCache = cache
             if options.forceRescan {
-                cache = CostUsageCache()
+                // Clear retained content while preserving persistence metadata for the no-op comparison.
+                // A full parse still advances the scan timestamp when its rows or window change.
+                cache = Self.emptyClaudeCachePreservingMetadata(priorCache)
+                // Compare rebuilt usage against cleared rows, so Swift's canonical string equality
+                // cannot hide exact UTF8 changes in a forced parse. The writer deduplicates identical bytes.
+                artifact.usage = cache
                 artifact.sourceFileIDs = [:]
             }
-            let changedPaths: Set<String> = if let priorMemo {
-                Set(inventory.files.keys.filter { path in
-                    priorMemo.sourceInventory[path] != sourceInventory[path]
-                })
-            } else {
-                []
-            }
+            let changedPaths = inventory.changedPaths(comparedWith: priorMemo?.sourceInventory)
             let replacedPaths = inventory.replacedPaths(comparedWith: priorMemo?.sourceInventory)
             let scanState = ClaudeScanState(
                 cache: cache,
@@ -827,8 +858,12 @@ extension CostUsageScanner {
             for key in cache.files.keys where sourceInventory[key] == nil {
                 cache.files.removeValue(forKey: key)
             }
+        }
 
-            Self.rebuildClaudeDays(cache: &cache)
+        // Reuse the same winner and summation order for both projections of this snapshot.
+        let rows = Self.reconciledClaudeRows(cache: cache)
+        if shouldMutateCache {
+            Self.rebuildClaudeDays(cache: &cache, rows: rows)
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
             cache.scanSinceKey = range.scanSinceKey
             cache.scanUntilKey = range.scanUntilKey
@@ -840,6 +875,7 @@ extension CostUsageScanner {
 
         let report = Self.buildClaudeReportFromCache(
             cache: cache,
+            rows: rows,
             range: range,
             pricingResolver: pricingResolver)
         try checkCancellation?()
@@ -882,6 +918,13 @@ extension CostUsageScanner {
         return report
     }
 
+    private static func emptyClaudeCachePreservingMetadata(_ cache: CostUsageCache) -> CostUsageCache {
+        CostUsageCache(
+            version: cache.version,
+            lastScanUnixMs: cache.lastScanUnixMs,
+            timeZoneIdentifier: cache.timeZoneIdentifier)
+    }
+
     private static func claudeReportMemoKey(
         provider: UsageProvider,
         providerFilter: ClaudeLogProviderFilter,
@@ -916,12 +959,14 @@ extension CostUsageScanner {
     {
         self.buildClaudeReportFromCache(
             cache: cache,
+            rows: self.reconciledClaudeRows(cache: cache),
             range: range,
             pricingResolver: CostUsagePricing.ClaudeResolver(now: now, cacheRoot: modelsDevCacheRoot))
     }
 
     private static func buildClaudeReportFromCache(
         cache: CostUsageCache,
+        rows: [ClaudeUsageRow],
         range: CostUsageDayRange,
         pricingResolver: CostUsagePricing.ClaudeResolver) -> CostUsageDailyReport
     {
@@ -936,7 +981,7 @@ extension CostUsageScanner {
         var costSeen = false
         var hasTokens = false
         let repricedCosts = self.claudeTemporalPricing(
-            rows: Self.reconciledClaudeRows(cache: cache),
+            rows: rows,
             range: range,
             pricingResolver: pricingResolver,
             temporalBuckets: &temporalBuckets)
