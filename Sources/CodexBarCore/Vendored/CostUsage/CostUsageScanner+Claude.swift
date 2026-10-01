@@ -600,6 +600,11 @@ extension CostUsageScanner {
             self.files.mapValues(\.stamp)
         }
 
+        func changedPaths(comparedWith prior: [String: CostUsageClaudeFileStamp]?) -> Set<String> {
+            guard let prior else { return [] }
+            return Set(self.files.keys.filter { prior[$0] != self.files[$0]?.stamp })
+        }
+
         func replacedPaths(comparedWith prior: [String: CostUsageClaudeFileStamp]?) -> Set<String> {
             guard let prior else { return [] }
             return Set(self.files.compactMap { path, source in
@@ -822,13 +827,7 @@ extension CostUsageScanner {
                 cache = CostUsageCache()
                 artifact.sourceFileIDs = [:]
             }
-            let changedPaths: Set<String> = if let priorMemo {
-                Set(inventory.files.keys.filter { path in
-                    priorMemo.sourceInventory[path] != sourceInventory[path]
-                })
-            } else {
-                []
-            }
+            let changedPaths = inventory.changedPaths(comparedWith: priorMemo?.sourceInventory)
             let replacedPaths = inventory.replacedPaths(comparedWith: priorMemo?.sourceInventory)
             let scanState = ClaudeScanState(
                 cache: cache,

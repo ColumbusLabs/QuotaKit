@@ -4278,8 +4278,7 @@ enum CostUsageScanner {
     private static func prioritizeCodexRequestedWindowPendingPaths(
         cache: CostUsageCache,
         range: CostUsageDayRange,
-        priorityDayKey: String?,
-        currentDayKey: String,
+        dayKeys: (priority: String?, current: String),
         listingMetadata: @escaping CodexListingMetadataReader,
         state: inout CostUsageCodexActiveLookbackState) -> String?
     {
@@ -4300,8 +4299,8 @@ enum CostUsageScanner {
             if Self.codexPendingPathIsRecent(
                 path,
                 cache: cache,
-                priorityDayKey: priorityDayKey,
-                currentDayKey: currentDayKey,
+                priorityDayKey: dayKeys.priority,
+                currentDayKey: dayKeys.current,
                 calendar: range.calendar)
             {
                 recentPaths.append(path)
@@ -4331,10 +4330,10 @@ enum CostUsageScanner {
         }
 
         let promotedIndex = recentPaths.firstIndex { path in
-            Self.codexDayKeyFromPath(URL(fileURLWithPath: path, isDirectory: false)) == priorityDayKey
+            Self.codexDayKeyFromPath(URL(fileURLWithPath: path, isDirectory: false)) == dayKeys.priority
                 && isFirstAdmission(path)
         } ?? recentPaths.firstIndex { path in
-            Self.codexDayKeyFromPath(URL(fileURLWithPath: path, isDirectory: false)) == currentDayKey
+            Self.codexDayKeyFromPath(URL(fileURLWithPath: path, isDirectory: false)) == dayKeys.current
                 && cache.files[Self.codexResolvedPath(URL(fileURLWithPath: path, isDirectory: false))] == nil
         }
         if let promotedIndex {
@@ -8269,8 +8268,9 @@ enum CostUsageScanner {
                 ? Self.prioritizeCodexRequestedWindowPendingPaths(
                     cache: cache,
                     range: range,
-                    priorityDayKey: priorityDayKey,
-                    currentDayKey: CostUsageDayRange.dayKey(from: now, calendar: range.calendar),
+                    dayKeys: (
+                        priority: priorityDayKey,
+                        current: CostUsageDayRange.dayKey(from: now, calendar: range.calendar)),
                     listingMetadata: listingMetadata,
                     state: &activeLookbackState)
                 : nil
