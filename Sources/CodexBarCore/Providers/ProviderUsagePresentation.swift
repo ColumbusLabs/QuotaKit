@@ -600,9 +600,8 @@ public struct ProviderUsagePresentation: Sendable {
             return order
         }
         return switch metric {
-        case .primary: [.primary, .secondary]
-        case .secondary: [.secondary, .primary]
-        case .tertiary: [.primary, .secondary]
+        case .primary, .tertiary: [.primary, .secondary, .tertiary]
+        case .secondary: [.secondary, .primary, .tertiary]
         default: []
         }
     }

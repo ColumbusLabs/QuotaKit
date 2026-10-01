@@ -78,7 +78,7 @@ enum MenuBarMetricWindowResolver {
               let primary = snapshot.primary,
               let secondary = snapshot.secondary
         else {
-            return snapshot.primary ?? snapshot.secondary
+            return snapshot.primary ?? snapshot.secondary ?? snapshot.tertiary
         }
 
         let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
@@ -100,7 +100,7 @@ enum MenuBarMetricWindowResolver {
         {
             return exhausted
         }
-        return snapshot.primary ?? snapshot.secondary
+        return snapshot.primary ?? snapshot.secondary ?? snapshot.tertiary
     }
 
     private static func providerMetric(_ preference: MenuBarMetricPreference) -> ProviderMenuBarMetric {

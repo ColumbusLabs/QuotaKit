@@ -141,6 +141,8 @@ QuotaKit does not ship a Linux desktop installer.
 
 - [codexbar-cosmic-applet](https://github.com/andrew-verde/codexbar-cosmic-applet) — Native COSMIC (System76) desktop panel applet with provider tabs, pace projections, and cost/token stats, built on QuotaKit's bundled Linux CLI.
 
+- [codexbar-kde](https://github.com/materemias/codexbar-kde) — Community KDE Plasma 6 widget built for the upstream CodexBar Linux CLI, with usage meters, agent-session search, terminal focus, and kitty session restoration. Maintained separately from QuotaKit.
+
 ## Upstream And Credits
 
 QuotaKit is derived from:
