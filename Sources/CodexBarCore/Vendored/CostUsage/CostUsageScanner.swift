@@ -3206,11 +3206,11 @@ enum CostUsageScanner {
     }
 
     private static func codexResolvedPath(_ url: URL) -> String {
-        Self.codexPathKey(standardizedPath: url.resolvingSymlinksInPath().standardizedFileURL.path)
+        self.codexPathKey(standardizedPath: url.resolvingSymlinksInPath().standardizedFileURL.path)
     }
 
     static func codexPathKey(_ url: URL) -> String {
-        Self.codexPathKey(standardizedPath: url.standardizedFileURL.path)
+        self.codexPathKey(standardizedPath: url.standardizedFileURL.path)
     }
 
     static func codexPathKey(standardizedPath path: String) -> String {
@@ -3705,7 +3705,7 @@ enum CostUsageScanner {
         remainingDiscoveryVisits: inout Int,
         excludedPendingPathKeys: Set<String>,
         workRecorder: CodexScanWorkRecorder?,
-        listingMetadata: CodexListingMetadataReader,
+        listingMetadata: @escaping CodexListingMetadataReader,
         state: inout CostUsageCodexActiveLookbackState)
     {
         let rootPath = Self.codexResolvedPath(root)
@@ -4280,7 +4280,7 @@ enum CostUsageScanner {
         range: CostUsageDayRange,
         priorityDayKey: String?,
         currentDayKey: String,
-        listingMetadata: CodexListingMetadataReader,
+        listingMetadata: @escaping CodexListingMetadataReader,
         state: inout CostUsageCodexActiveLookbackState) -> String?
     {
         guard !state.pendingFilePaths.isEmpty else { return nil }

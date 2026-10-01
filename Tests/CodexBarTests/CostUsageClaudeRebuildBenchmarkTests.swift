@@ -35,7 +35,8 @@ struct CostUsageClaudeRebuildBenchmarkTests {
             cacheRoot: env.cacheRoot,
             calendar: range.calendar)
         try #require(saved != nil)
-        let seeded = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot, calendar: range.calendar)
+        let seeded = CostUsageClaudeCacheIO.loadArtifact(
+            provider: .claude, cacheRoot: env.cacheRoot, calendar: range.calendar)
         try #require(seeded.usage.files.count == 5000)
         #expect(seeded.usage.files.values.reduce(0) { $0 + ($1.claudeRows?.count ?? 0) } == 250_000)
         var options = CostUsageScanner.Options(

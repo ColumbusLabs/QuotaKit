@@ -12,7 +12,7 @@ struct CostUsageStorePathReconciliationTests {
         let normalized = CostUsageStore.normalizedCodexFileIdentity(
             path: "/sessions/day/rollout.jsonl",
             identity: identity,
-            persistedInode: 987654,
+            persistedInode: 987_654,
             currentRootDevices: roots)
         { path in
             normalizationCount += 1
@@ -32,7 +32,7 @@ struct CostUsageStorePathReconciliationTests {
         let normalized = CostUsageStore.normalizedCodexFileIdentity(
             path: "/var/sessions/day/rollout.jsonl",
             identity: identity,
-            persistedInode: 987654,
+            persistedInode: 987_654,
             currentRootDevices: roots)
         { _ in
             normalizationCount += 1
