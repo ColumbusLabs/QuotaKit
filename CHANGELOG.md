@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Fixed
+
+- Menu bar: show the remaining quota when only the third usage window is available, including Gemini Flash Lite-only accounts. Preferred lanes and two-window averages retain their existing behavior.
+
 ## 0.32.4.31 — 2026-09-30
 
 ### Added
