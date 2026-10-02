@@ -1048,9 +1048,11 @@ struct CostUsagePerformanceGateTests {
             return (status, progressStates)
         }
         #if DEBUG
-        let (status, progressStates) = try await CostUsageStoreTestHooks.$current.withValue(hooks) {
-            try await runCatchUp()
-        }
+        let catchUpResult = try await CostUsageStoreTestHooks.$current.withValue(
+            hooks,
+            operation: { try await runCatchUp() },
+            isolation: #isolation)
+        let (status, progressStates) = catchUpResult
         #expect(fullSnapshotReadsDuringCatchUp.value == 0)
         #else
         let (status, progressStates) = try await runCatchUp()

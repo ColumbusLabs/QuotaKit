@@ -67,7 +67,7 @@ actor ClaudeCLISession {
         @ProcessEnvironment private(set) var environment: [String: String]
         let idleTimeout: TimeInterval?
         let stopOnSubstrings: [String]
-        let stopWhenNormalized: (@Sendable (String) -> Bool)?
+        let stopWhenScreenNormalized: (@Sendable (String) -> Bool)?
         let settleAfterStop: TimeInterval
         let sendEnterEvery: TimeInterval?
     }
@@ -120,6 +120,11 @@ actor ClaudeCLISession {
         String(text.lowercased().filter { !$0.isWhitespace })
     }
 
+    /// Usage insights can contain arbitrary percentages and action labels, so they cannot finish quota capture.
+    private static func screenBeforeUsageInsights(from normalizedScreen: String) -> String {
+        normalizedScreen.components(separatedBy: "what'scontributingtoyourlimitsusage?").first ?? normalizedScreen
+    }
+
     private static func commandPaletteSends(for subcommand: String) -> [String: String] {
         let normalized = subcommand.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch normalized {
@@ -169,10 +174,11 @@ actor ClaudeCLISession {
 
     private static func shouldStopCapturing(
         normalizedScan: String,
+        normalizedScreen: String,
         stopNeedles: [String],
-        stopWhenNormalized: (@Sendable (String) -> Bool)?) -> Bool
+        stopWhenScreenNormalized: (@Sendable (String) -> Bool)?) -> Bool
     {
-        stopNeedles.contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+        stopNeedles.contains(where: normalizedScan.contains) || (stopWhenScreenNormalized?(normalizedScreen) == true)
     }
 
     private static func isWorkspaceTrustPromptVisible(onScreen screen: String) -> Bool {
@@ -221,7 +227,7 @@ actor ClaudeCLISession {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         idleTimeout: TimeInterval? = 3.0,
         stopOnSubstrings: [String] = [],
-        stopWhenNormalized: (@Sendable (String) -> Bool)? = nil,
+        stopWhenScreenNormalized: (@Sendable (String) -> Bool)? = nil,
         settleAfterStop: TimeInterval = 0.25,
         sendEnterEvery: TimeInterval? = nil) async throws -> String
     {
@@ -246,7 +252,7 @@ actor ClaudeCLISession {
                 environment: environment,
                 idleTimeout: idleTimeout,
                 stopOnSubstrings: stopOnSubstrings,
-                stopWhenNormalized: stopWhenNormalized,
+                stopWhenScreenNormalized: stopWhenScreenNormalized,
                 settleAfterStop: settleAfterStop,
                 sendEnterEvery: sendEnterEvery))
             await self.operationGate.release(id: operationID)
@@ -265,7 +271,7 @@ actor ClaudeCLISession {
         let environment = request.environment
         let idleTimeout = request.idleTimeout
         let stopOnSubstrings = request.stopOnSubstrings
-        let stopWhenNormalized = request.stopWhenNormalized
+        let stopWhenScreenNormalized = request.stopWhenScreenNormalized
         let settleAfterStop = request.settleAfterStop
         let sendEnterEvery = request.sendEnterEvery
 
@@ -339,6 +345,7 @@ actor ClaudeCLISession {
 
                 let screen = ClaudeCLIScreen.render(scanTailText)
                 let normalizedScreen = Self.normalizedNeedle(screen)
+                let usagePanelScreen = Self.screenBeforeUsageInsights(from: normalizedScreen)
                 let trustPending = Self.isWorkspaceTrustPromptVisible(onScreen: screen)
 
                 let scanData = scanBuffer.append(newData)
@@ -355,14 +362,15 @@ actor ClaudeCLISession {
                 } else {
                     lastTrustScreen = nil
                     self.sendPendingPromptResponses(
-                        normalizedScan: normalizedScan,
+                        normalizedScan: usagePanelScreen,
                         sendNeedles: sendNeedles,
                         triggeredSends: &triggeredSends)
 
                     if Self.shouldStopCapturing(
                         normalizedScan: normalizedScan,
+                        normalizedScreen: usagePanelScreen,
                         stopNeedles: stopNeedles,
-                        stopWhenNormalized: stopWhenNormalized)
+                        stopWhenScreenNormalized: stopWhenScreenNormalized)
                     {
                         stoppedEarly = true
                         break

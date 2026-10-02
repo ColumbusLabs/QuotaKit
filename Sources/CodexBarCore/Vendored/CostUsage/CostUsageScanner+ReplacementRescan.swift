@@ -16,6 +16,14 @@ extension CostUsageScanner {
         let stageParsedRows: Bool
     }
 
+    private struct CodexRescanPreparation {
+        let migratedCached: CostUsageFileUsage?
+        let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
+        let sourceAnchor: CostUsageCodexTokenIndexAnchor?
+        let parserRevisionNeedsReplacement: Bool
+        let stageParsedRows: Bool
+    }
+
     private struct CodexRescanMaterialized {
         let usage: CostUsageFileUsage
         let session: CodexScannedSession
@@ -173,6 +181,26 @@ extension CostUsageScanner {
         maxBytesToRead: Int64?) throws -> CodexRescanPlan
     {
         try context.checkCancellation?()
+        // Preparation and assembly copy large cached usage values. Finish those phases
+        // outside the parser's call frame so inherited-baseline callbacks have stack room.
+        let preparation = Self.prepareCodexRescan(input: input, context: context)
+        let parsed = try Self.parseCodexReplacement(
+            input: input,
+            context: context,
+            includeInitialBufferedTokenSnapshots: input.cached?.codexReplacementScanPending == true
+                && !preparation.stageParsedRows,
+            maxBytesToRead: maxBytesToRead)
+        return Self.makeCodexRescanPlan(
+            input: input,
+            context: context,
+            preparation: preparation,
+            parsed: parsed)
+    }
+
+    private static func prepareCodexRescan(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext) -> CodexRescanPreparation
+    {
         let cached = input.cached
         let recoveringSourceRows = context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL))
             || Self.codexFileNeedsSourceRowRecovery(cached, context: context)
@@ -193,37 +221,51 @@ extension CostUsageScanner {
             ? nil : cached.map {
                 sourcePricing == nil ? Self.codexFileUsageWithPricingMetadata($0, context: context) : $0
             }
-        let replacementWasPending = cached?.codexReplacementScanPending == true
-        let replacementResume: (offset: Int64, usage: CostUsageFileUsage)? = {
-            guard replacementWasPending,
-                  let cached,
-                  // A complete subagent replacement can change attribution when appended lineage
-                  // metadata arrives, so restart it from byte zero and keep the per-refresh bound
-                  // effective. Once that bounded cold start is itself partial, its staged prefix
-                  // is safe to resume; ordinary unresolved-fork buffers are append-safe.
-                  cached.codexScanComplete == false
-                  || cached.codexBufferedSubagentLines?.isEmpty != false,
-                  let parsedBytes = cached.parsedBytes,
-                  parsedBytes > 0,
-                  parsedBytes <= input.metadata.size,
-                  cached.codexScanFileId == input.metadata.fileId,
-                  cached.codexTokenIndexAnchor.map({
-                      Self.codexTokenIndexAnchorMatches(
-                          $0,
-                          fileURL: input.fileURL,
-                          metadata: input.metadata)
-                  }) == true,
-                  cached.codexJSONLResumeState?.offset == nil
-                  || cached.codexJSONLResumeState?.offset == parsedBytes
-            else { return nil }
-            return (parsedBytes, cached)
-        }()
-        let startOffset = replacementResume?.offset ?? 0
-        let stagedUsage = replacementResume?.usage
-        let parsed = try Self.parseCodexFileCancellable(
+        return CodexRescanPreparation(
+            migratedCached: migratedCached,
+            sourcePricing: sourcePricing,
+            sourceAnchor: sourceAnchor,
+            parserRevisionNeedsReplacement: parserRevisionNeedsReplacement,
+            stageParsedRows: stageParsedRows)
+    }
+
+    private static func codexReplacementResumeOffset(input: CodexFileScanInput) -> Int64? {
+        guard let cached = input.cached,
+              cached.codexReplacementScanPending == true,
+              // A complete subagent replacement can change attribution when appended lineage
+              // metadata arrives, so restart it from byte zero and keep the per-refresh bound
+              // effective. Once that bounded cold start is itself partial, its staged prefix
+              // is safe to resume; ordinary unresolved-fork buffers are append-safe.
+              cached.codexScanComplete == false
+              || cached.codexBufferedSubagentLines?.isEmpty != false,
+              let parsedBytes = cached.parsedBytes,
+              parsedBytes > 0,
+              parsedBytes <= input.metadata.size,
+              cached.codexScanFileId == input.metadata.fileId,
+              cached.codexTokenIndexAnchor.map({
+                  Self.codexTokenIndexAnchorMatches(
+                      $0,
+                      fileURL: input.fileURL,
+                      metadata: input.metadata)
+              }) == true,
+              cached.codexJSONLResumeState?.offset == nil
+              || cached.codexJSONLResumeState?.offset == parsedBytes
+        else { return nil }
+        return parsedBytes
+    }
+
+    private static func parseCodexReplacement(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        includeInitialBufferedTokenSnapshots: Bool,
+        maxBytesToRead: Int64?) throws -> CodexParseResult
+    {
+        let resumeOffset = Self.codexReplacementResumeOffset(input: input)
+        let stagedUsage = resumeOffset == nil ? nil : input.cached
+        return try Self.parseCodexFileCancellable(
             fileURL: input.fileURL,
             range: context.range,
-            startOffset: startOffset,
+            startOffset: resumeOffset ?? 0,
             initialModel: stagedUsage?.lastModel,
             initialTotals: stagedUsage?.lastCountedTotals,
             initialRawTotalsBaseline: stagedUsage?.lastRawTotalsBaseline,
@@ -238,7 +280,7 @@ extension CostUsageScanner {
             initialLastAcceptedTokenTimestampUnixMs: stagedUsage?.codexSession?.latestAcceptedUsageUnixMs,
             initialBufferedSubagentLines: stagedUsage?.codexBufferedSubagentLines,
             initialBufferedUnresolvedForkLines: stagedUsage?.codexBufferedUnresolvedForkLines,
-            includeInitialBufferedTokenSnapshots: replacementWasPending && !stageParsedRows,
+            includeInitialBufferedTokenSnapshots: includeInitialBufferedTokenSnapshots,
             initialJSONLResumeState: stagedUsage?.codexJSONLResumeState,
             initialForkAccountingState: stagedUsage?.codexForkAccountingState,
             maxBytesToRead: maxBytesToRead,
@@ -247,13 +289,23 @@ extension CostUsageScanner {
             },
             inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:),
             checkCancellation: context.checkCancellation)
+    }
+
+    private static func makeCodexRescanPlan(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        preparation: CodexRescanPreparation,
+        parsed: CodexParseResult) -> CodexRescanPlan
+    {
+        let cached = input.cached
+        let replacementWasPending = cached?.codexReplacementScanPending == true
         let sourceScanComplete = parsed.parsedBytes >= input.metadata.size && parsed.jsonlResumeState == nil
         let hasReplayBuffer = parsed.bufferedSubagentLines != nil
             || parsed.bufferedUnresolvedForkLines != nil
         // A bounded reread of committed rows must stage its new generation. Otherwise a partial
         // prefix can be published with the old rows, then appended a second time on resume.
         // Retain that prefix until the complete generation atomically replaces the committed one.
-        let replacementGeneration = replacementWasPending || stageParsedRows || hasReplayBuffer
+        let replacementGeneration = replacementWasPending || preparation.stageParsedRows || hasReplayBuffer
             || sourceScanComplete || cached?.codexRows?.isEmpty == false
             || cached?.codexTokenSnapshots?.isEmpty == false || cached?.days.isEmpty == false
         // Unresolved lineage is still staged work. Do not replace a committed subagent ledger
@@ -264,23 +316,23 @@ extension CostUsageScanner {
         // staged parser state is persisted separately and is invisible to report aggregation.
         let retainedCommittedDays = context.dropDeferredCodexRows
             ? [:]
-            : Self.fileDaysOutsideScanWindow(migratedCached?.days ?? [:], range: context.range)
+            : Self.fileDaysOutsideScanWindow(preparation.migratedCached?.days ?? [:], range: context.range)
         let usageDays = replacementPending
             ? cached?.days ?? retainedCommittedDays
             : retainedCommittedDays
         return CodexRescanPlan(
             cached: cached,
-            migratedCached: migratedCached,
+            migratedCached: preparation.migratedCached,
             parsed: parsed,
             replacementWasPending: replacementWasPending,
-            parserRevisionNeedsReplacement: parserRevisionNeedsReplacement,
+            parserRevisionNeedsReplacement: preparation.parserRevisionNeedsReplacement,
             replacementGeneration: replacementGeneration,
             replacementPending: replacementPending,
             scanComplete: scanComplete,
             usageDays: usageDays,
-            sourcePricing: sourcePricing,
-            sourceAnchor: sourceAnchor,
-            stageParsedRows: stageParsedRows)
+            sourcePricing: preparation.sourcePricing,
+            sourceAnchor: preparation.sourceAnchor,
+            stageParsedRows: preparation.stageParsedRows)
     }
 
     private static func materializeCodexRescan(

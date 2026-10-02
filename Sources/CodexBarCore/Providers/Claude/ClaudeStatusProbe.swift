@@ -1519,10 +1519,10 @@ extension ClaudeStatusProbe {
             : []
         let idleTimeout: TimeInterval? = subcommand == "/usage" ? nil : 3.0
         let sendEnterEvery: TimeInterval? = subcommand == "/usage" ? 0.8 : nil
-        let stopWhenNormalized: (@Sendable (String) -> Bool)? = subcommand == "/usage"
-            ? { @Sendable normalizedScan in
-                Self.usageCaptureHasSessionValue(normalizedScan)
-                    || Self.usageCaptureHasSubscriptionNotice(normalizedScan)
+        let stopWhenScreenNormalized: (@Sendable (String) -> Bool)? = subcommand == "/usage"
+            ? { @Sendable usagePanelScreen in
+                Self.usageCaptureHasSessionValue(usagePanelScreen)
+                    || Self.usageCaptureHasSubscriptionNotice(usagePanelScreen)
             }
             : nil
         do {
@@ -1534,7 +1534,7 @@ extension ClaudeStatusProbe {
                 environment: environment,
                 idleTimeout: idleTimeout,
                 stopOnSubstrings: stopOnSubstrings,
-                stopWhenNormalized: stopWhenNormalized,
+                stopWhenScreenNormalized: stopWhenScreenNormalized,
                 settleAfterStop: subcommand == "/usage" ? 2.0 : 0.25,
                 sendEnterEvery: sendEnterEvery)
         } catch ClaudeCLISession.SessionError.processExited {

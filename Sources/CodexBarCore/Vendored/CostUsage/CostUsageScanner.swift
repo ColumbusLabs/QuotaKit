@@ -2249,44 +2249,79 @@ enum CostUsageScanner {
         {
             let standardizedPath = fileURL.standardizedFileURL.path
             let cachedPath = self.cachedFiles[fileURL.path] != nil ? fileURL.path : standardizedPath
-            var usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[standardizedPath]
+            guard var usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[standardizedPath] else { return nil }
+            // Keep the large cached usage temporaries in separate call frames. Hydration can
+            // run inside a replacement parse and inherited-baseline resolution, where retaining
+            // every phase's temporaries can exhaust a worker thread's stack in debug builds.
+            if let missingResolution = try self.cachedMissingSnapshotResolution(
+                for: sessionId,
+                fileURL: fileURL,
+                metadata: metadata,
+                usage: usage)
+            {
+                return missingResolution
+            }
+            try self.hydrateCachedSnapshots(&usage, fileURL: fileURL, cachedPath: cachedPath)
+            return try self.cachedBaselineSnapshotResolution(
+                for: sessionId,
+                fileURL: fileURL,
+                metadata: metadata,
+                usage: usage)
+        }
+
+        private func cachedMissingSnapshotResolution(
+            for sessionId: String,
+            fileURL: URL,
+            metadata: CodexFileMetadata,
+            usage: CostUsageFileUsage) throws -> SnapshotResolution?
+        {
             // Missing ancestry is useful dependency evidence even while its replacement rows
             // remain staged. Never hydrate or expose that unresolved generation as a baseline.
-            if let cached = usage,
-               cached.hasSettledMissingCodexFork,
-               cached.sessionId == sessionId,
-               cached.mtimeUnixMs == metadata.mtimeUnixMs,
-               cached.size == metadata.size,
-               cached.codexScanFileId == nil || cached.codexScanFileId == metadata.fileId,
-               let parentID = cached.forkedFromId,
-               try cached.forkBaselineDependencyKey == self.currentDependencyKey(for: parentID)
+            guard usage.hasSettledMissingCodexFork,
+                  usage.sessionId == sessionId,
+                  usage.mtimeUnixMs == metadata.mtimeUnixMs,
+                  usage.size == metadata.size,
+                  usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId,
+                  let parentID = usage.forkedFromId,
+                  try usage.forkBaselineDependencyKey == self.currentDependencyKey(for: parentID)
+            else { return nil }
+            return SnapshotResolution(
+                dependencyKey: self.dependencyKey(for: sessionId, fileURL: fileURL),
+                isComplete: true,
+                baselineResolved: false,
+                isFork: true,
+                forkOrigin: usage.codexForkAccountingState,
+                forkOriginDependencyKey: usage.forkBaselineDependencyKey)
+        }
+
+        private func hydrateCachedSnapshots(
+            _ usage: inout CostUsageFileUsage,
+            fileURL: URL,
+            cachedPath: String) throws
+        {
+            guard usage.codexTokenSnapshots == nil,
+                  let historyHydrator = self.historyHydrator
+            else { return }
+            if case .ready = try historyHydrator.hydrate(
+                paths: [cachedPath],
+                retryTargetPath: cachedPath,
+                retainedPaths: [cachedPath])
             {
-                return SnapshotResolution(
-                    dependencyKey: self.dependencyKey(for: sessionId, fileURL: fileURL),
-                    isComplete: true,
-                    baselineResolved: false,
-                    isFork: true,
-                    forkOrigin: cached.codexForkAccountingState,
-                    forkOriginDependencyKey: cached.forkBaselineDependencyKey)
-            }
-            if let cached = usage,
-               cached.codexTokenSnapshots == nil,
-               let historyHydrator = self.historyHydrator
-            {
-                if case .ready = try historyHydrator.hydrate(
-                    paths: [cachedPath],
-                    retryTargetPath: cachedPath,
-                    retainedPaths: [cachedPath])
-                {
-                    let hydrated = historyHydrator.usageWithHydratedSnapshots(cached, path: cachedPath)
-                    if hydrated.codexTokenSnapshots != nil {
-                        self.updateCachedUsage(fileURL: fileURL, usage: hydrated)
-                        usage = hydrated
-                    }
+                let hydrated = historyHydrator.usageWithHydratedSnapshots(usage, path: cachedPath)
+                if hydrated.codexTokenSnapshots != nil {
+                    self.updateCachedUsage(fileURL: fileURL, usage: hydrated)
+                    usage = hydrated
                 }
             }
-            guard let usage,
-                  usage.hasCurrentCodexParser,
+        }
+
+        private func cachedBaselineSnapshotResolution(
+            for sessionId: String,
+            fileURL: URL,
+            metadata: CodexFileMetadata,
+            usage: CostUsageFileUsage) throws -> SnapshotResolution?
+        {
+            guard usage.hasCurrentCodexParser,
                   usage.codexReplacementScanPending != true,
                   usage.sessionId == sessionId,
                   usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId,
@@ -4168,7 +4203,8 @@ enum CostUsageScanner {
     private static func codexCachedFileNeedsScan(
         _ fileURL: URL,
         cache: CostUsageCache,
-        metadata: CodexListingMetadataReader? = nil) -> Bool
+        metadata: CodexListingMetadataReader? = nil,
+        validateSettledForkDependencies: Bool = true) -> Bool
     {
         let retryPath = Self.codexResolvedPath(fileURL)
         if cache.codexHistoryHydrationRetries?[retryPath] != nil {
@@ -4179,6 +4215,7 @@ enum CostUsageScanner {
         guard let usage = cache.files[fileURL.path],
               usage.codexScanComplete == true,
               !usage.hasBufferedCodexForkRetryLines
+              || (!validateSettledForkDependencies && usage.hasSettledMissingCodexFork)
         else { return true }
         let fileMetadata = metadata?(fileURL) ?? Self.codexFileMetadata(fileURL: fileURL)
         return usage.size != fileMetadata.size
@@ -6987,7 +7024,19 @@ enum CostUsageScanner {
             cache.codexMalformedDetailsPaths?.remove(metadata.path)
             return .processed
         }
-        let fullRescanWorkBytes = max(0, metadata.size)
+        // A staged ordinary fork can replay its validated buffer at EOF through the
+        // replacement parser. Reserving the full file here would starve the parent lookup
+        // inside that replay and discard freshly confirmed missing-ancestry evidence.
+        let replaysReplacementAtEOF = input.cached.map { cached in
+            pendingWorkBytes == 0
+                && cached.codexReplacementScanPending == true
+                && cached.codexScanComplete == true
+                && cached.parsedBytes == metadata.size
+                && cached.codexBufferedSubagentLines?.isEmpty != false
+                && cached.codexHasBufferedSubagentLines != true
+                && Self.codexBufferedForkHasMetadata(cached)
+        } ?? false
+        let fullRescanWorkBytes = replaysReplacementAtEOF ? 0 : max(0, metadata.size)
         let fullRescanAllowedBytes: Int64
         if fullRescanWorkBytes == pendingWorkBytes {
             fullRescanAllowedBytes = allowedWorkBytes
@@ -8370,9 +8419,15 @@ enum CostUsageScanner {
                 : Set(fileURLsByPathKey.keys)
             if shouldBoundCatchUp, !scanBudget.hasTimeLimit {
                 // Full byte-only discovery sees appends to completed files and new files that
-                // were discovered but not admitted on an earlier pass.
+                // were discovered but not admitted on an earlier pass. Dependency-only orphan
+                // checks belong to the fresh queue seed: re-adding settled files while a bounded
+                // working set drains would prevent a queue larger than one allowance from settling.
                 let dirtyFiles = files.filter {
-                    Self.codexCachedFileNeedsScan($0, cache: cache, metadata: listingMetadata)
+                    Self.codexCachedFileNeedsScan(
+                        $0,
+                        cache: cache,
+                        metadata: listingMetadata,
+                        validateSettledForkDependencies: false)
                 }
                 Self.appendCodexActiveLookbackPaths(
                     options.preferNewestCodexSessionsFirst

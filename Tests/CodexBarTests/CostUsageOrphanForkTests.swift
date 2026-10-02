@@ -189,6 +189,7 @@ struct CostUsageOrphanForkTests {
                 && !$0.hasPendingCodexScanWork
         })
         #expect(cache.codexScanCatchUpPending == false)
+        #expect(cache.codexActiveLookbackState == nil)
         #expect(cache.codexScanCompletedFiles == 4)
         #expect(cache.codexScanTotalFiles == 4)
         let view = CostUsageStoreAccess.readView(cacheRoot: env.cacheRoot, calendar: calendar, purpose: .report)

@@ -94,6 +94,7 @@ struct CostUsageDiscoveryRecoveryTests {
             let unresolved = try #require(cache.files[sibling.path])
             #expect(unresolved.days.isEmpty)
             #expect(unresolved.hasBufferedCodexForkRetryLines)
+            #expect(unresolved.forkBaselineDependencyKey.map(CostUsageScanner.codexDependencyIsMissing) == true)
             #expect(unresolved.hasSettledMissingCodexFork)
             let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
             #expect(CostUsageScanner.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range))
