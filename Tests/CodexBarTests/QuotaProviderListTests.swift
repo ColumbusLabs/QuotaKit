@@ -14,8 +14,19 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
+    private static let providerIDsBeforeV0 = [
+        "codex", "claude", "cursor", "opencode", "opencodego", "alibaba", "factory", "gemini",
+        "antigravity", "copilot", "zai", "perplexity", "minimax", "kimi", "kilo", "kiro",
+        "vertexai", "augment", "jetbrains", "kimik2", "amp", "ollama", "synthetic", "warp",
+        "openrouter", "abacus", "mistral", "openai", "manus", "windsurf", "mimo", "doubao",
+        "deepseek", "codebuff", "venice", "commandcode", "stepfun", "moonshot", "bedrock",
+        "grok", "groq", "elevenlabs", "deepgram", "llmproxy", "azureopenai", "alibabatokenplan", "t3chat",
+        "sakana", "qoder", "sub2api", "zenmux", "clinepass", "longcat", "neuralwatt", "deepinfra",
+        "qwencloud", "zoommate", "xai", "notion", "ibmbob",
+    ]
+
     @Test
-    func `Provider list has expected count (71 after Crof retirement)`() {
+    func `Provider list has expected count (72 with MuseAI)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -27,13 +38,14 @@ struct QuotaProviderListTests {
         // 54 after ClinePass and LongCat → 55 after Neuralwatt → 56 after
         // DeepInfra, then 58 after Qwen Cloud and ZoomMate, 59 after xAI,
         // 60 after Notion AI, 61 after IBM Bob, 62 after GitKraken AI,
-        // 63 after v0 billing, and 64 after Hugging Face ZeroGPU quota,
-        // then 72 after Nous and Muse, then 71 after Crof retirement.
+        // 63 after v0 billing, 64 after Hugging Face ZeroGPU quota,
+        // 72 after Nous and Muse, then 71 after Crof retirement and 72
+        // after appending MuseAI.
         // Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 71)
+        #expect(QuotaProviderList.providers.count == 72)
     }
 
     @Test
@@ -88,6 +100,16 @@ struct QuotaProviderListTests {
     }
 
     @Test
+    func `Historical provider prefix and newer additions stay append-only`() {
+        let ids = QuotaProviderList.providers.map(\.id)
+        #expect(Array(ids.prefix(Self.providerIDsBeforeV0.count)) == Self.providerIDsBeforeV0)
+        #expect(Array(ids.dropFirst(Self.providerIDsBeforeV0.count)) == [
+            "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
+            "xkiro", "raycast", "helmcode", "nous", "muse", "museai",
+        ])
+    }
+
+    @Test
     func `No blank IDs or displayNames`() {
         for provider in QuotaProviderList.providers {
             #expect(!provider.id.isEmpty)
@@ -115,7 +137,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 71 × 3 = 213 (depleted + restored + warning)`() {
+    func `iOS subscription count is 72 × 3 = 216 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -127,14 +149,14 @@ struct QuotaProviderListTests {
         // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux →
         // 162 after adding ClinePass and LongCat, 165 after Neuralwatt,
         // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate,
-        // reaching 216 after Nous and Muse before Crof retirement (now 213).
+        // reaching 216 after MuseAI was appended after the Crof retirement.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 213)
+        #expect(subscriptionCount == 216)
     }
 
     @Test

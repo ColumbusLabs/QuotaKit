@@ -19,3 +19,7 @@ Available year reads at most the last 365 calendar days. QuotaKit retains this b
 Cursor's quota bars keep the billing-cycle dates reported by Cursor. Calendar-month cost is a complementary view of dated usage events; it does not reinterpret a mid-month billing-cycle allowance as a calendar-month quota.
 
 Claude cache updates reconcile transcript rows once per load and reuse the ordered result for daily totals and reports. Winner precedence, summation order, and separate reporting-window ownership remain unchanged.
+
+Claude and Vertex cache saves reuse encoded transcript fragments when their metadata bytes and row contents are unchanged. Each cache URL has independent fragments; removed files are discarded and the bounded in-memory memo can be evicted without changing saved JSON or report results. Key ordering and escaping still come from the JSON encoder.
+
+Archived Codex forks with missing parent logs stay out of billed totals and remain visible as unmetered activity. Their full observed event span is considered when deciding whether a requested history window is complete; restoring a missing parent lets the scanner reconcile the fork baseline.

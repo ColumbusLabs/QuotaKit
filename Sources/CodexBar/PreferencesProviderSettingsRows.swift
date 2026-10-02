@@ -83,6 +83,10 @@ struct ProviderSettingsToggleRowView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                ForEach(self.toggle.inlineFields.filter { $0.isVisible?() ?? true }) { field in
+                    ProviderSettingsFieldRowView(field: field, inline: true)
+                }
+
                 let actions = self.toggle.actions.filter { $0.isVisible?() ?? true }
                 if !actions.isEmpty {
                     HStack(spacing: 10) {
@@ -173,33 +177,51 @@ struct ProviderSettingsPickerRowView: View {
 @MainActor
 struct ProviderSettingsFieldRowView: View {
     let field: ProviderSettingsFieldDescriptor
+    var inline = false
     @State private var changeDebouncer = ProviderSettingsFieldChangeDebouncer()
 
     var body: some View {
-        let trimmedTitle = self.field.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        Section {
-            self.fieldView
-
-            let actions = self.field.actions.filter { $0.isVisible?() ?? true }
-            if !actions.isEmpty {
-                HStack(spacing: 10) {
-                    ForEach(actions) { action in
-                        Button(L(action.title)) {
-                            Task { @MainActor in
-                                await action.perform()
-                            }
-                        }
-                        .applyProviderSettingsButtonStyle(action.style)
-                        .controlSize(.small)
-                    }
-                }
+        if self.inline {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L(self.field.title))
+                self.fieldView.textFieldStyle(.roundedBorder)
+                self.actionsView
+                self.footerView
             }
+        } else {
+            self.section.textFieldStyle(.plain)
+        }
+    }
+
+    private var section: some View {
+        let trimmedTitle = self.field.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Section {
+            self.fieldView
+            self.actionsView
         } header: {
             if !trimmedTitle.isEmpty {
                 Text(L(trimmedTitle))
             }
         } footer: {
             self.footerView
+        }
+    }
+
+    @ViewBuilder
+    private var actionsView: some View {
+        let actions = self.field.actions.filter { $0.isVisible?() ?? true }
+        if !actions.isEmpty {
+            HStack(spacing: 10) {
+                ForEach(actions) { action in
+                    Button(L(action.title)) {
+                        Task { @MainActor in
+                            await action.perform()
+                        }
+                    }
+                    .applyProviderSettingsButtonStyle(action.style)
+                    .controlSize(.small)
+                }
+            }
         }
     }
 

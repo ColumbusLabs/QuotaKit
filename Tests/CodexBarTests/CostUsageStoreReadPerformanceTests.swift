@@ -19,46 +19,51 @@ struct CostUsageStoreReadPerformanceTests {
         #expect(!saved.catchUpRequired)
 
         #if DEBUG
-        var snapshotPurposes: [CostUsageStoreReadPurpose] = []
-        var decodePurposes: [CostUsageStoreReadPurpose] = []
-        var integrityChecks = 0
-        var usageRowReads = 0
-        CostUsageStore.codexReadViewIntegrityCheckForTesting = { url in
-            if url == writer.databaseURL { integrityChecks += 1 }
+        let snapshotPurposes = LockedReadPerformanceValues<CostUsageStoreReadPurpose>()
+        let decodePurposes = LockedReadPerformanceValues<CostUsageStoreReadPurpose>()
+        let integrityChecks = LockedReadPerformanceCounter()
+        let usageRowReads = LockedReadPerformanceCounter()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexReadViewIntegrityCheck = { url in
+            if url == writer.databaseURL { integrityChecks.increment() }
         }
-        CostUsageStore.codexReadViewSnapshotForTesting = { url, purpose in
+        hooks.codexReadViewSnapshot = { url, purpose in
             if url == writer.databaseURL { snapshotPurposes.append(purpose) }
         }
-        CostUsageStore.codexReadViewDecodeForTesting = { url, purpose in
+        hooks.codexReadViewDecode = { url, purpose in
             if url == writer.databaseURL { decodePurposes.append(purpose) }
         }
-        CostUsageStore.codexReadViewUsageRowsForTesting = { url in
-            if url == writer.databaseURL { usageRowReads += 1 }
-        }
-        defer {
-            CostUsageStore.codexReadViewIntegrityCheckForTesting = nil
-            CostUsageStore.codexReadViewSnapshotForTesting = nil
-            CostUsageStore.codexReadViewDecodeForTesting = nil
-            CostUsageStore.codexReadViewUsageRowsForTesting = nil
+        hooks.codexReadViewUsageRows = { url in
+            if url == writer.databaseURL { usageRowReads.increment() }
         }
         #endif
 
-        let activity = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .activity)
-        let status = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .status)
+        let readViews = {
+            let activity = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .activity)
+            let status = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .status)
+            return (activity, status)
+        }
+        #if DEBUG
+        let (activity, status) = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            readViews()
+        }
+        #else
+        let (activity, status) = readViews()
+        #endif
 
         #expect(activity.days == status.days)
         #expect(activity.days["2026-08-01"]?["gpt-5.5"] == [10, 0, 3])
         #if DEBUG
-        #expect(snapshotPurposes == [.activity])
-        #expect(decodePurposes == [.activity])
-        #expect(integrityChecks == 1)
-        #expect(usageRowReads == 0)
+        #expect(snapshotPurposes.value == [.activity])
+        #expect(decodePurposes.value == [.activity])
+        #expect(integrityChecks.value == 1)
+        #expect(usageRowReads.value == 0)
         #endif
     }
 
@@ -76,44 +81,83 @@ struct CostUsageStoreReadPerformanceTests {
         #expect(!saved.catchUpRequired)
 
         #if DEBUG
-        var snapshotPurposes: [CostUsageStoreReadPurpose] = []
-        var decodePurposes: [CostUsageStoreReadPurpose] = []
-        var usageRowReads = 0
-        CostUsageStore.codexReadViewSnapshotForTesting = { url, purpose in
+        let snapshotPurposes = LockedReadPerformanceValues<CostUsageStoreReadPurpose>()
+        let decodePurposes = LockedReadPerformanceValues<CostUsageStoreReadPurpose>()
+        let usageRowReads = LockedReadPerformanceCounter()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexReadViewSnapshot = { url, purpose in
             if url == writer.databaseURL { snapshotPurposes.append(purpose) }
         }
-        CostUsageStore.codexReadViewDecodeForTesting = { url, purpose in
+        hooks.codexReadViewDecode = { url, purpose in
             if url == writer.databaseURL { decodePurposes.append(purpose) }
         }
-        CostUsageStore.codexReadViewUsageRowsForTesting = { url in
-            if url == writer.databaseURL { usageRowReads += 1 }
-        }
-        defer {
-            CostUsageStore.codexReadViewSnapshotForTesting = nil
-            CostUsageStore.codexReadViewDecodeForTesting = nil
-            CostUsageStore.codexReadViewUsageRowsForTesting = nil
+        hooks.codexReadViewUsageRows = { url in
+            if url == writer.databaseURL { usageRowReads.increment() }
         }
         #endif
 
-        let activity = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .activity)
-        _ = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .report)
-        let status = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .status)
+        let readViews = {
+            let activity = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .activity)
+            _ = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .report)
+            let status = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .status)
+            return (activity, status)
+        }
+        #if DEBUG
+        let (activity, status) = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            readViews()
+        }
+        #else
+        let (activity, status) = readViews()
+        #endif
 
         #expect(activity.days == status.days)
         #if DEBUG
-        #expect(snapshotPurposes == [.activity, .report])
-        #expect(decodePurposes == [.activity, .report])
-        #expect(usageRowReads == 1)
+        #expect(snapshotPurposes.value == [.activity, .report])
+        #expect(decodePurposes.value == [.activity, .report])
+        #expect(usageRowReads.value == 1)
         #endif
+    }
+
+    @Test
+    func `Codex cache decode constructs one decoder per pass`() async throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/read-view-decoder.jsonl"
+        var cache = Self.seededCache()
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 64, days: [:])
+        usage.codexRows = [
+            Self.row(model: "gpt-5.5", input: 10, eventIndex: 0),
+            Self.row(model: "gpt-5.5", input: 20, eventIndex: 1),
+        ]
+        cache.files[path] = usage
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let saved = store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        #expect(!saved.catchUpRequired)
+
+        let snapshot = await store.readSnapshot()
+        var decoderConstructions = 0
+        let decoded = CostUsageStore.decodeCodexCache(from: snapshot, makeDecoder: {
+            decoderConstructions += 1
+            return JSONDecoder()
+        })
+
+        #expect(decoderConstructions == 1)
+        #expect(decoded.days == cache.days)
+        #expect(decoded.files[path]?.codexRows?.map(\.input) == [10, 20])
     }
 
     @Test
@@ -131,39 +175,45 @@ struct CostUsageStoreReadPerformanceTests {
         #expect(!saved.catchUpRequired)
 
         #if DEBUG
-        var snapshots = 0
-        var decodes = 0
-        CostUsageStore.codexReadViewSnapshotForTesting = { url, _ in
-            if url == writer.databaseURL { snapshots += 1 }
+        let snapshots = LockedReadPerformanceCounter()
+        let decodes = LockedReadPerformanceCounter()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexReadViewSnapshot = { url, _ in
+            if url == writer.databaseURL { snapshots.increment() }
         }
-        CostUsageStore.codexReadViewDecodeForTesting = { url, _ in
-            if url == writer.databaseURL { decodes += 1 }
-        }
-        defer {
-            CostUsageStore.codexReadViewSnapshotForTesting = nil
-            CostUsageStore.codexReadViewDecodeForTesting = nil
+        hooks.codexReadViewDecode = { url, _ in
+            if url == writer.databaseURL { decodes.increment() }
         }
         #endif
 
-        _ = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .activity)
-        cache.days["2026-08-01"]?["gpt-5.5"] = [20, 0, 6]
-        let updated = writer.syncSaveCodexCache(
-            cache,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
-        #expect(!updated.catchUpRequired)
-
-        let refreshed = CostUsageStoreAccess.readView(
-            cacheRoot: fixture.root,
-            calendar: calendar,
-            purpose: .activity)
+        let refreshAfterExternalCommit = {
+            _ = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .activity)
+            cache.days["2026-08-01"]?["gpt-5.5"] = [20, 0, 6]
+            let updated = writer.syncSaveCodexCache(
+                cache,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+            let refreshed = CostUsageStoreAccess.readView(
+                cacheRoot: fixture.root,
+                calendar: calendar,
+                purpose: .activity)
+            return (refreshed, updated.catchUpRequired)
+        }
+        #if DEBUG
+        let (refreshed, catchUpRequired) = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            refreshAfterExternalCommit()
+        }
+        #else
+        let (refreshed, catchUpRequired) = refreshAfterExternalCommit()
+        #endif
+        #expect(!catchUpRequired)
         #expect(refreshed.days["2026-08-01"]?["gpt-5.5"] == [20, 0, 6])
         #if DEBUG
-        #expect(snapshots == 2)
-        #expect(decodes == 2)
+        #expect(snapshots.value == 2)
+        #expect(decodes.value == 2)
         #endif
     }
 
@@ -251,27 +301,36 @@ struct CostUsageStoreReadPerformanceTests {
             from: eager,
             preserveMalformedFiles: true)
         #if DEBUG
-        var visits: [(path: String, rowIndex: Int, payloadBytes: Int, decoded: Bool)] = []
-        CostUsageStore.codexStreamedUsageRowForTesting = { path, rowIndex, payloadBytes, decoded in
-            visits.append((path, rowIndex, payloadBytes, decoded))
+        let visits = LockedReadPerformanceValues<StreamedUsageRowVisit>()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexStreamedUsageRow = { path, rowIndex, payloadBytes, decoded in
+            visits.append(StreamedUsageRowVisit(
+                path: path,
+                rowIndex: rowIndex,
+                payloadBytes: payloadBytes,
+                decoded: decoded))
         }
-        defer { CostUsageStore.codexStreamedUsageRowForTesting = nil }
         #endif
-        let loaded = store.syncLoadCodexScan(calendar: calendar)
+        let loadScan = { store.syncLoadCodexScan(calendar: calendar) }
+        #if DEBUG
+        let loaded = CostUsageStoreTestHooks.$current.withValue(hooks) { loadScan() }
+        #else
+        let loaded = loadScan()
+        #endif
         defer { loaded.release() }
 
         #expect(loaded.cache.files[partialPath]?.codexRows == expected.files[partialPath]?.codexRows)
         #expect(loaded.cache.files[fallbackPath]?.codexRows == expected.files[fallbackPath]?.codexRows)
         #expect(loaded.cache.codexHistoryHydrationRetries == cache.codexHistoryHydrationRetries)
         #if DEBUG
-        #expect(visits.map { ($0.path, $0.rowIndex) }.map { "\($0.0)#\($0.1)" } == [
+        #expect(visits.value.map { "\($0.path)#\($0.rowIndex)" } == [
             "\(partialPath)#0",
             "\(partialPath)#1",
             "\(partialPath)#2",
             "\(fallbackPath)#0",
             "\(fallbackPath)#1",
         ])
-        #expect(visits.map(\.decoded) == [true, false, true, false, false])
+        #expect(visits.value.map(\.decoded) == [true, false, true, false, false])
         #expect(await store.fetchDetailCounts(path: partialPath).rowCount == 3)
         #expect(await store.fetchDetailCounts(path: fallbackPath).rowCount == 2)
         #endif
@@ -326,4 +385,45 @@ private struct ReadPerformanceFixture: Sendable {
     func remove() {
         try? FileManager.default.removeItem(at: self.root)
     }
+}
+
+private final class LockedReadPerformanceCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func increment() {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.count += 1
+    }
+
+    var value: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.count
+    }
+}
+
+private final class LockedReadPerformanceValues<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [Value] = []
+
+    func append(_ value: Value) {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.storage.append(value)
+    }
+
+    var value: [Value] {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.storage
+    }
+}
+
+private struct StreamedUsageRowVisit: Sendable {
+    let path: String
+    let rowIndex: Int
+    let payloadBytes: Int
+    let decoded: Bool
 }

@@ -542,6 +542,11 @@
 "session_depleted_notification_body" = "Осталось 0%. Сообщим, когда квота снова станет доступна.";
 "session_restored_notification_title" = "Сеанс %@ восстановлен";
 "session_restored_notification_body" = "Квота сеанса снова доступна.";
+"limit_reset_notifications_title" = "Уведомления о сбросе";
+"limit_reset_notifications_subtitle" = "Сообщает, у какого провайдера и в каком окне сбросился лимит сеанса или недели.";
+"limit_reset_notification_title" = "Лимит %1$@ сброшен (%2$@)";
+"limit_reset_notification_body" = "Новая квота доступна.";
+"limit_reset_notification_body_with_account" = "Аккаунт %@. Новая квота доступна.";
 "quota_warning_warn_at" = "Предупреждать при";
 "quota_warning_global_threshold_subtitle" = "Остаток в процентах для сессионного и недельного окон, если провайдер не переопределяет пороги.";
 "quota_warning_sound" = "Воспроизвести звук уведомления";

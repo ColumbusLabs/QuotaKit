@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite(.serialized)
+@Suite(.serialized, CostUsageClaudeCacheFixtures())
 struct CostUsageScannerClaudeMemoTests {
     @Test(arguments: [false, true])
     func `atomic transcript replacement discards prior rows in warm and cold processes`(cold: Bool) throws {
@@ -108,7 +108,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v14.json")
+                == "claude-v15.json")
     }
 
     @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])

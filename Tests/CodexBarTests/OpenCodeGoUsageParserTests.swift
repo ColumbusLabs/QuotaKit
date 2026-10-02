@@ -13,6 +13,18 @@ struct OpenCodeGoUsageParserTests {
     }
 
     @Test
+    func `parses renewal dates from epoch seconds milliseconds and ISO8601`() throws {
+        let seconds = Date(timeIntervalSince1970: 1_800_000_000)
+        let milliseconds = Date(timeIntervalSince1970: 1_800_000_000)
+        let iso8601 = try #require(ISO8601DateParser.parse("2027-01-15T08:00:00Z"))
+
+        #expect(OpenCodeWebParsing.dateValue(from: 1_800_000_000) == seconds)
+        #expect(OpenCodeWebParsing.dateValue(from: 1_800_000_000_000) == milliseconds)
+        #expect(OpenCodeWebParsing.dateValue(from: "2027-01-15T08:00:00Z") == iso8601)
+        #expect(OpenCodeWebParsing.value(from: ["renew_at": 1], keys: OpenCodeWebParsing.renewAtKeys) as? Int == 1)
+    }
+
+    @Test
     func `parses subscription usage from seroval response`() throws {
         let text =
             "$R[16]($R[30],$R[41]={rollingUsage:$R[42]={status:\"ok\",resetInSec:5944,usagePercent:17}," +

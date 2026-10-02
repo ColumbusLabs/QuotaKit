@@ -532,6 +532,11 @@
 "quota_warning_session_capitalized" = "会话";
 "quota_warning_weekly" = "每周";
 "quota_warning_weekly_capitalized" = "每周";
+"limit_reset_notifications_title" = "额度重置通知";
+"limit_reset_notifications_subtitle" = "会话或每周额度重置时，通知是哪个提供商的哪项额度。";
+"limit_reset_notification_title" = "%1$@ %2$@额度已重置";
+"limit_reset_notification_body" = "新额度已可用。";
+"limit_reset_notification_body_with_account" = "账户 %@。新额度已可用。";
 "quota_warning_warn_at" = "预警阈值";
 "quota_warning_global_threshold_subtitle" = "会话和每周窗口的剩余百分比，除非提供商单独覆盖。";
 "quota_warning_sound" = "播放通知声音";

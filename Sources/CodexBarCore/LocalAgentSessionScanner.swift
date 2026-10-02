@@ -71,6 +71,17 @@ public struct LocalAgentSessionScanner: Sendable {
     typealias AppServerArgumentsProvider = @Sendable (Int32) -> [String]?
     typealias AppServerTrustIdentityProvider = @Sendable (String) -> String?
 
+    public struct ScanResult: Sendable {
+        public let sessions: [AgentSession]
+        public let latestRolloutActivityAt: Date?
+
+        public init(sessions: [AgentSession] = [], latestRolloutActivityAt: Date? = nil) {
+            self.sessions = sessions
+            self.latestRolloutActivityAt = latestRolloutActivityAt
+        }
+    }
+
+    private typealias RolloutCandidate = (url: URL, modifiedAt: Date)
     private struct Rollout: Sendable {
         let url: URL
         let modifiedAt: Date
@@ -99,6 +110,8 @@ public struct LocalAgentSessionScanner: Sendable {
     private let appServerExecutablePathProvider: AppServerExecutablePathProvider
     private let appServerArgumentsProvider: AppServerArgumentsProvider
     private let appServerTrustIdentityProvider: AppServerTrustIdentityProvider
+    private let rolloutMetadataReader: @Sendable (URL) -> CodexRolloutMetadata?
+    private let directoryScanStartedAt: @Sendable () -> Date
     private let didVisitDirectoryEntry: (@Sendable () -> Void)?
 
     public init(config: SessionScanConfig = SessionScanConfig()) {
@@ -111,6 +124,8 @@ public struct LocalAgentSessionScanner: Sendable {
         self.appServerExecutablePathProvider = Self.runningExecutablePath
         self.appServerArgumentsProvider = Self.runningArguments
         self.appServerTrustIdentityProvider = Self.trustIdentity
+        self.rolloutMetadataReader = { CodexRolloutFirstLineParser.read(from: $0) }
+        self.directoryScanStartedAt = Date.init
         self.didVisitDirectoryEntry = nil
     }
 
@@ -129,6 +144,10 @@ public struct LocalAgentSessionScanner: Sendable {
         appServerArgumentsProvider: @escaping AppServerArgumentsProvider = LocalAgentSessionScanner.runningArguments,
         appServerTrustIdentityProvider: @escaping AppServerTrustIdentityProvider = LocalAgentSessionScanner
             .trustIdentity,
+        rolloutMetadataReader: @escaping @Sendable (URL) -> CodexRolloutMetadata? = {
+            CodexRolloutFirstLineParser.read(from: $0)
+        },
+        directoryScanStartedAt: @escaping @Sendable () -> Date = Date.init,
         didVisitDirectoryEntry: (@Sendable () -> Void)? = nil)
     {
         self.config = config
@@ -140,6 +159,8 @@ public struct LocalAgentSessionScanner: Sendable {
         self.appServerExecutablePathProvider = appServerExecutablePathProvider
         self.appServerArgumentsProvider = appServerArgumentsProvider
         self.appServerTrustIdentityProvider = appServerTrustIdentityProvider
+        self.rolloutMetadataReader = rolloutMetadataReader
+        self.directoryScanStartedAt = directoryScanStartedAt
         self.didVisitDirectoryEntry = didVisitDirectoryEntry
     }
 
@@ -149,12 +170,28 @@ public struct LocalAgentSessionScanner: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         includeFileOnlySessions: Bool = true) async -> [AgentSession]
     {
+        await self.scanWithActivity(
+            now: now,
+            environment: environment,
+            includeFileOnlySessions: includeFileOnlySessions,
+            includeRolloutActivity: false).sessions
+    }
+
+    /// Activity is a timestamp projection, never a file-only session or an identity assertion.
+    @concurrent
+    public func scanWithActivity(
+        now: Date = Date(),
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        includeFileOnlySessions: Bool,
+        includeRolloutActivity: Bool) async -> ScanResult
+    {
         let allProcesses = await self.processRecords(environment: environment)
         let processes = Array(AgentSessionCorrelation.newestProcessesFirst(
             AgentPSOutputParser.agentProcesses(from: allProcesses))
             .prefix(max(0, self.config.maxProcessCount)))
         let homeDirectory = URL(fileURLWithPath: environment["HOME"] ?? NSHomeDirectory(), isDirectory: true)
-        let trustedCodexAppServerPresent = allProcesses.contains { process in
+        let readRolloutMetadata = includeFileOnlySessions || !includeRolloutActivity
+        let trustedCodexAppServerPresent = readRolloutMetadata && allProcesses.contains { process in
             guard let executablePath = process.executablePath ??
                 self.appServerExecutablePathProvider(process.pid)
             else { return false }
@@ -175,8 +212,8 @@ public struct LocalAgentSessionScanner: Sendable {
         guard Self.shouldScanSessionMetadata(
             hasAgentProcesses: !processes.isEmpty,
             includeFileOnlySessions: includeFileOnlySessions,
-            hasTrustedCodexAppServer: trustedCodexAppServerPresent)
-        else { return [] }
+            hasTrustedCodexAppServer: trustedCodexAppServerPresent) || includeRolloutActivity
+        else { return ScanResult() }
         let codexAppServerPresent = AgentPSOutputParser.hasCodexAppServer(in: allProcesses) ||
             trustedCodexAppServerPresent
         let cwdByPID = if let cwdProvider = self.cwdProvider {
@@ -198,6 +235,7 @@ public struct LocalAgentSessionScanner: Sendable {
             timeLimit: includeFileOnlySessions
                 ? self.config.directoryScanBudget
                 : min(self.config.directoryScanBudget, self.config.adaptiveDirectoryScanBudget),
+            startedAt: self.directoryScanStartedAt(),
             didVisitEntry: self.didVisitDirectoryEntry)
         var piFamilyDirectoryBudget = DirectoryMetadataScanBudget(
             maxEntryCount: self.config.maxDirectoryEntryCount,
@@ -216,24 +254,21 @@ public struct LocalAgentSessionScanner: Sendable {
                 config: self.config),
             directoryBudget: &piFamilyDirectoryBudget)
         let includeTrustedCodexAppServerRollouts = trustedCodexAppServerPresent && !includeFileOnlySessions
-        let rollouts: [Rollout] = if includeFileOnlySessions || !codexCWDs.isEmpty ||
-            includeTrustedCodexAppServerRollouts
-        {
-            self.codexRollouts(
-                now: now,
-                codexHomeDirectory: codexHomeDirectory,
-                matchingCWDs: includeFileOnlySessions || includeTrustedCodexAppServerRollouts ? nil : codexCWDs,
-                directoryBudget: &directoryBudget)
-        } else {
-            []
-        }
+        let enrichRollouts = readRolloutMetadata && (includeFileOnlySessions || !codexCWDs.isEmpty ||
+            includeTrustedCodexAppServerRollouts)
+        var candidates = enrichRollouts ? self.codexRolloutCandidates(
+            now: now, codexHomeDirectory: codexHomeDirectory, directoryBudget: &directoryBudget) : []
+        let rollouts = enrichRollouts ? self.codexRollouts(
+            candidates: candidates,
+            matchingCWDs: includeFileOnlySessions || includeTrustedCodexAppServerRollouts ? nil : codexCWDs,
+            directoryBudget: &directoryBudget) : []
         let threadMetadata = includeTrustedCodexAppServerRollouts
             ? [:]
             : Self.codexThreadMetadata(
                 rollouts: rollouts,
                 codexHomeDirectory: codexHomeDirectory,
                 environment: environment)
-        return self.sessions(
+        let sessions = self.sessions(
             processes: processes,
             cwdByPID: cwdByPID,
             rollouts: rollouts,
@@ -247,6 +282,14 @@ public struct LocalAgentSessionScanner: Sendable {
                 threadMetadata: threadMetadata,
                 piFamilySessions: piFamilySessions),
             directoryBudget: &directoryBudget)
+        if includeRolloutActivity, !enrichRollouts {
+            // Preserve the shared budget for process-backed Claude activity before the new file-only signal.
+            candidates = self.codexRolloutCandidates(
+                now: now, codexHomeDirectory: codexHomeDirectory, directoryBudget: &directoryBudget)
+        }
+        return ScanResult(
+            sessions: sessions,
+            latestRolloutActivityAt: includeRolloutActivity ? candidates.first?.modifiedAt : nil)
     }
 
     /// Returns the project directories of live Pi processes so historical cost scans can resolve
@@ -614,34 +657,19 @@ public struct LocalAgentSessionScanner: Sendable {
             let environments = await processEnvironmentProvider(piPIDs)
             return records.map { record in
                 guard AgentPSOutputParser.piDialect(for: record) != nil else { return record }
-                return Self.withPiSelectorEnvironment(environments[record.pid], record: record)
+                return record.withPiSelectorEnvironment(environments[record.pid])
             }
         }
         #if canImport(Darwin)
         return DarwinProcessEnumerator.allPIDs().compactMap { pid in
-            guard let bsdInfo = DarwinProcessEnumerator.bsdInfo(pid: pid),
-                  let executablePath = DarwinProcessEnumerator.executablePath(pid: pid)
-            else { return nil }
-            let processArguments = DarwinProcessEnumerator.argumentsWithPiSelectorEnvironment(pid: pid)
-            let arguments = processArguments?.arguments
-            let command = arguments?.joined(separator: " ") ?? executablePath
-            return AgentProcessRecord(
-                pid: pid,
-                ppid: bsdInfo.ppid,
-                startedAt: bsdInfo.startTime,
-                command: command,
-                executablePath: executablePath,
-                arguments: arguments,
-                piSelectorEnvironment: processArguments?.piSelectorEnvironment)
+            Self.darwinProcessRecord(pid: pid)
         }
         #else
         let records = await AgentPSOutputParser.parse(self.processOutput(environment: environment))
         #if os(Linux)
         return records.map { record in
             guard AgentPSOutputParser.piDialect(for: record) != nil else { return record }
-            return Self.withPiSelectorEnvironment(
-                PiProcessEnvironment.readLinuxEnvironment(pid: record.pid),
-                record: record)
+            return record.withPiSelectorEnvironment(PiProcessEnvironment.readLinuxEnvironment(pid: record.pid))
         }
         #else
         return records
@@ -649,19 +677,30 @@ public struct LocalAgentSessionScanner: Sendable {
         #endif
     }
 
-    private static func withPiSelectorEnvironment(
-        _ environment: [String: String]?,
-        record: AgentProcessRecord) -> AgentProcessRecord
+    #if canImport(Darwin)
+    /// argv remains available after an updater removes the running executable.
+    static func darwinProcessRecord(
+        pid: Int32,
+        bsdInfo: (Int32) -> (ppid: Int32, startTime: Date)? = DarwinProcessEnumerator.bsdInfo,
+        processArguments: (Int32) -> (arguments: [String], piSelectorEnvironment: [String: String]?)? =
+            DarwinProcessEnumerator.argumentsWithPiSelectorEnvironment,
+        executablePath: (Int32) -> String? = DarwinProcessEnumerator.executablePath) -> AgentProcessRecord?
     {
-        AgentProcessRecord(
-            pid: record.pid,
-            ppid: record.ppid,
-            startedAt: record.startedAt,
-            command: record.command,
-            executablePath: record.executablePath,
-            arguments: record.arguments,
-            piSelectorEnvironment: environment)
+        guard let bsdInfo = bsdInfo(pid) else { return nil }
+        let processArguments = processArguments(pid)
+        let arguments = processArguments?.arguments
+        let path = executablePath(pid)
+        guard let command = arguments?.joined(separator: " ") ?? path else { return nil }
+        return AgentProcessRecord(
+            pid: pid,
+            ppid: bsdInfo.ppid,
+            startedAt: bsdInfo.startTime,
+            command: command,
+            executablePath: path,
+            arguments: arguments,
+            piSelectorEnvironment: processArguments?.piSelectorEnvironment)
     }
+    #endif
 
     #if !canImport(Darwin)
     private func processOutput(environment: [String: String]) async -> String {
@@ -707,11 +746,10 @@ public struct LocalAgentSessionScanner: Sendable {
         #endif
     }
 
-    private func codexRollouts(
+    private func codexRolloutCandidates(
         now: Date,
         codexHomeDirectory: URL,
-        matchingCWDs: [String]?,
-        directoryBudget: inout DirectoryMetadataScanBudget) -> [Rollout]
+        directoryBudget: inout DirectoryMetadataScanBudget) -> [RolloutCandidate]
     {
         let root = codexHomeDirectory.appendingPathComponent("sessions", isDirectory: true)
         let calendar = Calendar(identifier: .gregorian)
@@ -721,7 +759,7 @@ public struct LocalAgentSessionScanner: Sendable {
         formatter.dateFormat = "yyyy/MM/dd"
         let fileManager = FileManager.default
 
-        let candidates = days.flatMap { day -> [(url: URL, modifiedAt: Date)] in
+        let candidates = days.flatMap { day -> [RolloutCandidate] in
             let directory = root.appendingPathComponent(formatter.string(from: day), isDirectory: true)
             let files = directoryBudget.files(in: directory, fileManager: fileManager)
             return directoryBudget.compactMapWhileTimeRemains(files) { file in
@@ -735,12 +773,19 @@ public struct LocalAgentSessionScanner: Sendable {
                     now: now))
             }
         }.sorted { $0.modifiedAt > $1.modifiedAt }
+        return Array(candidates.prefix(max(0, self.config.maxCodexRolloutCount)))
+    }
 
+    private func codexRollouts(
+        candidates: [RolloutCandidate],
+        matchingCWDs: [String]?,
+        directoryBudget: inout DirectoryMetadataScanBudget) -> [Rollout]
+    {
         var remainingCWDs = matchingCWDs ?? []
         var rollouts: [Rollout] = []
-        for candidate in candidates.prefix(max(0, self.config.maxCodexRolloutCount)) {
+        for candidate in candidates {
             guard directoryBudget.hasTimeRemaining() else { break }
-            guard let metadata = CodexRolloutFirstLineParser.read(from: candidate.url) else { continue }
+            guard let metadata = self.rolloutMetadataReader(candidate.url) else { continue }
             rollouts.append(Rollout(url: candidate.url, modifiedAt: candidate.modifiedAt, metadata: metadata))
             if let index = remainingCWDs.firstIndex(where: {
                 AgentSessionCorrelation.codexWorkingDirectoriesMatch(metadata.cwd, $0)
@@ -756,9 +801,7 @@ public struct LocalAgentSessionScanner: Sendable {
 
     private func findExecutable(_ name: String, environment: [String: String]) -> String? {
         let path = environment["PATH"] ?? "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
-        return path.split(separator: ":")
-            .map { String($0) + "/" + name }
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
+        return BinaryLocator.find(name, in: path.split(separator: ":").map(String.init), fileManager: .default)
     }
 
     private static func standardized(_ path: String?) -> String? {

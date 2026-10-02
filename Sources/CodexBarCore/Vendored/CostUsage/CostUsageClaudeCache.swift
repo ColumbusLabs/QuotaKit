@@ -80,7 +80,11 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         }
     }
 
+    #if DEBUG
+    @TaskLocal static var shared = CostUsageClaudeReportMemo()
+    #else
     static let shared = CostUsageClaudeReportMemo()
+    #endif
     static let persistedVersion = 1
     /// Bump when pricing, aliases, or report aggregation changes without new artifact stamps.
     static let reportSemanticsVersion = 6
@@ -219,6 +223,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
 extension CostUsageScanner {
     enum ClaudeScanWork: Sendable {
         case cacheDecode
+        case fragmentFallback
+        case fragmentEncode
         case transcriptParse(startOffset: Int64)
         case reconcile
         case cacheEncode
@@ -228,11 +234,14 @@ extension CostUsageScanner {
         case normalizationCacheMiss
         case vertexMetadataWalk
         case claudeLineDecode
+        case claudeCostCalculation
         case catalogModelLookup(found: Bool)
     }
 
     struct ClaudeScanWorkMetrics: Equatable, Sendable {
         var cacheDecodes = 0
+        var fragmentEncodes = 0
+        var fragmentFallbacks = 0
         var transcriptParses = 0
         var incrementalTranscriptParses = 0
         var reconciliations = 0
@@ -241,6 +250,7 @@ extension CostUsageScanner {
         var normalizationCacheMisses = 0
         var vertexMetadataWalks = 0
         var claudeLineDecodes = 0
+        var claudeCostCalculations = 0
         var catalogModelLookups = 0
         var catalogModelHits = 0
         var catalogModelMisses = 0
@@ -256,6 +266,8 @@ extension CostUsageScanner {
             defer { self.lock.unlock() }
             switch work {
             case .cacheDecode: self.metrics.cacheDecodes += 1
+            case .fragmentFallback: self.metrics.fragmentFallbacks += 1
+            case .fragmentEncode: self.metrics.fragmentEncodes += 1
             case let .transcriptParse(startOffset):
                 self.metrics.transcriptParses += 1
                 if startOffset > 0 { self.metrics.incrementalTranscriptParses += 1 }
@@ -267,6 +279,7 @@ extension CostUsageScanner {
             case .normalizationCacheMiss: self.metrics.normalizationCacheMisses += 1
             case .vertexMetadataWalk: self.metrics.vertexMetadataWalks += 1
             case .claudeLineDecode: self.metrics.claudeLineDecodes += 1
+            case .claudeCostCalculation: self.metrics.claudeCostCalculations += 1
             case let .catalogModelLookup(found):
                 self.metrics.catalogModelLookups += 1
                 if found {
@@ -386,7 +399,11 @@ enum CostUsageClaudeCacheIO {
             }
         }
 
+        #if DEBUG
+        @TaskLocal static var shared = ArtifactMemo()
+        #else
         static let shared = ArtifactMemo()
+        #endif
         let entries = NSCache<NSURL, Entry>()
 
         private let lock = NSLock()
@@ -405,12 +422,22 @@ enum CostUsageClaudeCacheIO {
             }
         }
 
-        private init() {
+        init() {
             self.entries.countLimit = 4
         }
     }
 
     #if DEBUG
+    static func withIsolatedCachesForTesting(operation: @Sendable () async throws -> Void) async throws {
+        try await ArtifactMemo.$shared.withValue(ArtifactMemo()) {
+            try await CostUsageClaudeReportMemo.$shared.withValue(CostUsageClaudeReportMemo()) {
+                try await CostUsageClaudeFragments.$shared.withValue(CostUsageClaudeFragments()) {
+                    try await operation()
+                }
+            }
+        }
+    }
+
     static func evictArtifactMemoForTesting(at url: URL) {
         ArtifactMemo.shared.entries.removeObject(forKey: self.memoKey(for: url))
     }
@@ -448,7 +475,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 14
+        case .claude: 15
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }
@@ -567,7 +594,12 @@ enum CostUsageClaudeCacheIO {
         let encoder = JSONEncoder()
         // Stable fingerprints preserve stamps when a rescan rebuilds byte-identical content with a new UUID.
         encoder.outputFormatting = [.sortedKeys]
-        guard let data = try? encoder.encode(value) else { return nil }
+        let data: Data? = if let artifact = value as? CostUsageClaudeCacheArtifact {
+            try? CostUsageClaudeFragments.shared.encode(artifact, at: key, encoder: encoder)
+        } else {
+            try? encoder.encode(value)
+        }
+        guard let data else { return nil }
         try checkCancellation?()
         let digest = SHA256.hash(data: data)
         if let identity, identity.digest == digest, CostUsageClaudeFileStamp.read(at: url) == identity.stamp {

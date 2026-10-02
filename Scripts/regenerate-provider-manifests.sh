@@ -61,6 +61,12 @@ for provider in "${PROVIDERS[@]}"; do
   done < <(grep -rlE "let id: UsageProvider = \\.${provider}\$" --include='*ProviderImplementation.swift' "$IMPLEMENTATION_DIR" || true)
   if [[ "${#implementation_matches[@]}" -eq 0 ]] &&
     grep -qE 'public static let spec = PluginProviderSpec\(' "${descriptor_matches[0]}" &&
+    grep -qE 'webSource: \.init\(' "${descriptor_matches[0]}"; then
+    IMPLEMENTATION_TYPES+=("PluginCookieProviderImplementation(spec: ${descriptor_type}.spec)")
+    continue
+  fi
+  if [[ "${#implementation_matches[@]}" -eq 0 ]] &&
+    grep -qE 'public static let spec = PluginProviderSpec\(' "${descriptor_matches[0]}" &&
     grep -qE 'apiKeyField: \.init\(' "${descriptor_matches[0]}"; then
     IMPLEMENTATION_TYPES+=("PluginAPIKeyProviderImplementation(spec: ${descriptor_type}.spec)")
     continue

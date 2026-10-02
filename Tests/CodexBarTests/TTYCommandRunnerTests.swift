@@ -609,4 +609,67 @@ struct TTYCommandRunnerEnvTests {
         let lowered = TTYCommandRunner.lowercasedASCII(data)
         #expect(String(data: lowered, encoding: .utf8) == "update")
     }
+
+    @Test
+    func `bundled helper resolves from app executable and symlinks`() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("helper-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: root) }
+        let contents = root.appendingPathComponent("Test.app/Contents", isDirectory: true)
+        let macOS = contents.appendingPathComponent("MacOS", isDirectory: true)
+        let helpers = contents.appendingPathComponent("Helpers", isDirectory: true)
+        try fm.createDirectory(at: macOS, withIntermediateDirectories: true)
+        try fm.createDirectory(at: helpers, withIntermediateDirectories: true)
+        let helper = helpers.appendingPathComponent("Watchdog")
+        let cli = helpers.appendingPathComponent("Tool")
+        let gui = macOS.appendingPathComponent("Test")
+        for url in [helper, cli, gui] {
+            try Data("#!/bin/sh\n".utf8).write(to: url)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        }
+        let link = root.appendingPathComponent("tool-link")
+        try fm.createSymbolicLink(at: link, withDestinationURL: cli)
+
+        let expected = helper.resolvingSymlinksInPath().path
+        for exe in [gui, cli, link] {
+            let found = TTYCommandRunner.bundledHelperPath("Watchdog", executableURL: exe)
+            #expect(found.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path } == expected)
+        }
+        #expect(TTYCommandRunner.bundledHelperPath("Missing", executableURL: gui) == nil)
+        #expect(TTYCommandRunner
+            .bundledHelperPath("Watchdog", executableURL: root.appendingPathComponent("bare")) == nil)
+        for layout in ["Other/MacOS/Tool", "Contents/Other/Tool"] {
+            #expect(TTYCommandRunner.bundledHelperPath(
+                "Watchdog", executableURL: contents.deletingLastPathComponent().appendingPathComponent(layout)) == nil)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `provider PTY preflight receives captured login PATH and preserves rejection`(allowed: Bool) {
+        let environment = [
+            "PATH": "/usr/bin:/bin:relative-runtime",
+            "HOME": "/synthetic/home",
+            "SHELL": "/synthetic/login-shell",
+            "NODE_OPTIONS": "synthetic-preload-setting",
+        ]
+        var captured = false
+        var locatorCalls = 0
+        let result = TTYCommandRunner.resolveProviderExecutable(
+            environment: environment,
+            captureLoginPATH: {
+                captured = true
+                return ["/synthetic/nvm/bin", "/usr/bin", "."]
+            },
+            locateBinary: { launchEnvironment in
+                locatorCalls += 1
+                #expect(captured)
+                #expect(launchEnvironment["PATH"] == "/synthetic/nvm/bin:/usr/bin:/bin")
+                #expect(launchEnvironment["HOME"] == environment["HOME"])
+                #expect(launchEnvironment["SHELL"] == environment["SHELL"])
+                #expect(launchEnvironment["NODE_OPTIONS"] == environment["NODE_OPTIONS"])
+                return allowed ? "/synthetic/nvm/bin/codex" : nil
+            })
+        #expect(locatorCalls == 1)
+        #expect(result == (allowed ? "/synthetic/nvm/bin/codex" : nil))
+    }
 }

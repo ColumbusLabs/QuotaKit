@@ -32,49 +32,6 @@ public struct OpenCodeUsageFetcher: Sendable {
     /// Customer/billing server function, the same one `OpenCodeGoUsageFetcher` reads the Zen
     /// balance from. It carries the monthly spend fields pay-as-you-go workspaces bill against.
     private static let billingServerID = "c83b78a614689c38ebee981f9b39a8b377716db85c1fd7dbab604adc02d3313d"
-    private static let percentKeys = [
-        "usagePercent",
-        "usedPercent",
-        "percentUsed",
-        "percent",
-        "usage_percent",
-        "used_percent",
-        "utilization",
-        "utilizationPercent",
-        "utilization_percent",
-        "usage",
-    ]
-    private static let resetInKeys = [
-        "resetInSec",
-        "resetInSeconds",
-        "resetSeconds",
-        "reset_sec",
-        "reset_in_sec",
-        "resetsInSec",
-        "resetsInSeconds",
-        "resetIn",
-        "resetSec",
-    ]
-    private static let resetAtKeys = [
-        "resetAt",
-        "resetsAt",
-        "reset_at",
-        "resets_at",
-        "nextReset",
-        "next_reset",
-        "renewAt",
-        "renew_at",
-    ]
-    private static let renewAtKeys = [
-        "renewAt",
-        "renew_at",
-    ]
-    private static func makeISO8601Formatter() -> ISO8601DateFormatter {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }
-
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
@@ -96,30 +53,62 @@ public struct OpenCodeUsageFetcher: Sendable {
         guard let requestCookieHeader = OpenCodeWebCookieSupport.requestCookieHeader(from: cookieHeader) else {
             throw OpenCodeUsageError.invalidCredentials
         }
-        let workspaceID: String = if let override = self.normalizeWorkspaceID(workspaceIDOverride) {
-            override
+        let normalizedOverride = OpenCodeGoUsageFetcher.normalizeWorkspaceID(workspaceIDOverride)
+        if let rawOverride = workspaceIDOverride?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawOverride.isEmpty, normalizedOverride == nil
+        {
+            throw OpenCodeUsageError.apiError("Invalid workspace override.")
+        }
+        let workspaceID: String = if let normalizedOverride {
+            normalizedOverride
         } else {
-            try await self.fetchWorkspaceID(
+            try await OpenCodeConsoleUsageFetcher.withLegacyFallback(cookieHeader: requestCookieHeader) {
+                try await OpenCodeConsoleUsageFetcher.fetchWorkspaceID(
+                    cookieHeader: requestCookieHeader, timeout: timeout, transport: transport)
+            } legacy: {
+                try await self.fetchWorkspaceID(
+                    cookieHeader: requestCookieHeader, timeout: timeout, transport: transport)
+            }
+        }
+        return try await OpenCodeConsoleUsageFetcher.withLegacyFallback(cookieHeader: requestCookieHeader) {
+            try await OpenCodeConsoleUsageFetcher.fetchUsage(
+                workspaceID: workspaceID,
                 cookieHeader: requestCookieHeader,
                 timeout: timeout,
+                now: now,
+                transport: transport)
+        } legacy: {
+            try await self.fetchLegacyUsage(
+                workspaceID: workspaceID,
+                cookieHeader: requestCookieHeader,
+                timeout: timeout,
+                now: now,
                 transport: transport)
         }
+    }
+}
+
+extension OpenCodeUsageFetcher {
+    private static func fetchLegacyUsage(
+        workspaceID: String,
+        cookieHeader: String,
+        timeout: TimeInterval,
+        now: Date,
+        transport: any ProviderHTTPTransport) async throws -> OpenCodeUsageSnapshot
+    {
         do {
             let subscriptionText = try await self.fetchSubscriptionInfo(
                 workspaceID: workspaceID,
-                cookieHeader: requestCookieHeader,
+                cookieHeader: cookieHeader,
                 timeout: timeout,
                 transport: transport)
             return try self.parseSubscription(text: subscriptionText, now: now)
         } catch let error as OpenCodeUsageError {
-            // Pay-as-you-go workspaces have no subscription object, so the subscription server
-            // function answers with null or fails outright. Their spend lives in the billing
-            // payload instead, which is still reachable with the same session cookie.
             guard self.canFallBackToBilling(from: error) else { throw error }
             do {
                 if let snapshot = try await self.fetchPayAsYouGoUsage(
                     workspaceID: workspaceID,
-                    cookieHeader: requestCookieHeader,
+                    cookieHeader: cookieHeader,
                     timeout: timeout,
                     now: now,
                     transport: transport)
@@ -137,9 +126,7 @@ public struct OpenCodeUsageFetcher: Sendable {
             throw error
         }
     }
-}
 
-extension OpenCodeUsageFetcher {
     /// Only subscription-shaped failures are worth retrying against billing. Credential and
     /// transport failures would fail the same way on the billing call.
     private static func canFallBackToBilling(from error: OpenCodeUsageError) -> Bool {
@@ -432,22 +419,16 @@ extension OpenCodeUsageFetcher {
     }
 
     private static func parseSubscriptionJSON(text: String, now: Date) -> OpenCodeUsageSnapshot? {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [])
-        else {
-            return nil
-        }
-
-        if let snapshot = self.parseUsageJSON(object: object, now: now) {
-            return snapshot
-        }
-
-        if let snapshot = self.parseUsageFromCandidates(object: object, now: now) {
-            return snapshot
-        }
-
-        self.logParseSummary(object: object)
-        return nil
+        guard let quota = OpenCodeSubscriptionParser(requiresWeeklyUsage: true)
+            .parseSubscriptionJSON(text: text, now: now)
+        else { return nil }
+        return OpenCodeUsageSnapshot(
+            rollingUsagePercent: quota.rollingUsagePercent,
+            weeklyUsagePercent: quota.weeklyUsagePercent,
+            rollingResetInSec: quota.rollingResetInSec ?? 0,
+            weeklyResetInSec: quota.weeklyResetInSec ?? 0,
+            renewsAt: quota.renewsAt,
+            updatedAt: now)
     }
 
     static func parseWorkspaceIDs(text: String) -> [String] {
@@ -596,328 +577,6 @@ extension OpenCodeUsageFetcher {
         }
         components?.queryItems = queryItems
         return components?.url ?? self.serverURL
-    }
-
-    private static func parseUsageJSON(object: Any, now: Date) -> OpenCodeUsageSnapshot? {
-        guard let dict = object as? [String: Any] else { return nil }
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys))
-        if let snapshot = self.parseUsageDictionary(dict, now: now, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-
-        for key in ["data", "result", "usage", "billing", "payload"] {
-            if let nested = dict[key] as? [String: Any],
-               let snapshot = self.parseUsageDictionary(nested, now: now, inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-
-        if let snapshot = self.parseUsageNested(dict, now: now, depth: 0, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-        return self.parseUsageFromCandidates(object: object, now: now, inheritedRenewsAt: renewsAt)
-    }
-
-    private static func parseUsageDictionary(
-        _ dict: [String: Any],
-        now: Date,
-        inheritedRenewsAt: Date?) -> OpenCodeUsageSnapshot?
-    {
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
-        if let usage = dict["usage"] as? [String: Any],
-           let snapshot = self.parseUsageDictionary(usage, now: now, inheritedRenewsAt: renewsAt)
-        {
-            return snapshot
-        }
-
-        let rollingKeys = ["rollingUsage", "rolling", "rolling_usage", "rollingWindow", "rolling_window"]
-        let weeklyKeys = ["weeklyUsage", "weekly", "weekly_usage", "weeklyWindow", "weekly_window"]
-
-        let rolling = rollingKeys.compactMap { dict[$0] as? [String: Any] }.first
-        let weekly = weeklyKeys.compactMap { dict[$0] as? [String: Any] }.first
-
-        if let rolling, let weekly {
-            return self.buildSnapshot(rolling: rolling, weekly: weekly, now: now, renewsAt: renewsAt)
-        }
-
-        return nil
-    }
-
-    private static func parseUsageNested(
-        _ dict: [String: Any],
-        now: Date,
-        depth: Int,
-        inheritedRenewsAt: Date?) -> OpenCodeUsageSnapshot?
-    {
-        if depth > 3 {
-            return nil
-        }
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
-        var rolling: [String: Any]?
-        var weekly: [String: Any]?
-
-        for (key, value) in dict {
-            guard let sub = value as? [String: Any] else { continue }
-            let lower = key.lowercased()
-            if lower.contains("rolling") {
-                rolling = sub
-            } else if lower.contains("weekly") || lower.contains("week") {
-                weekly = sub
-            }
-        }
-
-        if let rolling, let weekly {
-            let snapshot = self.buildSnapshot(rolling: rolling, weekly: weekly, now: now, renewsAt: renewsAt)
-            if let snapshot {
-                return snapshot
-            }
-        }
-
-        for value in dict.values {
-            if let sub = value as? [String: Any],
-               let snapshot = self.parseUsageNested(
-                   sub,
-                   now: now,
-                   depth: depth + 1,
-                   inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-
-        return nil
-    }
-
-    private static func parseUsageFromCandidates(
-        object: Any,
-        now: Date,
-        inheritedRenewsAt: Date? = nil) -> OpenCodeUsageSnapshot?
-    {
-        let candidates = self.collectWindowCandidates(object: object, now: now)
-        guard !candidates.isEmpty else { return nil }
-
-        let rollingCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("rolling") ||
-                candidate.pathLower.contains("hour") ||
-                candidate.pathLower.contains("5h") ||
-                candidate.pathLower.contains("5-hour")
-        }
-        let weeklyCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("weekly") ||
-                candidate.pathLower.contains("week")
-        }
-
-        let rolling = self.pickCandidate(
-            preferred: rollingCandidates,
-            fallback: candidates,
-            pickShorter: true)
-        let weekly = self.pickCandidate(
-            preferred: weeklyCandidates,
-            fallback: candidates,
-            pickShorter: false,
-            excluding: rolling?.id)
-
-        guard let rolling, let weekly else { return nil }
-
-        let renewsAt = self.dateValue(from: self.value(from: object as? [String: Any] ?? [:], keys: self.renewAtKeys))
-            ?? inheritedRenewsAt
-        return OpenCodeUsageSnapshot(
-            rollingUsagePercent: rolling.percent,
-            weeklyUsagePercent: weekly.percent,
-            rollingResetInSec: rolling.resetInSec,
-            weeklyResetInSec: weekly.resetInSec,
-            renewsAt: renewsAt,
-            updatedAt: now)
-    }
-
-    private struct WindowCandidate {
-        let id: UUID
-        let percent: Double
-        let resetInSec: Int
-        let pathLower: String
-    }
-
-    private static func collectWindowCandidates(object: Any, now: Date) -> [WindowCandidate] {
-        var candidates: [WindowCandidate] = []
-        self.collectWindowCandidates(object: object, now: now, path: [], out: &candidates)
-        return candidates
-    }
-
-    private static func collectWindowCandidates(
-        object: Any,
-        now: Date,
-        path: [String],
-        out: inout [WindowCandidate])
-    {
-        if let dict = object as? [String: Any] {
-            if let window = self.parseWindow(dict, now: now) {
-                let pathLower = path.joined(separator: ".").lowercased()
-                out.append(WindowCandidate(
-                    id: UUID(),
-                    percent: window.percent,
-                    resetInSec: window.resetInSec,
-                    pathLower: pathLower))
-            }
-            for (key, value) in dict {
-                self.collectWindowCandidates(object: value, now: now, path: path + [key], out: &out)
-            }
-            return
-        }
-
-        if let array = object as? [Any] {
-            for (index, value) in array.enumerated() {
-                self.collectWindowCandidates(
-                    object: value,
-                    now: now,
-                    path: path + ["[\(index)]"],
-                    out: &out)
-            }
-        }
-    }
-
-    private static func pickCandidate(
-        preferred: [WindowCandidate],
-        fallback: [WindowCandidate],
-        pickShorter: Bool,
-        excluding excluded: UUID? = nil) -> WindowCandidate?
-    {
-        let filteredPreferred = preferred.filter { $0.id != excluded }
-        if let picked = self.pickCandidate(from: filteredPreferred, pickShorter: pickShorter) {
-            return picked
-        }
-        let filteredFallback = fallback.filter { $0.id != excluded }
-        return self.pickCandidate(from: filteredFallback, pickShorter: pickShorter)
-    }
-
-    private static func pickCandidate(from candidates: [WindowCandidate], pickShorter: Bool) -> WindowCandidate? {
-        guard !candidates.isEmpty else { return nil }
-        let comparator: (WindowCandidate, WindowCandidate) -> Bool = { lhs, rhs in
-            if pickShorter {
-                if lhs.resetInSec == rhs.resetInSec {
-                    return lhs.percent > rhs.percent
-                }
-                return lhs.resetInSec < rhs.resetInSec
-            }
-            if lhs.resetInSec == rhs.resetInSec {
-                return lhs.percent > rhs.percent
-            }
-            return lhs.resetInSec > rhs.resetInSec
-        }
-        return candidates.min(by: comparator)
-    }
-
-    private static func buildSnapshot(
-        rolling: [String: Any],
-        weekly: [String: Any],
-        now: Date,
-        renewsAt: Date? = nil) -> OpenCodeUsageSnapshot?
-    {
-        guard let rollingWindow = self.parseWindow(rolling, now: now),
-              let weeklyWindow = self.parseWindow(weekly, now: now)
-        else {
-            return nil
-        }
-
-        return OpenCodeUsageSnapshot(
-            rollingUsagePercent: rollingWindow.percent,
-            weeklyUsagePercent: weeklyWindow.percent,
-            rollingResetInSec: rollingWindow.resetInSec,
-            weeklyResetInSec: weeklyWindow.resetInSec,
-            renewsAt: renewsAt,
-            updatedAt: now)
-    }
-
-    private static func parseWindow(_ dict: [String: Any], now: Date) -> (percent: Double, resetInSec: Int)? {
-        var percent = self.doubleValue(from: dict, keys: self.percentKeys)
-        // A direct percent field may arrive as a fraction (0...1) or a percent (0...100), so it goes
-        // through the `<= 1` heuristic below. A computed used/limit percent is already 0...100 and must not.
-        let percentIsDirect = percent != nil
-
-        if percent == nil {
-            let used = self.doubleValue(from: dict, keys: ["used", "usage", "consumed", "count", "usedTokens"])
-            let limit = self.doubleValue(from: dict, keys: ["limit", "total", "quota", "max", "cap", "tokenLimit"])
-            if let used, let limit, limit > 0 {
-                percent = (used / limit) * 100
-            }
-        }
-
-        guard var resolvedPercent = percent else { return nil }
-        if percentIsDirect, resolvedPercent <= 1.0, resolvedPercent >= 0 {
-            resolvedPercent *= 100
-        }
-        resolvedPercent = max(0, min(100, resolvedPercent))
-
-        var resetInSec = self.intValue(from: dict, keys: self.resetInKeys)
-        if resetInSec == nil {
-            let resetAtValue = self.value(from: dict, keys: self.resetAtKeys)
-            if let resetAt = self.dateValue(from: resetAtValue),
-               let interval = self.resetInterval(from: resetAt, now: now)
-            {
-                resetInSec = interval
-            }
-        }
-
-        let resolvedReset = max(0, resetInSec ?? 0)
-        return (resolvedPercent, resolvedReset)
-    }
-
-    private static func doubleValue(from dict: [String: Any], keys: [String]) -> Double? {
-        for key in keys {
-            if let value = self.doubleValue(from: dict[key]) {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private static func intValue(from dict: [String: Any], keys: [String]) -> Int? {
-        for key in keys {
-            if let value = self.intValue(from: dict[key]) {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private static func value(from dict: [String: Any], keys: [String]) -> Any? {
-        for key in keys {
-            if let value = dict[key] {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private static func dateValue(from value: Any?) -> Date? {
-        guard let value else { return nil }
-        if let number = self.doubleValue(from: value) {
-            if number > 1_000_000_000_000 {
-                return Date(timeIntervalSince1970: number / 1000)
-            }
-            if number > 1_000_000_000 {
-                return Date(timeIntervalSince1970: number)
-            }
-        }
-        if let string = value as? String {
-            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return self.dateValue(from: number)
-            }
-            if let parsed = self.makeISO8601Formatter().date(from: string) {
-                return parsed
-            }
-        }
-        return nil
-    }
-
-    private static func resetInterval(from resetAt: Date, now: Date) -> Int? {
-        let interval = resetAt.timeIntervalSince(now)
-        guard interval.isFinite else { return nil }
-        if interval <= 0 {
-            return 0
-        }
-        guard interval < Double(Int.max) else { return nil }
-        return Int(interval)
     }
 
     private static func logParseSummary(text: String) {

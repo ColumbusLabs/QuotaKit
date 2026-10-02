@@ -26,20 +26,24 @@ struct CostUsageStoreBaselineTests {
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
 
         #if DEBUG
-        var reads = 0
-        CostUsageStore.snapshotReadForTesting = { url in
-            if url == writer.databaseURL { reads += 1 }
+        let reads = LockIsolated(0)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.snapshotRead = { url in
+            if url == writer.databaseURL { reads.setValue(reads.value + 1) }
         }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
-        #endif
+        let first = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        }
+        #else
         let first = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #endif
         defer { first.release() }
         let second = first.store.syncLoadCodexScan(calendar: calendar)
         defer { second.release() }
         #expect(first.scanStamp != nil)
         #expect(second.cache.files == first.cache.files)
         #if DEBUG
-        #expect(reads == 1)
+        #expect(reads.value == 1)
         #endif
         let saved = CostUsageStoreAccess.save(
             store: second.store,
@@ -53,13 +57,19 @@ struct CostUsageStoreBaselineTests {
         #expect(!saved.catchUpRequired)
         #if DEBUG
         // The receipt carries the already decoded baseline through save.
-        #expect(reads == 1)
+        #expect(reads.value == 1)
         #endif
+        #if DEBUG
+        let third = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            second.store.syncLoadCodexScan(calendar: calendar)
+        }
+        #else
         let third = second.store.syncLoadCodexScan(calendar: calendar)
+        #endif
         defer { third.release() }
         #expect(third.cache.files == second.cache.files)
         #if DEBUG
-        #expect(reads == 2)
+        #expect(reads.value == 2)
         #endif
         var changed = third.cache
         changed.files["/sessions/a.jsonl"]?.lastModel = "gpt-5.6-sol"
@@ -75,7 +85,7 @@ struct CostUsageStoreBaselineTests {
         #expect(!changedSave.catchUpRequired)
         #if DEBUG
         // Changed-content persistence also uses the loaded receipt without a second snapshot.
-        #expect(reads == 2)
+        #expect(reads.value == 2)
         #endif
         var otherCalendar = calendar
         otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))

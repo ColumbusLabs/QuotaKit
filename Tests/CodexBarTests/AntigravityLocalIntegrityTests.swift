@@ -23,7 +23,7 @@ struct AntigravityLocalIntegrityTests {
         #expect(report.coverage == .partial)
         #expect(!report.evidenceIsContradicted)
         let snapshot = try await fixture.snapshot()
-        #expect(snapshot.last30DaysTokens == 198)
+        #expect(snapshot.last30DaysTokens == 187)
         #expect(snapshot.historyScanIsPartial)
         #expect(!snapshot.historyCoverageIsEstablished)
     }
@@ -54,7 +54,7 @@ struct AntigravityLocalIntegrityTests {
                 #expect(snapshot.daily.isEmpty)
                 #expect(snapshot.last30DaysTokens == nil)
             } else {
-                #expect(snapshot.last30DaysTokens == (sqlite ? 198 : 12))
+                #expect(snapshot.last30DaysTokens == (sqlite ? 187 : 12))
                 #expect(snapshot.daily.first?.requestCount == 1)
             }
         }
@@ -125,7 +125,7 @@ struct AntigravityLocalIntegrityTests {
         try Fixture.insert(database, row: 0, blob: Fixture.blob())
         let report = try fixture.report()
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         #expect(report.statistics.rows == 1)
     }
 
@@ -170,7 +170,7 @@ struct AntigravityLocalIntegrityTests {
         let report = try fixture.report()
 
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         #expect(report.statistics.foreignDatabases == 1)
         #expect(report.statistics.sqliteHandlesOpened == report.statistics.sqliteHandlesClosed)
     }
@@ -313,7 +313,7 @@ struct AntigravityLocalIntegrityTests {
     }
 
     @Test
-    func `schema entry column and cumulative byte limits reject before payload reads`() throws {
+    func `schema limits reject before payload reads and byte budgets reset per database`() throws {
         let fixture = try Fixture()
         let url = try fixture.database()
         let database = try Fixture.open(url)
@@ -340,14 +340,22 @@ struct AntigravityLocalIntegrityTests {
         limits.schemaColumns = 64
         let complete = try fixture.report(limits: limits)
         #expect(complete.coverage == .complete)
-        limits.schemaBytes = complete.statistics.schemaBytes
+        let schemaBytesPerDatabase = complete.statistics.schemaBytes
+        limits.schemaBytes = schemaBytesPerDatabase - 1
+        let overBudget = try fixture.report(limits: limits)
+        #expect(overBudget.coverage == .partial)
+        #expect(overBudget.statistics.rows == 0)
+        #expect(overBudget.statistics.schemaBytes > limits.schemaBytes)
+        #expect(overBudget.statistics.sqliteHandlesOpened == overBudget.statistics.sqliteHandlesClosed)
+
+        limits.schemaBytes = schemaBytesPerDatabase
         try fixture.database("session-b", blobs: [Fixture.blob()])
-        let cumulative = try fixture.report(limits: limits)
-        #expect(cumulative.coverage == .partial)
-        #expect(cumulative.statistics.files == 2)
-        #expect(cumulative.statistics.rows == 1)
-        #expect(cumulative.statistics.schemaBytes > limits.schemaBytes)
-        #expect(cumulative.statistics.sqliteHandlesOpened == cumulative.statistics.sqliteHandlesClosed)
+        let multiDatabase = try fixture.report(limits: limits)
+        #expect(multiDatabase.coverage == .complete)
+        #expect(multiDatabase.statistics.files == 2)
+        #expect(multiDatabase.statistics.rows == 2)
+        #expect(multiDatabase.statistics.schemaBytes > limits.schemaBytes)
+        #expect(multiDatabase.statistics.sqliteHandlesOpened == multiDatabase.statistics.sqliteHandlesClosed)
     }
 
     @Test(arguments: [false, true])

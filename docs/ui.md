@@ -30,6 +30,7 @@ read_when:
   positions.
 - Normal quit removes status items with their stable identities intact, preventing retained blank menu bar slots while
   preserving saved placement.
+- With separate icons, explicitly reordering providers in Settings reassigns QuotaKit's saved menu bar slots in that order, from right to left. Recreated items retain their stable autosave and accessibility identities. Orders changed while icons are merged also update these saved slots before returning to separate icons. Ordinary refreshes and visibility recovery continue to preserve manual Command-drag placement.
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
 - Overview spend uses the native menu background rather than an extra accent tint.
 - Overview row order follows provider order; selecting a row jumps to that provider detail card.

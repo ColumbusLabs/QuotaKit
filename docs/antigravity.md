@@ -26,10 +26,14 @@ For `agy` 1.2.2 and later, a failed legacy HTTPS fetch can fall back to
 or later before using print mode; [Google introduced non-interactive usage reports in 1.1.11](https://antigravity.google/changelog).
 It requires a successful `usage` command report with known,
 enabled quota buckets, bounds the command to 90 seconds and its output to 1 MiB, and terminates the command
-on cancellation. It runs in a private empty directory and does not send a model prompt or parse TUI output.
-The report contains no account or plan identity: explicit CLI mode remains authoritative, while Auto uses
-this fallback only without a selected token account or explicitly injected OAuth credentials. Successful
-HTTPS results retain their verified identity. Failed command diagnostics do not include raw stderr.
+on cancellation. It does not send a model prompt or parse TUI output. The ambient report contains no account
+or plan identity, so explicit CLI mode remains authoritative and Auto uses it only when no token account is
+selected or injected. When Auto has a selected or injected account, the fallback instead stages that account's
+credentials in a fresh private temporary home and runs `agy` with an allowlisted environment that selects its
+file token store. Before using the result, QuotaKit verifies the staged token's effective account through
+Google userinfo. It attaches the selected account identity only after that check and writes refreshed tokens
+back to the selected token account only after verification. Successful HTTPS results retain their verified
+identity. Failed command diagnostics do not include raw stderr.
 
 Antigravity supports four usage data sources:
 
@@ -313,11 +317,11 @@ the menu, Usage & Spend, exported JSON, and the CLI; they never establish empty 
 zero. Failed or retained-partial dashboard attempts do not acknowledge successful incorporation of a refresh trigger. Overflowed aggregate
 totals remain unknown rather than becoming saturated or wrapping.
 Hard database-count, row-count, cumulative-byte, or duration budget exhaustion does not publish a newly truncated report; it remains unavailable and preserves prior complete history.
-Schema-budget exhaustion preserves validated rows from earlier databases as diagnostic partial history; publication still follows the existing incomplete-history policy. The schema cap remains 64 KiB.
+Schema-budget exhaustion preserves validated rows from other databases as diagnostic partial history; publication still follows the existing incomplete-history policy. The 64 KiB schema-byte allowance resets for each database and is shared by `gen_metadata` and `steps` inspection.
 
 The schema evidence is [Tokscale's pinned SQLite parser](https://github.com/junhoyeo/tokscale/blob/62ca1eb1677556972ba963fdfa3a41ab23c1eb4b/crates/tokscale-core/src/sessions/antigravity_cli.rs),
-whose header records six databases and 140 turns. SQLite usage fields 1 + 2 are input, 5 is cache read,
-9 is text output, and 10 is thinking output: text and thinking are separate counts. Historical model IDs are retained;
+whose header records six databases and 140 turns. SQLite usage field 1 is a model enum ID and is not a token count;
+field 2 is input, 5 is cache read, 9 is reasoning, and 10 is visible output. Historical model IDs are retained;
 missing models stay unknown unless an unambiguous raw label maps to a model within the same session.
 Conflicting mappings remain unresolved. Every repeated known protobuf envelope is validated and merged.
 The supported database layout is an ordinary `gen_metadata` table with stored `idx` and `data` columns.
@@ -405,4 +409,4 @@ The print-report usage probe opts into a fresh per-launch ownership marker. Clea
 
 ## Local pricing aliases
 
-Local history retains recorded model IDs in breakdowns. Pricing first checks that exact model ID, then falls back from Gemini 3.1 Pro product aliases to the public preview model. These are API-equivalent estimates, not measured subscription charges.
+Local history retains recorded model IDs in breakdowns. Pricing first checks that exact model ID, then resolves the Gemini 3.1 Pro product aliases to the public preview model and `gemini-3.7-flash-safety-le` to `gemini-3.7-flash`. These are API-equivalent estimates, not measured subscription charges.

@@ -262,7 +262,7 @@ struct MenuDescriptor {
             let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
             let paceVisible = settings.paceVisible && ProviderDescriptorRegistry.descriptor(for: provider).pace
                 .allowsPace(dataConfidence: snap.dataConfidence)
-            if let primary = snap.primary {
+            if let primary = snap.primary?.measured {
                 let primaryDetail = primary.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let primaryDescriptionIsDetail = presentation.menu.usesPrimaryDescriptionAsDetail(snapshot: snap)
                 let primaryWindow = if primaryDescriptionIsDetail {

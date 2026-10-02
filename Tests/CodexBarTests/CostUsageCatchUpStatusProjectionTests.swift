@@ -37,18 +37,19 @@ struct CostUsageCatchUpStatusProjectionTests {
 
         let targetDatabase = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL.standardizedFileURL
         let snapshotReads = SnapshotReadCounter(targetDatabase: targetDatabase)
-        CostUsageStore.snapshotReadForTesting = { snapshotReads.record(databaseURL: $0) }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
+        var hooks = CostUsageStoreTestHooks()
+        hooks.snapshotRead = { snapshotReads.record(databaseURL: $0) }
+        await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            let status = await CostUsageFetcher(scannerOptions: options).codexScanCatchUpStatus()
 
-        let status = await CostUsageFetcher(scannerOptions: options).codexScanCatchUpStatus()
-
-        #expect(status.pending)
-        #expect(status.processedBytes == 40)
-        #expect(status.totalBytes == 100)
-        #expect(status.completedFiles == 0)
-        #expect(status.totalFiles == 1)
-        #expect(status.progressKey.hasPrefix("v3:1:"))
-        #expect(snapshotReads.value == 0)
+            #expect(status.pending)
+            #expect(status.processedBytes == 40)
+            #expect(status.totalBytes == 100)
+            #expect(status.completedFiles == 0)
+            #expect(status.totalFiles == 1)
+            #expect(status.progressKey.hasPrefix("v3:1:"))
+            #expect(snapshotReads.value == 0)
+        }
     }
 
     @Test
@@ -180,12 +181,13 @@ struct CostUsageCatchUpStatusProjectionTests {
         }
 
         let counter = ProjectionIdentityValidationCounter()
-        CostUsageStore.codexCatchUpReconciliationVisitForTesting = { counter.increment() }
-        defer { CostUsageStore.codexCatchUpReconciliationVisitForTesting = nil }
-
-        let status = await fetcher.codexScanCatchUpStatus()
-        #expect(status.pending)
-        #expect(counter.value == CostUsageScanner.codexCatchUpScanCandidateLimit)
+        var hooks = CostUsageStoreTestHooks()
+        hooks.codexCatchUpReconciliationVisit = { counter.increment() }
+        await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            let status = await fetcher.codexScanCatchUpStatus()
+            #expect(status.pending)
+            #expect(counter.value == CostUsageScanner.codexCatchUpScanCandidateLimit)
+        }
     }
 
     private static func storeDiscovery(

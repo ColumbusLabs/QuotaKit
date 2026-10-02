@@ -16,6 +16,7 @@ struct SettingsDefaultsState {
     var stayAwakeEnabled: Bool
     var credentialExpiryNotificationsEnabled: Bool
     var sessionQuotaNotificationsEnabled: Bool
+    var limitResetNotificationsEnabled: Bool
     var quotaWarningNotificationsEnabled: Bool
     var predictivePaceWarningNotificationsEnabled: Bool
     var quotaWarningThresholdsRaw: [Int]

@@ -441,6 +441,30 @@ struct CostUsageFileUsage: Codable, Equatable {
             || self.codexHasBufferedSubagentLines == true
             || self.codexHasBufferedUnresolvedForkLines == true
     }
+
+    var hasPendingCodexForkRetry: Bool {
+        // A confirmed missing parent settles scheduling. Keep its buffer for dependency changes.
+        self.hasBufferedCodexForkRetryLines
+            && (self.forkBaselineDependencyKey == nil || !CostUsageScanner.isUnresolvedMissingParentFork(self))
+    }
+
+    var hasSettledMissingCodexFork: Bool {
+        self.hasCurrentCodexParser
+            && self.codexScanComplete == true
+            && self.parsedBytes == self.size
+            && self.codexJSONLResumeState == nil
+            && self.hasBufferedCodexForkRetryLines
+            && self.forkBaselineDependencyKey != nil
+            && CostUsageScanner.isUnresolvedMissingParentFork(self)
+    }
+
+    var hasPendingCodexReplacementScan: Bool {
+        self.codexReplacementScanPending == true && !self.hasSettledMissingCodexFork
+    }
+
+    var hasPendingCodexScanWork: Bool {
+        self.codexScanComplete == false || self.hasPendingCodexForkRetry || self.hasPendingCodexReplacementScan
+    }
 }
 
 struct CostUsageCodexAppendOnlyPrefix: Codable, Equatable {

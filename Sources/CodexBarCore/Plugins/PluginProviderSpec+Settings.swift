@@ -48,18 +48,21 @@ extension PluginProviderSpec {
     }
 
     private var credentialProjections: [ProviderCredentialEnvironmentProjection] {
-        [.apiKey(self.environmentKey)] + self.additionalProjections +
-            (self.workspaceField.map { [.workspaceID($0.environmentKey)] } ?? []) +
-            (self.endpoint.map { [.enterpriseHost($0.environmentKey)] } ?? []) +
-            self.toggles.map { toggle in
-                ProviderCredentialEnvironmentProjection(key: toggle.environmentKey, value: {
-                    toggle.value($0).map(String.init)
-                })
-            }
+        var projections = self.additionalProjections
+        if !self.environmentKey.isEmpty { projections.insert(.apiKey(self.environmentKey), at: 0) }
+        projections += (self.workspaceField.map { [.workspaceID($0.environmentKey)] } ?? [])
+        projections += (self.endpoint.map { [.enterpriseHost($0.environmentKey)] } ?? [])
+        projections += self.toggles.map { toggle in
+            ProviderCredentialEnvironmentProjection(key: toggle.environmentKey, value: {
+                toggle.value($0).map(String.init)
+            })
+        }
+        return projections
     }
 
-    func makeCredentials() -> ProviderCredentialAdapter {
-        ProviderCredentialAdapter(
+    func makeCredentials() -> ProviderCredentialAdapter? {
+        guard !self.environmentKey.isEmpty else { return nil }
+        return ProviderCredentialAdapter(
             supportsAPIKeyOverride: true,
             apiKeyDebugLabel: self.apiKeyDebugLabel,
             environmentProjections: self.credentialProjections,

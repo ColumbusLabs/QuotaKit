@@ -344,6 +344,95 @@ struct CostUsageStoreTests {
     }
 
     @Test
+    func `replacement lineage refreshes without changing the committed fork ledger`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/lineage-replacement.jsonl"
+        let legacyState = try JSONDecoder().decode(
+            CostUsageStoreScanState.self, from: Data(#"{"isComplete":true}"#.utf8))
+        #expect(legacyState.replacementForkLineage == nil)
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000, size: 100, days: ["2026-08-01": ["test-model": [40, 0, 4]]])
+        #expect(usage.hasCurrentCodexParser)
+        usage.sessionId = "child"
+        usage.forkedFromId = "parent"
+        usage.forkBaselineDependencyKey = "committed-parent-key"
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [.init(
+            day: "2026-08-01", model: "test-model", turnID: nil, eventIndex: 0, input: 40, cached: 0, output: 4)]
+        usage.codexTokenSnapshots = [.init(
+            timestamp: "2026-08-01T12:00:00Z", last: nil, total: .init(input: 100, cached: 0, output: 10))]
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1000
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+        let committedLineage = try #require(await store.fetchForkLineage(path: path))
+        let committedRows = await store.fetchUsageRows(path: path)
+        let committedSnapshots = await store.fetchTokenSnapshots(path: path)
+        let committedAggregates = await store.fetchFileDayAggregates(path: path)
+        #expect(store.syncReadCodexReportProjection(calendar: calendar).verifiedUpdatedAtUnixMs == 1000)
+        #expect(!committedRows.isEmpty)
+        #expect(!committedSnapshots.isEmpty)
+
+        // A wider refresh must not publish complete coverage while its new parent is missing.
+        cache.scanSinceKey = "2026-07-31"
+        usage.codexReplacementScanPending = true
+        usage.codexRows = nil
+        usage.codexStagedRecoveryRows = []
+        usage.codexBufferedUnresolvedForkLines = [.init(
+            lineIndex: 1,
+            ordinal: nil,
+            line: .tokenCount(.init(
+                timestamp: "2026-08-01T12:00:00Z",
+                model: "test-model",
+                turnID: nil,
+                last: nil,
+                total: .init(input: 100, cached: 0, output: 10))))]
+        // Missing discovery generations change when other files disappear. A later present
+        // but unread parent clears that evidence; nil must not fall back to the old key.
+        let lineages: [(parent: String?, key: String?)] = [
+            ("parent", "missing|parent|discovery|first"),
+            ("parent", "missing|parent|discovery|second"),
+            ("parent", nil),
+            (nil, nil),
+        ]
+        for (parent, key) in lineages {
+            usage.forkedFromId = parent
+            usage.forkBaselineDependencyKey = key
+            cache.files[path] = usage
+            cache.lastScanUnixMs += 1000
+            cache.codexScanCatchUpPending = usage.hasPendingCodexScanWork
+            #expect(!store.syncSaveCodexCache(
+                cache, calendar: calendar, requestedScanWindow: window).catchUpRequired)
+            let reopened = CostUsageStore(cacheRoot: fixture.root)
+            let restored = try #require(reopened.syncLoadCodexCache(calendar: calendar).files[path])
+            #expect(restored.forkedFromId == parent)
+            #expect(restored.forkBaselineDependencyKey == key)
+            #expect(restored.hasPendingCodexScanWork == (key == nil))
+            let status = reopened.syncLoadCodexReadView(calendar: calendar, purpose: .status)
+            #expect(status.hasPendingScan == (key == nil))
+            let projection = reopened.syncReadCodexReportProjection(calendar: calendar)
+            #expect(projection.verifiedUpdatedAtUnixMs == 1000)
+            #expect(projection.verifiedScanSinceKey == "2026-08-01")
+            let progress = reopened.syncReadCodexCatchUpProjection(calendar: calendar)
+            #expect(progress.files.first?.forkedFromID == parent)
+            #expect(progress.files.first?.forkBaselineDependencyKey == key)
+            #expect(await reopened.fetchForkLineage(path: path) == committedLineage)
+            #expect(await reopened.fetchUsageRows(path: path) == committedRows)
+            #expect(await reopened.fetchTokenSnapshots(path: path) == committedSnapshots)
+            #expect(await reopened.fetchFileDayAggregates(path: path) == committedAggregates)
+        }
+    }
+
+    @Test
     func `rescan rows retain observed model and tier when fresh trace omits them`() {
         let row = CostUsageScanner.CodexUsageRow(
             day: "2026-08-01",
@@ -677,16 +766,18 @@ struct CostUsageStoreTests {
 
         var changed = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [path])
         changed.files[path]?.parsedBytes = 200
-        CostUsageStore.codexCatchUpDeltaFailureForTesting = { databaseURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexCatchUpDeltaFailure = { databaseURL in
             guard databaseURL == store.databaseURL else { return }
             throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
         }
-        defer { CostUsageStore.codexCatchUpDeltaFailureForTesting = nil }
-        let result = store.syncSaveCodexCatchUpCache(
-            changed,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
-            hydratedPaths: [path])
+        let result = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            store.syncSaveCodexCatchUpCache(
+                changed,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                hydratedPaths: [path])
+        }
 
         #expect(result.catchUpRequired)
         #expect(await store.rebuildCount == 0)
@@ -716,18 +807,20 @@ struct CostUsageStoreTests {
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-07-01", untilKey: "2026-07-02"))
         let before = await store.fetchDayAggregates(sinceDay: "2026-07-01", untilDay: "2026-07-02")
-        CostUsageStore.budgetMutationFailureForTesting = { databaseURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.budgetMutationFailure = { databaseURL in
             guard databaseURL == store.databaseURL else { return }
             throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
         }
-        defer { CostUsageStore.budgetMutationFailureForTesting = nil }
 
-        _ = await store.enforceBudgets(
-            maxRows: 0,
-            maxFileBytes: .max,
-            requestedSinceDay: "2026-08-01",
-            requestedUntilDay: "2026-08-01",
-            calendar: calendar)
+        await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            await store.enforceBudgets(
+                maxRows: 0,
+                maxFileBytes: .max,
+                requestedSinceDay: "2026-08-01",
+                requestedUntilDay: "2026-08-01",
+                calendar: calendar)
+        }
 
         #expect(await store.fetchFile(path: "/sessions/one.jsonl") != nil)
         #expect(await store.fetchFile(path: "/sessions/two.jsonl") != nil)
@@ -1207,32 +1300,32 @@ extension CostUsageStoreTests {
         _ = save(cache)
         var reread = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         reread.lastScanUnixMs = 2000
-        let interloper = try SQLiteTestConnection(url: store.databaseURL)
-        var checkpointError: Error?
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = { databaseURL in
-            guard databaseURL == store.databaseURL else { return }
+        let interloper = try LockIsolated(SQLiteTestConnection(url: store.databaseURL))
+        let checkpointError = LockIsolated<Error?>(nil)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.identicalContentPreLockCheckpoint = (databaseURL: store.databaseURL, checkpoint: {
             do {
-                try interloper.execute("UPDATE files SET parsed_bytes = 999 WHERE path = '\(path)'")
+                try interloper.value.execute("UPDATE files SET parsed_bytes = 999 WHERE path = '\(path)'")
             } catch {
-                checkpointError = error
+                checkpointError.setValue(error)
             }
+        })
+
+        let result = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            store.syncSaveCodexCache(
+                reread,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                fileBudgetBytes: 1,
+                skipIdenticalContent: true)
         }
-        defer { CostUsageStore.identicalContentPreLockCheckpointForTesting = nil }
 
-        let result = store.syncSaveCodexCache(
-            reread,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
-            fileBudgetBytes: 1,
-            skipIdenticalContent: true)
-
-        #expect(checkpointError == nil)
+        #expect(checkpointError.value == nil)
         #expect(result.catchUpRequired)
         #expect(await store.rebuildCount == 0)
         #expect(await store.fetchFile(path: path)?.parsedBytes == 999)
         #expect(CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar).lastScanUnixMs == 1000)
 
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = nil
         var refreshed = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         refreshed.lastScanUnixMs = 3000
         let retried = save(refreshed)
@@ -1779,6 +1872,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "91aceec74bae13b6",
         "295616a4e7dcfc3f",
         "4e2ff98d27e5c601",
         "053a4fb6aa6156c2",
@@ -1790,6 +1884,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "91aceec74bae13b6",
             "36872d2d0ebf9818",
             "053a4fb6aa6156c2",
             "4e2ff98d27e5c601",
@@ -2915,6 +3010,53 @@ extension CostUsageStoreTests {
         #expect(await store.fetchUsageRows(path: parent.path).count == 1)
         #expect(await store.fetchFile(path: child.path) != nil)
         #expect(await store.fetchMetadata().catchUpPending == false)
+    }
+
+    @Test(arguments: [false, true])
+    func `retention protects committed and replacement fork parents`(enforceBudget: Bool) async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var committed = Self.file(path: "/rollouts/committed-parent.jsonl", day: "2026-06-01")
+        committed.sessionID = "committed-parent"
+        var replacement = Self.file(path: "/rollouts/replacement-parent.jsonl", day: "2026-06-01")
+        replacement.sessionID = "replacement-parent"
+        var child = Self.file(path: "/rollouts/child.jsonl", day: "2026-08-01")
+        child.scanState.isComplete = false
+        child.scanState.replacementScanPending = true
+        child.scanState.replacementForkLineage = .init(forkedFromID: "replacement-parent", dependencyKey: nil)
+        let unrelated = Self.file(path: "/rollouts/unrelated.jsonl", day: "2026-06-01")
+        for file in [committed, replacement, child, unrelated] {
+            #expect(await store.upsertFile(file))
+        }
+        // Normal cache persistence stores structural lineage for root sessions as well.
+        for parent in [committed, replacement] {
+            #expect(await store.upsertForkLineage(CostUsageStoreForkLineage(
+                path: parent.path,
+                sessionID: parent.sessionID,
+                forkedFromID: nil,
+                forkTimestamp: nil,
+                dependencyKey: nil,
+                subagentState: nil,
+                accountingState: nil)))
+        }
+        var lineage = Self.lineage(path: child.path)
+        lineage.forkedFromID = "committed-parent"
+        #expect(await store.upsertForkLineage(lineage))
+
+        if enforceBudget {
+            _ = await store.enforceBudgets(
+                maxRows: 1,
+                maxFileBytes: 1,
+                requestedSinceDay: "2026-08-01",
+                requestedUntilDay: "2026-08-01")
+        } else {
+            _ = await store.retainDayWindow(sinceDay: "2026-08-01", untilDay: "2026-08-01")
+        }
+        #expect(await store.fetchFile(path: committed.path) != nil)
+        #expect(await store.fetchFile(path: replacement.path) != nil)
+        #expect(await store.fetchFile(path: child.path) != nil)
+        #expect(await store.fetchFile(path: unrelated.path) == nil)
     }
 
     @Test

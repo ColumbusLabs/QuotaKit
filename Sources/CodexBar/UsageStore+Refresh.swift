@@ -747,7 +747,7 @@ extension UsageStore {
         } else {
             scoped
         }
-        let backfilled = await MainActor.run {
+        let published = await MainActor.run {
             self.publishProviderRefreshSuccess(
                 provider: provider,
                 result: result,
@@ -759,7 +759,8 @@ extension UsageStore {
                     accountScoped: accountScoped,
                     currentTokenAccount: currentTokenAccount))
         }
-        guard let backfilled else { return }
+        guard let published else { return }
+        let backfilled = published.snapshot
         self.refreshClaudeVersionAfterUserInitiatedCLIFetch(provider: provider, strategyKind: result.strategyKind)
         let isClaudeOAuthSample = provider == .claude
             && result.strategyKind == .oauth
@@ -785,7 +786,8 @@ extension UsageStore {
             claudeOAuthActiveAccountObservation: context.claudeOAuthActiveAccountObservation,
             isClaudeOAuthSample: isClaudeOAuthSample,
             codexLimitResetOwnerKey: context.codexLimitResetOwnerKey,
-            codexSuppressesWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration)
+            codexSuppressesWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration,
+            sessionRestoredNotificationPending: published.sessionRestored)
         guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
         if let runtime = self.providerRuntimes[provider.instanceID] {
             let runtimeContext = ProviderRuntimeContext(
@@ -802,7 +804,7 @@ extension UsageStore {
         result: ProviderFetchResult,
         attempts: [ProviderFetchAttempt],
         context: ProviderRefreshOutcomeContext,
-        publication: ProviderRefreshSuccessPublication) -> UsageSnapshot?
+        publication: ProviderRefreshSuccessPublication) -> (snapshot: UsageSnapshot, sessionRestored: Bool)?
     {
         guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else {
             return nil
@@ -849,10 +851,11 @@ extension UsageStore {
             hookAccountDiscriminator: warningAccounts.source,
             requiresKnownAccount: provider == .claude &&
                 (result.strategyKind == .oauth || result.strategyKind == .cli))
-        self.handleSessionQuotaTransition(
+        let sessionRestored = self.handleSessionQuotaTransition(
             provider: provider,
             snapshot: backfilled,
-            codexOwnerKey: provider == .codex ? context.codexSessionQuotaOwnerKey : nil)
+            codexOwnerKey: provider == .codex ? context.codexSessionQuotaOwnerKey : nil,
+            accountDiscriminator: warningAccounts.source)
         self.handlePredictivePaceWarningTransitions(
             provider: provider,
             snapshot: backfilled,
@@ -906,7 +909,7 @@ extension UsageStore {
                 expectedOwnerKey: context.codexLimitResetOwnerKey)
         }
         self.emitUsageUpdatedHook(provider: provider, snapshot: backfilled, rateKey: warningAccounts.source)
-        return backfilled
+        return (backfilled, sessionRestored)
     }
 
     nonisolated static func shouldPreserveAntigravityQuotaSnapshot(

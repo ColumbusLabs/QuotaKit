@@ -1,38 +1,5 @@
 import Foundation
 
-/// Resolves the timeout before child-process teardown can close stdout and race its error.
-enum GrokRPCRequestTimeout {
-    private enum Result<Value: Sendable>: Sendable {
-        case value(Value)
-        case timedOut
-    }
-
-    static func run<Value: Sendable>(
-        seconds: TimeInterval,
-        timeoutError: any Error,
-        onTimeout: @Sendable () -> Void,
-        operation: @escaping @Sendable () async throws -> Value) async throws -> Value
-    {
-        try await withThrowingTaskGroup(of: Result<Value>.self) { group in
-            group.addTask { try await .value(operation()) }
-            group.addTask {
-                try await Task.sleep(for: .seconds(seconds))
-                return .timedOut
-            }
-            guard let result = try await group.next() else { throw timeoutError }
-            group.cancelAll()
-            switch result {
-            case let .value(value):
-                return value
-            case .timedOut:
-                // Select the timeout before teardown can produce a competing stdout EOF.
-                onTimeout()
-                throw timeoutError
-            }
-        }
-    }
-}
-
 /// JSON-RPC client for `grok agent stdio` (ACP protocol).
 ///
 /// The protocol mirrors Codex's app-server (newline-delimited JSON-RPC 2.0 over stdin/stdout),
@@ -180,7 +147,7 @@ final class GrokRPCClient: @unchecked Sendable {
         try self.sendRequest(id: id, method: method, params: params)
 
         let resolvedTimeout = timeout ?? self.requestTimeoutSeconds
-        let wrapped = try await GrokRPCRequestTimeout.run(
+        let wrapped = try await RPCRequestTimeout.run(
             seconds: resolvedTimeout,
             timeoutError: GrokRPCError.timeout(method: method),
             onTimeout: { [weak self] in self?.terminateProcessForTimeout(method: method) },

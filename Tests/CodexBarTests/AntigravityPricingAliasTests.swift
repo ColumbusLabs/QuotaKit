@@ -27,8 +27,8 @@ struct AntigravityPricingAliasTests {
         try fixture.database(blobs: [Fixture.blob(model: "gemini-fixture-a-tiered")])
 
         let snapshot = try await fixture.snapshot()
-        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-12)
         // The recorded variant keeps its own identity in the breakdown; only pricing falls back.
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-fixture-a-tiered")
 
@@ -79,8 +79,8 @@ struct AntigravityPricingAliasTests {
             calendar: Fixture.calendar,
             estimateCost: true,
             pricingCacheRoot: cacheRoot)
-        let exactCost = 111 * 5e-6 + 50 * 0.5e-6 + 37 * 7e-6
-        let previewCost = 111 * 2e-6 + 50 * 0.2e-6 + 37 * 8e-6
+        let exactCost = 100 * 5e-6 + 50 * 0.5e-6 + 37 * 7e-6
+        let previewCost = 100 * 2e-6 + 50 * 0.2e-6 + 37 * 8e-6
         let actualCost = try #require(result.report.data.first?.costUSD)
 
         #expect(result.coverage == .complete)

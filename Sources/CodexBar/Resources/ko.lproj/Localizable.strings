@@ -537,6 +537,11 @@
 "session_depleted_notification_body" = "0% 남음. 다시 사용할 수 있게 되면 알립니다.";
 "session_restored_notification_title" = "%@ 세션 복원됨";
 "session_restored_notification_body" = "세션 할당량을 다시 사용할 수 있습니다.";
+"limit_reset_notifications_title" = "재설정 알림";
+"limit_reset_notifications_subtitle" = "세션 또는 주간 한도가 재설정되면 어떤 공급자의 어떤 한도인지 알려줍니다.";
+"limit_reset_notification_title" = "%1$@ %2$@ 한도 재설정됨";
+"limit_reset_notification_body" = "새 할당량을 사용할 수 있습니다.";
+"limit_reset_notification_body_with_account" = "계정 %@. 새 할당량을 사용할 수 있습니다.";
 "quota_warning_warn_at" = "경고 기준";
 "quota_warning_global_threshold_subtitle" = "공급자가 재정의하지 않는 한 세션 및 주간 범위의 잔여 백분율입니다.";
 "quota_warning_sound" = "알림 소리 재생";

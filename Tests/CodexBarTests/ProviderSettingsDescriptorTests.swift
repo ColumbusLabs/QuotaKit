@@ -658,9 +658,10 @@ struct ProviderSettingsDescriptorTests {
         ProviderInteractionContext.$current.withValue(.background) {
             fixture.store.updateProviderRuntimes()
         }
-        let field = try #require(ClaudeProviderImplementation()
-            .settingsFields(context: fixture.settingsContext(provider: .claude))
-            .first(where: { $0.id == "claude-swap-executable-path" }))
+        let toggle = try #require(ClaudeProviderImplementation()
+            .settingsToggles(context: fixture.settingsContext(provider: .claude))
+            .first(where: { $0.id == "claude-swap-accounts" }))
+        let field = try #require(toggle.inlineFields.first(where: { $0.id == "claude-swap-executable-path" }))
 
         field.binding.wrappedValue = newExecutable.path
         ProviderInteractionContext.$current.withValue(.background) {
@@ -1535,6 +1536,34 @@ extension ProviderSettingsDescriptorTests {
 }
 
 extension ProviderSettingsDescriptorTests {
+    @Test
+    func `MuseAI cookie plugin preserves source and manual cookie settings`() throws {
+        let descriptor = MuseAIProviderDescriptor.descriptor
+        #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
+        #expect(descriptor.metadata.browserCookieOrder != nil)
+        #expect(descriptor.settingsSection.providerID == .museai)
+
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-museai-cookie-plugin")
+        let implementation = try #require(ProviderCatalog.implementation(for: .museai))
+        let settingsContext = fixture.settingsContext(provider: .museai)
+        let pickers = implementation.settingsPickers(context: settingsContext)
+        #expect(pickers.map(\.id) == ["museai-cookie-source"])
+        pickers[0].binding.wrappedValue = ProviderCookieSource.manual.rawValue
+
+        let fields = implementation.settingsFields(context: settingsContext)
+        #expect(fields.map(\.id) == ["museai-cookie-header"])
+        #expect(fields[0].isVisible?() == true)
+        fields[0].binding.wrappedValue = "session=fixture"
+
+        let contribution = try #require(implementation.settingsSnapshot(context: .init(
+            settings: fixture.settings,
+            tokenOverride: nil)))
+        let snapshot = ProviderSettingsSnapshot(contributions: [contribution])
+        let cookies = try #require(descriptor.settingsSection.cookieSettings(from: snapshot))
+        #expect(cookies.cookieSource == .manual)
+        #expect(cookies.manualCookieHeader == "session=fixture")
+    }
+
     func makeSettingsFixture(
         suite: String,
         environmentBase: [String: String] = [:]) throws -> ProviderSettingsFixture

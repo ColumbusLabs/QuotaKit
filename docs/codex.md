@@ -120,6 +120,15 @@ is limited, using additional rows when needed.
 
 ### Codex CLI RPC (automatic CLI source)
 - Launches local RPC server: `codex -s read-only -a never app-server`.
+- On fully enforcing macOS hosts, standalone hardened-runtime CLI Gatekeeper verdicts are reused for at most five minutes while stat
+  metadata and every architecture’s complete embedded signature remain unchanged. Page-protection opt-outs,
+  unsigned or malformed files, and app bundles use fresh assessments. A process-wide host check requires full SIP,
+  system code-signing enforcement, and readable boot arguments without enforcement overrides; failed or unknown
+  checks retain fresh assessment. Malware/quarantine checks run per lookup. npm payload selection also runs on
+  every lookup using the launch environment; only the selected standalone native file's assessment can be reused.
+  Selected payloads inside app bundles stay uncached, including when reached through symlinks.
+  Each identity read binds metadata and signature bytes to one open descriptor, then rechecks the pathname and
+  resolved app ancestry after hashing before storing or returning a verdict.
 - JSON-RPC over stdin/stdout:
   - `initialize` (client name/version)
   - `account/read`
@@ -137,7 +146,20 @@ is limited, using additional rows when needed.
 - If macOS blocks or quarantines the `codex` executable, QuotaKit records the launch failure and skips background CLI
   launches for 30 minutes. Use a manual refresh after reinstalling or unblocking `codex` to retry immediately.
 - QuotaKit also discovers the Codex CLI bundled with current ChatGPT and legacy Codex desktop apps, even when `codex`
-  is absent from the shell PATH.
+  is absent from the shell PATH. Discovery includes the current `codex-cli/bin/codex` launcher and skips known
+  npm launchers whose selected native payload is unavailable, with a diagnostic to reinstall `@openai/codex`.
+  The launcher's Node interpreter resolves the architecture and optional package location without evaluating `codex.js`;
+  the recognized current `bin/codex` or legacy `codex/codex` layout selects the one payload to assess. Transitional
+  launchers such as Codex 0.136 fall back to the legacy path only when the current path is absent, matching npm.
+  Stale payloads cannot substitute for an existing but unusable selected binary, or a current-only launcher's missing
+  binary. Other architectures cannot substitute either. Unknown layouts fail closed. RPC and PTY discovery
+  preserve locator rejection instead of repeating an unfiltered `which` lookup. PTY discovery and status diagnostics
+  use the caller's environment for preflight, so a rejected Node runtime cannot be rediscovered under the host environment.
+  Healthy npm launchers retain
+  PATH precedence; bundled fallbacks still require the existing app trust checks.
+  Runtime inspection uses the shared executable finder, ignoring relative and empty PATH entries while retaining absolute
+  install paths. Nonempty `NODE_OPTIONS` still prevents inspection, so discovery cannot run a working-directory interpreter
+  or preload hook before assessing the payload; bundled fallbacks remain available.
 - If managed Codex account login still reports a missing executable, turn on **Show debug settings** in
   **Settings > Advanced**, then check **Settings > Debug > CLI Paths**. When no Codex binary appears there, confirm
   `codex --version` works in Terminal, check `which -a codex` for stale duplicate installs, then run
@@ -229,6 +251,12 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Pending local-history files receive bounded turns alongside fresh sessions. Unfinished files that received a turn
   rotate behind waiting files, and the queue persists across refreshes. Rotation alone does not count as scan progress;
   byte and time limits still bound each refresh.
+- Parent discovery continues within those bounds after requesting forks leave the scan roots. Once discovery confirms
+  a missing parent, fully read forks and their orphaned descendants stop keeping catch-up pending. Unresolved usage
+  remains buffered and unmetered; a changed dependency retries accounting when parent history returns.
+- Reporting windows overlapping the orphan fork's observed event span remain incomplete; independent dates may publish
+  normally. A session start date alone cannot establish independence. Existing stored rows, replay buffers, and scan
+  checkpoints remain intact because this change settles scheduling and checks coverage from existing metadata.
 
 ### Usage & Spend account rows
 

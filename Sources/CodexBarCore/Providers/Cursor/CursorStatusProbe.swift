@@ -902,7 +902,7 @@ public struct CursorStatusProbe: Sendable {
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         sessionStore: CursorSessionStore = .shared)
     {
         #if os(macOS)
@@ -911,7 +911,7 @@ public struct CursorStatusProbe: Sendable {
             timeout: timeout,
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
+            urlSession: urlSession ?? ProviderHTTPClient.shared,
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             persistsAppAuthSession: true,
@@ -932,7 +932,7 @@ public struct CursorStatusProbe: Sendable {
             timeout: timeout,
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
+            urlSession: urlSession ?? ProviderHTTPClient.shared,
             sessionStore: sessionStore,
             conditionalMutationCoordinator: .shared)
         #endif
@@ -942,7 +942,7 @@ public struct CursorStatusProbe: Sendable {
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator)
     {
@@ -952,7 +952,7 @@ public struct CursorStatusProbe: Sendable {
             timeout: timeout,
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
+            urlSession: urlSession ?? ProviderHTTPClient.shared,
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             persistsAppAuthSession: true,
@@ -973,7 +973,7 @@ public struct CursorStatusProbe: Sendable {
             timeout: timeout,
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
+            urlSession: urlSession ?? ProviderHTTPClient.shared,
             sessionStore: sessionStore,
             conditionalMutationCoordinator: conditionalMutationCoordinator)
         #endif
@@ -1014,7 +1014,7 @@ public struct CursorStatusProbe: Sendable {
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
         browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         appAuthStore: any CursorAppAuthSessionProviding,
         sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
@@ -1023,7 +1023,7 @@ public struct CursorStatusProbe: Sendable {
         self.timeout = timeout
         self.browserDetection = browserDetection
         self.browserCookieImportOrder = browserCookieImportOrder
-        self.urlSession = urlSession
+        self.urlSession = urlSession ?? Self.httpClient
         self.sessionStore = sessionStore
         self.appAuthStore = appAuthStore
         self.conditionalMutationCoordinator = conditionalMutationCoordinator

@@ -528,6 +528,11 @@
 "session_depleted_notification_body" = "0% tersisa. Akan memberi tahu saat tersedia kembali.";
 "session_restored_notification_title" = "Sesi %@ pulih";
 "session_restored_notification_body" = "Kuota sesi tersedia kembali.";
+"limit_reset_notifications_title" = "Notifikasi reset";
+"limit_reset_notifications_subtitle" = "Memberi tahu penyedia dan jendela yang direset saat batas sesi atau mingguan direset.";
+"limit_reset_notification_title" = "Batas %2$@ %1$@ direset";
+"limit_reset_notification_body" = "Kuota baru tersedia.";
+"limit_reset_notification_body_with_account" = "Akun %@. Kuota baru tersedia.";
 "quota_warning_warn_at" = "Peringatkan pada";
 "quota_warning_global_threshold_subtitle" = "Persentase sisa untuk jendela sesi dan mingguan kecuali penyedia menimpanya.";
 "quota_warning_sound" = "Mainkan suara notifikasi";

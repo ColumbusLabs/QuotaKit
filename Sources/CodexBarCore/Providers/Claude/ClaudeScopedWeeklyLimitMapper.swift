@@ -89,3 +89,17 @@ enum ClaudeScopedWeeklyLimitMapper {
         return idSlug == "all-models" || idSlug.hasSuffix("-all-models")
     }
 }
+
+extension UsageSnapshot {
+    /// The most constrained active model-scoped weekly quota reported by Claude.
+    /// Missing-usage windows stay available for reset diagnostics but cannot supply a displayed metric.
+    public var claudeScopedWeeklyWindow: NamedRateWindow? {
+        (self.extraRateWindows ?? [])
+            .filter {
+                $0.id.hasPrefix("claude-weekly-scoped-")
+                    && $0.usageKnown
+                    && !$0.window.isSyntheticPlaceholder
+            }
+            .max { $0.window.usedPercent < $1.window.usedPercent }
+    }
+}

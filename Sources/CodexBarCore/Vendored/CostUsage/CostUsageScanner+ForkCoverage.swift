@@ -41,11 +41,26 @@ extension CostUsageScanner {
     }
 
     static func isUnresolvedMissingParentFork(_ usage: CostUsageFileUsage) -> Bool {
-        guard usage.forkedFromId != nil else { return false }
-        if let key = usage.forkBaselineDependencyKey {
-            return key.hasPrefix("missing|")
+        usage.forkedFromId != nil
+            && (usage.forkBaselineDependencyKey.map(self.codexDependencyIsMissing) ?? true)
+    }
+
+    static func codexDependencyIsMissing(_ key: String) -> Bool {
+        key.hasPrefix("missing|") || key.contains("|inherited|missing|")
+    }
+
+    static func codexHistoryRangeHasUnsettledMissingParentFork(
+        cache: CostUsageCache,
+        range: CostUsageDayRange) -> Bool
+    {
+        cache.files.values.contains { usage in
+            guard self.isUnresolvedMissingParentFork(usage) else { return false }
+            guard usage.codexScanComplete == true, usage.hasCurrentCodexParser else { return true }
+            return usage.touchesCodexScanWindow(
+                sinceKey: range.sinceKey,
+                untilKey: range.untilKey,
+                calendar: range.calendar)
         }
-        return true
     }
 
     static func codexFileHasBilledTokens(_ usage: CostUsageFileUsage) -> Bool {
@@ -217,21 +232,17 @@ extension CostUsageFileUsage {
             return true
         }
 
-        // Missing-parent forks keep empty billed days on purpose. Session timestamps still
-        // place them in the scan window so force-rescan prune cannot drop the unmetered gap.
+        // Billed days are empty for unresolved forks. Use the entire observed event span,
+        // not just the start date: an old fork can contain current usage.
         let isIncompleteFork = self.codexBufferedUnresolvedForkLines != nil
             || CostUsageScanner.isUnresolvedMissingParentFork(self)
         guard isIncompleteFork else { return false }
-
-        if let unixMs = self.codexSession?.startedAtUnixMs ?? self.codexSession?.latestActivityUnixMs {
-            let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(
-                from: Date(timeIntervalSince1970: TimeInterval(unixMs) / 1000),
-                calendar: calendar)
-            return CostUsageScanner.CostUsageDayRange.isInRange(
-                dayKey: dayKey,
-                since: sinceKey,
-                until: untilKey)
-        }
-        return true
+        guard let first = self.codexSession?.startedAtUnixMs,
+              let last = self.codexSession?.latestActivityUnixMs else { return true }
+        let firstDay = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: Date(timeIntervalSince1970: TimeInterval(first) / 1000), calendar: calendar)
+        let lastDay = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: Date(timeIntervalSince1970: TimeInterval(last) / 1000), calendar: calendar)
+        return firstDay <= untilKey && lastDay >= sinceKey
     }
 }

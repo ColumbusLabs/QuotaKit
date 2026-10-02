@@ -262,6 +262,7 @@ struct SettingsStoreAdditionalTests {
             .atlascloud: [.automatic],
             .vercel: [.automatic],
             .nous: [.automatic, .primary],
+            .museai: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {

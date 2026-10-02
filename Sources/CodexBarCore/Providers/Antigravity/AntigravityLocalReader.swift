@@ -52,15 +52,14 @@ enum AntigravityLocalReader {
 
         init?(session: String, row: Int64, turn: AntigravityProtoReader.ParsedTurn, cacheWrite: Int) {
             guard let usage = turn.usage, turn.timestampMs != nil,
-                  let input = AntigravityLocalReader.checkedAdd(usage.systemPrompt, usage.newInput),
                   let total = AntigravityLocalReader.checkedSum(
-                      [input, usage.output, usage.cacheRead, cacheWrite, usage.reasoning])
+                      [usage.newInput, usage.output, usage.cacheRead, cacheWrite, usage.reasoning])
             else { return nil }
             self.session = session
             self.row = row
             self.turn = turn
             self.cacheWrite = cacheWrite
-            self.input = input
+            self.input = usage.newInput
             self.total = total
         }
     }
@@ -112,6 +111,7 @@ enum AntigravityLocalReader {
         "gemini-3.1-pro": "gemini-3.1-pro-preview",
         "gemini-3.1-pro-high": "gemini-3.1-pro-preview",
         "gemini-3.1-pro-low": "gemini-3.1-pro-preview",
+        "gemini-3.7-flash-safety-le": "gemini-3.7-flash",
     ]
 
     static func checkedAdd(_ lhs: Int, _ rhs: Int) -> Int? {
@@ -277,11 +277,8 @@ enum AntigravityLocalReader {
                 pricing: $0,
                 model: model,
                 date: date,
-                tokens: PricedTokens(
-                    input: input,
-                    cacheRead: usage.cacheRead,
-                    cacheCreation: event.cacheWrite,
-                    output: usage.output + usage.reasoning))
+                usage: usage,
+                cacheWrite: event.cacheWrite)
         }
         let day = CostUsageLocalDay.key(from: date, calendar: calendar)
         return .init(
@@ -309,28 +306,22 @@ enum AntigravityLocalReader {
             estimatedRequestCount: cost == nil ? 0 : 1)
     }
 
-    private struct PricedTokens {
-        let input: Int
-        let cacheRead: Int
-        let cacheCreation: Int
-        let output: Int
-    }
-
     /// Prices the exact recorded model ID first so an explicitly catalogued variant keeps its own
     /// price, then falls back to the base model of a known routing variant.
     private static func costUSD(
         pricing: CostUsagePricing.ClaudeResolver,
         model: String,
         date: Date,
-        tokens: PricedTokens) -> Double?
+        usage: AntigravityProtoReader.ParsedUsage,
+        cacheWrite: Int) -> Double?
     {
         func resolve(_ candidate: String) -> Double? {
             pricing.costUSD(
                 model: candidate,
-                inputTokens: tokens.input,
-                cacheReadInputTokens: tokens.cacheRead,
-                cacheCreationInputTokens: tokens.cacheCreation,
-                outputTokens: tokens.output,
+                inputTokens: usage.newInput,
+                cacheReadInputTokens: usage.cacheRead,
+                cacheCreationInputTokens: cacheWrite,
+                outputTokens: usage.output + usage.reasoning,
                 pricingDate: date)
         }
         if let cost = resolve(model) { return cost }

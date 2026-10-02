@@ -1,6 +1,6 @@
 import Foundation
 
-/// Swift registration data for bundled API-key plugins. Fetching and parsing stay in the plugin.
+/// Swift registration data for bundled plugins. Fetching and parsing stay in the plugin.
 public struct PluginProviderSpec: Sendable {
     public struct APIKeyField: Sendable {
         public let id: String
@@ -9,6 +9,9 @@ public struct PluginProviderSpec: Sendable {
         public var placeholder: String? = "Paste API key…"
         public var action: (id: String, title: String, url: String)?
     }
+
+    /// A secure settings field shared by API-key and cookie-backed plugin providers.
+    public typealias SecureField = APIKeyField
 
     public struct TextField: Sendable {
         public let id: String
@@ -32,6 +35,7 @@ public struct PluginProviderSpec: Sendable {
     public var sharePlanLabels: [String: String] = [:]
     public var toggleTitle: String?
     public var debugLogUnavailableMessage: String?
+    public var settingsSection: ProviderSettingsSectionRegistration?
     public var balanceOnly = false
     public var usesDetailBackedWindow = false
     public let dashboardURL: String?
@@ -42,7 +46,7 @@ public struct PluginProviderSpec: Sendable {
     public var widgetColor: ProviderColor?
     public var progressColorStyle: ProviderBranding.ProgressColorStyle = .brand
     public let noDataMessage: String
-    public let environmentKey: String
+    public var environmentKey = ""
     public var environmentAliases: [String] = []
     public var apiKeyDebugLabel: String?
     public var missingCredentialMessage: ProviderCredentialAdapter.MissingCredentialMessage?
@@ -56,6 +60,7 @@ public struct PluginProviderSpec: Sendable {
     public var timeout = ProviderPluginRuntime.defaultTimeout
     public var scriptSettings: @Sendable (ProviderFetchContext) -> [String: String] = { _ in [:] }
     public var validateContext: ScriptFetchStrategy.ContextValidator = { _ in }
+    public var webSource: WebSource?
     public var apiKeyField: APIKeyField?
     public var workspaceField: WorkspaceField?
     public var endpoint: Endpoint?
@@ -73,16 +78,24 @@ public struct PluginProviderSpec: Sendable {
     public var observesTokenAccounts = false
 
     public func apiKey(environment: [String: String]) -> String? {
-        SettingsValue.first(in: environment, keys: [self.environmentKey] + self.environmentAliases)
+        guard !self.environmentKey.isEmpty else { return nil }
+        return SettingsValue.first(in: environment, keys: [self.environmentKey] + self.environmentAliases)
     }
 
     public func makeDescriptor(
         credentials: ProviderCredentialAdapter? = nil,
         fetchPlan: ProviderFetchPlan? = nil) -> ProviderDescriptor
     {
-        ProviderDescriptor(
+        let resolvedFetchPlan = fetchPlan ?? ProviderFetchPlan(
+            sourceModes: self.webSource?.sourceModes ?? [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
+                if let web = self.webSource { return [self.webStrategy(web, context: context)] }
+                return [self.makeStrategy(timeout: self.fetchTimeout(environment: context.env))]
+            }))
+        return ProviderDescriptor(
             id: self.id,
             menuBarMetrics: self.menuBarMetrics,
+            settingsSection: self.settingsSection ?? self.webSource?.settingsSection,
             credentials: credentials ?? self.makeCredentials(),
             config: ProviderConfigCapabilities(
                 workspaceIDValidationOrder: self.config.workspaceIDValidationOrder,
@@ -104,6 +117,7 @@ public struct PluginProviderSpec: Sendable {
                 debugLogUnavailableMessage: self.debugLogUnavailableMessage,
                 balanceOnly: self.balanceOnly,
                 usesDetailBackedWindow: self.usesDetailBackedWindow,
+                browserCookieOrder: self.webSource?.browserCookieOrder,
                 dashboardURL: self.dashboardURL,
                 subscriptionDashboardURL: self.subscriptionDashboardURL,
                 statusPageURL: nil,
@@ -117,12 +131,14 @@ public struct PluginProviderSpec: Sendable {
                 progressColorStyle: self.progressColorStyle),
             tokenCost: ProviderTokenCostConfig(supportsTokenCost: false, noDataMessage: { self.noDataMessage }),
             presentation: self.presentation,
-            fetchPlan: fetchPlan ?? ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { context in
-                    [self.makeStrategy(timeout: self.fetchTimeout(environment: context.env))]
-                })),
-            cli: ProviderCLIConfig(name: self.id.rawValue, aliases: self.aliases, versionDetector: nil))
+            fetchPlan: resolvedFetchPlan,
+            cli: ProviderCLIConfig(
+                name: self.id.rawValue,
+                aliases: self.aliases,
+                versionDetector: nil,
+                browserSupportExemption: { source, environment, settings in
+                    self.webSource?.browserSupportExemption?(source, environment, settings) ?? false
+                }))
     }
 
     func scriptValues(_ context: ProviderFetchContext) -> ScriptFetchStrategy.Values? {

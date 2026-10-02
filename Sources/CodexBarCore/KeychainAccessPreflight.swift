@@ -362,8 +362,8 @@ public enum KeychainAccessPreflight {
               !acls.isEmpty
         else { return .indeterminate }
 
-        let currentPaths = KeychainCacheStore.invokingApplicationPathsForCacheAccess()
-        guard !currentPaths.isEmpty else { return .indeterminate }
+        guard let currentPath = KeychainCacheStore.invokingApplicationPathsForCacheAccess().first
+        else { return .indeterminate }
 
         var inspectionIncomplete = false
         for acl in acls {
@@ -387,10 +387,8 @@ public enum KeychainAccessPreflight {
                 inspectionIncomplete = true
                 continue
             }
-            let validationResults = trustedApplications.flatMap { application in
-                currentPaths.map { currentPath in
-                    self.trustedApplication(application, validatesExecutableAt: currentPath)
-                }
+            let validationResults = trustedApplications.map { application in
+                self.trustedApplication(application, validatesExecutableAt: currentPath)
             }
             switch self.evaluateDecryptACL(
                 trustedApplicationValidationStatuses: validationResults,
@@ -421,8 +419,30 @@ public enum KeychainAccessPreflight {
         return self.validationMemo.validate(
             trustedApplication: self.trustedApplicationRepresentation(application), path: path)
         {
-            retainedApplication.validate(path: path, using: validate)
+            self.validateApplication(
+                at: path,
+                selfCheck: { retainedApplication.validateRunningCode() },
+                staticCheck: { retainedApplication.validate(path: path, using: validate) })
         }
+    }
+
+    static func validateApplication(
+        at path: String,
+        executableURL: URL? = KeychainCacheStore.runningExecutableURLForCacheAccess,
+        selfCheck: () -> OSStatus?,
+        staticCheck: () -> OSStatus?) -> OSStatus?
+    {
+        let candidate = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+        if let executable = executableURL?.standardizedFileURL.resolvingSymlinksInPath(),
+           candidate == executable ||
+           (candidate == KeychainCacheStore.appBundleURL(containing: executable) &&
+               Bundle(url: candidate)?.executableURL?.resolvingSymlinksInPath() == executable),
+           let status = selfCheck()
+        {
+            // Keep completed requirement mismatches in the legacy rejection vocabulary used by the memo.
+            return status == errSecCSReqFailed ? OSStatus(CSSMERR_CSP_VERIFY_FAILED) : status
+        }
+        return staticCheck()
     }
 
     private static func trustedApplicationRepresentation(_ application: SecTrustedApplication) -> Data? {
@@ -450,6 +470,9 @@ public enum KeychainAccessPreflight {
     private typealias SecTrustedApplicationValidateWithPathFunction = @convention(c) (
         SecTrustedApplication,
         UnsafePointer<CChar>) -> OSStatus
+    private typealias SecTrustedApplicationCopyRequirementFunction = @convention(c) (
+        SecTrustedApplication,
+        UnsafeMutablePointer<Unmanaged<SecRequirement>?>) -> OSStatus
     private typealias SecTrustedApplicationCopyExternalRepresentationFunction = @convention(c) (
         SecTrustedApplication,
         UnsafeMutablePointer<Unmanaged<CFData>?>) -> OSStatus
@@ -462,6 +485,23 @@ public enum KeychainAccessPreflight {
 
         init(_ application: SecTrustedApplication) {
             self.application = application
+        }
+
+        func validateRunningCode() -> OSStatus? {
+            guard let copy = KeychainAccessPreflight.securityFunction(
+                named: "SecTrustedApplicationCopyRequirement",
+                as: SecTrustedApplicationCopyRequirementFunction.self)
+            else { return nil }
+            var requirement: Unmanaged<SecRequirement>?
+            // Old ACLs without a signing requirement retain the static validation fallback.
+            guard copy(self.application, &requirement) == errSecSuccess,
+                  let requirement = requirement?.takeRetainedValue()
+            else { return nil }
+            var code: SecCode?
+            let status = SecCodeCopySelf([], &code)
+            guard status == errSecSuccess else { return status }
+            guard let code else { return errSecInternalComponent }
+            return SecCodeCheckValidity(code, [], requirement)
         }
 
         func validate(

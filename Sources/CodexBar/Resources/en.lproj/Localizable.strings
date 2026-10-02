@@ -501,6 +501,11 @@
 "session_depleted_notification_body" = "0% left. Will notify when it's available again.";
 "session_restored_notification_title" = "%@ session restored";
 "session_restored_notification_body" = "Session quota is available again.";
+"limit_reset_notifications_title" = "Reset notifications";
+"limit_reset_notifications_subtitle" = "Names the provider and window when a session or weekly limit resets.";
+"limit_reset_notification_title" = "%1$@ %2$@ limit reset";
+"limit_reset_notification_body" = "Fresh quota is available.";
+"limit_reset_notification_body_with_account" = "Account %@. Fresh quota is available.";
 "quota_warning_warn_at" = "Warn at";
 "quota_warning_global_threshold_subtitle" = "Remaining percentages for session and weekly windows unless a provider overrides them.";
 "quota_warning_sound" = "Play notification sound";

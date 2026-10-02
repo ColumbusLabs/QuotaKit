@@ -325,14 +325,15 @@ extension CodexBarCLI {
         interval: TimeInterval,
         stop: HooksWatchStopSignal,
         shouldContinue: (@Sendable () -> Bool)? = nil,
-        continuationCheckNanoseconds: UInt64 = hooksWatchConfigurationCheckNanoseconds) async -> Bool
+        continuationCheckNanoseconds: UInt64 = hooksWatchConfigurationCheckNanoseconds,
+        sleep: (UInt64) async throws -> Void = { try await Task.sleep(nanoseconds: $0) }) async -> Bool
     {
         var remainingNanoseconds = UInt64((max(0, interval) * 1_000_000_000).rounded())
         let checkInterval = max(1, continuationCheckNanoseconds)
         var remainingUntilCheck = checkInterval
         while remainingNanoseconds > 0, !stop.isRequested {
             let sleepNanoseconds = min(remainingNanoseconds, Self.hooksWatchSleepTickNanoseconds)
-            try? await Task.sleep(nanoseconds: sleepNanoseconds)
+            try? await sleep(sleepNanoseconds)
             remainingNanoseconds -= sleepNanoseconds
             if shouldContinue != nil {
                 if sleepNanoseconds >= remainingUntilCheck {
@@ -454,15 +455,11 @@ final class HooksWatchStopSignal: @unchecked Sendable {
     private var requested = false
 
     func request() {
-        self.lock.lock()
-        self.requested = true
-        self.lock.unlock()
+        self.lock.withLock { self.requested = true }
     }
 
     var isRequested: Bool {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.requested
+        self.lock.withLock { self.requested }
     }
 }
 

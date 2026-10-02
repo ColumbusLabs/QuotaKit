@@ -16,12 +16,13 @@ struct AntigravityProtoReader {
     }
 
     struct ParsedUsage: Equatable, Sendable {
-        var systemPrompt = 0
         var newInput = 0
         var cacheRead = 0
         var output = 0
         var reasoning = 0
         var responseID: String?
+        /// The model enum ID in usage field 1 is identity evidence, not a token count.
+        var modelID: Int?
         fileprivate var botIdentifier = AuxiliaryIdentifier()
 
         var botID: String? {
@@ -273,12 +274,12 @@ struct AntigravityProtoReader {
     {
         try self.fields(bytes, checkCancellation: checkCancellation) { field in
             switch field.number {
-            case 1: usage.systemPrompt = try field.counter()
+            case 1: usage.modelID = try field.counter()
             case 2: usage.newInput = try field.counter()
             case 5: usage.cacheRead = try field.counter()
             case 7: try usage.botIdentifier.read(field)
-            case 9: usage.output = try field.counter()
-            case 10: usage.reasoning = try field.counter()
+            case 9: usage.reasoning = try field.counter()
+            case 10: usage.output = try field.counter()
             case 11: usage.responseID = try field.string()
             default: break
             }

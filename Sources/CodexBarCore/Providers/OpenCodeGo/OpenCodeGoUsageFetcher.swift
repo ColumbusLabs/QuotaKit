@@ -675,199 +675,34 @@ extension OpenCodeGoUsageFetcher {
     }
 
     private static func parseSubscriptionJSON(text: String, now: Date) -> OpenCodeGoUsageSnapshot? {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: []),
-              let dict = object as? [String: Any]
-        else {
-            return nil
-        }
-
-        // The console reports micro-cent meters, which the generic window parser cannot key on.
-        if let snapshot = self.parseConsoleGoStatus(text: text, now: now) {
-            return snapshot
-        }
-
-        let renewsAt = self.dateValue(from: OpenCodeWebParsing.value(from: dict, keys: self.renewAtKeys))
-        if let snapshot = self.parseUsageDictionary(dict, now: now, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-        for key in ["data", "result", "usage", "billing", "payload"] {
-            if let nested = dict[key] as? [String: Any],
-               let snapshot = self.parseUsageDictionary(nested, now: now, inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-        if let snapshot = self.parseUsageNested(dict, now: now, depth: 0, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-        return self.parseUsageFromCandidates(object: object, now: now, inheritedRenewsAt: renewsAt)
+        self.parseConsoleGoStatus(text: text, now: now)
+            ?? OpenCodeSubscriptionParser(requiresWeeklyUsage: false).parseSubscriptionJSON(text: text, now: now)
     }
 
-    private static func parseUsageDictionary(
-        _ dict: [String: Any],
-        now: Date,
-        inheritedRenewsAt: Date?) -> OpenCodeGoUsageSnapshot?
-    {
-        let renewsAt = self
-            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
-        if let usage = dict["usage"] as? [String: Any],
-           let snapshot = self.parseUsageDictionary(usage, now: now, inheritedRenewsAt: renewsAt)
-        {
-            return snapshot
-        }
-
-        let rollingKeys = ["rollingUsage", "rolling", "rolling_usage", "rollingWindow", "rolling_window"]
-        let weeklyKeys = ["weeklyUsage", "weekly", "weekly_usage", "weeklyWindow", "weekly_window"]
-        let monthlyKeys = ["monthlyUsage", "monthly", "monthly_usage", "monthlyWindow", "monthly_window"]
-
-        let rolling = self.firstDict(from: dict, keys: rollingKeys)
-        let weekly = self.firstDict(from: dict, keys: weeklyKeys)
-        let monthly = self.firstDict(from: dict, keys: monthlyKeys)
-
-        guard let rolling else { return nil }
-
-        return self.buildSnapshot(rolling: rolling, weekly: weekly, monthly: monthly, now: now, renewsAt: renewsAt)
-    }
-
-    private static func parseUsageNested(
-        _ dict: [String: Any],
-        now: Date,
-        depth: Int,
-        inheritedRenewsAt: Date?) -> OpenCodeGoUsageSnapshot?
-    {
-        if depth > 3 { return nil }
-        let renewsAt = self
-            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
-        var rolling: [String: Any]?
-        var weekly: [String: Any]?
-        var monthly: [String: Any]?
-
-        for (key, value) in dict {
-            guard let sub = value as? [String: Any] else { continue }
-            let lower = key.lowercased()
-            if lower.contains("rolling") || lower.contains("hour") || lower.contains("5h") || lower.contains("5-hour") {
-                rolling = sub
-            } else if lower.contains("weekly") || lower.contains("week") {
-                weekly = sub
-            } else if lower.contains("monthly") || lower.contains("month") {
-                monthly = sub
-            }
-        }
-
-        if let rolling {
-            let snapshot = self.buildSnapshot(
-                rolling: rolling,
-                weekly: weekly,
-                monthly: monthly,
-                now: now,
-                renewsAt: renewsAt)
-            if let snapshot { return snapshot }
-        }
-
-        for value in dict.values {
-            if let sub = value as? [String: Any],
-               let snapshot = self.parseUsageNested(
-                   sub,
-                   now: now,
-                   depth: depth + 1,
-                   inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-
-        return nil
-    }
-
-    private static func parseUsageFromCandidates(
-        object: Any,
-        now: Date,
-        inheritedRenewsAt: Date? = nil) -> OpenCodeGoUsageSnapshot?
-    {
-        let candidates = OpenCodeWebParsing.collectWindowCandidates(object: object) { self.parseWindow($0, now: now) }
-        guard !candidates.isEmpty else { return nil }
-
-        let rollingCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("rolling") ||
-                candidate.pathLower.contains("hour") ||
-                candidate.pathLower.contains("5h") ||
-                candidate.pathLower.contains("5-hour")
-        }
-        let weeklyCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("weekly") ||
-                candidate.pathLower.contains("week")
-        }
-        let monthlyCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("monthly") ||
-                candidate.pathLower.contains("month")
-        }
-
-        let nonRollingIDs = Set((weeklyCandidates + monthlyCandidates).map(\.id))
-        let rolling = OpenCodeWebParsing.pickCandidate(
-            preferred: rollingCandidates,
-            fallback: candidates.filter { !nonRollingIDs.contains($0.id) },
-            pickShorter: true)
-        let weekly = OpenCodeWebParsing.pickCandidate(
-            from: weeklyCandidates.filter { candidate in
-                candidate.id != rolling?.id
-            },
-            pickShorter: false)
-        let monthly = OpenCodeWebParsing.pickCandidate(
-            from: monthlyCandidates.filter { candidate in
-                candidate.id != rolling?.id && candidate.id != weekly?.id
-            },
-            pickShorter: false)
-
-        guard let rolling else { return nil }
-
-        let renewsAt = self.dateValue(from: OpenCodeWebParsing.value(
-            from: object as? [String: Any] ?? [:],
-            keys: self.renewAtKeys))
-            ?? inheritedRenewsAt
-        return OpenCodeGoUsageSnapshot(
-            hasWeeklyUsage: weekly != nil,
-            hasMonthlyUsage: monthly != nil,
-            rollingUsagePercent: rolling.percent,
-            weeklyUsagePercent: weekly?.percent ?? 0,
-            monthlyUsagePercent: monthly?.percent ?? 0,
-            rollingResetInSec: rolling.resetInSec,
-            weeklyResetInSec: weekly?.resetInSec ?? 0,
-            monthlyResetInSec: monthly?.resetInSec ?? 0,
-            renewsAt: renewsAt,
-            updatedAt: now)
-    }
-
-    private static func firstDict(from dict: [String: Any], keys: [String]) -> [String: Any]? {
-        for key in keys {
-            if let value = dict[key] as? [String: Any] {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private enum DirectPercentEncoding {
+    enum DirectPercentEncoding {
         case percent
         case fractionOrPercent
     }
 
-    private static func buildSnapshot(
+    static func buildSnapshot(
         rolling: [String: Any],
         weekly: [String: Any]?,
         monthly: [String: Any]?,
         now: Date,
         renewsAt: Date? = nil,
-        directPercentEncoding: DirectPercentEncoding = .fractionOrPercent) -> OpenCodeGoUsageSnapshot?
+        directPercentEncoding: DirectPercentEncoding = .fractionOrPercent,
+        usesBaseFields: Bool = false) -> OpenCodeGoUsageSnapshot?
     {
-        guard let rollingWindow = self.parseWindow(rolling, now: now, directPercentEncoding: directPercentEncoding)
+        guard let rollingWindow = self.parseWindow(
+            rolling, now: now, directPercentEncoding: directPercentEncoding, usesBaseFields: usesBaseFields)
         else {
             return nil
         }
 
         let weeklyWindow: (percent: Double, resetInSec: Int)?
         if let weekly {
-            guard let parsed = self.parseWindow(weekly, now: now, directPercentEncoding: directPercentEncoding)
+            guard let parsed = self.parseWindow(
+                weekly, now: now, directPercentEncoding: directPercentEncoding, usesBaseFields: usesBaseFields)
             else { return nil }
             weeklyWindow = parsed
         } else {
@@ -890,10 +725,11 @@ extension OpenCodeGoUsageFetcher {
             updatedAt: now)
     }
 
-    private static func parseWindow(
+    static func parseWindow(
         _ dict: [String: Any],
         now: Date,
-        directPercentEncoding: DirectPercentEncoding = .fractionOrPercent) -> (percent: Double, resetInSec: Int)?
+        directPercentEncoding: DirectPercentEncoding = .fractionOrPercent,
+        usesBaseFields: Bool = false) -> (percent: Double, resetInSec: Int)?
     {
         var percent: Double?
 
@@ -907,8 +743,10 @@ extension OpenCodeGoUsageFetcher {
         let percentIsDirect = percent != nil
 
         if percent == nil {
-            let usedKeys = ["used", "usage", "consumed", "count", "usedTokens", "usedMicroCents"]
-            let limitKeys = ["limit", "total", "quota", "max", "cap", "tokenLimit", "limitMicroCents"]
+            let usedKeys = ["used", "usage", "consumed", "count", "usedTokens"] +
+                (usesBaseFields ? [] : ["usedMicroCents"])
+            let limitKeys = ["limit", "total", "quota", "max", "cap", "tokenLimit"] +
+                (usesBaseFields ? [] : ["limitMicroCents"])
             var used: Double?
             for key in usedKeys {
                 if let value = self.doubleValue(from: dict[key]) {
@@ -1120,25 +958,6 @@ extension OpenCodeGoUsageFetcher {
     }
 
     private static func dateValue(from value: Any?) -> Date? {
-        guard let value else { return nil }
-        if let number = self.doubleValue(from: value) {
-            if number > 1_000_000_000_000 {
-                return Date(timeIntervalSince1970: number / 1000)
-            }
-            if number > 1_000_000_000 {
-                return Date(timeIntervalSince1970: number)
-            }
-        }
-        if let string = value as? String {
-            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return self.dateValue(from: number)
-            }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let parsed = formatter.date(from: string) {
-                return parsed
-            }
-        }
-        return nil
+        OpenCodeWebParsing.dateValue(from: value)
     }
 }

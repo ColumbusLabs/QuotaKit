@@ -9,6 +9,23 @@ import CSQLite3
 // MARK: - Retention
 
 extension CostUsageStore {
+    /// Full-ledger publication needs accounting coverage as well as scan completion.
+    /// Scoped day/window publication separately proves disjoint ranges in the scanner.
+    static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer) throws -> Bool {
+        try scalarInt(database, """
+        SELECT EXISTS (
+            SELECT 1 FROM (
+                SELECT \(effectiveCodexForkedFromIDSQL) AS forked_from_id,
+                       \(effectiveCodexForkDependencySQL) AS dependency_key
+                FROM files f LEFT JOIN fork_lineage l ON l.file_id = f.id
+            )
+            WHERE forked_from_id IS NOT NULL
+              AND (dependency_key IS NULL OR substr(dependency_key, 1, 8) = 'missing|'
+                   OR instr(dependency_key, '|inherited|missing|') > 0)
+        )
+        """) != 0
+    }
+
     @discardableResult
     func retainDayWindow(
         sinceDay: String,
@@ -180,21 +197,36 @@ extension CostUsageStore {
     {
         // Fork parents stay protected only while a surviving child still needs the parent's
         // baseline; lineage-only children (dependency key "not required") never resolve
-        // inherited totals, so they do not keep a stale parent alive.
+        // inherited totals, so they do not keep a stale parent alive. A replacement can change
+        // the parent before its ledger commits, so protect both generations until completion.
+        // Materialize staged ancestry once; keep the committed-parent index lookup per candidate.
         let statement = try self.prepare(database, """
+        WITH staged_fork_parents AS MATERIALIZED (
+            SELECT id AS file_id,
+                   json_extract(scan_state, '$.replacementForkLineage.forkedFromID') AS parent_id
+            FROM files
+            WHERE json_extract(scan_state, '$.replacementScanPending') = 1
+              AND json_extract(scan_state, '$.replacementForkLineage.forkedFromID') IS NOT NULL
+              AND (json_extract(scan_state, '$.replacementForkLineage.dependencyKey') IS NULL
+                   OR json_extract(scan_state, '$.replacementForkLineage.dependencyKey') != ?4)
+        )
         SELECT f.path, f.session_id, f.mtime_ms
         FROM files f
         WHERE f.scan_complete = 1
           AND f.coverage_since_day IS NOT NULL
           AND f.coverage_until_day IS NOT NULL
-          AND (f.coverage_until_day < ? OR f.coverage_since_day > ?)
+          AND (f.coverage_until_day < ?1 OR f.coverage_since_day > ?2)
           AND NOT EXISTS (SELECT 1 FROM buffered_lines b WHERE b.file_id = f.id)
           AND (
               f.session_id IS NULL OR NOT EXISTS (
                   SELECT 1 FROM fork_lineage l
                   WHERE l.forked_from_id = f.session_id AND l.file_id != f.id
-                    AND (l.dependency_key IS NULL OR l.dependency_key != ?)
+                    AND (l.dependency_key IS NULL OR l.dependency_key != ?3)
               )
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM staged_fork_parents s
+              WHERE s.parent_id = f.session_id AND s.file_id != f.id
           )
         ORDER BY f.updated_at_ms, f.path
         """)
@@ -202,6 +234,7 @@ extension CostUsageStore {
         self.bind(sinceDay, to: statement, at: 1)
         self.bind(untilDay, to: statement, at: 2)
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 3)
+        self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 4)
         var values: [RetentionCandidate] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -311,7 +344,9 @@ extension CostUsageStore {
                         untilDay: untilDay,
                         calendar: calendar)
                     if pruned.deletedFiles > 0 {
-                        try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                        #if DEBUG
+                        try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                        #endif
                     }
                 }
 
@@ -326,7 +361,9 @@ extension CostUsageStore {
                         untilDay: untilDay,
                         calendar: calendar,
                         protectRequestedWindow: true) else { break }
-                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    #if DEBUG
+                    try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                    #endif
                     catchUpRequired = true
                 }
                 var fileBytes = try Self.logicalFileBytes(database)
@@ -338,7 +375,9 @@ extension CostUsageStore {
                         calendar: calendar,
                         protectRequestedWindow: true)
                     else { break }
-                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    #if DEBUG
+                    try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                    #endif
                     catchUpRequired = true
                     fileBytes = try Self.logicalFileBytes(database)
                 }
@@ -356,7 +395,8 @@ extension CostUsageStore {
                     }
                     try Self.markCatchUpRequired(database)
                 } else if let metadata,
-                          !metadata.catchUpPending
+                          !metadata.catchUpPending,
+                          try !Self.hasUnresolvedCodexForkBaseline(database)
                 {
                     // Publish the complete normalized view only after pruning/budget checks
                     // succeed. A pending pass must leave the prior verified ledger untouched.
@@ -448,6 +488,15 @@ extension CostUsageStore {
         protectRequestedWindow: Bool) throws -> Bool
     {
         let statement = try self.prepare(database, """
+        WITH staged_fork_parents AS MATERIALIZED (
+            SELECT id AS file_id,
+                   json_extract(scan_state, '$.replacementForkLineage.forkedFromID') AS parent_id
+            FROM files
+            WHERE json_extract(scan_state, '$.replacementScanPending') = 1
+              AND json_extract(scan_state, '$.replacementForkLineage.forkedFromID') IS NOT NULL
+              AND (json_extract(scan_state, '$.replacementForkLineage.dependencyKey') IS NULL
+                   OR json_extract(scan_state, '$.replacementForkLineage.dependencyKey') != ?2)
+        )
         SELECT f.id, f.path, f.mtime_ms, f.coverage_since_day, f.coverage_until_day
         FROM files f
         WHERE f.scan_complete = 1
@@ -457,12 +506,17 @@ extension CostUsageStore {
               JOIN fork_lineage parent ON parent.session_id = child.forked_from_id
               WHERE parent.file_id = f.id
                 AND child.file_id != f.id
-                AND (child.dependency_key IS NULL OR child.dependency_key != ?)
+                AND (child.dependency_key IS NULL OR child.dependency_key != ?1)
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM staged_fork_parents s
+              WHERE s.parent_id = f.session_id AND s.file_id != f.id
           )
         ORDER BY f.updated_at_ms, f.id
         """)
         defer { sqlite3_finalize(statement) }
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 1)
+        self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 2)
         let activeWindow = self.activeWindowMs(sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {

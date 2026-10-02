@@ -402,10 +402,19 @@ public struct CostUsageFetcher: Sendable {
     }
 
     private static func codexHistoryCoverageIsEstablished(
-        options: CostUsageScanner.Options) -> Bool
+        options: CostUsageScanner.Options,
+        range: CostUsageScanner.CostUsageDayRange) -> Bool
     {
-        let status = self.codexScanCatchUpStatus(options: options)
+        let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
+        let view = CostUsageStoreAccess.readView(
+            cacheRoot: options.cacheRoot,
+            calendar: options.calendar,
+            purpose: .status)
+        let status = view.catchUpStatus(
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            rootsFingerprint: rootsFingerprint)
         return !status.pending && status.progressKey != "scope-mismatch"
+            && view.historyCoverageIsEstablished(range: range, rootsFingerprint: rootsFingerprint)
     }
 
     private static let establishedEmptyCodexDailyReport = CostUsageDailyReport(data: [], summary: nil)
@@ -419,9 +428,8 @@ public struct CostUsageFetcher: Sendable {
               cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
               cache.roots == rootsFingerprint,
               cache.codexScanCatchUpPending != true,
-              !cache.files.values.contains(where: {
-                  $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-              }),
+              !cache.files.values.contains(where: \.hasPendingCodexScanWork),
+              !CostUsageScanner.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range),
               !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
         else { return false }
         return true
@@ -438,12 +446,11 @@ public struct CostUsageFetcher: Sendable {
               projection.verifiedTimeZoneIdentifier == range.calendar.timeZone.identifier,
               projection.verifiedRootPaths == rootsFingerprint.keys.sorted(),
               let since = projection.verifiedScanSinceKey,
-              let until = projection.verifiedScanUntilKey
+              let until = projection.verifiedScanUntilKey,
+              !CostUsageScanner.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range)
         else { return false }
         if projection.verifiedDayAggregates.isEmpty {
-            guard !cache.files.values.contains(where: {
-                $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-            }) else { return false }
+            guard !cache.files.values.contains(where: \.hasPendingCodexScanWork) else { return false }
             guard let updatedAt = projection.verifiedUpdatedAtUnixMs, updatedAt > 0 else {
                 return false
             }
@@ -1038,7 +1045,7 @@ public struct CostUsageFetcher: Sendable {
                 sessions: sessions,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
                 historyCoverageIsEstablished: provider != .codex
-                    || (Self.codexHistoryCoverageIsEstablished(options: scanOptions)
+                    || (Self.codexHistoryCoverageIsEstablished(options: scanOptions, range: historyRange)
                         && (!options.includePiSessions || nativeTemporalIsComplete)),
                 historySinceDayKey: historyRange.sinceKey,
                 historyUntilDayKey: historyRange.untilKey)

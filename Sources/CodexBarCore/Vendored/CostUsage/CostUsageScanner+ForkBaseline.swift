@@ -84,11 +84,12 @@ extension CostUsageScanner {
     {
         guard let parentSessionId else { return nil }
         guard dependsOnParentTotals else { return Self.codexForkDependencyNotRequiredKey }
-        guard hasResolvedForkBaseline else { return nil }
-
-        // A nil key means the parent changed while its snapshots were read (or no stable
-        // snapshot was resolved). Preserve nil so the child cannot be reused on the next scan.
-        return inheritedResolver.dependencyKeyUsed(for: parentSessionId)
+        let dependencyKey = inheritedResolver.dependencyKeyUsed(for: parentSessionId)
+        // Exhausted discovery is stable dependency evidence even though no accounting
+        // baseline exists. Deferred discovery and changing parents still retain nil.
+        guard hasResolvedForkBaseline || dependencyKey.map(Self.codexDependencyIsMissing) == true
+        else { return nil }
+        return dependencyKey
     }
 
     static func mergingCodexTokenSnapshots(

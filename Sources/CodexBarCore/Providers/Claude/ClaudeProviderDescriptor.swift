@@ -17,7 +17,7 @@ public enum ClaudeProviderDescriptor {
         probeWorkingDirectory: { ClaudeStatusProbe.preparedProbeWorkingDirectoryURL() })
     private static let cli = ProviderCLIConfig(
         name: "claude",
-        binaryLocator: { BinaryLocator.resolveClaudeBinary() },
+        binaryLocator: { environment in BinaryLocator.resolveClaudeBinary(env: environment) },
         versionDetector: { browserDetection in
             ClaudeUsageFetcher(browserDetection: browserDetection).detectVersion()
         },
@@ -230,18 +230,21 @@ public enum ClaudeProviderDescriptor {
         context: ProviderMenuBarWindowContext) -> ProviderMenuBarWindowResolution
     {
         guard context.metric == .automatic || context.metric == .primaryAndSecondary,
-              let cost = context.snapshot.providerCost,
-              cost.limit > 0,
-              context.snapshot.secondary == nil,
-              context.snapshot.tertiary == nil,
-              context.snapshot.primary == nil || context.snapshot.primary?.isSyntheticPlaceholder == true
+              context.snapshot.primary?.measured == nil,
+              context.snapshot.secondary?.measured == nil,
+              context.snapshot.tertiary?.measured == nil
         else { return .unhandled }
-        let usedPercent = max(0, min(100, (cost.used / cost.limit) * 100))
-        return .resolved(RateWindow(
-            usedPercent: usedPercent,
-            windowMinutes: nil,
-            resetsAt: cost.resetsAt,
-            resetDescription: nil))
+        let window = context.snapshot.claudeScopedWeeklyWindow?.window
+            ?? context.snapshot.providerCost.flatMap { cost -> RateWindow? in
+                guard cost.limit > 0 else { return nil }
+                let usedPercent = max(0, min(100, (cost.used / cost.limit) * 100))
+                return RateWindow(
+                    usedPercent: usedPercent,
+                    windowMinutes: nil,
+                    resetsAt: cost.resetsAt,
+                    resetDescription: nil)
+            }
+        return .resolved(window)
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {

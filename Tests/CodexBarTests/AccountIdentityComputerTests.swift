@@ -200,7 +200,7 @@ struct AccountIdentityComputerTests {
             .alibaba, .factory, .minimax, .kimi, .augment, .jetbrains,
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
-            .fireworks, .ibmbob, .huggingface,
+            .fireworks, .ibmbob, .huggingface, .museai,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

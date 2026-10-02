@@ -541,6 +541,11 @@
 "session_depleted_notification_body" = "0% over. Zal op de hoogte stellen wanneer het weer beschikbaar is.";
 "session_restored_notification_title" = "%@ sessie hersteld";
 "session_restored_notification_body" = "Sessiequota zijn weer beschikbaar.";
+"limit_reset_notifications_title" = "Resetmeldingen";
+"limit_reset_notifications_subtitle" = "Meldt welke provider en welk venster zijn gereset wanneer een sessie- of weeklimiet wordt gereset.";
+"limit_reset_notification_title" = "%1$@ %2$@ limiet gereset";
+"limit_reset_notification_body" = "Er is weer nieuw quotum beschikbaar.";
+"limit_reset_notification_body_with_account" = "Account %@. Er is weer nieuw quotum beschikbaar.";
 "quota_warning_warn_at" = "Waarschuw bij";
 "quota_warning_global_threshold_subtitle" = "Resterende percentages voor sessie- en wekelijkse vensters, tenzij een provider deze overschrijft.";
 "quota_warning_sound" = "Meldingsgeluid afspelen";

@@ -547,6 +547,11 @@
 "session_depleted_notification_body" = "剩餘 0%。恢復可用時會再通知。";
 "session_restored_notification_title" = "%@ 工作階段已恢復";
 "session_restored_notification_body" = "工作階段配額已恢復可用。";
+"limit_reset_notifications_title" = "配額重設通知";
+"limit_reset_notifications_subtitle" = "工作階段或每週配額重設時，通知是哪個提供者的哪項配額。";
+"limit_reset_notification_title" = "%1$@ %2$@配額已重設";
+"limit_reset_notification_body" = "新配額已可用。";
+"limit_reset_notification_body_with_account" = "帳號 %@。新配額已可用。";
 "quota_warning_warn_at" = "提醒門檻";
 "quota_warning_global_threshold_subtitle" = "工作階段和每週時段的剩餘百分比，除非提供者另有設定。";
 "quota_warning_sound" = "播放通知音效";

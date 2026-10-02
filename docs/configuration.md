@@ -25,6 +25,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 - `~/.quotakit/config.json` is copied to the QuotaKit default path when the preferred file is absent.
 - The directory is created if missing.
 - Writes on macOS and Linux create a `0600` file inside a private `0700` staging directory beside the destination before writing any bytes, then sync and atomically replace the destination. Failed writes preserve the previous file and remove staging.
+- App and CLI writers coordinate through a persistent, empty `config.json.lock` beside the config. Saved-account CLI token refresh compares the saved credential and publishes its replacement under this advisory lock, skipping a busy lock or a credential changed by another writer. Older versions and external editors do not participate.
 
 Empty files and files containing only JSON whitespace (spaces, tabs, CR or LF)
 are treated as absent. Reads leave their bytes unchanged; a settings/config save
@@ -316,7 +317,11 @@ QuotaKit has two separate CloudKit paths in the private database of
 
 The three Mac fleet sub-options are unavailable while Mac fleet sync is off, iCloud is unavailable, or a newer QuotaKit version is required. Turning sync off retains their saved choices for when it is enabled again.
 
-The **Macs** list offers **Remove** for other devices, including stale duplicates left after a reinstall. Removal deletes that device record and its cached usage snapshots from iCloud; it leaves shared settings, credentials, and this Mac intact. Sync must be enabled and available. Failed removals remain visible and report a sync error. A Mac still running QuotaKit with sync enabled can publish its records again.
+The **Macs** list offers **Remove** for other devices, including stale duplicates left after a reinstall. Removal deletes that device record and its cached usage snapshots from iCloud; it leaves shared settings, credentials, and this Mac intact. Sync must be enabled and available. Failed removals remain visible and report a sync error. A Mac still running QuotaKit with sync enabled can publish its records again. If its previous record was deleted, the next save drops the stale server version and retries with a fresh record. A second missing-record response surfaces an error instead of looping.
+
+Automatic reception requires the macOS Push Notifications entitlement in the signed app. Sync registers for silent remote notifications only when both CloudKit and a valid push environment are available; CKSyncEngine manages the database subscription. Launch, foreground, and periodic fetches remain available without push. This source integration does not change release entitlements or provisioning profiles.
+
+Fetched records, removed-record recovery, settings, and their sync bookkeeping apply through one synchronous boundary. Cancellation, stopping sync, schema pause, or a superseding batch prevents a suspended older apply from overwriting current settings or fleet records.
 
 Never synced by the Mac fleet feature, by design: `hooks` (sync payloads structurally cannot create or modify hook rules — they execute local binaries), machine-local paths (`claudeSwapExecutablePath`, `codexProfileHomePaths`, `awsProfile`/`awsAuthMode`, `source`, `codexActiveSource`, `cookieSource`), menu-bar layout/geometry, debug settings, usage history, and cost ledgers. A provider is never auto-enabled on a Mac where its required local CLI is missing. Records carry a schema version; older app versions pause sync instead of rewriting newer payloads. The CLI does not talk to CloudKit — the app applies remote changes to `config.json` and watches the file, so CLI edits reload into the running app. (CLI/hand edits currently apply locally only; pushing them to other Macs is a known follow-up.) Only changes made while Mac fleet sync is enabled push to the fleet: the app tracks per-provider dirty state and never re-uploads unchanged state at launch.
 
@@ -370,7 +375,7 @@ and notification windows; sound, on-screen alerts and threshold markers; pace vi
 and tick appearance; usage/reset display; local cost display, comparisons and summary style; privacy,
 blink/confetti effects, highest-usage selection, optional credits/extra usage, changelog links, currency
 and alphabetical provider sorting. JSON keys match the `SyncedPreferences` fields. It additionally includes
-`mergeIcons`, `mergeIconsStacked`, `switcherShowsIcons`, `mergedOverviewLayout`,
+`limitResetNotificationsEnabled`, `mergeIcons`, `mergeIconsStacked`, `switcherShowsIcons`, `mergedOverviewLayout`,
 `mergedOverviewSelectedProviders`, and `switcherShortcuts`. An overview selection is applied intentionally
 to the receiving Mac's active providers, including an empty selection. `weeklyProgressWorkDays: null`
 restores the seven-day default. Missing keys leave the receiving Mac's settings unchanged. Unknown preference keys,
@@ -378,7 +383,7 @@ unsupported versions, invalid types and invalid shortcut mappings are rejected b
 
 Credentials, accounts, hooks, launch at login, global hotkeys, local paths, device identity, iCloud switches,
 debug settings, and consent are excluded. Import does not enable activity-scan consent. Only the existing
-iCloud projection syncs onward; the additional menu settings and switcher shortcuts stay local unless
+iCloud projection syncs onward; reset notification preferences, the additional menu settings, and switcher shortcuts stay local unless
 explicitly exported and imported. Import does not modify `config.json` or iCloud's remote-update suppression.
 
 ### Provider switcher shortcuts

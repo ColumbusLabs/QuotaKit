@@ -526,6 +526,11 @@
 "session_depleted_notification_body" = "0% kaldı. Tekrar kullanılabilir olduğunda bildirilecek.";
 "session_restored_notification_title" = "%@ oturumu geri yüklendi";
 "session_restored_notification_body" = "Oturum kotası tekrar kullanılabilir.";
+"limit_reset_notifications_title" = "Sıfırlama bildirimleri";
+"limit_reset_notifications_subtitle" = "Bir oturum veya haftalık limit sıfırlandığında hangi sağlayıcı ve pencere olduğunu bildirir.";
+"limit_reset_notification_title" = "%1$@ %2$@ limiti sıfırlandı";
+"limit_reset_notification_body" = "Yeni kota kullanılabilir.";
+"limit_reset_notification_body_with_account" = "Hesap %@. Yeni kota kullanılabilir.";
 "quota_warning_warn_at" = "Uyarı eşikleri";
 "quota_warning_global_threshold_subtitle" = "Bir sağlayıcı kendi değerini belirlemedikçe oturum ve haftalık pencereler için kalan kota yüzdesi eşiklerini belirler.";
 "quota_warning_sound" = "Bildirim sesi çal";

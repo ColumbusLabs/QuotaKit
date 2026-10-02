@@ -46,7 +46,9 @@ extension CostUsageStore {
         }) else { return .unavailable }
         guard !unloadedPaths.isEmpty else { return .loaded([:]) }
         #if DEBUG
-        if Self.codexTokenSnapshotHydrationFailureForTesting?(self.databaseURL, unloadedPaths) == true {
+        if CostUsageStoreTestHooks.current
+            .codexTokenSnapshotHydrationFailure?(self.databaseURL, unloadedPaths) == true
+        {
             return .unavailable
         }
         #endif
@@ -295,7 +297,7 @@ extension CostUsageStore {
 
     func readSnapshot(loadTokenSnapshots: Bool = true) -> CostUsageStoreSnapshot {
         #if DEBUG
-        Self.snapshotReadForTesting?(self.databaseURL)
+        CostUsageStoreTestHooks.current.snapshotRead?(self.databaseURL)
         #endif
         return self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
@@ -319,7 +321,7 @@ extension CostUsageStore {
         self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
             #if DEBUG
-            Self.snapshotReadForTesting?(self.databaseURL)
+            CostUsageStoreTestHooks.current.snapshotRead?(self.databaseURL)
             #endif
             let read = try Self.inReadTransaction(database) { () -> (
                 snapshot: CostUsageStoreSnapshot,
@@ -660,6 +662,22 @@ extension CostUsageStore {
     FROM files
     """
 
+    /// These expressions expect files aliased as f and committed fork_lineage as l.
+    /// Object presence distinguishes a staged nil dependency from a legacy state without an overlay.
+    static let effectiveCodexForkedFromIDSQL = """
+    CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1
+              AND json_type(f.scan_state, '$.replacementForkLineage') = 'object'
+         THEN json_extract(f.scan_state, '$.replacementForkLineage.forkedFromID')
+         ELSE l.forked_from_id END
+    """
+
+    static let effectiveCodexForkDependencySQL = """
+    CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1
+              AND json_type(f.scan_state, '$.replacementForkLineage') = 'object'
+         THEN json_extract(f.scan_state, '$.replacementForkLineage.dependencyKey')
+         ELSE l.dependency_key END
+    """
+
     private static func readCodexCatchUpFiles(
         _ database: OpaquePointer) throws -> [CostUsageStoreCatchUpFile]
     {
@@ -670,7 +688,7 @@ extension CostUsageStore {
                CASE WHEN f.scan_complete = 0 THEN f.scan_state ELSE NULL END,
                f.scan_complete,
                CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1 THEN 1 ELSE 0 END,
-               l.forked_from_id, l.dependency_key,
+               \(Self.effectiveCodexForkedFromIDSQL), \(Self.effectiveCodexForkDependencySQL),
                EXISTS (
                    SELECT 1 FROM buffered_lines b
                    WHERE b.file_id = f.id AND b.kind = 'subagent'
@@ -841,8 +859,8 @@ extension CostUsageStore {
         storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
         #if DEBUG
-        CostUsageStore.tokenSnapshotsReadForTesting?(storeURL)
-        CostUsageStore.tokenSnapshotPathReadForTesting?(storeURL, path)
+        CostUsageStoreTestHooks.current.tokenSnapshotsRead?(storeURL)
+        CostUsageStoreTestHooks.current.tokenSnapshotPathRead?(storeURL, path)
         #endif
         var sql = """
         SELECT f.path, t.event_index, t.timestamp, t.timestamp_ms, t.day,
@@ -950,7 +968,7 @@ extension CostUsageStore {
             rowCountsByPath[row.path, default: 0] += 1
             let decoded = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: row.payload)
             #if DEBUG
-            CostUsageStore.codexStreamedUsageRowForTesting?(
+            CostUsageStoreTestHooks.current.codexStreamedUsageRow?(
                 row.path,
                 row.rowIndex,
                 row.payload.count,

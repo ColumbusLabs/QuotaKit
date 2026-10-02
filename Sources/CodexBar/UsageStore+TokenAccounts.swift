@@ -1413,7 +1413,7 @@ extension UsageStore {
                 provider: .codex,
                 snapshot: snapshot,
                 accountDiscriminator: codexOwnerKey?.rawValue)
-            self.handleSessionQuotaTransition(
+            let sessionRestored = self.handleSessionQuotaTransition(
                 provider: .codex,
                 snapshot: snapshot,
                 codexOwnerKey: codexOwnerKey)
@@ -1433,7 +1433,8 @@ extension UsageStore {
                 provider: .codex,
                 snapshot: snapshot,
                 codexLimitResetOwnerKey: limitResetOwnerKey,
-                codexSuppressesWeeklyResetCelebration: suppressesWeeklyResetCelebration)
+                codexSuppressesWeeklyResetCelebration: suppressesWeeklyResetCelebration,
+                sessionRestoredNotificationPending: sessionRestored)
             guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
             self.emitUsageUpdatedHook(
                 provider: .codex,
@@ -1505,9 +1506,9 @@ extension UsageStore {
                 } else {
                     current
                 }
-            let backfilled = await MainActor.run {
+            let publication = await MainActor.run { () -> (snapshot: UsageSnapshot, sessionRestored: Bool)? in
                 guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else {
-                    return nil as UsageSnapshot?
+                    return nil
                 }
                 let profileStable =
                     provider == .deepseek
@@ -1526,7 +1527,7 @@ extension UsageStore {
                     provider: provider,
                     snapshot: backfilled,
                     accountDiscriminator: warningAccountDiscriminator)
-                self.handleSessionQuotaTransition(
+                let sessionRestored = self.handleSessionQuotaTransition(
                     provider: provider,
                     snapshot: backfilled,
                     accountDiscriminatorOverride: warningAccountDiscriminator)
@@ -1545,13 +1546,15 @@ extension UsageStore {
                 self.errors[provider.instanceID] = nil
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
                 self.failureGates[provider.instanceID]?.recordSuccess()
-                return backfilled
+                return (backfilled, sessionRestored)
             }
-            guard let backfilled else { return }
+            guard let publication else { return }
+            let backfilled = publication.snapshot
             await self.recordPlanUtilizationHistorySample(
                 provider: provider,
                 snapshot: backfilled,
-                account: account)
+                account: account,
+                sessionRestoredNotificationPending: publication.sessionRestored)
             guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
             if let account,
                self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id

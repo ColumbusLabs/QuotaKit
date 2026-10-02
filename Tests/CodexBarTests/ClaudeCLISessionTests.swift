@@ -4,6 +4,51 @@ import Testing
 
 struct ClaudeCLISessionTests {
     @Test
+    func `workspace trust is accepted only in probe directory and only on the yes option`() {
+        let defaultSelected = """
+        Quick safety check:
+
+        ❯ No, exit
+          Yes, I trust this folder
+        """
+        let yesSelected = """
+        Quick safety check:
+
+          No, exit
+        ❯ Yes, I trust this folder
+        """
+
+        #expect(ClaudeCLISession.workspaceTrustKeys(onScreen: defaultSelected, acceptsTrust: false) == "\u{1b}")
+        #expect(ClaudeCLISession.workspaceTrustKeys(onScreen: defaultSelected, acceptsTrust: true) == "\u{1b}[B")
+        #expect(ClaudeCLISession.workspaceTrustKeys(onScreen: yesSelected, acceptsTrust: true) == "\r")
+        #expect(ClaudeCLISession.workspaceTrustKeys(
+            onScreen: "Do you trust the files in this folder?",
+            acceptsTrust: true) == "y\r")
+        #expect(ClaudeCLISession.workspaceTrustKeys(
+            onScreen: "Ready to code here?",
+            acceptsTrust: false) == "\u{1b}")
+    }
+
+    @Test
+    func `only the dedicated non symlink probe directory is trusted`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-dedicated-probe-\(UUID().uuidString)", isDirectory: true)
+        let directory = root.appendingPathComponent("ClaudeProbe", isDirectory: true)
+        let redirected = root.appendingPathComponent("redirected", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: redirected, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try ClaudeStatusProbe.$dedicatedProbeDirectoryOverrideForTesting.withValue(directory) {
+            #expect(ClaudeStatusProbe.isDedicatedProbeWorkingDirectory(directory))
+            #expect(!ClaudeStatusProbe.isDedicatedProbeWorkingDirectory(redirected))
+            try FileManager.default.removeItem(at: directory)
+            try FileManager.default.createSymbolicLink(at: directory, withDestinationURL: redirected)
+            #expect(!ClaudeStatusProbe.isDedicatedProbeWorkingDirectory(directory))
+        }
+    }
+
+    @Test
     func `Claude session reuse requires explicit request and account scoped ownership`() {
         #expect(!ClaudeStatusProbe.shouldKeepCLISessionAlive(requested: false))
         #expect(ClaudeStatusProbe.shouldKeepCLISessionAlive(requested: true))

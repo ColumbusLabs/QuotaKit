@@ -86,7 +86,8 @@
     "llmman",
     "nous",
     "muse",
-    "pi"
+    "pi",
+    "museai"
   ],
   "order": [
     "codex",
@@ -175,7 +176,8 @@
     "llmman",
     "nous",
     "muse",
-    "pi"
+    "pi",
+    "museai"
   ],
   "providers": [
     {
