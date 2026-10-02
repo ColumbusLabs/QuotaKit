@@ -958,25 +958,6 @@ extension OpenCodeGoUsageFetcher {
     }
 
     private static func dateValue(from value: Any?) -> Date? {
-        guard let value else { return nil }
-        if let number = self.doubleValue(from: value) {
-            if number > 1_000_000_000_000 {
-                return Date(timeIntervalSince1970: number / 1000)
-            }
-            if number > 1_000_000_000 {
-                return Date(timeIntervalSince1970: number)
-            }
-        }
-        if let string = value as? String {
-            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return self.dateValue(from: number)
-            }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let parsed = formatter.date(from: string) {
-                return parsed
-            }
-        }
-        return nil
+        OpenCodeWebParsing.dateValue(from: value)
     }
 }

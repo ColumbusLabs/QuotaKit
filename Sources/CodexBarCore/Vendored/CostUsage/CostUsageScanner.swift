@@ -2574,28 +2574,7 @@ enum CostUsageScanner {
               cache.roots == Self.codexRootsFingerprint(roots)
         else { return false }
 
-        func directoryMatchesInventory(_ path: String) -> Bool {
-            let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
-            let metadata = Self.codexFileMetadata(fileURL: directoryURL)
-            guard let enumerator = FileManager.default.enumerator(
-                at: directoryURL,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants, .skipsSubdirectoryDescendants]),
-                let stamp = discovery.directoryStamps[path]
-            else { return false }
-            var jsonlFileCount = 0
-            for case let item as URL in enumerator where item.pathExtension.lowercased() == "jsonl" {
-                jsonlFileCount += 1
-            }
-            return metadata.mtimeUnixMs == stamp.mtimeUnixMs
-                && jsonlFileCount == stamp.jsonlFileCount
-        }
-        let hasCompleteDirectoryInventory = discovery.nextDirectoryIndex == discovery.directoryPaths.count
-            && discovery.directoryPaths.count == discovery.directoryStamps.count
-            && discovery.directoryPaths.allSatisfy { discovery.directoryStamps[$0] != nil }
-        if hasCompleteDirectoryInventory {
-            guard discovery.directoryPaths.allSatisfy(directoryMatchesInventory) else { return false }
-        }
+        guard Self.codexDirectoryInventoryIsCurrent(discovery) else { return false }
 
         let directlyDiscovered = roots.flatMap {
             self.listCodexSessionFiles(
@@ -2744,6 +2723,32 @@ enum CostUsageScanner {
             usage.codexSession?.latestAcceptedUsageUnixMs,
         ].compactMap(\.self)
         return timestamps.contains { $0 >= dayStartMs && $0 < dayEndMs }
+    }
+
+    private static func codexDirectoryInventoryIsCurrent(
+        _ discovery: CostUsageCodexSessionDiscovery) -> Bool
+    {
+        let hasCompleteDirectoryInventory = discovery.nextDirectoryIndex == discovery.directoryPaths.count
+            && discovery.directoryPaths.count == discovery.directoryStamps.count
+            && discovery.directoryPaths.allSatisfy { discovery.directoryStamps[$0] != nil }
+        guard hasCompleteDirectoryInventory else { return true }
+
+        return discovery.directoryPaths.allSatisfy { path in
+            let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
+            let metadata = Self.codexFileMetadata(fileURL: directoryURL)
+            guard let enumerator = FileManager.default.enumerator(
+                at: directoryURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants, .skipsSubdirectoryDescendants]),
+                let stamp = discovery.directoryStamps[path]
+            else { return false }
+            var jsonlFileCount = 0
+            for case let item as URL in enumerator where item.pathExtension.lowercased() == "jsonl" {
+                jsonlFileCount += 1
+            }
+            return metadata.mtimeUnixMs == stamp.mtimeUnixMs
+                && jsonlFileCount == stamp.jsonlFileCount
+        }
     }
 
     /// Proves that one requested report window is safe to publish while a separate, wider
