@@ -3027,6 +3027,17 @@ extension CostUsageStoreTests {
         for file in [committed, replacement, child, unrelated] {
             #expect(await store.upsertFile(file))
         }
+        // Normal cache persistence stores structural lineage for root sessions as well.
+        for parent in [committed, replacement] {
+            #expect(await store.upsertForkLineage(CostUsageStoreForkLineage(
+                path: parent.path,
+                sessionID: parent.sessionID,
+                forkedFromID: nil,
+                forkTimestamp: nil,
+                dependencyKey: nil,
+                subagentState: nil,
+                accountingState: nil)))
+        }
         var lineage = Self.lineage(path: child.path)
         lineage.forkedFromID = "committed-parent"
         #expect(await store.upsertForkLineage(lineage))
