@@ -7,8 +7,10 @@ import SQLite3
 import CSQLite3
 #endif
 
-enum AntigravityLocalReaderTests {
+struct AntigravityLocalReaderTests {
     private typealias Fixture = AntigravityLocalFixture
+
+    init() {}
 }
 
 extension AntigravityLocalReaderTests {

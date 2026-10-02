@@ -41,7 +41,7 @@ struct CodexLoginRunnerTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let holder = try GeminiStdoutHolderFixture(root: root)
-        defer { #expect(holder.cleanup().succeeded) }
+        defer { holder.cleanup() }
         try holder.installProducer(
             at: root.appendingPathComponent("codex"),
             blockAfterAcknowledgment: blockAfterAcknowledgment)

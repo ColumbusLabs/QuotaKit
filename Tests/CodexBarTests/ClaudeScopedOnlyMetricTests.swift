@@ -50,7 +50,7 @@ struct ClaudeScopedOnlyMetricTests {
             now: Self.now)
         #expect(selected == weekly)
 
-        let placeholderOnly = UsageSnapshot(primary: placeholder, updatedAt: Self.now)
+        let placeholderOnly = UsageSnapshot(primary: placeholder, secondary: nil, updatedAt: Self.now)
         #expect(MenuBarMetricWindowResolver.rateWindow(
             preference: .primary,
             provider: .claude,
@@ -121,7 +121,6 @@ struct ClaudeScopedOnlyMetricTests {
         automatic: RateWindow?) -> MenuBarLayoutRenderData
     {
         MenuBarLayoutRenderData(
-            provider: .claude,
             iconKey: "synthetic-claude-scoped",
             providerName: "Claude",
             accountLabel: nil,
@@ -129,6 +128,9 @@ struct ClaudeScopedOnlyMetricTests {
             primary: nil,
             secondary: nil,
             tertiary: nil,
+            provider: .claude,
+            extraRateWindows: MenuBarLayoutNamedExtra.windows(provider: .claude, snapshot: snapshot)
+                .map(MenuBarLayoutRenderExtra.init),
             session: nil,
             weekly: nil,
             scopedWeekly: MenuBarLayoutRenderWindow(scoped?.window),

@@ -579,6 +579,7 @@ struct LimitResetNotificationTests {
                 windowMinutes: 300,
                 resetsAt: self.start.addingTimeInterval(5 * 60 * 60),
                 resetDescription: nil),
+            secondary: nil,
             updatedAt: self.start.addingTimeInterval(offset))
     }
 
