@@ -172,7 +172,7 @@ struct QuotaProviderListTests {
         //  - IBM Bob and GitKraken AI occupy positions [60...61].
         //  - v0 is appended at position [62].
         //  - Hugging Face is appended at position [63].
-        let tail = providers.dropLast(6).suffix(26).map(\.id)
+        let tail = providers.dropLast(7).suffix(26).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api", "zenmux",
@@ -185,7 +185,7 @@ struct QuotaProviderListTests {
     func `Existing notification provider IDs and order are preserved before v0`() {
         let prefix = Array(QuotaProviderList.providers.prefix(Self.providerIDsBeforeV0.count)).map(\.id)
         #expect(prefix == Self.providerIDsBeforeV0)
-        #expect(QuotaProviderList.providers.dropLast(8).suffix(3).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(9).suffix(3).map(\.id) == [
             "gitkraken", "v0", "huggingface",
         ])
     }
@@ -197,7 +197,7 @@ struct QuotaProviderListTests {
         // to. Adding idle CloudKit zones would change this catalog without an event source.
         #expect(!QuotaProviderList.providers.contains { $0.id == "coderabbit" })
         #expect(QuotaProviderList.providers.suffix(3).map(\.id) == ["nous", "muse", "museai"])
-        #expect(QuotaProviderList.providers.dropLast(3).suffix(5).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(4).suffix(5).map(\.id) == [
             "bifrost", "devpass", "aixy", "xkiro", "raycast",
         ])
     }
@@ -323,7 +323,7 @@ struct QuotaProviderListTests {
 
     @Test
     func `GitKraken notification IDs and newer additions preserve the prior zone name`() {
-        #expect(QuotaProviderList.providers.dropLast(6).suffix(6).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(7).suffix(6).map(\.id) == [
             "ibmbob", "gitkraken", "v0", "huggingface", "bifrost", "devpass",
         ])
         #expect(QuotaProviderList.quotaZoneName(

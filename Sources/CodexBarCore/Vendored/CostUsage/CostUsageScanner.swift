@@ -2705,13 +2705,11 @@ enum CostUsageScanner {
 
         for (path, usage) in cache.files {
             let fileURL = URL(fileURLWithPath: path)
-            let sessionTimestamps = [
-                usage.codexSession?.startedAtUnixMs,
-                usage.codexSession?.latestActivityUnixMs,
-                usage.codexSession?.latestAcceptedUsageUnixMs,
-            ].compactMap(\.self)
             let canAffectDay = fileCanAffectDay(fileURL, cached: usage)
-                || sessionTimestamps.contains { $0 >= dayStartMs && $0 < dayEndMs }
+                || Self.codexSessionActivityTouchesDay(
+                    usage,
+                    dayStartMs: dayStartMs,
+                    dayEndMs: dayEndMs)
                 || directlyDiscoveredPathKeys.contains(Self.codexPathKey(fileURL))
             guard canAffectDay else { continue }
             guard matchesPersistedSnapshot(fileURL: fileURL, usage: usage) else {
@@ -2733,6 +2731,19 @@ enum CostUsageScanner {
             }
         }
         return true
+    }
+
+    private static func codexSessionActivityTouchesDay(
+        _ usage: CostUsageFileUsage,
+        dayStartMs: Int64,
+        dayEndMs: Int64) -> Bool
+    {
+        let timestamps = [
+            usage.codexSession?.startedAtUnixMs,
+            usage.codexSession?.latestActivityUnixMs,
+            usage.codexSession?.latestAcceptedUsageUnixMs,
+        ].compactMap(\.self)
+        return timestamps.contains { $0 >= dayStartMs && $0 < dayEndMs }
     }
 
     /// Proves that one requested report window is safe to publish while a separate, wider

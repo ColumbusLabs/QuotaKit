@@ -9,9 +9,9 @@ struct CLIHooksWatchSleepLinuxTests {
         let stop = HooksWatchStopSignal()
         stop.request()
 
-        await CodexBarCLI.sleepInterruptibly(interval: 30, stop: stop) { _ in
+        _ = await CodexBarCLI.sleepInterruptibly(interval: 30, stop: stop, sleep: { _ in
             Issue.record("An already requested stop must not sleep")
-        }
+        })
     }
 
     @Test
@@ -20,10 +20,10 @@ struct CLIHooksWatchSleepLinuxTests {
         // requested ticks so a single full-interval sleep cannot satisfy this test.
         let stop = HooksWatchStopSignal()
         var ticks: [UInt64] = []
-        await CodexBarCLI.sleepInterruptibly(interval: 10, stop: stop) { nanoseconds in
+        _ = await CodexBarCLI.sleepInterruptibly(interval: 10, stop: stop, sleep: { nanoseconds in
             ticks.append(nanoseconds)
             stop.request()
-        }
+        })
 
         #expect(ticks == [200_000_000])
     }
@@ -32,9 +32,9 @@ struct CLIHooksWatchSleepLinuxTests {
     func `unsignaled sleep requests the full interval in bounded ticks`(interval: TimeInterval) async {
         let stop = HooksWatchStopSignal()
         var ticks: [UInt64] = []
-        await CodexBarCLI.sleepInterruptibly(interval: interval, stop: stop) { nanoseconds in
+        _ = await CodexBarCLI.sleepInterruptibly(interval: interval, stop: stop, sleep: { nanoseconds in
             ticks.append(nanoseconds)
-        }
+        })
 
         let expected = UInt64((max(0, interval) * 1_000_000_000).rounded())
         #expect(ticks.reduce(0, +) == expected)

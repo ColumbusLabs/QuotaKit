@@ -56,6 +56,8 @@ struct LimitResetNotificationTests {
             self.transitions.append((transition: transition, provider: provider))
         }
 
+        // This spy must implement the protocol's required warning-write signature exactly.
+        // swiftlint:disable:next function_parameter_count
         func writeQuotaWarning(
             provider _: UsageProvider,
             window _: QuotaWarningWindow,

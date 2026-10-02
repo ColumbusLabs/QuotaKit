@@ -7,9 +7,11 @@ import SQLite3
 import CSQLite3
 #endif
 
-struct AntigravityLocalReaderTests {
+enum AntigravityLocalReaderTests {
     private typealias Fixture = AntigravityLocalFixture
+}
 
+extension AntigravityLocalReaderTests {
     @Test
     func `literal synthetic schema example has independently calculated counts and time`() async throws {
         // Handwritten bytes, not a round-trip through the fixture encoder.
@@ -544,7 +546,9 @@ struct AntigravityLocalReaderTests {
         #expect(!snapshot.historyCoverageIsEstablished)
         #expect(snapshot.last30DaysTokens == nil)
     }
+}
 
+extension AntigravityLocalReaderTests {
     @Test
     func `field 2 root envelope with step table timestamps aggregates complete coverage`() async throws {
         let fixture = try Fixture()

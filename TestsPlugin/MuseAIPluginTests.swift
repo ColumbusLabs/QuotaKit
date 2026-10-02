@@ -232,9 +232,12 @@ struct MuseAIPluginTests {
             observe(log.entries, (saved?["values"] as? [String: String])?["actionID"])
             try? FileManager.default.removeItem(at: storage)
         }
-        let runtime = try BundledPluginTestSupport.runtime(
-            "museai",
-            engine: engine,
+        let bundle = try #require(CodexBarCoreResources.bundle)
+        let pluginURL = try #require(bundle.url(forResource: "museai", withExtension: "js"))
+        let source = try String(contentsOf: pluginURL, encoding: .utf8)
+        let runtime = try ProviderPluginRuntime(
+            source: source,
+            resourceBundle: bundle,
             transport: ProviderHTTPTransportHandler { request in
                 let path = request.url?.path ?? ""
                 let actionHeader = request.value(forHTTPHeaderField: "Next-Action")
@@ -259,6 +262,7 @@ struct MuseAIPluginTests {
                     url: request.url!, statusCode: status, httpVersion: nil, headerFields: headers)!
                 return (Data(body.utf8), response)
             },
+            engine: engine,
             storageDirectory: storage)
         let sessions = cookies.map { ProviderPluginCookieSession(
             header: $0,

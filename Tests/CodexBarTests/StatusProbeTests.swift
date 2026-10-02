@@ -319,28 +319,6 @@ struct StatusProbeTests {
     }
 
     @Test
-    func `parse claude status ignores arbitrary insights percentages`() throws {
-        let sample = """
-        Current session
-        10% used
-        Current week (all models)
-        20% used
-        Current week (Sonnet only)
-        30% used
-
-        What's contributing to your limits usage?
-        My helper tool 99% used
-        Current session 98% used
-        Current week (all models) 97% used
-        """
-
-        let snap = try ClaudeStatusProbe.parse(text: sample)
-        #expect(snap.sessionPercentLeft == 90)
-        #expect(snap.weeklyPercentLeft == 80)
-        #expect(snap.opusPercentLeft == 70)
-    }
-
-    @Test
     func `parse claude status loading panel surfaces loading stall`() {
         let sample = """
         Claude Code v2.1.29
@@ -886,6 +864,30 @@ struct StatusProbeTests {
             print("Parsed probes => 5h \(five)% weekly \(week)% credits \(credits)")
             throw error
         }
+    }
+}
+
+extension StatusProbeTests {
+    @Test
+    func `parse claude status ignores arbitrary insights percentages`() throws {
+        let sample = """
+        Current session
+        10% used
+        Current week (all models)
+        20% used
+        Current week (Sonnet only)
+        30% used
+
+        What's contributing to your limits usage?
+        My helper tool 99% used
+        Current session 98% used
+        Current week (all models) 97% used
+        """
+
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 90)
+        #expect(snap.weeklyPercentLeft == 80)
+        #expect(snap.opusPercentLeft == 70)
     }
 }
 

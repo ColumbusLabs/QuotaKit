@@ -14,6 +14,17 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
+    private static let providerIDsBeforeV0 = [
+        "codex", "claude", "cursor", "opencode", "opencodego", "alibaba", "factory", "gemini",
+        "antigravity", "copilot", "zai", "perplexity", "minimax", "kimi", "kilo", "kiro",
+        "vertexai", "augment", "jetbrains", "kimik2", "amp", "ollama", "synthetic", "warp",
+        "openrouter", "abacus", "mistral", "openai", "manus", "windsurf", "mimo", "doubao",
+        "deepseek", "codebuff", "venice", "commandcode", "stepfun", "moonshot", "bedrock",
+        "grok", "groq", "elevenlabs", "deepgram", "llmproxy", "azureopenai", "alibabatokenplan", "t3chat",
+        "sakana", "qoder", "sub2api", "zenmux", "clinepass", "longcat", "neuralwatt", "deepinfra",
+        "qwencloud", "zoommate", "xai", "notion", "ibmbob",
+    ]
+
     @Test
     func `Provider list has expected count (72 with MuseAI)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
@@ -86,6 +97,16 @@ struct QuotaProviderListTests {
     func `No duplicate provider IDs`() {
         let ids = QuotaProviderList.providers.map(\.id)
         #expect(ids.count == Set(ids).count)
+    }
+
+    @Test
+    func `Historical provider prefix and newer additions stay append-only`() {
+        let ids = QuotaProviderList.providers.map(\.id)
+        #expect(Array(ids.prefix(Self.providerIDsBeforeV0.count)) == Self.providerIDsBeforeV0)
+        #expect(Array(ids.dropFirst(Self.providerIDsBeforeV0.count)) == [
+            "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
+            "xkiro", "raycast", "helmcode", "nous", "muse", "museai",
+        ])
     }
 
     @Test

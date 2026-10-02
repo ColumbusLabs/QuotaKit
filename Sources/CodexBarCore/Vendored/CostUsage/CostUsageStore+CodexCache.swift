@@ -648,14 +648,21 @@ extension CostUsageStore {
             requestedUntilDay: budgetProtectionWindow.untilKey,
             calendar: calendar,
             previousReportPayload: compactPreviousReport.flatMap { try? JSONEncoder().encode($0) })
-        if result.catchUpRequired, self.fetchMetadata().previousReportPayload == nil,
-           let previous = compactPreviousReport
-        {
-            var metadata = self.fetchMetadata()
-            metadata.previousReportPayload = try? JSONEncoder().encode(previous)
-            _ = self.setMetadata(metadata)
-        }
+        self.preservePreviousReportOnCatchUp(result, previousReport: compactPreviousReport)
         return result
+    }
+
+    private func preservePreviousReportOnCatchUp(
+        _ result: CostUsageStoreBudgetResult,
+        previousReport: CostUsageCodexPreviousReport?)
+    {
+        guard result.catchUpRequired,
+              self.fetchMetadata().previousReportPayload == nil,
+              let previousReport
+        else { return }
+        var metadata = self.fetchMetadata()
+        metadata.previousReportPayload = try? JSONEncoder().encode(previousReport)
+        _ = self.setMetadata(metadata)
     }
 
     private func deleteConfirmedAbsentHistoryRetryFiles(

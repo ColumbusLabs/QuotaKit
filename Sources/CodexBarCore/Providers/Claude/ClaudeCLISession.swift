@@ -132,6 +132,49 @@ actor ClaudeCLISession {
         }
     }
 
+    private func sendWorkspaceTrustResponseIfNeeded(
+        onScreen screen: String,
+        normalizedScreen: String,
+        lastTrustScreen: inout String?,
+        trustKeysLeft: inout Int)
+    {
+        guard let trustKeys = Self.workspaceTrustKeys(
+            onScreen: screen,
+            acceptsTrust: self.launchedInProbeDirectory),
+            trustKeysLeft > 0,
+            normalizedScreen != lastTrustScreen
+        else { return }
+
+        try? self.send(trustKeys)
+        lastTrustScreen = normalizedScreen
+        if trustKeys == "\u{1b}" {
+            trustKeysLeft = 0
+        } else {
+            trustKeysLeft -= 1
+        }
+    }
+
+    private func sendPendingPromptResponses(
+        normalizedScan: String,
+        sendNeedles: [(needle: String, keys: String)],
+        triggeredSends: inout Set<String>)
+    {
+        for item in sendNeedles where !triggeredSends.contains(item.needle) {
+            if normalizedScan.contains(item.needle) {
+                try? self.send(item.keys)
+                triggeredSends.insert(item.needle)
+            }
+        }
+    }
+
+    private static func shouldStopCapturing(
+        normalizedScan: String,
+        stopNeedles: [String],
+        stopWhenNormalized: (@Sendable (String) -> Bool)?) -> Bool
+    {
+        stopNeedles.contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+    }
+
     private static func isWorkspaceTrustPromptVisible(onScreen screen: String) -> Bool {
         let normalized = Self.normalizedNeedle(screen)
         return normalized.contains("quicksafetycheck:")
@@ -304,31 +347,22 @@ actor ClaudeCLISession {
                 }
 
                 if trustPending {
-                    if let trustKeys = Self.workspaceTrustKeys(
+                    self.sendWorkspaceTrustResponseIfNeeded(
                         onScreen: screen,
-                        acceptsTrust: self.launchedInProbeDirectory),
-                        trustKeysLeft > 0,
-                        normalizedScreen != lastTrustScreen
-                    {
-                        try? self.send(trustKeys)
-                        lastTrustScreen = normalizedScreen
-                        if trustKeys == "\u{1b}" {
-                            trustKeysLeft = 0
-                        } else {
-                            trustKeysLeft -= 1
-                        }
-                    }
+                        normalizedScreen: normalizedScreen,
+                        lastTrustScreen: &lastTrustScreen,
+                        trustKeysLeft: &trustKeysLeft)
                 } else {
                     lastTrustScreen = nil
-                    for item in sendNeedles where !triggeredSends.contains(item.needle) {
-                        if normalizedScan.contains(item.needle) {
-                            try? self.send(item.keys)
-                            triggeredSends.insert(item.needle)
-                        }
-                    }
+                    self.sendPendingPromptResponses(
+                        normalizedScan: normalizedScan,
+                        sendNeedles: sendNeedles,
+                        triggeredSends: &triggeredSends)
 
-                    if stopNeedles
-                        .contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+                    if Self.shouldStopCapturing(
+                        normalizedScan: normalizedScan,
+                        stopNeedles: stopNeedles,
+                        stopWhenNormalized: stopWhenNormalized)
                     {
                         stoppedEarly = true
                         break
