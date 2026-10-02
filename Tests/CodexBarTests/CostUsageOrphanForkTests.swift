@@ -255,20 +255,7 @@ struct CostUsageOrphanForkTests {
         scanUntilSettled()
 
         if useWorkingSet, byteBudget == 512 {
-            // A nested child can lead a persisted queue. Its immediate parent still needs the
-            // restored ancestor, whose detail history must survive compact-only dependency scans.
-            var reordered = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
-            let roots = try #require(reordered.roots).keys.sorted()
-            let reversePaths = ["fork-d", "fork-c", "fork-b"].compactMap { sessionID in
-                reordered.files.first { $0.value.sessionId == sessionID }?.key
-            }
-            reordered.codexActiveLookbackState = try CostUsageCodexActiveLookbackState(
-                scanSinceKey: #require(reordered.scanSinceKey),
-                rootPaths: roots,
-                completedRootPaths: roots,
-                pendingFilePaths: reversePaths)
-            reordered.codexScanCatchUpPending = true
-            CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: reordered, calendar: calendar)
+            try Self.prioritizeNestedFork(cacheRoot: env.cacheRoot, calendar: calendar)
         }
 
         try """
@@ -290,5 +277,22 @@ struct CostUsageOrphanForkTests {
             let usage = try #require(recovered.files.values.first { $0.sessionId == id })
             #expect(usage.codexRows?.reduce(0) { $0 + $1.input } == 40)
         }
+    }
+
+    private static func prioritizeNestedFork(cacheRoot: URL, calendar: Calendar) throws {
+        // A nested child can lead a persisted queue. Its immediate parent still needs the
+        // restored ancestor, whose detail history must survive compact-only dependency scans.
+        var reordered = CostUsageStoreAccess.read(cacheRoot: cacheRoot, calendar: calendar)
+        let roots = try #require(reordered.roots).keys.sorted()
+        let reversePaths = ["fork-d", "fork-c", "fork-b"].compactMap { sessionID in
+            reordered.files.first { $0.value.sessionId == sessionID }?.key
+        }
+        reordered.codexActiveLookbackState = try CostUsageCodexActiveLookbackState(
+            scanSinceKey: #require(reordered.scanSinceKey),
+            rootPaths: roots,
+            completedRootPaths: roots,
+            pendingFilePaths: reversePaths)
+        reordered.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(cacheRoot: cacheRoot, cache: reordered, calendar: calendar)
     }
 }
