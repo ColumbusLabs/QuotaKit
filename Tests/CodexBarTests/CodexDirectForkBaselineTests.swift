@@ -96,7 +96,8 @@ struct CodexDirectForkBaselineTests {
             if case .resolved = try cachedResolver.inheritedTotals(
                 for: "parent", atOrBefore: env.isoString(for: day.addingTimeInterval(4)))
             {
-                let currentKey = try #require(cachedResolver.currentDependencyKey(for: "parent"))
+                let currentDependencyKey = try cachedResolver.currentDependencyKey(for: "parent")
+                let currentKey = try #require(currentDependencyKey)
                 #expect(cachedResolver.dependencyKeyUsed(for: "parent") == currentKey)
                 #expect(currentKey.contains("|inherited|file|root|"))
                 // Reparsing repairs the inconsistent independence sentinel. The repaired

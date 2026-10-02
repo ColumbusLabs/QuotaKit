@@ -313,7 +313,7 @@ struct AntigravityLocalIntegrityTests {
     }
 
     @Test
-    func `schema entry column and byte limits reject before payload reads while schema bytes reset per database`() throws {
+    func `schema limits reject before payload reads and byte budgets reset per database`() throws {
         let fixture = try Fixture()
         let url = try fixture.database()
         let database = try Fixture.open(url)
