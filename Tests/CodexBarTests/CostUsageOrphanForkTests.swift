@@ -169,13 +169,19 @@ struct CostUsageOrphanForkTests {
         options.calendar = calendar
         options.maxCodexScanBytesPerRefresh = byteBudget
         var clock = now
-        func scanUntilSettled() {
+        func scanUntilSettled(verifyRestoredParentHistory: Bool = false) {
             for _ in 0..<32 {
                 clock.addTimeInterval(1)
                 _ = CostUsageScanner.loadDailyReport(
                     provider: .codex, since: old, until: now, now: clock, options: options)
-                if CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
-                    .codexScanCatchUpPending == false { return }
+                let observed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+                if verifyRestoredParentHistory,
+                   let restoredParent = observed.files.values.first(where: { $0.sessionId == "missing-a" }),
+                   restoredParent.codexScanComplete == true
+                {
+                    #expect(restoredParent.codexTokenSnapshots?.count == 1)
+                }
+                if observed.codexScanCatchUpPending == false { return }
             }
         }
         scanUntilSettled()
@@ -248,6 +254,23 @@ struct CostUsageOrphanForkTests {
         options.maxCodexScanBytesPerRefresh = byteBudget
         scanUntilSettled()
 
+        if useWorkingSet, byteBudget == 512 {
+            // A nested child can lead a persisted queue. Its immediate parent still needs the
+            // restored ancestor, whose detail history must survive compact-only dependency scans.
+            var reordered = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+            let roots = try #require(reordered.roots).keys.sorted()
+            let reversePaths = ["fork-d", "fork-c", "fork-b"].compactMap { sessionID in
+                reordered.files.first { $0.value.sessionId == sessionID }?.key
+            }
+            reordered.codexActiveLookbackState = try CostUsageCodexActiveLookbackState(
+                scanSinceKey: #require(reordered.scanSinceKey),
+                rootPaths: roots,
+                completedRootPaths: roots,
+                pendingFilePaths: reversePaths)
+            reordered.codexScanCatchUpPending = true
+            CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: reordered, calendar: calendar)
+        }
+
         try """
         {"type":"session_meta","payload":{"id":"missing-a","timestamp":"\(parentDay)T03:59:58Z"}}
         {"type":"turn_context","payload":{"model":"gpt-5.4"}}
@@ -258,7 +281,7 @@ struct CostUsageOrphanForkTests {
             to: env.codexArchivedSessionsRoot.appendingPathComponent("rollout-\(parentDay)-missing-a.jsonl"),
             atomically: true,
             encoding: .utf8)
-        scanUntilSettled()
+        scanUntilSettled(verifyRestoredParentHistory: true)
         let recovered = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
         #expect(recovered.codexScanCatchUpPending == false)
         #expect(recovered.files.count == 5)

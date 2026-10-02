@@ -8561,7 +8561,8 @@ enum CostUsageScanner {
                 filesScheduledForRefresh,
                 context: scanContext,
                 cache: &cache,
-                inheritedResolver: inheritedResolver)
+                inheritedResolver: inheritedResolver,
+                hydratedPaths: options.useCodexCatchUpWorkingSet ? hydratedCodexPaths : nil)
             let currentDayKey = CostUsageDayRange.dayKey(from: now, calendar: range.calendar)
             var metadataRefreshCandidates: [URL]
             if options.useCodexCatchUpWorkingSet {
@@ -8647,7 +8648,8 @@ enum CostUsageScanner {
                         immediateCandidates,
                         context: metadataScanContext,
                         cache: &cache,
-                        inheritedResolver: inheritedResolver)
+                        inheritedResolver: inheritedResolver,
+                        hydratedPaths: hydratedCodexPaths.union(immediatePaths).union(scanResult.scannedPaths))
                     scanResult = scanResult.merging(immediateResult)
                     let scannedPathKeys = Set(immediateResult.processedPaths.map {
                         Self.codexPathKey(URL(fileURLWithPath: $0))
@@ -8718,6 +8720,12 @@ enum CostUsageScanner {
                         state: &retainedLookbackState)
                 }
                 finalizedLookbackState = retainedLookbackState
+            }
+            if !scanResult.deferredParentPaths.isEmpty {
+                var dependencyLookbackState = finalizedLookbackState ?? activeLookbackState
+                Self.reseedCodexActiveLookbackPathKeys(
+                    scanResult.deferredParentPaths.sorted(), state: &dependencyLookbackState)
+                finalizedLookbackState = dependencyLookbackState
             }
             cache.codexActiveLookbackState = finalizedLookbackState
             if scanBudget.resumedPartialFileCount > 0
@@ -9119,6 +9127,7 @@ enum CostUsageScanner {
         let scannedPaths: Set<String>
         let attemptedPaths: Set<String>
         let processedPaths: Set<String>
+        let deferredParentPaths: Set<String>
         let deferredCachePaths: Set<String>
         let historyHydrationRetries: [String: CodexHistoryHydrationRetry]
         let completedHistoryRetryTargets: Set<String>
@@ -9133,6 +9142,7 @@ enum CostUsageScanner {
                 scannedPaths: self.scannedPaths.union(scannedPaths),
                 attemptedPaths: self.attemptedPaths.union(attemptedPaths),
                 processedPaths: self.processedPaths.union(processedPaths),
+                deferredParentPaths: self.deferredParentPaths,
                 deferredCachePaths: self.deferredCachePaths,
                 historyHydrationRetries: self.historyHydrationRetries,
                 completedHistoryRetryTargets: self.completedHistoryRetryTargets,
@@ -9153,6 +9163,7 @@ enum CostUsageScanner {
                 scannedPaths: self.scannedPaths.union(other.scannedPaths),
                 attemptedPaths: self.attemptedPaths.union(other.attemptedPaths),
                 processedPaths: self.processedPaths.union(other.processedPaths),
+                deferredParentPaths: self.deferredParentPaths.union(other.deferredParentPaths),
                 deferredCachePaths: self.deferredCachePaths.union(other.deferredCachePaths),
                 historyHydrationRetries: retries,
                 completedHistoryRetryTargets: self.completedHistoryRetryTargets
@@ -9166,7 +9177,8 @@ enum CostUsageScanner {
         _ files: [URL],
         context: CodexFileScanContext,
         cache: inout CostUsageCache,
-        inheritedResolver: CodexInheritedTotalsResolver) throws -> CodexFileScanResult
+        inheritedResolver: CodexInheritedTotalsResolver,
+        hydratedPaths: Set<String>? = nil) throws -> CodexFileScanResult
     {
         var scanState = CodexScanState()
         var bufferedForkRetries: [URL] = []
@@ -9174,6 +9186,7 @@ enum CostUsageScanner {
         var scannedPaths: Set<String> = []
         var attemptedPaths: Set<String> = []
         var processedPaths: Set<String> = []
+        var deferredParentPaths: Set<String> = []
         for fileURL in files {
             if context.scanBudget?.shouldStopBeforeNextFile() == true {
                 break
@@ -9207,6 +9220,19 @@ enum CostUsageScanner {
             }
             guard !pendingParents.isEmpty else { break }
             for fileURL in pendingParents {
+                let parentPath = Self.codexResolvedPath(fileURL)
+                let parentIsCached = cache.files.index(forKey: parentPath) != nil
+                    || cache.files.index(forKey: fileURL.path) != nil
+                    || cache.files.index(forKey: fileURL.standardizedFileURL.path) != nil
+                // A compact working-set entry is inventory, not hydrated history. Treating it
+                // as a fresh scanned parent would persist nil detail rows over its stored ledger.
+                // Admit it through the durable queue on the next bounded refresh instead.
+                if let hydratedPaths, parentIsCached,
+                   !hydratedPaths.contains(parentPath), !scannedPaths.contains(fileURL.path)
+                {
+                    deferredParentPaths.insert(parentPath)
+                    continue
+                }
                 if context.scanBudget?.shouldStopBeforeNextFile() == true {
                     break dependencyScan
                 }
@@ -9220,6 +9246,8 @@ enum CostUsageScanner {
                     state: &dependencyState)
                 if case .processed = outcome {
                     processedPaths.insert(fileURL.path)
+                } else if hydratedPaths != nil {
+                    deferredParentPaths.insert(parentPath)
                 }
                 let usage = cache.files[fileURL.path]
                 inheritedResolver.updateCachedUsage(fileURL: fileURL, usage: usage)
@@ -9273,9 +9301,10 @@ enum CostUsageScanner {
             scannedPaths: scannedPaths,
             attemptedPaths: attemptedPaths,
             processedPaths: processedPaths,
+            deferredParentPaths: deferredParentPaths,
             deferredCachePaths: allStates.reduce(into: Set<String>()) {
                 $0.formUnion($1.deferredCachePaths)
-            },
+            }.union(deferredParentPaths),
             historyHydrationRetries: historyRetries,
             completedHistoryRetryTargets: allStates.reduce(into: Set<String>()) {
                 $0.formUnion($1.completedHistoryRetryTargets)
