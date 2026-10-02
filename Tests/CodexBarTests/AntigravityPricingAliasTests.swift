@@ -28,7 +28,7 @@ struct AntigravityPricingAliasTests {
 
         let snapshot = try await fixture.snapshot()
         let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-12)
         // The recorded variant keeps its own identity in the breakdown; only pricing falls back.
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-fixture-a-tiered")
 

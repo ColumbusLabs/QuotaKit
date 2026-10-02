@@ -1720,8 +1720,9 @@ extension CostUsagePerformanceGateTests {
         let coldDiscovery = try #require(coldCache.codexSessionDiscovery)
         #expect(coldCounter.value >= 250)
         #expect(coldChild.days.isEmpty)
-        // An unresolved fork has no reusable parent baseline until the missing file appears.
-        #expect(coldChild.forkBaselineDependencyKey == nil)
+        // Retain missing ancestry for invalidation without publishing a reusable baseline.
+        #expect(coldChild.forkBaselineDependencyKey.map(CostUsageScanner.codexDependencyIsMissing) == true)
+        #expect(coldChild.hasBufferedCodexForkRetryLines)
         #expect(coldDiscovery.missingSessionIds.contains("late-parent"))
 
         let warmCounter = HeadParseCounter()

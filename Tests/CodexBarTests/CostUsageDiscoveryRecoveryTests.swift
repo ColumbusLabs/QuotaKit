@@ -82,7 +82,7 @@ struct CostUsageDiscoveryRecoveryTests {
         #expect(repaired.pendingSessionIds.isEmpty)
         #expect(repaired.filePathBySessionId["parent-first"] == nil)
         #expect(repaired.filePathBySessionId["parent-second"] == nil)
-        #expect(cache.codexScanCatchUpPending == keepSibling)
+        #expect(cache.codexScanCatchUpPending == false)
         if !keepSibling {
             #expect(cache.codexScanInventoryPaths == [control.path])
         }
@@ -94,6 +94,9 @@ struct CostUsageDiscoveryRecoveryTests {
             let unresolved = try #require(cache.files[sibling.path])
             #expect(unresolved.days.isEmpty)
             #expect(unresolved.hasBufferedCodexForkRetryLines)
+            #expect(unresolved.hasSettledMissingCodexFork)
+            let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+            #expect(CostUsageScanner.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range))
             _ = try Self.writeSession(env: env, day: day, sessionID: "late-parent")
             options.maxCodexScanBytesPerRefresh = 0
             let resolved = CostUsageScanner.loadDailyReport(

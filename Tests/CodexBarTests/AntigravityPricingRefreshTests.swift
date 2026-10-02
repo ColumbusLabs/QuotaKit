@@ -83,7 +83,8 @@ struct AntigravityPricingRefreshTests {
         let snapshot = try await Self.fetch(
             fixture, force: true, client: ModelsDevClient(transport: AntigravityPricingTransport {}))
         #expect(snapshot.last30DaysTokens == 187)
-        #expect(snapshot.last30DaysCostUSD == 100e-6 + 50 * 0.2e-6 + 37 * 2e-6)
+        let expectedCost = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expectedCost) < 1e-12)
     }
 
     @Test

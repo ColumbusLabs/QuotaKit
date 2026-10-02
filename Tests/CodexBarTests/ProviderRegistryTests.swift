@@ -172,6 +172,8 @@ struct ProviderRegistryTests {
         expectColor(.grok, red: 26 / 255, green: 26 / 255, blue: 26 / 255)
         expectColor(.commandcode, red: 140 / 255, green: 78 / 255, blue: 221 / 255)
         expectColor(.opencodego, red: 52 / 255, green: 211 / 255, blue: 153 / 255)
+        #expect(MuseProviderDescriptor.descriptor.branding.color.hexString == "#0668E1")
+        #expect(MuseAIProviderDescriptor.descriptor.branding.color.hexString == "#0668E1")
     }
 
     @Test
@@ -225,6 +227,8 @@ struct ProviderRegistryTests {
             [.minimax, .amp],
             [.perplexity, .sub2api],
             [.abacus, .commandcode],
+            // Meta Muse and Muse Code intentionally share the Muse blue brand color.
+            [.muse, .museai],
         ]
 
         for leftIndex in descriptors.indices {

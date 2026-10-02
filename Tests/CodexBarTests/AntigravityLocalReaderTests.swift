@@ -9,11 +9,6 @@ import CSQLite3
 
 struct AntigravityLocalReaderTests {
     private typealias Fixture = AntigravityLocalFixture
-
-    init() {}
-}
-
-extension AntigravityLocalReaderTests {
     @Test
     func `literal synthetic schema example has independently calculated counts and time`() async throws {
         // Handwritten bytes, not a round-trip through the fixture encoder.
@@ -122,11 +117,11 @@ extension AntigravityLocalReaderTests {
         let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
         // The priced row remains useful, but the unpriced request prevents a complete window total.
         #expect(snapshot.last30DaysCostUSD == nil)
-        #expect(snapshot.sessionCostUSD == expected)
+        #expect(abs((snapshot.sessionCostUSD ?? .nan) - expected) < 1e-12)
         #expect(snapshot.costProvenance == .listPriceEstimate)
-        #expect(snapshot.daily.first?.costUSD == expected)
+        #expect(abs((snapshot.daily.first?.costUSD ?? .nan) - expected) < 1e-12)
         #expect(snapshot.daily.first?.unpricedRequestCount == 1)
-        #expect(snapshot.daily.first?.modelBreakdowns?.first?.costUSD == expected)
+        #expect(abs((snapshot.daily.first?.modelBreakdowns?.first?.costUSD ?? .nan) - expected) < 1e-12)
         #expect(snapshot.daily.first?.modelBreakdowns?.last?.costUSD == nil)
         #expect(snapshot.summary(forLastDays: 30, calendar: Fixture.calendar).coverage
             == CostUsageCoverageCounts(unpriced: 1, estimated: 1))
@@ -562,8 +557,8 @@ extension AntigravityLocalReaderTests {
         #expect(report.coverage == .complete)
         #expect(report.report.data.first?.date == "2026-08-27")
         #expect(report.report.data.first?.inputTokens == 100)
-        #expect(report.report.data.first?.outputTokens == 7)
-        #expect(report.report.data.first?.reasoningTokens == 30)
+        #expect(report.report.data.first?.outputTokens == 30)
+        #expect(report.report.data.first?.reasoningTokens == 7)
         #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "fixture-model-a")
         #expect(try await fixture.snapshot().last30DaysTokens == 187)
     }

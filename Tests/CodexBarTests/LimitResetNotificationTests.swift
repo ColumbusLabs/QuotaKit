@@ -452,14 +452,23 @@ struct LimitResetNotificationTests {
         let store = Self.makeStore(notifier: notifier)
         store.settings.sessionQuotaNotificationsEnabled = true
         store.settings.limitResetNotificationsEnabled = true
-        let snapshots = [
-            Self.snapshot(sessionUsed: 60, weeklyUsed: 20, offset: 0, email: "other@example.com"),
-            Self.snapshot(sessionUsed: 100, weeklyUsed: 20, offset: 60),
-            Self.snapshot(sessionUsed: 0, weeklyUsed: 20, offset: 120, email: "other@example.com"),
+        let otherAccount = "claude-account:fixture-other"
+        let depletedAccount = "claude-account:fixture-depleted"
+        let samples: [(snapshot: UsageSnapshot, accountDiscriminator: String)] = [
+            (
+                Self.snapshot(sessionUsed: 60, weeklyUsed: 20, offset: 0, email: "other@example.com"),
+                otherAccount),
+            (Self.snapshot(sessionUsed: 100, weeklyUsed: 20, offset: 60), depletedAccount),
+            (
+                Self.snapshot(sessionUsed: 0, weeklyUsed: 20, offset: 120, email: "other@example.com"),
+                otherAccount),
         ]
-        for snapshot in snapshots {
+        for (snapshot, accountDiscriminator) in samples {
             let pending = store.handleSessionQuotaTransition(
-                provider: .claude, snapshot: snapshot, now: snapshot.updatedAt)
+                provider: .claude,
+                snapshot: snapshot,
+                accountDiscriminator: accountDiscriminator,
+                now: snapshot.updatedAt)
             await store.recordPlanUtilizationHistorySample(
                 provider: .claude,
                 snapshot: snapshot,

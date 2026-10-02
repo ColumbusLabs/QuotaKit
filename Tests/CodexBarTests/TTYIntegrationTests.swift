@@ -45,8 +45,13 @@ struct TTYIntegrationTests {
             "CLAUDE_CONFIG_DIR": directory.path,
             "CLAUDE_SECURESTORAGE_CONFIG_DIR": directory.path,
         ])
-        let snapshot = try await ClaudeCLISession.withIsolatedSessionForTesting {
-            try await probe.fetch()
+        let probeDirectory = directory.appendingPathComponent("ClaudeProbe", isDirectory: true)
+        let snapshot = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeStatusProbe.$dedicatedProbeDirectoryOverrideForTesting.withValue(probeDirectory) {
+                try await ClaudeCLISession.withIsolatedSessionForTesting {
+                    try await probe.fetch()
+                }
+            }
         }
         #expect(snapshot.sessionPercentLeft == 87)
         #expect(snapshot.weeklyPercentLeft == 98)

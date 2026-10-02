@@ -96,8 +96,25 @@ struct CodexDirectForkBaselineTests {
             if case .resolved = try cachedResolver.inheritedTotals(
                 for: "parent", atOrBefore: env.isoString(for: day.addingTimeInterval(4)))
             {
-                let currentKey = try cachedResolver.currentDependencyKey(for: "parent")
+                let currentKey = try #require(cachedResolver.currentDependencyKey(for: "parent"))
                 #expect(cachedResolver.dependencyKeyUsed(for: "parent") == currentKey)
+                #expect(currentKey.contains("|inherited|file|root|"))
+                // Reparsing repairs the inconsistent independence sentinel. The repaired
+                // baseline must still invalidate when its root ancestor changes.
+                try env.jsonl([
+                    metadata("root", parent: nil, time: 0), tokens(1000, last: 1000, time: 1),
+                    ["type": "turn_context", "payload": ["model": "gpt-5.4"]],
+                ]).write(to: rootFile, atomically: true, encoding: .utf8)
+                #expect(try cachedResolver.currentDependencyKey(for: "parent") != currentKey)
+                if case let .resolved(updated) = try cachedResolver.inheritedTotals(
+                    for: "parent", atOrBefore: env.isoString(for: day.addingTimeInterval(4)))
+                {
+                    #expect(updated?.input == inherited)
+                    #expect(try cachedResolver.dependencyKeyUsed(for: "parent")
+                        == cachedResolver.currentDependencyKey(for: "parent"))
+                } else {
+                    Issue.record("Changed ancestry must resolve after repairing stale independence metadata")
+                }
             } else {
                 Issue.record("Independent fork parent must resolve from cached snapshots")
             }

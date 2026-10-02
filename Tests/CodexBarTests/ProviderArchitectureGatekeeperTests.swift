@@ -25,7 +25,7 @@ import Testing
 struct ProviderArchitectureGatekeeperTests {
     private static let postBaselineProviders: Set<UsageProvider> = [
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-        .atlascloud, .vercel, .llmman, .nous, .muse, .pi,
+        .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -165,6 +165,10 @@ struct ProviderArchitectureGatekeeperTests {
         // Manus now uses its canonical #34322D brand color. Keep the remaining legacy colors pinned.
         #expect(widgetFingerprint == 8_198_861_169_601_968_258)
         #expect(burnDownFingerprint == 13_248_577_987_729_422_950)
+
+        let museAI = ProviderDescriptorRegistry.descriptor(for: .museai).branding
+        #expect(museAI.widgetColor.hexString == "#0668E1")
+        #expect(museAI.burnDownWidgetColor.hexString == "#999999")
     }
 
     @Test
@@ -2828,11 +2832,11 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: [
                 "claude@0",
                 "codex@5",
-                "claude@9",
                 "claude@10",
-                "codex@12",
-                "deepseek@18",
-                "xai@25",
+                "claude@11",
+                "codex@13",
+                "deepseek@19",
+                "xai@26",
             ],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
@@ -3764,6 +3768,14 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["codex@0"],
             reason: "A successfully evaluated Codex observation clears its one-shot fresh-baseline requirement."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBar/UsageStore+QuotaWarnings.swift",
+            line: 461,
+            anchor: "let forceBaseline = provider == .codex && self.codexSessionQuotaBaselineRequirement != nil",
+            expectedProviderIDs: ["codex"],
+            expectedReferenceCount: 1,
+            expectedReferenceFingerprint: ["codex@0"],
+            reason: "Codex owner changes ignore the prior transition until a fresh session observation establishes its new baseline."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuDescriptor.swift",
             line: 423,
@@ -4802,21 +4814,20 @@ struct ProviderArchitectureGatekeeperTests {
             line: 1438,
             anchor: "guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }",
             expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 13,
+            expectedReferenceCount: 12,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "codex@3",
                 "codex@5",
                 "codex@7",
                 "codex@8",
-                "codex@16",
-                "codex@24",
-                "codex@30",
-                "codex@34",
+                "codex@17",
+                "codex@25",
+                "codex@31",
                 "codex@35",
                 "codex@36",
                 "codex@37",
-                "codex@39",
+                "codex@38",
             ],
             reason: "This exact Codex publication cluster preserves QuotaKit account-scoped warnings, history, refresh guards, and terminal-failure widget invalidation."),
         AllowedProviderConstruct(
@@ -4824,8 +4835,8 @@ struct ProviderArchitectureGatekeeperTests {
             line: 1467,
             anchor: "self.invalidateGenericWidgetUsage(for: .codex)",
             expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 4,
-            expectedReferenceFingerprint: ["codex@0", "codex@4", "codex@6", "codex@9"],
+            expectedReferenceCount: 5,
+            expectedReferenceFingerprint: ["codex@0", "codex@2", "codex@6", "codex@8", "codex@11"],
             reason: "This Codex failure cluster invalidates widget usage only when a validated account snapshot cannot be retained."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+TokenAccounts.swift",
@@ -5322,10 +5333,11 @@ struct ProviderArchitectureGatekeeperTests {
                 "gitkraken",
                 "hyper",
                 "llmman",
+                "museai",
                 "vercel",
                 "xkiro",
             ],
-            expectedReferenceCount: 8,
+            expectedReferenceCount: 9,
             expectedReferenceFingerprint: [
                 "hyper@0",
                 "gitkraken@1",
@@ -5335,6 +5347,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "llmman@5",
                 "llmman@5",
                 "xkiro@6",
+                "museai@7",
             ],
             reason: "AppIntents needs literal per-provider titles for this widget selector; snapshot data separately decides provider eligibility."),
         AllowedProviderConstruct(

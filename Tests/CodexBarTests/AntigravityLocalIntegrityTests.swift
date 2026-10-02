@@ -313,7 +313,7 @@ struct AntigravityLocalIntegrityTests {
     }
 
     @Test
-    func `schema entry column and cumulative byte limits reject before payload reads`() throws {
+    func `schema entry column and byte limits reject before payload reads while schema bytes reset per database`() throws {
         let fixture = try Fixture()
         let url = try fixture.database()
         let database = try Fixture.open(url)
@@ -340,14 +340,22 @@ struct AntigravityLocalIntegrityTests {
         limits.schemaColumns = 64
         let complete = try fixture.report(limits: limits)
         #expect(complete.coverage == .complete)
-        limits.schemaBytes = complete.statistics.schemaBytes
+        let schemaBytesPerDatabase = complete.statistics.schemaBytes
+        limits.schemaBytes = schemaBytesPerDatabase - 1
+        let overBudget = try fixture.report(limits: limits)
+        #expect(overBudget.coverage == .partial)
+        #expect(overBudget.statistics.rows == 0)
+        #expect(overBudget.statistics.schemaBytes > limits.schemaBytes)
+        #expect(overBudget.statistics.sqliteHandlesOpened == overBudget.statistics.sqliteHandlesClosed)
+
+        limits.schemaBytes = schemaBytesPerDatabase
         try fixture.database("session-b", blobs: [Fixture.blob()])
-        let cumulative = try fixture.report(limits: limits)
-        #expect(cumulative.coverage == .partial)
-        #expect(cumulative.statistics.files == 2)
-        #expect(cumulative.statistics.rows == 1)
-        #expect(cumulative.statistics.schemaBytes > limits.schemaBytes)
-        #expect(cumulative.statistics.sqliteHandlesOpened == cumulative.statistics.sqliteHandlesClosed)
+        let multiDatabase = try fixture.report(limits: limits)
+        #expect(multiDatabase.coverage == .complete)
+        #expect(multiDatabase.statistics.files == 2)
+        #expect(multiDatabase.statistics.rows == 2)
+        #expect(multiDatabase.statistics.schemaBytes > limits.schemaBytes)
+        #expect(multiDatabase.statistics.sqliteHandlesOpened == multiDatabase.statistics.sqliteHandlesClosed)
     }
 
     @Test(arguments: [false, true])

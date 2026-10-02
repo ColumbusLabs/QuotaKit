@@ -50,10 +50,11 @@ struct CostUsageOrphanForkTests {
         options.refreshMinIntervalSeconds = 0
         let report = CostUsageScanner.loadDailyReport(
             provider: .codex, since: now, until: now, now: now, options: options)
+        #expect(report.data.first?.inputTokens == 20)
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: calendar)
-        cache.codexPreviousReport = CostUsageCodexPreviousReport(
-            report: report, cache: cache, reportSinceKey: range.sinceKey, reportUntilKey: range.untilKey)
+        cache.codexPreviousReport = try #require(CostUsageCodexPreviousReport(
+            report: report, cache: cache, reportSinceKey: range.sinceKey, reportUntilKey: range.untilKey))
 
         // Model a persisted bounded refresh: the active file remains partial after a
         // newly discovered, fully parsed missing-parent fork joins the inventory.
@@ -64,6 +65,11 @@ struct CostUsageOrphanForkTests {
         orphan.days = [:]
         orphan.codexRows = []
         orphan.codexCostNanos = nil
+        orphan.codexPrioritySurchargeNanos = nil
+        orphan.codexStandardCostNanos = nil
+        orphan.codexPriorityCostNanos = nil
+        orphan.codexStandardTokens = nil
+        orphan.codexPriorityTokens = nil
         let orphanDate = overlaps ? now : now.addingTimeInterval(-45 * 86400)
         let orphanMs = Int64(orphanDate.timeIntervalSince1970 * 1000)
         orphan.codexSession?.sessionId = "orphan"

@@ -111,9 +111,19 @@ actor CostUsageStore {
 
             let result = ResultBox<Value>()
             let semaphore = DispatchSemaphore(value: 0)
+            #if DEBUG
+            // This worker is a raw Thread, so TaskLocal instrumentation must cross it explicitly.
+            let hooks = CostUsageStoreTestHooks.current
+            #endif
             self.condition.lock()
             self.pendingWork.append {
+                #if DEBUG
+                CostUsageStoreTestHooks.$current.withValue(hooks) {
+                    result.store(operation())
+                }
+                #else
                 result.store(operation())
+                #endif
                 semaphore.signal()
             }
             self.condition.signal()

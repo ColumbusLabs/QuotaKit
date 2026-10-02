@@ -96,7 +96,14 @@ struct CredentialFileWriterTests {
             }
         }
         #expect(try Data(contentsOf: url) == original)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["auth.json"])
+        let entries = try FileManager.default.contentsOfDirectory(atPath: root.path).sorted()
+        let expectedEntries = kind == "config" ? ["auth.json", "auth.json.lock"] : ["auth.json"]
+        #expect(entries == expectedEntries)
+        if kind == "config" {
+            // Keep the stable cross-process lock inode, and ensure its sidecar stays private.
+            let lockMode = try Self.mode(root.appendingPathComponent("auth.json.lock"))
+            #expect((lockMode & 0o077) == 0)
+        }
     }
 
     private static func mode(_ url: URL) throws -> Int {

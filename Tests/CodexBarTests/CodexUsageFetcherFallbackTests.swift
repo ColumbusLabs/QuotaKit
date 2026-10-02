@@ -523,65 +523,22 @@ struct CodexUsageFetcherFallbackTests {
     }
 
     private func makeResetCreditsStubCodexCLI(rateLimitResetCreditsJSON: String?) throws -> String {
-        let resetCreditsProperty = rateLimitResetCreditsJSON.map {
-            ", \"rateLimitResetCredits\": \($0)"
-        } ?? ""
-        let script = """
-        #!/usr/bin/python3 -S
-        import json
-        import sys
-
-        args = sys.argv[1:]
-        if "app-server" in args:
-            for line in sys.stdin:
-                if not line.strip():
-                    continue
-                message = json.loads(line)
-                method = message.get("method")
-                if method == "initialized":
-                    continue
-
-                identifier = message.get("id")
-                if method == "initialize":
-                    payload = {"id": identifier, "result": {}}
-                elif method == "account/rateLimits/read":
-                    result = json.loads(r'''{
-                      "rateLimits": {
-                        "planType": "pro",
-                        "primary": {
-                          "usedPercent": 12,
-                          "windowDurationMins": 300,
-                          "resetsAt": 1784246400
-                        }
-                      }
-                      \(resetCreditsProperty)
-                    }''')
-                    payload = {"id": identifier, "result": result}
-                elif method == "account/read":
-                    payload = {
-                        "id": identifier,
-                        "result": {
-                            "account": {
-                                "type": "chatgpt",
-                                "email": "stub@example.com",
-                                "planType": "pro"
-                            },
-                            "requiresOpenaiAuth": False
-                        }
-                    }
-                else:
-                    payload = {"id": identifier, "result": {}}
-
-                print(json.dumps(payload), flush=True)
-        else:
-            sys.stderr.write("unexpected non app-server Codex invocation\\n")
-            sys.exit(92)
-        """
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codex-reset-credits-stub-\(UUID().uuidString)", isDirectory: false)
-        try Data(script.utf8).write(to: url)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
-        return url.path
+        let limits: [String: Any] = [
+            "planType": "pro",
+            "primary": [
+                "usedPercent": 12,
+                "windowDurationMins": 300,
+                "resetsAt": 1_784_246_400,
+            ],
+        ]
+        var result: [String: Any] = ["rateLimits": limits]
+        if let rateLimitResetCreditsJSON {
+            result["rateLimitResetCredits"] = try JSONSerialization.jsonObject(
+                with: Data(rateLimitResetCreditsJSON.utf8),
+                options: [.fragmentsAllowed])
+        }
+        // The injected resolver launches fixtures through /bin/sh; reuse its RPC protocol fixture.
+        return try self.makeStubCodexCLI(rateLimitsResponse: ["result": result], accountPlan: "pro")
     }
 
     private func makeHungRateLimitsStubCodexCLI() throws -> String {

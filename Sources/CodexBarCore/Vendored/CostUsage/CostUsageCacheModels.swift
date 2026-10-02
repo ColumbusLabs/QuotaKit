@@ -448,8 +448,22 @@ struct CostUsageFileUsage: Codable, Equatable {
             && (self.forkBaselineDependencyKey == nil || !CostUsageScanner.isUnresolvedMissingParentFork(self))
     }
 
+    var hasSettledMissingCodexFork: Bool {
+        self.hasCurrentCodexParser
+            && self.codexScanComplete == true
+            && self.parsedBytes == self.size
+            && self.codexJSONLResumeState == nil
+            && self.hasBufferedCodexForkRetryLines
+            && self.forkBaselineDependencyKey != nil
+            && CostUsageScanner.isUnresolvedMissingParentFork(self)
+    }
+
+    var hasPendingCodexReplacementScan: Bool {
+        self.codexReplacementScanPending == true && !self.hasSettledMissingCodexFork
+    }
+
     var hasPendingCodexScanWork: Bool {
-        self.codexScanComplete == false || self.hasPendingCodexForkRetry
+        self.codexScanComplete == false || self.hasPendingCodexForkRetry || self.hasPendingCodexReplacementScan
     }
 }
 

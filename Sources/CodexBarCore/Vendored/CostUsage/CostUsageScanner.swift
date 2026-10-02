@@ -2063,9 +2063,19 @@ enum CostUsageScanner {
                 guard visited.count < 64, visited.insert(currentSessionID).inserted else { return nil }
                 switch try self.fileIndex.lookup(sessionId: currentSessionID) {
                 case let .found(fileURL):
-                    keys.append(self.dependencyKey(for: currentSessionID, fileURL: fileURL))
+                    let fileDependencyKey = self.dependencyKey(for: currentSessionID, fileURL: fileURL)
+                    keys.append(fileDependencyKey)
                     let usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[fileURL.standardizedFileURL.path]
-                    if usage?.forkBaselineDependencyKey == CostUsageScanner.codexForkDependencyNotRequiredKey {
+                    if let resolved = self.snapshotResolutions[currentSessionID],
+                       resolved.dependencyKey == fileDependencyKey,
+                       resolved.hasSnapshotSource,
+                       resolved.baselineResolved
+                    {
+                        // A fresh resolution can repair stale cached independence metadata.
+                        // Follow the ancestry actually used to produce that baseline.
+                        nextSessionID = resolved.requiresInheritedOrigin
+                            ? resolved.forkOrigin?.metadata.forkedFromId : nil
+                    } else if usage?.forkBaselineDependencyKey == CostUsageScanner.codexForkDependencyNotRequiredKey {
                         nextSessionID = nil
                     } else {
                         nextSessionID = usage?.forkedFromId
@@ -2131,7 +2141,13 @@ enum CostUsageScanner {
             if let cached = self.snapshotResolutions[sessionId],
                cached.dependencyKey == self.dependencyKey(for: sessionId, fileURL: fileURL)
             {
-                if let parentID = cached.forkOrigin?.metadata.forkedFromId {
+                let missingAncestry = cached.forkOriginDependencyKey
+                    .map(CostUsageScanner.codexDependencyIsMissing) == true
+                let cachedUsage = self.cachedFiles[fileURL.path]
+                    ?? self.cachedFiles[fileURL.standardizedFileURL.path]
+                if let parentID = cached.forkOrigin?.metadata.forkedFromId
+                    ?? (missingAncestry ? cachedUsage?.forkedFromId : nil)
+                {
                     if try cached.forkOriginDependencyKey == self.currentDependencyKey(for: parentID) {
                         return cached
                     }
@@ -2234,6 +2250,25 @@ enum CostUsageScanner {
             let standardizedPath = fileURL.standardizedFileURL.path
             let cachedPath = self.cachedFiles[fileURL.path] != nil ? fileURL.path : standardizedPath
             var usage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[standardizedPath]
+            // Missing ancestry is useful dependency evidence even while its replacement rows
+            // remain staged. Never hydrate or expose that unresolved generation as a baseline.
+            if let cached = usage,
+               cached.hasSettledMissingCodexFork,
+               cached.sessionId == sessionId,
+               cached.mtimeUnixMs == metadata.mtimeUnixMs,
+               cached.size == metadata.size,
+               cached.codexScanFileId == nil || cached.codexScanFileId == metadata.fileId,
+               let parentID = cached.forkedFromId,
+               try cached.forkBaselineDependencyKey == self.currentDependencyKey(for: parentID)
+            {
+                return SnapshotResolution(
+                    dependencyKey: self.dependencyKey(for: sessionId, fileURL: fileURL),
+                    isComplete: true,
+                    baselineResolved: false,
+                    isFork: true,
+                    forkOrigin: cached.codexForkAccountingState,
+                    forkOriginDependencyKey: cached.forkBaselineDependencyKey)
+            }
             if let cached = usage,
                cached.codexTokenSnapshots == nil,
                let historyHydrator = self.historyHydrator
@@ -6843,8 +6878,8 @@ enum CostUsageScanner {
 
         let cached = cache.files[metadata.path]
 
-        // Queue a direct parent before retrying a buffered child. This lets a small
-        // refresh budget make progress on the baseline the child needs.
+        // Queue a present but unresolved parent before retrying its child. Confirmed missing
+        // ancestry must still let the child finish parsing and settle its scheduling state.
         if let cached,
            let parentID = cached.forkedFromId,
            let buffered = cached.codexBufferedUnresolvedForkLines,
@@ -6853,7 +6888,9 @@ enum CostUsageScanner {
                return metadata.forkTimestamp
            }).first,
            case .unresolved = try context.resources.inheritedResolver.inheritedTotals(
-               for: parentID, atOrBefore: forkTimestamp)
+               for: parentID, atOrBefore: forkTimestamp),
+           context.resources.inheritedResolver.dependencyKeyUsed(for: parentID)
+               .map(Self.codexDependencyIsMissing) != true
         {
             return .deferred
         }
@@ -8762,7 +8799,6 @@ enum CostUsageScanner {
             let catchUpPending = !canValidateExactInventory
                 || scanProgress.completedFiles < scanProgress.totalFiles
                 || cache.files.values.contains(where: \.hasPendingCodexScanWork)
-                || cache.files.values.contains { $0.codexReplacementScanPending == true }
                 || cache.codexHistoryHydrationRetries?.isEmpty == false
                 || (options.useCodexCatchUpWorkingSet && fileIndex.hasPendingMetadataInventory)
             cache.codexScanCatchUpPending = catchUpPending
@@ -8964,7 +9000,7 @@ enum CostUsageScanner {
             let standardizedPath = URL(fileURLWithPath: path).standardizedFileURL.path
             guard let usage = cache.files[path] ?? cache.files[standardizedPath],
                   usage.hasCurrentCodexParser,
-                  usage.codexReplacementScanPending != true,
+                  !usage.hasPendingCodexReplacementScan,
                   !usage.hasPendingCodexForkRetry
             else {
                 result[path] = false
