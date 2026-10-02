@@ -391,8 +391,11 @@ struct CostUsageStoreTests {
             lineIndex: 1,
             ordinal: nil,
             line: .tokenCount(.init(
-                timestamp: "2026-08-01T12:00:00Z", model: "test-model", turnID: nil,
-                last: nil, total: .init(input: 100, cached: 0, output: 10))))]
+                timestamp: "2026-08-01T12:00:00Z",
+                model: "test-model",
+                turnID: nil,
+                last: nil,
+                total: .init(input: 100, cached: 0, output: 10))))]
         // Missing discovery generations change when other files disappear. A later present
         // but unread parent clears that evidence; nil must not fall back to the old key.
         let lineages: [(parent: String?, key: String?)] = [
@@ -415,8 +418,7 @@ struct CostUsageStoreTests {
             #expect(restored.forkBaselineDependencyKey == key)
             #expect(restored.hasPendingCodexScanWork == (key == nil))
             let status = reopened.syncLoadCodexReadView(calendar: calendar, purpose: .status)
-            #expect(status.cache.files[path]?.forkedFromId == parent)
-            #expect(status.cache.files[path]?.forkBaselineDependencyKey == key)
+            #expect(status.hasPendingScan == (key == nil))
             let projection = reopened.syncReadCodexReportProjection(calendar: calendar)
             #expect(projection.verifiedUpdatedAtUnixMs == 1000)
             #expect(projection.verifiedScanSinceKey == "2026-08-01")
@@ -3044,8 +3046,10 @@ extension CostUsageStoreTests {
 
         if enforceBudget {
             _ = await store.enforceBudgets(
-                maxRows: 1, maxFileBytes: 1,
-                requestedSinceDay: "2026-08-01", requestedUntilDay: "2026-08-01")
+                maxRows: 1,
+                maxFileBytes: 1,
+                requestedSinceDay: "2026-08-01",
+                requestedUntilDay: "2026-08-01")
         } else {
             _ = await store.retainDayWindow(sinceDay: "2026-08-01", untilDay: "2026-08-01")
         }
