@@ -637,7 +637,7 @@ enum CLIRenderer {
         if self.hasAntigravityQuotaSummaryLanes(provider: provider, snapshot: snapshot), snapshot.primary != nil {
             return
         }
-        if let primary = snapshot.primary {
+        if let primary = snapshot.primary?.measured {
             self.appendRateWindowLines(
                 provider: provider,
                 title: labels.primary,

@@ -445,10 +445,14 @@ extension CostUsageStore {
     /// established state available. The caller deliberately catches this operation's failure
     /// and leaves the original database/payload untouched for a later retry.
     func migrateVerifiedDayAggregates(_ database: OpaquePointer) throws {
-        Self.verifiedLedgerMigrationAttemptForTesting?(self.databaseURL)
+        #if DEBUG
+        CostUsageStoreTestHooks.current.verifiedLedgerMigrationAttempt?(self.databaseURL)
+        #endif
         try Self.execute(database, "BEGIN IMMEDIATE")
         do {
-            try Self.verifiedLedgerMigrationFailureForTesting?(self.databaseURL)
+            #if DEBUG
+            try CostUsageStoreTestHooks.current.verifiedLedgerMigrationFailure?(self.databaseURL)
+            #endif
             try Self.execute(database, """
             CREATE TABLE IF NOT EXISTS verified_day_aggregates (
                 day TEXT NOT NULL,
@@ -492,7 +496,7 @@ extension CostUsageStore {
                 table: "scan_metadata") ?? .empty
             let count = try Self.scalarInt(database, "SELECT COUNT(*) FROM verified_day_aggregates")
             if count == 0 {
-                if !metadata.catchUpPending {
+                if !metadata.catchUpPending, try !Self.hasUnresolvedCodexForkBaseline(database) {
                     try Self.execute(database, """
                     INSERT INTO verified_day_aggregates
                     SELECT day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,

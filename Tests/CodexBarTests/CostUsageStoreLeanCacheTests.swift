@@ -56,38 +56,40 @@ struct CostUsageStoreLeanCacheTests {
         let expectedRequestedRows = await writer.fetchTokenSnapshots(path: requestedPath)
         let expectedUntouchedRows = await writer.fetchTokenSnapshots(path: untouchedPath)
 
-        var tokenTableReads = 0
-        var tokenSnapshotPaths: [String?] = []
+        let tokenTableReads = LockIsolated(0)
+        let tokenSnapshotPaths = LockIsolated<[String?]>([])
         let observedStorePath = writer.databaseURL.standardizedFileURL.path
-        CostUsageStore.tokenSnapshotsReadForTesting = { storeURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.tokenSnapshotsRead = { storeURL in
             guard storeURL.standardizedFileURL.path == observedStorePath else { return }
-            tokenTableReads += 1
+            tokenTableReads.setValue(tokenTableReads.value + 1)
         }
-        CostUsageStore.tokenSnapshotPathReadForTesting = { storeURL, path in
+        hooks.tokenSnapshotPathRead = { storeURL, path in
             guard storeURL.standardizedFileURL.path == observedStorePath else { return }
-            tokenSnapshotPaths.append(path)
+            tokenSnapshotPaths.setValue(tokenSnapshotPaths.value + [path])
         }
-        defer {
-            CostUsageStore.tokenSnapshotsReadForTesting = nil
-            CostUsageStore.tokenSnapshotPathReadForTesting = nil
+        let loaded = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
         }
 
-        let loaded = CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
         defer { loaded.release() }
-        #expect(tokenTableReads == 0)
-        #expect(tokenSnapshotPaths.isEmpty)
+        #expect(tokenTableReads.value == 0)
+        #expect(tokenSnapshotPaths.value.isEmpty)
         #expect(loaded.cache.files[requestedPath]?.codexTokenSnapshots == nil)
         #expect(loaded.cache.files[untouchedPath]?.codexTokenSnapshots == nil)
         #expect(loaded.cache.files[emptyPath]?.codexTokenSnapshots == [])
 
         let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
-        #expect(try hydrator.hydrate(paths: [requestedPath]) == .ready)
+        let hydration = try CostUsageStoreTestHooks.$current.withValue(hooks) {
+            try hydrator.hydrate(paths: [requestedPath])
+        }
+        #expect(hydration == .ready)
         var hydratedCache = loaded.cache
         hydrator.applyHydratedSnapshots(to: &hydratedCache)
         #expect(hydratedCache.files[requestedPath]?.codexTokenSnapshots == requestedSnapshots)
         #expect(hydratedCache.files[untouchedPath]?.codexTokenSnapshots == nil)
-        #expect(tokenTableReads == 1)
-        #expect(tokenSnapshotPaths == [requestedPath])
+        #expect(tokenTableReads.value == 1)
+        #expect(tokenSnapshotPaths.value == [requestedPath])
 
         let savedAfterHydration = CostUsageStoreAccess.save(
             store: loaded.store,
@@ -100,8 +102,6 @@ struct CostUsageStoreLeanCacheTests {
             requireScanStamp: true)
         #expect(!savedAfterHydration.catchUpRequired)
 
-        CostUsageStore.tokenSnapshotsReadForTesting = nil
-        CostUsageStore.tokenSnapshotPathReadForTesting = nil
         #expect(await loaded.store.fetchTokenSnapshots(path: requestedPath) == expectedRequestedRows)
         #expect(await loaded.store.fetchTokenSnapshots(path: untouchedPath) == expectedUntouchedRows)
         #expect(await loaded.store.fetchDetailCounts(path: untouchedPath).snapshotCount == untouchedSnapshots.count)
@@ -155,14 +155,17 @@ struct CostUsageStoreLeanCacheTests {
         let loaded = CostUsageStoreAccess.load(cacheRoot: root, calendar: calendar)
         defer { loaded.release() }
         let storedRows = await loaded.store.fetchTokenSnapshots(path: path)
-        CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = { storeURL, paths in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexTokenSnapshotHydrationFailure = { storeURL, paths in
             storeURL.standardizedFileURL.path == writer.databaseURL.standardizedFileURL.path
                 && paths == [path]
         }
-        defer { CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = nil }
 
         let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
-        #expect(try hydrator.hydrate(paths: [path]) == .unavailable)
+        let hydration = try CostUsageStoreTestHooks.$current.withValue(hooks) {
+            try hydrator.hydrate(paths: [path])
+        }
+        #expect(hydration == .unavailable)
         #expect(loaded.cache.files[path]?.codexTokenSnapshots == nil)
 
         let savedAfterFailure = CostUsageStoreAccess.save(
@@ -298,21 +301,23 @@ struct CostUsageStoreLeanCacheTests {
             requestedScanWindow: (sinceKey: "2026-08-30", untilKey: "2026-08-30"))
         #expect(!save.catchUpRequired)
 
-        var tokenTableReads = 0
+        let tokenTableReads = LockIsolated(0)
         let observedStorePath = store.databaseURL.standardizedFileURL.path
-        CostUsageStore.tokenSnapshotsReadForTesting = { storeURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.tokenSnapshotsRead = { storeURL in
             guard storeURL.standardizedFileURL.path == observedStorePath else { return }
-            tokenTableReads += 1
+            tokenTableReads.setValue(tokenTableReads.value + 1)
         }
-        defer { CostUsageStore.tokenSnapshotsReadForTesting = nil }
 
-        let full = CostUsageStoreAccess.read(cacheRoot: root, calendar: calendar)
-        #expect(tokenTableReads == 1)
+        let full = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageStoreAccess.read(cacheRoot: root, calendar: calendar)
+        }
+        #expect(tokenTableReads.value == 1)
         #expect(full.files[path]?.codexTokenSnapshots?.count == snapshots.count)
         #expect(full.files[path]?.codexTokenCheckpoints != nil)
 
         let lean = CostUsageStoreAccess.readWithoutTokenSnapshots(cacheRoot: root, calendar: calendar)
-        #expect(tokenTableReads == 1)
+        #expect(tokenTableReads.value == 1)
         #expect(lean.files[path]?.codexTokenSnapshots == nil)
         #expect(lean.files[path]?.codexTokenCheckpoints == nil)
         #expect(lean.files[path]?.codexRows == full.files[path]?.codexRows)

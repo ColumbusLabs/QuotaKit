@@ -28,6 +28,14 @@ Scheduled browser-cookie refresh uses a noninteractive Safe Storage preflight. A
 result can resume background refresh after a prior denial; interactive or failed preflight results
 remain blocked, and the user-initiated denial cooldown is preserved.
 
+Concurrent preflights for the same trusted application and executable share an in-flight code-signature validation.
+For the running executable (or its own main app bundle), preflight checks the ACL's signing requirement against the
+process's dynamic code identity with default Security flags, avoiding sealed-resource hashing. A bundled CLI helper
+only validates its own identity; it cannot authorize its enclosing app. Other paths and ACLs without an available
+signing requirement keep the static validator. Requirement mismatches remain confirmed rejections; other dynamic
+errors stay inconclusive. Completed successful validations and transient failures are not retained across operations;
+the existing short, explicit operation memo can reuse preflight only within that operation.
+
 ## If the prompt appears after uninstalling QuotaKit
 
 Deleting `QuotaKit.app` prevents a new process from launching from that bundle, but it does not terminate a process

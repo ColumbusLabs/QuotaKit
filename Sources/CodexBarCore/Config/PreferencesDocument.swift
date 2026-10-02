@@ -23,7 +23,8 @@ public struct PreferencesDocument: Codable, Sendable {
         "quotaWarningSoundEnabled", "quotaWarningOnScreenAlertEnabled", "quotaWarningMarkersVisible", "paceVisible",
         "usageBarsShowUsed", "resetTimesShowAbsolute", "costUsageEnabled", "costComparisonPeriodsEnabled",
         "hidePersonalInfo", "randomBlinkEnabled", "confettiOnSessionLimitResetsEnabled",
-        "confettiOnWeeklyLimitResetsEnabled", "menuBarShowsHighestUsage", "showOptionalCreditsAndExtraUsage",
+        "confettiOnWeeklyLimitResetsEnabled", "limitResetNotificationsEnabled", "menuBarShowsHighestUsage",
+        "showOptionalCreditsAndExtraUsage",
         "providerChangelogLinksEnabled", "providersSortedAlphabetically", "refreshAllProvidersOnMenuOpen",
         "mergeIcons", "mergeIconsStacked", "switcherShowsIcons",
     ])

@@ -526,6 +526,11 @@
 "session_depleted_notification_body" = "เหลือ 0% จะแจ้งเตือนเมื่อกลับมาใช้งานได้อีกครั้ง";
 "session_restored_notification_title" = "%@ เซสชันที่กู้คืน";
 "session_restored_notification_body" = "โควต้าเซสชันพร้อมใช้งานอีกครั้ง";
+"limit_reset_notifications_title" = "การแจ้งเตือนการรีเซ็ต";
+"limit_reset_notifications_subtitle" = "แจ้งว่าผู้ให้บริการใดและช่วงใดถูกรีเซ็ตเมื่อขีดจำกัดเซสชันหรือรายสัปดาห์รีเซ็ต";
+"limit_reset_notification_title" = "ขีดจำกัด%2$@ของ %1$@ รีเซ็ตแล้ว";
+"limit_reset_notification_body" = "มีโควตาใหม่พร้อมใช้งาน";
+"limit_reset_notification_body_with_account" = "บัญชี %@ มีโควตาใหม่พร้อมใช้งาน";
 "quota_warning_warn_at" = "เตือนที่";
 "quota_warning_global_threshold_subtitle" = "เปอร์เซ็นต์ที่เหลืออยู่สําหรับกรอบเวลาเซสชันและรายสัปดาห์ เว้นแต่ผู้ให้บริการจะแทนที่";
 "quota_warning_sound" = "เล่นเสียงแจ้งเตือน";

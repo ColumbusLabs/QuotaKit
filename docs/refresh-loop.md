@@ -49,19 +49,25 @@ read_when:
   persisted `adaptiveActivityScanConsent` value is `undecided`, `allowed`, or `declined`; missing or invalid values are
   repaired to `undecided`, which never authorizes a scan. Declining selects plain Adaptive; explicitly selecting the
   agent-aware option again asks again.
-- An allowed scan runs `ps -axo ... command=` to inspect the running-process list and identify Codex/Claude, then runs
-  `lsof` when needed and enumerates known session metadata only when an agent process is detected. It then reads
-  recent Codex rollouts, reads rollout first-line metadata and mtimes, and inspects Claude transcript metadata. When
-  the Agent Sessions UI is off, CodexBar discards the resulting session records and retains only the latest `Date`.
+- An allowed scan uses today's and yesterday's Codex `rollout-*.jsonl` modification times as activity even when no
+  recognized live process exists, including when only a managed Codex daemon is running. This signal reads no rollout
+  contents and reuses the Agent Sessions directory walk. With the Agent Sessions UI off, no Codex first-line metadata
+  or thread names are read for cadence. The scanner inspects running processes through native process APIs on macOS
+  (`ps` elsewhere), resolves working directories, and inspects process-gated Claude transcript metadata. QuotaKit
+  discards session records when the UI is off and retains only the latest `Date`.
   Each scan considers at most 64 agent processes, parses at most 128 Codex rollout metadata records, keeps at most 64
-  Claude transcript candidates per project, and shares a 512-entry, depth-1, 150 ms agent-aware directory metadata
-  budget. Future
-  transcript mtimes are clamped to one scanner-lifetime timestamp. The clamp retains no file paths, and unchanged
-  future-dated files cannot manufacture newer activity every 30 seconds.
-  Agent-aware scans pause under Low Power Mode and serious/critical thermal pressure. Explicitly enabling Agent
-  Sessions continues to authorize its local scan independently of the Adaptive consent choice. Tailscale discovery and
-  SSH remain behind the Agent Sessions setting. The activity timestamp is not persisted, logged, or uploaded, and it is
-  cleared when consent is revoked.
+  Claude transcript candidates per project, and shares a 512-entry, depth-1, 150 ms agent-aware directory metadata budget.
+  Activity-only scans inspect process-backed Claude transcripts before spending the remaining budget on Codex rollouts.
+  Future transcript mtimes are clamped to one scanner-lifetime timestamp; unchanged future-dated files cannot
+  manufacture newer activity every 30 seconds. The clamp retains no file paths.
+  Agent-aware scans pause under Low Power Mode and serious/critical thermal pressure. Enabling Agent Sessions
+  authorizes its local scan independently of Adaptive consent. Stay Awake can keep its live-process scan while
+  constrained, but does not enable process-independent rollout activity then. Tailscale discovery and SSH remain
+  behind Agent Sessions. The activity timestamp is not persisted, logged, or uploaded, and is cleared when consent is revoked.
+- Process recognition remains an identity-enrichment boundary. Sync or restore tools updating rollout mtimes can
+  also select the five-minute cadence. Plain Adaptive and remote discovery do not use this activity signal.
+- ChatGPT's Codex `app-server` retains its existing executable-path, running-code signature, and app trust checks
+  before session metadata enrichment; rollout-mtime activity never authorizes that identity path.
 - Each adaptive tick recomputes the delay after the previous refresh completes, sleeps, then calls the same
   `UsageStore.refresh()` used by fixed-interval mode, so the existing `isRefreshing` coalescing guard still
   applies — only one provider-batch refresh runs at a time regardless of cadence mode.

@@ -535,6 +535,11 @@
 "predictive_pace_warning_notification_title" = "%1$@: aviso de ritmo %2$@";
 "predictive_pace_warning_notification_body" = "Al ritmo actual, esta cuota podría agotarse en %1$@, antes de reiniciarse.";
 "predictive_pace_warning_notification_body_with_account" = "Cuenta %1$@. Al ritmo actual, esta cuota podría agotarse en %2$@, antes de reiniciarse.";
+"limit_reset_notifications_title" = "Avisos de reinicio";
+"limit_reset_notifications_subtitle" = "Indica el proveedor y la ventana cuando se reinicia un límite de sesión o semanal.";
+"limit_reset_notification_title" = "%1$@: límite de %2$@ reiniciado";
+"limit_reset_notification_body" = "Hay cuota nueva disponible.";
+"limit_reset_notification_body_with_account" = "Cuenta %@. Hay cuota nueva disponible.";
 "quota_warning_warn_at" = "Avisar al";
 "quota_warning_global_threshold_subtitle" = "Porcentajes restantes para las ventanas de sesión y semanal, salvo que un proveedor los anule.";
 "quota_warning_sound" = "Reproducir sonido de notificación";

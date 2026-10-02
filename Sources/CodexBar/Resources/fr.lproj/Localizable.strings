@@ -541,6 +541,11 @@
 "session_depleted_notification_body" = "0 % restant. Vous serez notifié quand elle redeviendra disponible.";
 "session_restored_notification_title" = "Session %@ rétablie";
 "session_restored_notification_body" = "Le quota de session est à nouveau disponible.";
+"limit_reset_notifications_title" = "Notifications de réinitialisation";
+"limit_reset_notifications_subtitle" = "Indique le fournisseur et la fenêtre lorsqu'une limite de session ou hebdomadaire est réinitialisée.";
+"limit_reset_notification_title" = "%1$@ %2$@ : limite réinitialisée";
+"limit_reset_notification_body" = "Un nouveau quota est disponible.";
+"limit_reset_notification_body_with_account" = "Compte %@. Un nouveau quota est disponible.";
 "quota_warning_warn_at" = "Avertir à";
 "quota_warning_global_threshold_subtitle" = "Pourcentages restants pour les fenêtres de session et hebdomadaires, sauf si un fournisseur les remplace.";
 "quota_warning_sound" = "Lire un son de notification";

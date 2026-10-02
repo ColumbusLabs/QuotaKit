@@ -1025,24 +1025,35 @@ struct CostUsagePerformanceGateTests {
         let fetcher = CostUsageFetcher(scannerOptions: options)
         #if DEBUG
         let catchUpDatabaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
-        var fullSnapshotReadsDuringCatchUp = 0
-        CostUsageStore.snapshotReadForTesting = { databaseURL in
+        let fullSnapshotReadsDuringCatchUp = HeadParseCounter()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.snapshotRead = { databaseURL in
             if databaseURL == catchUpDatabaseURL {
-                fullSnapshotReadsDuringCatchUp += 1
+                fullSnapshotReadsDuringCatchUp.increment()
             }
         }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
         #endif
-        var status = await fetcher.codexScanCatchUpStatus()
-        #expect(status.pending)
-        var progressStates = [(pending: status.pending, key: status.progressKey)]
-        for _ in 0..<12 where status.pending {
-            status = try await fetcher.advanceCodexScanCatchUp(now: day, historyDays: 1).value
-            progressStates.append((pending: status.pending, key: status.progressKey))
+
+        func runCatchUp() async throws -> (
+            status: CostUsageFetcher.CodexScanCatchUpStatus,
+            progressStates: [(pending: Bool, key: String)])
+        {
+            var status = await fetcher.codexScanCatchUpStatus()
+            #expect(status.pending)
+            var progressStates = [(pending: status.pending, key: status.progressKey)]
+            for _ in 0..<12 where status.pending {
+                status = try await fetcher.advanceCodexScanCatchUp(now: day, historyDays: 1).value
+                progressStates.append((pending: status.pending, key: status.progressKey))
+            }
+            return (status, progressStates)
         }
         #if DEBUG
-        CostUsageStore.snapshotReadForTesting = nil
-        #expect(fullSnapshotReadsDuringCatchUp == 0)
+        let (status, progressStates) = try await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            try await runCatchUp()
+        }
+        #expect(fullSnapshotReadsDuringCatchUp.value == 0)
+        #else
+        let (status, progressStates) = try await runCatchUp()
         #endif
 
         let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)

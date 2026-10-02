@@ -92,6 +92,7 @@ public struct ClaudeStatusProbe: Sendable {
     #if DEBUG
     public typealias FetchOverride = @Sendable (String, TimeInterval, Bool) async throws -> ClaudeStatusSnapshot
     @TaskLocal static var fetchOverride: FetchOverride?
+    @TaskLocal static var dedicatedProbeDirectoryOverrideForTesting: URL?
     #endif
 
     public init(
@@ -208,7 +209,11 @@ extension ClaudeStatusProbe {
     // MARK: - Parsing helpers
 
     private static func cleanCapture(_ text: String) -> String {
-        ClaudeCLIScreen.render(text, preservePlainReports: true)
+        // Insights contain arbitrary tool names and percentages, not account or quota fields.
+        let rendered = ClaudeCLIScreen.render(text, preservePlainReports: true)
+        let marker = "What's contributing to your limits usage?"
+        guard let insights = rendered.range(of: marker, options: .caseInsensitive) else { return rendered }
+        return String(rendered[..<insights.lowerBound])
     }
 
     private struct LabelSearchContext {
@@ -1425,10 +1430,8 @@ extension ClaudeStatusProbe {
 
     static func probeWorkingDirectoryURL() -> URL {
         let fm = FileManager.default
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
-        let dir = base
-            .appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent("ClaudeProbe", isDirectory: true)
+        let dir = self.dedicatedProbeWorkingDirectoryURL()
+        guard self.isDedicatedProbeWorkingDirectory(dir) else { return fm.temporaryDirectory }
         do {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir
@@ -1437,8 +1440,31 @@ extension ClaudeStatusProbe {
         }
     }
 
+    /// QuotaKit's dedicated probe directory; only this directory may have Claude workspace trust accepted.
+    static func dedicatedProbeWorkingDirectoryURL() -> URL {
+        #if DEBUG
+        if let override = self.dedicatedProbeDirectoryOverrideForTesting { return override }
+        #endif
+        let fm = FileManager.default
+        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
+        return base
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .appendingPathComponent("ClaudeProbe", isDirectory: true)
+    }
+
+    static func isDedicatedProbeWorkingDirectory(_ directory: URL) -> Bool {
+        let expected = self.dedicatedProbeWorkingDirectoryURL().standardizedFileURL
+        let parent = expected.deletingLastPathComponent()
+        let unredirected = parent.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appendingPathComponent(parent.lastPathComponent, isDirectory: true)
+            .appendingPathComponent(expected.lastPathComponent, isDirectory: true)
+        return directory.standardizedFileURL.path == expected.path
+            && expected.resolvingSymlinksInPath().path == unredirected.path
+    }
+
     static func preparedProbeWorkingDirectoryURL() -> URL {
         let directory = self.probeWorkingDirectoryURL()
+        guard self.isDedicatedProbeWorkingDirectory(directory) else { return directory }
         do {
             try self.prepareProbeWorkingDirectory(at: directory)
         } catch {

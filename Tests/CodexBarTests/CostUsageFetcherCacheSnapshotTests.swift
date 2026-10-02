@@ -23,31 +23,28 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.refreshMinIntervalSeconds = 0
 
-        #if DEBUG
         let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
-        var fullSnapshotReads = 0
-        CostUsageStore.snapshotReadForTesting = { readURL in
+        let fullSnapshotReads = LockIsolated(0)
+        var hooks = CostUsageStoreTestHooks()
+        hooks.snapshotRead = { readURL in
             if readURL == databaseURL {
-                fullSnapshotReads += 1
+                fullSnapshotReads.setValue(fullSnapshotReads.value + 1)
             }
         }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
-        #endif
+        try await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+                provider: .codex,
+                now: now,
+                historyDays: 1,
+                allowPricingRefresh: false,
+                refreshPricingInBackground: false,
+                includePiSessions: false,
+                scannerOptions: options)
 
-        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
-            provider: .codex,
-            now: now,
-            historyDays: 1,
-            allowPricingRefresh: false,
-            refreshPricingInBackground: false,
-            includePiSessions: false,
-            scannerOptions: options)
-
-        #expect(snapshot.sessionTokens == 42)
-        #expect(snapshot.sessions.count == 1)
-        #if DEBUG
-        #expect(fullSnapshotReads == 0)
-        #endif
+            #expect(snapshot.sessionTokens == 42)
+            #expect(snapshot.sessions.count == 1)
+            #expect(fullSnapshotReads.value == 0)
+        }
     }
 
     @Test
@@ -114,37 +111,34 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(projection.fileDayAggregates.first?.aggregate.requestCount == 2)
         #expect(projection.fileDayAggregates.first?.aggregate.reasoningTokens == 12)
 
-        #if DEBUG
         let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
-        var fullSnapshotReads = 0
-        CostUsageStore.snapshotReadForTesting = { readURL in
+        let fullSnapshotReads = LockIsolated(0)
+        var hooks = CostUsageStoreTestHooks()
+        hooks.snapshotRead = { readURL in
             if readURL == databaseURL {
-                fullSnapshotReads += 1
+                fullSnapshotReads.setValue(fullSnapshotReads.value + 1)
             }
         }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
-        #endif
+        try await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            let result = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+                now: now,
+                historyDays: 1,
+                includePiSessions: false,
+                scannerOptions: options)
 
-        let result = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
-            now: now,
-            historyDays: 1,
-            includePiSessions: false,
-            scannerOptions: options)
-
-        let entry = try #require(result?.snapshot.daily.first)
-        let model = try #require(entry.modelBreakdowns?.first)
-        #expect(entry.requestCount == 2)
-        #expect(entry.reasoningTokens == 12)
-        #expect(entry.costUSD == 3)
-        #expect(model.standardCostUSD == 1)
-        #expect(model.priorityCostUSD == 2)
-        #expect(model.standardTokens == 110)
-        #expect(model.priorityTokens == 220)
-        #expect(result?.snapshot.projects.first?.path == "/tmp/projected-project")
-        #expect(result?.snapshot.sessions.first?.sessionID == "projected-session")
-        #if DEBUG
-        #expect(fullSnapshotReads == 0)
-        #endif
+            let entry = try #require(result?.snapshot.daily.first)
+            let model = try #require(entry.modelBreakdowns?.first)
+            #expect(entry.requestCount == 2)
+            #expect(entry.reasoningTokens == 12)
+            #expect(entry.costUSD == 3)
+            #expect(model.standardCostUSD == 1)
+            #expect(model.priorityCostUSD == 2)
+            #expect(model.standardTokens == 110)
+            #expect(model.priorityTokens == 220)
+            #expect(result?.snapshot.projects.first?.path == "/tmp/projected-project")
+            #expect(result?.snapshot.sessions.first?.sessionID == "projected-session")
+            #expect(fullSnapshotReads.value == 0)
+        }
     }
 
     @Test
@@ -431,21 +425,23 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let readCount = LockIsolated(0)
         let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
-        CostUsageStore.snapshotReadForTesting = { readURL in
+        var hooks = CostUsageStoreTestHooks()
+        hooks.snapshotRead = { readURL in
             guard readURL == databaseURL else { return }
             readCount.setValue(readCount.value + 1)
         }
-        defer { CostUsageStore.snapshotReadForTesting = nil }
-        let activity = await CostUsageFetcher.loadCachedCodexTokenActivity(
-            now: now,
-            maximumDays: 365,
-            scannerOptions: options)
+        await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            let activity = await CostUsageFetcher.loadCachedCodexTokenActivity(
+                now: now,
+                maximumDays: 365,
+                scannerOptions: options)
 
-        #expect(readCount.value == 0)
-        #expect(activity?.coverageSinceKey == "2026-04-06")
-        #expect(activity?.coverageUntilKey == "2026-04-08")
-        #expect(activity?.daily.map(\.date) == ["2026-04-06", "2026-04-08"])
-        #expect(activity?.daily.map(\.totalTokens) == [12, 29])
+            #expect(readCount.value == 0)
+            #expect(activity?.coverageSinceKey == "2026-04-06")
+            #expect(activity?.coverageUntilKey == "2026-04-08")
+            #expect(activity?.daily.map(\.date) == ["2026-04-06", "2026-04-08"])
+            #expect(activity?.daily.map(\.totalTokens) == [12, 29])
+        }
     }
 
     @Test

@@ -537,6 +537,11 @@
 "session_depleted_notification_body" = "còn lại 0%. Sẽ thông báo khi có lại.";
 "session_restored_notification_title" = "%@ phiên đã được khôi phục";
 "session_restored_notification_body" = "Phiên Hạn mức đã có sẵn trở lại.";
+"limit_reset_notifications_title" = "Thông báo đặt lại";
+"limit_reset_notifications_subtitle" = "Cho biết nhà cung cấp và khung nào được đặt lại khi giới hạn phiên hoặc hàng tuần được đặt lại.";
+"limit_reset_notification_title" = "%1$@: giới hạn %2$@ đã được đặt lại";
+"limit_reset_notification_body" = "Hạn mức mới đã sẵn sàng.";
+"limit_reset_notification_body_with_account" = "Tài khoản %@. Hạn mức mới đã sẵn sàng.";
 "quota_warning_warn_at" = "Cảnh báo ở";
 "quota_warning_global_threshold_subtitle" = "Tỷ lệ phần trăm còn lại cho phiên và thời lượng hàng tuần trừ khi Nhà cung cấp ghi đè chúng.";
 "quota_warning_sound" = "Phát âm thanh thông báo";

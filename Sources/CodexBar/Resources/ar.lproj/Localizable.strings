@@ -526,6 +526,11 @@
 "session_depleted_notification_body" = "المتبقي 0%. سنبلغك عندما تصبح الحصة متاحة مجددًا.";
 "session_restored_notification_title" = "%@ الجلسة التي استعادت";
 "session_restored_notification_body" = "حصة الجلسة متاحة مرة أخرى.";
+"limit_reset_notifications_title" = "إشعارات إعادة التعيين";
+"limit_reset_notifications_subtitle" = "يُعلمك بالمزوّد والنافذة عند إعادة تعيين حد الجلسة أو الحد الأسبوعي.";
+"limit_reset_notification_title" = "تمت إعادة تعيين حد %2$@ لدى %1$@";
+"limit_reset_notification_body" = "تتوفر حصة جديدة.";
+"limit_reset_notification_body_with_account" = "الحساب %@. تتوفر حصة جديدة.";
 "quota_warning_warn_at" = "التحذير في";
 "quota_warning_global_threshold_subtitle" = "النسب المتبقية للجلسات والفترات الأسبوعية ما لم يتجاوزها مقدم الخدمة.";
 "quota_warning_sound" = "تشغيل صوت الإشعار";

@@ -7,7 +7,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Added
+
+- Muse (muse.ai) subscription usage, distinct from Muse Code, with provider settings, widgets, and sanitized iPhone sync.
+- Optional limit-reset notifications with account-scoped persistence and duplicate suppression alongside existing session-restored alerts.
+
 ### Improved
+
+- Antigravity saved accounts fetch usage in isolated CLI sessions and safely retain consecutive credential refreshes.
+- Local Codex and Claude cost scans reuse cache decoders and exact fragments, skip out-of-range pricing, and settle archived forks whose parent history is absent.
+- Adaptive refresh recognizes recent Codex rollout timestamps without depending on a running process.
 
 - Local agent refreshes classify process names with less filesystem work while retaining executable ownership checks.
 - Local usage and spend reuse time-zone-aware day keys and Gregorian calendars without changing daily totals.
@@ -16,6 +25,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Model pricing refreshes use indexed fallback merges and preserve catalog stamps when rates are unchanged.
 
 ### Fixed
+
+- Codex CLI discovery validates npm payloads and the selected Node runtime, preserves rejected launch decisions, and reuses bounded Gatekeeper verdicts.
+- Claude probes answer workspace trust only in their dedicated directory, preserve CLI recovery, and show measured or scoped quota instead of synthetic remaining allowance.
+- Mac fleet sync recovers deleted records and prevents cancelled or superseded fetched-record applies from overwriting current state; push registration respects signed capabilities.
+- OpenCode supports migrated Console workspaces; Cursor session credentials and Pi cached-token costs retain their provider semantics.
+- Agent sessions remain visible after their executable is removed. Hosted regression fixtures use controlled readiness and work counters instead of wall-clock speed assertions.
 
 - Menu bar: show the remaining quota when only the third usage window is available, including Gemini Flash Lite-only accounts. Preferred lanes and two-window averages retain their existing behavior.
 

@@ -9,6 +9,15 @@ import CSQLite3
 // MARK: - Retention
 
 extension CostUsageStore {
+    /// Full-ledger publication needs accounting coverage as well as scan completion.
+    /// Scoped day/window publication separately proves disjoint ranges in the scanner.
+    static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer) throws -> Bool {
+        try Self.readForkLineage(database, path: nil).contains { lineage in
+            lineage.forkedFromID != nil
+                && (lineage.dependencyKey.map(CostUsageScanner.codexDependencyIsMissing) ?? true)
+        }
+    }
+
     @discardableResult
     func retainDayWindow(
         sinceDay: String,
@@ -311,7 +320,9 @@ extension CostUsageStore {
                         untilDay: untilDay,
                         calendar: calendar)
                     if pruned.deletedFiles > 0 {
-                        try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                        #if DEBUG
+                        try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                        #endif
                     }
                 }
 
@@ -326,7 +337,9 @@ extension CostUsageStore {
                         untilDay: untilDay,
                         calendar: calendar,
                         protectRequestedWindow: true) else { break }
-                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    #if DEBUG
+                    try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                    #endif
                     catchUpRequired = true
                 }
                 var fileBytes = try Self.logicalFileBytes(database)
@@ -338,7 +351,9 @@ extension CostUsageStore {
                         calendar: calendar,
                         protectRequestedWindow: true)
                     else { break }
-                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    #if DEBUG
+                    try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                    #endif
                     catchUpRequired = true
                     fileBytes = try Self.logicalFileBytes(database)
                 }
@@ -356,7 +371,8 @@ extension CostUsageStore {
                     }
                     try Self.markCatchUpRequired(database)
                 } else if let metadata,
-                          !metadata.catchUpPending
+                          !metadata.catchUpPending,
+                          try !Self.hasUnresolvedCodexForkBaseline(database)
                 {
                     // Publish the complete normalized view only after pruning/budget checks
                     // succeed. A pending pass must leave the prior verified ledger untouched.

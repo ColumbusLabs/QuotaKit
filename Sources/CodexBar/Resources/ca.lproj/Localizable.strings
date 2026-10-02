@@ -506,6 +506,11 @@
 "quota_warning_session_capitalized" = "Sessió";
 "quota_warning_weekly" = "setmanal";
 "quota_warning_weekly_capitalized" = "Setmanal";
+"limit_reset_notifications_title" = "Avisos de restabliment";
+"limit_reset_notifications_subtitle" = "Indica el proveïdor i la finestra quan es restableix un límit de sessió o setmanal.";
+"limit_reset_notification_title" = "Límit de %1$@ restablert (%2$@)";
+"limit_reset_notification_body" = "Hi ha quota nova disponible.";
+"limit_reset_notification_body_with_account" = "Compte %@. Hi ha quota nova disponible.";
 "quota_warning_warn_at" = "Aviseu al";
 "quota_warning_global_threshold_subtitle" = "Percentatges restants per a les finestres de sessió i setmanal, llevat que un proveïdor els substitueixi.";
 "quota_warning_sound" = "Reprodueix el so de notificació";

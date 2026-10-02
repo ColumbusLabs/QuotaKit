@@ -11,6 +11,9 @@ QuotaKit can list live Codex, Claude Code, pi, and OMP sessions on this Mac and 
 
 Enable **Settings → Menu → Agent sessions**. Local sessions refresh every 30 seconds. Remote sessions refresh every 60 seconds and whenever the menu opens. Tailscale discovery includes online macOS and Linux peers; add extra SSH destinations as a comma-separated list, such as `user@host`.
 
+On macOS, sessions remain discoverable from their running process arguments after a CLI update removes the old executable.
+This does not relax ChatGPT app-server trust: that check still requires the exact executable path and signed running code.
+
 Choose the row label format in the same settings section:
 
 - **Project** keeps the working-directory name used by earlier releases.

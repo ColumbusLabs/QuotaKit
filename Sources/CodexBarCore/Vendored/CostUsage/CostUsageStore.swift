@@ -52,7 +52,14 @@ actor CostUsageStore {
         }
 
         func sync<T>(_ operation: () throws -> T) rethrows -> T {
-            try self.queue.sync(execute: operation)
+            #if DEBUG
+            let hooks = CostUsageStoreTestHooks.current
+            return try self.queue.sync {
+                try CostUsageStoreTestHooks.$current.withValue(hooks, operation: operation)
+            }
+            #else
+            return try self.queue.sync(execute: operation)
+            #endif
         }
 
         func isExecutingCurrentContext() -> Bool {
@@ -166,6 +173,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "91aceec74bae13b6", // Orphan coverage preserves rows; retained buffers revalidate missing parents.
         "36872d2d0ebf9818", // Temporal revision 7 rebuilds compact buckets from retained file rows.
         "053a4fb6aa6156c2", // QuotaKit direct-fork producer; revision 6 reparses ambiguous first-owned rows.
         "4e2ff98d27e5c601", // QuotaKit pre-direct-fork producer; revision 5 reparses affected native files.
@@ -228,47 +236,6 @@ actor CostUsageStore {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return root.appendingPathComponent("CodexBar", isDirectory: true)
     }
-
-    /// Test-only crash injection: invoked inside `saveCodexCache`'s transaction after each
-    /// persisted file with the running count, so a crash-safety harness can SIGKILL the
-    /// process at a deterministic mid-save point. Never set in production.
-    nonisolated(unsafe) static var saveCycleCheckpointForTesting: ((Int) -> Void)?
-    /// Test-only interleaving point after optimistic identity succeeds and before its writer lock.
-    nonisolated(unsafe) static var identicalContentPreLockCheckpointForTesting: ((URL) -> Void)?
-
-    /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
-    nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
-    /// Test-only count of rows/snapshots checked during persistence prefix comparison.
-    nonisolated(unsafe) static var codexPrefixComparisonVisitForTesting: ((String, Int) -> Void)?
-
-    /// Test-only failure injection inside the bounded delta transaction, after file writes and
-    /// before metadata writes. Used to prove transient SQLite errors preserve the prior store.
-    nonisolated(unsafe) static var codexCatchUpDeltaFailureForTesting: ((URL) throws -> Void)?
-    /// Test-only failure injection after a budget deletion but before aggregate/metadata repair.
-    nonisolated(unsafe) static var budgetMutationFailureForTesting: ((URL) throws -> Void)?
-    /// Test-only migration failure injection. Never set in production.
-    nonisolated(unsafe) static var verifiedLedgerMigrationFailureForTesting: ((URL) throws -> Void)?
-    /// Test-only observation of migration attempts; completed stores should never call it.
-    nonisolated(unsafe) static var verifiedLedgerMigrationAttemptForTesting: ((URL) -> Void)?
-
-    #if DEBUG
-    /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
-    nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
-    /// Test-only observations for the bounded activity/status read path.
-    nonisolated(unsafe) static var codexReadViewIntegrityCheckForTesting: ((URL) -> Void)?
-    nonisolated(unsafe) static var codexReadViewSnapshotForTesting: ((URL, CostUsageStoreReadPurpose) -> Void)?
-    nonisolated(unsafe) static var codexReadViewDecodeForTesting: ((URL, CostUsageStoreReadPurpose) -> Void)?
-    nonisolated(unsafe) static var codexReadViewUsageRowsForTesting: ((URL) -> Void)?
-    nonisolated(unsafe) static var codexReadViewCheckpointForTesting: ((URL) throws -> Void)?
-    /// Physical rows visited by the lean scanner reader and whether each payload decoded.
-    nonisolated(unsafe) static var codexStreamedUsageRowForTesting: ((String, Int, Int, Bool) -> Void)?
-    /// Test-only observation of token snapshot table materialization.
-    nonisolated(unsafe) static var tokenSnapshotsReadForTesting: ((URL) -> Void)?
-    /// Test-only path-scoped proof for receipt-bound history hydration.
-    nonisolated(unsafe) static var tokenSnapshotPathReadForTesting: ((URL, String?) -> Void)?
-    /// Test-only strict-hydration failure injection; a true result makes the read unavailable.
-    nonisolated(unsafe) static var codexTokenSnapshotHydrationFailureForTesting: ((URL, Set<String>) -> Bool)?
-    #endif
 
     /// Process-wide serialization keeps every writable store connection on the same queue.
     /// This matches the scan pipeline's single-writer contract without multiplying executor
@@ -831,7 +798,7 @@ extension CostUsageStore {
                 throw StoreError.incompatibleSchema
             }
             #if DEBUG
-            Self.codexReadViewIntegrityCheckForTesting?(self.databaseURL)
+            CostUsageStoreTestHooks.current.codexReadViewIntegrityCheck?(self.databaseURL)
             #endif
             try Self.validateDatabaseIntegrity(database)
             try Self.execute(database, "COMMIT")
@@ -852,7 +819,7 @@ extension CostUsageStore {
                 throw StoreError.incompatibleSchema
             }
             #if DEBUG
-            Self.codexReadViewIntegrityCheckForTesting?(self.databaseURL)
+            CostUsageStoreTestHooks.current.codexReadViewIntegrityCheck?(self.databaseURL)
             #endif
             try Self.validateDatabaseIntegrity(database)
             if lockedState.canAdoptPredecessor {

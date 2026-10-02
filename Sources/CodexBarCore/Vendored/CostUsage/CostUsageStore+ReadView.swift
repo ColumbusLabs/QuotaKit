@@ -40,9 +40,7 @@ struct CostUsageStoreReadView: Sendable {
     }
 
     var hasPendingScan: Bool {
-        self.cache.codexScanCatchUpPending == true || self.cache.files.values.contains {
-            $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-        }
+        self.cache.codexScanCatchUpPending == true || self.cache.files.values.contains(where: \.hasPendingCodexScanWork)
     }
 
     func scoped(to roots: [URL]) -> Self {
@@ -59,7 +57,11 @@ struct CostUsageStoreReadView: Sendable {
         range: CostUsageScanner.CostUsageDayRange,
         rootsFingerprint: [String: Int64]) -> Bool
     {
-        self.lastScanUnixMs > 0
+        // Exhausted parent discovery settles scheduling, not accounting. Only disjoint,
+        // fully parsed windows can be published while the missing baseline is retained.
+        guard !CostUsageScanner.codexHistoryRangeHasUnsettledMissingParentFork(
+            cache: self.cache, range: range) else { return false }
+        return self.lastScanUnixMs > 0
             && self.timeZoneIdentifier == range.calendar.timeZone.identifier
             && self.roots == rootsFingerprint
             && !self.hasPendingScan

@@ -59,7 +59,7 @@ enum CostUsagePricing {
         let cacheReadInputCostPerTokenAboveThreshold: Double?
     }
 
-    private struct ClaudeCostTokens {
+    struct ClaudeCostTokens {
         let input: Int
         let cacheRead: Int
         let cacheCreation: Int
@@ -929,7 +929,7 @@ enum CostUsagePricing {
             + Double(max(0, tokens.output)) * outputRate
     }
 
-    private static func claudeCostUSD(
+    static func claudeCostUSD(
         pricing: ModelsDevPricingInfo,
         tokens: ClaudeCostTokens) -> Double
     {

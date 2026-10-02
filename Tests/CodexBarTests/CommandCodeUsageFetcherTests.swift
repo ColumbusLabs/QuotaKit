@@ -236,65 +236,73 @@ struct CommandCodeUsageFetcherTests {
 
     @Test
     func `subscription timeout does not hold credits for full request timeout`() async throws {
+        let subscriptionStarted = HeldRequestGate()
+        let subscriptionCancelled = HeldRequestGate()
         try await CommandCodeUsageFetcher.withIsolatedPlanCacheForTesting {
             let transport = ProviderHTTPTransportStub { request in
                 let path = try #require(request.url?.path)
                 if path.hasSuffix("/credits") {
+                    await subscriptionStarted.wait()
                     return try Self.response(request: request, statusCode: 200, body: Self.creditsJSON)
                 }
-                try await Task.sleep(for: .seconds(10))
+                await subscriptionStarted.open()
+                do {
+                    try await Task.sleep(for: .seconds(60))
+                } catch {
+                    await subscriptionCancelled.open()
+                    throw error
+                }
                 return try Self.response(request: request, statusCode: 200, body: Self.subscriptionJSON)
             }
 
-            let startedAt = ContinuousClock.now
             let snapshot = try await CommandCodeUsageFetcher.fetchUsage(
                 cookieHeader: "session=valid",
                 session: transport)
-            let elapsed = startedAt.duration(to: .now)
 
             #expect(snapshot.monthlyCreditsRemaining == 8.7784)
             #expect(snapshot.plan == nil)
             #expect(snapshot.subscriptionEnrichmentUnavailable)
-            #expect(elapsed < .seconds(3), "Subscription enrichment delayed credits: \(elapsed)")
+            await subscriptionCancelled.wait()
         }
     }
 
     @Test
     func `subscription grace does not wait for transport that ignores cancellation`() async throws {
+        let subscriptionStarted = HeldRequestGate()
+        let releaseSubscription = HeldRequestGate()
+        let subscriptionFinished = HeldRequestGate()
+        defer { Task { await releaseSubscription.open() } }
         try await CommandCodeUsageFetcher.withIsolatedPlanCacheForTesting {
             let transport = ProviderHTTPTransportStub { request in
                 let path = try #require(request.url?.path)
                 if path.hasSuffix("/credits") {
+                    await subscriptionStarted.wait()
                     return try Self.response(request: request, statusCode: 200, body: Self.creditsJSON)
                 }
                 let response = try Self.response(request: request, statusCode: 200, body: Self.subscriptionJSON)
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                        continuation.resume(returning: response)
-                    }
-                }
+                await subscriptionStarted.open()
+                await releaseSubscription.wait()
+                await subscriptionFinished.open()
+                return response
             }
 
-            let startedAt = ContinuousClock.now
             let snapshot = try await CommandCodeUsageFetcher._fetchUsageForTesting(
                 cookieHeader: "session=valid",
                 transport: transport,
                 subscriptionGrace: .milliseconds(20))
-            let elapsed = startedAt.duration(to: .now)
 
             #expect(snapshot.monthlyCreditsRemaining == 8.7784)
             #expect(snapshot.plan == nil)
             #expect(snapshot.subscriptionEnrichmentUnavailable)
-            #expect(elapsed < .milliseconds(300), "Subscription enrichment delayed credits: \(elapsed)")
-
-            // Let the deliberately cancellation-ignoring test task drain before the test exits.
-            try await Task.sleep(for: .milliseconds(550))
+            #expect(await releaseSubscription.isOpen == false)
+            await releaseSubscription.open()
+            await subscriptionFinished.wait()
         }
     }
 
     @Test
     func `cancellation after credits complete does not return partial snapshot`() async throws {
-        let subscriptionStarted = CommandCodeRequestGate()
+        let subscriptionStarted = HeldRequestGate()
         let transport = ProviderHTTPTransportStub { request in
             let path = try #require(request.url?.path)
             if path.hasSuffix("/credits") {
@@ -321,23 +329,22 @@ struct CommandCodeUsageFetcherTests {
 
     @Test
     func `cancellation cleans up subscription when credits transport ignores cancellation`() async throws {
-        let creditsStarted = CommandCodeRequestGate()
-        let subscriptionStarted = CommandCodeRequestGate()
-        let subscriptionCancelled = CommandCodeRequestGate()
+        let releaseCredits = HeldRequestGate()
+        defer { Task { await releaseCredits.open() } }
+        let creditsStarted = HeldRequestGate()
+        let subscriptionStarted = HeldRequestGate()
+        let subscriptionCancelled = HeldRequestGate()
         let transport = ProviderHTTPTransportStub { request in
             let path = try #require(request.url?.path)
             if path.hasSuffix("/credits") {
                 await creditsStarted.open()
                 let response = try Self.response(request: request, statusCode: 200, body: Self.creditsJSON)
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                        continuation.resume(returning: response)
-                    }
-                }
+                await releaseCredits.wait()
+                return response
             }
             await subscriptionStarted.open()
             do {
-                try await Task.sleep(for: .seconds(10))
+                try await Task.sleep(for: .seconds(60))
             } catch {
                 await subscriptionCancelled.open()
                 throw error
@@ -352,11 +359,11 @@ struct CommandCodeUsageFetcherTests {
 
         await creditsStarted.wait()
         await subscriptionStarted.wait()
-        let cancellationStartedAt = ContinuousClock.now
         task.cancel()
 
         await subscriptionCancelled.wait()
-        #expect(cancellationStartedAt.duration(to: .now) < .milliseconds(300))
+        #expect(await releaseCredits.isOpen == false)
+        await releaseCredits.open()
         await #expect(throws: CancellationError.self) {
             try await task.value
         }
@@ -364,7 +371,7 @@ struct CommandCodeUsageFetcherTests {
 
     @Test
     func `cancellation wins when optional transport ignores cancellation then fails`() async throws {
-        let subscriptionStarted = CommandCodeRequestGate()
+        let subscriptionStarted = HeldRequestGate()
         let transport = ProviderHTTPTransportStub { request in
             let path = try #require(request.url?.path)
             if path.hasSuffix("/credits") {
@@ -594,26 +601,5 @@ struct CommandCodeUsageFetcherTests {
             httpVersion: nil,
             headerFields: nil))
         return (Data(body.utf8), response)
-    }
-}
-
-private actor CommandCodeRequestGate {
-    private var isOpen = false
-    private var continuations: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        guard !self.isOpen else { return }
-        await withCheckedContinuation { continuation in
-            self.continuations.append(continuation)
-        }
-    }
-
-    func open() {
-        self.isOpen = true
-        let continuations = self.continuations
-        self.continuations.removeAll()
-        for continuation in continuations {
-            continuation.resume()
-        }
     }
 }

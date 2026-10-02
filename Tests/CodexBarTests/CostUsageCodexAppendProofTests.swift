@@ -41,88 +41,90 @@ struct CostUsageCodexAppendProofTests {
         #expect(initial.summary?.totalTokens == 500)
         #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[file.path]?.codexLedgerRevision != nil)
 
-        var comparedPrefixItems = 0
-        CostUsageStore.codexPrefixComparisonVisitForTesting = { path, count in
-            if path == file.path { comparedPrefixItems += count }
+        let comparedPrefixItems = LockIsolated(0)
+        var hooks = CostUsageStoreTestHooks()
+        hooks.codexPrefixComparisonVisit = { path, count in
+            if path == file.path { comparedPrefixItems.setValue(comparedPrefixItems.value + count) }
         }
-        defer { CostUsageStore.codexPrefixComparisonVisitForTesting = nil }
-        for index in 51...55 {
-            let handle = try FileHandle(forWritingTo: file)
-            try handle.seekToEnd()
-            try handle.write(contentsOf: Data(env.jsonl([token(index)]).utf8))
-            try handle.close()
-            let report = CostUsageScanner.loadDailyReport(
-                provider: .codex,
-                since: day,
-                until: day,
-                now: day.addingTimeInterval(Double(index + 1)),
-                options: options)
-            #expect(report.summary?.totalTokens == index * 10)
+        try CostUsageStoreTestHooks.$current.withValue(hooks) {
+            for index in 51...55 {
+                let handle = try FileHandle(forWritingTo: file)
+                try handle.seekToEnd()
+                try handle.write(contentsOf: Data(env.jsonl([token(index)]).utf8))
+                try handle.close()
+                let report = CostUsageScanner.loadDailyReport(
+                    provider: .codex,
+                    since: day,
+                    until: day,
+                    now: day.addingTimeInterval(Double(index + 1)),
+                    options: options)
+                #expect(report.summary?.totalTokens == index * 10)
+            }
+            #expect(comparedPrefixItems.value == 0)
+            let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            #expect(reopened.files[file.path]?.codexRows?.count == 55)
+            #expect(reopened.files[file.path]?.codexTokenSnapshots?.count == 55)
+
+            // A same-cursor repricing changes the committed revision. A scan based on the old
+            // revision must compare the prefix before it can choose an append action.
+            let original = try #require(reopened.files[file.path])
+            let oldRevision = try #require(original.codexLedgerRevision)
+            var repriced = reopened
+            var repricedUsage = original
+            var rows = try #require(repricedUsage.codexRows)
+            let first = try #require(rows.first)
+            rows[0] = CostUsageScanner.CodexUsageRow(
+                day: first.day,
+                model: first.model,
+                rawModel: first.rawModel,
+                turnID: first.turnID,
+                eventIndex: first.eventIndex,
+                timestampUnixMs: first.timestampUnixMs,
+                input: first.input,
+                cached: first.cached,
+                output: first.output,
+                reasoning: first.reasoning,
+                knownCostNanos: first.knownCostNanos,
+                unpricedTokens: first.unpricedTokens,
+                pricingModel: first.pricingModel,
+                pricingMode: "priority")
+            repricedUsage.codexRows = rows
+            repriced.files[file.path] = repricedUsage
+            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: repriced).catchUpRequired)
+            #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+                .files[file.path]?.codexLedgerRevision != oldRevision)
+
+            var staleAppend = original
+            let oldSize = try #require(staleAppend.parsedBytes)
+            let oldFileIdentity = try #require(staleAppend.codexScanFileId)
+            staleAppend.size = oldSize + 100
+            staleAppend.parsedBytes = oldSize + 100
+            staleAppend.codexRows?.append(CostUsageScanner.CodexUsageRow(
+                day: CostUsageScanner.CostUsageDayRange.dayKey(from: day),
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 55,
+                timestampUnixMs: Int64(day.addingTimeInterval(56).timeIntervalSince1970 * 1000),
+                input: 10,
+                cached: 0,
+                output: 0))
+            staleAppend.codexTokenSnapshots?.append(CostUsageCodexTokenSnapshot(
+                timestamp: env.isoString(for: day.addingTimeInterval(56)),
+                last: .init(input: 10, cached: 0, output: 0),
+                total: .init(input: 560, cached: 0, output: 0),
+                endOffset: oldSize + 100))
+            staleAppend.codexAppendOnlyPrefix = CostUsageCodexAppendOnlyPrefix(
+                path: file.path,
+                fileIdentity: oldFileIdentity,
+                parsedBytes: oldSize,
+                rowCount: 55,
+                snapshotCount: 55,
+                ledgerRevision: oldRevision)
+            var staleCache = reopened
+            staleCache.files[file.path] = staleAppend
+            comparedPrefixItems.setValue(0)
+            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache).catchUpRequired)
+            #expect(comparedPrefixItems.value >= 55)
         }
-        #expect(comparedPrefixItems == 0)
-        let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        #expect(reopened.files[file.path]?.codexRows?.count == 55)
-        #expect(reopened.files[file.path]?.codexTokenSnapshots?.count == 55)
-
-        // A same-cursor repricing changes the committed revision. A scan based on the old
-        // revision must compare the prefix before it can choose an append action.
-        let original = try #require(reopened.files[file.path])
-        let oldRevision = try #require(original.codexLedgerRevision)
-        var repriced = reopened
-        var repricedUsage = original
-        var rows = try #require(repricedUsage.codexRows)
-        let first = try #require(rows.first)
-        rows[0] = CostUsageScanner.CodexUsageRow(
-            day: first.day,
-            model: first.model,
-            rawModel: first.rawModel,
-            turnID: first.turnID,
-            eventIndex: first.eventIndex,
-            timestampUnixMs: first.timestampUnixMs,
-            input: first.input,
-            cached: first.cached,
-            output: first.output,
-            reasoning: first.reasoning,
-            knownCostNanos: first.knownCostNanos,
-            unpricedTokens: first.unpricedTokens,
-            pricingModel: first.pricingModel,
-            pricingMode: "priority")
-        repricedUsage.codexRows = rows
-        repriced.files[file.path] = repricedUsage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: repriced).catchUpRequired)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-            .files[file.path]?.codexLedgerRevision != oldRevision)
-
-        var staleAppend = original
-        let oldSize = try #require(staleAppend.parsedBytes)
-        let oldFileIdentity = try #require(staleAppend.codexScanFileId)
-        staleAppend.size = oldSize + 100
-        staleAppend.parsedBytes = oldSize + 100
-        staleAppend.codexRows?.append(CostUsageScanner.CodexUsageRow(
-            day: CostUsageScanner.CostUsageDayRange.dayKey(from: day),
-            model: "gpt-5.4",
-            turnID: nil,
-            eventIndex: 55,
-            timestampUnixMs: Int64(day.addingTimeInterval(56).timeIntervalSince1970 * 1000),
-            input: 10,
-            cached: 0,
-            output: 0))
-        staleAppend.codexTokenSnapshots?.append(CostUsageCodexTokenSnapshot(
-            timestamp: env.isoString(for: day.addingTimeInterval(56)),
-            last: .init(input: 10, cached: 0, output: 0),
-            total: .init(input: 560, cached: 0, output: 0),
-            endOffset: oldSize + 100))
-        staleAppend.codexAppendOnlyPrefix = CostUsageCodexAppendOnlyPrefix(
-            path: file.path,
-            fileIdentity: oldFileIdentity,
-            parsedBytes: oldSize,
-            rowCount: 55,
-            snapshotCount: 55,
-            ledgerRevision: oldRevision)
-        var staleCache = reopened
-        staleCache.files[file.path] = staleAppend
-        comparedPrefixItems = 0
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache).catchUpRequired)
-        #expect(comparedPrefixItems >= 55)
     }
 }

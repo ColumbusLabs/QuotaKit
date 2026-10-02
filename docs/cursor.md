@@ -79,6 +79,7 @@ Manual option:
 
 ## Linux CLI
 - `quotakit usage --provider cursor` reads the signed-in Cursor app's access token from the Linux global state DB and reuses the same `cursor.com` usage endpoints as macOS.
+- Long-running CLI requests disable automatic cookie storage, so cookies set by a previous response cannot replace the selected account on a later refresh.
 - Automatic browser cookie import and the external-browser Add/Switch flow remain macOS app features.
 - Manual cookie headers from `~/.config/quotakit/config.json`, `~/.quotakit/config.json`, or legacy `~/.codexbar/config.json` work on Linux.
 

@@ -538,6 +538,11 @@
 "session_depleted_notification_body" = "0% restante. Avisaremos quando estiver disponível novamente.";
 "session_restored_notification_title" = "Sessão do %@ restaurada";
 "session_restored_notification_body" = "A cota de sessão está disponível novamente.";
+"limit_reset_notifications_title" = "Avisos de redefinição";
+"limit_reset_notifications_subtitle" = "Informa o provedor e a janela quando um limite de sessão ou semanal é redefinido.";
+"limit_reset_notification_title" = "%1$@: limite redefinido (%2$@)";
+"limit_reset_notification_body" = "Há cota nova disponível.";
+"limit_reset_notification_body_with_account" = "Conta %@. Há cota nova disponível.";
 "quota_warning_warn_at" = "Alertar em";
 "quota_warning_global_threshold_subtitle" = "Percentuais restantes para as janelas de sessão e semanal, a menos que um provedor defina valores próprios.";
 "quota_warning_sound" = "Reproduzir som de notificação";

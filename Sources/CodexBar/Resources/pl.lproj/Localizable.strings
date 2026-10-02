@@ -528,6 +528,11 @@
 "session_depleted_notification_body" = "Pozostało 0%. Powiadomimy, gdy limit będzie ponownie dostępny.";
 "session_restored_notification_title" = "Przywrócono limit sesji (%@)";
 "session_restored_notification_body" = "Limit sesji jest ponownie dostępny.";
+"limit_reset_notifications_title" = "Powiadomienia o resecie";
+"limit_reset_notifications_subtitle" = "Informuje, u którego dostawcy i w jakim oknie zresetował się limit sesji lub tygodniowy.";
+"limit_reset_notification_title" = "Zresetowano limit %1$@ (%2$@)";
+"limit_reset_notification_body" = "Nowy limit jest dostępny.";
+"limit_reset_notification_body_with_account" = "Konto %@. Nowy limit jest dostępny.";
 "quota_warning_warn_at" = "Ostrzegaj przy";
 "quota_warning_global_threshold_subtitle" = "Procent pozostałego limitu dla okien sesji i tygodnia, chyba że dostawca ma nadpisanie.";
 "quota_warning_sound" = "Odtwarzaj dźwięk powiadomienia";

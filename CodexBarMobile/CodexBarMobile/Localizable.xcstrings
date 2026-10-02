@@ -20411,6 +20411,33 @@
         }
       }
     },
+    "Muse (muse.ai) weekly quota now syncs from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "ar": {"stringUnit": {"state": "translated", "value": "تتم الآن مزامنة الحصة الأسبوعية لـ Muse (muse.ai) من QuotaKit على Mac إلى iPhone."}},
+        "ca": {"stringUnit": {"state": "translated", "value": "La quota setmanal de Muse (muse.ai) ara se sincronitza de QuotaKit al Mac amb l’iPhone."}},
+        "de": {"stringUnit": {"state": "translated", "value": "Das wöchentliche Kontingent von Muse (muse.ai) wird jetzt von QuotaKit auf dem Mac mit dem iPhone synchronisiert."}},
+        "en": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai) weekly quota now syncs from QuotaKit Mac to iPhone."}},
+        "es": {"stringUnit": {"state": "translated", "value": "La cuota semanal de Muse (muse.ai) ahora se sincroniza desde QuotaKit en Mac al iPhone."}},
+        "fa": {"stringUnit": {"state": "translated", "value": "سهمیه هفتگی Muse (muse.ai) اکنون از QuotaKit در Mac با iPhone همگام‌سازی می‌شود."}},
+        "fr": {"stringUnit": {"state": "translated", "value": "Le quota hebdomadaire de Muse (muse.ai) se synchronise désormais de QuotaKit sur Mac vers l’iPhone."}},
+        "gl": {"stringUnit": {"state": "translated", "value": "A cota semanal de Muse (muse.ai) agora sincronízase desde QuotaKit no Mac co iPhone."}},
+        "id": {"stringUnit": {"state": "translated", "value": "Kuota mingguan Muse (muse.ai) kini disinkronkan dari QuotaKit di Mac ke iPhone."}},
+        "it": {"stringUnit": {"state": "translated", "value": "La quota settimanale di Muse (muse.ai) ora si sincronizza da QuotaKit sul Mac all’iPhone."}},
+        "ja": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai) の週間クォータが、Quotakit の Mac から iPhone に同期されるようになりました。"}},
+        "ko": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai)의 주간 할당량이 이제 QuotaKit Mac에서 iPhone으로 동기화됩니다."}},
+        "nl": {"stringUnit": {"state": "translated", "value": "Het wekelijkse quotum van Muse (muse.ai) wordt nu vanuit QuotaKit op de Mac met de iPhone gesynchroniseerd."}},
+        "pl": {"stringUnit": {"state": "translated", "value": "Tygodniowy limit Muse (muse.ai) jest teraz synchronizowany z QuotaKit na Macu na iPhone’a."}},
+        "pt-BR": {"stringUnit": {"state": "translated", "value": "A cota semanal do Muse (muse.ai) agora é sincronizada do QuotaKit no Mac para o iPhone."}},
+        "ru": {"stringUnit": {"state": "translated", "value": "Еженедельная квота Muse (muse.ai) теперь синхронизируется из QuotaKit на Mac с iPhone."}},
+        "sv": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai):s veckokvot synkas nu från QuotaKit på Mac till iPhone."}},
+        "th": {"stringUnit": {"state": "translated", "value": "โควตารายสัปดาห์ของ Muse (muse.ai) ซิงค์จาก QuotaKit บน Mac ไปยัง iPhone แล้ว"}},
+        "tr": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai) haftalık kotası artık QuotaKit Mac'ten iPhone'a eşitleniyor."}},
+        "uk": {"stringUnit": {"state": "translated", "value": "Тижнева квота Muse (muse.ai) тепер синхронізується з QuotaKit на Mac на iPhone."}},
+        "vi": {"stringUnit": {"state": "translated", "value": "Hạn mức hàng tuần của Muse (muse.ai) hiện được đồng bộ từ QuotaKit trên Mac sang iPhone."}},
+        "zh-Hans": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai) 的每周额度现可从 Mac 版 QuotaKit 同步到 iPhone。"}},
+        "zh-Hant": {"stringUnit": {"state": "translated", "value": "Muse (muse.ai) 的每週額度現在可從 Mac 版 QuotaKit 同步到 iPhone。"}}
+      }
+    },
     "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone." } },

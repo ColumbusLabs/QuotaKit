@@ -46,7 +46,7 @@ extension CostUsageStore {
         }) else { return .unavailable }
         guard !unloadedPaths.isEmpty else { return .loaded([:]) }
         #if DEBUG
-        if Self.codexTokenSnapshotHydrationFailureForTesting?(self.databaseURL, unloadedPaths) == true {
+        if CostUsageStoreTestHooks.current.codexTokenSnapshotHydrationFailure?(self.databaseURL, unloadedPaths) == true {
             return .unavailable
         }
         #endif
@@ -295,7 +295,7 @@ extension CostUsageStore {
 
     func readSnapshot(loadTokenSnapshots: Bool = true) -> CostUsageStoreSnapshot {
         #if DEBUG
-        Self.snapshotReadForTesting?(self.databaseURL)
+        CostUsageStoreTestHooks.current.snapshotRead?(self.databaseURL)
         #endif
         return self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
@@ -319,7 +319,7 @@ extension CostUsageStore {
         self.withDatabase(default: nil) { database in
             guard let before = self.currentCodexScanStamp() else { return nil }
             #if DEBUG
-            Self.snapshotReadForTesting?(self.databaseURL)
+            CostUsageStoreTestHooks.current.snapshotRead?(self.databaseURL)
             #endif
             let read = try Self.inReadTransaction(database) { () -> (
                 snapshot: CostUsageStoreSnapshot,
@@ -841,8 +841,8 @@ extension CostUsageStore {
         storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
         #if DEBUG
-        CostUsageStore.tokenSnapshotsReadForTesting?(storeURL)
-        CostUsageStore.tokenSnapshotPathReadForTesting?(storeURL, path)
+        CostUsageStoreTestHooks.current.tokenSnapshotsRead?(storeURL)
+        CostUsageStoreTestHooks.current.tokenSnapshotPathRead?(storeURL, path)
         #endif
         var sql = """
         SELECT f.path, t.event_index, t.timestamp, t.timestamp_ms, t.day,
@@ -950,7 +950,7 @@ extension CostUsageStore {
             rowCountsByPath[row.path, default: 0] += 1
             let decoded = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: row.payload)
             #if DEBUG
-            CostUsageStore.codexStreamedUsageRowForTesting?(
+            CostUsageStoreTestHooks.current.codexStreamedUsageRow?(
                 row.path,
                 row.rowIndex,
                 row.payload.count,

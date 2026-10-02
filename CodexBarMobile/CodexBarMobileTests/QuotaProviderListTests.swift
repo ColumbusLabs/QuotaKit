@@ -29,7 +29,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Total count is 71 after Crof retirement`() {
+    func `Total count is 72 after MuseAI addition`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -44,19 +44,19 @@ struct QuotaProviderListTests {
         // after Notion AI, 61 after IBM Bob, 62 after GitKraken AI, 63 after v0 billing,
         // 64 after Hugging Face ZeroGPU quota, 66 after Bifrost and DevPass,
         // 69 after Aixy, xKiro, and Raycast, 70 after Helmcode,
-        // and 72 after Nous Portal and Muse Code; Crof's retirement reduces
-        // the active alert list to 71 without changing the remaining order.
+        // 72 after Nous Portal and Muse Code; Crof's retirement reduces
+        // the active alert list to 71, then Muse (muse.ai) brings it to 72.
         // Fireworks is spend-only.
         // ai& is spend-only and has no quota transitions, so it intentionally
         // does not consume three CloudKit quota-zone subscriptions.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 71)
+        #expect(QuotaProviderList.providers.count == 72)
     }
 
     @Test
-    func `Subscription zone count is 213 (71 providers × 3 states)`() {
+    func `Subscription zone count is 216 (72 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -75,10 +75,10 @@ struct QuotaProviderListTests {
         // GitKraken AI catch-up: 62 × 3 = 186 zones; Fireworks has no quota transitions.
         // v0 catch-up: 63 × 3 = 189 zones without renumbering earlier IDs.
         // Hugging Face catch-up: 64 × 3 = 192 zones. Eight appended providers add 24 zones.
-        // Crof retirement: 71 × 3 = 213 active zones (down from 72 × 3 = 216).
+        // MuseAI adds three append-only zones after the Crof retirement.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state).
-        #expect(QuotaProviderList.providers.count * 3 == 213)
+        #expect(QuotaProviderList.providers.count * 3 == 216)
     }
 
     @Test
@@ -196,7 +196,7 @@ struct QuotaProviderListTests {
         // window; iPhone therefore has no CodeRabbit usage data or quota transitions to subscribe
         // to. Adding idle CloudKit zones would change this catalog without an event source.
         #expect(!QuotaProviderList.providers.contains { $0.id == "coderabbit" })
-        #expect(QuotaProviderList.providers.suffix(2).map(\.id) == ["nous", "muse"])
+        #expect(QuotaProviderList.providers.suffix(3).map(\.id) == ["nous", "muse", "museai"])
         #expect(QuotaProviderList.providers.dropLast(3).suffix(5).map(\.id) == [
             "bifrost", "devpass", "aixy", "xkiro", "raycast",
         ])
@@ -300,9 +300,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 71/213 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 71)
-        #expect(QuotaProviderList.providers.count * 3 == 213)
+    func `Cause: catalog 72/216 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 72)
+        #expect(QuotaProviderList.providers.count * 3 == 216)
     }
 
     @Test
@@ -331,6 +331,17 @@ struct QuotaProviderListTests {
         for state in ["depleted", "restored", "warning"] {
             #expect(QuotaProviderList.quotaZoneName(
                 providerID: "gitkraken", state: state) == "Quota-gitkraken-\(state)Zone")
+        }
+    }
+
+    @Test
+    func `MuseAI is appended with stable subscription names`() {
+        #expect(QuotaProviderList.providers.suffix(3).map(\.id) == ["nous", "muse", "museai"])
+        let museAI = QuotaProviderList.providers.last
+        #expect(museAI?.displayName == "Muse (muse.ai)")
+        for state in ["depleted", "restored", "warning"] {
+            #expect(QuotaProviderList.quotaZoneName(
+                providerID: "museai", state: state) == "Quota-museai-\(state)Zone")
         }
     }
 

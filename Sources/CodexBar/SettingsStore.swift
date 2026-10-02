@@ -461,6 +461,7 @@ extension SettingsStore {
         let statusChecksEnabled: Bool
         let sessionQuotaNotificationsEnabled: Bool
         let predictivePaceWarningNotificationsEnabled: Bool
+        let limitResetNotificationsEnabled: Bool
     }
 
     private struct OptionalCreditsDefaults {
@@ -653,6 +654,7 @@ extension SettingsStore {
             sessionQuotaNotificationsEnabled: notificationDefaults.sessionQuotaNotificationsEnabled,
             quotaWarningNotificationsEnabled: quotaWarnings.notificationsEnabled,
             predictivePaceWarningNotificationsEnabled: notificationDefaults.predictivePaceWarningNotificationsEnabled,
+            limitResetNotificationsEnabled: notificationDefaults.limitResetNotificationsEnabled,
             quotaWarningThresholdsRaw: quotaWarnings.thresholdsRaw,
             quotaWarningSessionThresholdsRaw: quotaWarnings.sessionThresholdsRaw,
             quotaWarningWeeklyThresholdsRaw: quotaWarnings.weeklyThresholdsRaw,
@@ -828,7 +830,9 @@ extension SettingsStore {
                 fallback: true,
                 from: userDefaults),
             predictivePaceWarningNotificationsEnabled: userDefaults.object(
-                forKey: "predictivePaceWarningNotificationsEnabled") as? Bool ?? false)
+                forKey: "predictivePaceWarningNotificationsEnabled") as? Bool ?? false,
+            limitResetNotificationsEnabled: userDefaults.object(
+                forKey: "limitResetNotificationsEnabled") as? Bool ?? false)
     }
 
     private static func loadCostSummaryDisplayStyleRaw(

@@ -99,7 +99,7 @@ extension CostUsageStore {
 
             let read = try Self.inReadTransaction(database) {
                 #if DEBUG
-                Self.codexReadViewSnapshotForTesting?(self.databaseURL, purpose)
+                CostUsageStoreTestHooks.current.codexReadViewSnapshot?(self.databaseURL, purpose)
                 #endif
                 var snapshot = try CostUsageStoreSnapshot(
                     metadata: Self.readSingleton(
@@ -113,7 +113,7 @@ extension CostUsageStore {
                         ? [] : Self.readFileDayAggregates(database, path: nil),
                     dayAggregates: purpose == .status
                         ? [] : Self.readDayAggregates(database, sinceDay: nil, untilDay: nil),
-                    forkLineage: purpose == .report ? Self.readForkLineage(database, path: nil) : [],
+                    forkLineage: Self.readForkLineage(database, path: nil),
                     bufferedLines: purpose == .report
                         ? Self.readBufferedLines(database, path: nil, kind: nil) : [],
                     discoveryState: Self.readSingleton(
@@ -127,7 +127,7 @@ extension CostUsageStore {
                     accumulators: [])
                 snapshot.tokenSnapshotsLoaded = false
                 #if DEBUG
-                try Self.codexReadViewCheckpointForTesting?(self.databaseURL)
+                try CostUsageStoreTestHooks.current.codexReadViewCheckpoint?(self.databaseURL)
                 #endif
                 let catchUpProjection = purpose == .report
                     ? nil
@@ -149,8 +149,8 @@ extension CostUsageStore {
             else { return empty }
 
             #if DEBUG
-            Self.codexReadViewDecodeForTesting?(self.databaseURL, purpose)
-            if purpose == .report { Self.codexReadViewUsageRowsForTesting?(self.databaseURL) }
+            CostUsageStoreTestHooks.current.codexReadViewDecode?(self.databaseURL, purpose)
+            if purpose == .report { CostUsageStoreTestHooks.current.codexReadViewUsageRows?(self.databaseURL) }
             #endif
             let decoded = Self.decodeCodexCache(
                 from: snapshot,
@@ -291,7 +291,13 @@ extension CostUsageStore {
                cache: cache,
                calendar: calendar)
         {
-            Self.identicalContentPreLockCheckpointForTesting?(self.databaseURL)
+            #if DEBUG
+            if let checkpoint = CostUsageStoreTestHooks.current.identicalContentPreLockCheckpoint,
+               checkpoint.databaseURL == self.databaseURL
+            {
+                checkpoint.checkpoint()
+            }
+            #endif
             guard self.beginSaveTransaction() else {
                 return CostUsageStoreBudgetResult(
                     deletedRows: 0,
@@ -412,7 +418,9 @@ extension CostUsageStore {
                     calendar: calendar,
                     aggregatePricing: aggregatePricing)
                 persistedFiles += 1
-                Self.saveCycleCheckpointForTesting?(persistedFiles)
+                #if DEBUG
+                CostUsageStoreTestHooks.current.saveCycleCheckpoint?(persistedFiles)
+                #endif
             }
             _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache, pricing: aggregatePricing))
             var metadata = Self.metadata(
@@ -598,7 +606,9 @@ extension CostUsageStore {
                     database,
                     days: invalidatedVerifiedDays)
             }
-            try Self.codexCatchUpDeltaFailureForTesting?(self.databaseURL)
+            #if DEBUG
+            try CostUsageStoreTestHooks.current.codexCatchUpDeltaFailure?(self.databaseURL)
+            #endif
             // Nested writes retain their original SQLite error in activeTransactionError.
             // Do not replace BUSY/FULL/NOMEM with synthetic SQLITE_ERROR here: the outer
             // transaction uses the original code to preserve the database rather than rebuild.
@@ -861,8 +871,10 @@ extension CostUsageStore {
         var validatedCurrentSnapshot = false
     }
 
-    static func codexTokenSnapshotMarkersByPath(from files: [CostUsageStoreFile]) -> [String: Bool] {
-        let decoder = JSONDecoder()
+    static func codexTokenSnapshotMarkersByPath(
+        from files: [CostUsageStoreFile],
+        decoder: JSONDecoder = JSONDecoder()) -> [String: Bool]
+    {
         return Dictionary(uniqueKeysWithValues: files.compactMap { file in
             guard let payload = file.scanState.detailsPayload,
                   let details = try? decoder.decode(StoredFileDetails.self, from: payload)
@@ -871,8 +883,10 @@ extension CostUsageStore {
         })
     }
 
-    static func codexMalformedDetailsPaths(from files: [CostUsageStoreFile]) -> Set<String> {
-        let decoder = JSONDecoder()
+    static func codexMalformedDetailsPaths(
+        from files: [CostUsageStoreFile],
+        decoder: JSONDecoder = JSONDecoder()) -> Set<String>
+    {
         return Set(files.compactMap { file in
             guard let payload = file.scanState.detailsPayload,
                   (try? decoder.decode(StoredFileDetails.self, from: payload)) != nil
@@ -902,9 +916,12 @@ extension CostUsageStore {
         hydratingPaths: Set<String>? = nil,
         tokenSnapshotsLoaded: Bool = true,
         preserveMalformedFiles: Bool = false,
-        decodedUsageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil) -> CostUsageCache
+        decodedUsageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
+        makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
     {
+        let decoder = makeDecoder()
         var cache = CostUsageCache()
+        cache.files.reserveCapacity(snapshot.files.count)
         let metadata = snapshot.metadata
         cache.lastScanUnixMs = metadata.lastScanUnixMs
         cache.scanSinceKey = metadata.scanSinceDay
@@ -920,42 +937,48 @@ extension CostUsageStore {
         cache.codexScanTotalFiles = metadata.totalFiles
         cache.codexScanInventoryPaths = metadata.scanInventoryPaths
         cache.codexHistoryHydrationRetries = metadata.codexHistoryHydrationRetries
-        cache.codexMalformedDetailsPaths = Self.codexMalformedDetailsPaths(from: snapshot.files)
+        cache.codexMalformedDetailsPaths = Self.codexMalformedDetailsPaths(
+            from: snapshot.files,
+            decoder: decoder)
         if cache.codexHistoryHydrationRetries?.isEmpty == false {
             cache.codexScanCatchUpPending = true
         }
         cache.roots = metadata.rootMtimes
         cache.codexProjectMetadataVersion = metadata.projectMetadataVersion
         cache.codexPreviousReport = metadata.previousReportPayload.flatMap {
-            try? JSONDecoder().decode(CostUsageCodexPreviousReport.self, from: $0)
+            try? decoder.decode(CostUsageCodexPreviousReport.self, from: $0)
         }
         if let priority = metadata.priorityTurnStatePayload.flatMap({
-            try? JSONDecoder().decode(StoredPriorityState.self, from: $0)
+            try? decoder.decode(StoredPriorityState.self, from: $0)
         }) {
             cache.codexPriorityTurnKeys = priority.turnKeys
             cache.codexPriorityTurnIDsByDay = priority.turnIDsByDay
             cache.codexPriorityTurnsCursor = priority.turnsCursor
         }
-        cache.codexSessionDiscovery = snapshot.discoveryState.flatMap(Self.discovery(from:))
+        cache.codexSessionDiscovery = snapshot.discoveryState?.payload.flatMap {
+            try? decoder.decode(CostUsageCodexSessionDiscovery.self, from: $0)
+        }
         cache.codexActiveLookbackState = snapshot.lookbackState.map(Self.lookback(from:))
 
         let snapshotsByPath = Dictionary(grouping: snapshot.tokenSnapshots, by: \.path)
         let rowsByPath = decodedUsageRowsByPath ?? Dictionary(grouping: snapshot.usageRows, by: \.path)
             .mapValues { rows in
                 rows.compactMap {
-                    try? JSONDecoder().decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
+                    try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
                 }
             }
         let aggregatesByPath = Dictionary(grouping: snapshot.fileDayAggregates, by: \.path)
         let lineageByPath = Dictionary(uniqueKeysWithValues: snapshot.forkLineage.map { ($0.path, $0) })
         let buffersByPath = Dictionary(grouping: snapshot.bufferedLines, by: \.path)
         let accumulatorByPath = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
-        let malformedDetailsPaths = Self.codexMalformedDetailsPaths(from: snapshot.files)
+        let malformedDetailsPaths = Self.codexMalformedDetailsPaths(
+            from: snapshot.files,
+            decoder: decoder)
         for file in snapshot.files {
             let hasMalformedDetails = malformedDetailsPaths.contains(file.path)
             let details: StoredFileDetails
             if let detailsData = file.scanState.detailsPayload,
-               let decoded = try? JSONDecoder().decode(StoredFileDetails.self, from: detailsData)
+               let decoded = try? decoder.decode(StoredFileDetails.self, from: detailsData)
             {
                 details = decoded
             } else if hydratingPaths != nil || preserveMalformedFiles {
@@ -1034,22 +1057,22 @@ extension CostUsageStore {
                     ? restoredRows : nil,
                 codexNextUsageRowIndex: details.hasExactUsageRowIndex == true
                     ? file.scanState.nextUsageRowIndex : nil,
-                codexPendingPricing: isHydrated ? Self.bufferedPricingEvidence(buffers) : nil,
+                codexPendingPricing: isHydrated ? Self.bufferedPricingEvidence(buffers, decoder: decoder) : nil,
                 codexPendingSourcePricing: isHydrated ? buffers.first { $0.kind == .sourcePricingEvidence }.map {
-                    (try? JSONDecoder().decode(
+                    (try? decoder.decode(
                         [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence].self,
                         from: $0.payload)) ?? [:]
                 } : nil,
                 codexPendingSourcePricingAnchor: isHydrated ? buffers.first { $0.kind == .sourcePricingAnchor }
                     .flatMap {
-                        try? JSONDecoder().decode(CostUsageCodexTokenIndexAnchor.self, from: $0.payload)
+                        try? decoder.decode(CostUsageCodexTokenIndexAnchor.self, from: $0.payload)
                     } : nil,
                 codexStagedRecoveryRows: isHydrated ? buffers.first { $0.kind == .stagedRecoveryRows }.flatMap {
-                    try? JSONDecoder().decode([CostUsageScanner.CodexUsageRow].self, from: $0.payload)
+                    try? decoder.decode([CostUsageScanner.CodexUsageRow].self, from: $0.payload)
                 } : nil,
                 codexStagedRecoverySnapshots: isHydrated ? buffers.first { $0.kind == .stagedRecoverySnapshots }
                     .flatMap {
-                        try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
+                        try? decoder.decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
                     } : nil,
                 codexTokenSnapshots: restoredTokenSnapshots,
                 codexTokenCheckpoints: restoredTokenSnapshots.map(CostUsageScanner.codexTokenCheckpoints(for:)),
@@ -1067,13 +1090,13 @@ extension CostUsageStore {
                 codexReplacementScanPending: file.scanState.replacementScanPending,
                 codexInventoryValidationGeneration: file.scanState.inventoryValidationGeneration,
                 codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
-                    try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
+                    try? decoder.decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
                 codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
                 codexBufferedSubagentLines: isHydrated
-                    ? Self.bufferedLines(buffers, kind: .subagent) : nil,
+                    ? Self.bufferedLines(buffers, kind: .subagent, decoder: decoder) : nil,
                 codexBufferedUnresolvedForkLines: isHydrated
-                    ? Self.bufferedLines(buffers, kind: .unresolvedFork) : nil,
+                    ? Self.bufferedLines(buffers, kind: .unresolvedFork, decoder: decoder) : nil,
                 codexHasBufferedSubagentLines: file.hasBufferedSubagentLines,
                 codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines,
                 codexParserRevision: details.parserRevision)
@@ -1104,7 +1127,9 @@ extension CostUsageStore {
             let identityNeedsValidation = normalizedIdentity != file.scanState.fileIdentity
             let restoredScanState: RestoredCodexScanState
             if identityNeedsValidation, remainingIdentityValidationVisits > 0 {
-                Self.codexCatchUpReconciliationVisitForTesting?()
+                #if DEBUG
+                CostUsageStoreTestHooks.current.codexCatchUpReconciliationVisit?()
+                #endif
                 remainingIdentityValidationVisits -= 1
                 restoredScanState = Self.restoredCodexScanState(
                     file: file,
@@ -1276,7 +1301,9 @@ extension CostUsageStore {
             guard normalizedIdentity != file.fileIdentity else { continue }
             guard remainingValidationVisits > 0 else { return true }
             remainingValidationVisits -= 1
-            Self.codexCatchUpReconciliationVisitForTesting?()
+            #if DEBUG
+            CostUsageStoreTestHooks.current.codexCatchUpReconciliationVisit?()
+            #endif
 
             let metadata = CostUsageScanner.codexFileMetadata(
                 fileURL: URL(fileURLWithPath: file.path, isDirectory: false))
@@ -1336,13 +1363,14 @@ extension CostUsageStore {
             let candidatePaths = lookback.pendingFilePaths.prefix(reconciliationLimit)
             var completedIdentityValidationPathKeys: Set<String> = []
             for path in candidatePaths {
-                Self.codexCatchUpReconciliationVisitForTesting?()
+                #if DEBUG
+                CostUsageStoreTestHooks.current.codexCatchUpReconciliationVisit?()
+                #endif
                 let fileURL = URL(fileURLWithPath: path)
                 let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
                 guard let fileId = metadata.fileId,
                       let cachedEntry = Self.cachedCodexUsageEntry(for: path, cache: cache),
-                      cachedEntry.usage.codexScanComplete != false,
-                      !cachedEntry.usage.hasBufferedCodexForkRetryLines
+                      !cachedEntry.usage.hasPendingCodexScanWork
                 else {
                     continue
                 }
@@ -1389,8 +1417,7 @@ extension CostUsageStore {
         } ?? false
         guard !discoveryHasPendingWork else { return }
         let filesHavePendingWork = cache.files.values.contains {
-            $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-                || !$0.hasCurrentCodexParser
+            $0.hasPendingCodexScanWork || !$0.hasCurrentCodexParser
         }
         guard !filesHavePendingWork else { return }
         let expectedTotalFiles = max(0, cache.codexScanTotalFiles ?? 0)
@@ -1463,9 +1490,8 @@ extension CostUsageStore {
             guard let usage = cache.files[path]
                 ?? cachedFilesByNormalizedPath[Self.normalizedCodexPath(path)]
                 ?? cachedFilesByIdentity[fileId],
-                usage.codexScanComplete != false,
+                !usage.hasPendingCodexScanWork,
                 usage.hasCurrentCodexParser,
-                !usage.hasBufferedCodexForkRetryLines,
                 Self.matchesCompletedCodexFileSnapshot(
                     usage: usage,
                     metadata: metadata,
@@ -1760,7 +1786,9 @@ extension CostUsageStore {
         cached: [CostUsageScanner.CodexUsageRow]?) -> Bool
     {
         guard storedCount > 0 else { return true }
-        Self.codexPrefixComparisonVisitForTesting?(path, storedCount)
+        #if DEBUG
+        CostUsageStoreTestHooks.current.codexPrefixComparisonVisit?(path, storedCount)
+        #endif
         if let cached {
             return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
         }
@@ -1797,7 +1825,9 @@ extension CostUsageStore {
         cached: [CostUsageCodexTokenSnapshot]?) -> Bool
     {
         guard storedCount > 0 else { return true }
-        Self.codexPrefixComparisonVisitForTesting?(path, storedCount)
+        #if DEBUG
+        CostUsageStoreTestHooks.current.codexPrefixComparisonVisit?(path, storedCount)
+        #endif
         if let cached {
             return cached.count == storedCount && source.prefix(storedCount).elementsEqual(cached)
         }
@@ -2257,10 +2287,6 @@ extension CostUsageStore {
         }
     }
 
-    private static func discovery(from value: CostUsageStoreDiscoveryState) -> CostUsageCodexSessionDiscovery? {
-        value.payload.flatMap { try? JSONDecoder().decode(CostUsageCodexSessionDiscovery.self, from: $0) }
-    }
-
     private static func lookbackState(_ value: CostUsageCodexActiveLookbackState?) -> CostUsageStoreLookbackState? {
         value.map {
             CostUsageStoreLookbackState(
@@ -2418,19 +2444,21 @@ extension CostUsageStore {
     }
 
     private static func bufferedPricingEvidence(
-        _ values: [CostUsageStoreBufferedLine]) -> [String: CostUsageScanner.CodexPricingEvidence]?
+        _ values: [CostUsageStoreBufferedLine],
+        decoder: JSONDecoder) -> [String: CostUsageScanner.CodexPricingEvidence]?
     {
         values.first(where: { $0.kind == .pricingEvidence }).flatMap {
-            try? JSONDecoder().decode([String: CostUsageScanner.CodexPricingEvidence].self, from: $0.payload)
+            try? decoder.decode([String: CostUsageScanner.CodexPricingEvidence].self, from: $0.payload)
         }
     }
 
     private static func bufferedLines(
         _ values: [CostUsageStoreBufferedLine],
-        kind: CostUsageStoreBufferedLineKind) -> [CostUsageScanner.CodexBufferedFastLine]?
+        kind: CostUsageStoreBufferedLineKind,
+        decoder: JSONDecoder) -> [CostUsageScanner.CodexBufferedFastLine]?
     {
-        let lines = values.filter { $0.kind == kind }.compactMap {
-            try? JSONDecoder().decode(CostUsageScanner.CodexBufferedFastLine.self, from: $0.payload)
+        let lines: [CostUsageScanner.CodexBufferedFastLine] = values.lazy.filter { $0.kind == kind }.compactMap {
+            try? decoder.decode(CostUsageScanner.CodexBufferedFastLine.self, from: $0.payload)
         }
         return lines.isEmpty ? nil : lines
     }

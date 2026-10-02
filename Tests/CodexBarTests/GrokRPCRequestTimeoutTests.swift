@@ -15,7 +15,7 @@ struct GrokRPCRequestTimeoutTests {
         let stdoutClosed = DispatchSemaphore(value: 0)
 
         do {
-            let _: Int = try await GrokRPCRequestTimeout.run(
+            let _: Int = try await RPCRequestTimeout.run(
                 seconds: 0.01,
                 timeoutError: Failure.timeout,
                 onTimeout: {
@@ -36,7 +36,7 @@ struct GrokRPCRequestTimeoutTests {
     @Test
     func `request errors retain their classification`() async {
         do {
-            let _: Int = try await GrokRPCRequestTimeout.run(
+            let _: Int = try await RPCRequestTimeout.run(
                 seconds: 60,
                 timeoutError: Failure.timeout,
                 onTimeout: { Issue.record("Unexpected timeout teardown") },
@@ -49,7 +49,7 @@ struct GrokRPCRequestTimeoutTests {
 
     @Test
     func `successful request does not tear down process`() async throws {
-        let result = try await GrokRPCRequestTimeout.run(
+        let result = try await RPCRequestTimeout.run(
             seconds: 60,
             timeoutError: Failure.timeout,
             onTimeout: { Issue.record("Unexpected timeout teardown") },

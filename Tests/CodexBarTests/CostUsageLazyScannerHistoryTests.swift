@@ -28,11 +28,9 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(Self.totalTokens(initial) == 330)
 
         let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
-        Self.installReadObservation(probe)
-        defer { Self.clearHistoryHooks() }
-
-        let warm = try Self.scan(day: day, options: options)
-        Self.clearHistoryHooks()
+        let warm = try Self.withReadObservation(probe) {
+            try Self.scan(day: day, options: options)
+        }
 
         #expect(Self.totalTokens(warm) == Self.totalTokens(initial))
         #expect(probe.snapshotTableReadCount == 0)
@@ -76,11 +74,9 @@ struct CostUsageLazyScannerHistoryTests {
             env: env)
 
         let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
-        Self.installReadObservation(probe)
-        defer { Self.clearHistoryHooks() }
-
-        let updated = try Self.scan(day: day, options: options)
-        Self.clearHistoryHooks()
+        let updated = try Self.withReadObservation(probe) {
+            try Self.scan(day: day, options: options)
+        }
 
         #expect(Self.totalTokens(updated) == 395)
         #expect(probe.snapshotTableReadCount == 1)
@@ -119,11 +115,9 @@ struct CostUsageLazyScannerHistoryTests {
         var forcedOptions = options
         forcedOptions.forceRescan = true
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
-        Self.installUnavailableHydration(probe, paths: [path])
-        defer { Self.clearHistoryHooks() }
-
-        let deferred = try Self.scan(day: day, options: forcedOptions)
-        Self.clearHistoryHooks()
+        let deferred = try Self.withUnavailableHydration(probe, paths: [path]) {
+            try Self.scan(day: day, options: forcedOptions)
+        }
 
         #expect(probe.injectedFailureCount == 1)
         #expect(probe.injectedPaths == [Set([path])])
@@ -185,11 +179,9 @@ struct CostUsageLazyScannerHistoryTests {
         var forcedOptions = options
         forcedOptions.forceRescan = true
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
-        Self.installUnavailableHydration(probe, paths: [oldPath])
-        defer { Self.clearHistoryHooks() }
-
-        let deferred = try Self.scan(day: day, options: forcedOptions)
-        Self.clearHistoryHooks()
+        let deferred = try Self.withUnavailableHydration(probe, paths: [oldPath]) {
+            try Self.scan(day: day, options: forcedOptions)
+        }
 
         #expect(probe.injectedFailureCount == 1)
         #expect(probe.injectedPaths == [Set([oldPath])])
@@ -232,12 +224,12 @@ struct CostUsageLazyScannerHistoryTests {
         try FileManager.default.moveItem(at: oldURL, to: newURL)
         let store = CostUsageStore(cacheRoot: env.cacheRoot)
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
-        Self.installUnavailableHydration(probe, paths: [oldURL.path])
-        defer { Self.clearHistoryHooks() }
         var forcedOptions = options
         forcedOptions.forceRescan = true
-        #expect(try Self.totalTokens(Self.scan(day: day, options: forcedOptions)) == 110)
-        Self.clearHistoryHooks()
+        let forcedReport = try Self.withUnavailableHydration(probe, paths: [oldURL.path]) {
+            try Self.scan(day: day, options: forcedOptions)
+        }
+        #expect(Self.totalTokens(forcedReport) == 110)
         #expect(probe.injectedFailureCount == 1)
         #expect(CostUsageStoreAccess.readWithoutTokenSnapshots(
             cacheRoot: env.cacheRoot,
@@ -297,11 +289,9 @@ struct CostUsageLazyScannerHistoryTests {
         var forcedOptions = options
         forcedOptions.forceRescan = true
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
-        Self.installUnavailableHydration(probe, paths: [path])
-        defer { Self.clearHistoryHooks() }
-
-        let deferred = try Self.scan(day: day, options: forcedOptions)
-        Self.clearHistoryHooks()
+        let deferred = try Self.withUnavailableHydration(probe, paths: [path]) {
+            try Self.scan(day: day, options: forcedOptions)
+        }
 
         #expect(probe.injectedFailureCount == 1)
         #expect(probe.injectedPaths == [Set([path])])
@@ -344,13 +334,12 @@ struct CostUsageLazyScannerHistoryTests {
         let storedRows = await loaded.store.fetchTokenSnapshots(path: path)
         #expect(!storedRows.isEmpty)
         let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
-        Self.installReadObservation(probe)
-        defer { Self.clearHistoryHooks() }
-
         loaded.release()
         let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
-        #expect(try hydrator.hydrate(paths: [path]) == .stale)
-        Self.clearHistoryHooks()
+        let hydration = try Self.withReadObservation(probe) {
+            try hydrator.hydrate(paths: [path])
+        }
+        #expect(hydration == .stale)
 
         #expect(probe.snapshotTableReadCount == 0)
         #expect(probe.snapshotPaths.isEmpty)
@@ -387,21 +376,19 @@ struct CostUsageLazyScannerHistoryTests {
             day: day,
             env: env)
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
-        Self.installReadObservation(probe)
-        defer { Self.clearHistoryHooks() }
-
-        #expect(throws: CancellationError.self) {
-            try CostUsageScanner.loadDailyReportCancellable(
-                provider: .codex,
-                since: day,
-                until: day,
-                now: day.addingTimeInterval(60),
-                options: options,
-                checkCancellation: {
-                    if probe.didRead(path: path) { throw CancellationError() }
-                })
+        try Self.withReadObservation(probe) {
+            #expect(throws: CancellationError.self) {
+                try CostUsageScanner.loadDailyReportCancellable(
+                    provider: .codex,
+                    since: day,
+                    until: day,
+                    now: day.addingTimeInterval(60),
+                    options: options,
+                    checkCancellation: {
+                        if probe.didRead(path: path) { throw CancellationError() }
+                    })
+            }
         }
-        Self.clearHistoryHooks()
 
         #expect(probe.snapshotTableReadCount == 1)
         #expect(probe.snapshotPaths == [path])
@@ -542,27 +529,32 @@ struct CostUsageLazyScannerHistoryTests {
         ]
     }
 
-    private static func installReadObservation(_ probe: HistoryReadProbe) {
-        CostUsageStore.tokenSnapshotsReadForTesting = { storeURL in
+    private static func withReadObservation<T>(
+        _ probe: HistoryReadProbe,
+        operation: () throws -> T) rethrows -> T
+    {
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.tokenSnapshotsRead = { storeURL in
             probe.recordSnapshotTableRead(storeURL: storeURL)
         }
-        CostUsageStore.tokenSnapshotPathReadForTesting = { storeURL, path in
+        hooks.tokenSnapshotPathRead = { storeURL, path in
             probe.recordSnapshotPathRead(storeURL: storeURL, path: path)
         }
+        return try CostUsageStoreTestHooks.$current.withValue(hooks, operation: operation)
     }
 
-    private static func installUnavailableHydration(_ probe: HistoryReadProbe, paths: Set<String>) {
-        CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = { storeURL, unloadedPaths in
+    private static func withUnavailableHydration<T>(
+        _ probe: HistoryReadProbe,
+        paths: Set<String>,
+        operation: () throws -> T) rethrows -> T
+    {
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexTokenSnapshotHydrationFailure = { storeURL, unloadedPaths in
             guard probe.matches(storeURL), unloadedPaths == paths else { return false }
             probe.recordHydrationFailure(paths: unloadedPaths)
             return true
         }
-    }
-
-    private static func clearHistoryHooks() {
-        CostUsageStore.tokenSnapshotsReadForTesting = nil
-        CostUsageStore.tokenSnapshotPathReadForTesting = nil
-        CostUsageStore.codexTokenSnapshotHydrationFailureForTesting = nil
+        return try CostUsageStoreTestHooks.$current.withValue(hooks, operation: operation)
     }
 
     private struct TokenEvent {

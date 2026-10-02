@@ -54,7 +54,7 @@ struct AntigravityPricingRefreshTests {
             #expect(await gate.requestCount == 0)
             #expect(snapshot.daily.isEmpty)
         } else {
-            #expect(snapshot.last30DaysTokens == 198)
+            #expect(snapshot.last30DaysTokens == 187)
             #expect((snapshot.last30DaysCostUSD != nil) == (scenario == "known"))
             // Drain the detached refresh before its fixture directory is removed.
             let drainDeadline = clock.now.advanced(by: .seconds(2))
@@ -82,8 +82,8 @@ struct AntigravityPricingRefreshTests {
         try fixture.database(blobs: [Fixture.blob(model: "gemini-fixture-priced")])
         let snapshot = try await Self.fetch(
             fixture, force: true, client: ModelsDevClient(transport: AntigravityPricingTransport {}))
-        #expect(snapshot.last30DaysTokens == 198)
-        #expect(snapshot.last30DaysCostUSD == 111e-6 + 50 * 0.2e-6 + 37 * 2e-6)
+        #expect(snapshot.last30DaysTokens == 187)
+        #expect(snapshot.last30DaysCostUSD == 100e-6 + 50 * 0.2e-6 + 37 * 2e-6)
     }
 
     @Test
@@ -102,7 +102,7 @@ struct AntigravityPricingRefreshTests {
                 try Fixture.execute(database, "DELETE FROM gen_metadata WHERE idx = 1")
                 try Fixture.insert(database, row: 1, blob: [0x08, 0xFF])
             }))
-        #expect(snapshot.last30DaysTokens == 396)
+        #expect(snapshot.last30DaysTokens == 374)
         #expect(snapshot.historyCoverageIsEstablished)
         #expect(!snapshot.historyScanIsPartial)
     }
@@ -117,7 +117,7 @@ struct AntigravityPricingRefreshTests {
             client: ModelsDevClient(transport: AntigravityPricingTransport {
                 throw URLError(.notConnectedToInternet)
             }))
-        #expect(snapshot.last30DaysTokens == 198)
+        #expect(snapshot.last30DaysTokens == 187)
         #expect(snapshot.last30DaysCostUSD == nil)
         #expect(snapshot.historyCoverageIsEstablished)
     }

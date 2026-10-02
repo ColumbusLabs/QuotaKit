@@ -853,7 +853,7 @@ extension CostUsageScanner {
         let forceFullScan = context.forceFullScan
             || context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
         guard let cached = input.cached, cached.hasCurrentCodexParser,
-              !cached.hasBufferedCodexForkRetryLines else { return false }
+              !cached.hasPendingCodexForkRetry else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
               !Self.codexFileNeedsSourceRowRecovery(cached, context: context) else { return false }
         let needsSessionId = cached.sessionId == nil

@@ -541,6 +541,11 @@
 "session_depleted_notification_body" = "0 % kvar. Du får en avisering när den är tillgänglig igen.";
 "session_restored_notification_title" = "%@-sessionen är återställd";
 "session_restored_notification_body" = "Sessionskvoten är tillgänglig igen.";
+"limit_reset_notifications_title" = "Återställningsaviseringar";
+"limit_reset_notifications_subtitle" = "Visar vilken leverantör och vilket fönster som återställdes när en sessions- eller veckogräns återställs.";
+"limit_reset_notification_title" = "Gräns för %1$@ återställd (%2$@)";
+"limit_reset_notification_body" = "Ny kvot är tillgänglig.";
+"limit_reset_notification_body_with_account" = "Konto %@. Ny kvot är tillgänglig.";
 "quota_warning_warn_at" = "Varna vid";
 "quota_warning_global_threshold_subtitle" = "Återstående procent för sessions- och veckofönster, om inte en leverantör åsidosätter dem.";
 "quota_warning_sound" = "Spela aviseringsljud";

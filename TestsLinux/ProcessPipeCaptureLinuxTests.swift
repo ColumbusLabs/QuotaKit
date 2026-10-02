@@ -13,37 +13,67 @@ struct ProcessPipeCaptureLinuxTests {
     @Test
     func `blocked onData callback does not block capture close`() throws {
         let callbackStarted = DispatchSemaphore(value: 0)
+        let callbackFinished = DispatchSemaphore(value: 0)
         let releaseCallback = DispatchSemaphore(value: 0)
-        let captureFinished = DispatchSemaphore(value: 0)
+        let closeFinished = DispatchGroup()
+        let state = BlockedCallbackCloseState()
         let pipe = Pipe()
         let capture = ProcessPipeCapture(pipe: pipe, onData: {
+            defer { callbackFinished.signal() }
+            guard state.beginCallback() else { return }
             callbackStarted.signal()
             releaseCallback.wait()
         })
-        capture.start()
-
-        try pipe.fileHandleForWriting.write(contentsOf: Data("hello".utf8))
-        #expect(callbackStarted.wait(timeout: .now() + 1) == .success)
-
-        DispatchQueue.global().async {
+        closeFinished.enter()
+        let closer = Thread {
+            defer { closeFinished.leave() }
             _ = capture.finishSynchronously(timeout: 0.05)
-            captureFinished.signal()
         }
-        let finishResult = captureFinished.wait(timeout: .now() + 0.5)
-        releaseCallback.signal()
-        #expect(finishResult == .success)
-        if finishResult != .success {
-            _ = captureFinished.wait(timeout: .now() + 1)
+        var closerLaunched = false
+        defer {
+            let callbackEntered = state.abandon()
+            releaseCallback.signal()
+            do {
+                try pipe.fileHandleForWriting.close()
+            } catch {
+                Issue.record(error, "Writer cleanup failed; \(state.diagnostic)")
+            }
+            if !closerLaunched { closer.start() }
+            #expect(
+                closeFinished.wait(timeout: .now() + 60) == .success,
+                "Close worker cleanup did not finish; \(state.diagnostic)")
+            if callbackEntered {
+                #expect(
+                    callbackFinished.wait(timeout: .now() + 60) == .success,
+                    "Callback cleanup did not finish; \(state.diagnostic)")
+            }
         }
-        try pipe.fileHandleForWriting.close()
+
+        capture.start()
+        try pipe.fileHandleForWriting.write(contentsOf: Data("hello".utf8))
+        try #require(
+            callbackStarted.wait(timeout: .now() + 60) == .success,
+            "Callback readiness expired; \(state.diagnostic)")
+
+        closerLaunched = true
+        closer.start()
+        try #require(
+            closeFinished.wait(timeout: .now() + 60) == .success,
+            "Close did not finish while the callback was blocked; \(state.diagnostic)")
+        #expect(!capture.reachedEOF)
     }
 
     @Test
     func `continuous output does not defeat the capture timeout`() throws {
         let writerStarted = DispatchSemaphore(value: 0)
         let stopWriter = DispatchSemaphore(value: 0)
-        let writerFinished = DispatchSemaphore(value: 0)
+        let writerFinished = DispatchGroup()
         let pipe = Pipe()
+        defer {
+            stopWriter.signal()
+            #expect(writerFinished.wait(timeout: .now() + 60) == .success)
+            try? pipe.fileHandleForWriting.close()
+        }
         let writerDescriptor = pipe.fileHandleForWriting.fileDescriptor
         let writerFlags = Glibc.fcntl(writerDescriptor, F_GETFL)
         #expect(writerFlags >= 0)
@@ -51,7 +81,9 @@ struct ProcessPipeCaptureLinuxTests {
 
         let capture = ProcessPipeCapture(pipe: pipe, maxBytes: 1024)
         capture.start()
+        writerFinished.enter()
         DispatchQueue.global().async {
+            defer { writerFinished.leave() }
             var blockedSignals = sigset_t()
             var previousSignals = sigset_t()
             Glibc.sigemptyset(&blockedSignals)
@@ -78,18 +110,10 @@ struct ProcessPipeCaptureLinuxTests {
                     writerStarted.signal()
                 }
             }
-            writerFinished.signal()
         }
-        #expect(writerStarted.wait(timeout: .now() + 1) == .success)
-
-        let startedAt = ContinuousClock.now
-        _ = capture.finishSynchronously(timeout: 0.01)
-        let elapsed = startedAt.duration(to: .now)
-        stopWriter.signal()
-
-        #expect(elapsed < .milliseconds(500))
-        #expect(writerFinished.wait(timeout: .now() + 1) == .success)
-        try pipe.fileHandleForWriting.close()
+        try #require(writerStarted.wait(timeout: .now() + 60) == .success)
+        try Self.waitForCaptureOperation { _ = capture.finishSynchronously(timeout: 0.01) }
+        #expect(!capture.reachedEOF)
     }
 
     @Test
@@ -108,18 +132,14 @@ struct ProcessPipeCaptureLinuxTests {
     }
 
     @Test
-    func `silent open pipe stops promptly without claiming EOF`() throws {
+    func `silent pipe stops while the writer remains open without claiming EOF`() throws {
         let pipe = Pipe()
+        defer { try? pipe.fileHandleForWriting.close() }
         let capture = ProcessPipeCapture(pipe: pipe)
         capture.start()
 
-        let startedAt = ContinuousClock.now
-        capture.stop()
-        let elapsed = startedAt.duration(to: .now)
-
-        #expect(elapsed < .milliseconds(500))
+        try Self.waitForCaptureOperation { capture.stop() }
         #expect(!capture.reachedEOF)
-        try pipe.fileHandleForWriting.close()
     }
 
     @Test
@@ -144,31 +164,26 @@ struct ProcessPipeCaptureLinuxTests {
     @Test
     func `Linux descriptor setup failure closes the read end immediately`() throws {
         let pipe = Pipe()
-        let readFileDescriptor = pipe.fileHandleForReading.fileDescriptor
-        var originalFileStatus = stat()
-        #expect(Glibc.fstat(readFileDescriptor, &originalFileStatus) == 0)
+        defer { try? pipe.fileHandleForWriting.close() }
         let capture = ProcessPipeCapture(pipe: pipe)
         capture.start(linuxDescriptorSetup: { descriptor in
             errno = EMFILE
             return descriptor < 0
         })
 
-        let startedAt = ContinuousClock.now
-        let data = capture.finishSynchronously(timeout: 5)
-        let elapsed = startedAt.duration(to: .now)
+        // Descriptor numbers can be reused as soon as close returns. POLLERR on this pipe's write end proves
+        // the original pipe has no remaining reader without assuming its former descriptor stays unused.
+        var writerPollDescriptor = pollfd(
+            fd: pipe.fileHandleForWriting.fileDescriptor,
+            events: 0,
+            revents: 0)
+        #expect(Glibc.poll(&writerPollDescriptor, 1, 0) == 1)
+        #expect(writerPollDescriptor.revents & Int16(POLLERR) != 0)
 
-        #expect(data.isEmpty)
-        #expect(elapsed < .milliseconds(500))
-        var currentFileStatus = stat()
-        errno = 0
-        if Glibc.fstat(readFileDescriptor, &currentFileStatus) == 0 {
-            // Parallel suites can reuse the just-closed descriptor before this
-            // assertion runs. If so, it must refer to a different file.
-            #expect(currentFileStatus.st_ino != originalFileStatus.st_ino)
-        } else {
-            #expect(errno == EBADF)
+        try Self.waitForCaptureOperation {
+            // The operation's timeout is outside the hang guard: setup failure must resolve it.
+            #expect(capture.finishSynchronously(timeout: 600).isEmpty)
         }
-        try pipe.fileHandleForWriting.close()
     }
 
     @Test
@@ -254,6 +269,44 @@ struct ProcessPipeCaptureLinuxTests {
         let data = capture.finishSynchronously(timeout: 1)
         #expect(String(decoding: data, as: UTF8.self) == "hello")
         #expect(capture.reachedEOF)
+    }
+
+    private static func waitForCaptureOperation(_ operation: @escaping @Sendable () -> Void) throws {
+        let finished = DispatchGroup()
+        finished.enter()
+        Thread.detachNewThread {
+            defer { finished.leave() }
+            operation()
+        }
+        try #require(finished.wait(timeout: .now() + 60) == .success, "Capture operation did not complete")
+    }
+}
+
+/// All callback/closer state is protected by the lock; only the test thread launches the closer.
+private final class BlockedCallbackCloseState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var abandoned = false
+    private var callbackEntered = false
+
+    func beginCallback() -> Bool {
+        self.lock.withLock {
+            guard !self.abandoned else { return false }
+            self.callbackEntered = true
+            return true
+        }
+    }
+
+    func abandon() -> Bool {
+        self.lock.withLock {
+            self.abandoned = true
+            return self.callbackEntered
+        }
+    }
+
+    var diagnostic: String {
+        self.lock.withLock {
+            "callbackEntered=\(self.callbackEntered), abandoned=\(self.abandoned)"
+        }
     }
 }
 

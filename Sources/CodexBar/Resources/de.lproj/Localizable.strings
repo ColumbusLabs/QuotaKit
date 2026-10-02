@@ -539,6 +539,11 @@
 "session_depleted_notification_body" = "0 % übrig. Werde benachrichtigen, wenn es wieder verfügbar ist.";
 "session_restored_notification_title" = "%@ Sitzung wiederhergestellt";
 "session_restored_notification_body" = "Das Sitzungskontingent ist wieder verfügbar.";
+"limit_reset_notifications_title" = "Reset-Benachrichtigungen";
+"limit_reset_notifications_subtitle" = "Nennt Anbieter und Zeitfenster, wenn ein Sitzungs- oder Wochenlimit zurückgesetzt wird.";
+"limit_reset_notification_title" = "%1$@ %2$@ Limit zurückgesetzt";
+"limit_reset_notification_body" = "Neues Kontingent ist verfügbar.";
+"limit_reset_notification_body_with_account" = "Konto %@. Neues Kontingent ist verfügbar.";
 "quota_warning_warn_at" = "Warnen Sie vor";
 "quota_warning_global_threshold_subtitle" = "Verbleibende Prozentsätze für Sitzungs- und Wochenfenster, es sei denn, ein Anbieter überschreibt sie.";
 "quota_warning_sound" = "Benachrichtigungston abspielen";

@@ -19,6 +19,12 @@ struct NotificationsPane: View {
                         subtitle: L("session_quota_notifications_subtitle"))
                 }
 
+                Toggle(isOn: self.$settings.limitResetNotificationsEnabled) {
+                    SettingsRowLabel(
+                        L("limit_reset_notifications_title"),
+                        subtitle: L("limit_reset_notifications_subtitle"))
+                }
+
                 Toggle(isOn: self.$settings.quotaWarningNotificationsEnabled) {
                     SettingsRowLabel(
                         L("threshold_warnings_title"),

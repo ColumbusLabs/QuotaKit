@@ -157,6 +157,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 binding: claudeSwapBinding,
                 statusText: { Self.claudeSwapStatusText(store: context.store, settings: context.settings) },
                 actions: [],
+                inlineFields: [Self.claudeSwapExecutableField(context: context)],
                 isVisible: nil,
                 isEnabled: nil,
                 onChange: { _ in
@@ -302,20 +303,24 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 actions: [],
                 isVisible: nil,
                 onActivate: nil),
-            ProviderSettingsFieldDescriptor(
-                id: "claude-swap-executable-path",
-                title: "claude-swap executable",
-                subtitle: "Path to the cswap executable (github.com/realiti4/claude-swap).",
-                kind: .plain,
-                placeholder: "~/.local/bin/cswap",
-                binding: context.stringBinding(\.claudeSwapExecutablePath),
-                actions: [],
-                isVisible: { context.settings.claudeSwapEnabled },
-                onActivate: nil,
-                onChange: { _ in
-                    Self.refreshClaudeSwapAfterSettingsChange(context: context)
-                }),
         ]
+    }
+
+    @MainActor
+    private static func claudeSwapExecutableField(context: ProviderSettingsContext) -> ProviderSettingsFieldDescriptor {
+        ProviderSettingsFieldDescriptor(
+            id: "claude-swap-executable-path",
+            title: "claude-swap executable",
+            subtitle: "Path to the cswap executable (github.com/realiti4/claude-swap).",
+            kind: .plain,
+            placeholder: "~/.local/bin/cswap",
+            binding: context.stringBinding(\.claudeSwapExecutablePath),
+            actions: [],
+            isVisible: nil,
+            onActivate: nil,
+            onChange: { _ in
+                Self.refreshClaudeSwapAfterSettingsChange(context: context)
+            })
     }
 
     @MainActor

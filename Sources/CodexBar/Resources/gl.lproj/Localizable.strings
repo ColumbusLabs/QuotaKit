@@ -502,6 +502,11 @@
 "quota_warning_session_capitalized" = "Sesión";
 "quota_warning_weekly" = "semanal";
 "quota_warning_weekly_capitalized" = "Semanal";
+"limit_reset_notifications_title" = "Avisos de restablecemento";
+"limit_reset_notifications_subtitle" = "Indica o provedor e a xanela cando se restablece un límite de sesión ou semanal.";
+"limit_reset_notification_title" = "Límite %2$@ de %1$@ restablecido";
+"limit_reset_notification_body" = "Hai cota nova dispoñible.";
+"limit_reset_notification_body_with_account" = "Conta %@. Hai cota nova dispoñible.";
 "quota_warning_warn_at" = "Avisar ao";
 "quota_warning_global_threshold_subtitle" = "Porcentaxes restantes para as xanelas de sesión e semanal, a menos que un provedor as substitúa.";
 "quota_warning_sound" = "Reproducir o son de notificación";

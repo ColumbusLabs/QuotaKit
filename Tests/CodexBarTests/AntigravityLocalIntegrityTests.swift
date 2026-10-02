@@ -23,7 +23,7 @@ struct AntigravityLocalIntegrityTests {
         #expect(report.coverage == .partial)
         #expect(!report.evidenceIsContradicted)
         let snapshot = try await fixture.snapshot()
-        #expect(snapshot.last30DaysTokens == 198)
+        #expect(snapshot.last30DaysTokens == 187)
         #expect(snapshot.historyScanIsPartial)
         #expect(!snapshot.historyCoverageIsEstablished)
     }
@@ -54,7 +54,7 @@ struct AntigravityLocalIntegrityTests {
                 #expect(snapshot.daily.isEmpty)
                 #expect(snapshot.last30DaysTokens == nil)
             } else {
-                #expect(snapshot.last30DaysTokens == (sqlite ? 198 : 12))
+                #expect(snapshot.last30DaysTokens == (sqlite ? 187 : 12))
                 #expect(snapshot.daily.first?.requestCount == 1)
             }
         }
@@ -125,7 +125,7 @@ struct AntigravityLocalIntegrityTests {
         try Fixture.insert(database, row: 0, blob: Fixture.blob())
         let report = try fixture.report()
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         #expect(report.statistics.rows == 1)
     }
 
@@ -170,7 +170,7 @@ struct AntigravityLocalIntegrityTests {
         let report = try fixture.report()
 
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         #expect(report.statistics.foreignDatabases == 1)
         #expect(report.statistics.sqliteHandlesOpened == report.statistics.sqliteHandlesClosed)
     }

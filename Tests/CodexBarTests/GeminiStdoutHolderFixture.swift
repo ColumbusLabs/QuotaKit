@@ -57,12 +57,22 @@ final class GeminiStdoutHolderFixture {
         }
     }
 
-    func runProducer(pidFile: URL? = nil) -> String? {
-        GeminiStatusProbe.runProcess(
+    func runProducer(pidFile: URL? = nil, blockAfterAcknowledgment: Bool = false) -> String? {
+        let mode = blockAfterAcknowledgment ? "produce-timeout" : "produce"
+        return GeminiStatusProbe.runProcess(
             executable: "/usr/bin/python3",
-            arguments: ["-I", self.helper.path, "produce", self.socketPath, (pidFile ?? self.pidFile).path],
+            arguments: ["-I", self.helper.path, mode, self.socketPath, (pidFile ?? self.pidFile).path],
             environment: self.environment,
             timeout: 2)
+    }
+
+    func installProducer(at executable: URL, blockAfterAcknowledgment: Bool = false) throws {
+        let mode = blockAfterAcknowledgment ? "produce-timeout" : "produce"
+        let arguments = ["/usr/bin/python3", "-I", self.helper.path, mode, self.socketPath, self.pidFile.path]
+        let command = arguments.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+            .joined(separator: " ")
+        try "#!/bin/sh\nexec \(command)\n".write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
     }
 
     var producerDiagnostics: String {
@@ -98,7 +108,7 @@ final class GeminiStdoutHolderFixture {
     import traceback
 
     mode, path = sys.argv[1:3]
-    if mode == "produce":
+    if mode in ("produce", "produce-timeout"):
         def record_failure(kind, error, stack):
             with open(path + ".error", "w") as handle:
                 traceback.print_exception(kind, error, stack, file=handle)
@@ -128,7 +138,7 @@ final class GeminiStdoutHolderFixture {
                 for descriptor in held:
                     os.close(descriptor)
         else:
-            assert mode == "produce"
+            assert mode in ("produce", "produce-timeout")
             channel.bind(path + ".p")
             channel.settimeout(2)
             channel.connect(path)
@@ -137,6 +147,9 @@ final class GeminiStdoutHolderFixture {
             # The acknowledgement proves the owned holder has the writer before any output is printed.
             with open(sys.argv[3], "w") as handle:
                 handle.write(holder_pid)
+            if mode == "produce-timeout":
+                # The probe deadline is the event under test; process cleanup owns termination.
+                select.select([], [], [])
             print("/tmp/gemini-package", flush=True)
             print("ignored trailing output", flush=True)
     """#

@@ -162,7 +162,7 @@ final class AntigravityLocalFixture: Sendable {
     static func blob(
         model: String? = "fixture-model-a",
         label: String? = "Fixture model",
-        system: UInt64 = 11,
+        modelID: UInt64 = 1298,
         input: UInt64 = 100,
         output: UInt64 = 30,
         cacheRead: UInt64 = 50,
@@ -170,8 +170,8 @@ final class AntigravityLocalFixture: Sendable {
         response: String? = nil,
         seconds: UInt64? = 1_787_832_000) -> [UInt8]
     {
-        var usage = self.varint(1, system) + self.varint(2, input) + self.varint(5, cacheRead)
-            + self.varint(9, output) + self.varint(10, reasoning)
+        var usage = self.varint(1, modelID) + self.varint(2, input) + self.varint(5, cacheRead)
+            + self.varint(9, reasoning) + self.varint(10, output)
         if let response {
             usage += self.message(11, Array(response.utf8))
         }
@@ -193,7 +193,7 @@ final class AntigravityLocalFixture: Sendable {
         botID: String? = nil,
         model: String? = "fixture-model-a",
         label: String? = "Fixture model",
-        system: UInt64 = 11,
+        modelID: UInt64 = 1298,
         input: UInt64 = 100,
         output: UInt64 = 30,
         cacheRead: UInt64 = 50,
@@ -205,8 +205,8 @@ final class AntigravityLocalFixture: Sendable {
         if let stepUUID {
             root += self.message(4, Array(stepUUID.utf8))
         }
-        var usage = self.varint(1, system) + self.varint(2, input) + self.varint(5, cacheRead)
-            + self.varint(9, output) + self.varint(10, reasoning)
+        var usage = self.varint(1, modelID) + self.varint(2, input) + self.varint(5, cacheRead)
+            + self.varint(9, reasoning) + self.varint(10, output)
         if let botID {
             usage += self.message(7, Array(botID.utf8))
         }

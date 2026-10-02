@@ -74,11 +74,14 @@ enum MenuBarMetricWindowResolver {
         supportsAverage: Bool)
         -> RateWindow?
     {
+        let primary = snapshot.primary?.measured
+        let secondary = snapshot.secondary?.measured
+        let tertiary = snapshot.tertiary?.measured
         guard supportsAverage,
-              let primary = snapshot.primary,
-              let secondary = snapshot.secondary
+              let primary,
+              let secondary
         else {
-            return snapshot.primary ?? snapshot.secondary ?? snapshot.tertiary
+            return primary ?? secondary ?? tertiary
         }
 
         let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
@@ -94,13 +97,13 @@ enum MenuBarMetricWindowResolver {
         _ = now
         if presentation.automaticSelectionPrioritizesExhaustedWindow,
            let exhausted = exhaustedWindow(
-               primary: snapshot.primary,
-               secondary: snapshot.secondary,
-               tertiary: snapshot.tertiary)
+               primary: snapshot.primary?.measured,
+               secondary: snapshot.secondary?.measured,
+               tertiary: snapshot.tertiary?.measured)
         {
             return exhausted
         }
-        return snapshot.primary ?? snapshot.secondary ?? snapshot.tertiary
+        return snapshot.primary?.measured ?? snapshot.secondary?.measured ?? snapshot.tertiary?.measured
     }
 
     private static func providerMetric(_ preference: MenuBarMetricPreference) -> ProviderMenuBarMetric {
@@ -206,7 +209,15 @@ enum MenuBarMetricWindowResolver {
         snapshot: UsageSnapshot,
         lanes: [ProviderUsageLane]) -> RateWindow?
     {
-        ProviderUsagePresentation.window(in: snapshot, following: lanes)
+        for lane in lanes {
+            let window = switch lane {
+            case .primary: snapshot.primary
+            case .secondary: snapshot.secondary
+            case .tertiary: snapshot.tertiary
+            }
+            if let measured = window?.measured { return measured }
+        }
+        return nil
     }
 
     private static func mostConstrainedWindow(
@@ -215,7 +226,7 @@ enum MenuBarMetricWindowResolver {
         tertiary: RateWindow?)
         -> RateWindow?
     {
-        let windows = [primary, secondary, tertiary].compactMap(\.self)
+        let windows = [primary, secondary, tertiary].compactMap(\.self).compactMap(\.measured)
         guard !windows.isEmpty else { return nil }
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
     }
@@ -228,6 +239,7 @@ enum MenuBarMetricWindowResolver {
     {
         [primary, secondary, tertiary]
             .compactMap(\.self)
+            .compactMap(\.measured)
             .first { $0.usedPercent >= 100 }
     }
 
@@ -236,19 +248,18 @@ enum MenuBarMetricWindowResolver {
     /// marked placeholder). Lets the automatic and combined metrics surface the spend limit instead of an empty
     /// or 0% placeholder lane. Returns nil for accounts that expose genuine quota lanes.
     static func claudeSpendLimitWindow(snapshot: UsageSnapshot) -> RateWindow? {
-        let presentation = ProviderDescriptorRegistry.descriptor(for: .claude).presentation
-        switch presentation.menuBarWindow(context: ProviderMenuBarWindowContext(
-            metric: .automatic,
-            snapshot: snapshot,
-            supportsAverage: false,
-            prioritizesExhaustedQuotas: false,
-            now: .now))
-        {
-        case let .resolved(window):
-            return window
-        case .unhandled:
-            return nil
-        }
+        guard snapshot.primary?.measured == nil,
+              snapshot.secondary?.measured == nil,
+              snapshot.tertiary?.measured == nil,
+              snapshot.claudeScopedWeeklyWindow == nil,
+              let cost = snapshot.providerCost,
+              cost.limit > 0
+        else { return nil }
+        return RateWindow(
+            usedPercent: max(0, min(100, (cost.used / cost.limit) * 100)),
+            windowMinutes: nil,
+            resetsAt: cost.resetsAt,
+            resetDescription: nil)
     }
 
     private static func extraUsageWindow(snapshot: UsageSnapshot?) -> RateWindow? {

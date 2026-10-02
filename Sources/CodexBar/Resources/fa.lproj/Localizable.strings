@@ -526,6 +526,11 @@
 "session_depleted_notification_body" = "0% باقی مانده است. وقتی دوباره در دسترس قرار گیرد اطلاع می‌دهیم.";
 "session_restored_notification_title" = "جلسه %@ بازیابی شد";
 "session_restored_notification_body" = "سهمیه جلسه دوباره در دسترس است.";
+"limit_reset_notifications_title" = "اعلان‌های بازنشانی";
+"limit_reset_notifications_subtitle" = "هنگام بازنشانی محدودیت جلسه یا هفتگی، ارائه‌دهنده و بازه را اعلام می‌کند.";
+"limit_reset_notification_title" = "محدودیت %2$@ در %1$@ بازنشانی شد";
+"limit_reset_notification_body" = "سهمیه جدید در دسترس است.";
+"limit_reset_notification_body_with_account" = "حساب %@. سهمیه جدید در دسترس است.";
 "quota_warning_warn_at" = "هشدار در";
 "quota_warning_global_threshold_subtitle" = "درصدهای باقی مانده برای جلسات و بازه های هفتگی مگر اینکه ارائه دهنده آن ها را لغو کند.";
 "quota_warning_sound" = "صدای اعلان پخش کن";

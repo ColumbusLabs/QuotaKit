@@ -42,16 +42,6 @@ extension CostUsageScanner {
 
     // MARK: - Claude
 
-    private struct ClaudeTokens {
-        let input: Int
-        let cacheRead: Int
-        let cacheCreate: Int
-        let cacheCreate1h: Int
-        let output: Int
-        let costNanos: Int
-        let costPriced: Bool
-    }
-
     private struct ClaudeDayModelKey: Hashable {
         let day: String
         let model: String
@@ -207,6 +197,11 @@ extension CostUsageScanner {
                         else { return }
                         let timestamp = parsedTimestamp.date
                         let dayKey = parsedTimestamp.dayKey
+                        guard CostUsageDayRange.isInRange(
+                            dayKey: dayKey,
+                            since: range.scanSinceKey,
+                            until: range.scanUntilKey)
+                        else { return }
 
                         guard let message else { return }
                         guard let model = message["model"] as? String else { return }
@@ -214,20 +209,23 @@ extension CostUsageScanner {
 
                         let input = max(0, toInt(usage["input_tokens"]))
                         let cacheCreate = max(0, toInt(usage["cache_creation_input_tokens"]))
-                        let cacheCreate1h = Self.claudeOneHourCacheCreationTokens(
-                            usage: usage,
-                            total: cacheCreate)
                         let cacheRead = max(0, toInt(usage["cache_read_input_tokens"]))
                         let output = max(0, toInt(usage["output_tokens"]))
                         if input == 0, cacheCreate == 0, cacheRead == 0, output == 0 {
                             return
                         }
+                        let cacheCreate1h = Self.claudeOneHourCacheCreationTokens(
+                            usage: usage,
+                            total: cacheCreate)
 
                         // Streaming message_start can contain a cache-unaware estimate. A null
                         // stop reason together with missing cache fields marks an incomplete row.
                         let isIncomplete = message["stop_reason"] is NSNull && input > 0 && output == 0
                             && usage["cache_read_input_tokens"] == nil
                             && usage["cache_creation_input_tokens"] == nil
+                        #if DEBUG
+                        if !isIncomplete { recordClaudeScanWork(.claudeCostCalculation) }
+                        #endif
                         let cost = isIncomplete ? nil : pricingResolver.costUSD(
                             model: model,
                             inputTokens: input,
@@ -237,20 +235,6 @@ extension CostUsageScanner {
                             outputTokens: output,
                             pricingDate: timestamp)
                         let costNanos = cost.flatMap { Int(exactly: ($0 * costScale).rounded()) }
-                        let tokens = ClaudeTokens(
-                            input: input,
-                            cacheRead: cacheRead,
-                            cacheCreate: cacheCreate,
-                            cacheCreate1h: cacheCreate1h,
-                            output: output,
-                            costNanos: costNanos ?? 0,
-                            costPriced: costNanos != nil)
-
-                        guard CostUsageDayRange.isInRange(
-                            dayKey: dayKey,
-                            since: range.scanSinceKey,
-                            until: range.scanUntilKey)
-                        else { return }
 
                         let messageId = message["id"] as? String
                         let requestId = obj["requestId"] as? String
@@ -268,13 +252,13 @@ extension CostUsageScanner {
                             timestampUnixMs: Int64((timestamp.timeIntervalSince1970 * 1000).rounded()),
                             isSidechain: toBool(obj["isSidechain"]),
                             pathRole: pathRole,
-                            input: tokens.input,
-                            cacheRead: tokens.cacheRead,
-                            cacheCreate: tokens.cacheCreate,
-                            cacheCreate1h: tokens.cacheCreate1h,
-                            output: tokens.output,
-                            costNanos: tokens.costNanos,
-                            costPriced: tokens.costPriced,
+                            input: input,
+                            cacheRead: cacheRead,
+                            cacheCreate: cacheCreate,
+                            cacheCreate1h: cacheCreate1h,
+                            output: output,
+                            costNanos: costNanos ?? 0,
+                            costPriced: costNanos != nil,
                             isIncomplete: isIncomplete ? true : nil)
 
                         // Keep the final cumulative chunk for each response, including proxy

@@ -686,19 +686,11 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 let lower = message.lowercased()
                 return lower.contains("still loading usage") || lower.contains("could not load usage data")
             }
-            let message = error.localizedDescription.lowercased()
-            return message.contains("timed out") || message.contains("timeout")
+            return ClaudeUsageFetcher.isRetryableCLIProbeError(error)
         }
 
         private static func shouldRetryCLIProbe(after error: Error) -> Bool {
-            if case ClaudeStatusProbeError.timedOut = error {
-                return true
-            }
-            if case let ClaudeStatusProbeError.parseFailed(message) = error {
-                return message.lowercased().contains("still loading usage")
-            }
-            let message = error.localizedDescription.lowercased()
-            return message.contains("timed out") || message.contains("timeout")
+            ClaudeUsageFetcher.isRetryableCLIProbeError(error)
         }
     }
 }
@@ -821,6 +813,17 @@ extension ClaudeUsageFetcher {
         try await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: self.runtime) {
             try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
         }
+    }
+
+    static func isRetryableCLIProbeError(_ error: Error) -> Bool {
+        guard !(error is CancellationError) else { return false }
+        if case ClaudeStatusProbeError.authenticationFailed = error { return false }
+        if case ClaudeStatusProbeError.timedOut = error { return true }
+        if case let ClaudeStatusProbeError.parseFailed(message) = error {
+            return message.lowercased().contains("still loading usage")
+        }
+        let message = error.localizedDescription.lowercased()
+        return message.contains("timed out") || message.contains("timeout")
     }
 
     public static func isCLIRateLimitError(_ error: Error) -> Bool {
@@ -1280,7 +1283,7 @@ extension ClaudeUsageFetcher {
             throw ClaudeUsageError.claudeNotInstalled
         }
 
-        let workingDirectory = ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
+        let workingDirectory = try ClaudeCLISession.isolatedProbeWorkingDirectoryURL()
         var environment = ClaudeCLISession.launchEnvironment(baseEnv: self.environment)
         environment["PWD"] = workingDirectory.path
         defer {
@@ -1291,7 +1294,7 @@ extension ClaudeUsageFetcher {
 
         let result = try await SubprocessRunner.run(
             binary: claudeBinary,
-            arguments: ClaudeCLISession.probeSettingsArguments + ["/usage"],
+            arguments: ["--strict-mcp-config"] + ClaudeCLISession.probeSettingsArguments + ["/usage"],
             environment: environment,
             timeout: timeout,
             standardInput: FileHandle.nullDevice,
@@ -1535,39 +1538,6 @@ extension ClaudeUsageFetcher {
         let normalizedName = String(modelName.lowercased().unicodeScalars.filter(CharacterSet.alphanumerics.contains))
         guard !normalizedName.isEmpty else { return nil }
         return normalizedName
-    }
-
-    // MARK: - Process helpers
-
-    private static func which(_ tool: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [tool]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        try? process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard
-            let path = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                !path.isEmpty
-        else { return nil }
-        return path
-    }
-
-    private static func readString(cmd: String, args: [String]) -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: cmd)
-        task.arguments = args
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        try? task.run()
-        task.waitUntilExit()
-        guard task.terminationStatus == 0 else { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)
     }
 
     private static func oauthCredentialProbeErrorLabel(_ error: Error) -> String {

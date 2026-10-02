@@ -677,16 +677,18 @@ struct CostUsageStoreTests {
 
         var changed = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [path])
         changed.files[path]?.parsedBytes = 200
-        CostUsageStore.codexCatchUpDeltaFailureForTesting = { databaseURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexCatchUpDeltaFailure = { databaseURL in
             guard databaseURL == store.databaseURL else { return }
             throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
         }
-        defer { CostUsageStore.codexCatchUpDeltaFailureForTesting = nil }
-        let result = store.syncSaveCodexCatchUpCache(
-            changed,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
-            hydratedPaths: [path])
+        let result = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            store.syncSaveCodexCatchUpCache(
+                changed,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                hydratedPaths: [path])
+        }
 
         #expect(result.catchUpRequired)
         #expect(await store.rebuildCount == 0)
@@ -716,18 +718,20 @@ struct CostUsageStoreTests {
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-07-01", untilKey: "2026-07-02"))
         let before = await store.fetchDayAggregates(sinceDay: "2026-07-01", untilDay: "2026-07-02")
-        CostUsageStore.budgetMutationFailureForTesting = { databaseURL in
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.budgetMutationFailure = { databaseURL in
             guard databaseURL == store.databaseURL else { return }
             throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
         }
-        defer { CostUsageStore.budgetMutationFailureForTesting = nil }
 
-        _ = await store.enforceBudgets(
-            maxRows: 0,
-            maxFileBytes: .max,
-            requestedSinceDay: "2026-08-01",
-            requestedUntilDay: "2026-08-01",
-            calendar: calendar)
+        await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            await store.enforceBudgets(
+                maxRows: 0,
+                maxFileBytes: .max,
+                requestedSinceDay: "2026-08-01",
+                requestedUntilDay: "2026-08-01",
+                calendar: calendar)
+        }
 
         #expect(await store.fetchFile(path: "/sessions/one.jsonl") != nil)
         #expect(await store.fetchFile(path: "/sessions/two.jsonl") != nil)
@@ -1207,32 +1211,32 @@ extension CostUsageStoreTests {
         _ = save(cache)
         var reread = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         reread.lastScanUnixMs = 2000
-        let interloper = try SQLiteTestConnection(url: store.databaseURL)
-        var checkpointError: Error?
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = { databaseURL in
-            guard databaseURL == store.databaseURL else { return }
+        let interloper = LockIsolated(try SQLiteTestConnection(url: store.databaseURL))
+        let checkpointError = LockIsolated<Error?>(nil)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.identicalContentPreLockCheckpoint = (databaseURL: store.databaseURL, checkpoint: {
             do {
-                try interloper.execute("UPDATE files SET parsed_bytes = 999 WHERE path = '\(path)'")
+                try interloper.value.execute("UPDATE files SET parsed_bytes = 999 WHERE path = '\(path)'")
             } catch {
-                checkpointError = error
+                checkpointError.setValue(error)
             }
+        })
+
+        let result = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            store.syncSaveCodexCache(
+                reread,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                fileBudgetBytes: 1,
+                skipIdenticalContent: true)
         }
-        defer { CostUsageStore.identicalContentPreLockCheckpointForTesting = nil }
 
-        let result = store.syncSaveCodexCache(
-            reread,
-            calendar: calendar,
-            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
-            fileBudgetBytes: 1,
-            skipIdenticalContent: true)
-
-        #expect(checkpointError == nil)
+        #expect(checkpointError.value == nil)
         #expect(result.catchUpRequired)
         #expect(await store.rebuildCount == 0)
         #expect(await store.fetchFile(path: path)?.parsedBytes == 999)
         #expect(CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar).lastScanUnixMs == 1000)
 
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = nil
         var refreshed = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         refreshed.lastScanUnixMs = 3000
         let retried = save(refreshed)
@@ -1779,6 +1783,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "91aceec74bae13b6",
         "295616a4e7dcfc3f",
         "4e2ff98d27e5c601",
         "053a4fb6aa6156c2",
@@ -1790,6 +1795,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "91aceec74bae13b6",
             "36872d2d0ebf9818",
             "053a4fb6aa6156c2",
             "4e2ff98d27e5c601",

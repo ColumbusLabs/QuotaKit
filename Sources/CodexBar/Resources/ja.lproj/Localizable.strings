@@ -538,6 +538,11 @@
 "session_depleted_notification_body" = "残り 0% です。再び利用可能になったら通知します。";
 "session_restored_notification_title" = "%@ のセッションが回復しました";
 "session_restored_notification_body" = "セッションクォータが再び利用可能になりました。";
+"limit_reset_notifications_title" = "リセット通知";
+"limit_reset_notifications_subtitle" = "セッションまたは週間の上限がリセットされたときに、どのプロバイダのどの枠かを通知します。";
+"limit_reset_notification_title" = "%1$@ の%2$@上限がリセットされました";
+"limit_reset_notification_body" = "新しいクォータが利用可能です。";
+"limit_reset_notification_body_with_account" = "アカウント %@。新しいクォータが利用可能です。";
 "quota_warning_warn_at" = "警告する残量";
 "quota_warning_global_threshold_subtitle" = "プロバイダ側で上書きされない限り、セッションおよび週間ウインドウの残量パーセントに適用されます。";
 "quota_warning_sound" = "通知音を再生";

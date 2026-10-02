@@ -519,6 +519,11 @@ protocol SessionQuotaNotifying: AnyObject {
         soundEnabled: Bool,
         onScreenAlertEnabled: Bool,
         now: Date)
+    func postLimitReset(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        accountDisplayName: String?,
+        isCurrent: @escaping @MainActor () -> Bool)
 }
 
 @MainActor
@@ -529,6 +534,13 @@ extension SessionQuotaNotifying {
         soundEnabled _: Bool,
         onScreenAlertEnabled _: Bool,
         now _: Date)
+    {}
+
+    func postLimitReset(
+        provider _: UsageProvider,
+        window _: QuotaWarningWindow,
+        accountDisplayName _: String?,
+        isCurrent _: @escaping @MainActor () -> Bool)
     {}
 }
 
@@ -553,6 +565,26 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
         let idPrefix = "session-\(providerText)-\(transitionText)"
         self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
         AppNotifications.shared.post(idPrefix: idPrefix, title: title, body: body, badge: badge)
+    }
+
+    func postLimitReset(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        accountDisplayName: String?,
+        isCurrent: @escaping @MainActor () -> Bool)
+    {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let copy = LimitResetNotificationLogic.notificationCopy(
+            providerName: providerName,
+            window: window,
+            accountDisplayName: accountDisplayName)
+        let idPrefix = "limit-reset-\(provider.rawValue)-\(window.rawValue)"
+        self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
+        AppNotifications.shared.post(
+            idPrefix: idPrefix,
+            title: copy.title,
+            body: copy.body,
+            isCurrent: isCurrent)
     }
 
     func postQuotaWarning(

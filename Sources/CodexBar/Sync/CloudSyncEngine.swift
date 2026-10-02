@@ -1,3 +1,4 @@
+import AppKit
 import CloudKit
 import CodexBarCore
 import CodexBarSync
@@ -394,8 +395,10 @@ enum CloudSyncSnapshotMigration {
             return payload
         }
     }
+}
 
-    static func shouldResumeDelayedRetry(
+enum CloudSyncLifecycle {
+    static func isCurrentEngine(
         originatingEngine: ObjectIdentifier?,
         currentEngine: ObjectIdentifier?) -> Bool
     {
@@ -409,7 +412,7 @@ enum CloudSyncSnapshotMigration {
         originatingEngine: ObjectIdentifier?,
         currentEngine: ObjectIdentifier?) -> Bool
     {
-        desiredRecordIDs.contains(recordID) && self.shouldResumeDelayedRetry(
+        desiredRecordIDs.contains(recordID) && self.isCurrentEngine(
             originatingEngine: originatingEngine,
             currentEngine: currentEngine)
     }
@@ -418,22 +421,37 @@ enum CloudSyncSnapshotMigration {
 enum CloudSyncEntitlementGate {
     static let entitlement = "com.apple.developer.icloud-services"
 
+    private static func entitlementValue(_ name: String) -> Any? {
+        guard let task = SecTaskCreateFromSelf(nil) else { return nil }
+        return SecTaskCopyValueForEntitlement(task, name as CFString, nil)
+    }
+
     static func hasICloudServicesEntitlement() -> Bool {
-        guard let task = SecTaskCreateFromSelf(nil),
-              let value = SecTaskCopyValueForEntitlement(task, self.entitlement as CFString, nil)
-        else {
+        (self.entitlementValue(self.entitlement) as? [String])?.contains("CloudKit") == true
+    }
+
+    @MainActor
+    static func prepareForSync(
+        enabled: Bool,
+        entitlementValue: (String) -> Any? = Self.entitlementValue,
+        register: () -> Void = { NSApplication.shared.registerForRemoteNotifications() }) -> Bool
+    {
+        guard enabled, (entitlementValue(self.entitlement) as? [String])?.contains("CloudKit") == true else {
             return false
         }
-        if let services = value as? [String] {
-            return services.contains("CloudKit")
+        if let environment = entitlementValue("com.apple.developer.aps-environment") as? String,
+           ["development", "production"].contains(environment)
+        {
+            register()
         }
-        return false
+        return true
     }
 }
 
-actor CloudSyncEngine: CKSyncEngineDelegate {
-    static let containerIdentifier = CloudSyncConstants.containerIdentifier
-    static let zoneID = CKRecordZone.ID(zoneName: "QuotaKitMacFleetSync", ownerName: CKCurrentUserDefaultName)
+@MainActor
+final class CloudSyncEngine: CKSyncEngineDelegate {
+    nonisolated static let containerIdentifier = CloudSyncConstants.containerIdentifier
+    nonisolated static let zoneID = CKRecordZone.ID(zoneName: "QuotaKitMacFleetSync", ownerName: CKCurrentUserDefaultName)
 
     private let settings: SettingsStore
     private let state: CloudSyncState
@@ -458,6 +476,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var didRehydrateFleetState = false
     /// Restored predecessor mappings must not delete until local live snapshots have been applied.
     private var hasReconciledLiveSnapshots = false
+    private var applyGeneration = 0
+    private let beforeApply: (@Sendable () async -> Void)?
     private let logger = CodexBarLog.logger(LogCategories.settings)
 
     init(
@@ -466,7 +486,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         persistence: CloudSyncPersistence = CloudSyncPersistence(),
         initialConfiguration: CodexBarConfig? = nil,
         initialPreferences: SyncedPreferences? = nil,
-        initialIncludeSecrets: Bool? = nil)
+        initialIncludeSecrets: Bool? = nil,
+        beforeApply: (@Sendable () async -> Void)? = nil)
     {
         self.settings = settings
         self.state = state
@@ -478,14 +499,15 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
         self.lastKnownPreferences = initialPreferences
         self.lastKnownIncludeSecrets = initialIncludeSecrets
+        self.beforeApply = beforeApply
     }
 
     func start(enabled: Bool) async {
         guard CloudSyncEntitlementGate.hasICloudServicesEntitlement() else {
-            await self.updateAvailability(.missingEntitlement)
+            self.state.availability = .missingEntitlement
             return
         }
-        await self.updateAvailability(.available)
+        self.state.availability = .available
         guard enabled else { return }
         await self.setEnabled(true)
     }
@@ -497,7 +519,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             return
         }
         guard CloudSyncEntitlementGate.hasICloudServicesEntitlement() else {
-            await self.updateAvailability(.missingEntitlement)
+            self.state.availability = .missingEntitlement
             return
         }
         do {
@@ -509,18 +531,18 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             if !self.persistenceEnvelope.recordMetadata.keys.contains(where: { $0.hasPrefix("intent-") }) {
                 await self.fetchChanges()
             }
-            let configuredProviders = await MainActor.run { self.settings.configSnapshot.providers.map(\.id) }
+            let configuredProviders = self.settings.configSnapshot.providers.map(\.id)
             CloudSyncDirtyState.markBootstrapDirtyIfNeeded(
                 configuredProviders: configuredProviders,
                 envelope: &self.persistenceEnvelope)
             self.persistEnvelope()
-            try await self.queueCurrentConfigurationAndPreferences()
-            guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
-            try await self.queueDeviceRecord()
+            try self.queueCurrentConfigurationAndPreferences()
+            guard !self.state.status.needsAppUpdate else { return }
+            try self.queueDeviceRecord()
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
-            await self.record(error: error)
+            self.record(error: error)
         }
     }
 
@@ -591,29 +613,26 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             do {
                 try await Task.sleep(for: .seconds(5))
                 guard !Task.isCancelled else { return }
-                try await self?.queueCurrentConfigurationAndPreferences()
+                try self?.queueCurrentConfigurationAndPreferences()
             } catch is CancellationError {
                 return
             } catch {
-                await self?.record(error: error)
+                self?.record(error: error)
             }
         }
     }
 
     func queueSnapshots(_ snapshots: [AccountSnapshotSyncPayload]) async {
         guard self.enabled, self.engine != nil else { return }
-        let options = await MainActor.run {
-            (
-                enabled: self.settings.macFleetSyncSnapshotsEnabled,
-                lowPower: self.settings.backgroundWorkLowPowerModeEnabled
-                    || ProcessInfo.processInfo.isLowPowerModeEnabled,
-                needsAppUpdate: self.state.status.needsAppUpdate)
-        }
+        let options = (
+            enabled: self.settings.macFleetSyncSnapshotsEnabled,
+            lowPower: self.settings.backgroundWorkLowPowerModeEnabled || ProcessInfo.processInfo.isLowPowerModeEnabled,
+            needsAppUpdate: self.state.status.needsAppUpdate)
         guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
         self.pendingSnapshots = snapshots
         let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
         if elapsed >= 120 {
-            await self.pushPendingSnapshots()
+            self.pushPendingSnapshots()
             return
         }
         self.snapshotPushTask?.cancel()
@@ -621,20 +640,22 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             do {
                 try await Task.sleep(for: .seconds(120 - elapsed))
                 guard !Task.isCancelled else { return }
-                await self?.pushPendingSnapshots()
+                self?.pushPendingSnapshots()
             } catch {
                 return
             }
         }
     }
 
-    func fetchChanges() async {
+    func fetchChanges(scopedToSyncZone: Bool = true) async {
         guard self.enabled, let engine = self.engine else { return }
         do {
-            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
-            await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
+            try await engine.fetchChanges(.init(scope: scopedToSyncZone ? .zoneIDs([Self.zoneID]) : .all))
+            guard self.enabled, self.engine === engine, !Task.isCancelled else { return }
+            self.state.status.lastSuccessfulFetchAt = Date()
         } catch {
-            await self.record(error: error)
+            guard self.enabled, self.engine === engine, !Task.isCancelled else { return }
+            self.record(error: error)
         }
     }
 
@@ -650,44 +671,43 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         let accountStatus = try await container.accountStatus()
         switch accountStatus {
         case .available:
-            await self.updateAvailability(.available)
+            self.state.availability = .available
         case .restricted:
-            await self.updateAvailability(.restricted)
+            self.state.availability = .restricted
             return false
         case .noAccount, .couldNotDetermine, .temporarilyUnavailable:
-            await self.updateAvailability(.noICloudAccount)
+            self.state.availability = .noICloudAccount
             return false
         @unknown default:
-            await self.updateAvailability(.noICloudAccount)
+            self.state.availability = .noICloudAccount
             return false
         }
 
-        var configuration = CKSyncEngine.Configuration(
+        guard CloudSyncEntitlementGate.prepareForSync(enabled: self.settings.macFleetSyncEnabled),
+              self.enabled, self.engine == nil else { return false }
+        let configuration = CKSyncEngine.Configuration(
             database: container.privateCloudDatabase,
             stateSerialization: self.persistenceEnvelope.stateSerialization,
             delegate: self)
-        configuration.automaticallySync = true
         let engine = CKSyncEngine(configuration)
         self.engine = engine
-        await self.rehydrateFleetStateIfNeeded()
+        self.rehydrateFleetStateIfNeeded()
         engine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
         return true
     }
 
-    private func queueCurrentConfigurationAndPreferences() async throws {
+    private func queueCurrentConfigurationAndPreferences() throws {
         guard let engine = self.engine else { return }
         if self.persistenceEnvelope.recordMetadata.values.contains(where: {
             ($0.schemaVersion ?? 0) > CodexBarSyncSchema.currentVersion
         }) {
-            await MainActor.run { self.state.status.needsAppUpdate = true }
+            self.state.status.needsAppUpdate = true
             return
         }
-        let snapshot = await MainActor.run {
-            (
-                config: self.settings.configSnapshot,
-                includeSecrets: self.settings.macFleetSyncIncludeSecrets,
-                preferences: self.settings.syncedPreferences)
-        }
+        let snapshot = (
+            config: self.settings.configSnapshot,
+            includeSecrets: self.settings.macFleetSyncIncludeSecrets,
+            preferences: self.settings.syncedPreferences)
         for config in snapshot.config.providers where self.lastKnownProviderConfigs[config.id] == nil {
             self.lastKnownProviderConfigs[config.id] = config
         }
@@ -745,7 +765,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
     }
 
-    static func providerIntentPayload(
+    nonisolated static func providerIntentPayload(
         config: ProviderConfig,
         suppressedEnableIntents: Set<String>) -> ProviderIntentPayload
     {
@@ -769,9 +789,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
     }
 
-    private func queueDeviceRecord() async throws {
+    private func queueDeviceRecord() throws {
         guard let engine = self.engine else { return }
-        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
+        let deviceID = self.settings.macFleetSyncDeviceID
         let payload = DeviceSyncPayload(
             deviceID: deviceID,
             hostName: ProcessInfo.processInfo.hostName,
@@ -789,7 +809,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         self.desiredRecords[recordID] = record
         engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
         self.persistenceEnvelope.fleetDevices[payload.recordName] = payload
-        await MainActor.run { self.state.fleetDevices[payload.recordName] = payload }
+        self.state.fleetDevices[payload.recordName] = payload
         self.persistEnvelope()
     }
 
@@ -802,6 +822,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     }
 
     private func processEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
+        // Retired records and their fetch checkpoint must be discarded together.
+        guard self.enabled, self.engine === syncEngine, !Task.isCancelled else { return }
         switch event {
         case let .stateUpdate(update):
             self.persistenceEnvelope.stateSerialization = update.stateSerialization
@@ -817,8 +839,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             }
         case let .fetchedRecordZoneChanges(changes):
             await self.applyFetchedRecords(changes.modifications.map(\.record))
-            await self.applyDeletedRecords(changes.deletions.map(\.recordID.recordName))
-            await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
+            guard self.engine === syncEngine, !Task.isCancelled else { return }
+            self.applyDeletedRecords(changes.deletions.map(\.recordID.recordName))
+            self.state.status.lastSuccessfulFetchAt = Date()
         case let .sentRecordZoneChanges(changes):
             if !changes.savedRecords.isEmpty || !changes.deletedRecordIDs.isEmpty {
                 self.quotaRetryState.reset()
@@ -832,22 +855,23 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 envelope: &self.persistenceEnvelope)
             // Evaluate confirmed saves before abandoning terminal failures so a mixed batch
             // still counts a failed sibling's shared predecessor as referenced.
-            await self.finishConfirmedSnapshotMigrations(
+            self.finishConfirmedSnapshotMigrations(
                 savedRecordNames: changes.savedRecords.map(\.recordID.recordName),
                 syncEngine: syncEngine)
             for failure in changes.failedRecordSaves {
-                await self.handleSaveFailure(failure, syncEngine: syncEngine)
+                await self.handleSaveFailure(failure.record, error: failure.error, syncEngine: syncEngine)
+                guard self.enabled, self.engine === syncEngine, !Task.isCancelled else { return }
             }
-            await self.handleSentRecordDeletes(
+            self.handleSentRecordDeletes(
                 deletedIDs: changes.deletedRecordIDs,
                 failures: changes.failedRecordDeletes)
             self.persistEnvelope()
             if !changes.savedRecords.isEmpty {
-                await MainActor.run { self.state.status.lastSuccessfulPushAt = Date() }
+                self.state.status.lastSuccessfulPushAt = Date()
             }
             if !self.pendingSnapshots.isEmpty {
                 Task { [weak self] in
-                    await self?.pushPendingSnapshots()
+                    self?.pushPendingSnapshots()
                 }
             }
         case let .fetchedDatabaseChanges(changes):
@@ -877,42 +901,55 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
     }
 
-    private func recordForPendingSave(_ recordID: CKRecord.ID, syncEngine: CKSyncEngine) -> CKRecord? {
+    func recordForPendingSave(_ recordID: CKRecord.ID, syncEngine: CKSyncEngine? = nil) -> CKRecord? {
         CloudSyncBatchRecordProvider.record(for: recordID, desiredRecords: self.desiredRecords) { change in
-            syncEngine.state.remove(pendingRecordZoneChanges: [change])
+            syncEngine?.state.remove(pendingRecordZoneChanges: [change])
         }
     }
 
     func applyFetchedRecords(_ records: [CKRecord]) async {
-        if records.contains(where: { self.schemaVersion($0) > CodexBarSyncSchema.currentVersion }) {
-            await MainActor.run { self.state.status.needsAppUpdate = true }
-            for record in records {
-                self.cacheSystemFields(record)
+        guard !Task.isCancelled else { return }
+        self.applyGeneration &+= 1
+        let generation = self.applyGeneration
+        guard await self.applyIfCurrent(generation, body: {
+            if records.contains(where: { self.schemaVersion($0) > CodexBarSyncSchema.currentVersion }) {
+                self.state.status.needsAppUpdate = true
+                records.forEach(self.cacheSystemFields)
+                return false
             }
-            return
-        }
-        guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
+            return true
+        }) == true else { return }
 
         for record in records {
-            self.cacheSystemFields(record)
-            guard self.shouldApplyServerRecord(record) else { continue }
             do {
-                switch record.recordType {
-                case SyncRecordType.providerIntent.rawValue:
-                    try await self.applyProviderIntent(record)
-                case SyncRecordType.preferences.rawValue:
-                    try await self.applyPreferences(record)
-                case SyncRecordType.device.rawValue:
-                    try await self.applyDevice(record)
-                case SyncRecordType.accountSnapshot.rawValue:
-                    try await self.applyAccountSnapshot(record)
-                default:
-                    break
-                }
+                guard try await self.applyIfCurrent(generation, body: {
+                    self.cacheSystemFields(record)
+                    guard self.shouldApplyServerRecord(record) else { return }
+                    switch record.recordType {
+                    case SyncRecordType.providerIntent.rawValue:
+                        try self.applyProviderIntent(record)
+                    case SyncRecordType.preferences.rawValue:
+                        try self.applyPreferences(record)
+                    case SyncRecordType.device.rawValue:
+                        self.applyDevice(record)
+                    case SyncRecordType.accountSnapshot.rawValue:
+                        try self.applyAccountSnapshot(record)
+                    default:
+                        break
+                    }
+                }) != nil else { return }
             } catch {
-                await self.record(error: error)
+                self.record(error: error)
             }
         }
+    }
+
+    /// Validate after suspension, then commit settings and bookkeeping without another actor hop.
+    private func applyIfCurrent<Value>(_ generation: Int, body: () throws -> Value) async rethrows -> Value? {
+        await self.beforeApply?()
+        guard !Task.isCancelled, generation == self.applyGeneration,
+              !self.state.status.needsAppUpdate else { return nil }
+        return try body()
     }
 
     private func shouldApplyServerRecord(_ server: CKRecord) -> Bool {
@@ -924,16 +961,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         else {
             return true
         }
-        let localValue = SyncConflictValue(
-            value: local,
-            editCount: self.editCount(local),
-            modifiedAt: self.modifiedAt(local))
-        let serverValue = SyncConflictValue(
-            value: server,
-            editCount: self.editCount(server),
-            modifiedAt: self.modifiedAt(server))
-        let winner = SyncConflictResolver.winner(local: localValue, server: serverValue)
-        guard winner.value === local else {
+        guard self.localWinsConflict(local, server: server) else {
             engine.state.remove(pendingRecordZoneChanges: [.saveRecord(server.recordID)])
             self.desiredRecords.removeValue(forKey: server.recordID)
             return true
@@ -944,28 +972,23 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         return false
     }
 
-    private func applyProviderIntent(_ record: CKRecord) async throws {
+    private func applyProviderIntent(_ record: CKRecord) throws {
         guard let payloadString = record["payload"] as? String else { return }
         let payload = try CanonicalSyncJSON.decode(ProviderIntentPayload.self, from: payloadString)
         let secrets = self.encryptedStringFields(record)
-        let merged = try await MainActor.run {
-            var config = self.settings.configSnapshot
-            guard let local = config.providerConfig(for: payload.provider) else { return nil as ProviderConfig? }
-            let merged = try payload.applying(
-                to: local,
-                secretFields: self.settings.macFleetSyncIncludeSecrets ? secrets : [:],
-                canEnable: self.settings.canEnableProviderFromSync)
-            config.setProviderConfig(merged)
-            // Let SettingsStore compare fetch identity so presentation-only intent updates do not
-            // restart provider refresh work.
-            self.settings.applyExternalConfig(config, reason: "icloud")
-            // applyExternalConfig deliberately skips persistence (its other caller reloads FROM
-            // the config file). Sync applies originate remotely, so the merge must reach disk —
-            // the CLI and the next app launch read config.json, not our in-memory state.
-            self.settings.schedulePersistConfig()
-            return merged
-        }
-        guard let merged else { return }
+        var config = self.settings.configSnapshot
+        guard let local = config.providerConfig(for: payload.provider) else { return }
+        let merged = try payload.applying(
+            to: local,
+            secretFields: self.settings.macFleetSyncIncludeSecrets ? secrets : [:],
+            canEnable: self.settings.canEnableProviderFromSync)
+        config.setProviderConfig(merged)
+        // Compare fetch identity so presentation-only intent updates do not restart refresh work.
+        self.settings.applyExternalConfig(config, reason: "icloud")
+        // applyExternalConfig deliberately skips persistence (its other caller reloads FROM
+        // the config file). Sync applies originate remotely, so the merge must reach disk —
+        // the CLI and the next app launch read config.json, not our in-memory state.
+        self.settings.schedulePersistConfig()
         self.lastKnownProviderConfigs[payload.provider] = merged
         if payload.enabled == true, merged.enabled != true {
             self.persistenceEnvelope.suppressedEnableIntents.insert(payload.provider.rawValue)
@@ -975,16 +998,14 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         self.persistEnvelope()
     }
 
-    private func applyPreferences(_ record: CKRecord) async throws {
+    private func applyPreferences(_ record: CKRecord) throws {
         guard let payloadString = record["payload"] as? String else { return }
         let payload = try CanonicalSyncJSON.decode(PreferencesSyncPayload.self, from: payloadString)
         self.lastKnownPreferences = payload.preferences
-        await MainActor.run {
-            self.settings.applySyncedPreferences(payload.preferences)
-        }
+        self.settings.applySyncedPreferences(payload.preferences)
     }
 
-    private func applyDevice(_ record: CKRecord) async throws {
+    private func applyDevice(_ record: CKRecord) {
         guard let deviceID = record["deviceID"] as? String,
               let hostName = record["hostName"] as? String,
               let model = record["model"] as? String,
@@ -999,10 +1020,10 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             lastSeen: lastSeen,
             schemaVersion: self.schemaVersion(record))
         self.persistenceEnvelope.fleetDevices[record.recordID.recordName] = payload
-        await MainActor.run { self.state.fleetDevices[record.recordID.recordName] = payload }
+        self.state.fleetDevices[record.recordID.recordName] = payload
     }
 
-    private func applyAccountSnapshot(_ record: CKRecord) async throws {
+    private func applyAccountSnapshot(_ record: CKRecord) throws {
         guard !CloudSyncSnapshotMigration.hasInFlightSave(
             recordName: record.recordID.recordName,
             pendingSaveHashes: self.pendingSaveHashes)
@@ -1025,76 +1046,97 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             usage: usage,
             schemaVersion: self.schemaVersion(record))
         self.persistenceEnvelope.fleetSnapshots[record.recordID.recordName] = payload
-        await MainActor.run { self.state.fleetSnapshots[record.recordID.recordName] = payload }
+        self.state.fleetSnapshots[record.recordID.recordName] = payload
     }
 
-    private func handleSaveFailure(
-        _ failure: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave,
-        syncEngine: CKSyncEngine) async
+    func handleSaveFailure(
+        _ record: CKRecord,
+        error: CKError,
+        syncEngine: CKSyncEngine? = nil) async
     {
-        switch failure.error.code {
+        guard syncEngine == nil || (self.enabled && self.engine === syncEngine) else { return }
+        switch error.code {
         case .quotaExceeded:
-            let retry = self.quotaRetryState.nextDelay(serverRetryAfter: failure.error.retryAfterSeconds)
-            self.scheduleRetry(recordID: failure.record.recordID, after: retry)
+            let retry = self.quotaRetryState.nextDelay(serverRetryAfter: error.retryAfterSeconds)
+            self.scheduleRetry(recordID: record.recordID, after: retry)
         case .accountTemporarilyUnavailable:
-            let retry = CloudSyncSnapshotMigration.retryDelay(for: failure.error) ?? 1
-            self.scheduleRetry(recordID: failure.record.recordID, after: retry)
+            let retry = CloudSyncSnapshotMigration.retryDelay(for: error) ?? 1
+            self.scheduleRetry(recordID: record.recordID, after: retry)
         case .notAuthenticated:
-            // CKSyncEngine automatically retries after the account becomes available. Preserve
-            // pending save and predecessor state so its eventual confirmation can finish migration.
-            await self.record(error: failure.error)
+            // CKSyncEngine automatically retries when the account becomes available; retain migration state.
+            self.record(error: error)
         case .serverRecordChanged:
-            guard let server = failure.error.serverRecord else {
-                await self.record(error: failure.error)
-                self.pendingSaveHashes.removeValue(forKey: failure.record.recordID.recordName)
+            guard let server = error.serverRecord else {
+                self.record(error: error)
+                self.pendingSaveHashes.removeValue(forKey: record.recordID.recordName)
                 return
             }
-            await self.resolveConflict(with: server, syncEngine: syncEngine)
+            if let syncEngine { await self.resolveConflict(with: server, syncEngine: syncEngine) }
+        case .unknownItem where record.recordChangeTag != nil
+            || self.persistenceEnvelope.encodedSystemFields[record.recordID.recordName] != nil:
+            await self.applyIfCurrent(self.applyGeneration) {
+                let name = record.recordID.recordName
+                self.persistenceEnvelope.encodedSystemFields.removeValue(forKey: name)
+                self.persistenceEnvelope.recordMetadata.removeValue(forKey: name)
+                self.lastSnapshotHashes.removeValue(forKey: name)
+                self.skippedTerminalReplacementHashes.removeValue(forKey: name)
+                // Rebuild the prepared record too; clearing the persisted change tag alone cannot heal this save.
+                let desired = self.desiredRecords[record.recordID] ?? record
+                self.desiredRecords[record.recordID] = Self.copyUserFields(
+                    from: desired, onto: CKRecord(recordType: desired.recordType, recordID: record.recordID))
+                self.persistEnvelope()
+                syncEngine?.state.add(pendingRecordZoneChanges: [.saveRecord(record.recordID)])
+            }
         case .zoneNotFound:
-            self.recreateZoneAndRequeue(failure.record, syncEngine: syncEngine)
+            self.recreateZoneAndRequeue(record, syncEngine: syncEngine)
         default:
-            let resetEncryptedData = (failure.error.userInfo[CKErrorUserDidResetEncryptedDataKey] as? NSNumber)?
+            let resetEncryptedData = (error.userInfo[CKErrorUserDidResetEncryptedDataKey] as? NSNumber)?
                 .boolValue == true
             if resetEncryptedData {
-                self.recreateZoneAndRequeue(failure.record, syncEngine: syncEngine)
-            } else if let retry = CloudSyncSnapshotMigration.retryDelay(for: failure.error) {
-                self.scheduleRetry(recordID: failure.record.recordID, after: retry)
+                self.recreateZoneAndRequeue(record, syncEngine: syncEngine)
+            } else if let retry = CloudSyncSnapshotMigration.retryDelay(for: error) {
+                self.scheduleRetry(recordID: record.recordID, after: retry)
             } else {
-                await self.record(error: failure.error)
-                self.abandonTerminalReplacementSave(failure)
+                self.record(error: error)
+                self.abandonTerminalReplacementSave(recordName: record.recordID.recordName, error: error)
             }
         }
     }
 
-    private func recreateZoneAndRequeue(_ record: CKRecord, syncEngine: CKSyncEngine) {
+    private func recreateZoneAndRequeue(_ record: CKRecord, syncEngine: CKSyncEngine?) {
         if self.desiredRecords[record.recordID] == nil {
             self.desiredRecords[record.recordID] = record
         }
-        syncEngine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
-        syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(record.recordID)])
+        syncEngine?.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
+        syncEngine?.state.add(pendingRecordZoneChanges: [.saveRecord(record.recordID)])
     }
 
-    private func scheduleRetry(recordID: CKRecord.ID, after delay: TimeInterval) {
+    private func scheduleRetry(recordID: CKRecord.ID, after delay: TimeInterval, deleting: Bool = false) {
+        let originatingEngine = self.engine.map(ObjectIdentifier.init)
         Task { [weak self] in
-            let originatingEngine = await self?.engine.map { ObjectIdentifier($0) }
             do {
                 if delay > 0 {
                     try await Task.sleep(for: .seconds(delay))
                 }
                 await Task.yield()
-                guard let self, await self.enabled, let engine = await self.engine else { return }
-                let shouldResume = await CloudSyncSnapshotMigration.shouldResumeDelayedSaveRetry(
-                    recordID: recordID,
-                    desiredRecordIDs: Set(self.desiredRecords.keys),
-                    originatingEngine: originatingEngine,
-                    currentEngine: ObjectIdentifier(engine))
-                guard shouldResume else { return }
-                engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
+                guard let self, self.enabled else { return }
+                if !deleting, self.desiredRecords[recordID] == nil { return }
+                if deleting, !self.persistenceEnvelope.pendingSnapshotDeletes.contains(recordID.recordName) {
+                    return
+                }
+                guard let engine = self.engine,
+                      CloudSyncLifecycle.isCurrentEngine(
+                          originatingEngine: originatingEngine,
+                          currentEngine: ObjectIdentifier(engine))
+                else { return }
+                engine.state.add(pendingRecordZoneChanges: [
+                    deleting ? .deleteRecord(recordID) : .saveRecord(recordID),
+                ])
                 try await engine.sendChanges(.init(scope: .recordIDs([recordID])))
             } catch is CancellationError {
                 return
             } catch {
-                await self?.record(error: error)
+                self?.record(error: error)
             }
         }
     }
@@ -1106,20 +1148,12 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.pendingSaveHashes.removeValue(forKey: server.recordID.recordName)
             self.cacheSystemFields(server)
             self.persistEnvelope()
-            await MainActor.run { self.state.status.needsAppUpdate = true }
+            self.state.status.needsAppUpdate = true
             return
         }
         guard let local = self.desiredRecords[server.recordID] else { return }
         self.cacheSystemFields(server)
-        let localValue = SyncConflictValue(
-            value: local,
-            editCount: self.editCount(local),
-            modifiedAt: self.modifiedAt(local))
-        let serverValue = SyncConflictValue(
-            value: server,
-            editCount: self.editCount(server),
-            modifiedAt: self.modifiedAt(server))
-        if SyncConflictResolver.winner(local: localValue, server: serverValue).value === local {
+        if self.localWinsConflict(local, server: server) {
             self.desiredRecords[server.recordID] = Self.copyUserFields(from: local, onto: server)
             self.scheduleRetry(recordID: server.recordID, after: 0)
         } else {
@@ -1130,25 +1164,20 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
     }
 
+    private func localWinsConflict(_ local: CKRecord, server: CKRecord) -> Bool {
+        let localValue = SyncConflictValue(
+            value: local,
+            editCount: self.editCount(local),
+            modifiedAt: self.modifiedAt(local))
+        let serverValue = SyncConflictValue(
+            value: server, editCount: self.editCount(server), modifiedAt: self.modifiedAt(server))
+        return SyncConflictResolver.winner(local: localValue, server: serverValue).value === local
+    }
+
     private func scheduleFetchChanges(scopedToSyncZone: Bool) {
         Task { [weak self] in
             await Task.yield()
-            guard let self else { return }
-            if scopedToSyncZone {
-                await self.fetchChanges()
-            } else {
-                await self.fetchAllChanges()
-            }
-        }
-    }
-
-    private func fetchAllChanges() async {
-        guard self.enabled, let engine = self.engine else { return }
-        do {
-            try await engine.fetchChanges()
-            await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
-        } catch {
-            await self.record(error: error)
+            await self?.fetchChanges(scopedToSyncZone: scopedToSyncZone)
         }
     }
 
@@ -1167,13 +1196,12 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     }
 
     private func stopEngine(clearPersistence: Bool) async {
+        self.applyGeneration &+= 1
+        let retiringEngine = self.engine
+        self.engine = nil
         self.configPushTask?.cancel()
         self.snapshotPushTask?.cancel()
         self.periodicFetchTask?.cancel()
-        if let engine = self.engine {
-            await engine.cancelOperations()
-        }
-        self.engine = nil
         self.desiredRecords = [:]
         self.quotaRetryState.reset()
         self.pendingSaveHashes = [:]
@@ -1185,22 +1213,17 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.skippedTerminalReplacementHashes = [:]
             self.didRehydrateFleetState = false
             try? self.persistence.delete()
-            await MainActor.run {
-                self.state.fleetDevices = [:]
-                self.state.fleetSnapshots = [:]
-            }
+            self.state.fleetDevices = [:]
+            self.state.fleetSnapshots = [:]
         }
+        await retiringEngine?.cancelOperations()
     }
 
-    private func rehydrateFleetStateIfNeeded() async {
+    private func rehydrateFleetStateIfNeeded() {
         guard !self.didRehydrateFleetState else { return }
         self.didRehydrateFleetState = true
-        let devices = self.persistenceEnvelope.fleetDevices
-        let snapshots = self.persistenceEnvelope.fleetSnapshots
-        await MainActor.run {
-            self.state.fleetDevices = devices
-            self.state.fleetSnapshots = snapshots
-        }
+        self.state.fleetDevices = self.persistenceEnvelope.fleetDevices
+        self.state.fleetSnapshots = self.persistenceEnvelope.fleetSnapshots
     }
 
     private func record(type: SyncRecordType, id: CKRecord.ID) -> CKRecord {
@@ -1246,39 +1269,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         })
     }
 
-    private func editCount(_ record: CKRecord) -> Int64 {
-        (record["editCount"] as? NSNumber)?.int64Value ?? 0
-    }
-
-    private func modifiedAt(_ record: CKRecord) -> Date {
-        record["modifiedAt"] as? Date ?? .distantPast
-    }
-
-    private func schemaVersion(_ record: CKRecord) -> Int {
-        (record["schemaVersion"] as? NSNumber)?.intValue ?? 0
-    }
-
-    private func updateAvailability(_ availability: SyncAvailability) async {
-        await MainActor.run { self.state.availability = availability }
-    }
-
-    private func record(error: Error) async {
-        self.logger.error("iCloud sync failed: \(error)")
-        await MainActor.run { self.state.status.lastError = error.localizedDescription }
-    }
-
-    private static func deviceModel() -> String {
-        var size = 0
-        guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 else { return "unknown" }
-        var buffer = [CChar](repeating: 0, count: size)
-        guard sysctlbyname("hw.model", &buffer, &size, nil, 0) == 0 else { return "unknown" }
-        let bytes = buffer.prefix { $0 != 0 }.map(UInt8.init(bitPattern:))
-        return String(bytes: bytes, encoding: .utf8) ?? "unknown"
-    }
-}
-
-extension CloudSyncEngine {
-    static func copyUserFields(from source: CKRecord, onto server: CKRecord) -> CKRecord {
+    nonisolated static func copyUserFields(from source: CKRecord, onto server: CKRecord) -> CKRecord {
         // allKeys() includes encrypted field names, but CloudKit throws NSInvalidArgumentException
         // when an encrypted field goes through the plain subscript — every key must stay on the
         // API surface (plain vs encryptedValues) it was written with.
@@ -1299,15 +1290,41 @@ extension CloudSyncEngine {
         return server
     }
 
+    private func editCount(_ record: CKRecord) -> Int64 {
+        (record["editCount"] as? NSNumber)?.int64Value ?? 0
+    }
+
+    private func modifiedAt(_ record: CKRecord) -> Date {
+        record["modifiedAt"] as? Date ?? .distantPast
+    }
+
+    private func schemaVersion(_ record: CKRecord) -> Int {
+        (record["schemaVersion"] as? NSNumber)?.intValue ?? 0
+    }
+
+    private func record(error: Error) {
+        self.logger.error("iCloud sync failed: \(error)")
+        self.state.status.lastError = error.localizedDescription
+    }
+
+    private static func deviceModel() -> String {
+        var size = 0
+        guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 else { return "unknown" }
+        var buffer = [CChar](repeating: 0, count: size)
+        guard sysctlbyname("hw.model", &buffer, &size, nil, 0) == 0 else { return "unknown" }
+        let bytes = buffer.prefix { $0 != 0 }.map(UInt8.init(bitPattern:))
+        return String(bytes: bytes, encoding: .utf8) ?? "unknown"
+    }
+}
+
+extension CloudSyncEngine {
     func removeDevice(_ deviceID: String) async {
         guard self.enabled, let engine = self.engine else { return }
         do {
             try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
             await self.delegateEventQueue.drain()
-            let names = await MainActor.run {
-                self.state.status.needsAppUpdate ? [] : self.state.recordNames(
-                    removing: deviceID, currentDeviceID: self.settings.macFleetSyncDeviceID)
-            }
+            let names = self.state.status.needsAppUpdate ? [] : self.state.recordNames(
+                removing: deviceID, currentDeviceID: self.settings.macFleetSyncDeviceID)
             guard self.engine === engine, !names.isEmpty else { return }
             let result = try await engine.database.modifyRecords(
                 saving: [], deleting: names.map { self.recordID(named: $0) }, atomically: true)
@@ -1319,24 +1336,24 @@ extension CloudSyncEngine {
             await self.delegateEventQueue.drain()
         } catch {
             guard self.engine === engine else { return }
-            await self.record(error: error)
+            self.record(error: error)
         }
     }
 
-    func applyDeletedRecords(_ names: [String]) async {
+    func applyDeletedRecords(_ names: [String]) {
         for name in names {
             self.persistenceEnvelope.encodedSystemFields.removeValue(forKey: name)
             self.persistenceEnvelope.recordMetadata.removeValue(forKey: name)
             self.persistenceEnvelope.fleetDevices.removeValue(forKey: name)
             self.persistenceEnvelope.fleetSnapshots.removeValue(forKey: name)
         }
-        await MainActor.run { self.state.removeRecords(names) }
+        self.state.removeRecords(names)
         self.persistEnvelope()
     }
 
     private func finishConfirmedSnapshotMigrations(
         savedRecordNames: [String],
-        syncEngine: CKSyncEngine) async
+        syncEngine: CKSyncEngine)
     {
         let toDrop = CloudSyncSnapshotMigration.takeDeletes(
             forSavedRecordNames: savedRecordNames,
@@ -1363,17 +1380,15 @@ extension CloudSyncEngine {
             syncEngine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
         }
         self.rememberPendingSnapshotDeletes(toDrop)
-        await MainActor.run {
-            toDrop.forEach { self.state.fleetSnapshots.removeValue(forKey: $0) }
-        }
+        toDrop.forEach { self.state.fleetSnapshots.removeValue(forKey: $0) }
     }
 
-    private func handleSentRecordDeletes(deletedIDs: [CKRecord.ID], failures: [CKRecord.ID: CKError]) async {
+    private func handleSentRecordDeletes(deletedIDs: [CKRecord.ID], failures: [CKRecord.ID: CKError]) {
         var finished = Set(deletedIDs.map(\.recordName))
         finished.formUnion(CloudSyncSnapshotMigration.finishedFailedDeleteNames(failures))
         self.forgetPendingSnapshotDeletes(finished)
         for error in CloudSyncSnapshotMigration.reportableFailedDeletes(failures) {
-            await self.record(error: error)
+            self.record(error: error)
         }
         let liveNames = CloudSyncSnapshotMigration.liveSnapshotRecordNames(
             pendingRecordNames: self.pendingSnapshots.map(\.recordName) +
@@ -1382,7 +1397,7 @@ extension CloudSyncEngine {
         for recordID in CloudSyncSnapshotMigration.retryableFailedDeletes(failures, liveNames: liveNames) {
             self.rememberPendingSnapshotDeletes([recordID.recordName])
             let delay = failures[recordID].flatMap(CloudSyncSnapshotMigration.retryDelay(for:)) ?? 1
-            self.scheduleDeleteRetry(recordID: recordID, after: delay)
+            self.scheduleRetry(recordID: recordID, after: delay, deleting: true)
         }
     }
 
@@ -1422,56 +1437,26 @@ extension CloudSyncEngine {
         }
     }
 
-    private func abandonTerminalReplacementSave(
-        _ failure: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave)
-    {
-        let name = failure.record.recordID.recordName
+    private func abandonTerminalReplacementSave(recordName name: String, error: CKError) {
         let abandoned = CloudSyncSnapshotMigration.abandonedReplacementNames(
-            failures: [name: failure.error],
+            failures: [name: error],
             pendingReplacements: Set(self.persistenceEnvelope.pendingPredecessorDeletes.keys))
         if abandoned.contains(name) {
             self.persistenceEnvelope.pendingPredecessorDeletes.removeValue(forKey: name)
         }
         CloudSyncSnapshotMigration.applyTerminalSaveSkip(
             recordName: name,
-            error: failure.error,
+            error: error,
             pendingSaveHashes: &self.pendingSaveHashes,
             skippedTerminalReplacementHashes: &self.skippedTerminalReplacementHashes)
     }
 
-    private func scheduleDeleteRetry(recordID: CKRecord.ID, after delay: TimeInterval) {
-        Task { [weak self] in
-            let originatingEngine = await self?.engine.map { ObjectIdentifier($0) }
-            do {
-                if delay > 0 {
-                    try await Task.sleep(for: .seconds(delay))
-                }
-                await Task.yield()
-                guard let self, await self.enabled else { return }
-                guard await self.persistenceEnvelope.pendingSnapshotDeletes.contains(recordID.recordName) else {
-                    return
-                }
-                guard let engine = await self.engine,
-                      CloudSyncSnapshotMigration.shouldResumeDelayedRetry(
-                          originatingEngine: originatingEngine,
-                          currentEngine: ObjectIdentifier(engine))
-                else { return }
-                engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
-                try await engine.sendChanges(.init(scope: .recordIDs([recordID])))
-            } catch is CancellationError {
-                return
-            } catch {
-                await self?.record(error: error)
-            }
-        }
-    }
-
-    private func pushPendingSnapshots() async {
+    private func pushPendingSnapshots() {
         guard let engine = self.engine else { return }
         guard !self.pendingSnapshots.isEmpty || !self.persistenceEnvelope.pendingSnapshotDeletes.isEmpty else {
             return
         }
-        guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
+        guard !self.state.status.needsAppUpdate else { return }
         do {
             let obsoleteNames = CloudSyncSnapshotMigration.obsoleteRecordNames(
                 liveSnapshots: self.pendingSnapshots,
@@ -1507,7 +1492,7 @@ extension CloudSyncEngine {
                 let alreadyPublished = self.lastSnapshotHashes[payload.recordName] == hash
                 if alreadyPublished {
                     if !predecessors.isEmpty {
-                        await self.finishConfirmedSnapshotMigrations(
+                        self.finishConfirmedSnapshotMigrations(
                             savedRecordNames: [payload.recordName],
                             syncEngine: engine)
                     }
@@ -1540,7 +1525,7 @@ extension CloudSyncEngine {
             self.lastSnapshotPushAt = Date()
             self.persistEnvelope()
         } catch {
-            await self.record(error: error)
+            self.record(error: error)
         }
     }
 }

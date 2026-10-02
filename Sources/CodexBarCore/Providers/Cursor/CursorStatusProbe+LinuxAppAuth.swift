@@ -5,6 +5,19 @@ import FoundationNetworking
 
 #if os(Linux)
 extension CursorStatusProbe {
+    static let httpClient = Self.makeHTTPClient()
+
+    static func makeHTTPClient(
+        configuration: URLSessionConfiguration = ProviderHTTPClient.defaultConfiguration()) -> ProviderHTTPClient
+    {
+        // FoundationNetworking can overwrite an explicit Cookie header from its process-local cookie jar.
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        let session = ProviderHTTPClient.redirectGuardedSession(configuration: configuration)
+        return ProviderHTTPClient(session: session)
+    }
+
     /// Fetch Cursor usage using a first-party web session derived from Cursor.app's access token.
     func fetchWithAppAuthSession(_ session: CursorAppAuthSession) async throws -> CursorStatusSnapshot {
         try await self.fetchWithCookieHeader(

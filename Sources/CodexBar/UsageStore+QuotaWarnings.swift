@@ -419,26 +419,28 @@ extension UsageStore {
     }
 
     // swiftlint:disable:next cyclomatic_complexity
+    @discardableResult
     func handleSessionQuotaTransition(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
         codexOwnerKey: CodexSessionQuotaOwnerKey? = nil,
+        accountDiscriminator: String? = nil,
         accountDiscriminatorOverride: String? = nil,
-        now: Date = Date())
+        now: Date = Date()) -> Bool
     {
         let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
-        let accountDiscriminator = accountDiscriminatorOverride.flatMap {
+        let resolvedAccountDiscriminator = (accountDiscriminatorOverride ?? accountDiscriminator).flatMap {
             self.quotaWarningAccountDiscriminator(
                 provider: provider,
                 snapshot: snapshot,
                 accountDiscriminatorOverride: $0)
         }
-        let stateKey = SessionQuotaStateKey(provider: provider, accountDiscriminator: accountDiscriminator)
+        let stateKey = SessionQuotaStateKey(provider: provider, accountDiscriminator: resolvedAccountDiscriminator)
         if provider == .commandcode,
            snapshot.commandCodeSubscriptionEnrichmentUnavailable,
            SessionQuotaNotificationLogic.isDepleted(snapshot.primary?.remainingPercent)
         {
-            return
+            return false
         }
         let quotaReachedHookActive = self.hasQuotaHookRule(event: .quotaReached, provider: provider)
         if provider == .codex,
@@ -448,16 +450,16 @@ extension UsageStore {
         {
             self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
             self.sessionQuotaLogger.debug("Codex session notifications disabled; cleared notification baseline")
-            return
+            return false
         }
         if provider == .codex, codexOwnerKey == nil {
             self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
             self.sessionQuotaLogger.debug("missing Codex session owner; cleared notification baseline")
-            return
+            return false
         }
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
             if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
-                return
+                return false
             }
             if provider == .codex {
                 if let previous = self.sessionQuotaTransitionStates[stateKey] {
@@ -474,9 +476,9 @@ extension UsageStore {
             } else {
                 self.clearSessionQuotaTransitionState(provider: provider)
             }
-            return
+            return false
         }
-        guard !sessionWindow.window.isSyntheticPlaceholder else { return }
+        guard !sessionWindow.window.isSyntheticPlaceholder else { return false }
         let currentRemaining = sessionWindow.window.remainingPercent
         let currentSource = sessionWindow.source
         let currentResetBoundary = sessionWindow.window.resetsAt
@@ -485,7 +487,7 @@ extension UsageStore {
            !requirement.admits(observedAt: snapshot.updatedAt)
         {
             self.sessionQuotaLogger.debug("ignored stale session observation while awaiting a fresh Codex baseline")
-            return
+            return false
         }
         let previousState = self.sessionQuotaTransitionStates[stateKey]
         let forceBaseline = provider == .codex && self.codexSessionQuotaBaselineRequirement != nil
@@ -537,19 +539,31 @@ extension UsageStore {
             self.sessionQuotaLogger.info(
                 "transition \(String(describing: transition)): provider=\(providerText) " +
                     "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
-            if self.settings.sessionQuotaNotificationsEnabled {
-                self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+            if transition == .restored,
+               self.settings.sessionQuotaNotificationsEnabled,
+               self.settings.limitResetNotificationsEnabled
+            {
+                if self.settings.notificationPushToiOSEnabled {
+                    self.quotaTransitionWriter.write(
+                        transition: transition,
+                        provider: provider,
+                        accountDisplayName: accountDisplayName,
+                        accountDiscriminator: resolvedAccountDiscriminator)
+                }
+                return true
             }
+            self.postSessionQuotaTransitionIfEnabled(transition, provider: provider)
             if self.settings.notificationPushToiOSEnabled {
                 self.quotaTransitionWriter.write(
                     transition: transition,
                     provider: provider,
                     accountDisplayName: accountDisplayName,
-                    accountDiscriminator: accountDiscriminator)
+                    accountDiscriminator: resolvedAccountDiscriminator)
             }
             if transition == .depleted, quotaReachedHookActive {
                 self.emitQuotaReachedHook(provider: provider, sessionWindow: sessionWindow, snapshot: snapshot)
             }
         }
+        return false
     }
 }

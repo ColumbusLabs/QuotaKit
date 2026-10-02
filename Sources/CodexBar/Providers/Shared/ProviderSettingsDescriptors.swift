@@ -87,6 +87,9 @@ struct ProviderSettingsToggleDescriptor: Identifiable {
     /// Optional actions shown under the toggle when enabled.
     let actions: [ProviderSettingsActionDescriptor]
 
+    /// Optional text fields shown inline under the toggle when enabled.
+    let inlineFields: [ProviderSettingsFieldDescriptor]
+
     /// Optional runtime visibility gate.
     let isVisible: (() -> Bool)?
 
@@ -109,6 +112,7 @@ struct ProviderSettingsToggleDescriptor: Identifiable {
         binding: Binding<Bool>,
         statusText: (() -> String?)?,
         actions: [ProviderSettingsActionDescriptor],
+        inlineFields: [ProviderSettingsFieldDescriptor] = [],
         isVisible: (() -> Bool)?,
         isEnabled: (() -> Bool)? = nil,
         onChange: ((_ enabled: Bool) async -> Void)?,
@@ -121,6 +125,7 @@ struct ProviderSettingsToggleDescriptor: Identifiable {
         self.binding = binding
         self.statusText = statusText
         self.actions = actions
+        self.inlineFields = inlineFields
         self.isVisible = isVisible
         self.isEnabled = isEnabled
         self.onChange = onChange

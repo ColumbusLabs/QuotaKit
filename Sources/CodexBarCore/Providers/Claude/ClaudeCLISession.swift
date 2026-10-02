@@ -55,6 +55,7 @@ actor ClaudeCLISession {
     private struct SessionIdentity: Equatable {
         let binaryPath: String
         let accountScope: String?
+        let workingDirectory: String
         @ProcessEnvironment private(set) var environment: [String: String]
     }
 
@@ -78,6 +79,7 @@ actor ClaudeCLISession {
     private var processGroup: pid_t?
     private var sessionIdentity: SessionIdentity?
     private var startedAt: Date?
+    private var launchedInProbeDirectory = false
     private let operationGate = AsyncOperationGate()
     private let workingDirectory: URL?
 
@@ -85,13 +87,7 @@ actor ClaudeCLISession {
         self.workingDirectory = workingDirectory
     }
 
-    private let promptSends: [String: String] = [
-        "Do you trust the files in this folder?": "y\r",
-        "Quick safety check:": "\r",
-        "Yes, I trust this folder": "\r",
-        "Ready to code here?": "\r",
-        "Press Enter to continue": "\r",
-    ]
+    private let continuePrompts = ["Press Enter to continue"]
 
     private struct RollingBuffer {
         private let maxNeedle: Int
@@ -128,20 +124,50 @@ actor ClaudeCLISession {
         let normalized = subcommand.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch normalized {
         case "/usage":
-            // Claude's command palette can render several "Show ..." actions together; only auto-confirm the
-            // usage-related actions here so we do not accidentally execute /status.
-            return [
-                "Show plan": "\r",
-                "Show plan usage limits": "\r",
-            ]
+            return ["Show plan": "\r"]
         case "/status":
-            return [
-                "Show Claude Code": "\r",
-                "Show Claude Code status": "\r",
-            ]
+            return ["Show Claude Code": "\r"]
         default:
             return [:]
         }
+    }
+
+    private static func isWorkspaceTrustPromptVisible(onScreen screen: String) -> Bool {
+        let normalized = Self.normalizedNeedle(screen)
+        return normalized.contains("quicksafetycheck:")
+            || normalized.contains("doyoutrustthefilesinthisfolder?")
+            || normalized.contains("readytocodehere?")
+            || screen.components(separatedBy: "\n").contains {
+                Self.normalizedNeedle($0).contains("yes,itrustthisfolder")
+            }
+    }
+
+    /// Respond only inside QuotaKit's dedicated probe directory. On other paths, Escape cancels the dialog.
+    static func workspaceTrustKeys(onScreen screen: String, acceptsTrust: Bool) -> String? {
+        let normalized = Self.normalizedNeedle(screen)
+        let lines = screen.components(separatedBy: "\n")
+        let option = "yes,itrustthisfolder"
+        guard let optionRow = lines.firstIndex(where: { Self.normalizedNeedle($0).contains(option) }) else {
+            if normalized.contains("quicksafetycheck:") { return acceptsTrust ? nil : "\u{1b}" }
+            if normalized.contains("doyoutrustthefilesinthisfolder?") {
+                return acceptsTrust ? "y\r" : "\u{1b}"
+            }
+            if normalized.contains("readytocodehere?") { return acceptsTrust ? "\r" : "\u{1b}" }
+            return nil
+        }
+        guard acceptsTrust else { return "\u{1b}" }
+        let isBlank = { (row: Int) in lines[row].allSatisfy(\.isWhitespace) }
+        var firstRow = optionRow
+        while firstRow > lines.startIndex, !isBlank(firstRow - 1) {
+            firstRow -= 1
+        }
+        var lastRow = optionRow
+        while lastRow < lines.endIndex - 1, !isBlank(lastRow + 1) {
+            lastRow += 1
+        }
+        guard let markerRow = (firstRow...lastRow).first(where: { lines[$0].contains("❯") }) else { return nil }
+        if markerRow == optionRow { return "\r" }
+        return markerRow < optionRow ? "\u{1b}[B" : "\u{1b}[A"
     }
 
     func capture(
@@ -223,7 +249,7 @@ actor ClaudeCLISession {
         }
 
         let stopNeedles = stopOnSubstrings.map { Self.normalizedNeedle($0) }
-        var sendMap = self.promptSends
+        var sendMap = Dictionary(uniqueKeysWithValues: self.continuePrompts.map { ($0, "\r") })
         for (needle, keys) in Self.commandPaletteSends(for: trimmed) {
             sendMap[needle] = keys
         }
@@ -236,6 +262,8 @@ actor ClaudeCLISession {
         let maxNeedle = needleLengths.max() ?? cursorQuery.count
         var scanBuffer = RollingBuffer(maxNeedle: maxNeedle)
         var triggeredSends = Set<String>()
+        var lastTrustScreen: String?
+        var trustKeysLeft = 4
 
         var buffer = BoundedOutputBuffer()
         func appendOutput(_ data: Data) throws {
@@ -266,23 +294,45 @@ actor ClaudeCLISession {
                 }
                 normalizedScan = Self.normalizedNeedle(TextParsing.stripANSICodes(scanTailText))
 
+                let screen = ClaudeCLIScreen.render(scanTailText)
+                let normalizedScreen = Self.normalizedNeedle(screen)
+                let trustPending = Self.isWorkspaceTrustPromptVisible(onScreen: screen)
+
                 let scanData = scanBuffer.append(newData)
                 if scanData.range(of: cursorQuery) != nil {
                     try? self.send("\u{1b}[1;1R")
                 }
 
-                for item in sendNeedles where !triggeredSends.contains(item.needle) {
-                    if normalizedScan.contains(item.needle) {
-                        try? self.send(item.keys)
-                        triggeredSends.insert(item.needle)
+                if trustPending {
+                    if let trustKeys = Self.workspaceTrustKeys(
+                        onScreen: screen,
+                        acceptsTrust: self.launchedInProbeDirectory),
+                        trustKeysLeft > 0,
+                        normalizedScreen != lastTrustScreen
+                    {
+                        try? self.send(trustKeys)
+                        lastTrustScreen = normalizedScreen
+                        if trustKeys == "\u{1b}" {
+                            trustKeysLeft = 0
+                        } else {
+                            trustKeysLeft -= 1
+                        }
                     }
-                }
+                } else {
+                    lastTrustScreen = nil
+                    for item in sendNeedles where !triggeredSends.contains(item.needle) {
+                        if normalizedScan.contains(item.needle) {
+                            try? self.send(item.keys)
+                            triggeredSends.insert(item.needle)
+                        }
+                    }
 
-                if stopNeedles
-                    .contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
-                {
-                    stoppedEarly = true
-                    break
+                    if stopNeedles
+                        .contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+                    {
+                        stoppedEarly = true
+                        break
+                    }
                 }
             }
 
@@ -367,9 +417,11 @@ actor ClaudeCLISession {
         guard ClaudeOpaqueOperationContext.isAllowed else {
             throw SessionError.backgroundAccessDenied
         }
+        let workingDirectory = self.workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
         let sessionIdentity = SessionIdentity(
             binaryPath: binary,
             accountScope: accountScope,
+            workingDirectory: workingDirectory.standardizedFileURL.path,
             environment: Self.launchEnvironment(baseEnv: environment))
         if let proc = self.process, proc.isRunning, self.sessionIdentity == sessionIdentity {
             Self.log.debug("Claude CLI session reused")
@@ -395,7 +447,6 @@ actor ClaudeCLISession {
 
         let proc = Process()
         let resolvedURL = URL(fileURLWithPath: binary)
-        let workingDirectory = self.workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
         // A crashed probe can leave a JSONL behind. Claude treats `--session-id` as creation-only when that local
         // transcript exists, so clear the probe-owned artifact before reusing the account-side identifier.
         ClaudeProbeSessionArtifactCleaner.cleanupProbeSessionArtifacts(
@@ -469,7 +520,16 @@ actor ClaudeCLISession {
         self.processGroup = processGroup
         self.sessionIdentity = sessionIdentity
         self.startedAt = Date()
+        self.launchedInProbeDirectory = ClaudeStatusProbe.isDedicatedProbeWorkingDirectory(workingDirectory)
         return false
+    }
+
+    static func isolatedProbeWorkingDirectoryURL() throws -> URL {
+        let directory = ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
+        guard ClaudeStatusProbe.isDedicatedProbeWorkingDirectory(directory) else {
+            throw SessionError.ioFailed("Cannot prepare Claude's isolated probe directory.")
+        }
+        return directory
     }
 
     /// Opt usage probes out of Remote Control without changing saved settings or managed policy.
@@ -591,6 +651,7 @@ actor ClaudeCLISession {
         self.processGroup = nil
         self.sessionIdentity = nil
         self.startedAt = nil
+        self.launchedInProbeDirectory = false
     }
 
     private func readChunk() -> Data {

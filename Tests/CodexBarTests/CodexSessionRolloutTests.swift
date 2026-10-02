@@ -701,7 +701,8 @@ struct CodexSessionRolloutTests {
             appServerProcessTrustValidator: appServerProcessTrustValidator ?? { _, _ in appServerProcessTrusted },
             appServerExecutablePathProvider: { _ in resolvedActualExecutable },
             appServerArgumentsProvider: { _ in appServerArguments },
-            appServerTrustIdentityProvider: appServerTrustIdentityProvider ?? { _ in "fixture" })
+            appServerTrustIdentityProvider: appServerTrustIdentityProvider ?? { _ in "fixture" },
+            directoryScanStartedAt: { .distantFuture })
         return AdaptiveChatGPTFixture(
             root: root,
             rollout: rollout,
