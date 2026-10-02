@@ -15,6 +15,11 @@ struct CostUsageStoreValidationAnchor: Codable, Equatable, Sendable {
     var sha256: String
 }
 
+struct CostUsageStoreReplacementForkLineage: Codable, Equatable, Sendable {
+    var forkedFromID: String?
+    var dependencyKey: String?
+}
+
 struct CostUsageStoreScanState: Codable, Equatable, Sendable {
     var targetSize: Int64?
     var isComplete: Bool
@@ -24,6 +29,8 @@ struct CostUsageStoreScanState: Codable, Equatable, Sendable {
     /// True while a bounded full scan is staging a replacement for this file. Detail tables and
     /// file aggregates must remain on their previously committed generation until completion.
     var replacementScanPending: Bool?
+    /// Parser lineage for the staged generation; the committed fork ledger remains unchanged.
+    var replacementForkLineage: CostUsageStoreReplacementForkLineage?
     var lastModel: String?
     var lastTurnID: String?
     var fileIdentity: String?

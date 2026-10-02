@@ -1,6 +1,6 @@
 # MuseAI provider support
 
-**Status:** `in-progress` — implementation is in place; focused Mac and iOS verification remains pending.
+**Status:** `done` — provider, catalog, widget, and iOS coverage passed hosted verification.
 
 ## Goal
 
@@ -15,4 +15,4 @@ Add Muse (muse.ai) as a distinct quota provider across the Mac app, CloudKit not
 
 ## Verification
 
-Hosted GitHub CI owns the Mac and iOS tests, lint, manifest generation, and iOS project regeneration checks for this integration batch. Local builds and tests are intentionally omitted. Keep this research item `in-progress` until the root task confirms green CI. Provider validation uses parser fixtures and mocked HTTP only; real browser cookies and Keychain sessions are out of scope.
+Hosted GitHub CI owns the Mac and iOS tests, lint, manifest generation, and iOS project regeneration checks for this integration batch. Local builds and tests are intentionally omitted. Run 37009838402 on `fb7fba662` passed iOS, MuseAI plugin fixtures, settings, provider registry, architecture catalog, and widget coverage. The integration batch still requires its final complete CI gate; remaining Codex cost-history failures are tracked on PR #222. Provider validation uses parser fixtures and mocked HTTP only; real browser cookies and Keychain sessions are out of scope.

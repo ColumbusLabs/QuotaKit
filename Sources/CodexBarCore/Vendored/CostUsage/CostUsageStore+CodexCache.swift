@@ -1027,6 +1027,18 @@ extension CostUsageStore {
                 nil
             }
             let lineage = lineageByPath[file.path]
+            let replacementLineage = file.scanState.replacementScanPending == true
+                ? file.scanState.replacementForkLineage : nil
+            let forkedFromID = if let replacementLineage {
+                replacementLineage.forkedFromID
+            } else {
+                lineage?.forkedFromID
+            }
+            let dependencyKey = if let replacementLineage {
+                replacementLineage.dependencyKey
+            } else {
+                lineage?.dependencyKey
+            }
             let accumulator = accumulatorByPath[file.path]
             let buffers = buffersByPath[file.path] ?? []
             var usage = CostUsageFileUsage(
@@ -1045,8 +1057,8 @@ extension CostUsageStore {
                 hasInterleavedTotals: details.interleavedTotals,
                 lastCodexTurnID: file.scanState.lastTurnID,
                 sessionId: file.sessionID,
-                forkedFromId: lineage?.forkedFromID,
-                forkBaselineDependencyKey: lineage?.dependencyKey,
+                forkedFromId: forkedFromID,
+                forkBaselineDependencyKey: dependencyKey,
                 projectPath: details.projectPath,
                 canonicalProjectPath: details.canonicalProjectPath,
                 codexCostCacheComplete: details.costCacheComplete,
@@ -1625,6 +1637,11 @@ extension CostUsageStore {
                     ? usage.codexNextUsageRowIndex ?? 0
                     : usage.codexNextUsageRowIndex ?? CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
                 replacementScanPending: replacementPending ? true : nil,
+                replacementForkLineage: replacementPending
+                    ? CostUsageStoreReplacementForkLineage(
+                        forkedFromID: usage.forkedFromId,
+                        dependencyKey: usage.forkBaselineDependencyKey)
+                    : nil,
                 lastModel: usage.lastModel,
                 lastTurnID: usage.lastCodexTurnID,
                 fileIdentity: usage.codexScanFileId,
@@ -1639,8 +1656,9 @@ extension CostUsageStore {
         _ = self.upsertFile(file)
 
         if replacementPending {
-            // Only resumable parser state is mutable during a partial replacement. Existing
-            // detail rows, snapshots, aggregates, and lineage remain untouched; a cold start
+            // Only resumable parser state is mutable during a partial replacement. Staged
+            // lineage travels in scan_state; committed rows, snapshots, aggregates, and lineage
+            // remain untouched. A cold start
             // may seed its snapshots and structural lineage so the staged generation survives
             // reload.
             if coldStartStaging {

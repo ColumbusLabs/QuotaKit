@@ -662,6 +662,22 @@ extension CostUsageStore {
     FROM files
     """
 
+    /// These expressions expect files aliased as f and committed fork_lineage as l.
+    /// Object presence distinguishes a staged nil dependency from a legacy state without an overlay.
+    static let effectiveCodexForkedFromIDSQL = """
+    CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1
+              AND json_type(f.scan_state, '$.replacementForkLineage') = 'object'
+         THEN json_extract(f.scan_state, '$.replacementForkLineage.forkedFromID')
+         ELSE l.forked_from_id END
+    """
+
+    static let effectiveCodexForkDependencySQL = """
+    CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1
+              AND json_type(f.scan_state, '$.replacementForkLineage') = 'object'
+         THEN json_extract(f.scan_state, '$.replacementForkLineage.dependencyKey')
+         ELSE l.dependency_key END
+    """
+
     private static func readCodexCatchUpFiles(
         _ database: OpaquePointer) throws -> [CostUsageStoreCatchUpFile]
     {
@@ -672,7 +688,7 @@ extension CostUsageStore {
                CASE WHEN f.scan_complete = 0 THEN f.scan_state ELSE NULL END,
                f.scan_complete,
                CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1 THEN 1 ELSE 0 END,
-               l.forked_from_id, l.dependency_key,
+               \(Self.effectiveCodexForkedFromIDSQL), \(Self.effectiveCodexForkDependencySQL),
                EXISTS (
                    SELECT 1 FROM buffered_lines b
                    WHERE b.file_id = f.id AND b.kind = 'subagent'

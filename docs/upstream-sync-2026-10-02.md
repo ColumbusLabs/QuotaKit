@@ -136,7 +136,7 @@ Each row accounts for the exact commit. Adapted chains include their intermediat
 - Claude restoration now delivers the pending Mac notification when an unverified OAuth owner prevents detector persistence; it preserves the existing single iPhone push. Every menu metric ignores synthetic quota placeholders while retaining measured fallback windows.
 - MuseAI uses the complete native cookie-plugin support chain behind its generated registration, rather than a catalog-only addition. Existing `muse` remains a separate provider.
 - Current Codex parent resolutions override stale cached independence metadata when computing ancestry keys; a root change still invalidates descendant baselines.
-- Codex orphan settlement retains missing-parent dependencies and unmetered buffers. Confirmed missing-parent forks can settle even when their recovery data is staged, without repeatedly deferring the scan queue. Previous reports cannot certify an overlapping unresolved range; disjoint reports remain usable. Full-ledger publication and compact status reads enforce the same distinction.
+- Codex orphan settlement retains missing-parent dependencies and unmetered buffers. Confirmed missing-parent forks can settle even when their recovery data is staged, without repeatedly deferring the scan queue. Previous reports cannot certify an overlapping unresolved range; disjoint reports remain usable. Full-ledger publication and compact status reads enforce the same distinction. Staged replacement lineage persists separately from committed accounting, including explicit nil dependency keys; scheduling, coverage, and retention honor that staged generation without overwriting committed rows or snapshots.
 
 ## Verification and delivery
 
@@ -150,4 +150,4 @@ Static verification passed: whitespace diff, generated provider manifests (88 ID
 
 The first hosted run exposed missing shared OpenCode date helpers, the additive MuseAI account-identity case, a Claude locator closure signature, a Pi return statement and formatting differences. These were repaired with parser/identity fixtures and independent source review; final hosted verification remains the merge gate.
 
-Final source/CI and merge evidence is recorded on the PR and in automation memory after delivery.
+Hosted run 37009838402 passed lint, both Linux targets, iOS, compatibility, and Mac shard 0. Remaining orphan/discovery failures exposed lost staged lineage across reloads and are covered by the persistence repair. Mac shard 3 exited with SIGBUS in the first direct-fork baseline case without a backtrace or artifact; source inspection found no justified crash-specific patch. Its complete test group must pass on the final head before merge. Final source/CI and merge evidence is recorded on the PR and in automation memory after delivery.
