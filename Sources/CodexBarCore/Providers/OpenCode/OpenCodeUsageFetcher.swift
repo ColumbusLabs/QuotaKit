@@ -59,11 +59,10 @@ public struct OpenCodeUsageFetcher: Sendable {
         {
             throw OpenCodeUsageError.apiError("Invalid workspace override.")
         }
-        let workspaceID: String
-        if let normalizedOverride {
-            workspaceID = normalizedOverride
+        let workspaceID: String = if let normalizedOverride {
+            normalizedOverride
         } else {
-            workspaceID = try await OpenCodeConsoleUsageFetcher.withLegacyFallback(cookieHeader: requestCookieHeader) {
+            try await OpenCodeConsoleUsageFetcher.withLegacyFallback(cookieHeader: requestCookieHeader) {
                 try await OpenCodeConsoleUsageFetcher.fetchWorkspaceID(
                     cookieHeader: requestCookieHeader, timeout: timeout, transport: transport)
             } legacy: {

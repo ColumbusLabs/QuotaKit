@@ -575,9 +575,9 @@ struct LimitResetNotificationTests {
             primary: RateWindow(
                 usedPercent: sessionUsed,
                 windowMinutes: 300,
-                resetsAt: Self.start.addingTimeInterval(5 * 60 * 60),
+                resetsAt: self.start.addingTimeInterval(5 * 60 * 60),
                 resetDescription: nil),
-            updatedAt: Self.start.addingTimeInterval(offset))
+            updatedAt: self.start.addingTimeInterval(offset))
     }
 
     private static func record(

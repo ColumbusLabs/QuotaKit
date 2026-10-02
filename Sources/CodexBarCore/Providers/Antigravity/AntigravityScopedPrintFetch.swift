@@ -223,8 +223,11 @@ extension AntigravityCLIHTTPSFetchStrategy {
         if let reportedEmail = AntigravityScopedAgyStaging.normalizedEmail(parsed.accountEmail),
            reportedEmail != AntigravityScopedAgyStaging.normalizedEmail(expectedAccountEmail)
         {
-            Self.scopedPrintLog.info("Scoped agy usage report rejected: report identity does not match selected account")
-            throw AntigravityStatusProbeError.accountMismatch(expected: expectedAccountEmail, found: parsed.accountEmail)
+            Self.scopedPrintLog
+                .info("Scoped agy usage report rejected: report identity does not match selected account")
+            throw AntigravityStatusProbeError.accountMismatch(
+                expected: expectedAccountEmail,
+                found: parsed.accountEmail)
         }
         guard let payload = AntigravityScopedAgyStaging.stagedTokenPayload(home: staged.home) else {
             throw AntigravityScopedStagingError.identityUnverifiable
@@ -237,7 +240,8 @@ extension AntigravityCLIHTTPSFetchStrategy {
             throw AntigravityScopedStagingError.identityUnverifiable
         }
         guard effectiveEmail == AntigravityScopedAgyStaging.normalizedEmail(expectedAccountEmail) else {
-            Self.scopedPrintLog.info("Scoped agy usage report rejected: effective account does not match selected account")
+            Self.scopedPrintLog
+                .info("Scoped agy usage report rejected: effective account does not match selected account")
             throw AntigravityStatusProbeError.accountMismatch(expected: expectedAccountEmail, found: effectiveEmail)
         }
 

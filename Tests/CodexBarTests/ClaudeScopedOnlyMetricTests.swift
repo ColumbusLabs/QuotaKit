@@ -40,7 +40,7 @@ struct ClaudeScopedOnlyMetricTests {
             resetsAt: nil,
             resetDescription: nil,
             isSyntheticPlaceholder: true)
-        let weekly = RateWindow(usedPercent: 23, windowMinutes: 10_080, resetsAt: nil, resetDescription: nil)
+        let weekly = RateWindow(usedPercent: 23, windowMinutes: 10080, resetsAt: nil, resetDescription: nil)
         let snapshot = UsageSnapshot(primary: placeholder, secondary: weekly, updatedAt: Self.now)
         let selected = MenuBarMetricWindowResolver.rateWindow(
             preference: .primary,
@@ -69,7 +69,7 @@ struct ClaudeScopedOnlyMetricTests {
             resetsAt: nil,
             resetDescription: nil,
             isSyntheticPlaceholder: true)
-        let weekly = RateWindow(usedPercent: 37, windowMinutes: 10_080, resetsAt: nil, resetDescription: nil)
+        let weekly = RateWindow(usedPercent: 37, windowMinutes: 10080, resetsAt: nil, resetDescription: nil)
         let snapshot = UsageSnapshot(primary: placeholder, secondary: weekly, updatedAt: Self.now)
         let selected = MenuBarMetricWindowResolver.rateWindow(
             preference: preference,

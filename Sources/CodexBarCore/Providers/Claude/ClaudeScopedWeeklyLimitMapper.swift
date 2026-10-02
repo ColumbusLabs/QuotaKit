@@ -90,10 +90,10 @@ enum ClaudeScopedWeeklyLimitMapper {
     }
 }
 
-public extension UsageSnapshot {
+extension UsageSnapshot {
     /// The most constrained active model-scoped weekly quota reported by Claude.
     /// Missing-usage windows stay available for reset diagnostics but cannot supply a displayed metric.
-    var claudeScopedWeeklyWindow: NamedRateWindow? {
+    public var claudeScopedWeeklyWindow: NamedRateWindow? {
         (self.extraRateWindows ?? [])
             .filter {
                 $0.id.hasPrefix("claude-weekly-scoped-")

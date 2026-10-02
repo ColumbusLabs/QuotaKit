@@ -1211,7 +1211,7 @@ extension CostUsageStoreTests {
         _ = save(cache)
         var reread = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         reread.lastScanUnixMs = 2000
-        let interloper = LockIsolated(try SQLiteTestConnection(url: store.databaseURL))
+        let interloper = try LockIsolated(SQLiteTestConnection(url: store.databaseURL))
         let checkpointError = LockIsolated<Error?>(nil)
         var hooks = CostUsageStoreTestHooks.current
         hooks.identicalContentPreLockCheckpoint = (databaseURL: store.databaseURL, checkpoint: {

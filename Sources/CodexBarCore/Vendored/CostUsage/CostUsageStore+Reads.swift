@@ -46,7 +46,9 @@ extension CostUsageStore {
         }) else { return .unavailable }
         guard !unloadedPaths.isEmpty else { return .loaded([:]) }
         #if DEBUG
-        if CostUsageStoreTestHooks.current.codexTokenSnapshotHydrationFailure?(self.databaseURL, unloadedPaths) == true {
+        if CostUsageStoreTestHooks.current
+            .codexTokenSnapshotHydrationFailure?(self.databaseURL, unloadedPaths) == true
+        {
             return .unavailable
         }
         #endif

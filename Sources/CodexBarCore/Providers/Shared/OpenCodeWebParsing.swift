@@ -4,6 +4,45 @@ import Foundation
 enum OpenCodeWebParsing {
     typealias WindowParser = ([String: Any]) -> (percent: Double, resetInSec: Int)?
 
+    static let renewAtKeys = [
+        "renewAt",
+        "renew_at",
+    ]
+
+    static func doubleValue(from value: Any?) -> Double? {
+        let number: Double? = switch value {
+        case let number as Double:
+            number
+        case let number as NSNumber:
+            number.doubleValue
+        case let string as String:
+            Double(string.trimmingCharacters(in: .whitespacesAndNewlines))
+        default:
+            nil
+        }
+        guard let number, number.isFinite else { return nil }
+        return number
+    }
+
+    static func dateValue(from value: Any?) -> Date? {
+        guard let value else { return nil }
+        if let number = self.doubleValue(from: value) {
+            if number > 1_000_000_000_000 {
+                return Date(timeIntervalSince1970: number / 1000)
+            }
+            if number > 1_000_000_000 {
+                return Date(timeIntervalSince1970: number)
+            }
+        }
+        if let string = value as? String {
+            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return self.dateValue(from: number)
+            }
+            return ISO8601DateParser.parse(string)
+        }
+        return nil
+    }
+
     static func normalizeWorkspaceID(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)

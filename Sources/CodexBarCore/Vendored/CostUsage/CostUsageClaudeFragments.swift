@@ -104,9 +104,9 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
 
     private static func sameString(_ lhs: String?, _ rhs: String?) -> Bool {
         switch (lhs, rhs) {
-        case (nil, nil): return true
-        case let (lhs?, rhs?): return lhs.utf8.elementsEqual(rhs.utf8)
-        default: return false
+        case (nil, nil): true
+        case let (lhs?, rhs?): lhs.utf8.elementsEqual(rhs.utf8)
+        default: false
         }
     }
 

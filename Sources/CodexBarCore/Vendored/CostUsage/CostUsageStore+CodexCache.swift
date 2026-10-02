@@ -875,7 +875,7 @@ extension CostUsageStore {
         from files: [CostUsageStoreFile],
         decoder: JSONDecoder = JSONDecoder()) -> [String: Bool]
     {
-        return Dictionary(uniqueKeysWithValues: files.compactMap { file in
+        Dictionary(uniqueKeysWithValues: files.compactMap { file in
             guard let payload = file.scanState.detailsPayload,
                   let details = try? decoder.decode(StoredFileDetails.self, from: payload)
             else { return nil }
@@ -887,7 +887,7 @@ extension CostUsageStore {
         from files: [CostUsageStoreFile],
         decoder: JSONDecoder = JSONDecoder()) -> Set<String>
     {
-        return Set(files.compactMap { file in
+        Set(files.compactMap { file in
             guard let payload = file.scanState.detailsPayload,
                   (try? decoder.decode(StoredFileDetails.self, from: payload)) != nil
             else { return file.path }

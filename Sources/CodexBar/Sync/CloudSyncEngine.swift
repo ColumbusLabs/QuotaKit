@@ -451,7 +451,9 @@ enum CloudSyncEntitlementGate {
 @MainActor
 final class CloudSyncEngine: CKSyncEngineDelegate {
     nonisolated static let containerIdentifier = CloudSyncConstants.containerIdentifier
-    nonisolated static let zoneID = CKRecordZone.ID(zoneName: "QuotaKitMacFleetSync", ownerName: CKCurrentUserDefaultName)
+    nonisolated static let zoneID = CKRecordZone.ID(
+        zoneName: "QuotaKitMacFleetSync",
+        ownerName: CKCurrentUserDefaultName)
 
     private let settings: SettingsStore
     private let state: CloudSyncState

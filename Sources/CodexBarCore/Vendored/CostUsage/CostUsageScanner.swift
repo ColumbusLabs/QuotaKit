@@ -7267,7 +7267,7 @@ enum CostUsageScanner {
         plan: CodexRefreshPlan,
         options: Options) -> CostUsageCodexPreviousReport?
     {
-        guard !Self.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range)
+        guard !codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range)
         else { return nil }
         let currentScanIsPending = cache.codexScanCatchUpPending == true
             || cache.files.values.contains(where: \.hasPendingCodexScanWork)
@@ -7364,7 +7364,7 @@ enum CostUsageScanner {
         rootsFingerprint: [String: Int64]) -> CostUsageCodexPreviousReport?
     {
         guard cache.codexScanCatchUpPending == true,
-              !Self.codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range),
+              !codexHistoryRangeHasUnsettledMissingParentFork(cache: cache, range: range),
               let previous = cache.codexPreviousReport,
               previous.matches(
                   scanSinceKey: range.sinceKey,

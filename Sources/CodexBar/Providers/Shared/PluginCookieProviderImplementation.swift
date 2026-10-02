@@ -8,7 +8,9 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
     var fieldActions: (@MainActor @Sendable (ProviderSettingsContext) -> [ProviderSettingsActionDescriptor])?
     var trailingText: (@MainActor @Sendable () -> String?)?
 
-    var id: UsageProvider { self.spec.id }
+    var id: UsageProvider {
+        self.spec.id
+    }
 
     private var web: PluginProviderSpec.WebSource {
         self.spec.webSource!
@@ -119,18 +121,17 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         let field = self.web.field
-        let actions: [ProviderSettingsActionDescriptor]
-        if let fieldActions = self.fieldActions {
-            actions = fieldActions(context)
+        let actions: [ProviderSettingsActionDescriptor] = if let fieldActions = self.fieldActions {
+            fieldActions(context)
         } else if let action = field.action, let url = URL(string: action.url) {
-            actions = [ProviderSettingsActionDescriptor(
+            [ProviderSettingsActionDescriptor(
                 id: action.id,
                 title: action.title,
                 style: .link,
                 isVisible: nil,
                 perform: { NSWorkspace.shared.open(url) })]
         } else {
-            actions = []
+            []
         }
         return [ProviderSettingsFieldDescriptor(
             id: field.id,

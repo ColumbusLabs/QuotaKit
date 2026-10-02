@@ -1316,7 +1316,7 @@ enum PiSessionCostScanner {
                     cacheCreation1h: cacheWrite1h,
                     output: usage.outputTokens))
         default:
-            nil
+            return nil
         }
     }
 

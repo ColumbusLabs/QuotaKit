@@ -12,7 +12,7 @@ extension CostUsageStore {
     /// Full-ledger publication needs accounting coverage as well as scan completion.
     /// Scoped day/window publication separately proves disjoint ranges in the scanner.
     static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer) throws -> Bool {
-        try Self.readForkLineage(database, path: nil).contains { lineage in
+        try readForkLineage(database, path: nil).contains { lineage in
             lineage.forkedFromID != nil
                 && (lineage.dependencyKey.map(CostUsageScanner.codexDependencyIsMissing) ?? true)
         }
