@@ -38,6 +38,7 @@ struct PluginProviderSpecTests {
             let implementation = try #require(ProviderCatalog.implementation(for: provider))
             let picker = try #require(implementation.settingsPickers(
                 context: fixture.settingsContext(provider: provider)).first(where: { $0.title == title }))
+            picker.binding.wrappedValue = ProviderCookieSource.auto.rawValue
             let browsers = ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
             let names = browsers.map(\.displayName).joined(separator: ", ")
             #expect(picker.subtitle.contains("Supported browsers: \(names). Use Manual for other browsers."))
