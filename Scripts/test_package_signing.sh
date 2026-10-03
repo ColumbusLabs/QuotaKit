@@ -65,6 +65,33 @@ fi
 
 grep -Fq 'CODEXBAR_SIGNING=identity' "$RELEASE_SCRIPT"
 
+LAUNCH_SMOKE_SCRIPT="$ROOT/Scripts/verify_packaged_app_launch.sh"
+grep -Fq '"$ROOT/Scripts/verify_packaged_app_launch.sh" "$APP_BUNDLE"' "$RELEASE_SCRIPT"
+grep -Fq 'CODEXBAR_SKIP_LAUNCH_SMOKE=0' "$RELEASE_SCRIPT"
+grep -Fq 'CODEXBAR_LAUNCH_SMOKE_REQUIRE_SANDBOX=1' "$RELEASE_SCRIPT"
+grep -Fq 'CODEXBAR_LAUNCH_SMOKE_REQUIRE_SURVIVAL=1' "$RELEASE_SCRIPT"
+grep -Fq 'CODEXBAR_LAUNCH_SMOKE_SECONDS=2' "$RELEASE_SCRIPT"
+grep -Fq 'SWIFT_TESTING_ENABLED=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'TESTING_LIBRARY_VERSION=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'QUOTAKIT_DISABLE_CLOUDKIT=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'CODEXBAR_TEST_CODEX_FILE_ISOLATION=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'CODEXBAR_TEST_SESSION_FILE_ISOLATION=1' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq '(deny file-read* (subpath \"${HOME_SANDBOX_PATH}\"))' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq '(deny file-write*)' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq '(deny network*)' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq "TYPED_FALSE_XML='<plist version=\"1.0\"><false/></plist>'" "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq -- '-iCloudSyncEnabled "$TYPED_FALSE_XML"' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq -- '-macFleetSyncEnabled "$TYPED_FALSE_XML"' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq -- '-launchAtLogin "$TYPED_FALSE_XML"' "$LAUNCH_SMOKE_SCRIPT"
+grep -Fq 'if env["TESTING_LIBRARY_VERSION"] != nil { return true }' \
+  "$ROOT/Sources/CodexBar/LaunchAtLoginManager.swift"
+grep -Fq 'if env["TESTING_LIBRARY_VERSION"] != nil { return true }' \
+  "$ROOT/Sources/CodexBar/AppNotifications.swift"
+grep -Fq 'environment["QUOTAKIT_DISABLE_CLOUDKIT"] != "1"' \
+  "$ROOT/Shared/iCloud/CloudSyncManager.swift"
+
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-package-signing.XXXXXX")
 trap 'rm -f "$FUNCTIONS_FILE"; rm -rf "$TEMP_DIR"' EXIT
 APP="$TEMP_DIR/CodexBar.app"
@@ -116,5 +143,110 @@ expected_sparkle_targets=$(printf '%s\n' \
   "$SPARKLE/Versions/B" \
   "$SPARKLE")
 [[ "$sparkle_targets" == "$expected_sparkle_targets" ]]
+
+# Exercise the launch verifier with a disposable app fixture. The fake
+# sandbox-exec records the policy while the fixture app checks its startup
+# environment; no QuotaKit binary or user data is opened.
+REAL_SANDBOX_EXEC="$(type -P sandbox-exec || true)"
+REAL_SWIFTC="$(type -P swiftc || true)"
+if [[ -x /usr/libexec/PlistBuddy && -n "$REAL_SANDBOX_EXEC" && -n "$REAL_SWIFTC" ]]; then
+  LAUNCH_FIXTURE="$TEMP_DIR/launch-smoke"
+  LAUNCH_APP="$LAUNCH_FIXTURE/QuotaKit.app"
+  mkdir -p "$LAUNCH_FIXTURE/tmp" "$LAUNCH_FIXTURE/bin" \
+    "$LAUNCH_APP/Contents/MacOS" \
+    "$LAUNCH_APP/Contents/Helpers/CodexBar_CodexBarCore.bundle"
+  cat > "$LAUNCH_APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>CFBundleExecutable</key><string>QuotaKit</string></dict></plist>
+PLIST
+  cat > "$LAUNCH_FIXTURE/QuotaKit.swift" <<'SWIFT'
+import Foundation
+
+let environment = ProcessInfo.processInfo.environment
+if environment["CODEXBAR_RESOURCE_SMOKE"] == "1" {
+    print("CODEXBAR_RESOURCE_SMOKE_OK")
+    exit(0)
+}
+
+let expectedEnvironment = [
+    "SWIFT_TESTING_ENABLED": "1",
+    "TESTING_LIBRARY_VERSION": "1",
+    "QUOTAKIT_DISABLE_CLOUDKIT": "1",
+    "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS": "1",
+    "CODEXBAR_DISABLE_KEYCHAIN_ACCESS": "1",
+    "CODEXBAR_TEST_CODEX_FILE_ISOLATION": "1",
+    "CODEXBAR_TEST_SESSION_FILE_ISOLATION": "1",
+]
+precondition(expectedEnvironment.allSatisfy { environment[$0.key] == $0.value })
+precondition(environment["HOME"] == environment["SMOKE_ORIGINAL_HOME"])
+precondition(environment["QUOTAKIT_CONFIG"]?.hasPrefix(
+    (environment["TMPDIR"] ?? "") + "/quotakit-launch-smoke.") == true)
+let typedFalseXML = "<plist version=\"1.0\"><false/></plist>"
+precondition(Array(CommandLine.arguments.dropFirst()) == [
+    "-iCloudSyncEnabled", typedFalseXML,
+    "-macFleetSyncEnabled", typedFalseXML,
+    "-launchAtLogin", typedFalseXML,
+])
+
+let settingsKeys = ["iCloudSyncEnabled", "macFleetSyncEnabled", "launchAtLogin"]
+let effectiveValues = settingsKeys.map { key -> String in
+    guard let value = UserDefaults.standard.object(forKey: key) as? Bool else {
+        fatalError("\(key) is not a typed Boolean in NSArgumentDomain")
+    }
+    precondition(!value, "\(key) must remain disabled during launch smoke")
+    return "\(key)=false type=\(type(of: UserDefaults.standard.object(forKey: key)!))"
+}
+let capture = environment["SMOKE_ISOLATION_CAPTURE"]!
+try! (effectiveValues.joined(separator: "\n") + "\n").write(
+    toFile: capture, atomically: true, encoding: .utf8)
+print("QUOTAKIT_TYPED_FALSE_DEFAULTS_OK")
+Thread.sleep(forTimeInterval: 30)
+SWIFT
+  "$REAL_SWIFTC" "$LAUNCH_FIXTURE/QuotaKit.swift" -o "$LAUNCH_APP/Contents/MacOS/QuotaKit"
+  cp "$LAUNCH_APP/Contents/MacOS/QuotaKit" "$LAUNCH_APP/Contents/Helpers/QuotaKitCLI"
+  cat > "$LAUNCH_FIXTURE/bin/sandbox-exec" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == "-p" ]]
+printf '%s\n' "$2" > "$SMOKE_PROFILE_CAPTURE"
+shift 2
+exec "$@"
+SH
+  chmod +x "$LAUNCH_FIXTURE/bin/sandbox-exec"
+  PATH="$LAUNCH_FIXTURE/bin:$PATH" \
+    TMPDIR="$LAUNCH_FIXTURE/tmp" \
+    SMOKE_PROFILE_CAPTURE="$LAUNCH_FIXTURE/profile" \
+    SMOKE_ISOLATION_CAPTURE="$LAUNCH_FIXTURE/app-check.txt" \
+    SMOKE_ORIGINAL_HOME="$HOME" \
+    CODEXBAR_LAUNCH_SMOKE_SECONDS=1 \
+    bash "$LAUNCH_SMOKE_SCRIPT" "$LAUNCH_APP"
+  python3 - "$LAUNCH_FIXTURE/app-check.txt" "$LAUNCH_FIXTURE/profile" "$HOME" <<'PY'
+import sys
+from pathlib import Path
+capture = Path(sys.argv[1]).read_text()
+for key in ("iCloudSyncEnabled", "macFleetSyncEnabled", "launchAtLogin"):
+    assert f"{key}=false type=__NSCFBoolean" in capture
+profile = Path(sys.argv[2]).read_text()
+assert f'(deny file-read* (subpath "{sys.argv[3]}"))' in profile
+for rule in ("(deny file-write*)", "(deny network*)",
+             "com.apple.cfprefsd.agent", "com.apple.cfprefsd.daemon"):
+    assert rule in profile
+PY
+  LAUNCH_PROFILE="$(cat "$LAUNCH_FIXTURE/profile")"
+  (
+    cd /
+    "$REAL_SANDBOX_EXEC" -p "$LAUNCH_PROFILE" /usr/bin/true
+    if "$REAL_SANDBOX_EXEC" -p "$LAUNCH_PROFILE" /bin/sh -c ': > "$1"' sh \
+        "$LAUNCH_FIXTURE/blocked-write" 2>/dev/null; then
+      echo "Launch smoke sandbox unexpectedly permitted a fixture write." >&2
+      exit 1
+    fi
+  )
+  [[ ! -e "$LAUNCH_FIXTURE/blocked-write" ]]
+  echo "Packaged launch isolation fixture and sandbox policy passed."
+else
+  echo "Launch smoke fixture skipped: macOS PlistBuddy, sandbox-exec, and swiftc are required."
+fi
 
 echo "Package signing tests passed."

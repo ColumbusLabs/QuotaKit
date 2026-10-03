@@ -20,7 +20,11 @@ struct CostUsageFetcherUnknownModelPricingTests {
             modelsDevClient: ModelsDevClient(transport: CostUsageFetcherModelsDevTransport(
                 data: fixture.refreshedCatalog)))
 
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: fixture.day, in: snapshot, calendar: fixture.options.calendar)
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: fixture.options))
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "gpt-new")
         #expect(abs((breakdown.costUSD ?? 0) - 0.00028) < 0.0000001)
     }
@@ -62,6 +66,9 @@ struct CostUsageFetcherUnknownModelPricingTests {
             modelsDevClient: ModelsDevClient(transport: CostUsageFetcherModelsDevTransport(
                 data: fixture.refreshedCatalog)))
 
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: fixture.options))
         #expect(!(snapshot.daily
                 .flatMap { $0.modelBreakdowns ?? [] }
                 .contains { $0.modelName == "opencode-go/deepseek-v4-flash" }))
@@ -97,7 +104,8 @@ struct CostUsageFetcherUnknownModelPricingTests {
             modelsDevClient: ModelsDevClient(transport: CostUsageFetcherModelsDevTransport(
                 data: fixture.refreshedCatalog)))
 
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: fixture.day, in: snapshot, calendar: fixture.options.calendar)
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "deepseek-v4-flash")
         #expect(abs((breakdown.costUSD ?? 0) - 0.0000168) < 0.0000001)
     }
@@ -135,8 +143,13 @@ struct CostUsageFetcherUnknownModelPricingTests {
             modelsDevClient: ModelsDevClient(transport: CostUsageFetcherModelsDevTransport(
                 data: fixture.refreshedCatalog)))
 
-        #expect(snapshot.daily.first?.totalTokens == 110)
-        #expect(snapshot.daily.first?.modelBreakdowns?.map(\.modelName) == ["gpt-new"])
+        let nativeDay = try Self.dailyEntry(on: fixture.day, in: snapshot, calendar: fixture.options.calendar)
+        #expect(nativeDay.totalTokens == 110)
+        #expect(nativeDay.modelBreakdowns?.map(\.modelName) == ["gpt-new"])
+        #expect(Self.hasValidCodexDayEvidence(for: nativeDay, options: fixture.options))
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: fixture.options))
     }
 
     @Test
@@ -170,7 +183,11 @@ struct CostUsageFetcherUnknownModelPricingTests {
         let snapshot = try await task.value
 
         #expect(returnedBeforeRelease)
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: fixture.day, in: snapshot, calendar: fixture.options.calendar)
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: fixture.options))
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "gpt-new")
         #expect(breakdown.totalTokens == 110)
         #expect(breakdown.costUSD == nil)
@@ -240,7 +257,11 @@ struct CostUsageFetcherUnknownModelPricingTests {
             scannerOptions: options,
             modelsDevClient: ModelsDevClient(transport: CostUsageFetcherCountingModelsDevTransport(counter: counter)))
 
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: day, in: snapshot, calendar: options.calendar)
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: options))
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         let requestCount = await counter.requestCount
         #expect(breakdown.modelName == CostUsagePricing.codexUnattributedModel)
         #expect(breakdown.totalTokens == 110)
@@ -266,12 +287,21 @@ struct CostUsageFetcherUnknownModelPricingTests {
             modelsDevClient: ModelsDevClient(
                 transport: CostUsageFetcherCountingModelsDevTransport(counter: counter)))
 
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: fixture.day, in: snapshot, calendar: fixture.options.calendar)
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: fixture.options))
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "gpt-new")
         #expect(breakdown.costUSD == nil)
         #expect(snapshot.sessionTokens == (includePiSessions ? 170 : 110))
         #expect(snapshot.last30DaysTokens == (includePiSessions ? 170 : 110))
         #expect(await counter.requestCount == 0)
+        if includePiSessions {
+            #expect(activeDay.dayEvidence == nil)
+        } else {
+            #expect(Self.hasValidCodexDayEvidence(for: activeDay, options: fixture.options))
+        }
     }
 
     @Test
@@ -293,6 +323,53 @@ struct CostUsageFetcherUnknownModelPricingTests {
 
         #expect(snapshot.sessionTokens == 170)
         #expect(await counter.requestCount == 1)
+    }
+}
+
+extension CostUsageFetcherUnknownModelPricingTests {
+    private static func dailyEntry(
+        on day: Date,
+        in snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) throws -> CostUsageDailyReport.Entry
+    {
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day, calendar: calendar)
+        return try #require(snapshot.daily.first { $0.date == dayKey })
+    }
+
+    private static func areCertifiedZeroDays(
+        _ entries: [CostUsageDailyReport.Entry],
+        options: CostUsageScanner.Options) -> Bool
+    {
+        entries.allSatisfy { entry in
+            entry.inputTokens == 0
+                && entry.outputTokens == 0
+                && entry.totalTokens == 0
+                && entry.requestCount == 0
+                && entry.costUSD == 0
+                && entry.modelsUsed == nil
+                && entry.modelBreakdowns == nil
+                && Self.hasValidCodexDayEvidence(for: entry, options: options)
+        }
+    }
+
+    private static func hasValidCodexDayEvidence(
+        for entry: CostUsageDailyReport.Entry,
+        options: CostUsageScanner.Options) -> Bool
+    {
+        guard let evidence = entry.dayEvidence else { return false }
+        let rootPaths = CostUsageScanner.codexSessionsRoots(options: options)
+            .map(\.standardizedFileURL.path)
+            .sorted()
+        let expectedScopeID = CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: rootPaths,
+            calendar: options.calendar)
+        let verifiedAt = evidence.verifiedAt.timeIntervalSince1970
+        return evidence.sourceKind == "codexLocalLedger"
+            && evidence.scopeID == expectedScopeID
+            && !evidence.lineageID.isEmpty
+            && evidence.revision > 0
+            && verifiedAt.isFinite
+            && verifiedAt > 0
     }
 }
 

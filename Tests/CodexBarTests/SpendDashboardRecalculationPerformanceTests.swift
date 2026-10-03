@@ -18,7 +18,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         let firstCount = SpendDashboardSnapshotRevisionEncoder.fingerprintComputationCount
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         #expect(firstCount == beforePublicationCount + 1)
-        #expect(firstConfiguration.sourceRevisions.contains { $0.hasSuffix(
+        #expect(firstConfiguration.sourceRevisions.contains { $0.contains(
             SpendDashboardSnapshotRevisionEncoder.fingerprint(snapshot)) })
 
         for mode in [MenuBarDisplayMode.pace, .both, .resetTime, .percent] {
@@ -53,7 +53,7 @@ struct SpendDashboardRecalculationPerformanceTests {
 
         #expect(SpendDashboardSnapshotRevisionEncoder.fingerprintComputationCount == firstCount + 1)
         #expect(secondConfiguration.sourceRevisions != firstConfiguration.sourceRevisions)
-        #expect(secondConfiguration.sourceRevisions.contains { $0.hasSuffix(
+        #expect(secondConfiguration.sourceRevisions.contains { $0.contains(
             SpendDashboardSnapshotRevisionEncoder.fingerprint(secondSnapshot)) })
 
         settings.updateProviderConfig(provider: .mistral) { config in

@@ -98,3 +98,26 @@ The existing navigation smoke renderer crashed on the unchanged base under
 iOS 27. Rendering through an attached UIKit hosting window repaired that test
 fixture, and the full simulator gate then passed. Delivery and post-deployment
 observations remain separate from these implementation checks.
+
+## Release migration and smoke isolation
+
+The installed 0.32.4.31 producer uses parser hash `c52728bbaeedeb90`, not
+the immediate source predecessor's hash. Both producers retain native parser
+revision 7 and base schema 6. The upgrade must adopt this shipped predecessor
+without discarding parsed rows, pending checkpoints or the retained baseline;
+adoption must leave the new daily evidence table empty until source validation.
+
+The release packaging smoke check previously started a second production
+producer. During preparation, the newer smoke process and older running app
+contended over parser generations, and the older app rebuilt its derived cache.
+Release launch checks therefore need isolated provider, persistence and sync
+state while retaining resource-loading and actual application startup gates.
+The live ledger must be verified again after the installed update; pre-release
+raw aggregates are not a certified publication oracle.
+
+The shipped-parser migration passed 13 focused argument cases. Updated report
+fixtures passed 42 checks, rolling-overlay and publication-reuse fixtures passed,
+and the exact-anchor architecture gate passed 38 checks. The final isolated
+packaged startup survived six seconds; before/after observations retained the
+same live outgoing snapshot and no new daily evidence. Hosted CI and installed
+release observations are still required before delivery is complete.

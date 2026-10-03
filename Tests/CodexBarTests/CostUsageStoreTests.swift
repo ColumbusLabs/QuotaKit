@@ -1072,28 +1072,52 @@ extension CostUsageStoreTests {
         #expect(zeroDay.dayEvidence == zeroEvidence)
     }
 
-    @Test
-    func `additive evidence migration preserves legacy status without inventing proof`() throws {
+    @Test(arguments: ["0001601034856fb6", "c52728bbaeedeb90"])
+    func `additive predecessor migration retains rows and baseline without inventing proof`(
+        predecessorHash: String) throws
+    {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         let day = "2026-08-01"
+        let path = "/rollouts/predecessor-ledger.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000, size: 100, days: [day: ["fixture-model": [10, 0, 2]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: "fixture-turn",
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 2)]
+        usage.codexTokenSnapshots = [.init(
+            timestamp: "2026-08-01T12:00:00Z", last: nil, total: .init(input: 10, cached: 0, output: 2))]
         var cache = CostUsageCache()
         cache.lastScanUnixMs = 1_800_000_000_000
         cache.scanSinceKey = day
         cache.scanUntilKey = day
         cache.timeZoneIdentifier = calendar.timeZone.identifier
         cache.roots = ["/codex/sessions": 0]
-        cache.days = [day: ["fixture-model": [10, 0, 2]]]
-        let store = CostUsageStore(cacheRoot: fixture.root)
+        cache.files[path] = usage
+        cache.days = usage.days
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion, parserHash: predecessorHash)
+        let store = CostUsageStore(
+            cacheRoot: fixture.root, schemaVersion: predecessorVersion, parserHash: predecessorHash)
         #expect(store.syncSaveCodexCache(
             cache,
             calendar: calendar,
             requestedScanWindow: (sinceKey: day, untilKey: day)).cacheWasPersisted)
         #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
-        let priorVersion = try SQLiteTestConnection(url: store.databaseURL)
-            .scalarInt("PRAGMA user_version")
+        let priorProjection = store.syncReadCodexReportProjection(calendar: calendar)
+        let priorCache = store.syncLoadCodexCache(calendar: calendar)
+        #expect(priorProjection.verifiedDayEvidence[day] != nil)
+        #expect(priorCache.files[path]?.codexRows == usage.codexRows)
+        #expect(priorCache.files[path]?.codexTokenSnapshots == usage.codexTokenSnapshots)
         #expect(try SQLiteTestConnection(url: store.databaseURL)
             .scalarInt("SELECT COUNT(*) FROM verified_day_status WHERE day = '\(day)'") == 1)
 
@@ -1106,8 +1130,13 @@ extension CostUsageStoreTests {
             temporalRange: (sinceDay: day, untilDay: day))
         #expect(projection.verifiedDayKeys.contains(day))
         #expect(projection.verifiedDayEvidence[day] == nil)
+        #expect(projection.verifiedDayAggregates == priorProjection.verifiedDayAggregates)
+        #expect(projection.verifiedUpdatedAtUnixMs == priorProjection.verifiedUpdatedAtUnixMs)
+        #expect(migrated.syncLoadCodexCache(calendar: calendar).files == priorCache.files)
         #expect(try SQLiteTestConnection(url: store.databaseURL)
-            .scalarInt("PRAGMA user_version") == priorVersion)
+            .scalarInt("PRAGMA user_version") == Int64(CostUsageStore.schemaVersion))
+        #expect(try SQLiteTestConnection(url: store.databaseURL)
+            .scalarInt("SELECT COUNT(*) FROM verified_day_evidence") == 0)
         #expect(try SQLiteTestConnection(url: store.databaseURL)
             .scalarInt("SELECT COUNT(*) FROM verified_day_aggregates WHERE day = '\(day)'") > 0)
     }
@@ -2152,11 +2181,10 @@ extension CostUsageStoreTests {
         #expect(after.files[duplicate.path]?.codexRows?.count == 1)
     }
 
-    @Test
-    func `lf span parser adopts persisted partial checkpoint without rebuilding`() async throws {
+    @Test(arguments: ["606a690018e2845e", "c52728bbaeedeb90"])
+    func `lf span parser adopts persisted partial checkpoint without rebuilding`(previousHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
-        let previousHash = "606a690018e2845e"
         let previousVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: previousHash)
@@ -2206,6 +2234,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "c52728bbaeedeb90",
         "0001601034856fb6",
         "91aceec74bae13b6",
         "295616a4e7dcfc3f",
@@ -2219,6 +2248,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "c52728bbaeedeb90",
             "0001601034856fb6",
             "91aceec74bae13b6",
             "36872d2d0ebf9818",

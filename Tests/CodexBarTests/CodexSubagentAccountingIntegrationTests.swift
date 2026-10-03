@@ -896,7 +896,9 @@ extension CodexSubagentAccountingIntegrationTests {
             })
         let finalLedger = try PersistedCodexLedger.read(
             databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
-        #expect(boundedReport?.data == cleanReport.data)
+        #expect(boundedReport.map { entriesWithoutDayEvidence($0.data) } == entriesWithoutDayEvidence(cleanReport.data))
+        #expect(boundedReport.map { hasValidCodexDayEvidence($0.data, options: options) } == true)
+        #expect(hasValidCodexDayEvidence(cleanReport.data, options: cleanOptions))
         #expect(boundedReport?.summary == cleanReport.summary)
         #expect(finalUsage.codexRows == cleanUsage.codexRows)
         #expect(finalUsage.codexTokenSnapshots == cleanUsage.codexTokenSnapshots)
@@ -1057,7 +1059,11 @@ private final class GrowingSubagentReplacementScenario {
     private func prepareCleanScan(
         finalContents: String,
         environment: CostUsageTestEnvironment) throws
-        -> (report: CostUsageDailyReport, usage: CostUsageFileUsage, ledger: PersistedCodexLedger)
+        -> (
+            report: CostUsageDailyReport,
+            usage: CostUsageFileUsage,
+            ledger: PersistedCodexLedger,
+            evidenceScopeID: String)
     {
         _ = try environment.writeCodexSessionFile(
             day: self.day,
@@ -1087,11 +1093,19 @@ private final class GrowingSubagentReplacementScenario {
             })
         let storeURL = CostUsageStore(cacheRoot: environment.cacheRoot).databaseURL
         let ledger = try PersistedCodexLedger.read(databaseURL: storeURL)
-        return (report, usage, ledger)
+        return (
+            report,
+            usage,
+            ledger,
+            codexDayEvidenceScopeID(options: options))
     }
 
     private func finish(
-        clean: (report: CostUsageDailyReport, usage: CostUsageFileUsage, ledger: PersistedCodexLedger)) throws
+        clean: (
+            report: CostUsageDailyReport,
+            usage: CostUsageFileUsage,
+            ledger: PersistedCodexLedger,
+            evidenceScopeID: String)) throws
     {
         self.options.maxCodexSessionFileBytes = 64 * 1024
         self.options.maxCodexScanBytesPerRefresh = 64 * 1024
@@ -1101,7 +1115,9 @@ private final class GrowingSubagentReplacementScenario {
             until: self.day,
             now: self.day.addingTimeInterval(10),
             options: self.options)
-        #expect(finalReport.data == clean.report.data)
+        #expect(entriesWithoutDayEvidence(finalReport.data) == entriesWithoutDayEvidence(clean.report.data))
+        #expect(hasValidCodexDayEvidence(finalReport.data, options: self.options))
+        #expect(hasValidCodexDayEvidence(clean.report.data, scopeID: clean.evidenceScopeID))
         #expect(finalReport.summary == clean.report.summary)
         let finalCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot)
         let finalUsage = try #require(finalCache.files.values.first { $0.sessionId == self.childID })
@@ -1287,6 +1303,61 @@ private final class GrowingSubagentReplacementScenario {
             ],
         ]
     }
+}
+
+private func entriesWithoutDayEvidence(
+    _ entries: [CostUsageDailyReport.Entry]) -> [CostUsageDailyReport.Entry]
+{
+    entries.map {
+        CostUsageDailyReport.Entry(
+            date: $0.date,
+            inputTokens: $0.inputTokens,
+            outputTokens: $0.outputTokens,
+            cacheReadTokens: $0.cacheReadTokens,
+            cacheCreationTokens: $0.cacheCreationTokens,
+            reasoningTokens: $0.reasoningTokens,
+            totalTokens: $0.totalTokens,
+            requestCount: $0.requestCount,
+            costUSD: $0.costUSD,
+            modelsUsed: $0.modelsUsed,
+            modelBreakdowns: $0.modelBreakdowns,
+            unpricedRequestCount: $0.unpricedRequestCount,
+            unmeteredRequestCount: $0.unmeteredRequestCount,
+            estimatedRequestCount: $0.estimatedRequestCount,
+            pricedRequestCount: $0.pricedRequestCount,
+            dayEvidence: nil)
+    }
+}
+
+private func hasValidCodexDayEvidence(
+    _ entries: [CostUsageDailyReport.Entry],
+    options: CostUsageScanner.Options) -> Bool
+{
+    hasValidCodexDayEvidence(entries, scopeID: codexDayEvidenceScopeID(options: options))
+}
+
+private func hasValidCodexDayEvidence(
+    _ entries: [CostUsageDailyReport.Entry],
+    scopeID: String) -> Bool
+{
+    !entries.isEmpty && entries.allSatisfy { entry in
+        guard let evidence = entry.dayEvidence else { return false }
+        let verifiedAt = evidence.verifiedAt.timeIntervalSince1970
+        return evidence.sourceKind == "codexLocalLedger"
+            && evidence.scopeID == scopeID
+            && !evidence.lineageID.isEmpty
+            && evidence.revision > 0
+            && verifiedAt.isFinite
+            && verifiedAt > 0
+    }
+}
+
+private func codexDayEvidenceScopeID(options: CostUsageScanner.Options) -> String {
+    CostUsageScanner.codexDayEvidenceScopeID(
+        rootPaths: CostUsageScanner.codexSessionsRoots(options: options)
+            .map(\.standardizedFileURL.path)
+            .sorted(),
+        calendar: options.calendar)
 }
 
 private struct PersistedCodexLedger: Equatable {

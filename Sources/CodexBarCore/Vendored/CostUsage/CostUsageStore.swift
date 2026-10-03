@@ -183,6 +183,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "c52728bbaeedeb90", // QuotaKit 0.32.4.31; optional lineage and daily proof preserve revision-7 rows.
         "0001601034856fb6", // Daily proof is additive; existing parsed rows remain compatible.
         "91aceec74bae13b6", // Orphan coverage preserves rows; retained buffers revalidate missing parents.
         "36872d2d0ebf9818", // Temporal revision 7 rebuilds compact buckets from retained file rows.

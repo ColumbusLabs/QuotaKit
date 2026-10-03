@@ -192,26 +192,18 @@ stapler validate "$DMG_NAME"
 # rejected by AMFI at launch time with "Launchd job spawn failed"
 # (POSIX 163). The only way to catch this class of failure is to
 # actually try to launch the binary.
-echo "Launch verification — direct exec of stapled bundle, must stay alive 2s"
-"$APP_BUNDLE/Contents/MacOS/$APP_EXECUTABLE" >/dev/null 2>&1 &
-LAUNCH_TEST_PID=$!
-sleep 2
-if kill -0 "$LAUNCH_TEST_PID" 2>/dev/null; then
-  kill -TERM "$LAUNCH_TEST_PID" 2>/dev/null || true
-  sleep 1
-  if kill -0 "$LAUNCH_TEST_PID" 2>/dev/null; then
-    kill -KILL "$LAUNCH_TEST_PID" 2>/dev/null || true
-  fi
-  wait "$LAUNCH_TEST_PID" 2>/dev/null || true
-  echo "Launch verification: OK"
-else
-  wait "$LAUNCH_TEST_PID" 2>/dev/null || true
+echo "Launch verification — isolated direct exec of stapled bundle, must stay alive 2s"
+if ! CODEXBAR_SKIP_LAUNCH_SMOKE=0 \
+     CODEXBAR_LAUNCH_SMOKE_REQUIRE_SANDBOX=1 \
+     CODEXBAR_LAUNCH_SMOKE_REQUIRE_SURVIVAL=1 \
+     CODEXBAR_LAUNCH_SMOKE_SECONDS=2 \
+     "$ROOT/Scripts/verify_packaged_app_launch.sh" "$APP_BUNDLE"; then
   echo "" >&2
-  echo "FATAL: $APP_NAME exited within 2s of launch." >&2
-  echo "  spctl, stapler, and notarization all passed, but AMFI / Launch" >&2
-  echo "  Services rejected the binary at runtime. Most common cause:" >&2
-  echo "  Contents/embedded.provisionprofile is missing or malformed" >&2
-  echo "  (entitlements with com.apple.application-identifier require it)." >&2
+  echo "FATAL: $APP_NAME failed isolated launch verification." >&2
+  echo "  spctl, stapler, and notarization passed, but the direct launch did not" >&2
+  echo "  survive the required window. This can indicate an AMFI / Launch" >&2
+  echo "  Services rejection, including a missing or malformed profile at" >&2
+  echo "  Contents/embedded.provisionprofile, or another launch failure." >&2
   echo "" >&2
   echo "  Inspect: ls -la \"$APP_BUNDLE/Contents/embedded.provisionprofile\"" >&2
   echo "  Reproduce:  \"$APP_BUNDLE/Contents/MacOS/$APP_EXECUTABLE\"" >&2
@@ -220,6 +212,7 @@ else
   rm -f "$ZIP_NAME"
   exit 1
 fi
+echo "Launch verification: OK"
 
 echo "Packaging dSYM"
 FIRST_ARCH="${ARCH_LIST[0]}"

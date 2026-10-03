@@ -7,9 +7,11 @@
 # machine still had the checkout at that exact path. This check reproduces a
 # user machine: it copies the packaged app to a temp directory, launches the
 # binary directly (skipping LaunchServices, so it cannot re-activate a running
-# production QuotaKit) with every file read under the repo checkout denied via
-# sandbox-exec, and requires the process to stay alive. A resource-bundle
-# regression now fails packaging instead of shipping.
+# production QuotaKit) with the checkout and caller's home directory unreadable,
+# all file writes and network access denied via sandbox-exec, and requires the
+# process to stay alive. Test-mode controls also suppress provider startup and
+# iCloud snapshot reconciliation. A resource-bundle regression now fails
+# packaging instead of shipping.
 
 set -euo pipefail
 
@@ -20,6 +22,7 @@ APP_NAME="$(basename "$APP_BUNDLE")"
 CLI_EXECUTABLE_NAME="${MAC_RELEASE_CLI_EXECUTABLE:-QuotaKitCLI}"
 
 SMOKE_SECONDS="${CODEXBAR_LAUNCH_SMOKE_SECONDS:-6}"
+TYPED_FALSE_XML='<plist version="1.0"><false/></plist>'
 # Swift runtime trap signatures for a missing SwiftPM resource bundle. These
 # always hard-fail packaging, even without a GUI session.
 FATAL_PATTERN='Fatal error|could not load resource bundle|unable to find bundle named'
@@ -52,17 +55,21 @@ if [[ ! -d "$APP_BUNDLE/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
 fi
 
 if ! command -v sandbox-exec >/dev/null 2>&1; then
+  if [[ "${CODEXBAR_LAUNCH_SMOKE_REQUIRE_SANDBOX:-0}" == "1" ]]; then
+    echo "ERROR: Launch smoke check requires sandbox-exec, but it is unavailable." >&2
+    exit 1
+  fi
   warn "Launch smoke check skipped: sandbox-exec is unavailable on this system."
   exit 0
 fi
 
 # Launching a menu-bar app without an Aqua session (SSH, headless CI) can fail
-# for reasons unrelated to resources. In that case only the resource-bundle
-# fatal signature fails packaging; other early exits merely warn.
+# for reasons unrelated to resources. Normal packaging treats an early exit as
+# inconclusive in that case; release signing can require survival explicitly.
 GUI_SESSION=1
 if [[ "$(launchctl managername 2>/dev/null || true)" != "Aqua" ]]; then
   GUI_SESSION=0
-  warn "Launch smoke check: no Aqua session; only the resource-bundle fatal signature will fail packaging."
+  warn "Launch smoke check: no Aqua session; early exits are inconclusive unless survival is required."
 fi
 
 SMOKE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/quotakit-launch-smoke.XXXXXX")"
@@ -97,9 +104,23 @@ CLI_PROBE_LOG="$SMOKE_DIR/cli-probe.log"
 CLI_SYMLINK_PROBE_LOG="$SMOKE_DIR/cli-symlink-probe.log"
 mkdir -p "$CLI_SYMLINK_DIR"
 ln -s "$CLI_BIN" "$CLI_SYMLINK"
+escape_sandbox_literal() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '%s' "$value"
+}
+
+ROOT_SANDBOX_PATH="$(escape_sandbox_literal "$ROOT")"
+HOME_SANDBOX_PATH="$(escape_sandbox_literal "$HOME")"
 SANDBOX_PROFILE="(version 1)
 (allow default)
-(deny file-read* (subpath \"${ROOT}\"))"
+(deny file-read* (subpath \"${ROOT_SANDBOX_PATH}\"))
+(deny file-read* (subpath \"${HOME_SANDBOX_PATH}\"))
+(deny file-write*)
+(deny network*)
+(deny mach-lookup (global-name \"com.apple.cfprefsd.agent\"))
+(deny mach-lookup (global-name \"com.apple.cfprefsd.daemon\"))"
 
 fail_with_probe_log() {
   echo "ERROR: $1" >&2
@@ -207,11 +228,26 @@ if [[ "$PROBE_STATUS" -ne 0 ]] || ! grep -q "CODEXBAR_RESOURCE_SMOKE_OK" "$PROBE
 fi
 log "Launch smoke check: resource probe OK."
 
-# Phase 2: launch the app for real and require it to stay alive.
-log "Launch smoke check: running packaged binary with ${ROOT} unreadable for ${SMOKE_SECONDS}s."
+# Phase 2: run the packaged binary in test startup mode. The argument-domain
+# overrides keep both snapshot sync lanes off even if preferences are
+# unavailable; the sandbox independently blocks user files, writes, network,
+# and CFPreferences access.
+log "Launch smoke check: running isolated packaged binary for ${SMOKE_SECONDS}s."
 (
   cd "$SMOKE_DIR"
-  exec sandbox-exec -p "$SANDBOX_PROFILE" "$SMOKE_BIN"
+  exec env \
+    SWIFT_TESTING_ENABLED=1 \
+    TESTING_LIBRARY_VERSION=1 \
+    QUOTAKIT_DISABLE_CLOUDKIT=1 \
+    CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 \
+    CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1 \
+    CODEXBAR_TEST_CODEX_FILE_ISOLATION=1 \
+    CODEXBAR_TEST_SESSION_FILE_ISOLATION=1 \
+    QUOTAKIT_CONFIG="$SMOKE_DIR/quotakit.json" \
+    sandbox-exec -p "$SANDBOX_PROFILE" "$SMOKE_BIN" \
+      -iCloudSyncEnabled "$TYPED_FALSE_XML" \
+      -macFleetSyncEnabled "$TYPED_FALSE_XML" \
+      -launchAtLogin "$TYPED_FALSE_XML"
 ) >"$SMOKE_LOG" 2>&1 &
 SMOKE_PID=$!
 
@@ -238,14 +274,14 @@ if grep -Eq "$FATAL_PATTERN" "$SMOKE_LOG"; then
 fi
 
 if [[ "$ALIVE" == "1" ]]; then
-  log "Launch smoke check OK: packaged app survived ${SMOKE_SECONDS}s without the build checkout."
+  log "Launch smoke check OK: isolated packaged app survived ${SMOKE_SECONDS}s."
   exit 0
 fi
 
 wait "$SMOKE_PID" 2>/dev/null || true
 SMOKE_PID=""
 
-if [[ "$GUI_SESSION" == "0" ]]; then
+if [[ "$GUI_SESSION" == "0" && "${CODEXBAR_LAUNCH_SMOKE_REQUIRE_SURVIVAL:-0}" != "1" ]]; then
   warn "Launch smoke check inconclusive: app exited early without the resource-bundle fatal signature (no Aqua session; likely unrelated to resources)."
   exit 0
 fi

@@ -31,15 +31,22 @@ struct CostUsageFetcherTests {
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
+        let historyDays = CostReportingPeriod.allTime.days(now: now)
         let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
             now: now.addingTimeInterval(10),
             forceRefresh: true,
-            historyDays: CostReportingPeriod.allTime.days(now: now),
+            historyDays: historyDays,
             allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
-        #expect(snapshot.daily.map(\.date) == ["2026-02-01"])
+        let expectedDates = Self.dayKeys(endingAt: now, count: historyDays, calendar: options.calendar)
+        #expect(snapshot.daily.map(\.date) == expectedDates)
+        let activeDay = try Self.dailyEntry(on: now, in: snapshot, calendar: options.calendar)
+        #expect(activeDay.totalTokens == 7)
+        let zeroDays = snapshot.daily.filter { $0.totalTokens == 0 }
+        #expect(zeroDays.count == historyDays - 1)
+        #expect(Self.areCertifiedZeroDays(zeroDays, options: options))
         #expect(snapshot.last30DaysTokens == 7)
     }
 
@@ -210,6 +217,59 @@ struct CostUsageFetcherTests {
 }
 
 extension CostUsageFetcherTests {
+    private static func dayKeys(endingAt day: Date, count: Int, calendar: Calendar) -> [String] {
+        let dayCount = max(1, count)
+        let firstDay = calendar.date(byAdding: .day, value: -(dayCount - 1), to: day) ?? day
+        return (0..<dayCount).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: firstDay)
+                .map { CostUsageScanner.CostUsageDayRange.dayKey(from: $0, calendar: calendar) }
+        }
+    }
+
+    private static func dailyEntry(
+        on day: Date,
+        in snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) throws -> CostUsageDailyReport.Entry
+    {
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day, calendar: calendar)
+        return try #require(snapshot.daily.first { $0.date == dayKey })
+    }
+
+    private static func areCertifiedZeroDays(
+        _ entries: [CostUsageDailyReport.Entry],
+        options: CostUsageScanner.Options) -> Bool
+    {
+        entries.allSatisfy { entry in
+            entry.inputTokens == 0
+                && entry.outputTokens == 0
+                && entry.totalTokens == 0
+                && entry.requestCount == 0
+                && entry.costUSD == 0
+                && entry.modelsUsed == nil
+                && entry.modelBreakdowns == nil
+                && Self.hasValidCodexDayEvidence(for: entry, options: options)
+        }
+    }
+
+    private static func hasValidCodexDayEvidence(
+        for entry: CostUsageDailyReport.Entry,
+        options: CostUsageScanner.Options) -> Bool
+    {
+        guard let evidence = entry.dayEvidence else { return false }
+        let rootPaths = CostUsageScanner.codexSessionsRoots(options: options).map(\.standardizedFileURL.path).sorted()
+        let expectedScopeID = CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: rootPaths,
+            calendar: options.calendar)
+        let verifiedAt = evidence.verifiedAt.timeIntervalSince1970
+        return evidence.sourceKind == "codexLocalLedger"
+            && evidence.scopeID == expectedScopeID
+            && !evidence.lineageID.isEmpty
+            && evidence.revision > 0
+            && verifiedAt.isFinite && verifiedAt > 0
+    }
+}
+
+extension CostUsageFetcherTests {
     @Test
     func `completed empty codex scan publishes known zero totals`() async throws {
         let env = try CostUsageTestEnvironment()
@@ -235,6 +295,10 @@ extension CostUsageFetcherTests {
         #expect(snapshot.sessionCostUSD == 0)
         #expect(snapshot.last30DaysTokens == 0)
         #expect(snapshot.last30DaysCostUSD == 0)
+        let zeroDay = try Self.dailyEntry(on: day, in: snapshot, calendar: options.calendar)
+        #expect(zeroDay.totalTokens == 0)
+        #expect(zeroDay.costUSD == 0)
+        #expect(Self.hasValidCodexDayEvidence(for: zeroDay, options: options))
     }
 
     @Test
@@ -267,6 +331,7 @@ extension CostUsageFetcherTests {
             includePiSessions: false,
             scannerOptions: options)
         #expect(!pending.historyCoverageIsEstablished)
+        #expect(pending.daily.allSatisfy { $0.dayEvidence == nil })
 
         options.maxCodexSessionFileBytes = 0
         options.maxCodexScanBytesPerRefresh = 0
@@ -278,6 +343,9 @@ extension CostUsageFetcherTests {
             includePiSessions: false,
             scannerOptions: options)
         #expect(covered.historyCoverageIsEstablished)
+        let coveredDay = try Self.dailyEntry(on: day, in: covered, calendar: options.calendar)
+        #expect(coveredDay.totalTokens == 42)
+        #expect(Self.hasValidCodexDayEvidence(for: coveredDay, options: options))
     }
 
     @Test
@@ -376,7 +444,16 @@ extension CostUsageFetcherTests {
             allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
-        #expect(expanded.daily.map(\.date) == ["2026-04-02", "2026-04-08"])
+        #expect(expanded.daily.map(\.date) == Self.dayKeys(endingAt: newDay, count: 7, calendar: options.calendar))
+        let oldEntry = try Self.dailyEntry(on: oldDay, in: expanded, calendar: options.calendar)
+        let newEntry = try Self.dailyEntry(on: newDay, in: expanded, calendar: options.calendar)
+        #expect(oldEntry.totalTokens == 15)
+        #expect(newEntry.totalTokens == 30)
+        let zeroDays = expanded.daily.filter { $0.totalTokens == 0 }
+        #expect(zeroDays.count == 5)
+        var scopedOptions = options
+        scopedOptions.codexSessionsRoot = env.codexSessionsRoot
+        #expect(Self.areCertifiedZeroDays(zeroDays, options: scopedOptions))
         #expect(expanded.last30DaysTokens == 45)
     }
 
@@ -858,12 +935,18 @@ extension CostUsageFetcherTests {
             outputTokens: 5,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
 
-        #expect(snapshot.daily.count == 1)
-        #expect(snapshot.daily.first?.date == "2026-04-08")
-        #expect(snapshot.daily.first?.totalTokens == 170)
-        #expect(withoutPi.daily.first?.totalTokens == 110)
-        #expect(abs((snapshot.daily.first?.costUSD ?? 0) - (nativeCost + piCost)) < 0.000001)
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        #expect(snapshot.daily.count == 30)
+        let mergedDay = try Self.dailyEntry(on: day, in: snapshot, calendar: nativeOptions.calendar)
+        let nativeDay = try Self.dailyEntry(on: day, in: withoutPi, calendar: nativeOptions.calendar)
+        #expect(mergedDay.totalTokens == 170)
+        #expect(nativeDay.totalTokens == 110)
+        #expect(mergedDay.dayEvidence == nil)
+        #expect(Self.hasValidCodexDayEvidence(for: nativeDay, options: nativeOptions))
+        #expect(Self.areCertifiedZeroDays(
+            withoutPi.daily.filter { $0.totalTokens == 0 },
+            options: nativeOptions))
+        #expect(abs((mergedDay.costUSD ?? 0) - (nativeCost + piCost)) < 0.000001)
+        let breakdown = try #require(mergedDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "gpt-5.4")
         #expect(abs((breakdown.costUSD ?? 0) - (nativeCost + piCost)) < 0.000001)
         #expect(breakdown.totalTokens == 170)
@@ -1037,7 +1120,11 @@ extension CostUsageFetcherTests {
             outputTokens: 10,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
 
-        let breakdown = try #require(snapshot.daily.first?.modelBreakdowns?.first)
+        let activeDay = try Self.dailyEntry(on: day, in: snapshot, calendar: nativeOptions.calendar)
+        #expect(Self.areCertifiedZeroDays(
+            snapshot.daily.filter { $0.totalTokens == 0 },
+            options: nativeOptions))
+        let breakdown = try #require(activeDay.modelBreakdowns?.first)
         #expect(breakdown.modelName == "gpt-5.4")
         #expect(abs((breakdown.costUSD ?? 0) - cost) < 0.000001)
         #expect(breakdown.totalTokens == 110)
@@ -1095,7 +1182,10 @@ extension CostUsageFetcherTests {
             includePiSessions: false,
             scannerOptions: nativeOptions,
             piScannerOptions: piOptions)
-        #expect(first.daily.first?.totalTokens == 110)
+        #expect(try Self.dailyEntry(on: day, in: first, calendar: nativeOptions.calendar).totalTokens == 110)
+        #expect(Self.areCertifiedZeroDays(
+            first.daily.filter { $0.totalTokens == 0 },
+            options: nativeOptions))
 
         let appendedTokenCount: [String: Any] = [
             "type": "event_msg",
@@ -1122,7 +1212,7 @@ extension CostUsageFetcherTests {
             includePiSessions: false,
             scannerOptions: nativeOptions,
             piScannerOptions: piOptions)
-        #expect(debounced.daily.first?.totalTokens == 110)
+        #expect(try Self.dailyEntry(on: day, in: debounced, calendar: nativeOptions.calendar).totalTokens == 110)
 
         let refreshed = try await CostUsageFetcher.loadTokenSnapshot(
             provider: .codex,
@@ -1133,7 +1223,10 @@ extension CostUsageFetcherTests {
             scannerOptions: nativeOptions,
             piScannerOptions: piOptions)
 
-        #expect(refreshed.daily.first?.totalTokens == 176)
+        #expect(try Self.dailyEntry(on: day, in: refreshed, calendar: nativeOptions.calendar).totalTokens == 176)
+        #expect(Self.areCertifiedZeroDays(
+            refreshed.daily.filter { $0.totalTokens == 0 },
+            options: nativeOptions))
     }
 
     @Test

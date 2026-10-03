@@ -29,13 +29,13 @@ struct CodexRollingCostWindowOverlayTests {
             established: true,
             sessionCostUSD: 1,
             sessionTokens: 100)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 1, tokens: 100)],
             endDate: candidateEnd,
             calendar: calendar,
             established: false,
             sessionCostUSD: 1,
-            sessionTokens: 100)
+            sessionTokens: 100))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -83,7 +83,7 @@ struct CodexRollingCostWindowOverlayTests {
             sessionCostUSD: 1,
             sessionTokens: 100,
             sessionRequests: 2)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500, requests: 3)],
             endDate: candidateEnd,
             historyDays: days,
@@ -91,7 +91,7 @@ struct CodexRollingCostWindowOverlayTests {
             established: false,
             sessionCostUSD: 5,
             sessionTokens: 500,
-            sessionRequests: 3)
+            sessionRequests: 3))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -126,16 +126,16 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true)
-        let adjacent = CodexRollingCostWindowFixture.snapshot(
+        let adjacent = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: oneDayLater,
             calendar: calendar,
-            established: false)
-        let gapped = CodexRollingCostWindowFixture.snapshot(
+            established: false))
+        let gapped = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-18", cost: 5, tokens: 500)],
             endDate: threeDaysLater,
             calendar: calendar,
-            established: false)
+            established: false))
 
         #expect(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             adjacent,
@@ -197,13 +197,13 @@ struct CodexRollingCostWindowOverlayTests {
             established: true,
             sessionCostUSD: 1,
             sessionTokens: 100)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-15", cost: 9, tokens: 900)],
             endDate: candidateEnd,
             calendar: calendar,
             established: false,
             sessionCostUSD: 9,
-            sessionTokens: 900)
+            sessionTokens: 900))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -235,12 +235,12 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             historyDays: 7,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -271,12 +271,12 @@ struct CodexRollingCostWindowOverlayTests {
             historyDays: 7,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             historyDays: 30,
             calendar: calendar,
-            established: false)
+            established: false))
 
         #expect(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -326,7 +326,7 @@ struct CodexRollingCostWindowOverlayTests {
             projects: [project],
             sessions: [session],
             hourly: [hourly])
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             calendar: calendar,
@@ -335,7 +335,7 @@ struct CodexRollingCostWindowOverlayTests {
             historyLabel: "candidate window",
             costProvenance: .listPriceEstimate,
             credentialScopeFingerprint: "fingerprint-a",
-            ownership: .machineLocalUnowned)
+            ownership: .machineLocalUnowned))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -376,11 +376,11 @@ struct CodexRollingCostWindowOverlayTests {
             established: true,
             historyLabel: "30 days",
             meteredCostUSD: 12)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-15", cost: 9, tokens: 900)],
             endDate: candidateEnd,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -408,11 +408,11 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -453,12 +453,12 @@ struct CodexRollingCostWindowOverlayTests {
         // A known cost subtotal beside an unpriced day is not a complete window cost, exactly
         // as `CostUsageFetcher.tokenSnapshot` and `CostUsageDailyReport.merged` treat it.
         #expect(established.last30DaysCostUSD == nil)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 1, tokens: 100)],
             endDate: candidateEnd,
             historyDays: 7,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -489,11 +489,11 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -520,11 +520,11 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -554,12 +554,12 @@ struct CodexRollingCostWindowOverlayTests {
             historyDays: 7,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-03-08", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             historyDays: 7,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -589,12 +589,12 @@ struct CodexRollingCostWindowOverlayTests {
             historyDays: 7,
             calendar: calendar,
             established: true)
-        let candidate = CodexRollingCostWindowFixture.snapshot(
+        let candidate = Self.verifiedDaySnapshot(CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-11-01", cost: 5, tokens: 500)],
             endDate: candidateEnd,
             historyDays: 7,
             calendar: calendar,
-            established: false)
+            established: false))
 
         let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
             candidate,
@@ -606,5 +606,84 @@ struct CodexRollingCostWindowOverlayTests {
         #expect(overlaid.daily.last?.date == "2026-11-01")
         #expect(overlaid.historySinceDayKey == "2026-10-26")
         #expect(overlaid.historyUntilDayKey == "2026-11-01")
+    }
+
+    @Test
+    func `overlay refuses a current-day row without per-day proof`() throws {
+        let calendar = try CodexRollingCostWindowFixture.utcCalendar()
+        let establishedEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 9, 16, hour: 9, calendar: calendar)
+        let established = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: establishedEnd,
+                days: 30,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: establishedEnd,
+            calendar: calendar,
+            established: true)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 5, tokens: 500)],
+            endDate: candidateEnd,
+            calendar: calendar,
+            established: false)
+
+        #expect(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
+            candidate,
+            onto: established,
+            calendar: calendar) == nil)
+    }
+
+    private static func verifiedDaySnapshot(_ snapshot: CostUsageTokenSnapshot) -> CostUsageTokenSnapshot {
+        let verifiedAt = snapshot.updatedAt
+        let revision = Int64(verifiedAt.timeIntervalSince1970 * 1000)
+        let daily = snapshot.daily.map { entry in
+            CostUsageDailyReport.Entry(
+                date: entry.date,
+                inputTokens: entry.inputTokens,
+                outputTokens: entry.outputTokens,
+                cacheReadTokens: entry.cacheReadTokens,
+                cacheCreationTokens: entry.cacheCreationTokens,
+                reasoningTokens: entry.reasoningTokens,
+                totalTokens: entry.totalTokens,
+                requestCount: entry.requestCount,
+                costUSD: entry.costUSD,
+                modelsUsed: entry.modelsUsed,
+                modelBreakdowns: entry.modelBreakdowns,
+                unpricedRequestCount: entry.unpricedRequestCount,
+                unmeteredRequestCount: entry.unmeteredRequestCount,
+                estimatedRequestCount: entry.estimatedRequestCount,
+                pricedRequestCount: entry.pricedRequestCount,
+                dayEvidence: CostUsageDayEvidence(
+                    scopeID: "rolling-window-fixture-scope",
+                    lineageID: "rolling-window-fixture-lineage",
+                    revision: revision,
+                    verifiedAt: verifiedAt))
+        }
+        return CostUsageTokenSnapshot(
+            sessionTokens: snapshot.sessionTokens,
+            sessionCostUSD: snapshot.sessionCostUSD,
+            sessionRequests: snapshot.sessionRequests,
+            last30DaysTokens: snapshot.last30DaysTokens,
+            last30DaysCostUSD: snapshot.last30DaysCostUSD,
+            last30DaysRequests: snapshot.last30DaysRequests,
+            currencyCode: snapshot.currencyCode,
+            historyDays: snapshot.historyDays,
+            historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            historyScanIsPartial: snapshot.historyScanIsPartial,
+            historySinceDayKey: snapshot.historySinceDayKey,
+            historyUntilDayKey: snapshot.historyUntilDayKey,
+            historyLabel: snapshot.historyLabel,
+            meteredCostUSD: snapshot.meteredCostUSD,
+            costProvenance: snapshot.costProvenance,
+            credentialScopeFingerprint: snapshot.credentialScopeFingerprint,
+            ownership: snapshot.ownership,
+            daily: daily,
+            projects: snapshot.projects,
+            sessions: snapshot.sessions,
+            hourly: snapshot.hourly,
+            quotaSlices: snapshot.quotaSlices,
+            updatedAt: snapshot.updatedAt)
     }
 }
