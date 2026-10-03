@@ -46,6 +46,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         #endif
         return "antigravity/hub/2.9.1 \(platform)/\(architecture)"
     }()
+
     private static let baseURL = "https://cloudcode-pa.googleapis.com"
     private static let loadCodeAssistEndpoint = "\(baseURL)/v1internal:loadCodeAssist"
     private static let onboardUserEndpoint = "\(baseURL)/v1internal:onboardUser"

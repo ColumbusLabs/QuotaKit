@@ -22,7 +22,7 @@ struct WidgetAccentProofRenderTests {
                 resetDescription: nil),
             secondary: RateWindow(
                 usedPercent: 70,
-                windowMinutes: 10_080,
+                windowMinutes: 10080,
                 resetsAt: nil,
                 resetDescription: nil),
             tertiary: nil,

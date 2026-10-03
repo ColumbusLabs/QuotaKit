@@ -357,11 +357,13 @@ extension CostUsageStore {
             // they wrote, reload their locked result before it can become a new baseline.
             guard let locked = self.codexBaselineAfterRetention(baseline),
                   contentPruned
-                    || Self.persistedContentMatches(baseline: locked, cache: cache, calendar: calendar),
+                  || Self.persistedContentMatches(baseline: locked, cache: cache, calendar: calendar),
                   let retained = self.persistScanMetadata(previous: locked, cache: cache)
             else {
                 _ = self.rollbackSaveTransaction()
-                return Self.rescanRequired(result)
+                var retry = result
+                retry.catchUpRequired = true
+                return retry
             }
             guard self.endSaveTransaction() else {
                 var retry = result

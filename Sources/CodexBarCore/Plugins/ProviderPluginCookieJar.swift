@@ -153,7 +153,8 @@ public final class ProviderPluginCookieJar: @unchecked Sendable {
         guard self.lock.withLock({ self.sessions[id]?.origin }) == echo.origin else {
             throw ProviderPluginError.secretAccess("cookie echo session does not match its origin")
         }
-        try request.setValue(try echo.value(from: cookies), forHTTPHeaderField: echo.header)
+        let value = try echo.value(from: cookies)
+        try request.setValue(value, forHTTPHeaderField: echo.header)
     }
 }
 

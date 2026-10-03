@@ -148,7 +148,7 @@ struct CostUsageStoreBaselineTests {
         #expect(await store.fetchTokenSnapshots(path: path).isEmpty)
     }
 
-#if DEBUG
+    #if DEBUG
     @Test(arguments: ["usage", "metadata"])
     func `external write after metadata commit invalidates retained baseline`(externalWrite: String) async throws {
         let fixture = try BaselineStoreFixture()
@@ -225,7 +225,7 @@ struct CostUsageStoreBaselineTests {
             #expect(await loaded.store.fetchUsageRows(path: path).isEmpty)
         }
     }
-#endif
+    #endif
 
     @Test
     func `released Codex baseline receipt cannot authorize a save`() throws {

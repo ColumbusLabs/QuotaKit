@@ -5,7 +5,7 @@ import Testing
 
 struct BrowserCookieImportSupportTests {
     @Test
-    func `browser labels and Chromium keychain policy follow catalog metadata`() throws {
+    func `browser labels and Chromium keychain policy follow catalog metadata`() {
         #expect(BrowserCookieImportSupport.browserNames(for: nil) == "Chrome")
         #expect(BrowserCookieImportSupport.browserNames(for: .museai) == "Chrome")
         for browser in Browser.allCases {

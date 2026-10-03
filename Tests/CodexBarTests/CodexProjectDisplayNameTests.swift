@@ -134,7 +134,7 @@ struct CodexProjectDisplayNameTests {
                 totalCostUSD: nil,
                 daily: [],
                 modelBreakdowns: nil)])
-            let unproven = project([], path: try #require(sources[0].path))
+            let unproven = try project([], path: #require(sources[0].path))
             var lookupPaths: [URL: Set<String>] = [:]
             let renamed = CostUsageFetcher.codexBreakdownsWithMetadata(
                 [],

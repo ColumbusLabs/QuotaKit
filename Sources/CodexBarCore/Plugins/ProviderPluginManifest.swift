@@ -363,25 +363,23 @@ public struct ProviderPluginManifest: Sendable {
                     else { throw ProviderPluginError.invalidManifest("invalid bundled cookie requiredCookies") }
                 }
             }
-            let imports: ProviderPluginCookiePolicy.Imports
-            if let value = value.property("imports"), !value.isUndefined {
+            let imports: ProviderPluginCookiePolicy.Imports = try {
+                guard let value = value.property("imports"), !value.isUndefined else { return .appInteractive }
                 guard value.isString,
                       let parsed = ProviderPluginCookiePolicy.Imports(rawValue: value.stringValue())
                 else { throw ProviderPluginError.invalidManifest("invalid bundled cookie imports policy") }
-                imports = parsed
-            } else {
-                imports = .appInteractive
-            }
-            let headerEcho: ProviderPluginCookieHeaderEcho?
-            if let value = value.property("headerEcho"), !value.isUndefined {
-                headerEcho = try ProviderPluginCookieHeaderEcho(
-                    value,
-                    domains: cookieDomains,
-                    endpoints: endpoints,
-                    requiredCookies: requiredCookies)
-            } else {
-                headerEcho = nil
-            }
+                return parsed
+            }()
+            let headerEcho: ProviderPluginCookieHeaderEcho? =
+                if let value = value.property("headerEcho"), !value.isUndefined {
+                    try ProviderPluginCookieHeaderEcho(
+                        value,
+                        domains: cookieDomains,
+                        endpoints: endpoints,
+                        requiredCookies: requiredCookies)
+                } else {
+                    nil
+                }
             let cookiePolicy = ProviderPluginCookiePolicy(
                 imports: imports,
                 requiredCookies: requiredCookies,

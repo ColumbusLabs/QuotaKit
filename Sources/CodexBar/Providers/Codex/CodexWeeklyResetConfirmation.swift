@@ -606,7 +606,8 @@ struct CodexWeeklyResetConfirmation: Sendable {
         guard creditSnapshots.allSatisfy({ Self.isFinite($0.updatedAt) }) else {
             return .invalidCreditObservationTime
         }
-        guard previous.codexResetCredits != nil || creditSnapshots.allSatisfy({ $0.updatedAt > previous.updatedAt }) else {
+        guard previous.codexResetCredits != nil || creditSnapshots.allSatisfy({ $0.updatedAt > previous.updatedAt })
+        else {
             return .nonMonotonicCreditObservationTime
         }
         guard zip(creditSnapshots, creditSnapshots.dropFirst()).allSatisfy({ pair in
