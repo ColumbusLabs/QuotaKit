@@ -5,6 +5,60 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.32</title>
+            <pubDate>Sat, 03 Oct 2026 16:25:58 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.32.1.11.4</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.32</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.32 Mobile 1.11.4</h2>
+<h3>Added</h3>
+<ul>
+<li>LithosAI console balance and optional UTC spend, with Chrome or manually supplied session cookies.</li>
+</ul>
+<ul>
+<li>Muse (muse.ai) subscription usage, distinct from Muse Code, with provider settings, widgets, and sanitized iPhone sync.</li>
+<li>Optional limit-reset notifications with account-scoped persistence and duplicate suppression alongside existing session-restored alerts.</li>
+</ul>
+<h3>Improved</h3>
+<ul>
+<li>Overlapping provider-status refreshes retain the newest successful publication, and Codex weekly quota can confirm a reset without historical credit inventory.</li>
+<li>Spend projects keep stable identities while showing saved Codex project names; Grok Bot allowances use their full weekly cadence in Cursor.</li>
+<li>Local Codex, Claude, Pi and Grok cost scans preserve cached baselines and report windows while avoiding redundant work.</li>
+<li>Widget colors follow provider accents, and long inline statistics headings wrap without losing text.</li>
+<li>Browser-session setup explains supported automatic sources; CommandCode accepts bare manual session tokens.</li>
+</ul>
+<ul>
+<li>Antigravity saved accounts fetch usage in isolated CLI sessions and safely retain consecutive credential refreshes.</li>
+<li>Local Codex and Claude cost scans reuse cache decoders and exact fragments, skip out-of-range pricing, and settle archived forks whose parent history is absent.</li>
+<li>Adaptive refresh recognizes recent Codex rollout timestamps without depending on a running process.</li>
+</ul>
+<ul>
+<li>Local agent refreshes classify process names with less filesystem work while retaining executable ownership checks.</li>
+<li>Local usage and spend reuse time-zone-aware day keys and Gregorian calendars without changing daily totals.</li>
+<li>Codex cost refreshes reuse log-listing metadata, cache paths, and conversation-title database discovery.</li>
+<li>Claude and Vertex cost refreshes reuse reconciliation and persistence identities, reducing work for unchanged history.</li>
+<li>Model pricing refreshes use indexed fallback merges and preserve catalog stamps when rates are unchanged.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Verified Codex daily spend, tokens, and model details advance during historical catch-up, including corrected lower totals and zero days, without replacing unrelated established history.</li>
+</ul>
+<ul>
+<li>Codex CLI discovery validates npm payloads and the selected Node runtime, preserves rejected launch decisions, and reuses bounded Gatekeeper verdicts.</li>
+<li>Claude probes answer workspace trust only in their dedicated directory, preserve CLI recovery, and show measured or scoped quota instead of synthetic remaining allowance.</li>
+<li>Mac fleet sync recovers deleted records and prevents cancelled or superseded fetched-record applies from overwriting current state; push registration respects signed capabilities.</li>
+<li>OpenCode supports migrated Console workspaces; Cursor session credentials and Pi cached-token costs retain their provider semantics.</li>
+<li>Agent sessions remain visible after their executable is removed. Hosted regression fixtures use controlled readiness and work counters instead of wall-clock speed assertions.</li>
+</ul>
+<ul>
+<li>Menu bar: show the remaining quota when only the third usage window is available, including Gemini Flash Lite-only accounts. Preferred lanes and two-window averages retain their existing behavior.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.32/QuotaKit-macos-universal-0.32.4.32.zip" length="91820559" type="application/octet-stream" sparkle:edSignature="Y61hSMOsPTvNeXRj2u0vfvYCq12Xqj/3um/dlccPEu7pi2SrrJYKrZnJ5eEemnCdzq4CT1YUU+xWculunZlqDw=="/>
+        </item>
+        <item>
             <title>0.32.4.31</title>
             <pubDate>Wed, 30 Sep 2026 18:55:31 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -244,22 +298,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.30/QuotaKit-macos-universal-0.32.4.30.zip" length="80373687" type="application/octet-stream" sparkle:edSignature="VFBAGSuBNPdjclNBW53ji8BHip4cutgiCaOQIv8vqbQLzI9iZA0/zgu+WLqp85goMvFU4LEo28Cx1dheWYr5Dg=="/>
-        </item>
-        <item>
-            <title>0.32.4.29</title>
-            <pubDate>Sun, 20 Sep 2026 18:19:47 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.29.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.29</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.29 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Antigravity: restore quota refreshes with current <code>agy</code> releases by using their supported structured usage report when the legacy local endpoint is unavailable.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.29/QuotaKit-macos-universal-0.32.4.29.zip" length="79624823" type="application/octet-stream" sparkle:edSignature="1bZGAyoSywk8s7+eu7JomAUqs//7+Xd1ePGYmGQpiX7tdBkvxp8GOXQc9FNWFU3Zy9J20sZOUKYxhCDJSd7EBw=="/>
         </item>
     </channel>
 </rss>
