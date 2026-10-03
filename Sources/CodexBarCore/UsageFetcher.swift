@@ -414,6 +414,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.replacing(providerCost: .value(providerCost))
     }
 
+    public func with(costUsage: CostUsageTokenSnapshot?) -> UsageSnapshot {
+        self.replacing(costUsage: .value(costUsage))
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.primary = try container.decodeIfPresent(RateWindow.self, forKey: .primary)

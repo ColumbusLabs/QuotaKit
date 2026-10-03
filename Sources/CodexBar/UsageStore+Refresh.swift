@@ -1461,7 +1461,7 @@ extension UsageStore {
             // snapshot is retained through a transient remote billing failure.
             if let local = grokLocalFallback {
                 self.snapshots[provider.instanceID] = self.snapshots[provider.instanceID]?
-                    .replacing(costUsage: .value(local))
+                    .with(costUsage: local)
                 self.publishTokenSnapshot(local, for: provider)
             }
             self.diagnostics[provider.instanceID] = nil

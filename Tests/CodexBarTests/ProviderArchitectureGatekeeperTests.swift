@@ -1424,7 +1424,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This tagged diagnostic payload encodes MiniMax details under the matching wire key."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/UsageFetcher.swift",
-            line: 1487,
+            line: 1491,
             anchor: "providerID: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
@@ -5333,7 +5333,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/UsageFetcher.swift",
-            line: 1868,
+            line: 1872,
             anchor: "providerID: .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -5546,7 +5546,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Only Antigravity Auto mode emits this pipeline's source-by-source fallback outcome diagnostic."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/UsageFetcher.swift",
-            line: 513,
+            line: 517,
             anchor: "if resolvedIdentity?.providerID == .claude {",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
