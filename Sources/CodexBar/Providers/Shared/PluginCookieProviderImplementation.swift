@@ -79,16 +79,9 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
-    private var cookieBrowserHint: String {
-        L(
-            "Supported browsers: %@. Use Manual for other browsers.",
-            BrowserCookieImportSupport.browserNames(for: self.id))
-    }
-
-    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         guard let picker = self.web.picker else { return [] }
-        let autoSubtitle = picker.auto.localized + " " + self.cookieBrowserHint
+        let autoSubtitle = ProviderCookieSourceUI.browserImportSubtitle(picker.auto.localized, provider: self.id)
         let sourceBinding = context.settings.providerCookieSourceBinding(provider: self.id, fallback: .auto)
         let binding = Binding(
             get: { sourceBinding.wrappedValue.rawValue },

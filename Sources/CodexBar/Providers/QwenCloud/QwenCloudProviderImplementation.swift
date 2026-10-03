@@ -40,7 +40,9 @@ struct QwenCloudProviderImplementation: ProviderImplementation {
                 source: context.settings.qwenCloudCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports browser cookies for %@.", "Qwen Cloud"),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatically imports browser cookies for %@.", "Qwen Cloud"),
+                        provider: .qwencloud),
                     manual: L("Paste a Cookie header from %@.", "home.qwencloud.com"),
                     off: L("%@ cookies are disabled.", "Qwen Cloud")))
         }
@@ -49,7 +51,9 @@ struct QwenCloudProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "qwen-cloud-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports browser cookies for %@.", "Qwen Cloud"),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser cookies for %@.", "Qwen Cloud"),
+                    provider: .qwencloud),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

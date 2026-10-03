@@ -30,17 +30,20 @@ struct CodexMissingResetInventoryTests {
     }
 
     @Test(arguments: [
-        "previous-account", "confirmation-account", "confirmation-plan", "missing-plan", "blank-plans",
+        "confirmation-account", "confirmation-plan", "missing-plan", "blank-plans",
         "initial-credits", "confirmation-credits", "changed-credit", "changed-expiry", "changed-multiplicity",
         "partial-inventory", "stale-credits", "invalid-credits", "estimated", "missing-weekly",
-        "historical-credits", "concurrent-credits", "historical-credits-unchanged-boundary",
+        "historical-credits", "concurrent-credits",
     ])
-    func `missing history still requires compatible complete fresh evidence`(rejection: String) async {
-        var previous = self.snapshot(at: self.previousTime, used: 99, boundary: self.previousBoundary)
+    func `missing history preserves an unchanged weekly boundary without compatible reset evidence`(
+        rejection: String) async
+    {
+        // A moved boundary may be published as a confirmed rolling window without manual-reset
+        // evidence. Keep this baseline unchanged to exercise actual reset-confirmation rejection.
+        var previous = self.snapshot(at: self.previousTime, used: 99, boundary: self.freshBoundary)
         var initial = self.freshSnapshot(at: self.initialTime)
         var confirmation = self.freshSnapshot(at: self.initialTime.addingTimeInterval(1))
         switch rejection {
-        case "previous-account": previous = self.identified(previous, email: "other@example.com")
         case "confirmation-account": confirmation = self.identified(confirmation, email: "other@example.com")
         case "confirmation-plan": confirmation = self.identified(confirmation, plan: "plus")
         case "missing-plan": confirmation = self.identified(confirmation, plan: nil)
@@ -65,10 +68,7 @@ struct CodexMissingResetInventoryTests {
                 at: confirmation.updatedAt, ids: ["a", "b"]))
         case "stale-credits":
             confirmation = confirmation.withCodexResetCredits(self.credits(at: self.previousTime))
-        case "historical-credits", "concurrent-credits", "historical-credits-unchanged-boundary":
-            if rejection == "historical-credits-unchanged-boundary" {
-                previous = self.snapshot(at: self.previousTime, used: 99, boundary: self.freshBoundary)
-            }
+        case "historical-credits", "concurrent-credits":
             let creditTime = self.previousTime.addingTimeInterval(rejection == "concurrent-credits" ? 0 : -1)
             initial = initial.withCodexResetCredits(self.credits(at: creditTime))
             confirmation = confirmation.withCodexResetCredits(self.credits(at: creditTime))
@@ -81,6 +81,22 @@ struct CodexMissingResetInventoryTests {
         let admission = await self.admit(previous: previous, initial: initial, confirmation: confirmation)
         #expect(admission.outcome == nil)
         #expect(admission.pendingCandidate == nil)
+        #expect((admission.withheldSuccess == nil) == (rejection == "confirmation-account"))
+    }
+
+    @Test
+    func `new account can publish confirmed quota without prior account inventory`() async throws {
+        let previous = self.identified(
+            self.snapshot(at: self.previousTime, used: 99, boundary: self.previousBoundary),
+            email: "other@example.com")
+        let initial = self.freshSnapshot(at: self.initialTime)
+        let confirmation = self.freshSnapshot(at: self.initialTime.addingTimeInterval(1))
+
+        let admission = await self.admit(previous: previous, initial: initial, confirmation: confirmation)
+        let published = try #require(admission.outcome).result.get().usage
+        #expect(published.accountEmail(for: .codex) == "quota-fixture@example.com")
+        #expect(published.secondary?.usedPercent == 1)
+        #expect(admission.withheldSuccess == nil)
     }
 
     @Test

@@ -82,7 +82,7 @@ struct CostUsageStoreBaselineTests {
         #expect(reads.value == 1)
         #endif
         var changed = third.cache
-        changed.files["/sessions/a.jsonl"]?.lastModel = "gpt-5.6-sol"
+        changed.files["/sessions/a.jsonl"]?.lastModel = "gpt-5"
         let changedSave = CostUsageStoreAccess.save(
             store: third.store,
             cache: changed,
@@ -131,7 +131,7 @@ struct CostUsageStoreBaselineTests {
         incoming.files[path]?.codexTokenSnapshots = []
         incoming.files[path]?.codexTokenCheckpoints = []
         incoming.lastScanUnixMs += 1000
-        let before = await store.persistenceWriteMetricsForTesting()
+        let before = await loaded.store.persistenceWriteMetricsForTesting()
         let saved = CostUsageStoreAccess.save(
             store: loaded.store,
             cache: incoming,
@@ -141,7 +141,7 @@ struct CostUsageStoreBaselineTests {
             expectedScanStamp: loaded.scanStamp,
             receipt: loaded.receipt,
             requireScanStamp: true)
-        let after = await store.persistenceWriteMetricsForTesting()
+        let after = await loaded.store.persistenceWriteMetricsForTesting()
 
         #expect(!saved.catchUpRequired)
         #expect(after.rows - before.rows == 1)
@@ -159,12 +159,12 @@ struct CostUsageStoreBaselineTests {
         var usage = CostUsageFileUsage(
             mtimeUnixMs: 1000,
             size: 100,
-            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+            days: ["2026-08-01": ["gpt-5": [10, 2, 3]]])
         usage.parsedBytes = 100
         usage.codexScanComplete = true
         usage.codexRows = [CostUsageScanner.CodexUsageRow(
             day: "2026-08-01",
-            model: "gpt-5.6-sol",
+            model: "gpt-5",
             turnID: "turn-1",
             eventIndex: 0,
             input: 10,
@@ -346,6 +346,92 @@ struct CostUsageStoreBaselineTests {
             .codexPriorityTurnsCursor == advancedCursor)
     }
 
+    @Test
+    func `metadata refresh preserves partially hydrated token history`() async throws {
+        let fixture = try BaselineStoreFixture()
+        defer { fixture.remove() }
+        let calendar = Calendar(identifier: .gregorian)
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/partial-history.jsonl"
+        let snapshot = CostUsageCodexTokenSnapshot(
+            timestamp: "2026-08-01T12:00:00Z",
+            last: CostUsageCodexTotals(input: 10, cached: 2, output: 3),
+            total: CostUsageCodexTotals(input: 100, cached: 20, output: 30),
+            endOffset: 100)
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexTokenTimestampsMonotonic = true
+        usage.codexTokenSnapshots = [snapshot]
+        usage.codexTokenCheckpoints = CostUsageScanner.codexTokenCheckpoints(for: [snapshot])
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1000
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.codexScanCatchUpPending = false
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        #expect(!store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window).catchUpRequired)
+
+        var staleMetadata = await store.fetchMetadata()
+        staleMetadata.verifiedScanSinceDay = nil
+        staleMetadata.verifiedScanUntilDay = nil
+        staleMetadata.verifiedUpdatedAtUnixMs = nil
+        staleMetadata.verifiedTimeZoneIdentifier = nil
+        staleMetadata.verifiedRootPaths = nil
+        staleMetadata.verifiedLedgerVersion = nil
+        #expect(await store.setMetadata(staleMetadata))
+
+        let loaded = store.syncLoadCodexScan(calendar: calendar)
+        defer { loaded.release() }
+        let expectedStamp = try #require(loaded.scanStamp)
+        #expect(loaded.cache.files[path]?.codexTokenSnapshots == nil)
+        guard case let .loaded(hydrated) = try loaded.store.syncHydrateCodexTokenSnapshots(
+            paths: [path],
+            receipt: #require(loaded.receipt),
+            expectedScanStamp: expectedStamp)
+        else {
+            Issue.record("Expected the selected token history to hydrate")
+            return
+        }
+
+        var incoming = loaded.cache
+        let hydratedSnapshots = (hydrated[path] ?? []).map(CostUsageStore.tokenSnapshot(from:))
+        incoming.files[path]?.codexTokenSnapshots = hydratedSnapshots
+        incoming.files[path]?.codexTokenCheckpoints = CostUsageScanner.codexTokenCheckpoints(for: hydratedSnapshots)
+        incoming.lastScanUnixMs += 1000
+        func save() -> CostUsageStoreBudgetResult {
+            CostUsageStoreAccess.save(
+                store: loaded.store,
+                cache: incoming,
+                calendar: calendar,
+                requestedScanWindow: window,
+                skipIdenticalContent: true,
+                expectedScanStamp: expectedStamp,
+                receipt: loaded.receipt,
+                requireScanStamp: true)
+        }
+        #if DEBUG
+        let tokenReadPaths = LockIsolated<[String]>([])
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.tokenSnapshotPathRead = { url, readPath in
+            if url == store.databaseURL { tokenReadPaths.setValue(tokenReadPaths.value + [readPath ?? "<all>"]) }
+        }
+        let saved = CostUsageStoreTestHooks.$current.withValue(hooks) { save() }
+        #expect(tokenReadPaths.value == [path])
+        #else
+        let saved = save()
+        #endif
+
+        #expect(!saved.catchUpRequired)
+        let persistedSnapshots = await loaded.store.fetchTokenSnapshots(path: path)
+        #expect(persistedSnapshots.map(CostUsageStore.tokenSnapshot(from:)) == [snapshot])
+    }
+
     @Test(arguments: [false, true])
     func `trigger content writes cannot be certified as metadata-only`(duringBudgetRefresh: Bool) async throws {
         let fixture = try BaselineStoreFixture()
@@ -355,12 +441,12 @@ struct CostUsageStoreBaselineTests {
         var usage = CostUsageFileUsage(
             mtimeUnixMs: 1000,
             size: 100,
-            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+            days: ["2026-08-01": ["gpt-5": [10, 2, 3]]])
         usage.parsedBytes = 100
         usage.codexScanComplete = true
         usage.codexRows = [CostUsageScanner.CodexUsageRow(
             day: "2026-08-01",
-            model: "gpt-5.6-sol",
+            model: "gpt-5",
             turnID: "turn-1",
             eventIndex: 0,
             input: 10,

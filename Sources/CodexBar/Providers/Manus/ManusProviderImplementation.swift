@@ -61,7 +61,9 @@ struct ManusProviderImplementation: ProviderImplementation {
                 source: context.settings.manusCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports browser session cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatically imports browser session cookies."),
+                        provider: .manus),
                     manual: L("Paste the %@ value or a full Cookie header.", "session_id"),
                     off: L("%@ cookies are disabled.", "Manus")))
         }
@@ -70,7 +72,9 @@ struct ManusProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "manus-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports browser session cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser session cookies."),
+                    provider: .manus),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

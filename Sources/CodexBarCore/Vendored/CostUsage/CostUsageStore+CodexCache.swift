@@ -357,7 +357,9 @@ extension CostUsageStore {
             // they wrote, reload their locked result before it can become a new baseline.
             guard let locked = self.codexBaselineAfterRetention(baseline),
                   contentPruned
-                  || Self.persistedContentMatches(baseline: locked, cache: cache, calendar: calendar),
+                  || (baseline.persistence.snapshotCounts == locked.persistence.snapshotCounts
+                      && baseline.persistence.rowCounts == locked.persistence.rowCounts
+                      && Self.persistedContentMatches(baseline: locked, cache: cache, calendar: calendar)),
                   let retained = self.persistScanMetadata(previous: locked, cache: cache)
             else {
                 _ = self.rollbackSaveTransaction()
@@ -1082,10 +1084,8 @@ extension CostUsageStore {
             let restoredTokenSnapshots: [CostUsageCodexTokenSnapshot]? = if
                 details.hasTokenSnapshots || hasMalformedDetails, isHydrated
             {
-                if tokenSnapshotsLoaded {
+                if tokenSnapshotsLoaded || snapshot.tokenSnapshotCounts?[file.path] == tokenSnapshots.count {
                     tokenSnapshots
-                } else if !hasMalformedDetails, snapshot.tokenSnapshotCounts?[file.path] == 0 {
-                    []
                 } else {
                     nil
                 }

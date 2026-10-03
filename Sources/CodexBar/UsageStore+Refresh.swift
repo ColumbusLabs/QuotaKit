@@ -1457,6 +1457,13 @@ extension UsageStore {
         let shouldNotifyPermissionPrompt = Self.isPermissionPromptWaiting(error)
         await MainActor.run {
             guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
+            // Provider-specific by design: Grok's local token history stays current while a cached quota
+            // snapshot is retained through a transient remote billing failure.
+            if let local = grokLocalFallback {
+                self.snapshots[provider.instanceID] = self.snapshots[provider.instanceID]?
+                    .replacing(costUsage: .value(local))
+                self.publishTokenSnapshot(local, for: provider)
+            }
             self.diagnostics[provider.instanceID] = nil
             let restoredClaudeHistory = self.prepareClaudeHistoryFallback(
                 provider: provider,
@@ -1590,9 +1597,7 @@ extension UsageStore {
                     // Provider-specific by design: local ~/.grok/sessions tokens remain readable
                     // when the remote billing probe fails.
                     if provider == .grok {
-                        if let local = grokLocalFallback {
-                            self.publishTokenSnapshot(local, for: provider)
-                        } else {
+                        if grokLocalFallback == nil {
                             self.clearTokenSnapshot(for: provider)
                         }
                     } else if Self.tokenCostRequiresProviderSnapshot(provider) {

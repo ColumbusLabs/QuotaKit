@@ -22,13 +22,22 @@ struct PluginProviderSpecTests {
     ]
 
     @Test
-    func `automatic cookie guidance names each provider browser policy and manual alternative`() throws {
+    func `browser-backed cookie guidance names supported browsers and manual alternative`() throws {
         let fixture = try ProviderSettingsDescriptorTests().makeSettingsFixture(suite: #function)
         fixture.settings.debugDisableKeychainAccess = false
-        for provider in [UsageProvider.museai, .raycast, .perplexity] {
+        let cookiePickers: [(UsageProvider, String)] = [
+            (.museai, "Cookie source"),
+            (.raycast, "Cookie source"),
+            (.perplexity, "Cookie source"),
+            (.kimi, "Cookie source"),
+            (.ollama, "Cookie source"),
+            (.copilot, "GitHub cookies"),
+            (.zed, "Cookie source"),
+        ]
+        for (provider, title) in cookiePickers {
             let implementation = try #require(ProviderCatalog.implementation(for: provider))
             let picker = try #require(implementation.settingsPickers(
-                context: fixture.settingsContext(provider: provider)).first)
+                context: fixture.settingsContext(provider: provider)).first(where: { $0.title == title }))
             let browsers = ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
             let names = browsers.map(\.displayName).joined(separator: ", ")
             #expect(picker.subtitle.contains("Supported browsers: \(names). Use Manual for other browsers."))

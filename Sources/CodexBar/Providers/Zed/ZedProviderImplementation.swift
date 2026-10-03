@@ -34,10 +34,12 @@ struct ZedProviderImplementation: ProviderImplementation {
                 source: context.settings.zedCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L(
-                        "Uses a %@ browser session for spend and predictions; "
-                            + "editor-only cycle and invoice data are unavailable.",
-                        "zed.dev"),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L(
+                            "Uses a %@ browser session for spend and predictions; "
+                                + "editor-only cycle and invoice data are unavailable.",
+                            "zed.dev"),
+                        provider: .zed),
                     manual: L(
                         "Uses a pasted %@ Cookie for spend and predictions; "
                             + "editor-only cycle and invoice data are unavailable.",
@@ -51,10 +53,12 @@ struct ZedProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "zed-cookie-source",
                 title: "Cookie source",
-                subtitle: L(
-                    "Uses a %@ browser session for spend and predictions; "
-                        + "editor-only cycle and invoice data are unavailable.",
-                    "zed.dev"),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L(
+                        "Uses a %@ browser session for spend and predictions; "
+                            + "editor-only cycle and invoice data are unavailable.",
+                        "zed.dev"),
+                    provider: .zed),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

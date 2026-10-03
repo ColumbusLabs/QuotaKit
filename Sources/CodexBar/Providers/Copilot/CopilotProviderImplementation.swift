@@ -98,7 +98,9 @@ struct CopilotProviderImplementation: ProviderImplementation {
                 source: context.settings.copilotBudgetCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports browser cookies for %@.", "github.com"),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatically imports browser cookies for %@.", "github.com"),
+                        provider: .copilot),
                     manual: L("Paste a Cookie header from %@.", "github.com"),
                     off: L("%@ cookies are disabled.", "GitHub")))
         }
@@ -140,7 +142,9 @@ struct CopilotProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "copilot-budget-cookie-source",
                 title: "GitHub cookies",
-                subtitle: L("Automatically imports browser cookies for %@.", "github.com"),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser cookies for %@.", "github.com"),
+                    provider: .copilot),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

@@ -82,7 +82,9 @@ struct OllamaProviderImplementation: ProviderImplementation {
                 source: context.settings.ollamaCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies."),
+                        provider: .ollama),
                     manual: L("Paste a Cookie header or cURL capture from %@.", "Ollama settings"),
                     off: L("%@ cookies are disabled.", "Ollama")))
         }
@@ -99,7 +101,9 @@ struct OllamaProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "ollama-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies."),
+                    provider: .ollama),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

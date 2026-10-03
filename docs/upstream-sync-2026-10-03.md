@@ -104,3 +104,13 @@ Live ColumbusLabs billing UI shows the Actions product budget at $0, $0 spent an
 ## Pre-PR review
 
 Source review and independent adversarial review resolved the cache-certificate and plugin-test issues; no substantive findings remain. Cheap whitespace and script syntax checks pass. Synthetic fixtures cover redirects/cookie authority, concurrent cache writers and triggers, pricing races, stable project identity/privacy, status ordering, reset inventories, process timing and LithosAI mobile balance contracts. Mac palette assertions use QuotaKit’s accepted 16-provider audit rather than upstream’s incompatible 36-provider proposal table. The opt-in Cursor tile fixture uses QUOTAKIT_WIDGET_PROOF_DIR and is not invoked. Hosted exact-head CI is the pending merge gate; no local Swift/Xcode tests, builds, app launch, packaging or live accounts were used.
+
+## Hosted CI repairs
+
+- Grok billing failures now publish fresh local token history before cached-quota preservation can return. Existing quota fields, account identity and remote timestamp remain intact; the unchanged outage regression covers missing, persisted and live snapshots.
+- Codex retention/budget reload preserves full or selected-path token-history hydration. Compact baselines reread only paths already hydrated; row/content comparisons and transaction certificates remain required. A partial-hydration regression covers verified-ledger metadata refresh without unrelated history reads. The empty-history write-count fixture now measures the saving connection.
+- Reset-inventory negative fixtures use an unchanged weekly boundary so they exercise withheld reset confirmation. Confirmed rolling-window publication and new-account admission remain valid, with the issue-4210 positive case retained.
+- Automatic browser-import guidance covers custom cookie pickers through the same localized helper as plugin pickers. Architecture-gate anchors and LithosAI fingerprints follow the final source; palette goldens follow the adopted widget-accent policy. No analyzer, assertion or required CI gate is relaxed.
+- A prior Mac shard timed out its unchanged T3Chat/TTY group and passed all four selections under the existing isolated-retry policy. The TTY runner and fixtures have no integration diff; no local reproduction or unrelated timing change is warranted by that recovered result.
+
+Automated lint, builds, parser/plugin fixtures, Mac shards and iOS simulator checks remain hosted-only and must pass on the final independently reviewed head before merge.

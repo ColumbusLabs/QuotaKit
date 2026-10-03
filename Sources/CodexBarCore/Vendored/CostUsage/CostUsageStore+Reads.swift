@@ -431,7 +431,9 @@ extension CostUsageStore {
     /// Rebuilds the compact Codex baseline from the caller's current transaction. The
     /// unchanged-save path uses this only when retention or budget enforcement made local
     /// writes before metadata certification, so those writes cannot be hidden by a newer stamp.
-    func readCodexScanSnapshotInCurrentTransaction() -> (
+    func readCodexScanSnapshotInCurrentTransaction(
+        loadTokenSnapshots: Bool,
+        loadedTokenSnapshotPaths: Set<String>) -> (
         snapshot: CostUsageStoreSnapshot,
         stamp: CodexScanStamp,
         usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]],
@@ -446,31 +448,44 @@ extension CostUsageStore {
             #endif
             var snapshot = try Self.readSnapshot(
                 database,
-                loadTokenSnapshots: false,
+                loadTokenSnapshots: loadTokenSnapshots,
                 loadUsageRows: false,
                 storeURL: self.databaseURL)
-            let markers = Self.codexTokenSnapshotMarkersByPath(from: snapshot.files)
-            let accumulators = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
-            var counts: [String: Int] = [:]
-            var fallbackPaths: Set<String> = []
-            for file in snapshot.files {
-                guard file.scanState.replacementScanPending != true,
-                      markers[file.path] == true,
-                      let accumulator = accumulators[file.path],
-                      accumulator.eventCount > 0
-                else {
-                    fallbackPaths.insert(file.path)
-                    continue
+            if !loadTokenSnapshots {
+                let markers = Self.codexTokenSnapshotMarkersByPath(from: snapshot.files)
+                let accumulators = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
+                var counts: [String: Int] = [:]
+                var fallbackPaths: Set<String> = []
+                for file in snapshot.files {
+                    guard file.scanState.replacementScanPending != true,
+                          markers[file.path] == true,
+                          let accumulator = accumulators[file.path],
+                          accumulator.eventCount > 0
+                    else {
+                        fallbackPaths.insert(file.path)
+                        continue
+                    }
+                    counts[file.path] = accumulator.eventCount
                 }
-                counts[file.path] = accumulator.eventCount
+                if !fallbackPaths.isEmpty {
+                    try counts.merge(
+                        Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
+                        uniquingKeysWith: { _, exact in exact })
+                }
+                if !loadedTokenSnapshotPaths.isEmpty {
+                    let loadedSnapshots = try Self.readTokenSnapshots(
+                        database,
+                        paths: loadedTokenSnapshotPaths,
+                        storeURL: self.databaseURL)
+                    snapshot.tokenSnapshots = loadedSnapshots
+                    let loadedCounts = Dictionary(grouping: loadedSnapshots, by: \.path).mapValues(\.count)
+                    for path in loadedTokenSnapshotPaths {
+                        counts[path] = loadedCounts[path] ?? 0
+                    }
+                }
+                snapshot.tokenSnapshotCounts = counts
             }
-            if !fallbackPaths.isEmpty {
-                try counts.merge(
-                    Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
-                    uniquingKeysWith: { _, exact in exact })
-            }
-            snapshot.tokenSnapshotCounts = counts
-            snapshot.tokenSnapshotsLoaded = false
+            snapshot.tokenSnapshotsLoaded = loadTokenSnapshots
             let usageRows = try Self.readDecodedUsageRows(database)
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }
             return (

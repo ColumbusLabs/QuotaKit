@@ -238,7 +238,9 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 source: context.settings.claudeCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies for the web API."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies for the web API."),
+                        provider: .claude),
                     manual: L("Paste a Cookie header from %@.", "claude.ai"),
                     off: L("%@ cookies are disabled.", "Claude")))
         }
@@ -278,7 +280,9 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "claude-cookie-source",
                 title: "Claude cookies",
-                subtitle: L("Automatic imports browser cookies for the web API."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies for the web API."),
+                    provider: .claude),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

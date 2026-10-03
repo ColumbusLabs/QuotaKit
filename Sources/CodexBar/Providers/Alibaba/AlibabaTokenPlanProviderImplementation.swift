@@ -67,7 +67,9 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
                 source: context.settings.alibabaTokenPlanCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies from Model Studio/Bailian."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies from Model Studio/Bailian."),
+                        provider: .alibabatokenplan),
                     manual: Self.manualCookieHeaderSubtitle(host: host),
                     off: L("%@ cookies are disabled.", "Alibaba Token Plan")))
         }
@@ -99,7 +101,9 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "alibaba-token-plan-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies from Model Studio/Bailian."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies from Model Studio/Bailian."),
+                    provider: .alibabatokenplan),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

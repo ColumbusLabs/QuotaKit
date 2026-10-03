@@ -144,8 +144,16 @@ extension CostUsageStore {
         if current == baseline.stamp { return baseline }
         var expected = baseline.stamp
         expected.totalChanges = current.totalChanges
+        let loadedTokenSnapshotPaths = Set(baseline.persistence.snapshotCounts.compactMap { path, count in
+            guard count > 0,
+                  baseline.decoded.files[path]?.codexTokenSnapshots != nil
+            else { return nil }
+            return path
+        })
         guard expected == current,
-              let read = self.readCodexScanSnapshotInCurrentTransaction(),
+              let read = self.readCodexScanSnapshotInCurrentTransaction(
+                  loadTokenSnapshots: baseline.persistence.tokenSnapshotsLoaded,
+                  loadedTokenSnapshotPaths: loadedTokenSnapshotPaths),
               read.stamp == current
         else { return nil }
         return Self.codexBaseline(

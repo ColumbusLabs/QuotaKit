@@ -33,7 +33,9 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
                 source: context.settings.commandcodeCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies."),
+                        provider: .commandcode),
                     manual: L("Paste a Cookie header or cURL capture from %@.", "Command Code"),
                     off: L("%@ cookies are disabled.", "Command Code")))
         }
@@ -42,7 +44,9 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "commandcode-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies."),
+                    provider: .commandcode),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

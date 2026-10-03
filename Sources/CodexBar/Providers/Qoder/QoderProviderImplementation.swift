@@ -54,7 +54,9 @@ struct QoderProviderImplementation: ProviderImplementation {
                 source: context.settings.qoderCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatically imports browser cookies."),
+                        provider: .qoder),
                     manual: L("Paste a Cookie header or cURL capture from %@.", "Qoder"),
                     off: L("%@ cookies are disabled.", "Qoder")))
         }
@@ -63,7 +65,9 @@ struct QoderProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "qoder-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser cookies."),
+                    provider: .qoder),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

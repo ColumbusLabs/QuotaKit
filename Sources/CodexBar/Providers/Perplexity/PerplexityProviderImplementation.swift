@@ -47,7 +47,9 @@ struct PerplexityProviderImplementation: ProviderImplementation {
                 source: context.settings.perplexityCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports browser session cookie."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatically imports browser session cookie."),
+                        provider: .perplexity),
                     manual: L("Paste a full cookie header or the %@ value.", "__Secure-next-auth.session-token"),
                     off: L("%@ cookies are disabled.", "Perplexity")))
         }
@@ -56,7 +58,9 @@ struct PerplexityProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "perplexity-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports browser session cookie."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser session cookie."),
+                    provider: .perplexity),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,
