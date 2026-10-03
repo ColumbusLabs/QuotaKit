@@ -4453,14 +4453,27 @@ enum CostUsageScanner {
             return nil
         }
         let pendingPaths = state.pendingFilePaths
+        var resumableMissingParentForkPaths: [String] = []
         var recentPaths: [String] = []
         var requestedWindowPaths: [String] = []
         var unrelatedPaths: [String] = []
+        resumableMissingParentForkPaths.reserveCapacity(pendingPaths.count)
         recentPaths.reserveCapacity(pendingPaths.count)
         requestedWindowPaths.reserveCapacity(pendingPaths.count)
         unrelatedPaths.reserveCapacity(pendingPaths.count)
         for path in pendingPaths {
-            if Self.codexPendingPathIsRecent(
+            let fileURL = URL(fileURLWithPath: path, isDirectory: false)
+            let cached = cache.files[Self.codexResolvedPath(fileURL)]
+                ?? cache.files[Self.codexPathKey(fileURL)]
+            if let cached,
+               Self.isUnresolvedMissingParentFork(cached),
+               cached.codexScanComplete != true || !cached.hasCurrentCodexParser
+            {
+                // An incomplete missing-parent fork blocks every verified-day proof until its
+                // buffered history is settled. Resume it even when its path and activity are old;
+                // settled old-only forks remain on the ordinary FIFO lane.
+                resumableMissingParentForkPaths.append(path)
+            } else if Self.codexPendingPathIsRecent(
                 path,
                 cache: cache,
                 priorityDayKey: dayKeys.priority,
@@ -4481,6 +4494,13 @@ enum CostUsageScanner {
             }
         }
         var historicalPaths = requestedWindowPaths + unrelatedPaths
+        if let promotedFork = resumableMissingParentForkPaths.first {
+            // The cached-pending reconciliation may have restored this path at the queue tail.
+            // Preserve every other waiter's order behind it so ordinary bounded service remains
+            // fair while the proof-blocking partial fork resumes.
+            state.pendingFilePaths = [promotedFork] + pendingPaths.filter { $0 != promotedFork }
+            return promotedFork
+        }
         guard !recentPaths.isEmpty else {
             state.pendingFilePaths = historicalPaths
             return nil

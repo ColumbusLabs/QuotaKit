@@ -1079,6 +1079,236 @@ struct CostUsageBoundedProgressTests {
     }
 
     @Test
+    func `older incomplete missing parent fork resumes ahead of history without hiding fairness`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        var options = Self.boundedOptions(env: env)
+        options.preferNewestCodexSessionsFirst = true
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = nil
+        let fixture = try Self.prepareResumableMissingParentFixture(
+            env: env,
+            historicalDay: historicalDay,
+            currentDay: currentDay,
+            options: &options)
+        let historicalURLs = fixture.historicalURLs
+        let forkURL = fixture.forkURL
+        let todayKey = fixture.todayKey
+        let currentISO = fixture.currentISO
+
+        // Appended token rows keep each cached parser anchor valid while making all saved
+        // historical waiters genuinely dirty across the persisted queue round trip.
+        try Self.appendHistoryUsageRows(historicalURLs, timestamp: currentISO, modificationDate: historicalDay)
+        let forkPath = forkURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let partialCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let oldestHistoryPath = historicalURLs[0].path.resolvingTemporaryPath
+        let oldestHistoryInputBeforeBoost = try #require(
+            partialCache.files[oldestHistoryPath]?.lastCountedTotals?.input)
+        let partial = try #require(partialCache.files[forkPath])
+        #expect(partial.codexScanComplete == false)
+        #expect(partial.codexReplacementScanPending == true)
+        #expect(partial.parsedBytes ?? 0 < partial.size)
+        #expect(partial.hasCurrentCodexParser)
+        #expect(CostUsageScanner.isUnresolvedMissingParentFork(partial))
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: partialCache,
+            roots: roots,
+            dayKey: todayKey,
+            calendar: options.calendar) == .fork)
+        let beforeResume = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: todayKey, untilDay: todayKey))
+        #expect(!beforeResume.verifiedDayKeys.contains(todayKey))
+
+        // Model a persisted queue that contains the historical backlog but omitted its cached
+        // partial fork. Reconciliation must restore the fork before bounded candidate admission.
+        var queued = partialCache
+        queued.codexActiveLookbackState = try Self.completedLookbackState(
+            cache: queued,
+            options: options,
+            pendingFilePaths: historicalURLs.map(\.path.resolvingTemporaryPath))
+        queued.codexScanCatchUpPending = true
+        let metadataCandidateIndexBefore = queued.codexSessionDiscovery?.metadataCandidateIndex
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: queued)
+
+        let forkBeforePromotion = try #require(queued.files[forkPath]?.parsedBytes)
+        let firstBoostBudget = CostUsageScanner.CodexScanBudget(maxFileBytes: 512, maxBytesPerRefresh: 512)
+        let firstBoostRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanBudgetForTesting = firstBoostBudget
+        options.codexScanWorkRecorderForTesting = firstBoostRecorder
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay.addingTimeInterval(2),
+            options: options)
+
+        let afterBoost = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let boostedPaths = firstBoostRecorder.attemptedCodexFilePaths()
+        let metadataCandidateIndexAfter = afterBoost.codexSessionDiscovery?.metadataCandidateIndex
+        let attemptedPathNames = boostedPaths.map {
+            URL(fileURLWithPath: $0).lastPathComponent
+        }.sorted().prefix(8)
+        let progressedPathNames = afterBoost.files.compactMap { path, usage -> String? in
+            guard let previousBytes = queued.files[path]?.parsedBytes,
+                  let parsedBytes = usage.parsedBytes,
+                  parsedBytes > previousBytes
+            else { return nil }
+            return URL(fileURLWithPath: path).lastPathComponent
+        }
+        #expect(
+            boostedPaths.contains(forkPath),
+            "attempted files: \(Array(attemptedPathNames))")
+        #expect(
+            afterBoost.files[forkPath]?.parsedBytes ?? 0 > forkBeforePromotion,
+            """
+            progress: \(progressedPathNames.sorted().prefix(8)); metadata index:
+            \(String(describing: metadataCandidateIndexBefore))->\(String(describing: metadataCandidateIndexAfter));
+            bytes: \(firstBoostBudget.bytesConsumed)
+            """)
+        #expect(afterBoost.files[forkPath]?.codexScanComplete == false)
+        #expect(afterBoost.files[oldestHistoryPath]?.lastCountedTotals?.input == oldestHistoryInputBeforeBoost)
+        let boostedUsage = try #require(afterBoost.files[forkPath])
+        #expect(boostedUsage.codexScanComplete == false)
+        let admissionDebt = try #require(afterBoost.codexActiveLookbackState?.priorityAdmissionDebt)
+        #expect(admissionDebt > 0)
+        #expect(firstBoostRecorder.snapshot().codexCandidateSelectionVisits
+            <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+        #expect(firstBoostBudget.bytesConsumed <= 512)
+
+        // The promoted partial owes the oldest saved waiter a bounded FIFO turn before it can
+        // jump the queue again.
+        let fairnessBudget = CostUsageScanner.CodexScanBudget(maxFileBytes: 1024, maxBytesPerRefresh: 1024)
+        let fairnessRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanBudgetForTesting = fairnessBudget
+        options.codexScanWorkRecorderForTesting = fairnessRecorder
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay.addingTimeInterval(3),
+            options: options)
+
+        let afterFairness = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(fairnessRecorder.attemptedCodexFilePaths().contains(oldestHistoryPath))
+        #expect(!fairnessRecorder.attemptedCodexFilePaths().contains(forkPath))
+        #expect(afterFairness.files[oldestHistoryPath]?.codexScanComplete == true)
+        #expect(afterFairness.files[oldestHistoryPath]?.lastCountedTotals?.input == 150)
+        #expect((afterFairness.codexActiveLookbackState?.priorityAdmissionDebt ?? 0) < admissionDebt)
+        #expect(fairnessBudget.bytesConsumed <= 1024)
+
+        options.codexScanBudgetForTesting = nil
+        options.maxCodexSessionFileBytes = 4 * 1024 * 1024
+        options.maxCodexScanBytesPerRefresh = 4 * 1024 * 1024
+        for pass in 0..<6 {
+            let current = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if current.files[forkPath]?.codexScanComplete == true { break }
+            let budget = CostUsageScanner.CodexScanBudget(
+                maxFileBytes: 4 * 1024 * 1024,
+                maxBytesPerRefresh: 4 * 1024 * 1024)
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanBudgetForTesting = budget
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageControlledClockScanner.loadDailyReport(
+                provider: .codex,
+                since: historicalDay,
+                until: currentDay,
+                now: currentDay.addingTimeInterval(TimeInterval(pass + 4)),
+                options: options)
+            #expect(recorder.snapshot().codexCandidateSelectionVisits
+                <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+            #expect(budget.bytesConsumed <= 4 * 1024 * 1024)
+        }
+
+        options.codexScanBudgetForTesting = nil
+        let resumed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let resumedFork = try #require(resumed.files[forkPath])
+        #expect(resumedFork.codexScanComplete == true)
+        #expect(resumedFork.parsedBytes == resumedFork.size)
+        #expect(resumedFork.hasCurrentCodexParser)
+        #expect(CostUsageScanner.isUnresolvedMissingParentFork(resumedFork))
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: resumed,
+            roots: roots,
+            dayKey: todayKey,
+            calendar: options.calendar) == nil)
+        let afterResume = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: todayKey, untilDay: todayKey))
+        #expect(afterResume.verifiedDayKeys.contains(todayKey))
+        #expect((afterResume.verifiedDayEvidence[todayKey]?.revision ?? 0) > 0)
+    }
+
+    @Test
+    func `settled missing parent fork with a current activity suffix still blocks today's proof`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let oldTimestamp = env.isoString(for: historicalDay)
+        let currentTimestamp = env.isoString(for: currentDay)
+        let fileURL = try env.writeCodexSessionFile(
+            day: historicalDay,
+            filename: "rollout-2026-05-08-current-orphan.jsonl",
+            contents: [
+                [
+                    #"{"type":"session_meta","timestamp":"\#(oldTimestamp)","payload":{"#,
+                    #""id":"current-orphan","forked_from_id":"#,
+                    #""missing-parent"}}"#,
+                ].joined(),
+                #"{"type":"turn_context","timestamp":"\#(oldTimestamp)","payload":{"model":"openai/gpt-5.4"}}"#,
+                [
+                    #"{"type":"event_msg","timestamp":"\#(currentTimestamp)","payload":{"type":"token_count","info":"#,
+                    #"{"total_token_usage":{"input_tokens":50,"output_tokens":5}}}}"#,
+                ].joined(),
+            ].joined(separator: "\n") + "\n")
+        try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: fileURL.path)
+
+        var options = Self.boundedOptions(env: env)
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = nil
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let filePath = fileURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let usage = try #require(cache.files[filePath])
+        #expect(usage.codexScanComplete == true)
+        #expect(usage.hasCurrentCodexParser)
+        #expect(CostUsageScanner.isUnresolvedMissingParentFork(usage))
+        #expect(usage.touchesCodexScanWindow(
+            sinceKey: CostUsageScanner.CostUsageDayRange.dayKey(from: currentDay, calendar: options.calendar),
+            untilKey: CostUsageScanner.CostUsageDayRange.dayKey(from: currentDay, calendar: options.calendar),
+            calendar: options.calendar))
+        let todayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: currentDay, calendar: options.calendar)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: todayKey,
+            calendar: options.calendar) == .fork)
+        let projection = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: todayKey, untilDay: todayKey))
+        #expect(!projection.verifiedDayKeys.contains(todayKey))
+
+        var unknownActivity = cache
+        unknownActivity.files[filePath]?.codexSession?.startedAtUnixMs = nil
+        unknownActivity.files[filePath]?.codexSession?.latestActivityUnixMs = nil
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: unknownActivity,
+            roots: roots,
+            dayKey: todayKey,
+            calendar: options.calendar) == .fork)
+    }
+
+    @Test
     func `most recent closed day jumps ahead of a growing current day queue`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -1649,6 +1879,110 @@ struct CostUsageBoundedProgressTests {
             maxCodexScanDurationPerRefresh: 60)
         options.refreshMinIntervalSeconds = 0
         return options
+    }
+
+    private static func appendHistoryUsageRows(
+        _ historyURLs: [URL],
+        timestamp: String,
+        modificationDate: Date) throws
+    {
+        let appendedRow = [
+            #"{"type":"event_msg","timestamp":"\#(timestamp)","payload":{"type":"token_count","info":"#,
+            #"{"total_token_usage":{"input_tokens":150,"cached_input_tokens":30,"output_tokens":15}}}}"#,
+        ].joined() + "\n"
+        for historyURL in historyURLs {
+            let handle = try FileHandle(forWritingTo: historyURL)
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data(appendedRow.utf8))
+            try handle.close()
+            try FileManager.default.setAttributes(
+                [.modificationDate: modificationDate],
+                ofItemAtPath: historyURL.path)
+        }
+    }
+
+    private static func prepareResumableMissingParentFixture(
+        env: CostUsageTestEnvironment,
+        historicalDay: Date,
+        currentDay: Date,
+        options: inout CostUsageScanner.Options) throws -> (
+        historicalURLs: [URL],
+        forkURL: URL,
+        todayKey: String,
+        currentISO: String)
+    {
+        let historicalURLs = try Self.writeSyntheticCorpus(
+            env: env,
+            day: historicalDay,
+            fileCount: CostUsageScanner.codexCatchUpScanCandidateLimit + 32)
+        let forkURL = try env.writeCodexSessionFile(
+            day: historicalDay,
+            filename: "rollout-2026-05-08-resumable-orphan.jsonl",
+            contents: [
+                [
+                    #"{"type":"session_meta","timestamp":"2026-05-08T16:00:00Z","payload":{"#,
+                    #""id":"old-orphan","forked_from_id":"#,
+                    #""missing-parent"}}"#,
+                ].joined(),
+                #"{"type":"turn_context","timestamp":"2026-05-08T16:00:01Z","payload":{"model":"openai/gpt-5.4"}}"#,
+                [
+                    #"{"type":"event_msg","timestamp":"2026-05-08T16:00:02Z","payload":{"type":"token_count","info":"#,
+                    #"{"total_token_usage":{"input_tokens":50,"output_tokens":5}}}}"#,
+                ].joined(),
+            ].joined(separator: "\n") + "\n")
+        for url in historicalURLs + [forkURL] {
+            try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: url.path)
+        }
+
+        let useWorkingSetAfterWarmup = options.useCodexCatchUpWorkingSet
+        options.useCodexCatchUpWorkingSet = false
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: historicalDay,
+            now: historicalDay,
+            options: options)
+        options.useCodexCatchUpWorkingSet = useWorkingSetAfterWarmup
+        let initial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(initial.files.count == historicalURLs.count + 1)
+        #expect(initial.codexScanCatchUpPending == false)
+        let todayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: currentDay, calendar: options.calendar)
+        let beforeFork = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: todayKey, untilDay: todayKey))
+        #expect(!beforeFork.verifiedDayKeys.contains(todayKey))
+
+        let currentISO = env.isoString(for: historicalDay)
+        let paddingLines = (0..<2000).map { _ in
+            #"{"type":"turn_context","payload":{"model":"openai/gpt-5.4"}}"#
+        }
+        let orphanContents = ([
+            [
+                #"{"type":"session_meta","timestamp":"\#(currentISO)","payload":{"id":"old-orphan","forked_from_id":"#,
+                #""missing-parent"}}"#,
+            ].joined(),
+            #"{"type":"turn_context","timestamp":"\#(currentISO)","payload":{"model":"openai/gpt-5.4"}}"#,
+            [
+                #"{"type":"event_msg","timestamp":"\#(currentISO)","payload":{"type":"token_count","info":"#,
+                #"{"total_token_usage":{"input_tokens":50,"output_tokens":5}}}}"#,
+            ].joined(),
+        ] + paddingLines).joined(separator: "\n") + "\n"
+        try Data(orphanContents.utf8).write(to: forkURL)
+        try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: forkURL.path)
+
+        let firstPartialBudget = CostUsageScanner.CodexScanBudget(maxFileBytes: 512, maxBytesPerRefresh: 512)
+        options.maxCodexSessionFileBytes = 512
+        options.maxCodexScanBytesPerRefresh = 512
+        options.codexScanBudgetForTesting = firstPartialBudget
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay.addingTimeInterval(1),
+            options: options)
+        options.codexScanBudgetForTesting = nil
+        #expect(firstPartialBudget.bytesConsumed <= 512)
+        return (historicalURLs, forkURL, todayKey, currentISO)
     }
 
     private static func finishBoundedCatchUp(

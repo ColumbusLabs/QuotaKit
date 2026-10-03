@@ -1,6 +1,6 @@
 # Independently verified Codex daily spend
 
-Status: done
+Status: in progress — installed delivery exposed a remaining source verification blocker
 Date: 2026-10-03
 
 ## Failure and endpoint
@@ -121,3 +121,50 @@ and the exact-anchor architecture gate passed 38 checks. The final isolated
 packaged startup survived six seconds; before/after observations retained the
 same live outgoing snapshot and no new daily evidence. Hosted CI and installed
 release observations are still required before delivery is complete.
+
+## Installed verification follow-up
+
+TestFlight 1.11.4 (179) became available to the internal Team group and the
+user confirmed installation. Mac 0.32.4.32 passed its exact-source hosted CI,
+signing, notarization and public-artifact checks, then updated the installed
+0.32.4.31 app through Sparkle. No App Store submission was made.
+
+The phone still did not update. Normal installed Mac refreshes advanced raw
+outgoing daily totals but carried no day evidence; the verified daily table
+had no current-day status or proof. These totals are not a certified oracle.
+A consistent read-only ledger backup loaded through the shipped gate returned
+`fork` for both the current and previous local day. One unresolved fork was
+incomplete. The coverage guard blocks every day while such a fork has an
+unread suffix, but the scan scheduler prioritizes observed dates, partition
+dates and modification times. An older blocker can consequently wait behind
+the historical queue while preventing current-day verification.
+
+The follow-up must prioritize actual global fork blockers under the existing
+work and fairness bounds, without relaxing the proof guard. A partial event
+span, old partition or old modification time cannot exclude current activity
+in an unread suffix. Regression coverage must establish forward progress for
+the real persisted retry shape, preserve unresolved current-day coverage, and
+allow a genuinely completed old-only fork to stop blocking unrelated days.
+Additional gate blockers must be checked before another release. Delivery
+remains incomplete until source evidence, outgoing payloads and the phone's
+observed daily updates agree.
+
+The scheduler patch passed a replay against a fresh isolated copy of the real
+ledger: the saved blocking fork completed on the first bounded scan and current
+day evidence was persisted by the third scan. Each pass retained the normal
+two-second read budget. Original session files were read only; scanner writes
+targeted the workspace copy. The generated parser hash was then refreshed to
+`ee4f711006d12859`. A final fresh ledger copy exercised adoption from the
+shipped `755dfa55c816c503` producer: the first bounded refresh completed the
+retained fork and persisted current-day proof. The saved parsed byte count,
+resume anchor and file size all matched at 33,728,022 bytes. Targeted migration
+coverage also preserves existing certified evidence, lineage and revision
+counters across this adoption. These diagnostic results are separate from
+installed and phone evidence.
+
+Focused bounded-progress, orphan-fork, discovery-recovery, performance and
+predecessor-adoption checks passed. The new regression keeps 544 historical
+files genuinely pending through valid appends, resumes the restored old fork
+within its byte limit, then gives an older waiter its admission-debt turn.
+Current-day activity and unknown activity dates still fail closed. Independent
+review passed the scheduling, migration and final fairness fixture changes.

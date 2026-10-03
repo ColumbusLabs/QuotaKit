@@ -1142,6 +1142,73 @@ extension CostUsageStoreTests {
     }
 
     @Test
+    func `shipped day proof predecessor preserves certified evidence lineage and counter`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let predecessorHash = "755dfa55c816c503"
+        #expect(predecessorHash != CodexParserHash.value)
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion, parserHash: predecessorHash)
+        let predecessor = CostUsageStore(
+            cacheRoot: fixture.root, schemaVersion: predecessorVersion, parserHash: predecessorHash)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = "2026-08-01"
+        let path = "/sessions/shipped-proof.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000, size: 100, days: [day: ["fixture-model": [10, 0, 2]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: nil,
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 2)]
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1_800_000_000_000
+        cache.scanSinceKey = day
+        cache.scanUntilKey = day
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.roots = ["/codex/sessions": 0]
+        cache.files[path] = usage
+        cache.days = usage.days
+        #expect(predecessor.syncSaveCodexCache(
+            cache, calendar: calendar, requestedScanWindow: (sinceKey: day, untilKey: day)).cacheWasPersisted)
+        let expectedCommit = CostUsageStoreCodexScanCommit(
+            lastScanUnixMs: cache.lastScanUnixMs,
+            rootPaths: ["/codex/sessions"],
+            timeZoneIdentifier: calendar.timeZone.identifier)
+        #expect(predecessor.syncRecordVerifiedCodexDay(
+            day: day, calendar: calendar, expectedCommit: expectedCommit))
+        let before = await predecessor.readSnapshot()
+        let priorProjection = predecessor.syncReadCodexReportProjection(calendar: calendar)
+        let proof = try #require(priorProjection.verifiedDayEvidence[day])
+        #expect(proof.revision > 0)
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        let priorCounter = try connection.scalarInt(
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'")
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+        #expect(await current.readSnapshot() == before)
+        let projection = current.syncReadCodexReportProjection(calendar: calendar)
+        #expect(projection.verifiedDayEvidence == priorProjection.verifiedDayEvidence)
+        #expect(projection.verifiedDayAggregates == priorProjection.verifiedDayAggregates)
+        #expect(projection.verifiedDayKeys == priorProjection.verifiedDayKeys)
+        #expect(await current.rebuildCount == 0)
+        #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'verified_day_lineage_id' AND value = '\(proof.lineageID)'") == 1)
+        #expect(try connection.scalarInt(
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'") == priorCounter)
+        #expect(try connection.scalarInt("SELECT COUNT(*) FROM verified_day_evidence") == 1)
+    }
+
+    @Test
     func `zero day proof projects during a persisted catch up pass`() throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -2181,7 +2248,7 @@ extension CostUsageStoreTests {
         #expect(after.files[duplicate.path]?.codexRows?.count == 1)
     }
 
-    @Test(arguments: ["606a690018e2845e", "c52728bbaeedeb90"])
+    @Test(arguments: ["606a690018e2845e", "c52728bbaeedeb90", "755dfa55c816c503"])
     func `lf span parser adopts persisted partial checkpoint without rebuilding`(previousHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -2234,6 +2301,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "755dfa55c816c503",
         "c52728bbaeedeb90",
         "0001601034856fb6",
         "91aceec74bae13b6",
@@ -2248,6 +2316,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "755dfa55c816c503",
             "c52728bbaeedeb90",
             "0001601034856fb6",
             "91aceec74bae13b6",
