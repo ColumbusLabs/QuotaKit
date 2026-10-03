@@ -146,7 +146,8 @@ phase2() {
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
   trap "rm -f '$KEY_FILE'" EXIT
 
-  clear_sparkle_caches "$BUNDLE_ID"
+  # Preserve the installed app's update state; publication does not require
+  # clearing user-owned Sparkle caches.
 
   SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
     SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
