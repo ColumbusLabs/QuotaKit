@@ -78,6 +78,33 @@ struct SyncCoordinatorDescriptorPaceTests {
     }
 
     @Test
+    func `Cursor paid Grok Bot extra publishes weekly identity and pace to iPhone`() async throws {
+        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
+        let resetsAt = try #require(ISO8601DateParser.parse("2026-10-05T11:20:04Z"))
+        let extraWindow = NamedRateWindow(
+            id: CursorSandUsageStatus.extraWindowID,
+            title: CursorSandUsageStatus.extraWindowTitle,
+            window: RateWindow(
+                usedPercent: 44.935,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: resetsAt,
+                resetDescription: "Resets"))
+        let provider = try await self.syncedProvider(
+            .cursor,
+            snapshot: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                extraRateWindows: [extraWindow],
+                updatedAt: now),
+            suite: "SyncCoord-descriptor-pace-cursor-grok-bot-\(UUID().uuidString)")
+
+        let grokBot = try #require(provider.rateWindows.first { $0.label == "Grok Bot" })
+        #expect(grokBot.windowMinutes == 7 * 24 * 60)
+        #expect(grokBot.identity == .weekly)
+        #expect(grokBot.pace != nil)
+    }
+
+    @Test
     func `descriptor pace below the Mac display threshold stays nil`() async throws {
         let now = Date()
         let provider = try await self.syncedProvider(

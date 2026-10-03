@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 88 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 89 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -138,6 +138,7 @@ complete when the available scan window covers fewer days.
 | Vercel AI Gateway | Team-wide USD credit balance and lifetime spend from a configured API key (`api`). |
 | llmman | Local daemon memory, loaded models, and stored models from a configured private-network endpoint (`api`). |
 | [Muse (muse.ai)](museai.md) | Chrome or manually supplied muse.ai session cookie → weekly quota percentage, plan, and remaining tokens (`web`). |
+| [LithosAI](lithosai.md) | Chrome or manual console cookies → active-organization prepaid balance and optional UTC spend (`web`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -703,6 +704,11 @@ See also: `docs/provider.md` for architecture notes.
 - Reads the signed-in muse.ai weekly subscription through a Chrome cookie session, or a manually supplied Cookie header.
 - Shows the plan, usage percentage, reset time, and paid-plan token balance; this is separate from Muse Code.
 - Details: `docs/museai.md`.
+
+## LithosAI
+- Reads the active organization’s prepaid balance and optional daily/month-to-date spend through the LithosAI console.
+- Requires a Chrome session or manually supplied session and CSRF cookies; it has no quota window or reset alert.
+- Details: `docs/lithosai.md`.
 
 ## Pi
 - Reads local Pi and OMP transcripts for token history and API-rate cost estimates; no credentials are needed.

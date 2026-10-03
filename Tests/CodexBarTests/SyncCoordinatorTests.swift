@@ -133,6 +133,7 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .zenmux, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .neuralwatt, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .fireworks, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .lithosai, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .xai, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .codex, providerCost: balance) == nil)

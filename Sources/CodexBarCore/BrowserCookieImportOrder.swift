@@ -37,24 +37,7 @@ extension [Browser] {
 #if os(macOS)
 extension Browser {
     var usesKeychainForCookieDecryption: Bool {
-        switch self {
-        case .safari, .firefox, .firefoxBeta, .firefoxDeveloperEdition, .firefoxNightly, .zen:
-            return false
-        case .chrome, .chromeBeta, .chromeCanary,
-             .arc, .arcBeta, .arcCanary,
-             .chatgptAtlas,
-             .chromium,
-             .brave, .braveBeta, .braveNightly,
-             .edge, .edgeBeta, .edgeCanary,
-             .helium,
-             .vivaldi,
-             .dia,
-             .yandex,
-             .comet:
-            return true
-        @unknown default:
-            return true
-        }
+        self.usesChromiumProfileStore
     }
 }
 #else

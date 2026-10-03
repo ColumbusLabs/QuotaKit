@@ -46,10 +46,13 @@ public enum SubprocessRunner {
         qos: .userInitiated,
         attributes: .concurrent)
 
+    @TaskLocal static var timeoutWillFire: (@Sendable () -> Void)?
+
     /// Thread-safe flag for communicating between concurrent tasks (e.g. timeout → caller).
-    private final class KillFlag: @unchecked Sendable {
+    private final class TimeoutState: @unchecked Sendable {
         private let lock = NSLock()
         private var value = false
+        var timer: (any DispatchSourceTimer)?
 
         func set() {
             self.lock.withLock { self.value = true }
@@ -57,18 +60,6 @@ public enum SubprocessRunner {
 
         var isSet: Bool {
             self.lock.withLock { self.value }
-        }
-    }
-
-    private final class TimeoutTimer: @unchecked Sendable {
-        private let timer: any DispatchSourceTimer
-
-        init(timer: any DispatchSourceTimer) {
-            self.timer = timer
-        }
-
-        func cancel() {
-            self.timer.cancel()
         }
     }
 
@@ -217,22 +208,22 @@ public enum SubprocessRunner {
             await termination.wait()
         }
 
-        let killedByTimeout = KillFlag()
-        let timeoutTimerBox: TimeoutTimer? = if timeout.isFinite {
-            {
-                let timeoutTimer = DispatchSource.makeTimerSource(queue: self.timeoutQueue)
-                timeoutTimer.schedule(deadline: .now() + self.timeoutInterval(timeout))
-                timeoutTimer.setEventHandler {
-                    guard process.isRunning else { return }
-                    killedByTimeout.set()
-                    self.terminateProcess(process, processGroup: processGroup)
-                }
-                timeoutTimer.resume()
-                return TimeoutTimer(timer: timeoutTimer)
-            }()
-        } else {
-            nil
+        let killedByTimeout = TimeoutState()
+        if timeout.isFinite {
+            let timeoutTimer = DispatchSource.makeTimerSource(queue: self.timeoutQueue)
+            timeoutTimer.schedule(deadline: .now() + self.timeoutInterval(timeout))
+            let timeoutWillFire = self.timeoutWillFire
+            timeoutTimer.setEventHandler {
+                timeoutWillFire?()
+                guard process.isRunning else { return }
+                killedByTimeout.set()
+                self.terminateProcess(process, processGroup: processGroup)
+            }
+            killedByTimeout.timer = timeoutTimer
+            timeoutTimer.resume()
         }
+
+        defer { killedByTimeout.timer?.setEventHandler(handler: nil) }
 
         do {
             let exitCode = try await withTaskCancellationHandler {
@@ -241,10 +232,10 @@ public enum SubprocessRunner {
                 try Task.checkCancellation()
                 return code
             } onCancel: {
-                timeoutTimerBox?.cancel()
+                killedByTimeout.timer?.cancel()
                 self.terminateProcess(process, processGroup: processGroup)
             }
-            timeoutTimerBox?.cancel()
+            killedByTimeout.timer?.cancel()
 
             let duration = Date().timeIntervalSince(start)
             // Race guard: the timeout timer may kill the process just before the

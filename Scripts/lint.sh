@@ -129,6 +129,11 @@ audit_claude_parser_version() {
   return 1
 }
 
+check_package_resolved() {
+  node --test "${ROOT_DIR}/Scripts/test_package_resolved.mjs"
+  node "${ROOT_DIR}/Scripts/check-package-resolved.mjs"
+}
+
 check_provider_manifests() {
   "${ROOT_DIR}/Scripts/regenerate-provider-manifests.sh" --check
 }
@@ -241,6 +246,7 @@ check_llms_index() {
 }
 
 run_portable_checks() {
+  check_package_resolved
   check_codex_parser_hash
   check_provider_manifests
   check_package_product_paths

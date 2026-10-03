@@ -52,8 +52,7 @@ struct SettingsStoreAdditionalTests {
     @Test
     @MainActor
     func `antigravity two pool migration preserves released metric meaning`() {
-        let primaryDefaults = UserDefaults(suiteName: #function + ".primary")!
-        primaryDefaults.removePersistentDomain(forName: #function + ".primary")
+        let primaryDefaults = InMemoryUserDefaults()
         primaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.primary.rawValue],
             forKey: "menuBarMetricPreferences")
@@ -63,8 +62,7 @@ struct SettingsStoreAdditionalTests {
         #expect(primarySettings.menuBarMetricPreference(for: .antigravity) == .secondary)
         #expect(primaryDefaults.bool(forKey: "antigravityTwoPoolMetricPreferenceMigrated"))
 
-        let secondaryDefaults = UserDefaults(suiteName: #function + ".secondary")!
-        secondaryDefaults.removePersistentDomain(forName: #function + ".secondary")
+        let secondaryDefaults = InMemoryUserDefaults()
         secondaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.secondary.rawValue],
             forKey: "menuBarMetricPreferences")
@@ -76,8 +74,7 @@ struct SettingsStoreAdditionalTests {
         let reloadedSettings = SettingsStore(userDefaults: secondaryDefaults)
         #expect(reloadedSettings.menuBarMetricPreference(for: .antigravity) == .primary)
 
-        let tertiaryDefaults = UserDefaults(suiteName: #function + ".tertiary")!
-        tertiaryDefaults.removePersistentDomain(forName: #function + ".tertiary")
+        let tertiaryDefaults = InMemoryUserDefaults()
         tertiaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.tertiary.rawValue],
             forKey: "menuBarMetricPreferences")
@@ -86,8 +83,7 @@ struct SettingsStoreAdditionalTests {
 
         #expect(tertiarySettings.menuBarMetricPreference(for: .antigravity) == .primary)
 
-        let migratedDefaults = UserDefaults(suiteName: #function + ".migrated")!
-        migratedDefaults.removePersistentDomain(forName: #function + ".migrated")
+        let migratedDefaults = InMemoryUserDefaults()
         migratedDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.primary.rawValue],
             forKey: "menuBarMetricPreferences")
@@ -100,21 +96,21 @@ struct SettingsStoreAdditionalTests {
 
     @Test
     @MainActor
-    func `cursor metric preference migration preserves released metric meaning`() throws {
-        let primaryDefaults = try self.cursorMetricDefaults(suffix: "primary", preference: .primary)
+    func `cursor metric preference migration preserves released metric meaning`() {
+        let primaryDefaults = self.cursorMetricDefaults(preference: .primary)
         let primarySettings = SettingsStore(userDefaults: primaryDefaults)
         #expect(primarySettings.menuBarMetricPreference(for: .cursor) == .automatic)
         #expect(primaryDefaults.bool(forKey: "cursorAutoAPIMetricPreferenceMigrated"))
 
-        let secondaryDefaults = try self.cursorMetricDefaults(suffix: "secondary", preference: .secondary)
+        let secondaryDefaults = self.cursorMetricDefaults(preference: .secondary)
         let secondarySettings = SettingsStore(userDefaults: secondaryDefaults)
         #expect(secondarySettings.menuBarMetricPreference(for: .cursor) == .primary)
 
-        let tertiaryDefaults = try self.cursorMetricDefaults(suffix: "tertiary", preference: .tertiary)
+        let tertiaryDefaults = self.cursorMetricDefaults(preference: .tertiary)
         let tertiarySettings = SettingsStore(userDefaults: tertiaryDefaults)
         #expect(tertiarySettings.menuBarMetricPreference(for: .cursor) == .secondary)
 
-        let automaticDefaults = try self.cursorMetricDefaults(suffix: "automatic", preference: .automatic)
+        let automaticDefaults = self.cursorMetricDefaults(preference: .automatic)
         let automaticSettings = SettingsStore(userDefaults: automaticDefaults)
         #expect(automaticSettings.menuBarMetricPreference(for: .cursor) == .automatic)
 
@@ -263,6 +259,7 @@ struct SettingsStoreAdditionalTests {
             .vercel: [.automatic],
             .nous: [.automatic, .primary],
             .museai: [.automatic, .primary],
+            .lithosai: [.automatic],
         ]
 
         for provider in UsageProvider.allCases {
@@ -325,40 +322,31 @@ struct SettingsStoreAdditionalTests {
     }
 
     private static func makeSettingsStore(suite: String) -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-
-        return SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+        testSettingsStore(suiteName: "\(suite)-\(UUID().uuidString)", userDefaults: InMemoryUserDefaults())
     }
 
-    private func cursorMetricDefaults(
-        suffix: String,
-        preference: MenuBarMetricPreference) throws -> UserDefaults
-    {
-        let suite = "SettingsStoreAdditionalTests-cursor-metric-\(suffix)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+    private func cursorMetricDefaults(preference: MenuBarMetricPreference) -> InMemoryUserDefaults {
+        let defaults = InMemoryUserDefaults()
         defaults.set(
             [UsageProvider.cursor.rawValue: preference.rawValue],
             forKey: "menuBarMetricPreferences")
         return defaults
+    }
+
+    @Test
+    func `settings fixtures with the same label keep independent persisted values`() {
+        let first = Self.makeSettingsStore(suite: #function)
+        first.refreshFrequency = .fifteenMinutes
+
+        let second = Self.makeSettingsStore(suite: #function)
+        second.refreshFrequency = .thirtyMinutes
+
+        #expect(first.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.fifteenMinutes.rawValue)
+        #expect(second.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.thirtyMinutes.rawValue)
+        #expect(first.configStore.fileURL != second.configStore.fileURL)
+
+        second.userDefaults.removeObject(forKey: "refreshFrequency")
+        #expect(first.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.fifteenMinutes.rawValue)
     }
 }
 

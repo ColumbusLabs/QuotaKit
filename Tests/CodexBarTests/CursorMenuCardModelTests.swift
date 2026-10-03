@@ -284,6 +284,50 @@ struct CursorMenuCardModelTests {
         #expect(model.metrics.last?.detailRightText == nil)
     }
 
+    @Test
+    func `mid-week grok bot reset shows reserve from its full weekly cadence`() throws {
+        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: "2026-10-02T18:03:04Z",
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 44.935,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let extraWindow = try #require(status.extraRateWindow(now: now, resetDescription: { _ in "Resets" }))
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            extraRateWindows: [extraWindow],
+            updatedAt: now,
+            identity: nil)
+        let metadata = try #require(ProviderDefaults.metadata[.cursor])
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .cursor,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        let grok = try #require(model.metrics.first(where: { $0.title == "Grok Bot" }))
+        #expect(grok.detailLeftText == "20% in reserve")
+        #expect(grok.detailRightText == "Lasts until reset")
+        #expect(grok.pacePercent != nil)
+    }
+
     @Test(arguments: [3.0, 28.0])
     func `cursor monthly pace stays separate from grok bot after a billing reset`(cursorUsedPercent: Double) throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)

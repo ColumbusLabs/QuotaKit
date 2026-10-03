@@ -32,7 +32,20 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     public var credentialsUpdateHandler: @Sendable (AntigravityOAuthCredentials) async throws -> Void
 
     private static let log = CodexBarLog.logger(LogCategories.provider(.antigravity))
-    private static let userAgent = "antigravity"
+    /// Cloud Code requires the Antigravity Hub client family for OAuth quota access.
+    private static let userAgent: String = {
+        #if arch(arm64)
+        let architecture = "arm64"
+        #else
+        let architecture = "amd64"
+        #endif
+        #if os(Linux)
+        let platform = "linux"
+        #else
+        let platform = "darwin"
+        #endif
+        return "antigravity/hub/2.9.1 \(platform)/\(architecture)"
+    }()
     private static let baseURL = "https://cloudcode-pa.googleapis.com"
     private static let loadCodeAssistEndpoint = "\(baseURL)/v1internal:loadCodeAssist"
     private static let onboardUserEndpoint = "\(baseURL)/v1internal:onboardUser"
@@ -40,6 +53,11 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     private static let retrieveUserQuotaEndpoint = "\(baseURL)/v1internal:retrieveUserQuota"
     private static let retrieveUserQuotaSummaryEndpoint = "\(baseURL)/v1internal:retrieveUserQuotaSummary"
     private static let refreshSafetyWindow: TimeInterval = 60
+    private static let clientMetadata = [
+        "ideType": "ANTIGRAVITY",
+        "platform": "PLATFORM_UNSPECIFIED",
+        "pluginType": "GEMINI",
+    ]
 
     private struct FetchContext {
         let timeout: TimeInterval
@@ -195,13 +213,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws
         -> CodeAssistResponse
     {
-        let body = [
-            "metadata": [
-                "ideType": "ANTIGRAVITY",
-                "platform": "PLATFORM_UNSPECIFIED",
-                "pluginType": "GEMINI",
-            ],
-        ]
+        let body = ["metadata": Self.clientMetadata]
         return try await Self.sendRequest(
             endpoint: Self.loadCodeAssistEndpoint,
             accessToken: accessToken,
@@ -378,11 +390,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
 
         let onboardBody: [String: Any] = [
             "tierId": tierID,
-            "metadata": [
-                "ideType": "ANTIGRAVITY",
-                "platform": "PLATFORM_UNSPECIFIED",
-                "pluginType": "GEMINI",
-            ],
+            "metadata": Self.clientMetadata,
         ]
 
         do {

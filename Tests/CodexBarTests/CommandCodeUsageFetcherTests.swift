@@ -532,9 +532,9 @@ struct CommandCodeUsageFetcherTests {
     }
 
     @Test
-    func `cookie header accepts bare token and uses secure name`() throws {
+    func `cookie header accepts bare token and uses production name`() throws {
         let override = try #require(CommandCodeCookieHeader.override(from: "bare-value"))
-        #expect(override.name == "__Secure-better-auth.session_token")
+        #expect(override.name == "__Secure-commandcode_prod_.session_token")
         #expect(override.token == "bare-value")
     }
 

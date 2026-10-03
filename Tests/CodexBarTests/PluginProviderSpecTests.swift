@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBar
 @testable import CodexBarCore
@@ -19,6 +20,21 @@ struct PluginProviderSpecTests {
         .synthetic, .chutes, .v0, .elevenlabs, .neuralwatt, .clawrouter,
         .aixy, .bifrost, .deepgram, .llmproxy, .litellm, .sub2api, .llmman,
     ]
+
+    @Test
+    func `automatic cookie guidance names each provider browser policy and manual alternative`() throws {
+        let fixture = try ProviderSettingsDescriptorTests().makeSettingsFixture(suite: #function)
+        fixture.settings.debugDisableKeychainAccess = false
+        for provider in [UsageProvider.museai, .raycast, .perplexity] {
+            let implementation = try #require(ProviderCatalog.implementation(for: provider))
+            let picker = try #require(implementation.settingsPickers(
+                context: fixture.settingsContext(provider: provider)).first)
+            let browsers = ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
+            let names = browsers.map(\.displayName).joined(separator: ", ")
+            #expect(picker.subtitle.contains("Supported browsers: \(names). Use Manual for other browsers."))
+            #expect(picker.dynamicSubtitle?()?.contains("Supported browsers: \(names).") == true)
+        }
+    }
 
     @Test
     func `plugin registration and settings preserve their baseline`() async throws {

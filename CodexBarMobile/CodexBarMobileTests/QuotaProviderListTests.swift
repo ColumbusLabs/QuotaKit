@@ -389,6 +389,12 @@ struct QuotaProviderListTests {
         #expect(aiAnd == nil)
     }
 
+    @Test
+    func `LithosAI prepaid billing has no quota alert subscription`() {
+        #expect(!QuotaProviderList.providers.contains { $0.id == "lithosai" })
+        #expect(QuotaProviderList.providers.count == 72)
+    }
+
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.
     /// Pin them by id + displayName so a rename on either side doesn't
     /// silently break push delivery for the new providers.

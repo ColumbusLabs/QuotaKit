@@ -142,7 +142,11 @@ which produced no label at all once fewer than ~3.5 days remained. That dropped
 the bar to the static `Credits` title and hid pace for the back half of every
 weekly cycle.
 4) **Local session signals** (informational fallback)
-   - Walks `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` files (last 30 days).
+   - Scans `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` for the last 30 local calendar days,
+     including today. Files dated outside that window are excluded so daily buckets and aggregate totals agree.
+   - Discovery stops at each session directory and reads only its direct `signals.json`; artifact subtrees are not
+     traversed, and nested signal files do not count as sessions. Quota enrichment and billing-failure fallback share
+     this bounded scan.
    - Aggregates `totalTokensBeforeCompaction`, `contextTokensUsed`, `modelsUsed`,
      and the most recent session timestamp.
 

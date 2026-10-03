@@ -228,6 +228,20 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             instanceResolver: instanceCookieResolver)
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
         contextOptions.cookieJar = cookieJar
+        if self.manifest.usesCookieJar {
+            let jar = contextOptions.cookieJar ?? ProviderPluginCookieJar(
+                headerEcho: self.manifest.cookiePolicy?.headerEcho)
+            let resolver = contextOptions.cookieSessionResolver
+            contextOptions.cookieJar = jar
+            contextOptions.cookieSessionResolver = { domain, cachedOnly in
+                guard let session = try await resolver?(domain, cachedOnly) else { return nil }
+                guard session.origin == "https://\(domain)" else {
+                    throw ProviderPluginError.secretAccess("cookie session origin does not match its domain")
+                }
+                jar.register(session)
+                return session
+            }
+        }
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<ProviderPluginResult>()
         let finish: @Sendable (Result<ProviderPluginResult, Error>) -> Void = { [weak worker] result in
@@ -641,6 +655,9 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     {
         let ctx = JSValue(newObjectIn: self.context)!
         let host = JSValue(newObjectIn: self.context)!
+        host.setObject(
+            BrowserCookieImportSupport.browserNames(for: self.manifest.id.firstPartyProvider),
+            forKeyedSubscript: "cookieBrowserNames" as NSString)
         ctx.setObject(now.timeIntervalSince1970 * 1000, forKeyedSubscript: "__quotaKitNowMillis" as NSString)
         if let optionalRequestTimeoutSeconds = contextOptions.optionalRequestTimeoutSeconds {
             ctx.setObject(

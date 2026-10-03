@@ -177,24 +177,24 @@ struct ProviderRegistryTests {
     }
 
     @Test
-    func `reviewed provider accents match source audit and widget colors stay unchanged`() {
+    func `reviewed provider accents also drive widget colors`() {
         let expected: [(UsageProvider, String, String)] = [
-            (.abacus, "#814EE8", "#38BDF8"),
-            (.amp, "#F34E3F", "#DC2626"),
-            (.augment, "#1AA049", "#8B5CF6"),
-            (.bedrock, "#01A88D", "#FF9900"),
-            (.clinepass, "#5487C8", "#61A3FA"),
-            (.codebuff, "#00FF95", "#44FF00"),
+            (.abacus, "#814EE8", "#814EE8"),
+            (.amp, "#F34E3F", "#F34E3F"),
+            (.augment, "#1AA049", "#1AA049"),
+            (.bedrock, "#01A88D", "#01A88D"),
+            (.clinepass, "#5487C8", "#5487C8"),
+            (.codebuff, "#00FF95", "#00FF95"),
             (.commandcode, "#8C4EDD", "#000000"),
-            (.cursor, "#F54E00", "#000000"),
-            (.deepseek, "#4D6BFE", "#527DF0"),
-            (.devin, "#317CFF", "#46B482"),
-            (.kiro, "#9046FF", "#D97706"),
-            (.longcat, "#29E154", "#FFD100"),
-            (.mistral, "#FF5229", "#FF500F"),
-            (.neuralwatt, "#D55934", "#38D98C"),
-            (.sub2api, "#14B8A6", "#2DC6D8"),
-            (.venice, "#3C8FDD", "#3399FF"),
+            (.cursor, "#F54E00", "#F54E00"),
+            (.deepseek, "#4D6BFE", "#4D6BFE"),
+            (.devin, "#317CFF", "#317CFF"),
+            (.kiro, "#9046FF", "#9046FF"),
+            (.longcat, "#29E154", "#29E154"),
+            (.mistral, "#FF5229", "#FF5229"),
+            (.neuralwatt, "#D55934", "#D55934"),
+            (.sub2api, "#14B8A6", "#14B8A6"),
+            (.venice, "#3C8FDD", "#3C8FDD"),
         ]
 
         for (provider, accent, widgetColor) in expected {

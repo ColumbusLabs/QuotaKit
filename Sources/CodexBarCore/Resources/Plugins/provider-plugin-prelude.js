@@ -129,6 +129,7 @@
   );
 
   ctx.browser = Object.freeze({
+    supportedBrowsers: host.cookieBrowserNames,
     availability(domain) {
       return host.cookieAvailability(String(domain));
     },

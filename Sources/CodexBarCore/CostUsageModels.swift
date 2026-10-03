@@ -125,7 +125,7 @@ public struct CostUsageSessionBreakdown: Sendable, Equatable, Identifiable {
     public let costUSD: Double?
     public let modelBreakdowns: [CostUsageDailyReport.ModelBreakdown]
     public let projectPath: String?
-    public let projectName: String?
+    public internal(set) var projectName: String?
     public private(set) var title: String?
     /// Original rollout working directory, retained for relative Codex SQLite-home lookup.
     var workingDirectory: String?
@@ -443,7 +443,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
 public struct CostUsageProjectBreakdown: Sendable, Equatable {
     public static let unknownProjectName = "Unknown project"
 
-    public let name: String
+    public internal(set) var name: String
     public let path: String?
     public let totalTokens: Int?
     public let totalCostUSD: Double?

@@ -94,5 +94,6 @@ enum ProviderImplementationManifest {
         { MuseProviderImplementation() },
         { PiProviderImplementation() },
         { PluginCookieProviderImplementation(spec: MuseAIProviderDescriptor.spec) },
+        { PluginCookieProviderImplementation(spec: LithosAIProviderDescriptor.spec) },
     ]
 }

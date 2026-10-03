@@ -88,6 +88,11 @@ struct ProviderPluginCookieRecord: Codable, Equatable, Sendable {
 public final class ProviderPluginCookieJar: @unchecked Sendable {
     private let lock = NSLock()
     private var sessions: [String: ProviderPluginCookieSession] = [:]
+    private let headerEcho: ProviderPluginCookieHeaderEcho?
+
+    init(headerEcho: ProviderPluginCookieHeaderEcho? = nil) {
+        self.headerEcho = headerEcho
+    }
 
     func register(_ session: ProviderPluginCookieSession) {
         self.lock.withLock { self.sessions[session.id] = session }
@@ -126,13 +131,29 @@ public final class ProviderPluginCookieJar: @unchecked Sendable {
               let id = sessionID as? String,
               !id.isEmpty,
               let jar,
-              let url = request.url,
+              request.url != nil,
               request.value(forHTTPHeaderField: "Cookie") == nil,
               request.value(forHTTPHeaderField: "Host") == nil
         else {
             throw ProviderPluginError.secretAccess("request requires an opaque cookie session without header overrides")
         }
-        try request.setValue(jar.header(id: id, url: url), forHTTPHeaderField: "Cookie")
+        if let echo = jar.headerEcho, request.value(forHTTPHeaderField: echo.header) != nil {
+            throw ProviderPluginError.secretAccess("plugins may not override the cookie echo header")
+        }
+        try jar.apply(to: &request, id: id)
+    }
+
+    func apply(to request: inout URLRequest, id: String, now: Date = Date()) throws {
+        guard let url = request.url else { throw URLError(.badURL) }
+        let cookies = try self.header(id: id, url: url, now: now)
+        try request.setValue(cookies, forHTTPHeaderField: "Cookie")
+        guard let echo = self.headerEcho else { return }
+        try request.setValue(nil, forHTTPHeaderField: echo.header)
+        guard echo.origin == "https://\(url.host?.lowercased() ?? "")" else { return }
+        guard self.lock.withLock({ self.sessions[id]?.origin }) == echo.origin else {
+            throw ProviderPluginError.secretAccess("cookie echo session does not match its origin")
+        }
+        try request.setValue(try echo.value(from: cookies), forHTTPHeaderField: echo.header)
     }
 }
 
@@ -152,9 +173,8 @@ struct ProviderPluginCookieTransport: ProviderHTTPTransport {
     }()
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        guard let url = request.url else { throw URLError(.badURL) }
         var request = request
-        try request.setValue(self.jar.header(id: self.id, url: url), forHTTPHeaderField: "Cookie")
+        try self.jar.apply(to: &request, id: self.id)
         if let client = self.base as? ProviderHTTPClient, client === ProviderHTTPClient.shared {
             return try await Self.session.data(
                 for: request,
@@ -185,12 +205,14 @@ struct ProviderPluginCookieTransport: ProviderHTTPTransport {
         func redirectedRequest(originalURL: URL?, request: URLRequest) -> URLRequest? {
             guard var redirected = ProviderHTTPRedirectGuardDelegate.guardedRedirectRequest(
                 originalURL: originalURL,
-                redirectRequest: request),
-                let url = redirected.url,
-                let header = try? self.jar.header(id: self.id, url: url)
+                redirectRequest: request)
             else { return nil }
-            redirected.setValue(header, forHTTPHeaderField: "Cookie")
-            return redirected
+            do {
+                try self.jar.apply(to: &redirected, id: self.id)
+                return redirected
+            } catch {
+                return nil
+            }
         }
     }
 }

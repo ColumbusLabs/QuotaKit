@@ -4,6 +4,15 @@ import Testing
 @testable import CodexBarCore
 
 struct BrowserCookieImportSupportTests {
+    @Test
+    func `browser labels and Chromium keychain policy follow catalog metadata`() throws {
+        #expect(BrowserCookieImportSupport.browserNames(for: nil) == "Chrome")
+        #expect(BrowserCookieImportSupport.browserNames(for: .museai) == "Chrome")
+        for browser in Browser.allCases {
+            #expect(browser.usesKeychainForCookieDecryption == browser.usesChromiumProfileStore)
+        }
+    }
+
     @Test(arguments: [
         UsageProvider.copilot,
         .grok,

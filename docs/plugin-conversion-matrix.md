@@ -8,7 +8,7 @@ read_when:
 # Provider plugin conversion matrix
 
 This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
-catalog. The current checkout registers 88 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+catalog. The current checkout registers 89 `UsageProvider` cases. Notion remains in the audit because it was explicitly
 requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
 for the prototype context.
 

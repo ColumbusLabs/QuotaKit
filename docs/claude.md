@@ -317,8 +317,9 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 - Cache:
   - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart. Dashboard and regular report windows keep separate cache files so duplicate proxy responses cannot leak a winner between ranges. Oversized token components remain unavailable independently while representable components and costs stay visible.
   - Claude and Vertex cache saves retain a bounded set of file-stamped content identities independently of decoded-cache eviction. Unchanged artifacts avoid re-encoding; byte-identical reconstructed content preserves its file stamp. Changed artifacts and report memos use atomic replacement, with full file identity checks rejecting externally replaced data.
+  - If the pricing catalog changes during a refresh, QuotaKit preserves the parsed transcript-window certificate. The next refresh applies the new prices to cached rows without reparsing unchanged transcripts, including after a restart; an externally replaced transcript cache still requires window certification again.
   - Raw-line prechecks skip impossible Vertex-only transcript records before decoding or recursively visiting metadata; escaped marker forms still receive full classification.
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v14.json`
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v16.json`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Quota warnings

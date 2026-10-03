@@ -2,10 +2,10 @@
 
 This selective refresh applies the 16 source-supported accents adopted by the
 final upstream palette audit at `25bba9b7fd9ce83c33053958f7366e23b2dc8a82`.
-Only provider app accents and the matching iOS app swatches changed. The final
-upstream audit covered 36 providers: 9 proposals were retained after contrast
-review, and 11 remained unverified. QuotaKit keeps its current values for those
-20 providers.
+Mac app accents and matching iOS app swatches changed, and Mac widgets now use
+those accents for the reviewed providers. The final upstream audit covered 36
+providers: 9 proposals were retained after contrast review, and 11 remained
+unverified. QuotaKit keeps its current values for those 20 providers.
 
 ## Adopted app accents
 
@@ -34,12 +34,13 @@ contrast non-regression review, not an accessibility certification.
 
 ## Preserved color roles
 
-`ProviderDescriptor.branding.color` remains the Mac app accent. The descriptor
-`widgetColor` is now explicit for these 16 providers so the Mac widgets keep
-their previous RGB values. The mobile app's raw palette mirrors the updated Mac
-accents, while the mobile widget lookup preserves its previous raw colors for
-these providers and applies the same appearance adaptation. Other mobile widget
-colors still fall back to the app palette.
+`ProviderDescriptor.branding.color` remains the Mac app accent. Mac widgets now
+use that same accent for Abacus, Amp, Augment, Bedrock, ClinePass, Codebuff,
+Cursor, DeepSeek, Devin, Kiro, LongCat, Mistral, NeuralWatt, Sub2API, and
+Venice. CommandCode keeps its explicit black widget treatment. The iOS widget
+lookup continues to preserve its previous raw colors for these providers and
+applies its existing appearance adaptation; this fork-specific mobile palette
+policy is independent of the Mac widget palette.
 
 Confetti palettes were not refreshed. Moonshot's `#121212` confetti ink stays
 in place, and Kimi keeps QuotaKit's documented rose accent `#F43F5E`.

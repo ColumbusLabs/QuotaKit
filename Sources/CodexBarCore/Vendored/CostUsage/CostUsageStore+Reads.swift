@@ -428,6 +428,59 @@ extension CostUsageStore {
         }
     }
 
+    /// Rebuilds the compact Codex baseline from the caller's current transaction. The
+    /// unchanged-save path uses this only when retention or budget enforcement made local
+    /// writes before metadata certification, so those writes cannot be hidden by a newer stamp.
+    func readCodexScanSnapshotInCurrentTransaction() -> (
+        snapshot: CostUsageStoreSnapshot,
+        stamp: CodexScanStamp,
+        usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]],
+        usageRowCountsByPath: [String: Int])?
+    {
+        self.withDatabase(default: nil) { database in
+            guard sqlite3_get_autocommit(database) == 0,
+                  let before = self.currentCodexScanStamp()
+            else { return nil }
+            #if DEBUG
+            CostUsageStoreTestHooks.current.snapshotRead?(self.databaseURL)
+            #endif
+            var snapshot = try Self.readSnapshot(
+                database,
+                loadTokenSnapshots: false,
+                loadUsageRows: false,
+                storeURL: self.databaseURL)
+            let markers = Self.codexTokenSnapshotMarkersByPath(from: snapshot.files)
+            let accumulators = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
+            var counts: [String: Int] = [:]
+            var fallbackPaths: Set<String> = []
+            for file in snapshot.files {
+                guard file.scanState.replacementScanPending != true,
+                      markers[file.path] == true,
+                      let accumulator = accumulators[file.path],
+                      accumulator.eventCount > 0
+                else {
+                    fallbackPaths.insert(file.path)
+                    continue
+                }
+                counts[file.path] = accumulator.eventCount
+            }
+            if !fallbackPaths.isEmpty {
+                try counts.merge(
+                    Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
+                    uniquingKeysWith: { _, exact in exact })
+            }
+            snapshot.tokenSnapshotCounts = counts
+            snapshot.tokenSnapshotsLoaded = false
+            let usageRows = try Self.readDecodedUsageRows(database)
+            guard let after = self.currentCodexScanStamp(), before == after else { return nil }
+            return (
+                snapshot: snapshot,
+                stamp: after,
+                usageRowsByPath: usageRows.rowsByPath,
+                usageRowCountsByPath: usageRows.rowCountsByPath)
+        }
+    }
+
     /// Reads the compact Codex manifest and aggregate tables without materializing the event
     /// ledger. Event rows are loaded only for `hydratingPaths`, which is the working set selected
     /// by a bounded scanner pass. This intentionally does not call `readSnapshot()` so callers

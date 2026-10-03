@@ -68,7 +68,35 @@ public enum ProviderPluginCapability: String, Hashable, Sendable {
 }
 
 struct ProviderPluginCookiePolicy: Sendable {
+    enum Imports: String, Sendable {
+        case appInteractive = "app-interactive"
+        case accessGated = "access-gated"
+    }
+
+    let imports: Imports
+    let requiredCookies: Set<String>
+    let headerEcho: ProviderPluginCookieHeaderEcho?
+
+    init(
+        imports: Imports = .appInteractive,
+        requiredCookies: Set<String> = [],
+        headerEcho: ProviderPluginCookieHeaderEcho? = nil)
+    {
+        self.imports = imports
+        self.requiredCookies = requiredCookies
+        self.headerEcho = headerEcho
+    }
+
     static let requestURLNonpersistent = Self()
+
+    func allowsImportAttempt(runtime: ProviderRuntime, interaction: ProviderInteraction) -> Bool {
+        self.imports == .accessGated || (runtime == .app && interaction == .userInitiated)
+    }
+
+    func hasRequiredCookies(_ records: [ProviderPluginCookieRecord], now: Date = Date()) -> Bool {
+        let available = Set(records.filter { $0.expires.map { $0 > now } ?? true }.map(\.name))
+        return self.requiredCookies.isSubset(of: available)
+    }
 }
 
 public struct ProviderPluginManifest: Sendable {
@@ -301,7 +329,9 @@ public struct ProviderPluginManifest: Sendable {
                   capabilities.contains(.browserCookies),
                   value.isObject,
                   !value.isArray,
-                  try Set(value.propertyNames()) == ["selection", "cache"],
+                  try Set(value.propertyNames()).isSubset(of: [
+                      "selection", "cache", "imports", "requiredCookies", "headerEcho",
+                  ]),
                   let selection = value.property("selection"), selection.isString,
                   selection.stringValue() == "request-url",
                   let cache = value.property("cache"), cache.isString,
@@ -318,7 +348,50 @@ public struct ProviderPluginManifest: Sendable {
                     "cookiePolicy requires bundled browser cookies, HTTPS origins, " +
                         "request-url selection, and nonpersistent storage")
             }
-            self.cookiePolicy = .requestURLNonpersistent
+            var requiredCookies = Set<String>()
+            if let list = value.property("requiredCookies"), !list.isUndefined {
+                guard list.isArray,
+                      let count = list.property("length"), (1...16).contains(count.int32Value())
+                else { throw ProviderPluginError.invalidManifest("invalid bundled cookie requiredCookies") }
+                for index in 0..<Int(count.int32Value()) {
+                    guard let item = list.element(at: index), item.isString else {
+                        throw ProviderPluginError.invalidManifest("invalid bundled cookie requiredCookies")
+                    }
+                    let name = item.stringValue()
+                    guard name.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil,
+                          requiredCookies.insert(name).inserted
+                    else { throw ProviderPluginError.invalidManifest("invalid bundled cookie requiredCookies") }
+                }
+            }
+            let imports: ProviderPluginCookiePolicy.Imports
+            if let value = value.property("imports"), !value.isUndefined {
+                guard value.isString,
+                      let parsed = ProviderPluginCookiePolicy.Imports(rawValue: value.stringValue())
+                else { throw ProviderPluginError.invalidManifest("invalid bundled cookie imports policy") }
+                imports = parsed
+            } else {
+                imports = .appInteractive
+            }
+            let headerEcho: ProviderPluginCookieHeaderEcho?
+            if let value = value.property("headerEcho"), !value.isUndefined {
+                headerEcho = try ProviderPluginCookieHeaderEcho(
+                    value,
+                    domains: cookieDomains,
+                    endpoints: endpoints,
+                    requiredCookies: requiredCookies)
+            } else {
+                headerEcho = nil
+            }
+            let cookiePolicy = ProviderPluginCookiePolicy(
+                imports: imports,
+                requiredCookies: requiredCookies,
+                headerEcho: headerEcho)
+            if let echo = cookiePolicy.headerEcho, let auth = self.auth,
+               echo.header.caseInsensitiveCompare(auth.header) == .orderedSame
+            {
+                throw ProviderPluginError.invalidManifest("cookie headerEcho may not replace manifest auth")
+            }
+            self.cookiePolicy = cookiePolicy
         } else {
             self.cookiePolicy = nil
         }

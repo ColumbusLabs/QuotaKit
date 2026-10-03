@@ -87,7 +87,8 @@
     "nous",
     "muse",
     "pi",
-    "museai"
+    "museai",
+    "lithosai"
   ],
   "order": [
     "codex",
@@ -177,7 +178,8 @@
     "nous",
     "muse",
     "pi",
-    "museai"
+    "museai",
+    "lithosai"
   ],
   "providers": [
     {

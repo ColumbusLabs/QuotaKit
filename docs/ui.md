@@ -99,6 +99,8 @@ accessibility.
   status items. Critter and bar styles keep their existing renderers.
 
 ## Menu card
+- Cards with a history submenu show the active menu selection; deselecting the card clears it. Credits and other sections are separate menu items, so selecting usage does not highlight them.
+- Two-column statistics headings wrap to keep the full localized label readable, including estimated current-window tokens.
 - Provider-specific rows with resets (countdown by default; optional absolute clock display). Primary, secondary,
   tertiary, and extra windows render when the provider snapshot has data for them.
 - Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the

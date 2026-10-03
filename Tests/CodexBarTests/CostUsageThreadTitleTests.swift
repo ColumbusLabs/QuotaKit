@@ -15,11 +15,28 @@ struct CostUsageThreadTitleTests {
         defer { fixture.remove() }
         let fileManager = ListingFileManager()
 
-        let result = CostUsageFetcher.codexSessionsWithThreadTitles(
+        let project = CostUsageProjectBreakdown(
+            name: "Synthetic",
+            path: "/synthetic/canonical",
+            totalTokens: nil,
+            totalCostUSD: nil,
+            daily: [],
+            modelBreakdowns: nil,
+            sources: Set(fixture.sessions.compactMap(\.workingDirectory)).map {
+                CostUsageProjectSourceBreakdown(
+                    name: "Worktree",
+                    path: $0,
+                    totalTokens: nil,
+                    totalCostUSD: nil,
+                    daily: [],
+                    modelBreakdowns: nil)
+            })
+        let result = CostUsageFetcher.codexBreakdownsWithMetadata(
             fixture.sessions,
+            projects: [project],
             sessionsRoot: fixture.home.appendingPathComponent("sessions", isDirectory: true),
             environment: ["CODEX_SQLITE_HOME": ".codex"],
-            fileManager: fileManager)
+            fileManager: fileManager).sessions
 
         #expect(result == fixture.expected)
         #expect(fileManager.listings.count == fixture.sqliteHomes.count)
@@ -34,8 +51,8 @@ struct CostUsageThreadTitleTests {
         let sessionsRoot = fixture.home.appendingPathComponent("sessions", isDirectory: true)
         let environment = ["CODEX_SQLITE_HOME": fixture.sqliteHomes[0].path]
 
-        let first = CostUsageFetcher.codexSessionsWithThreadTitles(
-            sessions, sessionsRoot: sessionsRoot, environment: environment)
+        let first = CostUsageFetcher.codexBreakdownsWithMetadata(
+            sessions, sessionsRoot: sessionsRoot, environment: environment).sessions
         #expect(first.map(\.title) == ["Indexed title", "Home 0 session-1"])
 
         try Self.createDatabase(
@@ -46,8 +63,8 @@ struct CostUsageThreadTitleTests {
             atomically: true,
             encoding: .utf8)
 
-        let second = CostUsageFetcher.codexSessionsWithThreadTitles(
-            sessions, sessionsRoot: sessionsRoot, environment: environment)
+        let second = CostUsageFetcher.codexBreakdownsWithMetadata(
+            sessions, sessionsRoot: sessionsRoot, environment: environment).sessions
         #expect(second.map(\.title) == ["Renamed in index", "Updated session-1"])
     }
 

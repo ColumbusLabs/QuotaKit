@@ -86,6 +86,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private let settings: ProviderSettingsSnapshot.CookieProviderSettings
     private let importer: BatchImporter
     private let usesCookieJar: Bool
+    private let policy: ProviderPluginCookiePolicy?
     let cookieJar: ProviderPluginCookieJar
     private let jarImporter: JarImporter?
     private var importedJar: [String: [(records: [ProviderPluginCookieRecord], source: String)]] = [:]
@@ -107,10 +108,14 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         domains: Set<String>,
         context: ProviderFetchContext,
         importer: BatchImporter? = nil,
-        usesCookieJar: Bool = false)
+        usesCookieJar: Bool = false,
+        policy: ProviderPluginCookiePolicy? = nil)
     {
         let detection = context.browserDetection
-        let canImportJar = context.runtime == .app && ProviderInteractionContext.current == .userInitiated
+        let canImportJar = policy?.allowsImportAttempt(
+            runtime: context.runtime,
+            interaction: ProviderInteractionContext.current)
+            ?? (context.runtime == .app && ProviderInteractionContext.current == .userInitiated)
         let jarImporter: JarImporter? = if usesCookieJar {
             { domain in
                 guard canImportJar else { return [] }
@@ -134,7 +139,8 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                     provider: provider, domain: domain, browserDetection: context.browserDetection)
             },
             usesCookieJar: usesCookieJar,
-            jarImporter: jarImporter)
+            jarImporter: jarImporter,
+            policy: policy)
     }
 
     convenience init(
@@ -155,13 +161,15 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         batches: @escaping BatchImporter,
         usesCookieJar: Bool = false,
         jarImporter: JarImporter? = nil,
-        cookieJar: ProviderPluginCookieJar = ProviderPluginCookieJar())
+        cookieJar: ProviderPluginCookieJar? = nil,
+        policy: ProviderPluginCookiePolicy? = nil)
     {
         self.provider = provider
         self.domains = domains
         self.settings = settings
         self.importer = batches
         self.usesCookieJar = usesCookieJar
+        self.policy = policy
         #if os(macOS)
         if let jarImporter {
             let contextualJarImporter: JarImporter =
@@ -173,7 +181,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         #else
         self.jarImporter = jarImporter
         #endif
-        self.cookieJar = cookieJar
+        self.cookieJar = cookieJar ?? ProviderPluginCookieJar(headerEcho: policy?.headerEcho)
     }
 
     var cookieSource: ProviderCookieSource {
@@ -238,6 +246,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             self.visited.insert(domain)
             if self.usesCookieJar {
                 let records = Self.manualRecords(header, domain: domain)
+                guard self.policy?.hasRequiredCookies(records) != false else { return nil }
                 return self.issue(header: "", source: "manual", domain: domain, cacheEntry: nil, records: records)
             }
             return self.issue(header: header, source: "manual", domain: domain, cacheEntry: nil)
@@ -258,6 +267,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                         .joined(separator: "\u{1f}")
                 }.sorted().joined(separator: "\u{1e}")
                 guard !candidate.records.isEmpty,
+                      self.policy?.hasRequiredCookies(candidate.records) != false,
                       self.seenJar[domain, default: []].insert(signature).inserted
                 else { continue }
                 return self.issue(
@@ -414,8 +424,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         #if os(macOS)
         let query = Self.cookieQuery(domain: domain, provider: provider)
         let client = BrowserCookieClient()
-        let order = provider.map { ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder }
-            ?? [Browser.chrome]
+        let order = BrowserCookieImportSupport.importOrder(for: provider)
         var sessions: [(header: String, source: String)] = []
         for browser in order.cookieImportCandidates(using: browserDetection) {
             do {

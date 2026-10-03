@@ -79,8 +79,16 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    private var cookieBrowserHint: String {
+        L(
+            "Supported browsers: %@. Use Manual for other browsers.",
+            BrowserCookieImportSupport.browserNames(for: self.id))
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         guard let picker = self.web.picker else { return [] }
+        let autoSubtitle = picker.auto.localized + " " + self.cookieBrowserHint
         let sourceBinding = context.settings.providerCookieSourceBinding(provider: self.id, fallback: .auto)
         let binding = Binding(
             get: { sourceBinding.wrappedValue.rawValue },
@@ -98,13 +106,13 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
         return [ProviderSettingsPickerDescriptor(
             id: picker.id,
             title: "Cookie source",
-            subtitle: picker.auto.localized,
+            subtitle: autoSubtitle,
             dynamicSubtitle: {
                 ProviderCookieSourceUI.subtitle(
                     source: self.source(context.settings),
                     keychainDisabled: context.settings.debugDisableKeychainAccess,
                     subtitles: .init(
-                        auto: picker.auto.localized,
+                        auto: autoSubtitle,
                         manual: picker.manual.localized,
                         off: picker.off.localized))
             },

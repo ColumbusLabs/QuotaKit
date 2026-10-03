@@ -1090,8 +1090,45 @@ extension SpendDashboardModelTests {
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
         #expect(group.projects.map(\.totalCost) == [7, 5])
-        #expect(Set(group.projects.map(\.id)) == ["codex-a:shared", "codex-b:shared"])
+        #expect(Set(group.projects.map(\.id)) == ["codex-a:path:/tmp/shared", "codex-b:path:/tmp/shared"])
         #expect(group.projects[0].providerName == "Codex · #2")
+    }
+
+    @Test
+    func `same named projects keep distinct paths and row identities`() throws {
+        let projects = [
+            Self.project(name: "work", days: [("2026-07-15", 20)], path: "/first/work"),
+            Self.project(name: "work", days: [("2026-07-15", 5)], path: "/second/work"),
+            Self.project(name: "Renamed", days: [("2026-07-16", 3)], path: "/first/work"),
+        ]
+        let input = SpendDashboardModel.ProviderInput(
+            id: "codex-a",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [
+                    Self.entry(day: "2026-07-15", cost: 25),
+                    Self.entry(day: "2026-07-16", cost: 3),
+                ],
+                projects: projects))
+        let rows = try #require(Self.model(inputs: [input]).groups.first).projects
+        #expect(rows.count == 2)
+        #expect(Set(rows.map(\.id)).count == 2)
+        #expect(rows.map(\.path) == ["/first/work", "/second/work"])
+        #expect(rows.map(\.totalCost) == [23, 5])
+        #expect(rows.map(\.totalTokens) == [20, 10])
+
+        let renamed = SpendDashboardModel.ProjectRow(
+            rank: 1,
+            provider: .codex,
+            providerName: "Codex",
+            sourceID: "codex-a",
+            projectName: "New name",
+            path: "/first/work",
+            totalTokens: 20,
+            totalCost: 23)
+        #expect(rows[0].id == renamed.id)
     }
 
     @Test
@@ -1168,11 +1205,12 @@ extension SpendDashboardModelTests {
     private static func project(
         name: String,
         days: [(String, Double?)],
-        tokens: Int? = 10) -> CostUsageProjectBreakdown
+        tokens: Int? = 10,
+        path: String? = nil) -> CostUsageProjectBreakdown
     {
         CostUsageProjectBreakdown(
             name: name,
-            path: "/tmp/\(name)",
+            path: path ?? "/tmp/\(name)",
             totalTokens: nil,
             totalCostUSD: nil,
             daily: days.map { day, cost in

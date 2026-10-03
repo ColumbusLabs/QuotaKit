@@ -43,3 +43,4 @@ This directory contains research documents for QuotaKit iOS features and sync wo
 | 049 | Kimi labeled web accounts | `done` | Labeled web accounts sync through distinct account identities with delimiter-safe record cleanup | [049-kimi-labeled-web-accounts.md](049-kimi-labeled-web-accounts.md) | 2026-09-23 |
 | 050 | Replicate billing sync | `in-progress` | Focused Mac/iPhone identity and spend-only verification pending | [050-replicate-billing-sync.md](050-replicate-billing-sync.md) | 2026-09-23 |
 | 058 | MuseAI provider support | `in-progress` | Focused Mac/iOS verification pending | [058-museai-provider-support.md](058-museai-provider-support.md) | 2026-10-02 |
+| 059 | LithosAI provider support | `done` | Balance-only mobile contract reviewed; hosted integration gate required | [059-lithosai-provider-support.md](059-lithosai-provider-support.md) | 2026-10-03 |

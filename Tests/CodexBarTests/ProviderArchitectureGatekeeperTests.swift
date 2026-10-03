@@ -25,7 +25,7 @@ import Testing
 struct ProviderArchitectureGatekeeperTests {
     private static let postBaselineProviders: Set<UsageProvider> = [
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-        .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai,
+        .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -149,7 +149,7 @@ struct ProviderArchitectureGatekeeperTests {
     }
 
     @Test
-    func `descriptor widget colors preserve the pre-derivation literals`() {
+    func `descriptor widget colors preserve the reviewed palette`() {
         var widgetFingerprint: UInt64 = 1_469_598_103_934_665_603
         var burnDownFingerprint = widgetFingerprint
         let legacyDescriptors = ProviderDescriptorRegistry.all.filter {
@@ -162,8 +162,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        // Manus now uses its canonical #34322D brand color. Keep the remaining legacy colors pinned.
-        #expect(widgetFingerprint == 8_198_861_169_601_968_258)
+        // Reviewed providers now share their menu accent; pin the rest of the widget palette.
+        #expect(widgetFingerprint == 15_257_423_529_364_337_610)
         #expect(burnDownFingerprint == 13_248_577_987_729_422_950)
 
         let museAI = ProviderDescriptorRegistry.descriptor(for: .museai).branding
@@ -209,7 +209,7 @@ struct ProviderArchitectureGatekeeperTests {
     func `small provider capabilities preserve legacy registries`() {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
-            .deepseek, .deepinfra, .moonshot, .poe, .hyper, .atlascloud, .vercel,
+            .deepseek, .deepinfra, .moonshot, .poe, .hyper, .atlascloud, .vercel, .lithosai,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .perplexity, .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .chutes,

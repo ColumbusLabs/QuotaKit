@@ -10,7 +10,7 @@ import CSQLite3
 
 struct CostUsageStoreBaselineTests {
     @Test
-    func `unchanged Codex scan reuses one decoded snapshot`() throws {
+    func `unchanged Codex scan reuses one decoded snapshot`() async throws {
         let fixture = try BaselineStoreFixture()
         defer { fixture.remove() }
         var calendar = Calendar(identifier: .gregorian)
@@ -45,16 +45,24 @@ struct CostUsageStoreBaselineTests {
         #if DEBUG
         #expect(reads.value == 1)
         #endif
+        var metadataUpdate = second.cache
+        metadataUpdate.lastScanUnixMs += 1000
+        metadataUpdate.codexPriorityTurnsCursor = Self.cursor(
+            databasePath: second.store.databaseURL.path,
+            lastRowID: 10)
+        let writesBefore = await second.store.persistenceWriteMetricsForTesting()
         let saved = CostUsageStoreAccess.save(
             store: second.store,
-            cache: second.cache,
+            cache: metadataUpdate,
             calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
             skipIdenticalContent: true,
             expectedScanStamp: second.scanStamp,
             receipt: second.receipt,
             requireScanStamp: true)
+        let writesAfter = await second.store.persistenceWriteMetricsForTesting()
         #expect(!saved.catchUpRequired)
+        #expect(writesAfter.rows - writesBefore.rows == 1)
         #if DEBUG
         // The receipt carries the already decoded baseline through save.
         #expect(reads.value == 1)
@@ -68,8 +76,10 @@ struct CostUsageStoreBaselineTests {
         #endif
         defer { third.release() }
         #expect(third.cache.files == second.cache.files)
+        #expect(third.cache.lastScanUnixMs == metadataUpdate.lastScanUnixMs)
+        #expect(third.cache.codexPriorityTurnsCursor == metadataUpdate.codexPriorityTurnsCursor)
         #if DEBUG
-        #expect(reads.value == 2)
+        #expect(reads.value == 1)
         #endif
         var changed = third.cache
         changed.files["/sessions/a.jsonl"]?.lastModel = "gpt-5.6-sol"
@@ -85,7 +95,7 @@ struct CostUsageStoreBaselineTests {
         #expect(!changedSave.catchUpRequired)
         #if DEBUG
         // Changed-content persistence also uses the loaded receipt without a second snapshot.
-        #expect(reads.value == 2)
+        #expect(reads.value == 1)
         #endif
         var otherCalendar = calendar
         otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
@@ -93,6 +103,129 @@ struct CostUsageStoreBaselineTests {
         defer { otherZone.release() }
         #expect(otherZone.cache.files.isEmpty)
     }
+
+    @Test
+    func `empty token history does not force a full content rewrite`() async throws {
+        let fixture = try BaselineStoreFixture()
+        defer { fixture.remove() }
+        let calendar = Calendar(identifier: .gregorian)
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/empty-history.jsonl"
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        usage.codexTokenSnapshots = []
+        usage.codexTokenCheckpoints = []
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1000
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        #expect(!store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01")).catchUpRequired)
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        defer { loaded.release() }
+        #expect(loaded.cache.files[path]?.codexTokenSnapshots == [])
+        var incoming = loaded.cache
+        incoming.files[path]?.codexTokenSnapshots = []
+        incoming.files[path]?.codexTokenCheckpoints = []
+        incoming.lastScanUnixMs += 1000
+        let before = await store.persistenceWriteMetricsForTesting()
+        let saved = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: incoming,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
+            requireScanStamp: true)
+        let after = await store.persistenceWriteMetricsForTesting()
+
+        #expect(!saved.catchUpRequired)
+        #expect(after.rows - before.rows == 1)
+        #expect(await store.fetchTokenSnapshots(path: path).isEmpty)
+    }
+
+#if DEBUG
+    @Test(arguments: ["usage", "metadata"])
+    func `external write after metadata commit invalidates retained baseline`(externalWrite: String) async throws {
+        let fixture = try BaselineStoreFixture()
+        defer { fixture.remove() }
+        let calendar = Calendar(identifier: .gregorian)
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/post-commit.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3,
+            knownCostNanos: 1200,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1000
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        #expect(!store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window).catchUpRequired)
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        defer { loaded.release() }
+        var incoming = loaded.cache
+        incoming.lastScanUnixMs += 1000
+        var saveHooks = CostUsageStoreTestHooks.current
+        saveHooks.identicalContentPostCommitCheckpoint = (store.databaseURL, {
+            let sql = externalWrite == "usage"
+                ? "DELETE FROM usage_rows WHERE rowid = (SELECT MIN(rowid) FROM usage_rows)"
+                : "UPDATE scan_metadata SET payload = json_set(CAST(payload AS TEXT), '$.lastScanUnixMs', 12345)"
+            do {
+                try BaselineSQLite.execute(at: store.databaseURL, sql)
+            } catch {
+                Issue.record(error)
+            }
+        })
+        let saved = CostUsageStoreTestHooks.$current.withValue(saveHooks) {
+            CostUsageStoreAccess.save(
+                store: loaded.store,
+                cache: incoming,
+                calendar: calendar,
+                requestedScanWindow: window,
+                skipIdenticalContent: true,
+                expectedScanStamp: loaded.scanStamp,
+                receipt: loaded.receipt,
+                requireScanStamp: true)
+        }
+        #expect(!saved.catchUpRequired)
+
+        let reads = LockIsolated(0)
+        var readHooks = CostUsageStoreTestHooks.current
+        readHooks.snapshotRead = { url in
+            if url == store.databaseURL { reads.setValue(reads.value + 1) }
+        }
+        let fresh = CostUsageStoreTestHooks.$current.withValue(readHooks) {
+            loaded.store.syncLoadCodexScan(calendar: calendar)
+        }
+        defer { fresh.release() }
+        #expect(reads.value == 1)
+        if externalWrite == "metadata" {
+            #expect(fresh.cache.lastScanUnixMs == 12345)
+        } else {
+            #expect(await loaded.store.fetchUsageRows(path: path).isEmpty)
+        }
+    }
+#endif
 
     @Test
     func `released Codex baseline receipt cannot authorize a save`() throws {
@@ -213,6 +346,74 @@ struct CostUsageStoreBaselineTests {
             .codexPriorityTurnsCursor == advancedCursor)
     }
 
+    @Test(arguments: [false, true])
+    func `trigger content writes cannot be certified as metadata-only`(duringBudgetRefresh: Bool) async throws {
+        let fixture = try BaselineStoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/triggered.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3,
+            knownCostNanos: 1200,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1000
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        #expect(!store.syncSaveCodexCache(cache, calendar: .current, requestedScanWindow: window).catchUpRequired)
+
+        if duringBudgetRefresh {
+            var staleMetadata = await store.fetchMetadata()
+            staleMetadata.verifiedScanSinceDay = nil
+            staleMetadata.verifiedScanUntilDay = nil
+            staleMetadata.verifiedUpdatedAtUnixMs = nil
+            staleMetadata.verifiedTimeZoneIdentifier = nil
+            staleMetadata.verifiedRootPaths = nil
+            staleMetadata.verifiedLedgerVersion = nil
+            #expect(await store.setMetadata(staleMetadata))
+        }
+        try BaselineSQLite.execute(at: store.databaseURL, """
+        CREATE TRIGGER delete_usage_after_metadata_write
+        AFTER UPDATE ON scan_metadata
+        BEGIN
+            DELETE FROM usage_rows WHERE rowid = (SELECT MIN(rowid) FROM usage_rows);
+        END
+        """)
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: .current)
+        defer { loaded.release() }
+        var incoming = loaded.cache
+        incoming.lastScanUnixMs += 1000
+        let saved = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: incoming,
+            calendar: .current,
+            requestedScanWindow: window,
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
+            requireScanStamp: true)
+
+        #expect(saved.catchUpRequired)
+        #expect(await store.fetchUsageRows(path: path).count == 1)
+        #expect(await store.rebuildCount == 0)
+    }
+
     @Test
     func `database inode replacement invalidates a loaded Codex baseline`() async throws {
         let fixture = try BaselineStoreFixture()
@@ -268,6 +469,21 @@ struct CostUsageStoreBaselineTests {
             completedModelsByTurnID: [:],
             completedTurnIDInsertionOrder: [],
             completedTurnIDInsertionOrderStartIndex: 0)
+    }
+}
+
+private enum BaselineSQLite {
+    enum TestError: Error {
+        case sqlite(Int32)
+    }
+
+    static func execute(at url: URL, _ sql: String) throws {
+        var database: OpaquePointer?
+        let opened = sqlite3_open_v2(url.path, &database, SQLITE_OPEN_READWRITE, nil)
+        guard opened == SQLITE_OK, let database else { throw TestError.sqlite(opened) }
+        defer { sqlite3_close_v2(database) }
+        let result = sqlite3_exec(database, sql, nil, nil, nil)
+        guard result == SQLITE_OK else { throw TestError.sqlite(result) }
     }
 }
 

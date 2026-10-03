@@ -14,6 +14,9 @@ read_when:
 ## Behavior
 - Toggle: Settings → Advanced → “Check provider status”.
 - `UsageStore` polls status and stores `ProviderStatus` for indicator/description.
+- Overlapping checks publish in request order per provider. An older result cannot replace a newer
+  successful status or trigger recovery from an obsolete failure; if a newer check fails, an older
+  successful result may still publish. Failed checks retain the last successful indicator.
 - Component-group disclosure chevrons rotate when expanded or collapsed; child rows and menu height update
   immediately.
 - Menu shows incident summary + freshness; icon overlays indicator.

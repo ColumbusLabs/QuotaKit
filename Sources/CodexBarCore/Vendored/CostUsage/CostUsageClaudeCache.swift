@@ -43,7 +43,7 @@ struct CostUsageClaudeReportMemoKey: Equatable, Sendable, Codable {
     let scanUntilKey: String
     let timeZoneIdentifier: String
     let roots: [String]
-    let cacheArtifactStamp: CostUsageClaudeFileStamp?
+    var cacheArtifactStamp: CostUsageClaudeFileStamp?
     let pricingArtifactStamp: CostUsageClaudeFileStamp?
 
     var scanConfiguration: ScanConfiguration {
@@ -475,7 +475,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 15
+        case .claude: 16
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }

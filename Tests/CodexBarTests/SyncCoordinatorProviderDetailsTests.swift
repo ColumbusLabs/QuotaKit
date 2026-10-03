@@ -190,4 +190,59 @@ struct SyncCoordinatorProviderDetailsTests {
             #expect(envelope.provider.providerDetails?.first?.rows.first?.value == provider.rawValue)
         }
     }
+
+    @Test
+    func `LithosAI prepaid balance stays detail and never becomes mobile spend or quota`() async throws {
+        let suite = "SyncCoordinatorLithosAIDetailsTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .lithosai,
+            metadata: #require(ProviderDefaults.metadata[.lithosai]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                providerCost: ProviderCostSnapshot(
+                    used: 4.70709986,
+                    limit: 0,
+                    currencyCode: "USD",
+                    period: "Prepaid credits",
+                    updatedAt: Date()),
+                details: [.makeSection(title: "Billing", rows: [
+                    .makeRow(label: "Balance", value: "$4.71", usageValue: 4.70709986),
+                    .makeRow(label: "Payment card", value: "Added"),
+                    .makeRow(label: "Account status", value: "Active"),
+                    .makeRow(label: "Today (UTC)", value: "$0.36"),
+                    .makeRow(label: "This month (UTC)", value: "$2.36"),
+                ])],
+                updatedAt: Date()),
+            provider: .lithosai)
+        let pusher = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
+
+        let provider = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "lithosai"
+        }?.provider)
+        #expect(provider.rateWindows.isEmpty)
+        #expect(provider.primary == nil)
+        #expect(provider.secondary == nil)
+        #expect(provider.budget == nil)
+        #expect(provider.costSummary == nil)
+        #expect(provider.statusMessage == "Prepaid balance: USD 4.71")
+        #expect(provider.providerDetails?.first?.rows.map(\.label) == [
+            "Balance", "Payment card", "Account status", "Today (UTC)", "This month (UTC)",
+        ])
+    }
 }

@@ -28,6 +28,7 @@ extension CostUsageStore {
         var metadata: CostUsageStoreMetadata
         var files: [CostUsageStoreFile]
         var snapshotCounts: [String: Int]
+        var tokenSnapshotsLoaded: Bool
         var tokenSnapshotMarkersByPath: [String: Bool]
         var unloadedTokenSnapshotPaths: Set<String>
         var malformedDetailsPaths: Set<String>
@@ -49,6 +50,7 @@ extension CostUsageStore {
             }
             self.snapshotCounts = snapshot.tokenSnapshotCounts
                 ?? snapshot.tokenSnapshots.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
+            self.tokenSnapshotsLoaded = snapshot.tokenSnapshotsLoaded
             self.tokenSnapshotMarkersByPath = tokenSnapshotMarkersByPath
             self.malformedDetailsPaths = CostUsageStore.codexMalformedDetailsPaths(from: snapshot.files)
             self.unloadedTokenSnapshotPaths = snapshot.tokenSnapshotsLoaded
@@ -132,6 +134,25 @@ extension CostUsageStore {
 
     func codexBaselineIsCurrent(_ baseline: CodexDecodedBaseline) -> Bool {
         self.currentCodexScanStamp() == baseline.stamp
+    }
+
+    /// Retention and budget enforcement may write while the save owns the writer lock.
+    /// Re-read their result before using it as a new content certificate; external changes
+    /// still invalidate the original baseline through every stamp field except totalChanges.
+    func codexBaselineAfterRetention(_ baseline: CodexDecodedBaseline) -> CodexDecodedBaseline? {
+        guard let current = self.currentCodexScanStamp() else { return nil }
+        if current == baseline.stamp { return baseline }
+        var expected = baseline.stamp
+        expected.totalChanges = current.totalChanges
+        guard expected == current,
+              let read = self.readCodexScanSnapshotInCurrentTransaction(),
+              read.stamp == current
+        else { return nil }
+        return Self.codexBaseline(
+            from: read.snapshot,
+            stamp: read.stamp,
+            usageRowsByPath: read.usageRowsByPath,
+            usageRowCountsByPath: read.usageRowCountsByPath)
     }
 
     #if DEBUG

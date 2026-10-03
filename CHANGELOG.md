@@ -9,10 +9,18 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- LithosAI console balance and optional UTC spend, with Chrome or manually supplied session cookies.
+
 - Muse (muse.ai) subscription usage, distinct from Muse Code, with provider settings, widgets, and sanitized iPhone sync.
 - Optional limit-reset notifications with account-scoped persistence and duplicate suppression alongside existing session-restored alerts.
 
 ### Improved
+
+- Overlapping provider-status refreshes retain the newest successful publication, and Codex weekly quota can confirm a reset without historical credit inventory.
+- Spend projects keep stable identities while showing saved Codex project names; Grok Bot allowances use their full weekly cadence in Cursor.
+- Local Codex, Claude, Pi and Grok cost scans preserve cached baselines and report windows while avoiding redundant work.
+- Widget colors follow provider accents, and long inline statistics headings wrap without losing text.
+- Browser-session setup explains supported automatic sources; CommandCode accepts bare manual session tokens.
 
 - Antigravity saved accounts fetch usage in isolated CLI sessions and safely retain consecutive credential refreshes.
 - Local Codex and Claude cost scans reuse cache decoders and exact fragments, skip out-of-range pricing, and settle archived forks whose parent history is absent.

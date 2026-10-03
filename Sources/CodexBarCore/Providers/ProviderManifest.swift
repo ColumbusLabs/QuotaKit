@@ -93,5 +93,6 @@ public enum ProviderManifest {
         MuseProviderDescriptor.descriptor,
         PiProviderDescriptor.descriptor,
         MuseAIProviderDescriptor.descriptor,
+        LithosAIProviderDescriptor.descriptor,
     ]
 }
