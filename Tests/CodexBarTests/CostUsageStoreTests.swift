@@ -831,6 +831,340 @@ struct CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test
+    func `fresh store creates verified evidence when optional metadata is absent`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+
+        #expect(store.syncRecordVerifiedCodexDay(day: "2026-08-01", calendar: calendar))
+
+        let database = try SQLiteTestConnection(url: store.databaseURL)
+        #expect(try database.scalarInt("""
+        SELECT COUNT(*) FROM meta
+        WHERE key IN ('verified_day_lineage_id', 'verified_day_revision')
+        """) == 2)
+        #expect(try database.scalarInt("""
+        SELECT COUNT(*) FROM verified_day_evidence WHERE day = '2026-08-01' AND revision > 0
+        """) == 1)
+    }
+
+    @Test
+    func `full ledger publication waits for buffered parser work`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let firstDay = "2026-08-01"
+        let pendingDay = "2026-08-02"
+        let firstPath = "/sessions/complete.jsonl"
+        var completeFile = Self.file(path: firstPath, day: firstDay)
+        completeFile.parsedBytes = completeFile.size
+        completeFile.scanState.isComplete = true
+        completeFile.scanState.resumePayload = nil
+        let firstAggregate = Self.aggregate(day: firstDay, model: "fixture-model", scale: 1)
+        var metadata = CostUsageStoreMetadata.empty
+        metadata.lastScanUnixMs = 1_800_000_000_000
+        metadata.scanSinceDay = firstDay
+        metadata.scanUntilDay = firstDay
+        metadata.timeZoneIdentifier = "UTC"
+        metadata.rootMtimes = ["/sessions": 1]
+        metadata.catchUpPending = false
+
+        #expect(await store.upsertFile(completeFile))
+        #expect(await store.replaceFileDayAggregates(path: firstPath, aggregates: [firstAggregate]))
+        #expect(await store.mergeDayAggregates([firstAggregate]))
+        #expect(await store.setMetadata(metadata))
+        _ = await store.enforceBudgets(
+            maxRows: .max,
+            maxFileBytes: .max,
+            requestedSinceDay: firstDay,
+            requestedUntilDay: firstDay)
+
+        let beforePendingWork = try SQLiteTestConnection(url: store.databaseURL)
+        #expect(try beforePendingWork.scalarInt(
+            "SELECT COUNT(*) FROM verified_day_evidence WHERE day = '\(firstDay)'") == 1)
+        let priorRevision = try beforePendingWork.scalarInt(
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'")
+        #expect(priorRevision > 0)
+
+        let pendingPath = "/sessions/buffered.jsonl"
+        var pendingFile = Self.file(path: pendingPath, day: pendingDay)
+        pendingFile.parsedBytes = pendingFile.size
+        pendingFile.scanState.isComplete = true
+        pendingFile.scanState.resumePayload = nil
+        let pendingAggregate = Self.aggregate(day: pendingDay, model: "fixture-model", scale: 1)
+        #expect(await store.upsertFile(pendingFile))
+        #expect(await store.replaceFileDayAggregates(path: pendingPath, aggregates: [pendingAggregate]))
+        #expect(await store.mergeDayAggregates([pendingAggregate]))
+        #expect(await store.replaceBufferedLines(
+            path: pendingPath,
+            kind: .unresolvedFork,
+            lines: [Self.bufferedLine(path: pendingPath, kind: .unresolvedFork, index: 0)]))
+        metadata.scanUntilDay = pendingDay
+        #expect(await store.setMetadata(metadata))
+
+        let result = await store.enforceBudgets(
+            maxRows: .max,
+            maxFileBytes: .max,
+            requestedSinceDay: firstDay,
+            requestedUntilDay: pendingDay)
+
+        let afterPendingWork = try SQLiteTestConnection(url: store.databaseURL)
+        #expect(result.catchUpRequired == false)
+        #expect(try afterPendingWork.scalarInt("SELECT COUNT(*) FROM buffered_lines") == 1)
+        #expect(try afterPendingWork.scalarInt(
+            "SELECT COUNT(*) FROM verified_day_evidence WHERE day = '\(pendingDay)'") == 0)
+        #expect(try afterPendingWork.scalarInt(
+            "SELECT COUNT(*) FROM verified_day_status WHERE day = '\(pendingDay)'") == 0)
+        #expect(try afterPendingWork.scalarInt(
+            "SELECT COUNT(*) FROM verified_day_aggregates WHERE day = '\(pendingDay)'") == 0)
+        #expect(try afterPendingWork.scalarInt(
+            "SELECT COUNT(*) FROM verified_day_evidence WHERE day = '\(firstDay)'") == 1)
+        #expect(try afterPendingWork.scalarInt(
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'") == priorRevision)
+    }
+
+    @Test
+    func `verified day proof survives reopen no op and aggregate corrections`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = "2026-08-01"
+        let path = "/sessions/proof.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: [day: ["fixture-model": [20, 2, 4]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: nil,
+            eventIndex: 0,
+            input: 20,
+            cached: 2,
+            output: 4)]
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1_800_000_000_000
+        cache.scanSinceKey = day
+        cache.scanUntilKey = day
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.roots = ["/codex/sessions": 0]
+        cache.files[path] = usage
+        cache.days = usage.days
+        let window = (sinceKey: day, untilKey: day)
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        #expect(store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+            .cacheWasPersisted)
+        let expectedCommit = CostUsageStoreCodexScanCommit(
+            lastScanUnixMs: cache.lastScanUnixMs,
+            rootPaths: ["/codex/sessions"],
+            timeZoneIdentifier: calendar.timeZone.identifier)
+
+        func projection(from store: CostUsageStore) -> CostUsageStoreCodexReportProjection {
+            store.syncReadCodexReportProjection(
+                calendar: calendar,
+                temporalRange: (sinceDay: day, untilDay: day))
+        }
+        let firstProjection = projection(from: store)
+        let firstEvidence = try #require(firstProjection.verifiedDayEvidence[day])
+        #expect(firstEvidence.sourceKind == "codexLocalLedger")
+        #expect(firstEvidence.scopeID == CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: ["/codex/sessions"],
+            calendar: calendar))
+        #expect(firstEvidence.revision > 0)
+        let dayRange = try CostUsageScanner.CostUsageDayRange(
+            since: #require(CostUsageScanner.parseDayKey(day, calendar: calendar)),
+            until: #require(CostUsageScanner.parseDayKey(day, calendar: calendar)),
+            calendar: calendar)
+        let unpricedReport = CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+            projection: firstProjection,
+            range: dayRange,
+            cacheRoot: nil)
+        let unpricedDay = try #require(unpricedReport.data.first)
+        #expect(unpricedDay.costUSD == nil)
+        #expect(unpricedDay.dayEvidence == firstEvidence)
+
+        var wrongScopeProjection = firstProjection
+        wrongScopeProjection.verifiedDayEvidence[day] = CostUsageDayEvidence(
+            scopeID: "sha256:wrong-scope",
+            lineageID: firstEvidence.lineageID,
+            revision: firstEvidence.revision,
+            verifiedAt: firstEvidence.verifiedAt)
+        let wrongScopeReport = CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+            projection: wrongScopeProjection,
+            range: dayRange,
+            cacheRoot: nil)
+        #expect(wrongScopeReport.data.isEmpty)
+
+        let initialVerificationTime = firstEvidence.verifiedAt
+        #expect(store.syncRecordVerifiedCodexDay(
+            day: day,
+            calendar: calendar,
+            expectedCommit: expectedCommit,
+            verifiedAt: initialVerificationTime.addingTimeInterval(3601)))
+        let refreshedProjection = projection(from: store)
+        let refreshedEvidence = try #require(refreshedProjection.verifiedDayEvidence[day])
+        #expect(refreshedEvidence.revision == firstEvidence.revision)
+        #expect(refreshedEvidence.verifiedAt == initialVerificationTime.addingTimeInterval(3601))
+
+        let staleCommit = CostUsageStoreCodexScanCommit(
+            lastScanUnixMs: cache.lastScanUnixMs + 1,
+            rootPaths: ["/codex/sessions"],
+            timeZoneIdentifier: calendar.timeZone.identifier)
+        #expect(!store.syncRecordVerifiedCodexDay(
+            day: day,
+            calendar: calendar,
+            expectedCommit: staleCommit,
+            verifiedAt: initialVerificationTime.addingTimeInterval(7202)))
+        #expect(projection(from: store).verifiedDayEvidence[day] == refreshedEvidence)
+        #expect(store.syncRecordVerifiedCodexDay(
+            day: day,
+            calendar: calendar,
+            expectedCommit: expectedCommit,
+            verifiedAt: initialVerificationTime.addingTimeInterval(3602)))
+        #expect(projection(from: store).verifiedDayEvidence[day] == refreshedEvidence)
+        let reopened = CostUsageStore(cacheRoot: fixture.root)
+        #expect(projection(from: reopened).verifiedDayEvidence[day] == refreshedEvidence)
+
+        usage.days = [day: ["fixture-model": [4, 1, 1]]]
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: nil,
+            eventIndex: 0,
+            input: 4,
+            cached: 1,
+            output: 1)]
+        cache.lastScanUnixMs += 1000
+        cache.files[path] = usage
+        cache.days = usage.days
+        #expect(store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+            .cacheWasPersisted)
+        #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
+        let decreased = projection(from: store)
+        let decreasedEvidence = try #require(decreased.verifiedDayEvidence[day])
+        #expect(decreasedEvidence.revision > firstEvidence.revision)
+        #expect(decreased.verifiedDayAggregates.first?.inputTokens == 4)
+
+        usage.days = [day: [:]]
+        usage.codexRows = []
+        cache.lastScanUnixMs += 1000
+        cache.files[path] = usage
+        cache.days = usage.days
+        #expect(store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+            .cacheWasPersisted)
+        #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
+        let zeroProjection = projection(from: store)
+        let zeroEvidence = try #require(zeroProjection.verifiedDayEvidence[day])
+        #expect(zeroEvidence.revision > decreasedEvidence.revision)
+        #expect(zeroProjection.verifiedDayAggregates.filter { $0.day == day }.isEmpty)
+        let zeroReport = CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+            projection: zeroProjection,
+            range: dayRange,
+            cacheRoot: nil)
+        let zeroDay = try #require(zeroReport.data.first)
+        #expect(zeroDay.totalTokens == 0)
+        #expect(zeroDay.costUSD == 0)
+        #expect(zeroDay.dayEvidence == zeroEvidence)
+    }
+
+    @Test
+    func `additive evidence migration preserves legacy status without inventing proof`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = "2026-08-01"
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1_800_000_000_000
+        cache.scanSinceKey = day
+        cache.scanUntilKey = day
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.roots = ["/codex/sessions": 0]
+        cache.days = [day: ["fixture-model": [10, 0, 2]]]
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        #expect(store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: day, untilKey: day)).cacheWasPersisted)
+        #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
+        let priorVersion = try SQLiteTestConnection(url: store.databaseURL)
+            .scalarInt("PRAGMA user_version")
+        #expect(try SQLiteTestConnection(url: store.databaseURL)
+            .scalarInt("SELECT COUNT(*) FROM verified_day_status WHERE day = '\(day)'") == 1)
+
+        try SQLiteTestConnection.execute(
+            at: store.databaseURL,
+            sql: "DROP TABLE verified_day_evidence")
+        let migrated = CostUsageStore(cacheRoot: fixture.root)
+        let projection = migrated.syncReadCodexReportProjection(
+            calendar: calendar,
+            temporalRange: (sinceDay: day, untilDay: day))
+        #expect(projection.verifiedDayKeys.contains(day))
+        #expect(projection.verifiedDayEvidence[day] == nil)
+        #expect(try SQLiteTestConnection(url: store.databaseURL)
+            .scalarInt("PRAGMA user_version") == priorVersion)
+        #expect(try SQLiteTestConnection(url: store.databaseURL)
+            .scalarInt("SELECT COUNT(*) FROM verified_day_aggregates WHERE day = '\(day)'") > 0)
+    }
+
+    @Test
+    func `zero day proof projects during a persisted catch up pass`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = "2026-08-01"
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1_800_000_000_000
+        cache.scanSinceKey = day
+        cache.scanUntilKey = day
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.roots = ["/codex/sessions": 0]
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let window = (sinceKey: day, untilKey: day)
+        #expect(store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+            .cacheWasPersisted)
+
+        cache.lastScanUnixMs += 1000
+        cache.codexScanCatchUpPending = true
+        cache.codexActiveLookbackState = CostUsageCodexActiveLookbackState(
+            scanSinceKey: day,
+            rootPaths: ["/codex/sessions"],
+            pendingFilePaths: ["/codex/sessions/historical-pending.jsonl"])
+        let catchUp = store.syncSaveCodexCatchUpCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: window,
+            hydratedPaths: [])
+        #expect(catchUp.cacheWasPersisted)
+        #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
+        let projection = store.syncReadCodexReportProjection(
+            calendar: calendar,
+            temporalRange: (sinceDay: day, untilDay: day))
+        #expect(projection.cache.codexScanCatchUpPending == true)
+        #expect(projection.verifiedDayKeys.contains(day))
+        #expect((projection.verifiedDayEvidence[day]?.revision ?? 0) > 0)
+        let report = try CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+            projection: projection,
+            range: CostUsageScanner.CostUsageDayRange(
+                since: #require(CostUsageScanner.parseDayKey(day, calendar: calendar)),
+                until: #require(CostUsageScanner.parseDayKey(day, calendar: calendar)),
+                calendar: calendar),
+            cacheRoot: nil)
+        let dayEntry = try #require(report.data.first)
+        #expect(dayEntry.totalTokens == 0)
+        #expect(dayEntry.costUSD == 0)
+        #expect(dayEntry.dayEvidence != nil)
+    }
+}
+
+extension CostUsageStoreTests {
+    @Test
     func `file state round trips all validation fields`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -1872,6 +2206,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "0001601034856fb6",
         "91aceec74bae13b6",
         "295616a4e7dcfc3f",
         "4e2ff98d27e5c601",
@@ -1884,6 +2219,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "0001601034856fb6",
             "91aceec74bae13b6",
             "36872d2d0ebf9818",
             "053a4fb6aa6156c2",

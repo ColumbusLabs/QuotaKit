@@ -33,6 +33,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Fixed
 
+- Verified Codex daily spend and model details update during Mac historical catch-up across both spend views, persisted caches, and the Cost Ledger, including corrected lower totals and zero days.
+
 - Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.
 - Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal

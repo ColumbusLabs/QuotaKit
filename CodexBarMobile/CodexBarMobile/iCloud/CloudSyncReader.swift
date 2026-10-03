@@ -183,8 +183,12 @@ final class CloudSyncReader: @unchecked Sendable {
         // linger in CloudKit). They'd otherwise show as duplicate cards
         // alongside the current mock design's records.
         var allProviders: [ProviderUsageSnapshot] = []
+        var allProviderDeviceIDs: [String] = []
         for snapshot in snapshots {
-            allProviders.append(contentsOf: MockProviderDetector.filteredProviders(from: snapshot))
+            let providers = MockProviderDetector.filteredProviders(from: snapshot)
+            let deviceID = snapshot.deviceID ?? SnapshotCache.syntheticDeviceID(from: snapshot)
+            allProviders.append(contentsOf: providers)
+            allProviderDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
         }
 
         // 2. Compute effective identifiers per provider snapshot
@@ -266,7 +270,9 @@ final class CloudSyncReader: @unchecked Sendable {
             if group.count == 1 {
                 mergedProviders.append(group[0])
             } else {
-                mergedProviders.append(self.mergeProviderEntries(group))
+                mergedProviders.append(self.mergeProviderEntries(
+                    group,
+                    deviceIDs: indices.map { allProviderDeviceIDs[$0] }))
             }
         }
 
@@ -608,7 +614,10 @@ final class CloudSyncReader: @unchecked Sendable {
     ///     account-level pool, but only Macs running the version that
     ///     knows the field will populate it. Take any non-nil from newest
     ///     down so cross-version pairs don't flicker.
-    private static func mergeProviderEntries(_ entries: [ProviderUsageSnapshot]) -> ProviderUsageSnapshot {
+    private static func mergeProviderEntries(
+        _ entries: [ProviderUsageSnapshot],
+        deviceIDs: [String]) -> ProviderUsageSnapshot
+    {
         // Take the most recent entry as the base (for rate limits + status)
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
 
@@ -621,9 +630,12 @@ final class CloudSyncReader: @unchecked Sendable {
         // for cross-version / partial-install robustness.
         let isLocalCost = self.localCostProviders.contains(base.providerID)
         let mergedCost: SyncCostSummary? = if isLocalCost {
-            self.mergeCostSummaries(entries.compactMap { entry in
+            self.mergeCostSummaries(entries.enumerated().compactMap { index, entry in
                 entry.costSummary.map {
-                    (summary: $0, fallbackUpdatedAt: entry.lastUpdated)
+                    (
+                        summary: $0,
+                        fallbackUpdatedAt: entry.lastUpdated,
+                        deviceID: deviceIDs[index])
                 }
             })
         } else {
@@ -669,7 +681,7 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Sums cost data from multiple devices.
     /// Daily points are merged by dayKey (costs summed), then totals are recalculated.
     private static func mergeCostSummaries(
-        _ entries: [(summary: SyncCostSummary, fallbackUpdatedAt: Date)]) -> SyncCostSummary?
+        _ entries: [(summary: SyncCostSummary, fallbackUpdatedAt: Date, deviceID: String)]) -> SyncCostSummary?
     {
         guard !entries.isEmpty else { return nil }
         let summaries = entries.map(\.summary)
@@ -747,6 +759,10 @@ final class CloudSyncReader: @unchecked Sendable {
 
         let mergedDaily = dailyByKey.keys.sorted().map { dayKey in
             let entry = dailyByKey[dayKey]!
+            // A merged local-cost day may combine several independent Mac
+            // stores. Its numeric sum is useful for display, but no one
+            // contributor's proof certifies that combined value. Per-device
+            // snapshots are persisted separately by SwiftDataBridge.
             return SyncDailyPoint(
                 dayKey: dayKey,
                 costUSD: entry.costUSD,
@@ -838,11 +854,16 @@ final class CloudSyncReader: @unchecked Sendable {
         let mergedLast30DaysRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
         let mergedCurrencyCode = summaries.compactMap(\.currencyCode).first
         var mergedSourceRevisions: [String: Date] = [:]
-        for summary in summaries {
+        for entry in entries {
+            let summary = entry.summary
             for (source, revision) in summary.sourceRevisions ?? [:] {
-                mergedSourceRevisions[source] = max(
-                    mergedSourceRevisions[source] ?? .distantPast,
-                    revision)
+                // These dates describe independent local source stores. Keep
+                // each device's revision distinct so one Mac's newer scanner
+                // cannot mask another Mac's change in mobile cache identity.
+                let key = Self.deviceScopedSourceRevisionKey(
+                    deviceID: entry.deviceID,
+                    source: source)
+                mergedSourceRevisions[key] = revision
             }
         }
         // Legacy summaries have no field-specific timestamp. Their provider
@@ -861,6 +882,47 @@ final class CloudSyncReader: @unchecked Sendable {
                     ?? $0.fallbackUpdatedAt
             }
             .min()
+
+        if entries.count > 1 {
+            let contributorIDs = Array(Set(entries.map(\.deviceID))).sorted()
+            let inventoryFreshness = mergedCostUpdatedAt
+                ?? entries.map(\.fallbackUpdatedAt).max()
+                ?? .distantPast
+            mergedSourceRevisions[LocalCostEvidenceRevision.inventoryKey(deviceIDs: contributorIDs)] =
+                inventoryFreshness
+            if summaries.contains(where: { summary in
+                summary.daily.contains(where: { $0.dayEvidence?.isValid == true })
+            }) {
+                mergedSourceRevisions[LocalCostEvidenceRevision.requiresVerifiedDaysKey] = inventoryFreshness
+            }
+
+            let dayKeys = Set(entries.flatMap { $0.summary.daily.map(\.dayKey) })
+            for dayKey in dayKeys {
+                let contributors = entries.map { entry -> (String, SyncDayEvidence?) in
+                    let evidence = entry.summary.daily.first(where: { $0.dayKey == dayKey })?.dayEvidence
+                    return (entry.deviceID, evidence)
+                }
+                // Preserve every per-device proof revision in the merged
+                // cache vector without claiming that any one proof verifies
+                // the combined day.
+                mergedSourceRevisions[LocalCostEvidenceRevision.dayVectorKey(
+                    dayKey: dayKey,
+                    contributors: contributors)] = inventoryFreshness
+
+                let completeProofDates = entries.compactMap { entry -> Date? in
+                    guard let evidence = entry.summary.daily.first(where: { $0.dayKey == dayKey })?.dayEvidence,
+                          evidence.isValid
+                    else { return nil }
+                    return evidence.verifiedAt
+                }
+                if completeProofDates.count == entries.count,
+                   let conservativeFreshness = completeProofDates.min()
+                {
+                    mergedSourceRevisions[LocalCostEvidenceRevision.dayFreshnessKey(dayKey: dayKey)] =
+                        conservativeFreshness
+                }
+            }
+        }
 
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
@@ -884,6 +946,24 @@ final class CloudSyncReader: @unchecked Sendable {
             costUpdatedAt: mergedCostUpdatedAt,
             totalCostUpdatedAt: mergedTotalCostUpdatedAt,
             sourceRevisions: mergedSourceRevisions.isEmpty ? nil : mergedSourceRevisions)
+    }
+
+    /// Stable, delimiter-safe key for a source revision after device identity
+    /// is no longer present on the merged provider. JSON key ordering and
+    /// Base64URL make arbitrary device/source names unambiguous.
+    private static func deviceScopedSourceRevisionKey(deviceID: String, source: String) -> String {
+        struct Identity: Encodable {
+            let deviceID: String
+            let source: String
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let encoded = (try? encoder.encode(Identity(deviceID: deviceID, source: source))) ?? Data()
+        let base64URL = encoded.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return "device-source-v1:\(base64URL)"
     }
 
     /// Merged daily rows are a union. They are complete only when every

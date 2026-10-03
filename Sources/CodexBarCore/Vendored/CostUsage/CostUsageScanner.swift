@@ -70,6 +70,17 @@ enum CostUsageScanner {
         case excludeVertexAI
     }
 
+    /// Bounded diagnostics for why a local day cannot be published as independently proven.
+    /// Pricing is intentionally not part of this gate: an indexed, inventory-complete day can
+    /// carry source proof even when some of its usage has no price.
+    enum CodexDayEvidenceGateReason: String, Sendable, Equatable {
+        case scope
+        case inventory
+        case unindexed
+        case stale
+        case fork
+    }
+
     struct CodexScanWorkMetrics: Equatable, Sendable {
         var usageRowsProcessed: Int
         var usageRowsRepriced: Int
@@ -2624,13 +2635,29 @@ enum CostUsageScanner {
         dayKey: String,
         calendar: Calendar) -> Bool
     {
+        self.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: dayKey,
+            calendar: calendar) == nil
+    }
+
+    /// Returns a small reason code rather than exposing paths or session identifiers to
+    /// diagnostics. `nil` means the same inventory, file-metadata, and parser checks used by
+    /// publication all pass.
+    static func codexCurrentDayProjectionGateReason(
+        cache: CostUsageCache,
+        roots: [URL],
+        dayKey: String,
+        calendar: Calendar) -> CodexDayEvidenceGateReason?
+    {
         guard let dayStart = self.parseDayKey(dayKey, calendar: calendar),
               let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
-        else { return false }
+        else { return .scope }
         guard !Self.codexHistoryRangeHasUnsettledMissingParentFork(
             cache: cache,
             range: CostUsageDayRange(since: dayStart, until: dayStart, calendar: calendar))
-        else { return false }
+        else { return .fork }
 
         let dayStartMs = Int64(dayStart.timeIntervalSince1970 * 1000)
         let dayEndMs = Int64(dayEnd.timeIntervalSince1970 * 1000)
@@ -2639,12 +2666,14 @@ enum CostUsageScanner {
             calendar: calendar)
         let scanUntilKey = CostUsageDayRange.dayKey(from: dayEnd, calendar: calendar)
         let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
-        guard let discovery = cache.codexSessionDiscovery,
-              discovery.roots == rootPaths,
-              cache.roots == Self.codexRootsFingerprint(roots)
-        else { return false }
+        guard let discovery = cache.codexSessionDiscovery else { return .inventory }
+        guard discovery.roots == rootPaths,
+              cache.roots == Self.codexRootsFingerprint(roots),
+              cache.timeZoneIdentifier == nil
+              || cache.timeZoneIdentifier == calendar.timeZone.identifier
+        else { return .scope }
 
-        guard Self.codexDirectoryInventoryIsCurrent(discovery) else { return false }
+        guard Self.codexDirectoryInventoryIsCurrent(discovery) else { return .inventory }
 
         let directlyDiscovered = roots.flatMap {
             self.listCodexSessionFiles(
@@ -2732,11 +2761,11 @@ enum CostUsageScanner {
 
         for fileURL in directlyDiscovered {
             let cached = cachedEntry(for: fileURL)
-            guard !fileCanAffectDay(fileURL, cached: cached)
-                || (cached.map {
-                    matchesPersistedSnapshot(fileURL: fileURL, usage: $0)
-                } ?? false)
-            else { return false }
+            guard fileCanAffectDay(fileURL, cached: cached) else { continue }
+            guard let cached else { return .unindexed }
+            guard matchesPersistedSnapshot(fileURL: fileURL, usage: cached) else {
+                return Self.codexDayEvidenceMismatchReason(fileURL: fileURL, usage: cached)
+            }
         }
 
         // Stream the persisted inventory rather than normalizing it into another dictionary
@@ -2748,7 +2777,8 @@ enum CostUsageScanner {
             if fileCanAffectDay(fileURL, cached: cached),
                !(cached.map { matchesPersistedSnapshot(fileURL: fileURL, usage: $0) } ?? false)
             {
-                return false
+                guard let cached else { return .unindexed }
+                return Self.codexDayEvidenceMismatchReason(fileURL: fileURL, usage: cached)
             }
         }
 
@@ -2762,7 +2792,7 @@ enum CostUsageScanner {
                 || directlyDiscoveredPathKeys.contains(Self.codexPathKey(fileURL))
             guard canAffectDay else { continue }
             guard matchesPersistedSnapshot(fileURL: fileURL, usage: usage) else {
-                return false
+                return Self.codexDayEvidenceMismatchReason(fileURL: fileURL, usage: usage)
             }
         }
 
@@ -2771,15 +2801,30 @@ enum CostUsageScanner {
                 let fileURL = URL(fileURLWithPath: pendingPath)
                 let cached = cachedEntry(for: fileURL)
                 if fileCanAffectDay(fileURL, cached: cached) {
-                    guard let cached,
-                          matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
-                    else {
-                        return false
+                    guard let cached else { return .unindexed }
+                    guard matchesPersistedSnapshot(fileURL: fileURL, usage: cached) else {
+                        return Self.codexDayEvidenceMismatchReason(fileURL: fileURL, usage: cached)
                     }
                 }
             }
         }
-        return true
+        return nil
+    }
+
+    private static func codexDayEvidenceMismatchReason(
+        fileURL: URL,
+        usage: CostUsageFileUsage) -> CodexDayEvidenceGateReason
+    {
+        if usage.hasPendingCodexForkRetry || usage.hasBufferedCodexForkRetryLines {
+            return .fork
+        }
+        guard usage.hasCurrentCodexParser,
+              usage.codexScanComplete == true,
+              (usage.parsedBytes ?? usage.size) >= usage.size
+        else { return .unindexed }
+        let metadata = Self.codexFileMetadata(fileURL: fileURL)
+        guard usage.codexScanFileId == metadata.fileId else { return .stale }
+        return .stale
     }
 
     private static func codexSessionActivityTouchesDay(
@@ -2799,9 +2844,11 @@ enum CostUsageScanner {
         _ discovery: CostUsageCodexSessionDiscovery) -> Bool
     {
         let hasCompleteDirectoryInventory = discovery.nextDirectoryIndex == discovery.directoryPaths.count
+            && !discovery.roots.isEmpty
+            && discovery.roots.allSatisfy { discovery.directoryPaths.contains($0) }
             && discovery.directoryPaths.count == discovery.directoryStamps.count
             && discovery.directoryPaths.allSatisfy { discovery.directoryStamps[$0] != nil }
-        guard hasCompleteDirectoryInventory else { return true }
+        guard hasCompleteDirectoryInventory else { return false }
 
         return discovery.directoryPaths.allSatisfy { path in
             let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
@@ -2999,6 +3046,20 @@ enum CostUsageScanner {
             out[root.standardizedFileURL.path] = 0
         }
         return out
+    }
+
+    /// Stable, non-identifying scope for source proof. Raw session-root paths never leave the
+    /// local store; length-prefixing keeps unusual path characters from aliasing the digest
+    /// input. Proof is scoped to the calendar that defines local day boundaries.
+    static func codexDayEvidenceScopeID(rootPaths: [String], calendar: Calendar) -> String {
+        let roots = Set(rootPaths.map { URL(fileURLWithPath: $0).standardizedFileURL.path }).sorted()
+        let components = [
+            "source=codexLocalLedger",
+            "calendar=gregorian",
+            "timezone=\(calendar.timeZone.identifier)",
+        ] + roots.map { "root=\($0)" }
+        let material = components.map { "\($0.utf8.count):\($0)" }.joined()
+        return "sha256:\(Self.sha256Hex(Data(material.utf8)))"
     }
 
     static func codexRootsFingerprint(options: Options) -> [String: Int64] {
@@ -7510,7 +7571,7 @@ enum CostUsageScanner {
         confirmedAbsentHistoryRetryPaths: Set<String> = [],
         retryRegistryToken: CodexScanHistoryHydrationRetryRegistry.CommitToken = .init(),
         independentlyVerifiedCodexWindow: (sinceKey: String, untilKey: String)? = nil,
-        independentlyVerifiedDayKey: String? = nil)
+        independentlyVerifiedDayKeys: [String] = [])
     {
         // The serial scan queue remains the per-process writer boundary. The store actor owns
         // the sole writable connection; app and CLI readers take independent WAL snapshots.
@@ -7542,22 +7603,30 @@ enum CostUsageScanner {
             CodexScanHistoryHydrationRetryRegistry.clear(
                 databaseURL: loadedCache.store.databaseURL,
                 committed: retryRegistryToken)
-            if let independentlyVerifiedCodexWindow {
-                // Persist sparse window evidence only after the cache save commits. The proof is
-                // computed from the final in-memory working set and never hydrates unrelated rows.
-                _ = CostUsageStoreAccess.recordVerifiedCodexWindow(
-                    store: loadedCache.store,
-                    sinceDay: independentlyVerifiedCodexWindow.sinceKey,
-                    untilDay: independentlyVerifiedCodexWindow.untilKey,
-                    calendar: range.calendar)
-            }
-            if let independentlyVerifiedDayKey {
-                // A closed day can be safe even while the wider requested window remains pending.
-                _ = CostUsageStoreAccess.recordVerifiedCodexDay(
-                    store: loadedCache.store,
-                    day: independentlyVerifiedDayKey,
-                    calendar: range.calendar)
-            }
+        }
+        guard saveResult.cacheWasPersisted else { return }
+        let expectedCommit = CostUsageStoreCodexScanCommit(
+            lastScanUnixMs: max(cache.lastScanUnixMs, loadedCache.cache.lastScanUnixMs),
+            rootPaths: cache.roots?.keys.map(\.self) ?? [],
+            timeZoneIdentifier: range.calendar.timeZone.identifier)
+        if let independentlyVerifiedCodexWindow {
+            // Persist sparse window evidence only after the cache save commits. The proof is
+            // computed from the final in-memory working set and never hydrates unrelated rows.
+            _ = CostUsageStoreAccess.recordVerifiedCodexWindow(
+                store: loadedCache.store,
+                sinceDay: independentlyVerifiedCodexWindow.sinceKey,
+                untilDay: independentlyVerifiedCodexWindow.untilKey,
+                calendar: range.calendar,
+                expectedCommit: expectedCommit)
+        }
+        // A bounded save can commit a safe per-day working set while full catch-up remains
+        // pending. Record only days that independently passed the full inventory/file gate.
+        for day in independentlyVerifiedDayKeys {
+            _ = CostUsageStoreAccess.recordVerifiedCodexDay(
+                store: loadedCache.store,
+                day: day,
+                calendar: range.calendar,
+                expectedCommit: expectedCommit)
         }
     }
 
@@ -7577,25 +7646,27 @@ enum CostUsageScanner {
         return (sinceKey: range.sinceKey, untilKey: range.untilKey)
     }
 
-    private static func independentlyVerifiedCodexDayKey(
+    private static func independentlyVerifiedCodexDayKeys(
         cache: CostUsageCache,
         roots: [URL],
         now: Date,
-        range: CostUsageDayRange) -> String?
+        range: CostUsageDayRange) -> [String]
     {
-        guard cache.codexScanCatchUpPending == true else { return nil }
+        guard cache.codexScanCatchUpPending == true else { return [] }
+        let currentDayKey = CostUsageDayRange.dayKey(from: now, calendar: range.calendar)
         let closedDay = range.calendar.date(byAdding: .day, value: -1, to: now) ?? now
-        let dayKey = CostUsageDayRange.dayKey(from: closedDay, calendar: range.calendar)
-        guard CostUsageDayRange.isInRange(
-            dayKey: dayKey,
-            since: range.sinceKey,
-            until: range.untilKey)
-        else { return nil }
-        return Self.codexCurrentDayProjectionCanPublish(
-            cache: cache,
-            roots: roots,
-            dayKey: dayKey,
-            calendar: range.calendar) ? dayKey : nil
+        let closedDayKey = CostUsageDayRange.dayKey(from: closedDay, calendar: range.calendar)
+        return Array(Set([closedDayKey, currentDayKey])).sorted().filter { dayKey in
+            CostUsageDayRange.isInRange(
+                dayKey: dayKey,
+                since: range.sinceKey,
+                until: range.untilKey)
+                && Self.codexCurrentDayProjectionCanPublish(
+                    cache: cache,
+                    roots: roots,
+                    dayKey: dayKey,
+                    calendar: range.calendar)
+        }
     }
 
     private struct CodexExactValidationResult {
@@ -8112,7 +8183,7 @@ enum CostUsageScanner {
                     cache: cache,
                     roots: plan.roots,
                     range: range)
-                let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+                let independentlyVerifiedDayKeys = Self.independentlyVerifiedCodexDayKeys(
                     cache: cache,
                     roots: plan.roots,
                     now: now,
@@ -8124,7 +8195,7 @@ enum CostUsageScanner {
                     previousReport: previousReport,
                     retryRegistryToken: retryRegistryToken,
                     independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow,
-                    independentlyVerifiedDayKey: independentlyVerifiedDayKey)
+                    independentlyVerifiedDayKeys: independentlyVerifiedDayKeys)
                 if let previous = Self.codexPreviousReport(
                     cache: cache,
                     range: range,
@@ -8903,7 +8974,7 @@ enum CostUsageScanner {
                 cache: cache,
                 roots: plan.roots,
                 range: range)
-            let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+            let independentlyVerifiedDayKeys = Self.independentlyVerifiedCodexDayKeys(
                 cache: cache,
                 roots: plan.roots,
                 now: now,
@@ -8922,7 +8993,7 @@ enum CostUsageScanner {
                 confirmedAbsentHistoryRetryPaths: scanResult.confirmedAbsentHistoryRetryPaths,
                 retryRegistryToken: retryRegistryToken,
                 independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow,
-                independentlyVerifiedDayKey: independentlyVerifiedDayKey)
+                independentlyVerifiedDayKeys: independentlyVerifiedDayKeys)
         }
 
         if let previous = Self.codexPreviousReport(

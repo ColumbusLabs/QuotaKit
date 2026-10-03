@@ -150,6 +150,47 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     }
 }
 
+/// Proof metadata for an independently verified source contribution on a day.
+/// It describes source coverage, not whether that source's cost could be
+/// priced. Producers must only attach it after verifying the complete source
+/// contribution for the day.
+public struct SyncDayEvidence: Codable, Sendable, Equatable {
+    /// Stable source kind, such as `codexLocalLedger`.
+    public let sourceKind: String
+    /// Nonidentifying source/account/calendar scope shared by this lineage.
+    public let scopeID: String
+    /// Persistent source-store epoch. A reset or replacement starts a new one.
+    public let lineageID: String
+    /// Monotonic revision within `scopeID` and `lineageID`.
+    public let revision: Int64
+    /// Wall-clock time when the complete source contribution was verified.
+    public let verifiedAt: Date
+
+    public init(
+        sourceKind: String,
+        scopeID: String,
+        lineageID: String,
+        revision: Int64,
+        verifiedAt: Date)
+    {
+        self.sourceKind = sourceKind
+        self.scopeID = scopeID
+        self.lineageID = lineageID
+        self.revision = revision
+        self.verifiedAt = verifiedAt
+    }
+
+    /// Whether this metadata qualifies as supported day evidence. Reconciliation
+    /// treats malformed or unknown proof as legacy data with no authority.
+    public var isValid: Bool {
+        self.sourceKind == "codexLocalLedger"
+            && !self.scopeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !self.lineageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && self.revision > 0
+            && self.verifiedAt.timeIntervalSince1970.isFinite
+    }
+}
+
 /// A single day's cost/token data point for iCloud sync.
 public struct SyncDailyPoint: Codable, Sendable, Equatable {
     public let dayKey: String
@@ -167,6 +208,9 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
     /// for payloads from Mac builds before 0.23 — iOS treats nil as
     /// `false` (not estimated). See `Research/018-model-fallback-pricing.md` §6.
     public let isEstimated: Bool?
+    /// Optional independently verified daily source contribution. Missing on
+    /// older payloads and on data that has not earned complete-source proof.
+    public let dayEvidence: SyncDayEvidence?
 
     public init(
         dayKey: String,
@@ -175,7 +219,8 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
         isEstimated: Bool? = nil,
-        costIsKnown: Bool? = nil)
+        costIsKnown: Bool? = nil,
+        dayEvidence: SyncDayEvidence? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
@@ -184,6 +229,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.modelBreakdowns = modelBreakdowns
         self.serviceBreakdowns = serviceBreakdowns
         self.isEstimated = isEstimated
+        self.dayEvidence = dayEvidence
     }
 
     public init(from decoder: Decoder) throws {
@@ -203,6 +249,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.serviceBreakdowns =
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .serviceBreakdowns) ?? []
         self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
+        self.dayEvidence = try container.decodeIfPresent(SyncDayEvidence.self, forKey: .dayEvidence)
     }
 }
 
@@ -305,15 +352,76 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// omitted days remain retained; a lower-quality summary keeps previous
     /// values for overlapping days, retains previous missing days, and may add
     /// new days.
+    ///
+    /// Callers must keep this merge inside one provider/account lane. A fresh,
+    /// explicitly bounded complete baseline in that lane may adopt a changed
+    /// scope or lineage; incomparable partial evidence is rejected.
     public func reconcilingHistory(
         with previous: SyncCostSummary?,
         incomingFallbackUpdatedAt: Date? = nil,
         previousFallbackUpdatedAt: Date? = nil) -> SyncCostSummary
     {
-        guard let previous else {
-            return self
+        let incoming = self.withoutInvalidDayEvidence()
+        guard let previousSummary = previous else {
+            return incoming
         }
+        let previous = previousSummary.withoutInvalidDayEvidence()
 
+        let coverageReconciled = incoming.reconcilingCoverageHistory(
+            with: previous,
+            incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+            previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+        return incoming.reconcilingDayEvidence(
+            coverageReconciled,
+            with: previous,
+            incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+            previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+    }
+
+    private func withoutInvalidDayEvidence() -> SyncCostSummary {
+        let daily = self.daily.map(Self.withoutInvalidDayEvidence)
+        guard daily != self.daily else { return self }
+        return SyncCostSummary(
+            sessionCostUSD: self.sessionCostUSD,
+            sessionTokens: self.sessionTokens,
+            last30DaysCostUSD: self.last30DaysCostUSD,
+            last30DaysTokens: self.last30DaysTokens,
+            daily: daily,
+            isEstimated: self.isEstimated,
+            costIsKnown: self.costIsKnown,
+            historyDays: self.historyDays,
+            historyCoverageIsEstablished: self.historyCoverageIsEstablished,
+            historySinceDayKey: self.historySinceDayKey,
+            historyUntilDayKey: self.historyUntilDayKey,
+            sessionRequests: self.sessionRequests,
+            last30DaysRequests: self.last30DaysRequests,
+            currencyCode: self.currencyCode,
+            costUpdatedAt: self.costUpdatedAt,
+            totalCostUpdatedAt: self.totalCostUpdatedAt,
+            sourceRevisions: self.sourceRevisions)
+    }
+
+    private static func withoutInvalidDayEvidence(_ point: SyncDailyPoint) -> SyncDailyPoint {
+        guard let evidence = point.dayEvidence, !evidence.isValid else { return point }
+        return SyncDailyPoint(
+            dayKey: point.dayKey,
+            costUSD: point.costUSD,
+            totalTokens: point.totalTokens,
+            modelBreakdowns: point.modelBreakdowns,
+            serviceBreakdowns: point.serviceBreakdowns,
+            isEstimated: point.isEstimated,
+            costIsKnown: point.costIsKnown,
+            dayEvidence: nil)
+    }
+
+    /// Keeps the original summary-level coverage and freshness policy. Day
+    /// evidence is applied afterward so none of these early returns can skip
+    /// a valid, independently newer daily revision.
+    private func reconcilingCoverageHistory(
+        with previous: SyncCostSummary,
+        incomingFallbackUpdatedAt: Date?,
+        previousFallbackUpdatedAt: Date?) -> SyncCostSummary
+    {
         let reconciledCostUpdatedAt = Self.latestCostUpdatedAt(
             self.costUpdatedAt,
             previous.costUpdatedAt)
@@ -445,6 +553,296 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             sourceRevisions: reconciledSourceRevisions)
     }
 
+    /// Applies independently verified per-day revisions after the legacy
+    /// summary reconciliation. This deliberately runs even when a complete
+    /// history or freshness branch returned early above.
+    private func reconcilingDayEvidence(
+        _ coverageReconciled: SyncCostSummary,
+        with previous: SyncCostSummary,
+        incomingFallbackUpdatedAt: Date?,
+        previousFallbackUpdatedAt: Date?) -> SyncCostSummary
+    {
+        let incomingByDay = Dictionary(uniqueKeysWithValues: self.daily.map { ($0.dayKey, $0) })
+        let previousByDay = Dictionary(uniqueKeysWithValues: previous.daily.map { ($0.dayKey, $0) })
+        let coverageByDay = Dictionary(uniqueKeysWithValues: coverageReconciled.daily.map { ($0.dayKey, $0) })
+        let previousContexts = Set(previous.daily.compactMap { $0.dayEvidence.map(Self.evidenceContext) })
+        guard self.daily.contains(where: { $0.dayEvidence != nil }) || !previousContexts.isEmpty else {
+            return coverageReconciled
+        }
+
+        var merge = DayEvidenceMergeState(dailyByDayKey: coverageByDay)
+        let completeBaselineIsFresh = Self.isExplicitFreshCompleteBaseline(
+            self,
+            previous: previous,
+            incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+            previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+        let reconciliationContext = DayEvidenceReconciliationContext(
+            incoming: self,
+            previous: previous,
+            previousByDay: previousByDay,
+            previousEvidenceContexts: previousContexts,
+            completeBaselineIsFresh: completeBaselineIsFresh,
+            previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+        for (dayKey, incomingPoint) in incomingByDay {
+            self.reconcileIncomingDayEvidence(
+                incomingPoint,
+                dayKey: dayKey,
+                context: reconciliationContext,
+                into: &merge)
+        }
+        Self.reconcileOmittedProofedDays(
+            incomingByDay: incomingByDay,
+            previousByDay: previousByDay,
+            incoming: self,
+            completeBaselineIsFresh: completeBaselineIsFresh,
+            into: &merge)
+        return self.summary(
+            from: merge,
+            coverageReconciled: coverageReconciled,
+            previous: previous)
+    }
+
+    private func reconcileIncomingDayEvidence(
+        _ incomingPoint: SyncDailyPoint,
+        dayKey: String,
+        context: DayEvidenceReconciliationContext,
+        into merge: inout DayEvidenceMergeState)
+    {
+        let previousPoint = context.previousByDay[dayKey]
+        guard let evidence = incomingPoint.dayEvidence else {
+            if let previousPoint, previousPoint.dayEvidence != nil {
+                merge.dailyByDayKey[dayKey] = previousPoint
+            }
+            return
+        }
+
+        let withinRetainedWindow = Self.isWithinRetainedWindow(
+            dayKey,
+            incoming: context.incoming,
+            previous: context.previous)
+        let withinCompleteBounds = context.completeBaselineIsFresh
+            && Self.isWithinBounds(
+                dayKey,
+                since: context.incoming.historySinceDayKey,
+                until: context.incoming.historyUntilDayKey)
+
+        if let previousPoint,
+           let previousEvidence = previousPoint.dayEvidence,
+           Self.hasSameEvidenceContext(evidence, previousEvidence),
+           evidence.revision == previousEvidence.revision
+        {
+            guard evidence.verifiedAt > previousEvidence.verifiedAt,
+                  withinRetainedWindow || withinCompleteBounds
+            else {
+                merge.dailyByDayKey[dayKey] = previousPoint
+                return
+            }
+
+            // Reverification can refresh proof age without changing the
+            // content revision. Equal revisions therefore update metadata
+            // only; their cost, tokens, and breakdowns remain immutable.
+            merge.dailyByDayKey[dayKey] = Self.refreshingDayEvidence(
+                previousEvidence: previousPoint,
+                with: evidence)
+            merge.acceptedEvidenceDates.append(evidence.verifiedAt)
+            return
+        }
+
+        let bootstrapIsFresh = Self.isFreshDayEvidenceBootstrap(
+            evidence,
+            previous: context.previous,
+            previousFallbackUpdatedAt: context.previousFallbackUpdatedAt)
+        guard Self.canAdoptDayEvidence(
+            evidence,
+            replacing: previousPoint?.dayEvidence,
+            context: DayEvidenceAdoptionContext(
+                previousContexts: context.previousEvidenceContexts,
+                withinRetainedWindow: withinRetainedWindow,
+                withinCompleteBounds: withinCompleteBounds,
+                bootstrapIsFresh: bootstrapIsFresh))
+        else {
+            if let previousPoint {
+                merge.dailyByDayKey[dayKey] = previousPoint
+            } else {
+                merge.dailyByDayKey.removeValue(forKey: dayKey)
+            }
+            return
+        }
+
+        merge.dailyByDayKey[dayKey] = Self.reconcilingUnknownDailyCost(
+            incoming: incomingPoint,
+            previous: previousPoint)
+        merge.acceptedEvidenceDates.append(evidence.verifiedAt)
+        merge.acceptedEvidenceDayKeys.append(dayKey)
+    }
+
+    private static func canAdoptDayEvidence(
+        _ evidence: SyncDayEvidence,
+        replacing previousEvidence: SyncDayEvidence?,
+        context: DayEvidenceAdoptionContext) -> Bool
+    {
+        if let previousEvidence {
+            guard self.hasSameEvidenceContext(evidence, previousEvidence) else {
+                return context.withinCompleteBounds
+                    && context.bootstrapIsFresh
+                    && evidence.verifiedAt >= previousEvidence.verifiedAt
+            }
+            return evidence.revision > previousEvidence.revision
+                && (context.withinRetainedWindow || context.withinCompleteBounds)
+        }
+
+        let evidenceContext = Self.evidenceContext(evidence)
+        if !context.previousContexts.isEmpty, !context.previousContexts.contains(evidenceContext) {
+            return context.withinCompleteBounds && context.bootstrapIsFresh
+        }
+        return context.bootstrapIsFresh && (context.withinRetainedWindow || context.withinCompleteBounds)
+    }
+
+    private static func isFreshDayEvidenceBootstrap(
+        _ evidence: SyncDayEvidence,
+        previous: SyncCostSummary,
+        previousFallbackUpdatedAt: Date?) -> Bool
+    {
+        // The retained fallback is only a conservative ordering floor for a
+        // first proof. The incoming summary/quota timestamp is not evidence
+        // that its independently verified source scan is fresh.
+        guard let previousCostRevision = previous.totalCostUpdatedAt
+            ?? previous.costUpdatedAt
+            ?? previousFallbackUpdatedAt
+        else {
+            return true
+        }
+        return evidence.verifiedAt >= previousCostRevision
+    }
+
+    private static func refreshingDayEvidence(
+        previousEvidence: SyncDailyPoint,
+        with evidence: SyncDayEvidence) -> SyncDailyPoint
+    {
+        SyncDailyPoint(
+            dayKey: previousEvidence.dayKey,
+            costUSD: previousEvidence.costUSD,
+            totalTokens: previousEvidence.totalTokens,
+            modelBreakdowns: previousEvidence.modelBreakdowns,
+            serviceBreakdowns: previousEvidence.serviceBreakdowns,
+            isEstimated: previousEvidence.isEstimated,
+            costIsKnown: previousEvidence.costIsKnown,
+            dayEvidence: evidence)
+    }
+
+    private static func reconcileOmittedProofedDays(
+        incomingByDay: [String: SyncDailyPoint],
+        previousByDay: [String: SyncDailyPoint],
+        incoming: SyncCostSummary,
+        completeBaselineIsFresh: Bool,
+        into merge: inout DayEvidenceMergeState)
+    {
+        for (dayKey, previousPoint) in previousByDay where previousPoint.dayEvidence != nil {
+            guard incomingByDay[dayKey] == nil else { continue }
+            if completeBaselineIsFresh {
+                if Self.isWithinBounds(
+                    dayKey,
+                    since: incoming.historySinceDayKey,
+                    until: incoming.historyUntilDayKey)
+                {
+                    // A complete source that has no row must publish a
+                    // certified zero point to supersede an existing proof.
+                    merge.dailyByDayKey[dayKey] = previousPoint
+                } else {
+                    merge.dailyByDayKey.removeValue(forKey: dayKey)
+                }
+            } else {
+                merge.dailyByDayKey[dayKey] = previousPoint
+            }
+        }
+    }
+
+    private func summary(
+        from merge: DayEvidenceMergeState,
+        coverageReconciled: SyncCostSummary,
+        previous: SyncCostSummary) -> SyncCostSummary
+    {
+        let evidenceUpdatedAt = merge.acceptedEvidenceDates.max()
+        let rolledDayKey = merge.acceptedEvidenceDayKeys.first { dayKey in
+            guard let previousUpperBound = coverageReconciled.historyUntilDayKey
+                ?? coverageReconciled.daily.map(\.dayKey).max()
+            else {
+                return false
+            }
+            return dayKey == Self.nextDayKey(after: previousUpperBound)
+                && self.historyUntilDayKey == dayKey
+        }
+        let historySinceDayKey: String? = if rolledDayKey != nil,
+                                             let previousSince = coverageReconciled.historySinceDayKey
+        {
+            Self.nextDayKey(after: previousSince) ?? previousSince
+        } else {
+            coverageReconciled.historySinceDayKey
+        }
+        let historyUntilDayKey = rolledDayKey ?? coverageReconciled.historyUntilDayKey
+        var daily = merge.dailyByDayKey.values.sorted { $0.dayKey < $1.dayKey }
+        if rolledDayKey != nil,
+           Self.isValidBounds(historySinceDayKey, historyUntilDayKey)
+        {
+            daily = daily.filter {
+                Self.isWithinBounds(
+                    $0.dayKey,
+                    since: historySinceDayKey,
+                    until: historyUntilDayKey)
+            }
+        }
+
+        guard daily != coverageReconciled.daily
+            || historySinceDayKey != coverageReconciled.historySinceDayKey
+            || historyUntilDayKey != coverageReconciled.historyUntilDayKey
+        else {
+            return coverageReconciled
+        }
+
+        let cost: Double? = if daily.isEmpty {
+            coverageReconciled.last30DaysCostUSD
+        } else {
+            daily.reduce(0) { $0 + $1.costUSD }
+        }
+        let tokens = daily.isEmpty
+            ? coverageReconciled.last30DaysTokens
+            : daily.reduce(0) { $0 + $1.totalTokens }
+        let estimated: Bool? = if coverageReconciled.isEstimated == true
+            || previous.isEstimated == true
+            || daily.contains(where: { $0.isEstimated == true })
+        {
+            true
+        } else {
+            coverageReconciled.isEstimated ?? previous.isEstimated
+        }
+
+        return SyncCostSummary(
+            sessionCostUSD: coverageReconciled.sessionCostUSD,
+            sessionTokens: coverageReconciled.sessionTokens,
+            last30DaysCostUSD: cost,
+            last30DaysTokens: tokens,
+            daily: daily,
+            isEstimated: estimated,
+            costIsKnown: Self.reconciledCostIsKnown(
+                incoming: coverageReconciled,
+                previous: previous,
+                daily: daily),
+            historyDays: coverageReconciled.historyDays,
+            historyCoverageIsEstablished: coverageReconciled.historyCoverageIsEstablished,
+            historySinceDayKey: historySinceDayKey,
+            historyUntilDayKey: historyUntilDayKey,
+            sessionRequests: coverageReconciled.sessionRequests,
+            last30DaysRequests: coverageReconciled.last30DaysRequests,
+            currencyCode: coverageReconciled.currencyCode,
+            costUpdatedAt: Self.latestCostUpdatedAt(
+                coverageReconciled.costUpdatedAt,
+                evidenceUpdatedAt),
+            totalCostUpdatedAt: Self.latestCostUpdatedAt(
+                coverageReconciled.totalCostUpdatedAt,
+                evidenceUpdatedAt),
+            sourceRevisions: coverageReconciled.sourceRevisions)
+    }
+
     /// Reconciles a payload that is allowed to replace the previous history
     /// (for example a newer complete report), while retaining a prior known
     /// cost for any overlapping day whose new numeric value is only a
@@ -521,7 +919,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             modelBreakdowns: previous.modelBreakdowns,
             serviceBreakdowns: previous.serviceBreakdowns,
             isEstimated: previous.isEstimated ?? incoming.isEstimated,
-            costIsKnown: false)
+            costIsKnown: false,
+            dayEvidence: incoming.dayEvidence)
     }
 
     private static func reconciledCostIsKnown(
@@ -586,6 +985,159 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     }
 
     private static let establishedHistoryRank = 2
+
+    private struct DayEvidenceMergeState {
+        var dailyByDayKey: [String: SyncDailyPoint]
+        var acceptedEvidenceDates: [Date] = []
+        var acceptedEvidenceDayKeys: [String] = []
+    }
+
+    private struct DayEvidenceReconciliationContext {
+        let incoming: SyncCostSummary
+        let previous: SyncCostSummary
+        let previousByDay: [String: SyncDailyPoint]
+        let previousEvidenceContexts: Set<DayEvidenceContext>
+        let completeBaselineIsFresh: Bool
+        let previousFallbackUpdatedAt: Date?
+    }
+
+    private struct DayEvidenceAdoptionContext {
+        let previousContexts: Set<DayEvidenceContext>
+        let withinRetainedWindow: Bool
+        let withinCompleteBounds: Bool
+        let bootstrapIsFresh: Bool
+    }
+
+    private struct DayEvidenceContext: Hashable {
+        let sourceKind: String
+        let scopeID: String
+        let lineageID: String
+    }
+
+    private static func evidenceContext(_ evidence: SyncDayEvidence) -> DayEvidenceContext {
+        DayEvidenceContext(
+            sourceKind: evidence.sourceKind,
+            scopeID: evidence.scopeID,
+            lineageID: evidence.lineageID)
+    }
+
+    private static func hasSameEvidenceContext(
+        _ lhs: SyncDayEvidence,
+        _ rhs: SyncDayEvidence) -> Bool
+    {
+        self.evidenceContext(lhs) == self.evidenceContext(rhs)
+    }
+
+    /// A lineage change cannot be ordered by its integer revision. Only an
+    /// established, fresh, explicitly bounded history is allowed to adopt it.
+    private static func isExplicitFreshCompleteBaseline(
+        _ incoming: SyncCostSummary,
+        previous: SyncCostSummary,
+        incomingFallbackUpdatedAt: Date?,
+        previousFallbackUpdatedAt: Date?) -> Bool
+    {
+        guard incoming.historyCoverageIsEstablished == true,
+              self.isValidBounds(incoming.historySinceDayKey, incoming.historyUntilDayKey),
+              let incomingRevision = totalRevision(
+                  for: incoming,
+                  fallbackUpdatedAt: incomingFallbackUpdatedAt)
+        else {
+            return false
+        }
+
+        guard let previousRevision = Self.totalRevision(
+            for: previous,
+            fallbackUpdatedAt: previousFallbackUpdatedAt)
+        else {
+            return true
+        }
+        return incomingRevision >= previousRevision
+    }
+
+    private static func isValidBounds(_ since: String?, _ until: String?) -> Bool {
+        guard let since, let until else { return false }
+        return since <= until
+            && Self.nextDayKey(after: since) != nil
+            && Self.nextDayKey(after: until) != nil
+    }
+
+    private static func isWithinBounds(
+        _ dayKey: String,
+        since: String?,
+        until: String?) -> Bool
+    {
+        guard self.isValidBounds(since, until),
+              let since,
+              let until
+        else {
+            return false
+        }
+        return since <= dayKey && dayKey <= until
+    }
+
+    private static func isWithinRetainedWindow(
+        _ dayKey: String,
+        incoming: SyncCostSummary,
+        previous: SyncCostSummary) -> Bool
+    {
+        if previous.daily.contains(where: { $0.dayKey == dayKey }) {
+            return true
+        }
+        if self.isWithinBounds(
+            dayKey,
+            since: previous.historySinceDayKey,
+            until: previous.historyUntilDayKey)
+        {
+            return true
+        }
+
+        // A rolling window can add exactly its next day while it advances.
+        // Requiring the incoming upper bound to match prevents arbitrary
+        // historical additions outside the retained request window.
+        let previousUpperBound = previous.historyUntilDayKey
+            ?? previous.daily.map(\.dayKey).max()
+        guard let previousUpperBound,
+              Self.nextDayKey(after: previousUpperBound) == dayKey,
+              incoming.historyUntilDayKey == dayKey
+        else {
+            return false
+        }
+        return true
+    }
+
+    private static func nextDayKey(after dayKey: String) -> String? {
+        let components = dayKey.split(separator: "-")
+        guard components.count == 3,
+              let year = Int(components[0]),
+              let month = Int(components[1]),
+              let day = Int(components[2]),
+              components[0].count == 4,
+              components[1].count == 2,
+              components[2].count == 2
+        else {
+            return nil
+        }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        var dateComponents = DateComponents()
+        dateComponents.year = year
+        dateComponents.month = month
+        dateComponents.day = day
+        dateComponents.hour = 12
+        guard let date = calendar.date(from: dateComponents) else { return nil }
+        let normalized = calendar.dateComponents([.year, .month, .day], from: date)
+        guard normalized.year == year, normalized.month == month, normalized.day == day,
+              let nextDate = calendar.date(byAdding: .day, value: 1, to: date)
+        else {
+            return nil
+        }
+        let next = calendar.dateComponents([.year, .month, .day], from: nextDate)
+        guard let nextYear = next.year, let nextMonth = next.month, let nextDay = next.day else {
+            return nil
+        }
+        return String(format: "%04d-%02d-%02d", nextYear, nextMonth, nextDay)
+    }
 
     private static func sameHistoryScope(
         _ lhs: SyncCostSummary,

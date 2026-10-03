@@ -20481,6 +20481,149 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "不同 GitHub 主机上的 Copilot Enterprise 帐户现在会在 iPhone 上分别显示。" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "不同 GitHub 主機上的 Copilot Enterprise 帳戶現在會在 iPhone 上分別顯示。" } }
       }
+    },
+    "Verified Codex daily spend and model details now update while your Mac rebuilds older history.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتم الآن تحديث الإنفاق اليومي المتحقق منه في Codex وتفاصيل النماذج أثناء إعادة بناء السجل الأقدم على Mac."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La despesa diària verificada de Codex i els detalls dels models ara s’actualitzen mentre el Mac reconstrueix l’historial anterior."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifizierte tägliche Codex-Ausgaben und Modelldetails werden jetzt aktualisiert, während dein Mac ältere Verlaufsdaten neu aufbaut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified Codex daily spend and model details now update while your Mac rebuilds older history."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gasto diario verificado de Codex y los detalles de los modelos ahora se actualizan mientras tu Mac reconstruye el historial anterior."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هزینه روزانه تأییدشده Codex و جزئیات مدل‌ها اکنون هنگام بازسازی تاریخچه قدیمی‌تر در Mac به‌روز می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les dépenses quotidiennes vérifiées de Codex et les détails des modèles sont désormais mis à jour pendant que votre Mac reconstruit l’historique antérieur."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O gasto diario verificado de Codex e os detalles dos modelos agora actualízanse mentres o Mac reconstrúe o historial anterior."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengeluaran harian Codex yang terverifikasi dan detail model kini diperbarui saat Mac membangun ulang riwayat lama."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La spesa giornaliera verificata di Codex e i dettagli dei modelli ora si aggiornano mentre il Mac ricostruisce la cronologia precedente."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac が過去の履歴を再構築している間も、検証済みの Codex の日次支出とモデルの詳細が更新されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac이 이전 기록을 다시 구성하는 동안에도 검증된 Codex 일일 지출과 모델 세부 정보가 업데이트됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geverifieerde dagelijkse Codex-uitgaven en modeldetails worden nu bijgewerkt terwijl je Mac oudere geschiedenis opnieuw opbouwt."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zweryfikowane dzienne wydatki Codex i szczegóły modeli są teraz aktualizowane podczas odbudowy starszej historii na Macu."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os gastos diários verificados do Codex e os detalhes dos modelos agora são atualizados enquanto o Mac reconstrói o histórico anterior."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверенные ежедневные расходы Codex и сведения о моделях теперь обновляются, пока Mac восстанавливает более раннюю историю."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifierade dagliga Codex-kostnader och modellinformation uppdateras nu medan din Mac återskapar äldre historik."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ค่าใช้จ่ายรายวันของ Codex และรายละเอียดโมเดลที่ผ่านการตรวจสอบแล้วจะอัปเดตระหว่างที่ Mac สร้างประวัติเก่าขึ้นใหม่"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doğrulanmış günlük Codex harcamaları ve model ayrıntıları artık Mac eski geçmişi yeniden oluştururken de güncellenir."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевірені щоденні витрати Codex і відомості про моделі тепер оновлюються, поки Mac відновлює давнішу історію."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chi tiêu hằng ngày đã xác minh của Codex và chi tiết mô hình giờ được cập nhật trong khi Mac dựng lại lịch sử cũ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当 Mac 重建较早的历史记录时，已验证的 Codex 每日支出和模型详情现在也会更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "當 Mac 重建較早的歷史記錄時，已驗證的 Codex 每日支出與模型詳情現在也會更新。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

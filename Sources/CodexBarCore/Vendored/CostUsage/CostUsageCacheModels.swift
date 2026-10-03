@@ -191,6 +191,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var pricedRequestCount: Int?
         var unmeteredRequestCount: Int?
         var estimatedRequestCount: Int?
+        var dayEvidence: CostUsageDayEvidence?
 
         init(_ entry: CostUsageDailyReport.Entry) {
             self.date = entry.date
@@ -208,6 +209,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.pricedRequestCount = entry.pricedRequestCount
             self.unmeteredRequestCount = entry.unmeteredRequestCount
             self.estimatedRequestCount = entry.estimatedRequestCount
+            self.dayEvidence = entry.dayEvidence
         }
 
         var dailyReportValue: CostUsageDailyReport.Entry {
@@ -226,7 +228,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 unpricedRequestCount: self.unpricedRequestCount,
                 unmeteredRequestCount: self.unmeteredRequestCount,
                 estimatedRequestCount: self.estimatedRequestCount,
-                pricedRequestCount: self.pricedRequestCount)
+                pricedRequestCount: self.pricedRequestCount,
+                dayEvidence: self.dayEvidence)
         }
     }
 

@@ -216,6 +216,11 @@ struct CostUsageOrphanForkTests {
                 roots: CostUsageScanner.codexSessionsRoots(options: options),
                 dayKey: "2026-09-30",
                 calendar: calendar))
+            #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+                cache: cache,
+                roots: CostUsageScanner.codexSessionsRoots(options: options),
+                dayKey: "2026-09-30",
+                calendar: calendar) == .fork)
             #expect(!CostUsageScanner.codexRequestedWindowProjectionCanPublish(
                 cache: cache,
                 roots: CostUsageScanner.codexSessionsRoots(options: options),

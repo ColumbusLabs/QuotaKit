@@ -204,68 +204,6 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
-    func `verified current day overlays established history without adopting partial coverage`() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
-        let establishedAt = try #require(calendar.date(from: DateComponents(
-            year: 2026,
-            month: 7,
-            day: 30,
-            hour: 10)))
-        let candidateAt = establishedAt.addingTimeInterval(60)
-        let historical = CostUsageDailyReport.Entry(
-            date: "2026-07-29",
-            inputTokens: 2,
-            outputTokens: 2,
-            totalTokens: 4,
-            costUSD: 4,
-            modelsUsed: nil,
-            modelBreakdowns: nil)
-        let establishedToday = CostUsageDailyReport.Entry(
-            date: "2026-07-30",
-            inputTokens: 4,
-            outputTokens: 6,
-            totalTokens: 10,
-            costUSD: 3,
-            modelsUsed: nil,
-            modelBreakdowns: nil)
-        let established = CostUsageTokenSnapshot(
-            sessionTokens: 10,
-            sessionCostUSD: 3,
-            last30DaysTokens: 14,
-            last30DaysCostUSD: 7,
-            historyCoverageIsEstablished: true,
-            daily: [historical, establishedToday],
-            updatedAt: establishedAt)
-        let candidate = Self.tokenSnapshot(
-            cost: 9,
-            now: candidateAt,
-            historyCoverageIsEstablished: false)
-
-        let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
-            candidate,
-            onto: established,
-            calendar: calendar))
-
-        #expect(overlaid.historyCoverageIsEstablished)
-        #expect(overlaid.sessionCostUSD == 9)
-        #expect(overlaid.last30DaysCostUSD == 13)
-        #expect(overlaid.last30DaysTokens == 14)
-        #expect(overlaid.daily.first { $0.date == "2026-07-29" }?.costUSD == 4)
-        #expect(overlaid.daily.first { $0.date == "2026-07-30" }?.costUSD == 9)
-        #expect(overlaid.updatedAt == candidateAt)
-
-        let staleCandidate = Self.tokenSnapshot(
-            cost: 12,
-            now: establishedAt.addingTimeInterval(-1),
-            historyCoverageIsEstablished: false)
-        #expect(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
-            staleCandidate,
-            onto: established,
-            calendar: calendar) == nil)
-    }
-
-    @Test
     func `cold partial catch-up publishes only monotonic lower-bound progress`() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))

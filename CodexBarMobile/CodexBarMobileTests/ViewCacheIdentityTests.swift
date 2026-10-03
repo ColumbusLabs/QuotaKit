@@ -285,6 +285,67 @@ struct ViewCacheIdentityTests {
     }
 
     @Test
+    func intermediateDayProofRevisionInvalidatesCostTabMemoForBlobAndCWL() {
+        let revisionTime = Date(timeIntervalSince1970: 1_700_000_000)
+        func device(_ id: String, proofRevision: Int64) -> SyncedUsageSnapshot {
+            SyncedUsageSnapshot(
+                providers: [ProviderUsageSnapshot(
+                    providerID: "codex",
+                    providerName: "Codex",
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: "same@example.com",
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: revisionTime,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: 1,
+                        sessionTokens: 100,
+                        last30DaysCostUSD: 1,
+                        last30DaysTokens: 100,
+                        daily: [SyncDailyPoint(
+                            dayKey: "2026-08-12",
+                            costUSD: 1,
+                            totalTokens: 100,
+                            dayEvidence: SyncDayEvidence(
+                                sourceKind: "codexLocalLedger",
+                                scopeID: "scope-a",
+                                lineageID: "store-\(id)",
+                                revision: proofRevision,
+                                verifiedAt: revisionTime))],
+                        costUpdatedAt: revisionTime,
+                        totalCostUpdatedAt: revisionTime))],
+                syncTimestamp: revisionTime,
+                deviceName: id,
+                deviceID: id)
+        }
+        func cacheKey(middleProofRevision: Int64, cwlEnabled: Bool) -> String {
+            let snapshots = [
+                device("oldest", proofRevision: 2),
+                device("middle", proofRevision: middleProofRevision),
+                device("newest", proofRevision: 8),
+            ]
+            let snapshotKey = SnapshotIdentityKey.make(
+                providerIDs: ["codex"],
+                lastUpdated: revisionTime,
+                costUpdatedAt: revisionTime,
+                costRevisions: SnapshotIdentityKey.costRevisionComponents(from: snapshots))
+            return CostTab.insightsCacheKey(
+                isDemoMode: false,
+                snapshotKey: snapshotKey,
+                cwlEnabled: cwlEnabled,
+                cwlWindowDays: 30,
+                todayKey: "2026-08-12")
+        }
+
+        #expect(cacheKey(middleProofRevision: 4, cwlEnabled: false)
+            != cacheKey(middleProofRevision: 5, cwlEnabled: false))
+        #expect(cacheKey(middleProofRevision: 4, cwlEnabled: true)
+            != cacheKey(middleProofRevision: 5, cwlEnabled: true))
+    }
+
+    @Test
     func `CostTab key: CWL window is irrelevant while CWL is off`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude"],

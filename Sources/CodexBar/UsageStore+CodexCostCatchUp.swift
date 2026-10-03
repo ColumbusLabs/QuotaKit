@@ -50,6 +50,34 @@ private enum CodexCostCatchUpNoProgressPolicy {
     }
 }
 
+private struct CodexCostDayEvidenceIdentity: Hashable {
+    let sourceKind: String
+    let scopeID: String
+    let lineageID: String
+
+    init(_ evidence: CostUsageDayEvidence) {
+        self.sourceKind = evidence.sourceKind
+        self.scopeID = evidence.scopeID
+        self.lineageID = evidence.lineageID
+    }
+}
+
+private struct CodexCostVerifiedDayEvidenceInventory {
+    let identity: CodexCostDayEvidenceIdentity
+    let candidateByDay: [String: CostUsageDailyReport.Entry]
+    let establishedProofsByDay: [String: [CostUsageDayEvidence]]
+}
+
+private struct CodexCostVerifiedDayChanges {
+    let replacements: [String: CostUsageDailyReport.Entry]
+    let evidenceOnlyUpdates: [String: CostUsageDayEvidence]
+}
+
+private struct CodexCostVerifiedDayWindows {
+    let candidate: CostUsageDayWindow
+    let established: CostUsageDayWindow
+}
+
 extension UsageStore {
     func startCodexCostCatchUpIfNeeded(afterRefreshing provider: UsageProvider) {
         guard provider == .codex else { return }
@@ -475,11 +503,12 @@ extension UsageStore {
                 calendar: self.settings.costUsageBucketCalendar)
             {
                 if cached.snapshot.historyCoverageIsEstablished {
-                    cached.snapshot
-                } else if current.historyCoverageIsEstablished,
-                          cached.currentDayIsFullyVerified
-                {
-                    Self.codexCostSnapshotOverlayingVerifiedCurrentDay(
+                    Self.codexCostSnapshotRefreshingProofMetadataOnly(
+                        cached.snapshot,
+                        onto: current,
+                        calendar: self.settings.costUsageBucketCalendar) ?? cached.snapshot
+                } else if current.historyIsFullyScanned {
+                    Self.codexCostSnapshotOverlayingVerifiedDays(
                         cached.snapshot,
                         onto: current,
                         calendar: self.settings.costUsageBucketCalendar)
@@ -537,6 +566,7 @@ extension UsageStore {
             && lhs.currencyCode == rhs.currencyCode
             && lhs.historyDays == rhs.historyDays
             && lhs.historyCoverageIsEstablished == rhs.historyCoverageIsEstablished
+            && lhs.historyScanIsPartial == rhs.historyScanIsPartial
             && lhs.historySinceDayKey == rhs.historySinceDayKey
             && lhs.historyUntilDayKey == rhs.historyUntilDayKey
             && lhs.historyLabel == rhs.historyLabel
@@ -548,6 +578,7 @@ extension UsageStore {
             && lhs.projects == rhs.projects
             && lhs.sessions == rhs.sessions
             && lhs.hourly == rhs.hourly
+            && lhs.quotaSlices == rhs.quotaSlices
     }
 
     private static func codexCostSnapshot(
@@ -564,6 +595,7 @@ extension UsageStore {
             currencyCode: snapshot.currencyCode,
             historyDays: snapshot.historyDays,
             historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            historyScanIsPartial: snapshot.historyScanIsPartial,
             historySinceDayKey: snapshot.historySinceDayKey,
             historyUntilDayKey: snapshot.historyUntilDayKey,
             historyLabel: snapshot.historyLabel,
@@ -575,52 +607,201 @@ extension UsageStore {
             projects: current.projects,
             sessions: current.sessions,
             hourly: current.hourly,
+            quotaSlices: snapshot.quotaSlices,
             updatedAt: snapshot.updatedAt)
     }
 
-    /// Overlays the candidate's independently verified current day onto an established history.
-    ///
-    /// Both snapshots are normalized to the candidate's producer rolling window first. The
-    /// established rows that fell outside that window expire, and the result may only keep
-    /// `historyCoverageIsEstablished` when the established window plus the one verified day
-    /// cover the candidate window without leaving unverified gap days (for example after a
-    /// multi-day sleep). Totals are recomputed from the trimmed rows so a stored aggregate can
-    /// never span N+1 days while claiming an N-day window.
+    /// Compatibility name retained for focused callers; proof can now advance any day in the window.
     static func codexCostSnapshotOverlayingVerifiedCurrentDay(
         _ candidate: CostUsageTokenSnapshot,
         onto established: CostUsageTokenSnapshot,
         calendar: Calendar) -> CostUsageTokenSnapshot?
     {
-        guard candidate.updatedAt > established.updatedAt else { return nil }
+        self.codexCostSnapshotOverlayingVerifiedDays(candidate, onto: established, calendar: calendar)
+    }
+
+    /// Replaces only days with newer, compatible ledger proof while retaining the established window.
+    ///
+    /// A partial candidate cannot establish a new history baseline. The established scan must
+    /// already cover the candidate bounds except for at most the next day, which must itself
+    /// carry proof. Existing proof rows also pin the ledger scope and lineage for every partial
+    /// replacement; adopting a new lineage is left to an explicitly complete candidate.
+    static func codexCostSnapshotOverlayingVerifiedDays(
+        _ candidate: CostUsageTokenSnapshot,
+        onto established: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostUsageTokenSnapshot?
+    {
+        guard !candidate.historyCoverageIsEstablished,
+              established.historyIsFullyScanned,
+              candidate.ownership == established.ownership,
+              candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
+              candidate.currencyCode == established.currencyCode,
+              candidate.costProvenance == established.costProvenance
+        else { return nil }
 
         let candidateWindow = candidate.historyDayWindow(calendar: calendar)
         let establishedWindow = established.historyDayWindow(calendar: calendar)
-        guard candidateWindow.untilKey >= establishedWindow.untilKey,
-              candidateWindow.sinceKey >= establishedWindow.sinceKey,
+        guard candidateWindow.sinceKey >= establishedWindow.sinceKey,
+              candidateWindow.untilKey >= establishedWindow.untilKey,
               let adjacentDayKey = CostUsageDayWindow.dayKey(
                   establishedWindow.untilKey,
                   advancedBy: 1,
                   calendar: calendar),
-              candidateWindow.untilKey <= adjacentDayKey,
-              let currentDay = candidate.daily.first(where: { entry in
-                  candidateWindow.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
-                      == candidateWindow.untilKey
-              }),
-              currentDay.costUSD != nil
+              candidateWindow.untilKey <= adjacentDayKey
         else { return nil }
 
-        var daily = established.daily.filter { entry in
-            guard candidateWindow.contains(entryDate: entry.date, calendar: calendar) else { return false }
-            return candidateWindow.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
-                != candidateWindow.untilKey
+        guard let inventory = Self.codexCostVerifiedDayEvidenceInventory(
+            candidate: candidate,
+            established: established,
+            window: candidateWindow,
+            calendar: calendar),
+            let changes = Self.codexCostVerifiedDayChanges(
+                inventory: inventory,
+                establishedUpdatedAt: established.updatedAt)
+        else { return nil }
+
+        // A one-day window advance is safe only when the new boundary day has its own proof.
+        if candidateWindow.untilKey > establishedWindow.untilKey,
+           changes.replacements[candidateWindow.untilKey] == nil
+        {
+            return nil
         }
-        daily.append(currentDay)
-        daily.sort { lhs, rhs in
-            let lhsKey = candidateWindow.normalizedDayKey(forEntryDate: lhs.date, calendar: calendar)
-                ?? lhs.date
-            let rhsKey = candidateWindow.normalizedDayKey(forEntryDate: rhs.date, calendar: calendar)
-                ?? rhs.date
-            return lhsKey < rhsKey
+
+        return Self.codexCostSnapshot(
+            applying: changes,
+            candidate: candidate,
+            established: established,
+            windows: CodexCostVerifiedDayWindows(
+                candidate: candidateWindow,
+                established: establishedWindow),
+            calendar: calendar)
+    }
+
+    private static func codexCostVerifiedDayEvidenceInventory(
+        candidate: CostUsageTokenSnapshot,
+        established: CostUsageTokenSnapshot,
+        window: CostUsageDayWindow,
+        calendar: Calendar) -> CodexCostVerifiedDayEvidenceInventory?
+    {
+        let candidateEntries = candidate.daily.filter { $0.dayEvidence != nil }
+        guard !candidateEntries.isEmpty else { return nil }
+
+        var candidateByDay: [String: CostUsageDailyReport.Entry] = [:]
+        var candidateIdentity: CodexCostDayEvidenceIdentity?
+        for entry in candidateEntries {
+            guard let dayKey = Self.codexCostDayKey(for: entry, in: window, calendar: calendar),
+                  window.contains(dayKey),
+                  let evidence = entry.dayEvidence,
+                  Self.codexCostDayEvidenceIsValid(evidence)
+            else { return nil }
+            let identity = CodexCostDayEvidenceIdentity(evidence)
+            guard candidateIdentity == nil || candidateIdentity == identity,
+                  candidateByDay[dayKey] == nil
+            else { return nil }
+            candidateIdentity = identity
+            candidateByDay[dayKey] = entry
+        }
+        guard let candidateIdentity else { return nil }
+
+        var establishedProofsByDay: [String: [CostUsageDayEvidence]] = [:]
+        var establishedIdentities = Set<CodexCostDayEvidenceIdentity>()
+        for entry in established.daily {
+            guard let evidence = entry.dayEvidence else { continue }
+            guard let dayKey = Self.codexCostDayKey(for: entry, in: window, calendar: calendar),
+                  Self.codexCostDayEvidenceIsValid(evidence)
+            else { return nil }
+            establishedIdentities.insert(CodexCostDayEvidenceIdentity(evidence))
+            if window.contains(dayKey) {
+                establishedProofsByDay[dayKey, default: []].append(evidence)
+            }
+        }
+        guard establishedIdentities.count <= 1,
+              establishedIdentities.first.map({ $0 == candidateIdentity }) ?? true
+        else { return nil }
+
+        return CodexCostVerifiedDayEvidenceInventory(
+            identity: candidateIdentity,
+            candidateByDay: candidateByDay,
+            establishedProofsByDay: establishedProofsByDay)
+    }
+
+    private static func codexCostDayKey(
+        for entry: CostUsageDailyReport.Entry,
+        in window: CostUsageDayWindow,
+        calendar: Calendar) -> String?
+    {
+        window.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
+    }
+
+    private static func codexCostDayEvidenceIsValid(_ evidence: CostUsageDayEvidence) -> Bool {
+        evidence.sourceKind == "codexLocalLedger"
+            && !evidence.scopeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !evidence.lineageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && evidence.revision > 0
+            && evidence.verifiedAt.timeIntervalSince1970.isFinite
+    }
+
+    private static func codexCostVerifiedDayChanges(
+        inventory: CodexCostVerifiedDayEvidenceInventory,
+        establishedUpdatedAt: Date) -> CodexCostVerifiedDayChanges?
+    {
+        var replacements: [String: CostUsageDailyReport.Entry] = [:]
+        var evidenceOnlyUpdates: [String: CostUsageDayEvidence] = [:]
+        for (dayKey, entry) in inventory.candidateByDay {
+            guard let evidence = entry.dayEvidence else { return nil }
+            let priorProofs = inventory.establishedProofsByDay[dayKey] ?? []
+            if priorProofs.isEmpty {
+                // A legacy row has no revision to compare. Its replacement authority comes
+                // from proof time itself, never a newer cache/report timestamp.
+                if evidence.verifiedAt > establishedUpdatedAt {
+                    replacements[dayKey] = entry
+                }
+                continue
+            }
+            guard priorProofs.allSatisfy({
+                CodexCostDayEvidenceIdentity($0) == inventory.identity
+            }) else { return nil }
+            let priorRevision = priorProofs.map(\.revision).max() ?? 0
+            if evidence.revision > priorRevision {
+                replacements[dayKey] = entry
+            } else if evidence.revision == priorRevision,
+                      evidence.verifiedAt > (priorProofs.map(\.verifiedAt).max() ?? .distantPast)
+            {
+                // Refresh proof time without trusting a same-revision candidate's content.
+                evidenceOnlyUpdates[dayKey] = evidence
+            }
+        }
+        guard !replacements.isEmpty || !evidenceOnlyUpdates.isEmpty else { return nil }
+        return CodexCostVerifiedDayChanges(
+            replacements: replacements,
+            evidenceOnlyUpdates: evidenceOnlyUpdates)
+    }
+
+    private static func codexCostSnapshot(
+        applying changes: CodexCostVerifiedDayChanges,
+        candidate: CostUsageTokenSnapshot,
+        established: CostUsageTokenSnapshot,
+        windows: CodexCostVerifiedDayWindows,
+        calendar: Calendar) -> CostUsageTokenSnapshot
+    {
+        let candidateWindow = windows.candidate
+        let establishedWindow = windows.established
+        var daily: [CostUsageDailyReport.Entry] = []
+        for entry in established.daily {
+            guard let dayKey = Self.codexCostDayKey(for: entry, in: candidateWindow, calendar: calendar),
+                  candidateWindow.contains(dayKey)
+            else { continue }
+            if changes.replacements[dayKey] != nil { continue }
+            if let evidence = changes.evidenceOnlyUpdates[dayKey] {
+                daily.append(Self.codexCostEntry(entry, replacingDayEvidenceWith: evidence))
+            } else {
+                daily.append(entry)
+            }
+        }
+        daily.append(contentsOf: changes.replacements.values)
+        daily.sort {
+            (Self.codexCostDayKey(for: $0, in: candidateWindow, calendar: calendar) ?? $0.date)
+                < (Self.codexCostDayKey(for: $1, in: candidateWindow, calendar: calendar) ?? $1.date)
         }
 
         let allEntriesCarryTokens = daily.allSatisfy { $0.totalTokens != nil }
@@ -633,17 +814,51 @@ extension UsageStore {
         let totalTokens = allEntriesCarryTokens ? daily.compactMap(\.totalTokens).reduce(0, +) : nil
         let totalCost = allEntriesCarryCost ? daily.compactMap(\.costUSD).reduce(0, +) : nil
         let totalRequests = allEntriesCarryRequests ? daily.compactMap(\.requestCount).reduce(0, +) : nil
+        let latestEvidenceAt = (changes.replacements.values.compactMap { $0.dayEvidence?.verifiedAt }
+            + changes.evidenceOnlyUpdates.values.map(\.verifiedAt)).max() ?? .distantPast
+        let updatedAt = max(established.updatedAt, latestEvidenceAt)
+
+        let hourly = Self.codexCostMergedTemporal(
+            established: established.hourly,
+            candidate: candidate.hourly,
+            window: candidateWindow,
+            updatedDays: Set(changes.replacements.keys),
+            dayKeyFor: { Self.codexCostLocalDayKey(for: $0.hour, calendar: calendar) })
+        let quotaSlices = Self.codexCostMergedTemporal(
+            established: established.quotaSlices,
+            candidate: candidate.quotaSlices,
+            window: candidateWindow,
+            updatedDays: Set(changes.replacements.keys),
+            dayKeyFor: { Self.codexCostLocalDayKey(for: $0.timestamp, calendar: calendar) })
+
+        let currentDay = changes.replacements[candidateWindow.untilKey]
+        let sessionTokens: Int? = if let currentDay {
+            currentDay.totalTokens
+        } else {
+            established.sessionTokens
+        }
+        let sessionCostUSD: Double? = if let currentDay {
+            currentDay.costUSD
+        } else {
+            established.sessionCostUSD
+        }
+        let sessionRequests: Int? = if let currentDay {
+            currentDay.requestCount
+        } else {
+            established.sessionRequests
+        }
 
         return CostUsageTokenSnapshot(
-            sessionTokens: currentDay.totalTokens,
-            sessionCostUSD: currentDay.costUSD,
-            sessionRequests: currentDay.requestCount,
+            sessionTokens: sessionTokens,
+            sessionCostUSD: sessionCostUSD,
+            sessionRequests: sessionRequests,
             last30DaysTokens: totalTokens,
             last30DaysCostUSD: totalCost,
             last30DaysRequests: totalRequests,
             currencyCode: established.currencyCode,
             historyDays: candidate.historyDays,
             historyCoverageIsEstablished: true,
+            historyScanIsPartial: established.historyScanIsPartial,
             historySinceDayKey: candidateWindow.sinceKey,
             historyUntilDayKey: candidateWindow.untilKey,
             // Both a history label and provider-metered spend describe the exact window they
@@ -658,8 +873,157 @@ extension UsageStore {
             daily: daily,
             projects: established.projects,
             sessions: established.sessions,
+            hourly: hourly,
+            quotaSlices: quotaSlices,
+            updatedAt: updatedAt)
+    }
+
+    private static func codexCostMergedTemporal<Value>(
+        established values: [Value],
+        candidate candidateValues: [Value],
+        window: CostUsageDayWindow,
+        updatedDays: Set<String>,
+        dayKeyFor: (Value) -> String?) -> [Value]
+    {
+        values.filter { value in
+            guard let key = dayKeyFor(value) else { return false }
+            return window.contains(key) && !updatedDays.contains(key)
+        } + candidateValues.filter { value in
+            guard let key = dayKeyFor(value) else { return false }
+            return updatedDays.contains(key)
+        }
+    }
+
+    private static func codexCostLocalDayKey(for date: Date, calendar: Calendar) -> String? {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let year = components.year,
+              let month = components.month,
+              let day = components.day
+        else { return nil }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    private static func codexCostEntry(
+        _ entry: CostUsageDailyReport.Entry,
+        replacingDayEvidenceWith evidence: CostUsageDayEvidence) -> CostUsageDailyReport.Entry
+    {
+        CostUsageDailyReport.Entry(
+            date: entry.date,
+            inputTokens: entry.inputTokens,
+            outputTokens: entry.outputTokens,
+            cacheReadTokens: entry.cacheReadTokens,
+            cacheCreationTokens: entry.cacheCreationTokens,
+            reasoningTokens: entry.reasoningTokens,
+            totalTokens: entry.totalTokens,
+            requestCount: entry.requestCount,
+            costUSD: entry.costUSD,
+            modelsUsed: entry.modelsUsed,
+            modelBreakdowns: entry.modelBreakdowns,
+            unpricedRequestCount: entry.unpricedRequestCount,
+            unmeteredRequestCount: entry.unmeteredRequestCount,
+            estimatedRequestCount: entry.estimatedRequestCount,
+            pricedRequestCount: entry.pricedRequestCount,
+            dayEvidence: evidence)
+    }
+
+    /// Applies proof-clock refreshes to a complete same-window snapshot without trusting any
+    /// accompanying content changes when the per-day revision counter did not advance.
+    static func codexCostSnapshotRefreshingProofMetadataOnly(
+        _ candidate: CostUsageTokenSnapshot,
+        onto established: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostUsageTokenSnapshot?
+    {
+        guard candidate.historyIsFullyScanned,
+              established.historyIsFullyScanned,
+              candidate.historyDayWindow(calendar: calendar) == established.historyDayWindow(calendar: calendar),
+              candidate.ownership == established.ownership,
+              candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
+              candidate.currencyCode == established.currencyCode,
+              candidate.costProvenance == established.costProvenance
+        else { return nil }
+
+        let window = established.historyDayWindow(calendar: calendar)
+        func dayKey(for entry: CostUsageDailyReport.Entry) -> String? {
+            window.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
+        }
+        func validIdentity(_ evidence: CostUsageDayEvidence) -> CodexCostDayEvidenceIdentity? {
+            guard evidence.sourceKind == "codexLocalLedger",
+                  !evidence.scopeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !evidence.lineageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  evidence.revision > 0,
+                  evidence.verifiedAt.timeIntervalSince1970.isFinite
+            else { return nil }
+            return CodexCostDayEvidenceIdentity(evidence)
+        }
+
+        var priorByDay: [String: [CostUsageDayEvidence]] = [:]
+        var priorIdentities = Set<CodexCostDayEvidenceIdentity>()
+        for entry in established.daily {
+            guard let evidence = entry.dayEvidence else { continue }
+            guard let dayKey = dayKey(for: entry),
+                  let identity = validIdentity(evidence)
+            else { return nil }
+            priorByDay[dayKey, default: []].append(evidence)
+            priorIdentities.insert(identity)
+        }
+        guard priorIdentities.count == 1,
+              let priorIdentity = priorIdentities.first
+        else { return nil }
+
+        var proofUpdates: [String: CostUsageDayEvidence] = [:]
+        for entry in candidate.daily {
+            guard let evidence = entry.dayEvidence else { continue }
+            guard let dayKey = dayKey(for: entry),
+                  let identity = validIdentity(evidence),
+                  identity == priorIdentity,
+                  let priorProofs = priorByDay[dayKey],
+                  !priorProofs.isEmpty
+            else { return nil }
+
+            let priorRevision = priorProofs.map(\.revision).max() ?? 0
+            // An advancing revision signals changed day content and follows the authoritative
+            // normal publication path. A lower counter is stale/incomparable for this epoch.
+            guard evidence.revision == priorRevision else { return nil }
+            let priorVerifiedAt = priorProofs.map(\.verifiedAt).max() ?? .distantPast
+            if evidence.verifiedAt > priorVerifiedAt {
+                proofUpdates[dayKey] = evidence
+            }
+        }
+        guard !proofUpdates.isEmpty else { return nil }
+
+        let daily = established.daily.map { entry in
+            guard let dayKey = dayKey(for: entry),
+                  let evidence = proofUpdates[dayKey]
+            else { return entry }
+            return Self.codexCostEntry(entry, replacingDayEvidenceWith: evidence)
+        }
+        let updatedAt = max(
+            established.updatedAt,
+            proofUpdates.values.map(\.verifiedAt).max() ?? .distantPast)
+        return CostUsageTokenSnapshot(
+            sessionTokens: established.sessionTokens,
+            sessionCostUSD: established.sessionCostUSD,
+            sessionRequests: established.sessionRequests,
+            last30DaysTokens: established.last30DaysTokens,
+            last30DaysCostUSD: established.last30DaysCostUSD,
+            last30DaysRequests: established.last30DaysRequests,
+            currencyCode: established.currencyCode,
+            historyDays: established.historyDays,
+            historyCoverageIsEstablished: established.historyCoverageIsEstablished,
+            historyScanIsPartial: established.historyScanIsPartial,
+            historySinceDayKey: established.historySinceDayKey,
+            historyUntilDayKey: established.historyUntilDayKey,
+            historyLabel: established.historyLabel,
+            meteredCostUSD: established.meteredCostUSD,
+            costProvenance: established.costProvenance,
+            credentialScopeFingerprint: established.credentialScopeFingerprint,
+            ownership: established.ownership,
+            daily: daily,
+            projects: established.projects,
+            sessions: established.sessions,
             hourly: established.hourly,
-            updatedAt: candidate.updatedAt)
+            quotaSlices: established.quotaSlices,
+            updatedAt: updatedAt)
     }
 
     /// A cold cache has no complete baseline to protect yet. Publish bounded

@@ -580,6 +580,607 @@ struct CWLWriterTests {
     }
 
     @Test
+    func `upsertFromSnapshot: verified day revisions override coverage and survive stale input`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t1 = Date(timeIntervalSince1970: 1_700_000_000)
+        let t2 = t1.addingTimeInterval(60)
+        let t3 = t2.addingTimeInterval(60)
+        let t4 = t3.addingTimeInterval(60)
+        func snapshot(
+            cost: Double,
+            tokens: Int,
+            coverage: Bool,
+            updatedAt: Date,
+            evidence: SyncDayEvidence?) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: tokens,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: tokens,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: cost,
+                        totalTokens: tokens,
+                        costIsKnown: true,
+                        dayEvidence: evidence)],
+                    historyDays: 30,
+                    historyCoverageIsEstablished: coverage,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+        func proof(revision: Int64, verifiedAt: Date) -> SyncDayEvidence {
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: revision,
+                verifiedAt: verifiedAt)
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 10, tokens: 1000, coverage: true, updatedAt: t1, evidence: nil),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 0, tokens: 0, coverage: false, updatedAt: t2, evidence: proof(revision: 1, verifiedAt: t2)),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 2,
+                tokens: 200,
+                coverage: false,
+                updatedAt: t3,
+                evidence: proof(revision: 2, verifiedAt: t3)),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 99,
+                tokens: 9900,
+                coverage: false,
+                updatedAt: t4,
+                evidence: proof(revision: 1, verifiedAt: t4)),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 2)
+        #expect(row.totalTokens == 200)
+        #expect(row.sourceRevisionKey?.contains("historyCoverage=partial") == true)
+        #expect(row.sourceRevisionKey?.contains("costKnown=known") == true)
+        let marker = try #require(row.sourceRevisionKey?.split(separator: "|").first(where: {
+            $0.hasPrefix("dayEvidence=v1:")
+        }))
+        #expect(marker.dropFirst("dayEvidence=v1:".count).allSatisfy {
+            $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
+        })
+    }
+
+    @Test
+    func `Invalid evidence stays unproven and cannot replace a proofed row`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        func snapshot(
+            cost: Double,
+            tokens: Int,
+            updatedAt: Date,
+            coverage: Bool,
+            evidence: SyncDayEvidence?) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: tokens,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: tokens,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: cost,
+                        totalTokens: tokens,
+                        costIsKnown: true,
+                        dayEvidence: evidence)],
+                    historyCoverageIsEstablished: coverage,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+        let valid = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 1,
+            verifiedAt: t.addingTimeInterval(300))
+        let invalidEvidence = [
+            SyncDayEvidence(
+                sourceKind: "unknown",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: 1,
+                verifiedAt: t),
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: " \n",
+                lineageID: "store-a",
+                revision: 1,
+                verifiedAt: t),
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "\t",
+                revision: 1,
+                verifiedAt: t),
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: 0,
+                verifiedAt: t),
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: 2,
+                verifiedAt: Date(timeIntervalSince1970: .infinity)),
+        ]
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 10, tokens: 100, updatedAt: t, coverage: true, evidence: nil),
+            deviceID: "dev-A",
+            in: context)
+        for (index, invalid) in invalidEvidence.enumerated() {
+            try CostLedgerService.upsertFromSnapshot(
+                snapshot(
+                    cost: 0,
+                    tokens: 0,
+                    updatedAt: t.addingTimeInterval(Double(index + 1) * 30),
+                    coverage: false,
+                    evidence: invalid),
+                deviceID: "dev-A",
+                in: context)
+        }
+        var row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 10)
+        #expect(row.sourceRevisionKey?.contains("dayEvidence=v1:") == false)
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 2, tokens: 200, updatedAt: t.addingTimeInterval(300), coverage: false, evidence: valid),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 99,
+                tokens: 9900,
+                updatedAt: t.addingTimeInterval(600),
+                coverage: true,
+                evidence: invalidEvidence[0]),
+            deviceID: "dev-A",
+            in: context)
+        row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 2)
+        #expect(row.totalTokens == 200)
+        #expect(row.sourceRevisionKey?.contains("dayEvidence=v1:") == true)
+    }
+
+    @Test
+    func `First proof cannot replace a newer unproven spend row`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        func point(cost: Double, evidenceAt: Date?, totalUpdatedAt: Date) throws {
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "dev-A",
+                providerID: "codex",
+                dayKey: dayKey,
+                costUSD: cost,
+                totalTokens: Int(cost * 100),
+                isEstimated: false,
+                modelBreakdowns: [],
+                serviceBreakdowns: [],
+                lastUpdated: totalUpdatedAt,
+                totalUpdatedAt: totalUpdatedAt,
+                sourceRevisionKey: "historyCoverage=established",
+                historyCoverageIsEstablished: true,
+                historySinceDayKey: dayKey,
+                historyUntilDayKey: dayKey,
+                dayEvidence: evidenceAt.map {
+                    SyncDayEvidence(
+                        sourceKind: "codexLocalLedger",
+                        scopeID: "scope-a",
+                        lineageID: "store-a",
+                        revision: 1,
+                        verifiedAt: $0)
+                },
+                in: context)
+        }
+
+        try point(cost: 10, evidenceAt: nil, totalUpdatedAt: t.addingTimeInterval(100))
+        try point(cost: 0, evidenceAt: t.addingTimeInterval(50), totalUpdatedAt: t.addingTimeInterval(101))
+        var row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 10)
+        #expect(row.sourceRevisionKey?.contains("dayEvidence=v1:") == false)
+
+        try point(cost: 0, evidenceAt: t.addingTimeInterval(101), totalUpdatedAt: t.addingTimeInterval(101))
+        row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 0)
+        #expect(row.totalTokens == 0)
+        #expect(row.sourceRevisionKey?.contains("dayEvidence=v1:") == true)
+    }
+
+    @Test
+    func `Unknown newer proof preserves prior priced value and breakdowns`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        func snapshot(
+            cost: Double,
+            tokens: Int,
+            costIsKnown: Bool,
+            evidenceRevision: Int64,
+            updatedAt: Date,
+            breakdowns: [SyncCostBreakdown]) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: tokens,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: tokens,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: cost,
+                        totalTokens: tokens,
+                        modelBreakdowns: breakdowns,
+                        costIsKnown: costIsKnown,
+                        dayEvidence: SyncDayEvidence(
+                            sourceKind: "codexLocalLedger",
+                            scopeID: "scope-a",
+                            lineageID: "store-a",
+                            revision: evidenceRevision,
+                            verifiedAt: updatedAt))],
+                    costIsKnown: costIsKnown,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+        let knownBreakdown = SyncCostBreakdown(label: "gpt-4o", costUSD: 0.552216, totalTokens: 100)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 0.552216,
+                tokens: 100,
+                costIsKnown: true,
+                evidenceRevision: 50,
+                updatedAt: t,
+                breakdowns: [knownBreakdown]),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 0,
+                tokens: 600_000,
+                costIsKnown: false,
+                evidenceRevision: 51,
+                updatedAt: t.addingTimeInterval(60),
+                breakdowns: []),
+            deviceID: "dev-A",
+            in: context)
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 0.552216)
+        #expect(row.totalTokens == 600_000)
+        #expect(row.sourceRevisionKey?.contains("costKnown=unknown") == true)
+        let retainedBreakdowns = try #require(try JSONDecoder().decode(
+            [SyncCostBreakdown].self,
+            from: #require(row.modelBreakdownsData)))
+        #expect(retainedBreakdowns == [knownBreakdown])
+    }
+
+    @Test
+    func `Equal proof revision refreshes freshness without replacing values`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        func write(cost: Double, tokens: Int, verifiedAt: Date) throws {
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "dev-A",
+                providerID: "codex",
+                dayKey: dayKey,
+                costUSD: cost,
+                totalTokens: tokens,
+                isEstimated: false,
+                modelBreakdowns: [],
+                serviceBreakdowns: [],
+                lastUpdated: verifiedAt,
+                totalUpdatedAt: verifiedAt,
+                dayEvidence: SyncDayEvidence(
+                    sourceKind: "codexLocalLedger",
+                    scopeID: "scope-a",
+                    lineageID: "store-a",
+                    revision: 8,
+                    verifiedAt: verifiedAt),
+                in: context)
+        }
+
+        try write(cost: 4, tokens: 400, verifiedAt: t)
+        try write(cost: 900, tokens: 90000, verifiedAt: t.addingTimeInterval(120))
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 4)
+        #expect(row.totalTokens == 400)
+        #expect(row.totalUpdatedAt == t.addingTimeInterval(120))
+        let marker = try #require(row.sourceRevisionKey?.split(separator: "|").first(where: {
+            $0.hasPrefix("dayEvidence=v1:")
+        }))
+        let encoded = marker.dropFirst("dayEvidence=v1:".count)
+        let base64 = encoded.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        let padded = String(base64) + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        let stored = try #require(try JSONDecoder().decode(
+            SyncDayEvidence.self,
+            from: #require(Data(base64Encoded: padded))))
+        #expect(stored.revision == 8)
+        #expect(stored.verifiedAt == t.addingTimeInterval(120))
+    }
+
+    @Test
+    func `Equal proof refresh preserves unknown pricing and the retained payload`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        func write(
+            cost: Double,
+            tokens: Int,
+            costIsKnown: Bool,
+            isEstimated: Bool,
+            breakdowns: [SyncCostBreakdown],
+            verifiedAt: Date) throws
+        {
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "dev-A",
+                providerID: "codex",
+                dayKey: dayKey,
+                costUSD: cost,
+                totalTokens: tokens,
+                costIsKnown: costIsKnown,
+                isEstimated: isEstimated,
+                modelBreakdowns: breakdowns,
+                serviceBreakdowns: [],
+                lastUpdated: verifiedAt,
+                totalUpdatedAt: verifiedAt,
+                dayEvidence: SyncDayEvidence(
+                    sourceKind: "codexLocalLedger",
+                    scopeID: "scope-a",
+                    lineageID: "store-a",
+                    revision: 8,
+                    verifiedAt: verifiedAt),
+                in: context)
+        }
+
+        try write(
+            cost: 0,
+            tokens: 600_000,
+            costIsKnown: false,
+            isEstimated: true,
+            breakdowns: [],
+            verifiedAt: t)
+        try write(
+            cost: 0.552216,
+            tokens: 100,
+            costIsKnown: true,
+            isEstimated: false,
+            breakdowns: [SyncCostBreakdown(label: "gpt-4o", costUSD: 0.552216, totalTokens: 100)],
+            verifiedAt: t.addingTimeInterval(120))
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 0)
+        #expect(row.totalTokens == 600_000)
+        #expect(row.isEstimated == true)
+        #expect(row.modelBreakdownsData == nil)
+        #expect(row.sourceRevisionKey?.contains("costKnown=unknown") == true)
+        #expect(row.totalUpdatedAt == t.addingTimeInterval(120))
+    }
+
+    @Test
+    func `upsertFromSnapshot: a new evidence lineage needs fresh complete bounds`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let dayKey = "2026-08-12"
+        let t1 = Date(timeIntervalSince1970: 1_700_000_000)
+        let t2 = t1.addingTimeInterval(60)
+        let t3 = t2.addingTimeInterval(60)
+        func snapshot(
+            cost: Double,
+            coverage: Bool,
+            updatedAt: Date,
+            lineage: String,
+            bounds: (String, String)?) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: cost,
+                        totalTokens: 100,
+                        dayEvidence: SyncDayEvidence(
+                            sourceKind: "codexLocalLedger",
+                            scopeID: "scope-a",
+                            lineageID: lineage,
+                            revision: 1,
+                            verifiedAt: updatedAt))],
+                    historyDays: 30,
+                    historyCoverageIsEstablished: coverage,
+                    historySinceDayKey: bounds?.0,
+                    historyUntilDayKey: bounds?.1,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 10, coverage: true, updatedAt: t1, lineage: "store-a", bounds: ("2026-08-01", dayKey)),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 20, coverage: false, updatedAt: t2, lineage: "store-b", bounds: nil),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 30, coverage: true, updatedAt: t3, lineage: "store-b", bounds: ("2026-08-01", dayKey)),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 30)
+        let marker = try #require(row.sourceRevisionKey?.split(separator: "|").first(where: {
+            $0.hasPrefix("dayEvidence=v1:")
+        }))
+        let base64 = marker.dropFirst("dayEvidence=v1:".count)
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = String(base64) + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        let encodedEvidence = try #require(Data(base64Encoded: padded))
+        let storedProof = try JSONDecoder().decode(SyncDayEvidence.self, from: encodedEvidence)
+        #expect(storedProof.lineageID == "store-b")
+    }
+
+    @Test
+    func `Email migration orders verified days without mixing stale token counts`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        func proof(_ revision: Int64, _ offset: TimeInterval) -> SyncDayEvidence {
+            SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: revision,
+                verifiedAt: base.addingTimeInterval(offset))
+        }
+        let correctedDay = "2026-08-12"
+        let staleDay = "2026-08-13"
+        for (day, legacyCost, legacyTokens, legacyProof, targetCost, targetTokens, targetProof) in [
+            (correctedDay, 0.0, 0, proof(4, 240), 10.0, 1000, proof(3, 180)),
+            (staleDay, 99.0, 9900, proof(2, 240), 20.0, 2000, proof(3, 180)),
+        ] {
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "dev-A",
+                providerID: "codex",
+                dayKey: day,
+                costUSD: legacyCost,
+                totalTokens: legacyTokens,
+                isEstimated: false,
+                modelBreakdowns: [],
+                serviceBreakdowns: [],
+                lastUpdated: base.addingTimeInterval(240),
+                dayEvidence: legacyProof,
+                in: context)
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "dev-A",
+                providerID: "codex",
+                accountEmail: "user@example.com",
+                dayKey: day,
+                costUSD: targetCost,
+                totalTokens: targetTokens,
+                isEstimated: false,
+                modelBreakdowns: [],
+                serviceBreakdowns: [],
+                lastUpdated: base.addingTimeInterval(180),
+                dayEvidence: targetProof,
+                in: context)
+        }
+
+        let incoming = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: base.addingTimeInterval(300),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 0,
+                sessionTokens: 0,
+                last30DaysCostUSD: 0,
+                last30DaysTokens: 0,
+                daily: [
+                    SyncDailyPoint(dayKey: correctedDay, costUSD: 1, totalTokens: 1),
+                    SyncDailyPoint(dayKey: staleDay, costUSD: 1, totalTokens: 1),
+                ],
+                historyCoverageIsEstablished: false,
+                costUpdatedAt: base.addingTimeInterval(300),
+                totalCostUpdatedAt: base.addingTimeInterval(300)))
+        try CostLedgerService.upsertFromSnapshot(incoming, deviceID: "dev-A", in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let byDay = Dictionary(uniqueKeysWithValues: rows.map { ($0.dayKey, $0) })
+        #expect(rows.count == 2)
+        #expect(byDay[correctedDay]?.accountEmail == "user@example.com")
+        #expect(byDay[correctedDay]?.costUSD == 0)
+        #expect(byDay[correctedDay]?.totalTokens == 0)
+        #expect(byDay[staleDay]?.accountEmail == "user@example.com")
+        #expect(byDay[staleDay]?.costUSD == 20)
+        #expect(byDay[staleDay]?.totalTokens == 2000)
+    }
+
+    @Test
     func `upsertFromSnapshot: newer complete correction may reduce total`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

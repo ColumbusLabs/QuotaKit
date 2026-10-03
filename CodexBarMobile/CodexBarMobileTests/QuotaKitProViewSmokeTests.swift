@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 import XCTest
 @testable import CodexBarMobile
 
@@ -209,12 +210,40 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
     }
 
     private func renderToImage(_ view: some View) -> UIImage? {
-        let renderer = ImageRenderer(content: view
+        let size = CGSize(width: 390, height: 900)
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+        else {
+            XCTFail("Could not find a foreground window scene for view rendering")
+            return nil
+        }
+
+        let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        let hostingController = UIHostingController(rootView: view
             .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
-            .frame(width: 390, height: 900)
+            .frame(width: size.width, height: size.height)
             .quotaKitThemed())
-        renderer.scale = 2.0
-        return renderer.uiImage
+        window.rootViewController = hostingController
+        window.makeKeyAndVisible()
+        hostingController.view.frame = window.bounds
+        window.layoutIfNeeded()
+        hostingController.view.setNeedsLayout()
+        hostingController.view.layoutIfNeeded()
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 2.0
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            hostingController.view.drawHierarchy(in: hostingController.view.bounds, afterScreenUpdates: true)
+        }
+
+        window.isHidden = true
+        window.rootViewController = nil
+        previousKeyWindow?.makeKey()
+        return image
     }
 
     private func attachIAPReviewScreenshot(from view: some View) {

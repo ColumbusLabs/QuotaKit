@@ -706,6 +706,37 @@ struct SyncWireFormatRoundTripTests {
         #expect(reconciled.daily.first?.totalTokens == 200)
         #expect(reconciled.daily.first?.costIsKnown == false)
     }
+
+    @Test
+    func `daily evidence round-trips while older payloads decode without it`() throws {
+        let evidence = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "codex-ledger-account-calendar",
+            lineageID: "ledger-epoch-a",
+            revision: 123,
+            verifiedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let point = SyncDailyPoint(
+            dayKey: "2026-09-30",
+            costUSD: 0.552216,
+            totalTokens: 522_908,
+            dayEvidence: evidence)
+        let decoded = try self.decoder().decode(
+            SyncDailyPoint.self,
+            from: self.encoder().encode(point))
+        let legacyPayload = Data("""
+        {
+            "dayKey": "2026-09-30",
+            "costUSD": 0.552216,
+            "totalTokens": 522908
+        }
+        """.utf8)
+        let legacy = try self.decoder().decode(SyncDailyPoint.self, from: legacyPayload)
+
+        #expect(decoded == point)
+        #expect(legacy.dayEvidence == nil)
+        #expect(legacy.modelBreakdowns.isEmpty)
+        #expect(legacy.serviceBreakdowns.isEmpty)
+    }
 }
 
 // swiftlint:enable multiline_arguments

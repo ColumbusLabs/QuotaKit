@@ -501,6 +501,31 @@ public struct CostUsageProjectSourceBreakdown: Sendable, Equatable {
     }
 }
 
+/// Proof that one source's complete contribution for a local day was independently verified.
+/// `scopeID` is a stable, non-identifying digest of the source roots and day-calendar basis;
+/// `lineageID` identifies the persistent local ledger epoch and `revision` orders writes within it.
+public struct CostUsageDayEvidence: Sendable, Codable, Equatable {
+    public let sourceKind: String
+    public let scopeID: String
+    public let lineageID: String
+    public let revision: Int64
+    public let verifiedAt: Date
+
+    public init(
+        sourceKind: String = "codexLocalLedger",
+        scopeID: String,
+        lineageID: String,
+        revision: Int64,
+        verifiedAt: Date)
+    {
+        self.sourceKind = sourceKind
+        self.scopeID = scopeID
+        self.lineageID = lineageID
+        self.revision = revision
+        self.verifiedAt = verifiedAt
+    }
+}
+
 public struct CostUsageDailyReport: Sendable, Codable {
     public struct ModelBreakdown: Sendable, Codable, Equatable {
         public let modelName: String
@@ -629,6 +654,9 @@ public struct CostUsageDailyReport: Sendable, Codable {
         public let pricedRequestCount: Int?
         public let unmeteredRequestCount: Int?
         public let estimatedRequestCount: Int?
+        /// Per-day source proof. It is retained only when every merged contribution carries
+        /// identical evidence, so combining a proven Codex day with another source stays unproven.
+        public let dayEvidence: CostUsageDayEvidence?
 
         package var hasOnlyIncompleteRequests: Bool {
             self.incompleteRequestCount > 0 && self.totalTokens == nil && self.costUSD == nil
@@ -710,6 +738,7 @@ public struct CostUsageDailyReport: Sendable, Codable {
             case pricedRequestCount
             case unmeteredRequestCount
             case estimatedRequestCount
+            case dayEvidence
         }
 
         public init(from decoder: Decoder) throws {
@@ -739,6 +768,7 @@ public struct CostUsageDailyReport: Sendable, Codable {
             self.pricedRequestCount = try container.decodeIfPresent(Int.self, forKey: .pricedRequestCount)
             self.unmeteredRequestCount = try container.decodeIfPresent(Int.self, forKey: .unmeteredRequestCount)
             self.estimatedRequestCount = try container.decodeIfPresent(Int.self, forKey: .estimatedRequestCount)
+            self.dayEvidence = try container.decodeIfPresent(CostUsageDayEvidence.self, forKey: .dayEvidence)
         }
 
         public init(
@@ -756,7 +786,8 @@ public struct CostUsageDailyReport: Sendable, Codable {
             unpricedRequestCount: Int? = nil,
             unmeteredRequestCount: Int? = nil,
             estimatedRequestCount: Int? = nil,
-            pricedRequestCount: Int? = nil)
+            pricedRequestCount: Int? = nil,
+            dayEvidence: CostUsageDayEvidence? = nil)
         {
             self.date = date
             self.inputTokens = inputTokens
@@ -773,6 +804,7 @@ public struct CostUsageDailyReport: Sendable, Codable {
             self.unmeteredRequestCount = unmeteredRequestCount
             self.estimatedRequestCount = estimatedRequestCount
             self.pricedRequestCount = pricedRequestCount
+            self.dayEvidence = dayEvidence
         }
 
         public func encode(to encoder: Encoder) throws {
@@ -792,6 +824,7 @@ public struct CostUsageDailyReport: Sendable, Codable {
             try container.encodeIfPresent(self.pricedRequestCount, forKey: .pricedRequestCount)
             try container.encodeIfPresent(self.unmeteredRequestCount, forKey: .unmeteredRequestCount)
             try container.encodeIfPresent(self.estimatedRequestCount, forKey: .estimatedRequestCount)
+            try container.encodeIfPresent(self.dayEvidence, forKey: .dayEvidence)
         }
 
         private static func decodeModelsUsed(from container: KeyedDecodingContainer<CodingKeys>) -> [String]? {
@@ -1074,8 +1107,31 @@ extension CostUsageDailyReport {
         var costIsComplete = true
         var modelsUsed: Set<String> = []
         var breakdowns: [String: BreakdownAccumulator] = [:]
+        var dayEvidence: CostUsageDayEvidence?
+        var dayEvidenceIsComplete = true
+        var hasDayEvidenceContributor = false
 
         mutating func add(_ entry: Entry) {
+            if self.dayEvidenceIsComplete {
+                if let evidence = entry.dayEvidence {
+                    if let current = self.dayEvidence, current != evidence {
+                        self.dayEvidence = nil
+                        self.dayEvidenceIsComplete = false
+                        self.hasDayEvidenceContributor = false
+                    } else {
+                        self.dayEvidence = evidence
+                        self.hasDayEvidenceContributor = true
+                    }
+                } else {
+                    self.dayEvidence = nil
+                    self.dayEvidenceIsComplete = false
+                    self.hasDayEvidenceContributor = false
+                }
+            }
+            self.addMetrics(from: entry)
+        }
+
+        private mutating func addMetrics(from entry: Entry) {
             self.tokenMix.merge(.from(entry: entry))
             self.requestCount.add(entry.requestCount)
             // Classify each source before combining costs: a priced source cannot price another source's missing rows.
@@ -1166,7 +1222,9 @@ extension CostUsageDailyReport {
                 unpricedRequestCount: includeCoverage ? self.coverage.exact?.unpriced : nil,
                 unmeteredRequestCount: includeCoverage ? self.coverage.exact?.unmetered : nil,
                 estimatedRequestCount: includeCoverage ? self.coverage.exact?.estimated : nil,
-                pricedRequestCount: includeCoverage ? self.coverage.exact?.priced : nil)
+                pricedRequestCount: includeCoverage ? self.coverage.exact?.priced : nil,
+                dayEvidence: self.dayEvidenceIsComplete && self.hasDayEvidenceContributor
+                    ? self.dayEvidence : nil)
         }
 
         func resolvedCostUSD() -> Double? {

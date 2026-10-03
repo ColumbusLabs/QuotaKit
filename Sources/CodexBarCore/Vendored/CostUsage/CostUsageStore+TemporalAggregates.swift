@@ -64,6 +64,16 @@ extension CostUsageStore {
             day TEXT PRIMARY KEY
         )
         """)
+        try execute(database, """
+        CREATE TABLE IF NOT EXISTS verified_day_evidence (
+            day TEXT PRIMARY KEY,
+            source_kind TEXT NOT NULL,
+            scope_id TEXT NOT NULL,
+            lineage_id TEXT NOT NULL,
+            revision INTEGER NOT NULL CHECK(revision > 0),
+            verified_at_ms INTEGER NOT NULL
+        )
+        """)
     }
 
     @discardableResult

@@ -276,8 +276,34 @@ extension UsageStore {
         for provider: UsageProvider,
         accounting: PiSnapshotAccounting? = nil)
     {
-        if self.retainsEstablishedTokenHistory(snapshot, for: provider) { return }
-        let displayed = snapshot.reporting(self.settings.costReportingPeriod)
+        let snapshotToPublish: CostUsageTokenSnapshot
+        if provider == .codex,
+           let established = self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex)?.snapshot,
+           established.historyIsFullyScanned
+        {
+            if !snapshot.historyCoverageIsEstablished,
+               let overlaid = Self.codexCostSnapshotOverlayingVerifiedDays(
+                   snapshot,
+                   onto: established,
+                   calendar: self.settings.costUsageBucketCalendar)
+            {
+                snapshotToPublish = overlaid
+            } else if snapshot.historyIsFullyScanned,
+                      let proofRefresh = Self.codexCostSnapshotRefreshingProofMetadataOnly(
+                          snapshot,
+                          onto: established,
+                          calendar: self.settings.costUsageBucketCalendar)
+            {
+                snapshotToPublish = proofRefresh
+            } else {
+                if self.retainsEstablishedTokenHistory(snapshot, for: provider) { return }
+                snapshotToPublish = snapshot
+            }
+        } else {
+            if self.retainsEstablishedTokenHistory(snapshot, for: provider) { return }
+            snapshotToPublish = snapshot
+        }
+        let displayed = snapshotToPublish.reporting(self.settings.costReportingPeriod)
         self.tokenSnapshots[provider.instanceID] = displayed
         self.publishTokenSnapshotState(displayed, for: provider, accounting: accounting)
     }
@@ -337,7 +363,20 @@ extension UsageStore {
 
     func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
         SpendDashboardSnapshotRevisionEncoder.recordFingerprintComputation()
-        return SpendDashboardSnapshotRevisionEncoder.fingerprint(snapshot)
+        let contentFingerprint = SpendDashboardSnapshotRevisionEncoder.fingerprint(snapshot)
+        let dayEvidenceFingerprint = snapshot.daily.compactMap { entry -> String? in
+            guard let evidence = entry.dayEvidence else { return nil }
+            let components = [
+                entry.date,
+                evidence.sourceKind,
+                evidence.scopeID,
+                evidence.lineageID,
+                String(evidence.revision),
+                String(evidence.verifiedAt.timeIntervalSinceReferenceDate.bitPattern, radix: 16),
+            ]
+            return components.map { "\($0.utf8.count):\($0)" }.joined()
+        }.sorted().joined(separator: ";")
+        return "\(contentFingerprint)|day-evidence:\(dayEvidenceFingerprint)"
     }
 
     func clearTokenSnapshot(for provider: UsageProvider) {

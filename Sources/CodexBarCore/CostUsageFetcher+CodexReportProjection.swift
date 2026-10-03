@@ -32,7 +32,12 @@ enum CostUsageCodexReportProjectionBuilder {
             },
             cache: scopedCache,
             range: range,
-            cacheRoot: cacheRoot)
+            cacheRoot: cacheRoot,
+            dayEvidenceByKey: self.verifiedEvidenceMatchingCurrentAggregates(
+                projection: projection,
+                paths: paths,
+                roots: roots,
+                range: range))
         guard includeBreakdowns else {
             return CostUsageCodexProjectedReport(report: report, projects: [], sessions: [])
         }
@@ -58,12 +63,19 @@ enum CostUsageCodexReportProjectionBuilder {
         range: CostUsageScanner.CostUsageDayRange,
         cacheRoot: URL?) -> CostUsageDailyReport
     {
-        self.report(
+        let roots = (projection.cache.roots?.keys.sorted() ?? [])
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+        return self.report(
             aggregates: projection.fileDayAggregates.map(\.aggregate),
             temporal: projection.fileTemporalAggregates,
             cache: projection.cache,
             range: range,
-            cacheRoot: cacheRoot)
+            cacheRoot: cacheRoot,
+            dayEvidenceByKey: self.verifiedEvidenceMatchingCurrentAggregates(
+                projection: projection,
+                paths: Set(projection.fileDayAggregates.map(\.path)),
+                roots: roots,
+                range: range))
     }
 
     /// Builds an established report from the compact, range-independent verified ledger. This
@@ -74,12 +86,78 @@ enum CostUsageCodexReportProjectionBuilder {
         range: CostUsageScanner.CostUsageDayRange,
         cacheRoot: URL?) -> CostUsageDailyReport
     {
-        self.report(
-            aggregates: projection.verifiedDayAggregates,
+        let rootPaths = projection.cache.roots?.keys.sorted() ?? []
+        let scopeID = CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: rootPaths,
+            calendar: range.calendar)
+        let verifiedScopeMatches = projection.cache.timeZoneIdentifier == range.calendar.timeZone.identifier
+            && projection.verifiedTimeZoneIdentifier == range.calendar.timeZone.identifier
+            && projection.verifiedRootPaths == rootPaths
+        let validEvidence = projection.verifiedDayEvidence.filter { _, proof in
+            verifiedScopeMatches
+                && proof.sourceKind == "codexLocalLedger"
+                && proof.scopeID == scopeID
+                && !proof.lineageID.isEmpty
+                && proof.revision > 0
+        }
+        let provenDays = Set(validEvidence.keys)
+        return self.report(
+            aggregates: projection.verifiedDayAggregates.filter { provenDays.contains($0.day) },
             temporal: projection.verifiedTemporalAggregates,
             cache: projection.cache,
             range: range,
-            cacheRoot: cacheRoot)
+            cacheRoot: cacheRoot,
+            dayEvidenceByKey: validEvidence)
+    }
+
+    private static func verifiedEvidenceMatchingCurrentAggregates(
+        projection: CostUsageStoreCodexReportProjection,
+        paths: Set<String>,
+        roots: [URL],
+        range: CostUsageScanner.CostUsageDayRange) -> [String: CostUsageDayEvidence]
+    {
+        let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
+        let scopeID = CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: rootPaths,
+            calendar: range.calendar)
+        guard projection.cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+              projection.cache.roots?.keys.sorted() == rootPaths,
+              projection.verifiedTimeZoneIdentifier == range.calendar.timeZone.identifier,
+              projection.verifiedRootPaths == rootPaths
+        else { return [:] }
+
+        var currentByDayAndModel: [DayModelKey: CostUsageStoreDayAggregate] = [:]
+        for item in projection.fileDayAggregates where paths.contains(item.path)
+            && CostUsageScanner.CostUsageDayRange.isInRange(
+                dayKey: item.aggregate.day,
+                since: range.sinceKey,
+                until: range.untilKey)
+        {
+            let key = DayModelKey(day: item.aggregate.day, model: item.aggregate.model)
+            var value = currentByDayAndModel[key] ?? .zero(day: key.day, model: key.model)
+            value.add(item.aggregate)
+            currentByDayAndModel[key] = value
+        }
+        let verifiedByDayAndModel = Dictionary(uniqueKeysWithValues: projection.verifiedDayAggregates
+            .filter {
+                CostUsageScanner.CostUsageDayRange.isInRange(
+                    dayKey: $0.day,
+                    since: range.sinceKey,
+                    until: range.untilKey)
+            }
+            .map { (DayModelKey(day: $0.day, model: $0.model), $0) })
+        let evidence = projection.verifiedDayEvidence.filter { day, proof in
+            day >= range.sinceKey && day <= range.untilKey
+                && proof.sourceKind == "codexLocalLedger"
+                && proof.scopeID == scopeID
+                && !proof.lineageID.isEmpty
+                && proof.revision > 0
+        }
+        return evidence.filter { day, _ in
+            let current = currentByDayAndModel.filter { $0.key.day == day }
+            let verified = verifiedByDayAndModel.filter { $0.key.day == day }
+            return current == verified
+        }
     }
 
     private static func report(
@@ -87,8 +165,15 @@ enum CostUsageCodexReportProjectionBuilder {
         temporal: [CostUsageStoreTemporalAggregate] = [],
         cache: CostUsageCache,
         range: CostUsageScanner.CostUsageDayRange,
-        cacheRoot: URL?) -> CostUsageDailyReport
+        cacheRoot: URL?,
+        dayEvidenceByKey: [String: CostUsageDayEvidence] = [:]) -> CostUsageDailyReport
     {
+        let dayEvidenceByKey = dayEvidenceByKey.filter {
+            CostUsageScanner.CostUsageDayRange.isInRange(
+                dayKey: $0.key,
+                since: range.sinceKey,
+                until: range.untilKey)
+        }
         var grouped: [DayModelKey: CostUsageStoreDayAggregate] = [:]
         for aggregate in aggregates where CostUsageScanner.CostUsageDayRange.isInRange(
             dayKey: aggregate.day,
@@ -102,7 +187,10 @@ enum CostUsageCodexReportProjectionBuilder {
         }
         _ = cacheRoot
         let unmeteredByDay = CostUsageScanner.unresolvedForkUnmeteredCounts(cache: cache, range: range)
-        let days = Set(grouped.keys.map(\.day)).union(unmeteredByDay.keys).sorted()
+        let days = Set(grouped.keys.map(\.day))
+            .union(unmeteredByDay.keys)
+            .union(dayEvidenceByKey.keys)
+            .sorted()
         var entries: [CostUsageDailyReport.Entry] = []
         for day in days {
             let models = grouped.filter { $0.key.day == day }.map { ($0.key.model, $0.value) }
@@ -114,6 +202,18 @@ enum CostUsageCodexReportProjectionBuilder {
                     unmetered: unmeteredByDay[day] ?? 0)
                 {
                     entries.append(entry)
+                } else if let evidence = dayEvidenceByKey[day] {
+                    entries.append(CostUsageDailyReport.Entry(
+                        date: day,
+                        inputTokens: 0,
+                        outputTokens: 0,
+                        totalTokens: 0,
+                        requestCount: 0,
+                        costUSD: 0,
+                        modelsUsed: nil,
+                        modelBreakdowns: nil,
+                        pricedRequestCount: 0,
+                        dayEvidence: evidence))
                 }
                 continue
             }
@@ -147,7 +247,8 @@ enum CostUsageCodexReportProjectionBuilder {
                 modelsUsed: models.map(\.0),
                 modelBreakdowns: CostUsageScanner.sortedModelBreakdowns(modelBreakdowns),
                 unpricedRequestCount: unpricedRequests > 0 ? unpricedRequests : nil,
-                unmeteredRequestCount: (unmeteredByDay[day] ?? 0) > 0 ? unmeteredByDay[day] : nil))
+                unmeteredRequestCount: (unmeteredByDay[day] ?? 0) > 0 ? unmeteredByDay[day] : nil,
+                dayEvidence: (unmeteredByDay[day] ?? 0) == 0 ? dayEvidenceByKey[day] : nil))
         }
         let totalInput = entries.compactMap(\.inputTokens).reduce(0, +)
         let totalCached = entries.compactMap(\.cacheReadTokens).reduce(0, +)

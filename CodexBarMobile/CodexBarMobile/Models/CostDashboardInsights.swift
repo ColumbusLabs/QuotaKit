@@ -259,9 +259,16 @@ struct CostDashboardInsights {
             let rollupKey = "\(provider.providerID)|\(provider.accountEmail ?? "_")"
             let rollup = aggregation.providerRollups[rollupKey]
             let todayPoint = rollup?.dailyPoints.first(where: { $0.dayKey == todayKey })
-            let totalUpdatedAt = provider.costSummary?.totalCostUpdatedAt
-                ?? provider.costSummary?.costUpdatedAt
-                ?? provider.lastUpdated
+            let contributorProofIsIncomplete = rollup?.incompleteDayEvidenceDayKeys.contains(todayKey) == true
+            let totalUpdatedAt: Date? = if contributorProofIsIncomplete {
+                nil
+            } else {
+                rollup?.dayEvidenceVerifiedAt[todayKey]
+                    ?? todayPoint?.dayEvidence.flatMap { $0.isValid ? $0.verifiedAt : nil }
+                    ?? provider.costSummary?.totalCostUpdatedAt
+                    ?? provider.costSummary?.costUpdatedAt
+                    ?? provider.lastUpdated
+            }
             let today = if let todayPoint {
                 SyncCostSummary.TodayTotals(
                     availability: .reported,
@@ -270,7 +277,7 @@ struct CostDashboardInsights {
                     tokens: todayPoint.totalTokens,
                     isEstimated: todayPoint.isEstimated,
                     updatedAt: totalUpdatedAt,
-                    isStale: Self.isStale(totalUpdatedAt, at: now),
+                    isStale: contributorProofIsIncomplete || Self.isStale(totalUpdatedAt, at: now),
                     lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max())
             } else {
                 provider.costSummary?.todayTotals(

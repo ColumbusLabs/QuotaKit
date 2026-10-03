@@ -333,7 +333,7 @@ extension CostUsageStore {
                     untilDay: budgetProtectionWindow.untilKey,
                     calendar: calendar,
                     updateMetadata: false)
-            let result = self.enforceBudgets(
+            var result = self.enforceBudgets(
                 maxRows: deferRetention ? .max : rowBudget,
                 maxFileBytes: deferRetention ? .max : fileBudgetBytes,
                 requestedSinceDay: budgetProtectionWindow.sinceKey,
@@ -345,6 +345,7 @@ extension CostUsageStore {
                     retry.catchUpRequired = true
                     return retry
                 }
+                result.cacheWasPersisted = true
                 return result
             }
 
@@ -389,6 +390,7 @@ extension CostUsageStore {
             if self.lastCodexSaveReusedContent, !retained.persistence.tokenSnapshotsLoaded {
                 self.retainedCodexBaseline = RetainedCodexBaseline(id: UUID(), baseline: retained)
             }
+            result.cacheWasPersisted = true
             return result
         }
         let aggregatePricing = self.aggregatePricingContext()
@@ -473,7 +475,7 @@ extension CostUsageStore {
         let compactPreviousReport = self.compactPreviousReport(
             calendar: calendar,
             reportWindow: reportWindow)
-        let result = self.enforceBudgets(
+        var result = self.enforceBudgets(
             maxRows: deferRetention ? .max : rowBudget,
             maxFileBytes: deferRetention ? .max : fileBudgetBytes,
             requestedSinceDay: budgetProtectionWindow.sinceKey,
@@ -487,6 +489,7 @@ extension CostUsageStore {
             metadata.previousReportPayload = try? JSONEncoder().encode(previous)
             _ = self.setMetadata(metadata)
         }
+        result.cacheWasPersisted = true
         return result
     }
 
@@ -657,7 +660,7 @@ extension CostUsageStore {
         let compactPreviousReport = self.compactPreviousReport(
             calendar: calendar,
             reportWindow: reportWindow)
-        let result = self.enforceBudgets(
+        var result = self.enforceBudgets(
             maxRows: deferRetention ? .max : rowBudget,
             maxFileBytes: deferRetention ? .max : fileBudgetBytes,
             requestedSinceDay: budgetProtectionWindow.sinceKey,
@@ -665,6 +668,7 @@ extension CostUsageStore {
             calendar: calendar,
             previousReportPayload: compactPreviousReport.flatMap { try? JSONEncoder().encode($0) })
         self.preservePreviousReportOnCatchUp(result, previousReport: compactPreviousReport)
+        result.cacheWasPersisted = true
         return result
     }
 
@@ -2717,9 +2721,15 @@ enum CostUsageStoreAccess {
     static func recordVerifiedCodexDay(
         store: CostUsageStore,
         day: String,
-        calendar: Calendar) -> Bool
+        calendar: Calendar,
+        expectedCommit: CostUsageStoreCodexScanCommit? = nil,
+        verifiedAt: Date = Date()) -> Bool
     {
-        store.syncRecordVerifiedCodexDay(day: day, calendar: calendar)
+        store.syncRecordVerifiedCodexDay(
+            day: day,
+            calendar: calendar,
+            expectedCommit: expectedCommit,
+            verifiedAt: verifiedAt)
     }
 
     @discardableResult
@@ -2727,12 +2737,16 @@ enum CostUsageStoreAccess {
         store: CostUsageStore,
         sinceDay: String,
         untilDay: String,
-        calendar: Calendar) -> Bool
+        calendar: Calendar,
+        expectedCommit: CostUsageStoreCodexScanCommit? = nil,
+        verifiedAt: Date = Date()) -> Bool
     {
         store.syncRecordVerifiedCodexWindow(
             sinceDay: sinceDay,
             untilDay: untilDay,
-            calendar: calendar)
+            calendar: calendar,
+            expectedCommit: expectedCommit,
+            verifiedAt: verifiedAt)
     }
 
     /// Test and maintenance mutation seam for metadata-only edits. Scanner writes should keep

@@ -197,6 +197,57 @@ struct SnapshotIdentityKeyTests {
     }
 
     @Test
+    func `An intermediate device day proof revision changes identity`() {
+        func device(id: String, dayRevision: Int64) -> SyncedUsageSnapshot {
+            SyncedUsageSnapshot(
+                providers: [ProviderUsageSnapshot(
+                    providerID: "codex",
+                    providerName: "Codex",
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: "same@example.com",
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: self.t1,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: 1,
+                        sessionTokens: 100,
+                        last30DaysCostUSD: 1,
+                        last30DaysTokens: 100,
+                        daily: [SyncDailyPoint(
+                            dayKey: "2026-08-12",
+                            costUSD: 1,
+                            totalTokens: 100,
+                            dayEvidence: SyncDayEvidence(
+                                sourceKind: "codexLocalLedger",
+                                scopeID: "scope-a",
+                                lineageID: "store-\(id)",
+                                revision: dayRevision,
+                                verifiedAt: self.t1))],
+                        costUpdatedAt: self.t2,
+                        totalCostUpdatedAt: self.t1))],
+                syncTimestamp: self.t1,
+                deviceName: id,
+                deviceID: id)
+        }
+
+        let otherDevice = device(id: "newest", dayRevision: 8)
+        let before = SnapshotIdentityKey.costRevisionComponents(from: [
+            device(id: "oldest", dayRevision: 2),
+            device(id: "middle", dayRevision: 4),
+            otherDevice,
+        ])
+        let after = SnapshotIdentityKey.costRevisionComponents(from: [
+            device(id: "oldest", dayRevision: 2),
+            device(id: "middle", dayRevision: 5),
+            otherDevice,
+        ])
+
+        #expect(before != after)
+    }
+
+    @Test
     func `Removing a dashboard source changes identity under an unchanged scanner revision`() {
         let scannerRevision = self.t2
         func snapshot(includeDashboard: Bool) -> SyncedUsageSnapshot {

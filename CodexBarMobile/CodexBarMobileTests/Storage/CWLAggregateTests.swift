@@ -63,7 +63,8 @@ struct CWLAggregateTests {
         cost: Double,
         tokens: Int,
         lastUpdated: Date,
-        costIsKnown: Bool? = nil) throws
+        costIsKnown: Bool? = nil,
+        dayEvidence: SyncDayEvidence? = nil) throws
     {
         try CostLedgerService.upsertDayPoint(
             deviceID: device,
@@ -77,6 +78,8 @@ struct CWLAggregateTests {
             modelBreakdowns: [],
             serviceBreakdowns: [],
             lastUpdated: lastUpdated,
+            totalUpdatedAt: lastUpdated,
+            dayEvidence: dayEvidence,
             in: context)
     }
 
@@ -198,6 +201,117 @@ struct CWLAggregateTests {
         #expect(agg.activeDayCount == 1)
         let codex = try #require(agg.providerRollups["codex|_"])
         #expect(codex.totalCostUSD == 10.0)
+    }
+
+    @Test
+    func `Local aggregate keeps only conservative verified-day freshness`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let day = self.dayKey(daysAgo: 0)
+        let firstVerifiedAt = Self.asOf.addingTimeInterval(-120)
+        let secondVerifiedAt = Self.asOf.addingTimeInterval(-60)
+        let firstProof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 2,
+            verifiedAt: firstVerifiedAt)
+        let secondProof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-b",
+            revision: 3,
+            verifiedAt: secondVerifiedAt)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1,
+            tokens: 100,
+            lastUpdated: firstVerifiedAt,
+            dayEvidence: firstProof)
+        try self.insert(
+            context,
+            device: "dev-B",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 2,
+            tokens: 200,
+            lastUpdated: secondVerifiedAt,
+            dayEvidence: secondProof)
+
+        let complete = try CostLedgerService.aggregateProvider(
+            providerID: "codex",
+            accountEmail: nil,
+            windowDays: 2,
+            in: context,
+            asOf: Self.asOf)
+        #expect(complete.dailyPoints.first?.dayKey == day)
+        #expect(complete.dailyPoints.first?.costUSD == 3)
+        #expect(complete.dailyPoints.first?.dayEvidence == nil)
+        #expect(complete.dayEvidenceVerifiedAt[day] == firstVerifiedAt)
+
+        try self.insert(
+            context,
+            device: "dev-C",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 4,
+            tokens: 400,
+            lastUpdated: secondVerifiedAt)
+        let withUnprovenContributor = try CostLedgerService.aggregateProvider(
+            providerID: "codex",
+            accountEmail: nil,
+            windowDays: 2,
+            in: context,
+            asOf: Self.asOf)
+        #expect(withUnprovenContributor.dailyPoints.first?.costUSD == 7)
+        #expect(withUnprovenContributor.dailyPoints.first?.dayEvidence == nil)
+        #expect(withUnprovenContributor.dayEvidenceVerifiedAt[day] == nil)
+    }
+
+    @Test
+    func localAggregateDoesNotPromoteSingleMacProofAcrossContributors() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let now = Self.asOf
+        let proof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 2,
+            verifiedAt: now.addingTimeInterval(-60))
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1,
+            tokens: 100,
+            lastUpdated: proof.verifiedAt,
+            dayEvidence: proof)
+        try self.insert(
+            context,
+            device: "dev-B",
+            provider: "codex",
+            daysAgo: 1,
+            cost: 2,
+            tokens: 200,
+            lastUpdated: proof.verifiedAt,
+            dayEvidence: proof)
+
+        let rollup = try CostLedgerService.aggregateProvider(
+            providerID: "codex",
+            accountEmail: nil,
+            windowDays: 2,
+            in: context,
+            asOf: now)
+        let todayKey = self.dayKey(daysAgo: 0)
+
+        #expect(rollup.dailyPoints.first(where: { $0.dayKey == todayKey })?.costUSD == 1)
+        #expect(rollup.dailyPoints.first(where: { $0.dayKey == todayKey })?.dayEvidence == nil)
+        #expect(rollup.dayEvidenceVerifiedAt[todayKey] == nil)
     }
 
     @Test

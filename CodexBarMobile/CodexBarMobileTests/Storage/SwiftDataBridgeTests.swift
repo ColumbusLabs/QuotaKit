@@ -468,6 +468,60 @@ struct SwiftDataBridgeTests {
     }
 
     @Test
+    func `Persisted second reconciliation keeps a verified partial day correction`() throws {
+        let context = ModelContext(self.makeContainer())
+        let dayKey = "2026-08-12"
+        let baseline = SyncCostSummary(
+            sessionCostUSD: 10,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 1000,
+            daily: [SyncDailyPoint(dayKey: dayKey, costUSD: 10, totalTokens: 1000)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.ts1,
+            totalCostUpdatedAt: self.ts1)
+        let proof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 2,
+            verifiedAt: self.ts2)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 0,
+            sessionTokens: 0,
+            last30DaysCostUSD: 0,
+            last30DaysTokens: 0,
+            daily: [SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: 0,
+                totalTokens: 0,
+                dayEvidence: proof)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.ts2,
+            totalCostUpdatedAt: self.ts2)
+        let original = self.makeSnapshot(
+            deviceID: "device-cost-proof",
+            providers: [self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.ts1, costSummary: baseline)],
+            timestamp: self.ts1)
+        let corrected = self.makeSnapshot(
+            deviceID: "device-cost-proof",
+            providers: [self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.ts2, costSummary: partial)],
+            timestamp: self.ts2)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [original], into: context)
+        try SwiftDataBridge.upsert(deviceSnapshots: [corrected], into: context)
+
+        let persisted = try #require(
+            SwiftDataBridge.readAllDeviceSnapshots(from: context).first?.providers.first?.costSummary)
+        #expect(persisted.daily.first?.costUSD == 0)
+        #expect(persisted.daily.first?.totalTokens == 0)
+        #expect(persisted.daily.first?.dayEvidence == proof)
+        #expect(persisted.historyCoverageIsEstablished == true)
+    }
+
+    @Test
     func `Non-four provider survives store reopen`() throws {
         let url = self.makeStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

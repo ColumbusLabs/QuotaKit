@@ -26,6 +26,22 @@ extension CostUsageStore {
         """) != 0
     }
 
+    /// Full-ledger publication waits for persisted parser work across every file.
+    /// Scoped day proofs apply their own range-specific completeness checks.
+    static func hasIncompleteCodexScanWork(_ database: OpaquePointer) throws -> Bool {
+        try scalarInt(database, """
+        SELECT EXISTS (
+            SELECT 1
+            FROM files f
+            WHERE f.scan_complete = 0
+               OR json_extract(f.scan_state, '$.replacementScanPending') = 1
+               OR EXISTS (
+                   SELECT 1 FROM buffered_lines b WHERE b.file_id = f.id
+               )
+        )
+        """) != 0
+    }
+
     @discardableResult
     func retainDayWindow(
         sinceDay: String,
@@ -396,62 +412,12 @@ extension CostUsageStore {
                     try Self.markCatchUpRequired(database)
                 } else if let metadata,
                           !metadata.catchUpPending,
-                          try !Self.hasUnresolvedCodexForkBaseline(database)
+                          try !Self.hasUnresolvedCodexForkBaseline(database),
+                          try !Self.hasIncompleteCodexScanWork(database)
                 {
                     // Publish the complete normalized view only after pruning/budget checks
                     // succeed. A pending pass must leave the prior verified ledger untouched.
-                    let aggregates = try Self.readDayAggregates(
-                        database,
-                        sinceDay: nil,
-                        untilDay: nil)
-                    var updatedMetadata = metadata
-                    let existingVerified = try Self.readVerifiedDayAggregates(database)
-                    let scopeMatches = metadata.verifiedScanSinceDay == metadata.scanSinceDay
-                        && metadata.verifiedScanUntilDay == metadata.scanUntilDay
-                        && metadata.verifiedTimeZoneIdentifier == metadata.timeZoneIdentifier
-                        && metadata.verifiedRootPaths == metadata.rootMtimes?.keys.sorted()
-                    let temporalFilesComplete = try Self.temporalFileCoverageIsComplete(database)
-                    let temporalVerified = try Self.verifiedTemporalCoverageIsComplete(database)
-                    let temporalNeedsRefresh = temporalFilesComplete && !temporalVerified
-                    if existingVerified != aggregates || !scopeMatches || temporalNeedsRefresh {
-                        if existingVerified != aggregates {
-                            try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
-                        }
-                        updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
-                        updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
-                        updatedMetadata.verifiedUpdatedAtUnixMs = metadata.lastScanUnixMs > 0
-                            ? metadata.lastScanUnixMs : nil
-                        updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
-                        updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
-                        try Self.writeVerifiedLedgerMarker(database)
-                        try Self.execute(database, "DELETE FROM verified_day_status")
-                        if let sinceDay = metadata.scanSinceDay,
-                           let untilDay = metadata.scanUntilDay
-                        {
-                            try Self.markVerifiedDayStatus(
-                                database,
-                                sinceDay: sinceDay,
-                                untilDay: untilDay,
-                                calendar: calendar)
-                            try Self.replaceVerifiedTemporalAggregates(
-                                database,
-                                sinceDay: sinceDay,
-                                untilDay: untilDay)
-                        }
-                        if temporalFilesComplete {
-                            try Self.markVerifiedTemporalCoverageComplete(database)
-                        }
-                    }
-                    if updatedMetadata != metadata {
-                        let payload = try JSONEncoder().encode(updatedMetadata)
-                        let statement = try Self.prepare(database, """
-                        INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
-                        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
-                        """)
-                        defer { sqlite3_finalize(statement) }
-                        Self.bind(payload, to: statement, at: 1)
-                        try Self.stepDone(statement, database: database)
-                    }
+                    try Self.publishVerifiedLedger(database, metadata: metadata, calendar: calendar)
                 }
                 let finalRows = try Self.rowCount(database)
                 return CostUsageStoreBudgetResult(
@@ -463,6 +429,117 @@ extension CostUsageStore {
             try Self.reclaimFreePages(database)
             result.fileBytes = Self.fileSize(at: self.databaseURL)
             return result
+        }
+    }
+
+    private static func publishVerifiedLedger(
+        _ database: OpaquePointer,
+        metadata: CostUsageStoreMetadata,
+        calendar: Calendar) throws
+    {
+        let aggregates = try Self.readDayAggregates(
+            database,
+            sinceDay: nil,
+            untilDay: nil)
+        var updatedMetadata = metadata
+        let existingVerified = try Self.readVerifiedDayAggregates(database)
+        let verifiedDays: [String] = if let sinceDay = metadata.scanSinceDay,
+                                        let untilDay = metadata.scanUntilDay
+        {
+            try Self.verifiedDayKeys(
+                sinceDay: sinceDay,
+                untilDay: untilDay,
+                calendar: calendar)
+        } else {
+            []
+        }
+        let aggregateChangedDays = Set(verifiedDays.filter { day in
+            let current = aggregates.filter { $0.day == day }
+            let prior = existingVerified.filter { $0.day == day }
+            return current != prior
+        })
+        let existingStatuses = try Set(Self.readVerifiedDayStatus(database))
+        let statusChangedDays = Set(verifiedDays.filter { !existingStatuses.contains($0) })
+        let staleStatusDays = existingStatuses.subtracting(Set(verifiedDays))
+        let roots = metadata.rootMtimes?.keys.sorted() ?? []
+        let scopeID = CostUsageScanner.codexDayEvidenceScopeID(
+            rootPaths: roots,
+            calendar: calendar)
+        let existingEvidence = try Self.readVerifiedDayEvidence(database)
+        let staleEvidenceDays = Set(existingEvidence.keys).subtracting(Set(verifiedDays))
+        let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+        let evidenceChangedDays = Set(verifiedDays.filter { day in
+            guard let proof = existingEvidence[day],
+                  let lineageID
+            else { return true }
+            return proof.sourceKind != "codexLocalLedger"
+                || proof.scopeID != scopeID
+                || proof.lineageID != lineageID
+                || proof.revision <= 0
+        })
+        let scopeMatches = metadata.verifiedScanSinceDay == metadata.scanSinceDay
+            && metadata.verifiedScanUntilDay == metadata.scanUntilDay
+            && metadata.verifiedTimeZoneIdentifier == metadata.timeZoneIdentifier
+            && metadata.verifiedRootPaths == metadata.rootMtimes?.keys.sorted()
+        let temporalFilesComplete = try Self.temporalFileCoverageIsComplete(database)
+        let temporalVerified = try Self.verifiedTemporalCoverageIsComplete(database)
+        let temporalNeedsRefresh = temporalFilesComplete && !temporalVerified
+        if existingVerified != aggregates || !scopeMatches || temporalNeedsRefresh
+            || !statusChangedDays.isEmpty || !evidenceChangedDays.isEmpty
+            || !staleStatusDays.isEmpty || !staleEvidenceDays.isEmpty
+        {
+            if existingVerified != aggregates {
+                try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
+            }
+            updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
+            updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
+            updatedMetadata.verifiedUpdatedAtUnixMs = metadata.lastScanUnixMs > 0
+                ? metadata.lastScanUnixMs : nil
+            updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
+            updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
+            try Self.writeVerifiedLedgerMarker(database)
+            try Self.execute(database, "DELETE FROM verified_day_status")
+            try Self.clearVerifiedDayEvidence(database, days: staleEvidenceDays)
+            if let sinceDay = metadata.scanSinceDay,
+               let untilDay = metadata.scanUntilDay
+            {
+                try Self.markVerifiedDayStatus(
+                    database,
+                    sinceDay: sinceDay,
+                    untilDay: untilDay,
+                    calendar: calendar)
+                try Self.replaceVerifiedTemporalAggregates(
+                    database,
+                    sinceDay: sinceDay,
+                    untilDay: untilDay)
+            }
+            _ = try Self.persistVerifiedDayEvidence(
+                database,
+                days: verifiedDays,
+                scopeID: scopeID,
+                forceUpdateDays: aggregateChangedDays.union(statusChangedDays))
+            if temporalFilesComplete {
+                try Self.markVerifiedTemporalCoverageComplete(database)
+            }
+        }
+        if !verifiedDays.isEmpty,
+           let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+        {
+            _ = try Self.refreshVerifiedDayEvidenceTimestamps(
+                database,
+                days: verifiedDays,
+                scopeID: scopeID,
+                lineageID: lineageID)
+        }
+        if updatedMetadata != metadata {
+            let payload = try JSONEncoder().encode(updatedMetadata)
+            let statement = try Self.prepare(database, """
+            INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+            """)
+            defer { sqlite3_finalize(statement) }
+            Self.bind(payload, to: statement, at: 1)
+            try Self.stepDone(statement, database: database)
         }
     }
 

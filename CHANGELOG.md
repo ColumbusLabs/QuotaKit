@@ -5,7 +5,7 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## Unreleased
+## 0.32.4.32 — 2026-10-03
 
 ### Added
 
@@ -33,6 +33,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Model pricing refreshes use indexed fallback merges and preserve catalog stamps when rates are unchanged.
 
 ### Fixed
+
+- Verified Codex daily spend, tokens, and model details advance during historical catch-up, including corrected lower totals and zero days, without replacing unrelated established history.
 
 - Codex CLI discovery validates npm payloads and the selected Node runtime, preserves rejected launch decisions, and reuses bounded Gatekeeper verdicts.
 - Claude probes answer workspace trust only in their dedicated directory, preserve CLI recovery, and show measured or scoped quota instead of synthetic remaining allowance.

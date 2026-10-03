@@ -183,6 +183,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "0001601034856fb6", // Daily proof is additive; existing parsed rows remain compatible.
         "91aceec74bae13b6", // Orphan coverage preserves rows; retained buffers revalidate missing parents.
         "36872d2d0ebf9818", // Temporal revision 7 rebuilds compact buckets from retained file rows.
         "053a4fb6aa6156c2", // QuotaKit direct-fork producer; revision 6 reparses ambiguous first-owned rows.
@@ -517,23 +518,33 @@ extension CostUsageStore {
 
     nonisolated func syncRecordVerifiedCodexDay(
         day: String,
-        calendar: Calendar) -> Bool
+        calendar: Calendar,
+        expectedCommit: CostUsageStoreCodexScanCommit? = nil,
+        verifiedAt: Date = Date()) -> Bool
     {
         self.syncWithStoreIsolation { store in
-            store.recordVerifiedCodexDay(day: day, calendar: calendar)
+            store.recordVerifiedCodexDay(
+                day: day,
+                calendar: calendar,
+                expectedCommit: expectedCommit,
+                verifiedAt: verifiedAt)
         }
     }
 
     nonisolated func syncRecordVerifiedCodexWindow(
         sinceDay: String,
         untilDay: String,
-        calendar: Calendar) -> Bool
+        calendar: Calendar,
+        expectedCommit: CostUsageStoreCodexScanCommit? = nil,
+        verifiedAt: Date = Date()) -> Bool
     {
         self.syncWithStoreIsolation { store in
             store.recordVerifiedCodexWindow(
                 sinceDay: sinceDay,
                 untilDay: untilDay,
-                calendar: calendar)
+                calendar: calendar,
+                expectedCommit: expectedCommit,
+                verifiedAt: verifiedAt)
         }
     }
 }
@@ -1182,6 +1193,16 @@ extension CostUsageStore {
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
         let result = sqlite3_step(statement)
+        guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
+        return self.columnText(statement, at: 0)
+    }
+
+    static func optionalMetaValue(_ database: OpaquePointer, key: String) throws -> String? {
+        let statement = try self.prepare(database, "SELECT value FROM meta WHERE key = ?")
+        defer { sqlite3_finalize(statement) }
+        self.bind(key, to: statement, at: 1)
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return nil }
         guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
         return self.columnText(statement, at: 0)
     }

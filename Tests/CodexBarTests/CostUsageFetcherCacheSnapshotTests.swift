@@ -506,6 +506,36 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(cached?.snapshot.last30DaysCostUSD == 0)
         #expect(cached?.snapshot.historyCoverageIsEstablished == true)
         #expect(cached?.lastRefreshAt == scanTime)
+        #expect(cached?.snapshot.daily.map(\.date) == ["2026-04-08"])
+        #expect(cached?.snapshot.daily.first?.totalTokens == 0)
+        #expect(cached?.snapshot.daily.first?.costUSD == 0)
+        let evidence = try #require(cached?.snapshot.daily.first?.dayEvidence)
+        #expect(evidence.revision > 0)
+
+        let reloaded = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(reloaded?.snapshot.daily.first?.dayEvidence == evidence)
+        #expect(reloaded?.snapshot.daily.first?.totalTokens == 0)
+        #expect(reloaded?.lastRefreshAt == scanTime)
+
+        // An older completed cache without persisted proof keeps its legacy empty state;
+        // reading it must not manufacture authority for an explicit zero-day replacement.
+        let cleared = await CostUsageStore(cacheRoot: env.cacheRoot).withDatabase(default: false) { database in
+            try CostUsageStore.clearVerifiedDayAggregates(database)
+            return true
+        }
+        try #require(cleared)
+        let legacy = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(legacy?.snapshot.daily.isEmpty == true)
+        #expect(legacy?.snapshot.last30DaysCostUSD == 0)
+        #expect(legacy?.snapshot.historyCoverageIsEstablished == true)
     }
 
     @Test
@@ -602,7 +632,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             lineIndex: 1,
             ordinal: nil,
             line: .interAgentCommunication(triggerTurn: false))
-        let filePath = env.codexSessionsRoot.appendingPathComponent("fork.jsonl").path
+        let forkURL = try env.writeCodexSessionFile(day: now, filename: "fork.jsonl", contents: "{}\n")
+        let filePath = forkURL.path
         var cache = CostUsageCache()
         cache.lastScanUnixMs = Int64(now.addingTimeInterval(-60).timeIntervalSince1970 * 1000)
         cache.scanSinceKey = "2026-04-07"
@@ -755,7 +786,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(!partial.historyCoverageIsEstablished)
         #expect(partial.last30DaysTokens == 42)
         #expect(pendingCache.codexScanCatchUpPending == true)
-        #expect(previous.report.data.map(\.date) == ["2026-04-08"])
+        #expect(previous.report.data.filter { $0.totalTokens != 0 }.map(\.date) == ["2026-04-08"])
+        #expect(previous.report.data.filter { $0.totalTokens == 0 }.allSatisfy { $0.dayEvidence != nil })
         #expect(previous.scanSinceKey == narrowRange.sinceKey)
         #expect(previous.scanUntilKey == narrowRange.untilKey)
         #expect(CostUsageScanner.codexPreviousReport(
@@ -847,7 +879,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             historyDays: 30,
             includePiSessions: false,
             scannerOptions: options)
-        #expect(narrow?.snapshot.daily.map(\.date) == [currentKey])
+        #expect(narrow?.snapshot.daily.filter { $0.totalTokens != 0 }.map(\.date) == [currentKey])
+        #expect(narrow?.snapshot.daily.count == 30)
+        #expect(narrow?.snapshot.daily.filter { $0.totalTokens == 0 }.allSatisfy { $0.dayEvidence != nil } == true)
         #expect(narrow?.snapshot.last30DaysTokens == 50)
         #expect(narrow?.snapshot.historyCoverageIsEstablished == true)
 
@@ -857,7 +891,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             historyDays: 365,
             includePiSessions: false,
             scannerOptions: options)
-        #expect(wide?.snapshot.daily.map(\.date) == [oldKey, currentKey])
+        #expect(wide?.snapshot.daily.filter { $0.totalTokens != 0 }.map(\.date) == [oldKey, currentKey])
+        #expect(wide?.snapshot.daily.count == 365)
+        #expect(wide?.snapshot.daily.filter { $0.totalTokens == 0 }.allSatisfy { $0.dayEvidence != nil } == true)
         #expect(wide?.snapshot.last30DaysTokens == 63)
         #expect(wide?.snapshot.historyCoverageIsEstablished == true)
     }
@@ -966,16 +1002,13 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(persisted.codexSessionDiscovery?.isComplete == false)
-        #expect(persisted.codexSessionDiscovery?.generation == nil)
-        #expect(persisted.codexSessionDiscovery?.nextFileIndex == 0)
         #expect(persisted.codexSessionDiscovery?.nextDirectoryIndex
             == persisted.codexSessionDiscovery?.directoryPaths.count)
-        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
-            cache: persisted,
-            roots: CostUsageScanner.codexSessionsRoots(options: options),
+        try Self.recordIndependentlyVerifiedDay(
+            env: env,
+            options: options,
             dayKey: currentDayKey,
-            calendar: options.calendar))
-
+            verifiedAt: freshScanAt)
         let published = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: now,
             historyDays: 30,
@@ -1005,8 +1038,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
 
-        #expect(adjacentPartitionBlocked?.snapshot.daily.map(\.totalTokens) == [10, 5])
-        #expect(adjacentPartitionBlocked?.snapshot.updatedAt == oldScanAt)
+        #expect(adjacentPartitionBlocked?.snapshot.daily.map(\.totalTokens) == [10, 20])
+        #expect(adjacentPartitionBlocked?.snapshot.updatedAt == freshScanAt)
+        #expect(adjacentPartitionBlocked?.currentDayIsFullyVerified == false)
 
         cache.lastScanUnixMs += 1000
         cache.files[currentURL.path]?.codexScanComplete = false
@@ -1020,10 +1054,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
 
-        #expect(blocked?.snapshot.daily.map(\.totalTokens) == [10, 5])
-        #expect(blocked?.snapshot.last30DaysTokens == 15)
-        #expect(blocked?.snapshot.last30DaysCostUSD == 4)
-        #expect(blocked?.snapshot.updatedAt == oldScanAt)
+        #expect(blocked?.snapshot.daily.map(\.totalTokens) == [10, 20])
+        #expect(blocked?.snapshot.last30DaysTokens == 30)
+        #expect(blocked?.snapshot.last30DaysCostUSD == 5)
+        #expect(blocked?.snapshot.updatedAt == freshScanAt)
+        #expect(blocked?.currentDayIsFullyVerified == false)
     }
 
     @Test
@@ -1118,6 +1153,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             cacheRoot: env.cacheRoot,
             calendar: options.calendar)
         #expect(projection.verifiedDayAggregates.isEmpty)
+        #expect(projection.verifiedDayEvidence.isEmpty)
         #expect(projection.cache.codexPreviousReport == nil)
         #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
             cache: projection.cache,
@@ -1133,6 +1169,17 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(projected.report.data.map(\.date) == ["2026-04-01", currentDayKey])
         #expect(projected.report.data.first(where: { $0.date == currentDayKey })?.costUSD == 2)
 
+        // A complete file snapshot alone is not publication proof. Persist the independently
+        // gated day through the same compact ledger transaction used by the scanner.
+        #expect(await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            scannerOptions: options) == nil)
+        try Self.recordIndependentlyVerifiedDay(
+            env: env,
+            options: options,
+            dayKey: currentDayKey,
+            verifiedAt: now)
         let published = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: now,
             historyDays: 30,
@@ -1153,7 +1200,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             now: now,
             historyDays: 30,
             scannerOptions: options)
-        #expect(blocked == nil)
+        #expect(blocked?.snapshot.daily.first?.totalTokens == 20)
+        #expect(blocked?.currentDayIsFullyVerified == false)
     }
 
     @Test
@@ -1265,6 +1313,11 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.codexSessionDiscovery = Self.incompleteMetadataDiscovery(
             roots: roots,
             filePaths: [currentURL.path, olderURL.path])
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar) == .inventory)
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
 
         _ = CostUsageScanner.loadDailyReport(
@@ -1709,6 +1762,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: roots,
             dayKey: "2026-04-08",
             calendar: options.calendar))
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar) == .stale)
     }
 
     @Test
@@ -1760,6 +1818,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: roots,
             dayKey: "2026-04-08",
             calendar: options.calendar))
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar) == .inventory)
     }
 
     @Test
@@ -2497,6 +2560,25 @@ extension CostUsageFetcherCacheSnapshotTests {
                     ],
                 ],
             ]))
+    }
+
+    private static func recordIndependentlyVerifiedDay(
+        env: CostUsageTestEnvironment,
+        options: CostUsageScanner.Options,
+        dayKey: String,
+        verifiedAt: Date) throws
+    {
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        try #require(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            dayKey: dayKey,
+            calendar: options.calendar))
+        #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
+            store: CostUsageStore(cacheRoot: env.cacheRoot),
+            day: dayKey,
+            calendar: options.calendar,
+            verifiedAt: verifiedAt))
     }
 
     private static func completeMetadataDiscovery(

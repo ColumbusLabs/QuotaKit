@@ -10,6 +10,7 @@
 // MockProviderInjector.
 import CodexBarCore
 import CodexBarSync
+import CryptoKit
 import Foundation
 import Observation
 
@@ -1799,9 +1800,16 @@ final class SyncCoordinator {
             let modelBreakdowns = self.modelBreakdowns(from: entry, provider: provider)
             let serviceBreakdowns = serviceBreakdownsByDay[dayKey] ?? []
 
-            let resolvedCost = entry?.costUSD
-                ?? self.breakdownTotal(modelBreakdowns)
-                ?? self.breakdownTotal(serviceBreakdowns)
+            // Local Codex estimates and dashboard charges are different cost bases.
+            // An unpriced local day must not borrow a dashboard total and claim
+            // that its independently verified source contribution was priced.
+            let resolvedCost = if provider == .codex, let entry {
+                entry.costUSD ?? self.breakdownTotal(modelBreakdowns)
+            } else {
+                entry?.costUSD
+                    ?? self.breakdownTotal(modelBreakdowns)
+                    ?? self.breakdownTotal(serviceBreakdowns)
+            }
             // Keep the historical numeric wire field for old iPhone builds,
             // but explicitly distinguish an unpriced day from a measured
             // zero. This matters when a bounded Codex history scan has token
@@ -1821,7 +1829,11 @@ final class SyncCoordinator {
                 modelBreakdowns: modelBreakdowns,
                 serviceBreakdowns: serviceBreakdowns,
                 isEstimated: dayIsEstimated ? true : nil,
-                costIsKnown: costIsKnown)
+                costIsKnown: costIsKnown,
+                dayEvidence: provider == .codex ? Self.syncDayEvidence(
+                    from: entry?.dayEvidence,
+                    scopeIdentity: [canonicalScope.accountIdentity, canonicalScope.credentialScopeFingerprint]
+                        .compactMap(\.self).joined(separator: "|")) : nil)
         }
 
         let totalDailyCost = daily.reduce(0) { $0 + $1.costUSD }
@@ -1865,6 +1877,29 @@ final class SyncCoordinator {
             scope: canonicalScope,
             summary: canonical)
         return canonical
+    }
+
+    /// Bind the scanner's root/calendar proof to its account-owned sync lane.
+    /// Only the digest travels; account identifiers remain outside the proof.
+    static func syncDayEvidence(
+        from evidence: CostUsageDayEvidence?,
+        scopeIdentity: String) -> SyncDayEvidence?
+    {
+        guard let evidence,
+              evidence.sourceKind == "codexLocalLedger",
+              evidence.revision > 0,
+              !evidence.scopeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !evidence.lineageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              evidence.verifiedAt.timeIntervalSince1970.isFinite
+        else { return nil }
+        let scopeData = Data("\(evidence.scopeID)|\(scopeIdentity)".utf8)
+        let scopeID = SHA256.hash(data: scopeData).map { String(format: "%02x", $0) }.joined()
+        return SyncDayEvidence(
+            sourceKind: evidence.sourceKind,
+            scopeID: scopeID,
+            lineageID: evidence.lineageID,
+            revision: evidence.revision,
+            verifiedAt: evidence.verifiedAt)
     }
 
     private func authoritativeHistoryWindow(

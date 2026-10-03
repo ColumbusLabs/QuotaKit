@@ -109,6 +109,64 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Summed local days drop single-source proof and retain device-scoped source revisions`() throws {
+        let olderRevision = self.olderDate
+        let newerRevision = self.newerDate
+        let olderProof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 2,
+            verifiedAt: olderRevision)
+        let newerProof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-b",
+            revision: 4,
+            verifiedAt: newerRevision)
+        func provider(cost: Double, proof: SyncDayEvidence, revision: Date) -> ProviderUsageSnapshot {
+            self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                email: "user@example.com",
+                lastUpdated: revision,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-08-12",
+                        costUSD: cost,
+                        totalTokens: 100,
+                        dayEvidence: proof)],
+                    sourceRevisions: ["tokenScanner": revision]))
+        }
+        let first = provider(cost: 1, proof: olderProof, revision: olderRevision)
+        let second = provider(cost: 2, proof: newerProof, revision: newerRevision)
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "mac-a", providers: [first]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "mac-b", providers: [second]),
+        ]))
+        let summary = try #require(merged.providers.first?.costSummary)
+
+        #expect(summary.daily.first?.costUSD == 3)
+        #expect(summary.daily.first?.dayEvidence == nil)
+        let sourceRevisions = try #require(summary.sourceRevisions)
+        let deviceSourceRevisions = sourceRevisions.filter { $0.key.hasPrefix("device-source-v1:") }
+        #expect(deviceSourceRevisions.count == 2)
+        #expect(Set(deviceSourceRevisions.values) == [olderRevision, newerRevision])
+        #expect(sourceRevisions.keys.contains(where: { $0.hasPrefix("local-contributor-inventory-v1:") }))
+        #expect(sourceRevisions.keys.contains(where: { $0.hasPrefix("local-day-evidence-vector-v1:") }))
+        #expect(LocalCostEvidenceRevision.requiresVerifiedDays(sourceRevisions: sourceRevisions))
+
+        let singleDevice = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "mac-a", providers: [first]),
+        ]))
+        #expect(singleDevice.providers.first?.costSummary?.daily.first?.dayEvidence == olderProof)
+    }
+
+    @Test
     func `Complete correction can reduce a previously published total`() {
         let establishedAt = self.olderDate
         let correctedAt = self.newerDate
@@ -1670,6 +1728,33 @@ struct CloudKitMergeTests {
         let today = cost.todayTotals(now: Self.pinnedToday)
         #expect(today.costUSD == 4.56) // daily[today], not session
         #expect(today.tokens == 4000)
+    }
+
+    @Test
+    func `todayTotals uses verified day time instead of a fresh provider timestamp`() {
+        let verifiedAt = Self.pinnedToday.addingTimeInterval(-2 * 60 * 60)
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30000,
+            daily: [SyncDailyPoint(
+                dayKey: Self.pinnedTodayKey,
+                costUSD: 4.56,
+                totalTokens: 4000,
+                dayEvidence: SyncDayEvidence(
+                    sourceKind: "codexLocalLedger",
+                    scopeID: "scope-a",
+                    lineageID: "store-a",
+                    revision: 8,
+                    verifiedAt: verifiedAt))],
+            costUpdatedAt: Self.pinnedToday,
+            totalCostUpdatedAt: Self.pinnedToday)
+
+        let today = cost.todayTotals(now: Self.pinnedToday, providerLastUpdated: Self.pinnedToday)
+
+        #expect(today.updatedAt == verifiedAt)
+        #expect(today.isStale)
     }
 
     @Test

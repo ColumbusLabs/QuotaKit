@@ -206,6 +206,79 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Codex day proof maps into an opaque account scoped sync lane`() throws {
+        let verifiedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let evidence = CostUsageDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "fixture-root-calendar",
+            lineageID: "fixture-store",
+            revision: 2,
+            verifiedAt: verifiedAt)
+        let first = try #require(SyncCoordinator.syncDayEvidence(from: evidence, scopeIdentity: "fixture-account-a"))
+        let second = try #require(SyncCoordinator.syncDayEvidence(from: evidence, scopeIdentity: "fixture-account-b"))
+        #expect(first.scopeID.count == 64)
+        #expect(first.scopeID != second.scopeID)
+        #expect(!first.scopeID.contains("fixture-account"))
+        #expect(first.lineageID == evidence.lineageID)
+        #expect(first.revision == 2)
+        #expect(first.verifiedAt == verifiedAt)
+    }
+
+    @Test
+    func `Codex verified daily spend advances in both outgoing sync payloads`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-verified-day")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let initialAt = try #require(ISO8601DateFormatter().date(from: "2026-10-03T15:00:00Z"))
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: initialAt), provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        for revision in 1...3 {
+            let updatedAt = initialAt.addingTimeInterval(Double(revision))
+            let cost = revision == 1 ? 0.552216 : Double(revision * 10)
+            let tokens = revision == 1 ? 522_908 : revision * 1_000_000
+            store._setTokenSnapshotForTesting(
+                CostUsageTokenSnapshot(
+                    sessionTokens: tokens,
+                    sessionCostUSD: cost,
+                    last30DaysTokens: tokens,
+                    last30DaysCostUSD: cost,
+                    historyCoverageIsEstablished: revision == 1,
+                    historySinceDayKey: "2026-09-04",
+                    historyUntilDayKey: "2026-10-03",
+                    daily: [CostUsageDailyReport.Entry(
+                        date: "2026-10-03",
+                        inputTokens: tokens,
+                        outputTokens: 0,
+                        cacheReadTokens: 0,
+                        totalTokens: tokens,
+                        costUSD: cost,
+                        modelsUsed: [],
+                        modelBreakdowns: [],
+                        dayEvidence: revision == 1 ? nil : CostUsageDayEvidence(
+                            scopeID: "fixture-root-calendar",
+                            lineageID: "fixture-store",
+                            revision: Int64(revision),
+                            verifiedAt: updatedAt))],
+                    updatedAt: updatedAt),
+                provider: .codex)
+            await coordinator.pushCurrentSnapshot()
+            let summary = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "codex" }?.costSummary)
+            let day = try #require(summary.daily.first)
+            #expect(day.costUSD == cost)
+            #expect(day.totalTokens == tokens)
+            #expect(day.dayEvidence?.revision == (revision == 1 ? nil : Int64(revision)))
+            let perProvider = try #require(mock.lastPerProviderEnvelopes.first { $0.provider.providerID == "codex" })
+            #expect(perProvider.provider.costSummary == summary)
+        }
+    }
+
+    @Test
     func `Codex cost summary maps history coverage from token snapshot`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-codex-history-coverage")
         settings.iCloudSyncEnabled = true

@@ -131,6 +131,26 @@ struct ProviderDailySpendPresentationTests {
     }
 
     @Test
+    func `provider detail displays a verified zero-spend correction`() {
+        let corrected = SyncDailyPoint(
+            dayKey: "2026-07-31",
+            costUSD: 0,
+            totalTokens: 0,
+            dayEvidence: SyncDayEvidence(
+                sourceKind: "codexLocalLedger",
+                scopeID: "scope-a",
+                lineageID: "store-a",
+                revision: 2,
+                verifiedAt: Date(timeIntervalSince1970: 1_700_000_060)))
+
+        let detail = ProviderDailySpendPresentation.detail(for: corrected)
+
+        #expect(detail.dayKey == corrected.dayKey)
+        #expect(detail.costUSD == 0)
+        #expect(detail.totalTokens == 0)
+    }
+
+    @Test
     func `missing total tokens fall back to standard and fast tokens and preserve split details`() throws {
         let row = SyncCostBreakdown(
             label: "codex",

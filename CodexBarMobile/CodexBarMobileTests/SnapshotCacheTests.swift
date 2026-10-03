@@ -158,6 +158,113 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `Verified day revision survives cold start full delta and stale replay paths`() throws {
+        let dayKey = "2026-08-12"
+        let baseline = SyncCostSummary(
+            sessionCostUSD: 10,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 1000,
+            daily: [SyncDailyPoint(dayKey: dayKey, costUSD: 10, totalTokens: 1000)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let proof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 2,
+            verifiedAt: self.t2)
+        let verified = SyncCostSummary(
+            sessionCostUSD: 0,
+            sessionTokens: 0,
+            last30DaysCostUSD: 0,
+            last30DaysTokens: 0,
+            daily: [SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: 0,
+                totalTokens: 0,
+                dayEvidence: proof)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+
+        var cache = SnapshotCache()
+        cache.seedFromColdStart([self.snapshot(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providers: [self.provider(id: "codex", lastUpdated: self.t1, costSummary: baseline)],
+            timestamp: self.t1)])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: verified)],
+                timestamp: self.t2)],
+            legacySnapshots: nil)
+
+        let stalePartial = SyncCostSummary(
+            sessionCostUSD: 15,
+            sessionTokens: 1500,
+            last30DaysCostUSD: 15,
+            last30DaysTokens: 1500,
+            daily: [SyncDailyPoint(dayKey: dayKey, costUSD: 15, totalTokens: 1500)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t3,
+            totalCostUpdatedAt: self.t3)
+        cache.applyDelta(
+            upserted: [ProviderUsageEnvelope(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.32.4",
+                mobileVersion: "1.11.3",
+                syncTimestamp: self.t3,
+                notificationPushEnabled: true,
+                provider: self.provider(id: "codex", lastUpdated: self.t3, costSummary: stalePartial))],
+            deletedRecordNames: [])
+
+        let staleProof = SyncDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "scope-a",
+            lineageID: "store-a",
+            revision: 1,
+            verifiedAt: self.t3)
+        let staleReplaySummary = SyncCostSummary(
+            sessionCostUSD: 99,
+            sessionTokens: 9900,
+            last30DaysCostUSD: 99,
+            last30DaysTokens: 9900,
+            daily: [SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: 99,
+                totalTokens: 9900,
+                dayEvidence: staleProof)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t3,
+            totalCostUpdatedAt: self.t3)
+        cache.replacePerProviderFromReplay([ProviderUsageEnvelope(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            appVersion: "0.32.4",
+            mobileVersion: "1.11.3",
+            syncTimestamp: self.t3,
+            notificationPushEnabled: true,
+            provider: self.provider(
+                id: "codex",
+                lastUpdated: self.t3,
+                costSummary: staleReplaySummary))])
+
+        let retained = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(retained.daily.first?.costUSD == 0)
+        #expect(retained.daily.first?.totalTokens == 0)
+        #expect(retained.daily.first?.dayEvidence?.revision == 2)
+    }
+
+    @Test
     func `Completed cost scan replaces the retained complete history`() throws {
         var cache = SnapshotCache()
         let old = self.provider(

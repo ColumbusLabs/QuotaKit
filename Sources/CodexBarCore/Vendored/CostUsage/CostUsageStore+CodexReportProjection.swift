@@ -8,6 +8,7 @@ struct CostUsageStoreCodexReportProjection: Sendable {
     /// remain stable while a bounded catch-up replaces individual files.
     var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
     var verifiedDayKeys: [String] = []
+    var verifiedDayEvidence: [String: CostUsageDayEvidence] = [:]
     var fileTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
     var verifiedTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
     var fileTemporalCoverageIsComplete: Bool = false
@@ -39,6 +40,7 @@ extension CostUsageStore {
             fileDayAggregates: snapshot.fileDayAggregates,
             verifiedDayAggregates: snapshot.verifiedDayAggregates,
             verifiedDayKeys: snapshot.verifiedDayKeys,
+            verifiedDayEvidence: snapshot.verifiedDayEvidence,
             fileTemporalAggregates: snapshot.fileTemporalAggregates,
             verifiedTemporalAggregates: snapshot.verifiedTemporalAggregates,
             fileTemporalCoverageIsComplete: snapshot.fileTemporalCoverageIsComplete,

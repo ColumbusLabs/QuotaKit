@@ -553,6 +553,10 @@ extension CostUsageStore {
                         database,
                         sinceDay: temporalSince,
                         untilDay: temporalUntil),
+                    verifiedDayEvidence: Self.readVerifiedDayEvidence(
+                        database,
+                        sinceDay: temporalSince,
+                        untilDay: temporalUntil),
                     fileTemporalAggregates: fileTemporal,
                     verifiedTemporalAggregates: verifiedTemporal,
                     fileTemporalCoverageIsComplete: loadTemporal

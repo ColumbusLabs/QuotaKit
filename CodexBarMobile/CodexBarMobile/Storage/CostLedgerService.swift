@@ -71,6 +71,15 @@ struct CostLedgerProviderRollup: Equatable {
     let dailyPoints: [SyncDailyPoint]
     /// Model mix just for this provider. Sorted by `costUSD` descending.
     let modelBreakdowns: [SyncCostBreakdown]
+    /// Days whose local contributor set is known to be incomplete or whose
+    /// per-device proof is missing. Consumers must not replace this with a
+    /// fresh aggregate or quota timestamp.
+    let incompleteDayEvidenceDayKeys: Set<String>
+    /// Conservative daily verification freshness for this provider/account.
+    /// A date is present only when every retained device contribution for
+    /// that day carried evidence; it is the oldest verification among them.
+    /// This is display freshness, not a synthesized proof for the aggregate.
+    let dayEvidenceVerifiedAt: [String: Date]
 }
 
 /// Lightweight ledger diagnostics for the Settings panel (P4). All fields
@@ -94,6 +103,26 @@ enum CostLedgerService {
     /// backed providers instead represent one account-level total and use
     /// newest-row deduplication below.
     private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai", "pi"]
+
+    /// Builds the current per-provider/account Mac inventory from the live
+    /// device snapshots. A live source can contribute to a local history
+    /// even before its first ledger row arrives, so ledger rows alone cannot
+    /// certify a multi-Mac daily total.
+    static func expectedLocalContributorDeviceIDsByProviderKey(
+        from devices: [SyncedUsageSnapshot]) -> [String: Set<String>]
+    {
+        var contributors: [String: Set<String>] = [:]
+        for device in devices {
+            let deviceID = device.deviceID ?? SnapshotCache.syntheticDeviceID(from: device)
+            for provider in device.providers where Self.localCostProviders.contains(provider.providerID)
+                && provider.costSummary != nil
+            {
+                let key = "\(provider.providerID)|\(provider.accountEmail ?? "_")"
+                contributors[key, default: []].insert(deviceID)
+            }
+        }
+        return contributors
+    }
 
     /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
     /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
@@ -166,6 +195,10 @@ enum CostLedgerService {
                 lastUpdated: costUpdatedAt,
                 totalUpdatedAt: totalCostUpdatedAt,
                 sourceRevisionKey: sourceRevisionKey,
+                historyCoverageIsEstablished: summary.historyCoverageIsEstablished,
+                historySinceDayKey: summary.historySinceDayKey,
+                historyUntilDayKey: summary.historyUntilDayKey,
+                dayEvidence: point.dayEvidence,
                 encoder: encoder,
                 in: context)
         }
@@ -194,6 +227,10 @@ enum CostLedgerService {
         lastUpdated: Date,
         totalUpdatedAt: Date? = nil,
         sourceRevisionKey: String? = nil,
+        historyCoverageIsEstablished: Bool? = nil,
+        historySinceDayKey: String? = nil,
+        historyUntilDayKey: String? = nil,
+        dayEvidence: SyncDayEvidence? = nil,
         encoder: JSONEncoder? = nil,
         in context: ModelContext) throws
     {
@@ -212,11 +249,73 @@ enum CostLedgerService {
         let serviceData: Data? = serviceBreakdowns.isEmpty
             ? nil
             : try? enc.encode(serviceBreakdowns)
-        let normalizedSourceRevisionKey = Self.withCostKnown(
-            sourceRevisionKey,
-            known: costIsKnown != false)
+        let acceptedDayEvidence = dayEvidence.flatMap { $0.isValid ? $0 : nil }
+        let normalizedSourceRevisionKey = Self.withDayEvidence(
+            Self.withCostKnown(sourceRevisionKey, known: costIsKnown != false),
+            evidence: acceptedDayEvidence)
 
         if let existing = try context.fetch(descriptor).first {
+            let existingEvidence = Self.dayEvidence(from: existing.sourceRevisionKey)
+            if let dayEvidence = acceptedDayEvidence {
+                let incomingTotalRevision = totalUpdatedAt ?? lastUpdated
+                let existingTotalRevision = existing.totalUpdatedAt ?? existing.lastUpdated
+                let decision = Self.dayEvidenceUpdateDecision(
+                    dayEvidence,
+                    existing: existingEvidence,
+                    dayKey: dayKey,
+                    historyCoverageIsEstablished: historyCoverageIsEstablished,
+                    historySinceDayKey: historySinceDayKey,
+                    historyUntilDayKey: historyUntilDayKey,
+                    incomingTotalRevision: incomingTotalRevision,
+                    existingTotalRevision: existingTotalRevision)
+                switch decision {
+                case .reject:
+                    return
+                case .refreshFreshness:
+                    // An idle verified source can advance its proof clock
+                    // without changing the source revision or payload.
+                    existing.totalUpdatedAt = max(existingTotalRevision, dayEvidence.verifiedAt)
+                    // Keep pricing certainty and history-coverage markers
+                    // from the retained revision. Equal source counters do
+                    // not authorize a payload or knownness transition.
+                    existing.sourceRevisionKey = Self.withDayEvidence(
+                        existing.sourceRevisionKey,
+                        evidence: dayEvidence)
+                    return
+                case .replaceValues:
+                    break
+                }
+
+                let resolvedCostIsKnown = costIsKnown != false
+                let existingCostIsKnown = Self.costIsKnown(from: existing.sourceRevisionKey) != false
+                let preserveKnownCost = !resolvedCostIsKnown && existingCostIsKnown
+
+                // A newer verified point can establish an unproven row or
+                // correct a comparable proofed day even when its enclosing
+                // summary is partial. If the source now has unpriced activity,
+                // preserve previously known dollars and their breakdowns while
+                // accepting the newer tokens, unknown-cost marker, and proof.
+                Self.replaceDay(
+                    existing,
+                    costUSD: preserveKnownCost ? existing.costUSD : costUSD,
+                    totalTokens: totalTokens,
+                    isEstimated: preserveKnownCost ? (existing.isEstimated ?? isEstimated) : isEstimated,
+                    modelData: preserveKnownCost ? existing.modelBreakdownsData : modelData,
+                    serviceData: preserveKnownCost ? existing.serviceBreakdownsData : serviceData,
+                    lastUpdated: lastUpdated,
+                    totalUpdatedAt: max(
+                        totalUpdatedAt ?? lastUpdated,
+                        dayEvidence.verifiedAt),
+                    sourceRevisionKey: Self.withCostKnown(
+                        normalizedSourceRevisionKey,
+                        known: resolvedCostIsKnown))
+                return
+            }
+
+            // An older payload cannot order itself against an independently
+            // versioned day. Keep the proofed value and its pricing marker.
+            if existingEvidence != nil { return }
+
             // A partial Codex history update is allowed to add previously
             // absent days, but it must never overwrite a day established by
             // a complete (or legacy/unknown) history revision. The ledger has
@@ -310,6 +409,7 @@ enum CostLedgerService {
     /// it runs on the caller's context (P4 calls from `@MainActor`).
     static func aggregate(
         windowDays: Int,
+        expectedLocalContributorDeviceIDsByProviderKey: [String: Set<String>] = [:],
         in context: ModelContext,
         asOf: Date = Date()) throws -> CostLedgerAggregation
     {
@@ -366,11 +466,18 @@ enum CostLedgerService {
 
         for survivor in survivors.values {
             let costIsKnown = Self.costIsKnown(from: survivor.sourceRevisionKey) != false
+            let dayEvidence = Self.dayEvidence(from: survivor.sourceRevisionKey)
             let rollupKey = "\(survivor.providerID)|\(survivor.accountEmail ?? "_")"
             var acc = perProvider[rollupKey] ?? ProviderAccumulator(
                 providerID: survivor.providerID,
-                accountEmail: survivor.accountEmail)
-            acc.ingest(survivor, costIsKnown: costIsKnown, decoder: decoder)
+                accountEmail: survivor.accountEmail,
+                isLocalCostProvider: Self.localCostProviders.contains(survivor.providerID),
+                expectedContributorDeviceIDs: expectedLocalContributorDeviceIDsByProviderKey[rollupKey] ?? [])
+            acc.ingest(
+                survivor,
+                costIsKnown: costIsKnown,
+                dayEvidence: dayEvidence,
+                decoder: decoder)
             perProvider[rollupKey] = acc
 
             perDay[survivor.dayKey, default: .init()].ingest(
@@ -470,7 +577,9 @@ enum CostLedgerService {
             totalCostUSD: 0,
             totalTokens: 0,
             dailyPoints: [],
-            modelBreakdowns: [])
+            modelBreakdowns: [],
+            incompleteDayEvidenceDayKeys: [],
+            dayEvidenceVerifiedAt: [:])
     }
 
     // MARK: - Diagnostics (Round 3 / P3)
@@ -546,9 +655,14 @@ enum CostLedgerService {
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
                     lastUpdated: summary.costUpdatedAt ?? row.lastUpdated,
+                    totalUpdatedAt: summary.totalCostUpdatedAt,
                     sourceRevisionKey: Self.ledgerSourceRevisionKey(
                         summary,
                         providerLastUpdated: row.lastUpdated),
+                    historyCoverageIsEstablished: summary.historyCoverageIsEstablished,
+                    historySinceDayKey: summary.historySinceDayKey,
+                    historyUntilDayKey: summary.historyUntilDayKey,
+                    dayEvidence: point.dayEvidence,
                     encoder: encoder,
                     in: context)
             }
@@ -592,16 +706,23 @@ enum CostLedgerService {
             let targetDescriptor = FetchDescriptor<DailyCostPoint>(
                 predicate: #Predicate { $0.compositeKey == targetKey })
             if let target = try context.fetch(targetDescriptor).first {
+                let legacyEvidence = Self.dayEvidence(from: legacy.sourceRevisionKey)
+                let targetEvidence = Self.dayEvidence(from: target.sourceRevisionKey)
+                let hasDayEvidence = legacyEvidence != nil || targetEvidence != nil
                 if Self.ledgerRow(legacy, isStrongerThan: target) {
                     target.costUSD = legacy.costUSD
+                    target.totalTokens = legacy.totalTokens
                     target.isEstimated = legacy.isEstimated
                     target.modelBreakdownsData = legacy.modelBreakdownsData
                     target.serviceBreakdownsData = legacy.serviceBreakdownsData
                     target.totalUpdatedAt = legacy.totalUpdatedAt
+                    target.lastUpdated = legacy.lastUpdated
                     target.sourceRevisionKey = legacy.sourceRevisionKey
                 }
-                target.totalTokens = max(target.totalTokens, legacy.totalTokens)
-                target.lastUpdated = max(target.lastUpdated, legacy.lastUpdated)
+                if !hasDayEvidence {
+                    target.totalTokens = max(target.totalTokens, legacy.totalTokens)
+                    target.lastUpdated = max(target.lastUpdated, legacy.lastUpdated)
+                }
                 context.delete(legacy)
             } else {
                 legacy.accountEmail = email
@@ -618,6 +739,18 @@ enum CostLedgerService {
         _ candidate: DailyCostPoint,
         isStrongerThan existing: DailyCostPoint) -> Bool
     {
+        let candidateEvidence = Self.dayEvidence(from: candidate.sourceRevisionKey)
+        let existingEvidence = Self.dayEvidence(from: existing.sourceRevisionKey)
+        if candidateEvidence != nil || existingEvidence != nil {
+            guard let candidateEvidence else { return false }
+            guard let existingEvidence else { return true }
+            // Identity migration cannot establish a changed source lineage:
+            // it has no enclosing fresh-complete window to bound that change.
+            // Comparable proof revisions remain directly orderable.
+            return Self.hasSameEvidenceContext(candidateEvidence, existingEvidence)
+                && candidateEvidence.revision > existingEvidence.revision
+        }
+
         func coverageRank(_ row: DailyCostPoint) -> Int {
             switch Self.historyCoverage(from: row.sourceRevisionKey) {
             case true: 2
@@ -695,7 +828,9 @@ enum CostLedgerService {
         guard !hasNewerExistingTotal else { return }
 
         let incomingDayKeys = Set(summary.daily.map(\.dayKey))
-        for row in existingRows where !incomingDayKeys.contains(row.dayKey) {
+        for row in existingRows where !incomingDayKeys.contains(row.dayKey)
+            && Self.dayEvidence(from: row.sourceRevisionKey) == nil
+        {
             context.delete(row)
         }
     }
@@ -712,7 +847,138 @@ enum CostLedgerService {
         case false: "partial"
         case nil: "legacy"
         }
-        return "\(summary.mobileRevisionKey(providerLastUpdated: providerLastUpdated))|historyCoverage=\(coverage)"
+        let revisionKey = summary.mobileRevisionKey(
+            providerLastUpdated: providerLastUpdated,
+            includeDayEvidence: false)
+        return "\(revisionKey)|historyCoverage=\(coverage)"
+    }
+
+    private static let dayEvidenceMarkerPrefix = "dayEvidence=v1:"
+
+    /// Replaces a day proof in the existing optional revision string. The
+    /// marker is versioned and Base64URL-encoded canonical JSON, so arbitrary
+    /// source IDs cannot collide with its `|`-delimited siblings.
+    private static func withDayEvidence(
+        _ revisionKey: String?,
+        evidence: SyncDayEvidence?) -> String?
+    {
+        let existing = revisionKey?
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .filter { !$0.hasPrefix("dayEvidence=v") }
+            .joined(separator: "|")
+        guard let evidence, evidence.isValid else { return existing }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(evidence) else { return existing }
+        let encoded = data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return "\(existing ?? "")|\(Self.dayEvidenceMarkerPrefix)\(encoded)"
+    }
+
+    private static func dayEvidence(from revisionKey: String?) -> SyncDayEvidence? {
+        guard let marker = revisionKey?
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .last(where: { $0.hasPrefix(Self.dayEvidenceMarkerPrefix) })
+        else { return nil }
+        let encoded = marker.dropFirst(Self.dayEvidenceMarkerPrefix.count)
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = String(encoded) + String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        guard let data = Data(base64Encoded: padded) else { return nil }
+        guard let evidence = try? JSONDecoder().decode(SyncDayEvidence.self, from: data),
+              evidence.isValid
+        else {
+            return nil
+        }
+        return evidence
+    }
+
+    private static func hasSameEvidenceContext(
+        _ lhs: SyncDayEvidence,
+        _ rhs: SyncDayEvidence) -> Bool
+    {
+        lhs.sourceKind == rhs.sourceKind
+            && lhs.scopeID == rhs.scopeID
+            && lhs.lineageID == rhs.lineageID
+    }
+
+    /// Mirrors SyncCostSummary's daily adoption rules for a persisted row.
+    /// Matching proofs use their monotonic revision. A different source
+    /// context requires a fresh complete baseline whose explicit bounds
+    /// include this day and whose aggregate revision is current.
+    private enum DayEvidenceUpdateDecision {
+        case reject
+        case refreshFreshness
+        case replaceValues
+    }
+
+    private static func dayEvidenceUpdateDecision(
+        _ incoming: SyncDayEvidence,
+        existing: SyncDayEvidence?,
+        dayKey: String,
+        historyCoverageIsEstablished: Bool?,
+        historySinceDayKey: String?,
+        historyUntilDayKey: String?,
+        incomingTotalRevision: Date,
+        existingTotalRevision: Date) -> DayEvidenceUpdateDecision
+    {
+        guard incoming.isValid else { return .reject }
+        guard let existing else {
+            // First proof must be at least as fresh as the retained spend
+            // row. A fresh quota refresh cannot make old day evidence current.
+            return incoming.verifiedAt >= existingTotalRevision ? .replaceValues : .reject
+        }
+        guard existing.isValid else { return .reject }
+        if Self.hasSameEvidenceContext(incoming, existing) {
+            if incoming.revision > existing.revision {
+                return .replaceValues
+            }
+            if incoming.revision == existing.revision, incoming.verifiedAt > existing.verifiedAt {
+                return .refreshFreshness
+            }
+            return .reject
+        }
+        let canAdoptContext = historyCoverageIsEstablished == true
+            && incomingTotalRevision >= existingTotalRevision
+            && incoming.verifiedAt >= existing.verifiedAt
+            && Self.isWithinBounds(
+                dayKey,
+                since: historySinceDayKey,
+                until: historyUntilDayKey)
+        return canAdoptContext ? .replaceValues : .reject
+    }
+
+    private static func isWithinBounds(
+        _ dayKey: String,
+        since: String?,
+        until: String?) -> Bool
+    {
+        guard let since, let until, since <= until else { return false }
+        return since <= dayKey && dayKey <= until
+    }
+
+    private static func replaceDay(
+        _ row: DailyCostPoint,
+        costUSD: Double,
+        totalTokens: Int,
+        isEstimated: Bool?,
+        modelData: Data?,
+        serviceData: Data?,
+        lastUpdated: Date,
+        totalUpdatedAt: Date,
+        sourceRevisionKey: String?)
+    {
+        row.costUSD = costUSD
+        row.totalTokens = totalTokens
+        row.isEstimated = isEstimated
+        row.modelBreakdownsData = modelData
+        row.serviceBreakdownsData = serviceData
+        row.lastUpdated = max(row.lastUpdated, lastUpdated)
+        row.totalUpdatedAt = max(row.totalUpdatedAt ?? row.lastUpdated, totalUpdatedAt)
+        row.sourceRevisionKey = sourceRevisionKey
     }
 
     private static func withCostKnown(_ revisionKey: String?, known: Bool) -> String? {
@@ -825,19 +1091,38 @@ enum CostLedgerService {
         var totalTokens: Int = 0
         var perDay: [String: (cost: Double, tokens: Int, costIsKnown: Bool)] = [:]
         var perModel: [String: Double] = [:]
+        private var dayContributorCount: [String: Int] = [:]
+        private var proofedContributorCount: [String: Int] = [:]
+        private var earliestVerifiedAt: [String: Date] = [:]
+        private var singleContributorEvidence: [String: SyncDayEvidence] = [:]
+        private var dayProofedDeviceIDs: [String: Set<String>] = [:]
+        private let isLocalCostProvider: Bool
+        private var contributingDeviceIDs: Set<String> = []
+        private var dayContributorDeviceIDs: [String: Set<String>] = [:]
+        private let expectedContributorDeviceIDs: Set<String>
 
-        init(providerID: String, accountEmail: String?) {
+        init(
+            providerID: String,
+            accountEmail: String?,
+            isLocalCostProvider: Bool,
+            expectedContributorDeviceIDs: Set<String>)
+        {
             self.providerID = providerID
             self.accountEmail = accountEmail
+            self.isLocalCostProvider = isLocalCostProvider
+            self.expectedContributorDeviceIDs = expectedContributorDeviceIDs
         }
 
         mutating func ingest(
             _ row: DailyCostPoint,
             costIsKnown: Bool,
+            dayEvidence: SyncDayEvidence?,
             decoder: JSONDecoder)
         {
             self.costUSD += row.costUSD
             self.totalTokens += row.totalTokens
+            self.contributingDeviceIDs.insert(row.deviceID)
+            self.dayContributorDeviceIDs[row.dayKey, default: []].insert(row.deviceID)
             if self.perDay[row.dayKey] == nil {
                 self.perDay[row.dayKey] = (0, 0, true)
             }
@@ -846,6 +1131,22 @@ enum CostLedgerService {
                 self.perDay[row.dayKey]?.costIsKnown = false
             }
             self.perDay[row.dayKey, default: (0, 0, true)].tokens += row.totalTokens
+            let contributorCount = self.dayContributorCount[row.dayKey, default: 0] + 1
+            self.dayContributorCount[row.dayKey] = contributorCount
+            if let dayEvidence {
+                self.proofedContributorCount[row.dayKey, default: 0] += 1
+                self.dayProofedDeviceIDs[row.dayKey, default: []].insert(row.deviceID)
+                self.earliestVerifiedAt[row.dayKey] = min(
+                    self.earliestVerifiedAt[row.dayKey] ?? dayEvidence.verifiedAt,
+                    dayEvidence.verifiedAt)
+                if contributorCount == 1 {
+                    self.singleContributorEvidence[row.dayKey] = dayEvidence
+                } else {
+                    self.singleContributorEvidence.removeValue(forKey: row.dayKey)
+                }
+            } else {
+                self.singleContributorEvidence.removeValue(forKey: row.dayKey)
+            }
             if let data = row.modelBreakdownsData,
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
             {
@@ -856,7 +1157,20 @@ enum CostLedgerService {
         }
 
         func toRollup() -> CostLedgerProviderRollup {
-            CostLedgerProviderRollup(
+            let allContributorDeviceIDs = self.isLocalCostProvider
+                ? self.contributingDeviceIDs.union(self.expectedContributorDeviceIDs)
+                : self.contributingDeviceIDs
+            let requiresDayProof = self.dayProofedDeviceIDs.values.contains { !$0.isEmpty }
+            let incompleteDayEvidenceDayKeys = Set(self.dayContributorCount.compactMap { day, count -> String? in
+                guard self.isLocalCostProvider, requiresDayProof else { return nil }
+                let proofedIDs = self.dayProofedDeviceIDs[day] ?? []
+                let rowIDs = self.dayContributorDeviceIDs[day] ?? []
+                guard proofedIDs == allContributorDeviceIDs, rowIDs == allContributorDeviceIDs,
+                      self.proofedContributorCount[day] == count
+                else { return day }
+                return nil
+            })
+            return CostLedgerProviderRollup(
                 providerID: self.providerID,
                 accountEmail: self.accountEmail,
                 totalCostUSD: self.costUSD,
@@ -871,11 +1185,30 @@ enum CostLedgerService {
                             modelBreakdowns: [],
                             serviceBreakdowns: [],
                             isEstimated: nil,
-                            costIsKnown: vals.costIsKnown)
+                            costIsKnown: vals.costIsKnown,
+                            dayEvidence: self.isLocalCostProvider && allContributorDeviceIDs.count > 1
+                                ? nil
+                                : self.singleContributorEvidence[day])
                     },
                 modelBreakdowns: self.perModel
                     .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
-                    .sorted { $0.costUSD > $1.costUSD })
+                    .sorted { $0.costUSD > $1.costUSD },
+                incompleteDayEvidenceDayKeys: incompleteDayEvidenceDayKeys,
+                dayEvidenceVerifiedAt: Dictionary(
+                    uniqueKeysWithValues: self.dayContributorCount.compactMap { day, count in
+                        guard self.proofedContributorCount[day] == count,
+                              let verifiedAt = self.earliestVerifiedAt[day]
+                        else { return nil }
+                        if self.isLocalCostProvider,
+                           self.dayProofedDeviceIDs[day] != allContributorDeviceIDs
+                        {
+                            // A missing per-device day is an unknown contribution,
+                            // not a verified zero. Keep aggregate Today stale until
+                            // every local contributor has proof for the day.
+                            return nil
+                        }
+                        return (day, verifiedAt)
+                    }))
         }
     }
 }

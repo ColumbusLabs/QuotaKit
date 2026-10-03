@@ -61,6 +61,45 @@ struct CostUsageDailyReportMergeTests {
     }
 
     @Test
+    func `daily evidence survives identical merges and drops mixed contributions`() throws {
+        let evidence = CostUsageDayEvidence(
+            scopeID: "sha256:scope",
+            lineageID: "ledger-epoch",
+            revision: 7,
+            verifiedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let proven = CostUsageDailyReport.Entry(
+            date: "2026-08-30",
+            inputTokens: 10,
+            outputTokens: 2,
+            totalTokens: 12,
+            costUSD: nil,
+            modelsUsed: ["fixture-model"],
+            modelBreakdowns: nil,
+            unpricedRequestCount: 1,
+            dayEvidence: evidence)
+        let sameSourceMerge = CostUsageDailyReport.merged([
+            .init(data: [proven], summary: nil),
+            .init(data: [proven], summary: nil),
+        ])
+        #expect(try #require(sameSourceMerge.data.first?.dayEvidence) == evidence)
+
+        let unprovenContribution = CostUsageDailyReport.Entry(
+            date: proven.date,
+            inputTokens: 1,
+            outputTokens: 0,
+            totalTokens: 1,
+            costUSD: 0,
+            modelsUsed: ["other-source"],
+            modelBreakdowns: nil)
+        let mixedSourceMerge = CostUsageDailyReport.merged([
+            .init(data: [proven], summary: nil),
+            .init(data: [unprovenContribution], summary: nil),
+        ])
+        #expect(try #require(mixedSourceMerge.data.first).dayEvidence == nil)
+        #expect(mixedSourceMerge.data.first?.costUSD == 0)
+    }
+
+    @Test
     func `merged token details sum without adding reasoning to total tokens`() throws {
         let first = Self.tokenDetailReport(
             mix: .init(inputTokens: 100, outputTokens: 20, cacheReadTokens: 10, reasoningTokens: 8),

@@ -566,14 +566,28 @@ struct SnapshotCache: Sendable {
         fallback: ProviderUsageSnapshot?) -> ProviderUsageSnapshot?
     {
         guard let primary else { return fallback }
-        guard let fallback,
-              Self.hasMateriallyBetterCostHistory(
-                  fallback.costSummary,
-                  than: primary.costSummary)
+        guard let fallback else { return primary }
+        let useFallbackAsBase = Self.hasMateriallyBetterCostHistory(
+            fallback.costSummary,
+            than: primary.costSummary)
+        let base = useFallbackAsBase ? fallback : primary
+        let other = useFallbackAsBase ? primary : fallback
+        guard let baseSummary = base.costSummary,
+              let otherSummary = other.costSummary
         else {
-            return primary
+            return base
         }
-        return fallback
+
+        // Reconcile both account spellings before the caller compares its
+        // incoming provider. This keeps a newer per-day proof from either
+        // identity while retaining the strongest whole-history baseline.
+        let reconciled = baseSummary.reconcilingHistory(
+            with: otherSummary,
+            incomingFallbackUpdatedAt: base.lastUpdated,
+            previousFallbackUpdatedAt: other.lastUpdated)
+        var result = base
+        result.costSummary = reconciled
+        return result
     }
 
     /// A stale nil-email row can coexist with the new email-keyed row during
@@ -586,6 +600,32 @@ struct SnapshotCache: Sendable {
     {
         guard let candidate else { return false }
         guard let existing else { return true }
+
+        let candidateByDay = Dictionary(uniqueKeysWithValues: candidate.daily.map { ($0.dayKey, $0) })
+        let existingByDay = Dictionary(uniqueKeysWithValues: existing.daily.map { ($0.dayKey, $0) })
+        var candidateHasNewerProof = false
+        var existingHasNewerProof = false
+        for dayKey in Set(candidateByDay.keys).union(existingByDay.keys) {
+            let incomingEvidence = candidateByDay[dayKey]?.dayEvidence
+            let retainedEvidence = existingByDay[dayKey]?.dayEvidence
+            switch (incomingEvidence, retainedEvidence) {
+            case let (incoming?, retained?) where Self.hasSameEvidenceContext(incoming, retained):
+                candidateHasNewerProof = candidateHasNewerProof || incoming.revision > retained.revision
+                existingHasNewerProof = existingHasNewerProof || retained.revision > incoming.revision
+            case (_?, nil):
+                candidateHasNewerProof = true
+            case (nil, _?):
+                existingHasNewerProof = true
+            default:
+                // Different evidence contexts are incomparable here. The
+                // shared summary reducer applies its bounded-baseline rules.
+                break
+            }
+        }
+        if candidateHasNewerProof != existingHasNewerProof {
+            return candidateHasNewerProof
+        }
+
         let candidateCoverage = Self.historyCoverageRank(candidate.historyCoverageIsEstablished)
         let existingCoverage = Self.historyCoverageRank(existing.historyCoverageIsEstablished)
         if candidateCoverage != existingCoverage {
@@ -608,6 +648,15 @@ struct SnapshotCache: Sendable {
         case nil: 1
         case false: 0
         }
+    }
+
+    private static func hasSameEvidenceContext(
+        _ lhs: SyncDayEvidence,
+        _ rhs: SyncDayEvidence) -> Bool
+    {
+        lhs.sourceKind == rhs.sourceKind
+            && lhs.scopeID == rhs.scopeID
+            && lhs.lineageID == rhs.lineageID
     }
 
     private static func reconcileCostHistory(

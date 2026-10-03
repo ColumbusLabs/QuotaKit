@@ -351,6 +351,7 @@ struct CostUsageStoreSnapshot: Equatable, Sendable {
     var dayAggregates: [CostUsageStoreDayAggregate]
     var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
     var verifiedDayKeys: [String] = []
+    var verifiedDayEvidence: [String: CostUsageDayEvidence] = [:]
     var fileTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
     var verifiedTemporalAggregates: [CostUsageStoreTemporalAggregate] = []
     var fileTemporalCoverageIsComplete: Bool = true
@@ -379,6 +380,26 @@ struct CostUsageStoreBudgetResult: Equatable, Sendable {
     var rowCount: Int
     var fileBytes: Int64
     var catchUpRequired: Bool = false
+    /// True only when the scanner snapshot crossed its store transaction boundary. A bounded
+    /// pass may commit useful file state while still asking for later catch-up work.
+    var cacheWasPersisted: Bool = false
+}
+
+/// Identity of the source snapshot whose independently verified day is being committed.
+/// Production callers pass this expectation so a second process cannot make proof from a
+/// scanner cache apply to a newer SQLite generation.
+struct CostUsageStoreCodexScanCommit: Equatable, Sendable {
+    var lastScanUnixMs: Int64
+    var rootPaths: [String]
+    var timeZoneIdentifier: String
+
+    init(lastScanUnixMs: Int64, rootPaths: [String], timeZoneIdentifier: String) {
+        self.lastScanUnixMs = lastScanUnixMs
+        self.rootPaths = Array(Set(rootPaths.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        })).sorted()
+        self.timeZoneIdentifier = timeZoneIdentifier
+    }
 }
 
 struct CostUsageStoreConfiguration: Equatable, Sendable {

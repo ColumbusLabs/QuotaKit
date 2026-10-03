@@ -239,6 +239,63 @@ struct CWLEquivalenceTests {
     }
 
     @Test
+    func `Blob and ledger Today freshness follow the verified day timestamp`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let now = Date()
+        let verifiedAt = now.addingTimeInterval(-2 * 60 * 60)
+        let dayKey = CostDashboardInsights.todayDayKey(now: now)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 4,
+                sessionTokens: 400,
+                last30DaysCostUSD: 4,
+                last30DaysTokens: 400,
+                daily: [SyncDailyPoint(
+                    dayKey: dayKey,
+                    costUSD: 4,
+                    totalTokens: 400,
+                    dayEvidence: SyncDayEvidence(
+                        sourceKind: "codexLocalLedger",
+                        scopeID: "scope-a",
+                        lineageID: "store-a",
+                        revision: 2,
+                        verifiedAt: verifiedAt))],
+                costUpdatedAt: now,
+                totalCostUpdatedAt: now))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Test Mac",
+            deviceID: "proof-device")
+        let blobInsights = CostDashboardInsights(snapshot: snapshot)
+
+        try CostLedgerService.upsertFromSnapshot(provider, deviceID: "proof-device", in: context)
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 365,
+            in: context,
+            asOf: now)
+        let ledgerInsights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot)
+
+        #expect(blobInsights.providerRows.first?.today.updatedAt == verifiedAt)
+        #expect(ledgerInsights.providerRows.first?.today.updatedAt == verifiedAt)
+        #expect(blobInsights.providerRows.first?.today.isStale == true)
+        #expect(ledgerInsights.providerRows.first?.today.isStale == true)
+    }
+
+    @Test
     func `Equivalence holds with multi-account providers (two Codex accounts)`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
@@ -290,5 +347,182 @@ struct CWLEquivalenceTests {
         #expect(ledger.providerRows.count == 2)
         #expect(abs(blob.total30DayCost - ledger.total30DayCost) < Self.tolerance)
         #expect(abs(ledger.total30DayCost - 3.0) < Self.tolerance)
+    }
+
+    @Test
+    func `Today stays delayed when a live local contributor has no current-day proof`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
+            .addingTimeInterval(-24 * 60 * 60)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let verifiedAt = now.addingTimeInterval(-10 * 60)
+
+        func point(dayKey: String, cost: Double, revision: Int64, device: String) -> SyncDailyPoint {
+            SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: cost,
+                totalTokens: Int(cost * 1000),
+                dayEvidence: SyncDayEvidence(
+                    sourceKind: "codexLocalLedger",
+                    scopeID: "scope-a",
+                    lineageID: "store-\(device)",
+                    revision: revision,
+                    verifiedAt: verifiedAt))
+        }
+        func deviceSnapshot(deviceID: String, days: [SyncDailyPoint]) -> SyncedUsageSnapshot {
+            let dailyTotal = days.reduce(0) { $0 + $1.costUSD }
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: "Pro",
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: dailyTotal,
+                    last30DaysTokens: days.reduce(0) { $0 + $1.totalTokens },
+                    daily: days,
+                    costUpdatedAt: now,
+                    totalCostUpdatedAt: now,
+                    sourceRevisions: ["codex-local-ledger": now]))
+            return SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: deviceID,
+                deviceID: deviceID)
+        }
+
+        let firstDevice = deviceSnapshot(
+            deviceID: "dev-A",
+            days: [point(dayKey: todayKey, cost: 1.25, revision: 10, device: "A")])
+        let secondDevice = deviceSnapshot(
+            deviceID: "dev-B",
+            days: [point(dayKey: yesterdayKey, cost: 2.50, revision: 20, device: "B")])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([firstDevice, secondDevice]))
+        let mergedCost = try #require(merged.providers.first?.costSummary)
+        let blob = CostDashboardInsights(snapshot: merged)
+        let blobToday = try #require(blob.providerRows.first?.today)
+        let providerDetailToday = mergedCost.todayTotals(
+            now: now,
+            providerLastUpdated: merged.providers.first?.lastUpdated)
+        #expect(mergedCost.daily.first(where: { $0.dayKey == todayKey })?.dayEvidence == nil)
+        #expect(blobToday.costUSD == 1.25)
+        #expect(blobToday.updatedAt == nil)
+        #expect(blobToday.isStale)
+        #expect(providerDetailToday.costUSD == blobToday.costUSD)
+        #expect(providerDetailToday.updatedAt == nil)
+        #expect(providerDetailToday.isStale)
+
+        for device in [firstDevice, secondDevice] {
+            let deviceID = try #require(device.deviceID)
+            for provider in device.providers {
+                try CostLedgerService.upsertFromSnapshot(provider, deviceID: deviceID, in: context)
+            }
+        }
+        let expectedContributors = CostLedgerService.expectedLocalContributorDeviceIDsByProviderKey(
+            from: [firstDevice, secondDevice])
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            expectedLocalContributorDeviceIDsByProviderKey: expectedContributors,
+            in: context,
+            asOf: now)
+        let ledger = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: merged)
+        let ledgerToday = try #require(ledger.providerRows.first?.today)
+        #expect(ledgerToday.costUSD == blobToday.costUSD)
+        #expect(ledgerToday.updatedAt == nil)
+        #expect(ledgerToday.isStale)
+        #expect(aggregation.providerRollups["codex|_"]?.incompleteDayEvidenceDayKeys.contains(todayKey) == true)
+
+        let changedProofDevice = deviceSnapshot(
+            deviceID: "dev-A",
+            days: [point(dayKey: todayKey, cost: 1.25, revision: 11, device: "A")])
+        let changedMerge = try #require(CloudSyncReader.mergeSnapshots([changedProofDevice, secondDevice]))
+        let changedCost = try #require(changedMerge.providers.first?.costSummary)
+        #expect(
+            mergedCost.mobileRevisionKey(providerLastUpdated: now)
+                != changedCost.mobileRevisionKey(providerLastUpdated: now),
+            "The merged cache identity must retain each device's accepted day revision.")
+    }
+
+    @Test
+    func `All-legacy multi-Mac Today retains summary freshness fallback`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+
+        func deviceSnapshot(deviceID: String, cost: Double) -> SyncedUsageSnapshot {
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: "Pro",
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: cost,
+                        totalTokens: 100)],
+                    costUpdatedAt: now,
+                    totalCostUpdatedAt: now))
+            return SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: deviceID,
+                deviceID: deviceID)
+        }
+
+        let firstDevice = deviceSnapshot(deviceID: "dev-A", cost: 1.25)
+        let secondDevice = deviceSnapshot(deviceID: "dev-B", cost: 2.50)
+        let merged = try #require(CloudSyncReader.mergeSnapshots([firstDevice, secondDevice]))
+        let mergedCost = try #require(merged.providers.first?.costSummary)
+        let blob = CostDashboardInsights(snapshot: merged)
+        let blobToday = try #require(blob.providerRows.first?.today)
+        #expect(blobToday.costUSD == 3.75)
+        #expect(blobToday.updatedAt == now)
+        #expect(!blobToday.isStale)
+
+        for device in [firstDevice, secondDevice] {
+            for provider in device.providers {
+                try CostLedgerService.upsertFromSnapshot(provider, deviceID: #require(device.deviceID), in: context)
+            }
+        }
+        let expectedContributors = CostLedgerService.expectedLocalContributorDeviceIDsByProviderKey(
+            from: [firstDevice, secondDevice])
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            expectedLocalContributorDeviceIDsByProviderKey: expectedContributors,
+            in: context,
+            asOf: now)
+        let ledger = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: merged)
+        let ledgerToday = try #require(ledger.providerRows.first?.today)
+        #expect(ledgerToday.costUSD == blobToday.costUSD)
+        #expect(ledgerToday.updatedAt == now)
+        #expect(!ledgerToday.isStale)
+        #expect(aggregation.providerRollups["codex|_"]?.incompleteDayEvidenceDayKeys.isEmpty == true)
+
+        let detailToday = mergedCost.todayTotals(
+            now: now,
+            providerLastUpdated: merged.providers.first?.lastUpdated)
+        #expect(detailToday.updatedAt == now)
+        #expect(!detailToday.isStale)
     }
 }

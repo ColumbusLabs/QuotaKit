@@ -47,7 +47,10 @@ struct CostTab: View {
             = if self.cwlEnabled,
             !self.isDemoMode,
             let aggregation = try? CostLedgerService.aggregate(
-                windowDays: self.cwlWindowDays, in: self.modelContext)
+                windowDays: self.cwlWindowDays,
+                expectedLocalContributorDeviceIDsByProviderKey: CostLedgerService
+                    .expectedLocalContributorDeviceIDsByProviderKey(from: self.usageData.deviceSnapshots),
+                in: self.modelContext)
         {
             CostDashboardInsights.fromLedger(
                 aggregation: aggregation, snapshot: snapshot)

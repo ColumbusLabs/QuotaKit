@@ -1016,7 +1016,10 @@ struct CostUsageBoundedProgressTests {
         let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit * 2 + 1
-        try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
+        let historicalURLs = try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
+        for url in historicalURLs {
+            try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: url.path)
+        }
 
         var options = Self.boundedOptions(env: env)
         options.preferNewestCodexSessionsFirst = false
@@ -1040,6 +1043,7 @@ struct CostUsageBoundedProgressTests {
                     + #""model":"openai/gpt-5.2-codex"}}}"#,
             ].joined(separator: "\n") + "\n")
 
+        try FileManager.default.setAttributes([.modificationDate: currentDay], ofItemAtPath: currentURL.path)
         var queuedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         queuedCache.codexActiveLookbackState?.pendingFilePaths.append(currentURL.path)
         queuedCache.codexScanCatchUpPending = true
@@ -1058,6 +1062,20 @@ struct CostUsageBoundedProgressTests {
         #expect(recorder.snapshot().codexFileScanAttempts <= CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(cache.files[currentURL.path]?.codexScanComplete == true)
         #expect(cache.codexActiveLookbackState?.pendingFilePaths.contains(currentURL.path) == false)
+        #expect(cache.codexScanCatchUpPending == true)
+        let currentDayKey = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: currentDay,
+            calendar: options.calendar)
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            dayKey: currentDayKey,
+            calendar: options.calendar) == nil)
+        let projection = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: currentDayKey, untilDay: currentDayKey))
+        #expect(projection.verifiedDayKeys.contains(currentDayKey))
+        #expect((projection.verifiedDayEvidence[currentDayKey]?.revision ?? 0) > 0)
     }
 
     @Test
@@ -1151,6 +1169,7 @@ struct CostUsageBoundedProgressTests {
 
         var options = Self.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
+        options.useCodexCatchUpWorkingSet = true
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
             since: closedDay,
@@ -1179,6 +1198,19 @@ struct CostUsageBoundedProgressTests {
                 calendar: options.calendar)
         }
         #expect(canPublish())
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: closedDayKey,
+            calendar: options.calendar) == nil)
+
+        var wrongScope = cache
+        wrongScope.roots = [:]
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: wrongScope,
+            roots: roots,
+            dayKey: closedDayKey,
+            calendar: options.calendar) == .scope)
 
         var legacyClosed = cache
         legacyClosed.files[closedPath]?.codexParserRevision = nil
@@ -1187,6 +1219,11 @@ struct CostUsageBoundedProgressTests {
             roots: roots,
             dayKey: closedDayKey,
             calendar: options.calendar))
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: legacyClosed,
+            roots: roots,
+            dayKey: closedDayKey,
+            calendar: options.calendar) == .unindexed)
 
         let iso = env.isoString(for: currentDay.addingTimeInterval(1))
         let appendedRow =
@@ -1212,6 +1249,11 @@ struct CostUsageBoundedProgressTests {
             [.modificationDate: closedDay.addingTimeInterval(1)],
             ofItemAtPath: closedURL.path)
         #expect(!canPublish())
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: cache,
+            roots: roots,
+            dayKey: closedDayKey,
+            calendar: options.calendar) == .stale)
     }
 
     @Test

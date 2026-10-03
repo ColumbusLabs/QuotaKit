@@ -1,6 +1,84 @@
 import CodexBarSync
 import Foundation
 
+/// Namespaced mobile-only source-revision markers used to retain the local
+/// contributor vector after CloudSyncReader combines per-device summaries.
+/// They are display/cache metadata, never a proof for the combined cost.
+enum LocalCostEvidenceRevision {
+    private struct DayContributor: Codable {
+        let deviceID: String
+        let dayEvidence: SyncDayEvidence?
+    }
+
+    private struct DayVector: Codable {
+        let dayKey: String
+        let contributors: [DayContributor]
+    }
+
+    private static let inventoryPrefix = "local-contributor-inventory-v1:"
+    private static let dayFreshnessPrefix = "local-day-evidence-freshness-v1:"
+    private static let dayVectorPrefix = "local-day-evidence-vector-v1:"
+    static let requiresVerifiedDaysKey = "local-day-evidence-required-v1"
+
+    static func inventoryKey(deviceIDs: [String]) -> String {
+        self.inventoryPrefix + self.base64URL(self.canonicalJSON(deviceIDs.sorted()))
+    }
+
+    static func dayFreshnessKey(dayKey: String) -> String {
+        self.dayFreshnessPrefix + self.base64URL(Data(dayKey.utf8))
+    }
+
+    static func dayVectorKey(dayKey: String, contributors: [(String, SyncDayEvidence?)]) -> String {
+        let vector = DayVector(
+            dayKey: dayKey,
+            contributors: contributors
+                .sorted { $0.0 < $1.0 }
+                .map { deviceID, evidence in
+                    DayContributor(deviceID: deviceID, dayEvidence: evidence)
+                })
+        return Self.dayVectorPrefix + Self.base64URL(Self.canonicalJSON(vector))
+    }
+
+    static func hasMultipleContributors(sourceRevisions: [String: Date]?) -> Bool {
+        guard let marker = sourceRevisions?.keys.first(where: { $0.hasPrefix(Self.inventoryPrefix) })
+        else { return false }
+        let encoded = marker.dropFirst(Self.inventoryPrefix.count)
+        guard let data = Self.decodeBase64URL(String(encoded)),
+              let deviceIDs = try? JSONDecoder().decode([String].self, from: data)
+        else { return false }
+        return Set(deviceIDs).count > 1
+    }
+
+    static func completeDayFreshness(dayKey: String, sourceRevisions: [String: Date]?) -> Date? {
+        sourceRevisions?[self.dayFreshnessKey(dayKey: dayKey)]
+    }
+
+    static func requiresVerifiedDays(sourceRevisions: [String: Date]?) -> Bool {
+        sourceRevisions?[self.requiresVerifiedDaysKey] != nil
+    }
+
+    private static func canonicalJSON(_ value: some Encodable) -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return (try? encoder.encode(value)) ?? Data()
+    }
+
+    private static func base64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private static func decodeBase64URL(_ encoded: String) -> Data? {
+        let base64 = encoded
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        return Data(base64Encoded: padded)
+    }
+}
+
 /// iOS-only cost-resolution helpers for `SyncCostSummary`.
 ///
 /// The Cost tab and each provider detail page both display a "Today" number,
@@ -24,17 +102,33 @@ extension SyncCostSummary {
     /// Stable revision vector for mobile cache and ledger identity. New Mac
     /// producers publish each contributing source independently. Legacy
     /// summaries fall back to the aggregate timestamps.
-    func mobileRevisionKey(providerLastUpdated: Date) -> String {
+    func mobileRevisionKey(
+        providerLastUpdated: Date,
+        includeDayEvidence: Bool = true) -> String
+    {
+        let summaryRevision: String
         if let sourceRevisions, !sourceRevisions.isEmpty {
-            return sourceRevisions.keys.sorted().compactMap { source in
+            summaryRevision = sourceRevisions.keys.sorted().compactMap { source in
                 sourceRevisions[source].map {
                     "\(source):\($0.timeIntervalSince1970)"
                 }
             }.joined(separator: ",")
+        } else {
+            let payloadRevision = self.costUpdatedAt ?? providerLastUpdated
+            let totalRevision = self.totalCostUpdatedAt ?? payloadRevision
+            summaryRevision = "legacy:\(payloadRevision.timeIntervalSince1970):\(totalRevision.timeIntervalSince1970)"
         }
-        let payloadRevision = self.costUpdatedAt ?? providerLastUpdated
-        let totalRevision = self.totalCostUpdatedAt ?? payloadRevision
-        return "legacy:\(payloadRevision.timeIntervalSince1970):\(totalRevision.timeIntervalSince1970)"
+
+        guard includeDayEvidence else { return summaryRevision }
+        let dayProofs = self.daily.compactMap { point -> String? in
+            guard let evidence = point.dayEvidence,
+                  evidence.isValid,
+                  let encoded = Self.canonicalEvidenceKey(evidence)
+            else { return nil }
+            return "\(point.dayKey)=\(encoded)"
+        }.sorted()
+        guard !dayProofs.isEmpty else { return summaryRevision }
+        return "\(summaryRevision)|dayEvidenceV1=\(dayProofs.joined(separator: ";"))"
     }
 
     enum TodayAvailability: Equatable, Sendable {
@@ -119,16 +213,32 @@ extension SyncCostSummary {
             ?? self.costUpdatedAt
             ?? providerLastUpdated
         let lastReportedDayKey = self.daily.map(\.dayKey).max()
-        let stale = Self.isStale(effectiveUpdatedAt, at: now)
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
+            // Per-day verification is the freshness clock for a verified
+            // local contribution. Provider quota refreshes do not refresh
+            // this spend value.
+            let hasMultipleLocalContributors = LocalCostEvidenceRevision.hasMultipleContributors(
+                sourceRevisions: self.sourceRevisions)
+            let requiresVerifiedDays = LocalCostEvidenceRevision.requiresVerifiedDays(
+                sourceRevisions: self.sourceRevisions)
+                || self.daily.contains(where: { $0.dayEvidence?.isValid == true })
+            let dayUpdatedAt: Date? = if hasMultipleLocalContributors, requiresVerifiedDays {
+                LocalCostEvidenceRevision.completeDayFreshness(
+                    dayKey: todayKey,
+                    sourceRevisions: self.sourceRevisions)
+            } else {
+                todayPoint.dayEvidence.flatMap { $0.isValid ? $0.verifiedAt : nil }
+                    ?? (requiresVerifiedDays ? nil : effectiveUpdatedAt)
+            }
             return TodayTotals(
                 availability: .reported,
                 source: .daily,
                 costUSD: todayPoint.costUSD,
                 tokens: todayPoint.totalTokens,
                 isEstimated: todayPoint.isEstimated,
-                updatedAt: effectiveUpdatedAt,
-                isStale: stale,
+                updatedAt: dayUpdatedAt,
+                isStale: requiresVerifiedDays && dayUpdatedAt == nil
+                    || Self.isStale(dayUpdatedAt, at: now),
                 lastReportedDayKey: lastReportedDayKey)
         }
 
@@ -146,7 +256,7 @@ extension SyncCostSummary {
                 tokens: self.sessionTokens,
                 isEstimated: nil,
                 updatedAt: effectiveUpdatedAt,
-                isStale: stale,
+                isStale: Self.isStale(effectiveUpdatedAt, at: now),
                 lastReportedDayKey: lastReportedDayKey)
         }
 
@@ -164,6 +274,20 @@ extension SyncCostSummary {
     private static func isStale(_ updatedAt: Date?, at now: Date) -> Bool {
         guard let updatedAt else { return false }
         return now.timeIntervalSince(updatedAt) > 60 * 60
+    }
+
+    /// Encodes all proof identity and revision fields into a deterministic,
+    /// delimiter-safe cache component. This lets intermediate-device proof
+    /// changes invalidate mobile view memoization even when aggregate dates
+    /// and the newest source revision stay unchanged.
+    private static func canonicalEvidenceKey(_ evidence: SyncDayEvidence) -> String? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(evidence) else { return nil }
+        return data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 
     /// Thread-safe ISO 8601 `yyyy-MM-dd` day key, in the user's current
