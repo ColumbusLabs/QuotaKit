@@ -247,9 +247,27 @@ struct GrokOAuthFetchStrategy: ProviderFetchStrategy {
 
     let mode: Mode
     let kind: ProviderFetchKind = .oauth
+    let proxyBilling: GrokWebFetchStrategy.ProxyBillingFetch
+    let grpcBilling: GrokWebFetchStrategy.ProxyBillingFetch
+    let webStrategy: GrokWebFetchStrategy
+    let settingsTier: GrokWebFetchStrategy.SettingsTierFetch?
 
-    init(mode: Mode = .proxyThenGrpc) {
+    init(
+        mode: Mode = .proxyThenGrpc,
+        proxyBilling: @escaping GrokWebFetchStrategy.ProxyBillingFetch = {
+            try await GrokCreditsProxyFetcher.fetch(credentials: $0)
+        },
+        grpcBilling: @escaping GrokWebFetchStrategy.ProxyBillingFetch = {
+            try await GrokWebBillingFetcher.fetch(credentials: $0)
+        },
+        webStrategy: GrokWebFetchStrategy = .init(),
+        settingsTier: GrokWebFetchStrategy.SettingsTierFetch? = nil)
+    {
         self.mode = mode
+        self.proxyBilling = proxyBilling
+        self.grpcBilling = grpcBilling
+        self.webStrategy = webStrategy
+        self.settingsTier = settingsTier
     }
 
     var id: String {
@@ -266,42 +284,47 @@ struct GrokOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        try await GrokWebFetchStrategy().fetchResolved(context, webBilling: { capturedCredentials in
-            let credentials = try capturedCredentials.get()
-            guard !credentials.isExpired else {
-                throw GrokWebBillingError.missingCredentials
-            }
-            switch self.mode {
-            case .grpc:
-                let snapshot = try await GrokWebBillingFetcher.fetch(credentials: credentials)
-                return GrokWebBillingResult(
-                    snapshot: snapshot, sourceLabel: "grok-web", authContext: .oauth(credentials))
-            case .proxy:
-                let snapshot = try await GrokCreditsProxyFetcher.fetch(credentials: credentials)
-                let result = try await Self.resolvingUnknownUsage(snapshot, credentials: credentials)
-                return GrokWebBillingResult(
-                    snapshot: result.snapshot,
-                    sourceLabel: result.sourceLabel,
-                    authContext: .oauth(credentials))
-            case .proxyThenGrpc:
-                do {
-                    let snapshot = try await GrokCreditsProxyFetcher.fetch(credentials: credentials)
-                    let result = try await Self.resolvingUnknownUsage(snapshot, credentials: credentials)
+        try await self.webStrategy.fetchResolved(
+            context,
+            webBilling: { capturedCredentials in
+                let credentials = try capturedCredentials.get()
+                guard !credentials.isExpired else {
+                    throw GrokWebBillingError.missingCredentials
+                }
+                switch self.mode {
+                case .grpc:
+                    let snapshot = try await self.grpcBilling(credentials)
+                    return GrokWebBillingResult(
+                        snapshot: snapshot, sourceLabel: "grok-web", authContext: .oauth(credentials))
+                case .proxy:
+                    let snapshot = try await self.proxyBilling(credentials)
+                    let result = try await Self.resolvingUnknownUsage(
+                        snapshot, credentials: credentials, grpcBilling: self.grpcBilling)
                     return GrokWebBillingResult(
                         snapshot: result.snapshot,
                         sourceLabel: result.sourceLabel,
                         authContext: .oauth(credentials))
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch let error as URLError where error.code == .cancelled {
-                    throw error
-                } catch {
-                    let snapshot = try await GrokWebBillingFetcher.fetch(credentials: credentials)
-                    return GrokWebBillingResult(
-                        snapshot: snapshot, sourceLabel: "grok-web", authContext: .oauth(credentials))
+                case .proxyThenGrpc:
+                    do {
+                        let snapshot = try await self.proxyBilling(credentials)
+                        let result = try await Self.resolvingUnknownUsage(
+                            snapshot, credentials: credentials, grpcBilling: self.grpcBilling)
+                        return GrokWebBillingResult(
+                            snapshot: result.snapshot,
+                            sourceLabel: result.sourceLabel,
+                            authContext: .oauth(credentials))
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch let error as URLError where error.code == .cancelled {
+                        throw error
+                    } catch {
+                        let snapshot = try await self.grpcBilling(credentials)
+                        return GrokWebBillingResult(
+                            snapshot: snapshot, sourceLabel: "grok-web", authContext: .oauth(credentials))
+                    }
                 }
-            }
-        })
+            },
+            settingsTier: self.settingsTier)
     }
 
     /// A credits payload that carries a billing period but no usage value is a successful

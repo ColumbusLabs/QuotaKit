@@ -1,8 +1,8 @@
-import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 @Suite("SyncCoordinator descriptor pace", .serialized)

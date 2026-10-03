@@ -12,7 +12,7 @@ struct GrokAccountContextTests {
         let gate = GrokBillingGate()
         let context = fixture.context()
         let task = Task {
-            try await GrokWebFetchStrategy.isolated.fetch(context) { capturedCredentials in
+            try await GrokWebFetchStrategy.isolated.fetchResolved(context) { capturedCredentials in
                 let credentials = try capturedCredentials.get()
                 #expect(credentials.accessToken == "fake-token-a")
                 await gate.suspend()
@@ -96,7 +96,7 @@ struct GrokAccountContextTests {
         let gate = GrokBillingGate()
         let tierCalls = LockIsolated(0)
         let task = Task {
-            try await GrokWebFetchStrategy.isolated.fetch(fixture.context(sourceMode: .web)) { _ in
+            try await GrokWebFetchStrategy.isolated.fetchResolved(fixture.context(sourceMode: .web)) { _ in
                 await gate.suspend()
                 if teamRejection { throw GrokWebBillingError.teamUsageUnsupported }
                 return GrokWebBillingResult(
@@ -222,7 +222,7 @@ struct GrokAccountContextTests {
                 account: "a", principal: authState == "personal" ? "Personal" : "Team", expired: authState == "expired")
         }
         await #expect {
-            _ = try await GrokWebFetchStrategy.isolated.fetch(fixture.context(sourceMode: .web)) { _ in
+            _ = try await GrokWebFetchStrategy.isolated.fetchResolved(fixture.context(sourceMode: .web)) { _ in
                 throw GrokWebBillingError.teamUsageUnsupported
             } settingsTier: { _ in
                 Issue.record("Team fallback requires a valid team credential")

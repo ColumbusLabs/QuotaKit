@@ -1112,7 +1112,9 @@ extension SpendDashboardModelTests {
                     Self.entry(day: "2026-07-16", cost: 3),
                 ],
                 projects: projects))
-        let rows = try #require(Self.model(inputs: [input]).groups.first).projects
+        let model = SpendDashboardModel.build(
+            inputs: [input], requestedDays: 30, now: Self.now, calendar: Self.calendar)
+        let rows = try #require(model.groups.first).projects
         #expect(rows.count == 2)
         #expect(Set(rows.map(\.id)).count == 2)
         #expect(rows.map(\.path) == ["/first/work", "/second/work"])

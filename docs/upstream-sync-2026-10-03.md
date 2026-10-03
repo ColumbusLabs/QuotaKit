@@ -95,6 +95,7 @@ Live ColumbusLabs billing UI shows the Actions product budget at $0, $0 spent an
 
 - LithosAI appends the 89th catalog entry. All 88 prior IDs remain; the quota-alert subset stays at 72 providers and 216 subscriptions. Its prepaid balance is excluded from used/limit budgets and spend summaries while sanitized details sync to iPhone.
 - Cookie policy lives in QuotaKit’s existing manifest type. Header echo retains strict URL-scoped cookie records, opaque session handles, access gating and no-UI credential reads.
+- Grok account-context fixtures use the fork’s typed fetchResolved seam and internal injectable OAuth dependencies with identical production defaults; capture-once identity, expiry checks, cancellation and the six-second enrichment bound stay unchanged.
 - Codex empty-history/baseline persistence is implemented in the fork’s receipt-based Codex cache/baseline/read seams, with synthetic store regressions rather than importing incompatible upstream store/test topology.
 - Mac widget accents follow the final upstream behavior; CommandCode’s distinct black widget, burn-down/confetti colors and the independent iOS widget palette remain preserved.
 - Saved project names are presentation-only; stable filesystem paths remain grouping identities and personal project names stay out of widget wire summaries.
