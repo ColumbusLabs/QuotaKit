@@ -55,6 +55,7 @@ enum ProviderBrandAsset {
         "kimi",
         "kiro",
         "litellm",
+        "lithosai",
         "llmproxy",
         "longcat",
         "manus",

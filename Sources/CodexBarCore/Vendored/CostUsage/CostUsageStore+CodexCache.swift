@@ -348,31 +348,47 @@ extension CostUsageStore {
                 return result
             }
 
-            // The sqlite cursor is excluded from content identity so a steadily advancing
-            // lastRowID cannot force a full rewrite. Persist it here as a metadata-only
-            // update inside the same writer transaction.
-            guard self.persistPriorityTurnsCursorIfChanged(previous: baseline, cache: cache) else {
+            let contentPruned = retention.deletedFiles > 0
+                || retention.deletedTokenSnapshots > 0
+                || retention.deletedFileDayAggregates > 0
+                || retention.deletedDayAggregates > 0
+                || result.deletedRows > 0
+            // Retention and budget checks may write metadata or remove expired content. If
+            // they wrote, reload their locked result before it can become a new baseline.
+            guard let locked = self.codexBaselineAfterRetention(baseline),
+                  contentPruned
+                  || (baseline.persistence.snapshotCounts == locked.persistence.snapshotCounts
+                      && baseline.persistence.rowCounts == locked.persistence.rowCounts
+                      && Self.persistedContentMatches(baseline: locked, cache: cache, calendar: calendar)),
+                  let retained = self.persistScanMetadata(previous: locked, cache: cache)
+            else {
                 _ = self.rollbackSaveTransaction()
                 var retry = result
                 retry.catchUpRequired = true
                 return retry
             }
-            let advanced = self.advanceLastScanUnixMsInCurrentTransaction(cache.lastScanUnixMs)
-            let committed = self.endSaveTransaction()
-            guard advanced, committed else {
+            guard self.endSaveTransaction() else {
                 var retry = result
                 retry.catchUpRequired = true
                 return retry
             }
             // The scanner may retain its input only when both reconciliation and
             // retention left it identical to the committed SQLite snapshot.
+            let committedStamp = self.currentCodexScanStamp()
             self.lastCodexSaveReusedContent = requestedCache == cache
-                && retention.deletedFiles == 0
-                && retention.deletedTokenSnapshots == 0
-                && retention.deletedFileDayAggregates == 0
-                && retention.deletedDayAggregates == 0
-                && result.deletedRows == 0
-            self.lastCodexSaveStamp = self.currentCodexScanStamp()
+                && !contentPruned
+                && committedStamp == retained.stamp
+            self.lastCodexSaveStamp = retained.stamp
+            #if DEBUG
+            if let checkpoint = CostUsageStoreTestHooks.current.identicalContentPostCommitCheckpoint,
+               checkpoint.databaseURL == self.databaseURL
+            {
+                checkpoint.checkpoint()
+            }
+            #endif
+            if self.lastCodexSaveReusedContent, !retained.persistence.tokenSnapshotsLoaded {
+                self.retainedCodexBaseline = RetainedCodexBaseline(id: UUID(), baseline: retained)
+            }
             return result
         }
         let aggregatePricing = self.aggregatePricingContext()
@@ -725,25 +741,77 @@ extension CostUsageStore {
         var incoming = cache
         incoming.timeZoneIdentifier = calendar.timeZone.identifier
         incoming.files = incoming.files.mapValues(Self.normalizingScanComplete)
+        // A scanner can represent a verified empty history as [] even when the persisted file
+        // has no token-snapshot rows and decodes as nil. Treat those forms as equal only when
+        // the store confirms that there are no rows; clearing a real history must still write.
+        for (path, usage) in incoming.files where (baseline.persistence.snapshotCounts[path] ?? 0) == 0 {
+            guard let stored = restored.files[path] else { continue }
+            if usage.codexTokenSnapshots?.isEmpty == true, stored.codexTokenSnapshots == nil {
+                incoming.files[path]?.codexTokenSnapshots = nil
+            }
+            if usage.codexTokenCheckpoints?.isEmpty == true, stored.codexTokenCheckpoints == nil {
+                incoming.files[path]?.codexTokenCheckpoints = nil
+            }
+        }
         restored.codexPriorityTurnsCursor = incoming.codexPriorityTurnsCursor
         return restored == incoming
     }
 
-    /// Writes only `scan_metadata.priorityTurnStatePayload` when the sqlite cursor advanced.
-    /// Caller already owns the save transaction.
-    private func persistPriorityTurnsCursorIfChanged(
+    /// Writes only freshness and cursor metadata while the save transaction owns the writer lock.
+    /// Exact change accounting rejects triggers or any other unexpected write caused by that row.
+    private func persistScanMetadata(
         previous: CodexDecodedBaseline,
-        cache: CostUsageCache) -> Bool
+        cache: CostUsageCache) -> CodexDecodedBaseline?
     {
-        guard previous.decoded.codexPriorityTurnsCursor != cache.codexPriorityTurnsCursor else {
-            return true
+        var retained = previous
+        var metadata = previous.persistence.metadata
+        if previous.decoded.codexPriorityTurnsCursor != cache.codexPriorityTurnsCursor {
+            guard let payload = Self.priorityTurnStatePayload(cache: cache) else { return nil }
+            metadata.priorityTurnStatePayload = payload
         }
-        guard let payload = Self.priorityTurnStatePayload(cache: cache) else { return false }
-        // Retention and budget enforcement may have refreshed verified coverage since the
-        // baseline was read. Preserve that in-transaction metadata and patch only the cursor.
-        var metadata = self.fetchMetadata()
-        metadata.priorityTurnStatePayload = payload
-        return self.setMetadata(metadata)
+        // A pending bounded catch-up keeps its original freshness certificate.
+        if !metadata.catchUpPending {
+            metadata.lastScanUnixMs = max(metadata.lastScanUnixMs, cache.lastScanUnixMs)
+        }
+        if metadata != previous.persistence.metadata {
+            guard self.setMetadata(metadata) else { return nil }
+            retained.stamp.totalChanges += 1
+        }
+        guard self.codexBaselineIsCurrent(retained), let stamp = self.currentCodexScanStamp() else { return nil }
+        retained.persistence.metadata = metadata
+        retained.stamp = stamp
+        retained.decoded.lastScanUnixMs = metadata.lastScanUnixMs
+        retained.decoded.codexPriorityTurnsCursor = cache.codexPriorityTurnsCursor
+        // Keep metadata-derived fields consistent if retention refreshed the report payload or
+        // the scanner configuration while this transaction was open.
+        retained.decoded.scanSinceKey = metadata.scanSinceDay
+        retained.decoded.scanUntilKey = metadata.scanUntilDay
+        retained.decoded.codexRetainedLookbackDays = metadata.retainedLookbackDays
+        retained.decoded.timeZoneIdentifier = metadata.timeZoneIdentifier
+        retained.decoded.codexPricingKey = metadata.pricingKey
+        retained.decoded.codexPriorityMetadataKey = metadata.priorityMetadataKey
+        retained.decoded.codexScanCatchUpPending = metadata.catchUpPending
+            || metadata.codexHistoryHydrationRetries?.isEmpty == false
+        retained.decoded.codexScanProcessedBytes = metadata.processedBytes
+        retained.decoded.codexScanTotalBytes = metadata.totalBytes
+        retained.decoded.codexScanCompletedFiles = metadata.completedFiles
+        retained.decoded.codexScanTotalFiles = metadata.totalFiles
+        retained.decoded.codexScanInventoryPaths = metadata.scanInventoryPaths
+        retained.decoded.codexHistoryHydrationRetries = metadata.codexHistoryHydrationRetries
+        retained.decoded.roots = metadata.rootMtimes
+        retained.decoded.codexProjectMetadataVersion = metadata.projectMetadataVersion
+        retained.decoded.codexPreviousReport = metadata.previousReportPayload.flatMap {
+            try? JSONDecoder().decode(CostUsageCodexPreviousReport.self, from: $0)
+        }
+        let priority = metadata.priorityTurnStatePayload.flatMap {
+            try? JSONDecoder().decode(StoredPriorityState.self, from: $0)
+        }
+        retained.decoded.codexPriorityTurnKeys = priority?.turnKeys
+        retained.decoded.codexPriorityTurnIDsByDay = priority?.turnIDsByDay
+        retained.decoded.codexPriorityTurnsCursor = priority?.turnsCursor
+        // A second stamp read catches connection/database replacement during metadata mapping.
+        guard self.currentCodexScanStamp() == stamp else { return nil }
+        return retained
     }
 
     private static func normalizingScanComplete(_ usage: CostUsageFileUsage) -> CostUsageFileUsage {
@@ -922,6 +990,7 @@ extension CostUsageStore {
         from snapshot: CostUsageStoreSnapshot,
         hydratingPaths: Set<String>? = nil,
         tokenSnapshotsLoaded: Bool = true,
+        explicitlyLoadedTokenSnapshotPaths: Set<String> = [],
         preserveMalformedFiles: Bool = false,
         decodedUsageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
         makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
@@ -1016,10 +1085,14 @@ extension CostUsageStore {
             let restoredTokenSnapshots: [CostUsageCodexTokenSnapshot]? = if
                 details.hasTokenSnapshots || hasMalformedDetails, isHydrated
             {
-                if tokenSnapshotsLoaded {
+                // A compact row count can confirm an empty valid history, but malformed
+                // details cannot establish whether the manifest's token-history marker was
+                // present. Keep that path unloaded until its rows are read under the receipt.
+                if tokenSnapshotsLoaded
+                    || explicitlyLoadedTokenSnapshotPaths.contains(file.path)
+                    || (!hasMalformedDetails && snapshot.tokenSnapshotCounts?[file.path] == tokenSnapshots.count)
+                {
                     tokenSnapshots
-                } else if !hasMalformedDetails, snapshot.tokenSnapshotCounts?[file.path] == 0 {
-                    []
                 } else {
                     nil
                 }

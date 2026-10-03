@@ -1564,6 +1564,35 @@ extension ProviderSettingsDescriptorTests {
         #expect(cookies.manualCookieHeader == "session=fixture")
     }
 
+    @Test
+    func `LithosAI cookie plugin persists its paired session cookies`() throws {
+        let descriptor = LithosAIProviderDescriptor.descriptor
+        #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
+        #expect(descriptor.metadata.browserCookieOrder != nil)
+        #expect(descriptor.settingsSection.providerID == .lithosai)
+        #expect(descriptor.metadata.balanceOnly)
+
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-lithosai-cookie-plugin")
+        let implementation = try #require(ProviderCatalog.implementation(for: .lithosai))
+        let settingsContext = fixture.settingsContext(provider: .lithosai)
+        let pickers = implementation.settingsPickers(context: settingsContext)
+        #expect(pickers.map(\.id) == ["lithosai-cookie-source"])
+        pickers[0].binding.wrappedValue = ProviderCookieSource.manual.rawValue
+
+        let fields = implementation.settingsFields(context: settingsContext)
+        #expect(fields.map(\.id) == ["lithosai-cookie"])
+        #expect(fields[0].isVisible?() == true)
+        fields[0].binding.wrappedValue = "__Host-console_session=fixture; __Host-console_csrf=csrf-fixture"
+
+        let contribution = try #require(implementation.settingsSnapshot(context: .init(
+            settings: fixture.settings,
+            tokenOverride: nil)))
+        let snapshot = ProviderSettingsSnapshot(contributions: [contribution])
+        let cookies = try #require(descriptor.settingsSection.cookieSettings(from: snapshot))
+        #expect(cookies.cookieSource == .manual)
+        #expect(cookies.manualCookieHeader == "__Host-console_session=fixture; __Host-console_csrf=csrf-fixture")
+    }
+
     func makeSettingsFixture(
         suite: String,
         environmentBase: [String: String] = [:]) throws -> ProviderSettingsFixture

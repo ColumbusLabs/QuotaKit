@@ -38,27 +38,20 @@ public struct CursorSandUsageStatus: Decodable, Sendable, Equatable {
     /// Included or unexpired trial allowance; trial expiry is not a recurring quota reset.
     public func extraRateWindow(now: Date = Date(), resetDescription: (Date) -> String) -> NamedRateWindow? {
         let hasLimit = self.includedLimitZero.map { !$0 } ?? self.hasNonZeroIncludedLimit
-        let hasTrial = hasLimit != true && Self.parseISO8601(self.sandTrialExpiresAt).map { $0 > now } == true
+        let hasTrial = hasLimit != true && ISO8601DateParser.parse(self.sandTrialExpiresAt).map { $0 > now } == true
         guard hasLimit == true || hasTrial, let usagePercent = self.usagePercent else {
             return nil
         }
-        let start = Self.parseISO8601(self.currentPeriodStart)
-        let resetsAt = hasTrial ? nil : Self.parseISO8601(self.nextResetTimestampUtc)
+        // Paid Grok Bot grants reset weekly; currentPeriodStart can fall mid-week.
+        let resetsAt = hasTrial ? nil : ISO8601DateParser.parse(self.nextResetTimestampUtc)
         return NamedRateWindow(
             id: Self.extraWindowID,
             title: Self.extraWindowTitle,
             window: RateWindow(
                 usedPercent: UsagePercent(raw: usagePercent).displayClamped,
-                windowMinutes: Self.windowMinutes(start: start, end: resetsAt),
+                windowMinutes: resetsAt == nil ? nil : 7 * 24 * 60,
                 resetsAt: resetsAt,
                 resetDescription: resetsAt.map(resetDescription)))
-    }
-
-    static func parseISO8601(_ raw: String?) -> Date? {
-        guard let raw else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
     }
 
     static func windowMinutes(start: Date?, end: Date?) -> Int? {

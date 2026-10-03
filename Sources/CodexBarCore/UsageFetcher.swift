@@ -414,6 +414,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.replacing(providerCost: .value(providerCost))
     }
 
+    public func with(costUsage: CostUsageTokenSnapshot?) -> UsageSnapshot {
+        self.replacing(costUsage: .value(costUsage))
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.primary = try container.decodeIfPresent(RateWindow.self, forKey: .primary)
@@ -717,6 +721,7 @@ public struct UsageSnapshot: Codable, Sendable {
         tertiary: Replacement<RateWindow?> = .unchanged,
         extraRateWindows: Replacement<[NamedRateWindow]?> = .unchanged,
         providerCost: Replacement<ProviderCostSnapshot?> = .unchanged,
+        costUsage: Replacement<CostUsageTokenSnapshot?> = .unchanged,
         details: Replacement<[ProviderDetailSection]> = .unchanged,
         deepseekUsage: Replacement<DeepSeekUsageSummary?> = .unchanged,
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
@@ -737,7 +742,7 @@ public struct UsageSnapshot: Codable, Sendable {
             kiroUsage: self.kiroUsage,
             ampUsage: self.ampUsage,
             providerCost: providerCost.resolving(self.providerCost),
-            costUsage: self.costUsage,
+            costUsage: costUsage.resolving(self.costUsage),
             details: details.resolving(self.details),
             hyperBalance: self.hyperBalance,
             zaiUsage: self.zaiUsage,

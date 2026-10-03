@@ -70,17 +70,16 @@ struct CodexWeeklyResetConfirmation: Sendable {
         let confirmationIsExactOAuth: Bool
     }
 
-    private struct AvailableCreditIdentity: Equatable {
+    private struct AvailableCreditIdentity: Hashable {
         let id: String
         let resetType: String
-        let status: String
         let expiresAt: Date?
     }
 
     private enum ResetCreditEvidence: Equatable {
         case none
         case consumed
-        case noAvailableCredits
+        case noInventoryToPreserve
     }
 
     private static let resetEquivalenceToleranceSeconds: TimeInterval = 2 * 60
@@ -327,7 +326,7 @@ struct CodexWeeklyResetConfirmation: Sendable {
         guard self.haveCompatibleKnownPlans(previous, initial, confirmation) else {
             return .rejected(.planMismatch)
         }
-        if let reason = delayedCreditInventoryReason([previous, initial, confirmation]) {
+        if let reason = positiveCreditInventoryRejection(previous, initial, confirmation) {
             return .rejected(reason)
         }
         return .created(CodexWeeklyResetPublicationCandidate(
@@ -423,7 +422,7 @@ struct CodexWeeklyResetConfirmation: Sendable {
         guard Self.haveCompatibleKnownPlans(previous, candidate.snapshot, current) else {
             return DelayedEvaluation(decision: .discardCandidate, reason: .planMismatch)
         }
-        if let reason = Self.delayedCreditInventoryReason([previous, candidate.snapshot, current]) {
+        if let reason = Self.positiveCreditInventoryRejection(previous, candidate.snapshot, current) {
             return DelayedEvaluation(decision: .discardCandidate, reason: reason)
         }
         guard current.updatedAt > candidate.snapshot.updatedAt else {
@@ -523,26 +522,15 @@ struct CodexWeeklyResetConfirmation: Sendable {
         }) else {
             return .nonMonotonicCreditObservationTime
         }
-        let inventories = creditSnapshots.map { credits -> [AvailableCreditIdentity]? in
+        let inventories = creditSnapshots.map { credits -> [AvailableCreditIdentity: Int]? in
             let available = credits.availableCredits(at: credits.updatedAt)
             guard credits.availableCount > 0, available.count == credits.availableCount else { return nil }
-            return available.map {
-                AvailableCreditIdentity(
-                    id: $0.id,
-                    resetType: $0.resetType,
-                    status: $0.status.rawValue,
-                    expiresAt: $0.expiresAt)
-            }.sorted { lhs, rhs in
-                if lhs.id != rhs.id {
-                    return lhs.id < rhs.id
-                }
-                if lhs.resetType != rhs.resetType {
-                    return lhs.resetType < rhs.resetType
-                }
-                if lhs.status != rhs.status {
-                    return lhs.status < rhs.status
-                }
-                return (lhs.expiresAt ?? .distantPast) < (rhs.expiresAt ?? .distantPast)
+            return available.reduce(into: [AvailableCreditIdentity: Int]()) { inventory, credit in
+                let identity = AvailableCreditIdentity(
+                    id: credit.id,
+                    resetType: credit.resetType,
+                    expiresAt: credit.expiresAt)
+                inventory[identity, default: 0] += 1
             }
         }
         guard let firstInventory = inventories.first,
@@ -565,6 +553,17 @@ struct CodexWeeklyResetConfirmation: Sendable {
         initial: UsageSnapshot,
         confirmation: UsageSnapshot) -> ResetCreditEvidence
     {
+        // When no prior inventory was captured, two compatible exact reads can still confirm a
+        // reset if both contain the same complete, positive inventory newer than the old snapshot.
+        if previous.codexResetCredits == nil,
+           initial.dataConfidence == .exact,
+           confirmation.dataConfidence == .exact,
+           self.haveCompatibleAccountIdentities(previous, initial, confirmation),
+           self.haveCompatibleKnownPlans(previous, initial, confirmation),
+           self.positiveCreditInventoryRejection(previous, initial, confirmation) == nil
+        {
+            return .noInventoryToPreserve
+        }
         guard let previousCredits = previous.codexResetCredits,
               let initialCredits = initial.codexResetCredits,
               let confirmationCredits = confirmation.codexResetCredits,
@@ -580,9 +579,8 @@ struct CodexWeeklyResetConfirmation: Sendable {
         // An explicitly observed zero-credit inventory means there was no manual reset credit to
         // consume. Requiring consumption proof here would deadlock: the two consistent observations
         // (initial + confirmation) are the only signal a server-side early reset has, so trust them.
-        // A nil/unknown previous inventory stays conservative and keeps demanding consumption proof.
         guard !previouslyAvailableCredits.isEmpty else {
-            return previousCredits.availableCount == 0 ? .noAvailableCredits : .none
+            return previousCredits.availableCount == 0 ? .noInventoryToPreserve : .none
         }
         let consumed = previouslyAvailableCredits.contains { previousCredit in
             Self.inventoryConfirmsConsumption(
@@ -595,6 +593,46 @@ struct CodexWeeklyResetConfirmation: Sendable {
                     previousAvailableCount: previousCredits.availableCount)
         }
         return consumed ? .consumed : .none
+    }
+
+    private static func positiveCreditInventoryRejection(
+        _ previous: UsageSnapshot,
+        _ initial: UsageSnapshot,
+        _ confirmation: UsageSnapshot) -> Reason?
+    {
+        let snapshots = previous.codexResetCredits == nil ? [initial, confirmation] : [previous, initial, confirmation]
+        let creditSnapshots = snapshots.compactMap(\.codexResetCredits)
+        guard creditSnapshots.count == snapshots.count else { return .missingCreditInventory }
+        guard creditSnapshots.allSatisfy({ Self.isFinite($0.updatedAt) }) else {
+            return .invalidCreditObservationTime
+        }
+        guard previous.codexResetCredits != nil || creditSnapshots.allSatisfy({ $0.updatedAt > previous.updatedAt })
+        else {
+            return .nonMonotonicCreditObservationTime
+        }
+        guard zip(creditSnapshots, creditSnapshots.dropFirst()).allSatisfy({ pair in
+            pair.1.updatedAt >= pair.0.updatedAt
+        }) else {
+            return .nonMonotonicCreditObservationTime
+        }
+        let inventories = creditSnapshots.map { credits -> [AvailableCreditIdentity: Int]? in
+            let available = credits.availableCredits(at: credits.updatedAt)
+            guard credits.availableCount > 0, available.count == credits.availableCount else { return nil }
+            return available.reduce(into: [AvailableCreditIdentity: Int]()) { inventory, credit in
+                let identity = AvailableCreditIdentity(
+                    id: credit.id,
+                    resetType: credit.resetType,
+                    expiresAt: credit.expiresAt)
+                inventory[identity, default: 0] += 1
+            }
+        }
+        guard let firstInventory = inventories.first,
+              let first = firstInventory,
+              inventories.allSatisfy({ $0 != nil })
+        else {
+            return .inconsistentAvailableCreditCount
+        }
+        return inventories.allSatisfy { $0 == first } ? nil : .changedCreditInventory
     }
 
     private static func inventoryConfirmsConsumption(

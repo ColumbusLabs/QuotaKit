@@ -191,8 +191,8 @@ is limited, using additional rows when needed.
   Reported caps keep their own scale.
 
 ## Weekly reset publication
-- A suspicious drop from above 1% to 1% or lower is confirmed before publication. If confirmation stays ambiguous, QuotaKit may retain a delayed candidate only when the previous, initial, and confirmation observations are exact OAuth data with compatible account and plan identity, matching reset boundaries, and a stable positive reset-credit inventory.
-- A later exact OAuth observation can publish the reset after the 60-second minimum delay. Candidates expire after 30 minutes, and a stale or incompatible observation discards them.
+- A suspicious drop from above 1% to 1% or lower is confirmed before publication. If the previous quota snapshot has no reset-credit inventory, two compatible exact OAuth reads may corroborate the reset when they show the same complete positive inventory with timestamps newer than that snapshot. Existing inventory still has to remain stable and fully explained; incomplete, stale, changed, or incompatible evidence keeps the prior quota published.
+- If confirmation remains ambiguous, QuotaKit may retain a delayed candidate only for exact OAuth observations with compatible account and known plan identity, matching reset boundaries, and a stable complete positive reset-credit inventory. A later compatible exact observation can publish the reset after the 60-second minimum delay. Candidates expire after 30 minutes, and stale or incompatible evidence discards them.
 - Reset diagnostics use fixed reason codes for candidate creation, delayed evaluation, and persistence decisions. They do not include account emails, workspace names, plan labels, credit IDs, or provider payloads. A persistence decision of `storeRequested` means the configured store API was called; it does not claim that durable storage succeeded.
 
 ## Cost usage (local log scan)
@@ -239,11 +239,21 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
   - Conversation rows retain their canonical project folder and use the rollout's original working directory when
     resolving a relative `CODEX_SQLITE_HOME`. Thread names come from the matching Codex state database or session
     index, so projects sharing one Git root keep their own session metadata.
+  - Project rows use the account source and full directory path as their identity, so equal folder names stay
+    separate and saved-name changes do not split usage. Project and session labels use the closest matching saved
+    project root from each relevant Codex state database; missing, ambiguous, or unreadable metadata keeps the
+    folder name. Fresh scans and cached loads refresh these labels without rebuilding or changing usage totals.
+  - Duplicate project labels include their paths for clarity. **Hide personal information** also hides those paths,
+    and widget cost summaries contain aggregate values only.
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
 - Cache:
   - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
+- Warm Codex scans reuse decoded history only when the locked SQLite baseline still certifies the same content.
+  Freshness and priority-cursor updates share one checked metadata write; unexpected writes request a rescan.
+  Hydrating an empty token history avoids rewriting content only when no snapshot rows exist, while clearing a
+  non-empty history still removes those rows.
 - Window: a visible rolling history of up to 365 days; routine background work scans 30 days.
 - Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in Low Power Mode). Manual disables
   that recurring timer, while startup refreshes, explicit refreshes, and pending Codex catch-up may still scan.

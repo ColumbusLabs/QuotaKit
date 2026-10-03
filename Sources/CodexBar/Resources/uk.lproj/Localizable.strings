@@ -1688,3 +1688,4 @@
 "QuotaKit Help" = "Довідка QuotaKit";
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Для вибраного або переданого облікового запису Google режим Auto приймає звіти локального застосунку, agy CLI та IDE лише за збігу особи, потім пробує OAuth. Явно вибрані Local API / agy CLI можуть використовувати інший локально авторизований обліковий запис.";
+"Supported browsers: %@. Use Manual for other browsers." = "Підтримувані браузери: %@. Для інших браузерів використовуйте ручний режим.";

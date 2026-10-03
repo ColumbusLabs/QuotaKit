@@ -51,7 +51,9 @@ struct AmpProviderImplementation: ProviderImplementation {
                 source: context.settings.ampCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies."),
+                        provider: .amp),
                     manual: L("Paste a Cookie header or cURL capture from %@.", "Amp settings"),
                     off: L("%@ cookies are disabled.", "Amp")))
         }
@@ -68,7 +70,9 @@ struct AmpProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "amp-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies."),
+                    provider: .amp),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

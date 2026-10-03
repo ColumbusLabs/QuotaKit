@@ -229,6 +229,7 @@ interface CodexBarPluginContext {
     getSecret(key: string): string | null;
   };
   readonly browser: {
+    readonly supportedBrowsers: string;
     availability(domain: string): "available" | "off" | "manual";
     rejectCookie(domain: string, session?: CodexBarCookieSession): void;
     sessions(domain: string, options?: { cachedOnly?: boolean }): AsyncIterable<CodexBarCookieSession>;
@@ -289,7 +290,14 @@ interface CodexBarProviderDefinition {
   capabilities?: Array<"browser-cookies" | "http-status" | "persistent-storage">;
   cookieDomains?: string[];
   /** Use host-side request-URL cookie matching without persistent cookie storage. Bundled plugins only. */
-  cookiePolicy?: { selection: "request-url"; cache: "nonpersistent" };
+  cookiePolicy?: {
+    selection: "request-url";
+    cache: "nonpersistent";
+    imports?: "app-interactive" | "access-gated";
+    requiredCookies?: string[];
+    /** Host-only echo of a required cookie into a custom X- header on one declared HTTPS origin. */
+    headerEcho?: { origin: string; cookie: string; header: string };
+  };
   fetchUsage(
     ctx: CodexBarPluginContext,
   ): CodexBarUsageSnapshot | CodexBarFetchResult | Promise<CodexBarUsageSnapshot | CodexBarFetchResult>;

@@ -11,6 +11,14 @@ enum ProviderCookieSourceUI {
         "Keychain access is disabled in Advanced, so browser cookie import is unavailable."
 
     @MainActor
+    static func browserImportSubtitle(_ summary: String, provider: UsageProvider) -> String {
+        let hint = L(
+            "Supported browsers: %@. Use Manual for other browsers.",
+            BrowserCookieImportSupport.browserNames(for: provider))
+        return "\(summary) \(hint)"
+    }
+
+    @MainActor
     static func cachedTrailingText(provider: UsageProvider, scope: CookieHeaderCache.Scope? = nil) -> String? {
         guard let entry = CookieHeaderCache.loadForDisplay(provider: provider, scope: scope) else { return nil }
         return self.cachedTrailingText(entry: entry)

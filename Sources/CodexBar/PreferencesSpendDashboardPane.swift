@@ -855,6 +855,10 @@ private struct SpendProjectPanel: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(L("Projects")).font(.headline).padding(.bottom, 8)
                 ForEach(self.visibleRows) { row in
+                    let identity = row.displayIdentity(hidePersonalInfo: self.hidePersonalInfo)
+                    let hasDuplicateLabel = self.group.projects.contains {
+                        $0.id != row.id && $0.projectName == row.projectName
+                    }
                     if row.rank > 1 {
                         Divider()
                     }
@@ -867,8 +871,18 @@ private struct SpendProjectPanel: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(row.displayIdentity(hidePersonalInfo: self.hidePersonalInfo).name).lineLimit(1)
+                            Text(identity.name)
+                                .lineLimit(1)
+                                .help(identity.path ?? identity.name)
                             Text(row.providerName).font(.caption).foregroundStyle(.secondary)
+                            if let path = identity.path, hasDuplicateLabel {
+                                Text(path)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(path)
+                            }
                         }
                         Spacer()
                         Text(spendDashboardMetricText(

@@ -32,13 +32,17 @@ struct RaycastProviderImplementation: ProviderImplementation {
         return [ProviderSettingsPickerDescriptor(
             id: "raycast-cookie-source",
             title: "Cookie source",
-            subtitle: L("Automatically imports browser cookies for %@.", "www.raycast.com"),
+            subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                L("Automatically imports browser cookies for %@.", "www.raycast.com"),
+                provider: .raycast),
             dynamicSubtitle: {
                 ProviderCookieSourceUI.subtitle(
                     source: context.settings.raycastCookieSource,
                     keychainDisabled: context.settings.debugDisableKeychainAccess,
                     subtitles: ProviderCookieSourceUI.Subtitles(
-                        auto: L("Automatically imports browser cookies for %@.", "www.raycast.com"),
+                        auto: ProviderCookieSourceUI.browserImportSubtitle(
+                            L("Automatically imports browser cookies for %@.", "www.raycast.com"),
+                            provider: .raycast),
                         manual: L("Paste a Cookie header captured from %@.", "www.raycast.com"),
                         off: L("%@ cookies are disabled.", "Raycast")))
             },

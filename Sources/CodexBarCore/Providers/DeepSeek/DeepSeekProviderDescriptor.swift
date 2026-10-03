@@ -100,8 +100,7 @@ public enum DeepSeekProviderDescriptor {
                     ProviderColor(hex: 0x4D6BFE),
                     ProviderColor(hex: 0x3982FF),
                     ProviderColor(hex: 0x020E36),
-                ],
-                widgetColor: ProviderColor(red: 82 / 255, green: 125 / 255, blue: 240 / 255)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "DeepSeek per-day cost history is not available via API." }),

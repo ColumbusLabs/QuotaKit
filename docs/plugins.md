@@ -101,12 +101,24 @@ defineProvider({
 - `persistent-storage`: grants bounded, non-secret state scoped to this plugin instance. Adding or removing this
   capability changes the approval binding.
 - `cookieDomains`: required with `browser-cookies`; a non-empty list of normalized DNS host names.
+- `cookiePolicy` (bundled plugins only): `{selection: "request-url", cache: "nonpersistent"}` opts into host-owned,
+  URL-matched cookie records without persistent cookie storage. It may also declare `imports`, `requiredCookies`, and
+  a host-owned `headerEcho`; these cannot be enabled by user-installed plugins. `imports` defaults to
+  `"app-interactive"`; `"access-gated"` lets the host browser access gate govern the import attempt.
 - `fetchUsage(ctx)`: function returning a snapshot or fetch result envelope, or a promise for one.
 
 First-party plugins with the `browser-cookies` capability may call
 `ctx.browser.rejectCookie(domain)` after the declared host rejects an imported browser session. QuotaKit clears only the
 automatic cookie cache entry that produced that request; it leaves manually entered headers and any newer replacement
 session intact. The domain must match the plugin's declared `cookieDomains` list.
+
+### Bundled cookie header echo
+
+A bundled cookie policy can declare one `headerEcho` with an origin, one required cookie name, and a custom `X-` header.
+The origin must be a declared fixed HTTPS endpoint and cookie domain. The host derives the header from the same opaque
+session and URL-matched records used for `Cookie`; scripts never receive the cookie value. Missing, empty, duplicate,
+expired, or path-mismatched cookies fail closed, and scripts cannot set or replace the echo header. Same-origin HTTPS
+redirects reselect both cookie headers for the redirected URL. Other origins and ports cannot carry the echo.
 
 Authentication forms:
 
@@ -175,6 +187,9 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
   usable session. API-only (and other non-web) source modes report `"off"`; Manual reports `"manual"`, so plugins can
   route an origin-less pasted header to one explicitly selected tenant. Missing cookie resolvers report `"off"`.
   `cookieHeader` also enforces Off/API-only policy, even if the plugin skips this check.
+- `ctx.browser.supportedBrowsers` is a comma-separated display list from this provider's configured automatic browser
+  sources. It does not inspect installed profiles, search browsers, or access Keychain. When browser import is unavailable,
+  the value is `none on this platform`; Manual remains the fallback for other browsers.
 - `await ctx.browser.cookieHeader(domain)` returns a cookie header only with the `browser-cookies` capability and for a
   declared domain. User plugins import from Chrome; bundled providers retain their declared browser order.
   Cookie values are secret-equivalent and redacted.

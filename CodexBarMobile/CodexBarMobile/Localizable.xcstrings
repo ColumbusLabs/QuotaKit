@@ -16045,6 +16045,34 @@
         }
       }
     },
+    "LithosAI prepaid balance and optional console spend now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LithosAI prepaid balance and optional console spend now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LithosAI のプリペイド残高と任意のコンソール利用額が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LithosAI 的预付余额和可选控制台消费现已从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LithosAI 的預付餘額與選用的主控台消費，現在會從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts.": {
       "localizations": {
         "en": {

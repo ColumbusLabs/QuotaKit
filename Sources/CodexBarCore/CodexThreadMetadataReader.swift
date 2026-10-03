@@ -447,7 +447,7 @@ public struct CodexThreadMetadataReader: Sendable {
     }
 
     #if canImport(SQLite3) || canImport(CSQLite3)
-    private static func string(_ statement: OpaquePointer?, column: Int32) -> String? {
+    static func string(_ statement: OpaquePointer?, column: Int32) -> String? {
         guard sqlite3_column_type(statement, column) != SQLITE_NULL,
               let value = sqlite3_column_text(statement, column)
         else { return nil }

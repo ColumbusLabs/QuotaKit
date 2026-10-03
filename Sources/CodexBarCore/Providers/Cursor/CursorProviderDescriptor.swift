@@ -67,7 +67,6 @@ public enum CursorProviderDescriptor {
                     ProviderColor(hex: 0x1B1913),
                     ProviderColor(hex: 0xEDECEC),
                 ],
-                widgetColor: ProviderColor(hex: 0x000000),
                 progressColorStyle: .label),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,

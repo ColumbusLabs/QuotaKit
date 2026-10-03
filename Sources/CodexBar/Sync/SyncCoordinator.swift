@@ -914,7 +914,7 @@ final class SyncCoordinator {
         // These providers expose useful rows that have no dedicated iPhone payload. In particular,
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
-            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot,
+            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot, .lithosai,
         ]
         guard supported.contains(provider),
               let details = snapshot?.details,
@@ -960,6 +960,10 @@ final class SyncCoordinator {
             let amount = String(format: "%.2f", xaiUsage.balanceUSD)
             return "Prepaid credits: USD \(amount)"
         }
+        if provider == .lithosai, let providerCost {
+            let amount = String(format: "%.2f", providerCost.used)
+            return "Prepaid balance: \(providerCost.currencyCode) \(amount)"
+        }
         guard provider == .copilot,
               rateWindows.isEmpty,
               let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -974,13 +978,14 @@ final class SyncCoordinator {
         provider: UsageProvider,
         providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
     {
-        // ZenMux, Neuralwatt, and xAI report remaining balances through
+        // ZenMux, Neuralwatt, LithosAI, and xAI report remaining balances through
         // ProviderCostSnapshot with a zero limit. Those are not used/limit
         // budgets and would render on iOS as the false statement "$balance / $0".
         guard provider != .zenmux,
               provider != .neuralwatt,
               provider != .aiand,
               provider != .fireworks,
+              provider != .lithosai,
               provider != .xai
         else {
             return nil
@@ -2002,7 +2007,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

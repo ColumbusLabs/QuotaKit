@@ -1,5 +1,9 @@
 import Foundation
 
+package enum BoundedTaskJoinTiming {
+    @TaskLocal package static var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+}
+
 package enum BoundedTaskJoinOutcome<Value: Sendable> {
     case value(Value)
     case failure(any Error)
@@ -18,7 +22,7 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
         self.sourceTask = sourceTask
     }
 
-    package func value(joinGrace: Duration) async -> BoundedTaskJoinOutcome<Value> {
+    package func value(joinGrace: Duration?) async -> BoundedTaskJoinOutcome<Value> {
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 self.lock.lock()
@@ -38,14 +42,16 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
                         self?.resolve(.failure(error), cancelSource: false)
                     }
                 }
-                self.timeoutTask = Task { [weak self] in
-                    do {
-                        if joinGrace > .zero {
-                            try await Task.sleep(for: joinGrace)
+                if let joinGrace {
+                    self.timeoutTask = Task { [weak self] in
+                        do {
+                            if joinGrace > .zero {
+                                try await BoundedTaskJoinTiming.sleep(joinGrace)
+                            }
+                            self?.resolve(.timedOut, cancelSource: true)
+                        } catch {
+                            // The source completed or the caller canceled the race.
                         }
-                        self?.resolve(.timedOut, cancelSource: true)
-                    } catch {
-                        // The source completed or the caller canceled the race.
                     }
                 }
                 self.lock.unlock()

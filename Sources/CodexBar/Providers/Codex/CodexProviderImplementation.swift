@@ -176,7 +176,9 @@ struct CodexProviderImplementation: ProviderImplementation {
                 source: context.settings.codexCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies for dashboard extras."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies for dashboard extras."),
+                        provider: .codex),
                     manual: L("Paste a Cookie header from %@.", "chatgpt.com"),
                     off: L("Disable %@ dashboard cookie usage.", "OpenAI")))
         }
@@ -201,7 +203,9 @@ struct CodexProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "codex-cookie-source",
                 title: "OpenAI cookies",
-                subtitle: L("Automatic imports browser cookies for dashboard extras."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies for dashboard extras."),
+                    provider: .codex),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

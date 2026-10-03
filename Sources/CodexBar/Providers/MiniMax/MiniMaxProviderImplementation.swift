@@ -63,7 +63,9 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 source: context.settings.minimaxCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies and local storage tokens."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies and local storage tokens."),
+                        provider: .minimax),
                     manual: L("Paste a Cookie header or full cURL capture from %@.", "MiniMax Token Plan"),
                     off: L("%@ cookies are disabled.", "MiniMax")))
         }
@@ -81,7 +83,9 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "minimax-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies and local storage tokens."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies and local storage tokens."),
+                    provider: .minimax),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

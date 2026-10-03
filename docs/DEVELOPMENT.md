@@ -22,6 +22,17 @@ both x86_64 and ARM64 entries of `build-linux-cli`. The Linux job builds `CodexB
 `CodexBarLinuxTests`, and checks the CLI help path. Linux failures, cancellations, and skipped matrix results
 fail the aggregate gate; only the existing macOS and iOS path gates can skip their own tests.
 
+Portable lint also compares every package identity, revision, and version in the root and widget workspace
+`Package.resolved` files with an offline, read-only check and synthetic regression tests. Pin order and
+workspace-specific `originHash` values are ignored. After changing dependencies, resolve the widget workspace
+from the repository root and commit both resolved files together:
+
+```bash
+xcodebuild -resolvePackageDependencies -project WidgetExtension/CodexBarWidgetExtension.xcodeproj
+```
+
+The check names drifted packages and prints the repair command before packaging fails on stale pins.
+
 ## Quick Start
 
 ```bash

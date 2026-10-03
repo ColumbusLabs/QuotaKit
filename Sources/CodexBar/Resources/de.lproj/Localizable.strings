@@ -1688,3 +1688,4 @@
 "QuotaKit Help" = "QuotaKit-Hilfe";
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Bei einem ausgewählten oder übergebenen Google-Konto akzeptiert Auto Berichte der lokalen App, agy CLI und IDE nur bei übereinstimmender Identität und versucht danach OAuth. Explizit gewählte Local API / agy CLI können ein anderes lokal angemeldetes Konto verwenden.";
+"Supported browsers: %@. Use Manual for other browsers." = "Unterstützte Browser: %@. Verwende für andere Browser „Manuell“.";

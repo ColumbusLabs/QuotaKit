@@ -15,7 +15,7 @@ public struct GrokLocalDailyBucket: Sendable, Equatable {
     }
 }
 
-/// Aggregated stats from local `~/.grok/sessions/**/signals.json` files.
+/// Aggregated stats from local `~/.grok/sessions/<encoded_cwd>/<session_id>/signals.json` files.
 /// Used as a local fallback view when the JSON-RPC billing call is unavailable.
 public struct GrokLocalSessionSummary: Sendable {
     public let sessionCount: Int
@@ -85,22 +85,15 @@ public enum GrokLocalSessionScanner {
     {
         let root = GrokCredentialsStore.grokHomeURL(env: env, fileManager: fileManager)
             .appendingPathComponent("sessions", isDirectory: true)
-        guard let rootEnum = fileManager.enumerator(
+        let rootEnum = fileManager.enumerator(
             at: root,
-            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+            includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles])
-        else {
-            return GrokLocalSessionSummary(
-                sessionCount: 0,
-                totalTokens: 0,
-                lastSessionAt: nil,
-                primaryModel: nil,
-                models: [],
-                scannedAt: now)
-        }
 
         let calendar = Calendar.current
-        let lookbackCutoff = calendar.date(byAdding: .day, value: -lookbackDays, to: now) ?? now
+        let today = calendar.startOfDay(for: now)
+        let lookbackCutoff = calendar.date(byAdding: .day, value: -(max(1, lookbackDays) - 1), to: today) ?? today
+        let lookbackEnd = calendar.date(byAdding: .day, value: 1, to: today) ?? now
         var sessionCount = 0
         var totalTokens = 0
         var lastSessionAt: Date?
@@ -109,11 +102,15 @@ public enum GrokLocalSessionScanner {
         var dailySessions: [String: Int] = [:]
         var dailyModels: [String: [String: Int]] = [:]
 
-        while let url = rootEnum.nextObject() as? URL {
-            guard url.lastPathComponent == "signals.json" else { continue }
+        while let rootEnum, let sessionURL = rootEnum.nextObject() as? URL {
+            guard rootEnum.level == 2 else { continue }
+            // Session artifacts can be large; only the session's own signals file describes its usage.
+            rootEnum.skipDescendants()
+            guard (try? sessionURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+            let url = sessionURL.appendingPathComponent("signals.json")
             let attrs = try? url.resourceValues(forKeys: [.contentModificationDateKey])
             let mtime = attrs?.contentModificationDate ?? Date.distantPast
-            guard mtime >= lookbackCutoff else { continue }
+            guard mtime >= lookbackCutoff, mtime < lookbackEnd else { continue }
 
             guard let data = try? Data(contentsOf: url),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]

@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBar
 @testable import CodexBarCore
@@ -19,6 +20,31 @@ struct PluginProviderSpecTests {
         .synthetic, .chutes, .v0, .elevenlabs, .neuralwatt, .clawrouter,
         .aixy, .bifrost, .deepgram, .llmproxy, .litellm, .sub2api, .llmman,
     ]
+
+    @Test
+    func `browser-backed cookie guidance names supported browsers and manual alternative`() throws {
+        let fixture = try ProviderSettingsDescriptorTests().makeSettingsFixture(suite: #function)
+        fixture.settings.debugDisableKeychainAccess = false
+        let cookiePickers: [(UsageProvider, String)] = [
+            (.museai, "Cookie source"),
+            (.raycast, "Cookie source"),
+            (.perplexity, "Cookie source"),
+            (.kimi, "Cookie source"),
+            (.ollama, "Cookie source"),
+            (.copilot, "GitHub cookies"),
+            (.zed, "Cookie source"),
+        ]
+        for (provider, title) in cookiePickers {
+            let implementation = try #require(ProviderCatalog.implementation(for: provider))
+            let picker = try #require(implementation.settingsPickers(
+                context: fixture.settingsContext(provider: provider)).first(where: { $0.title == title }))
+            picker.binding.wrappedValue = ProviderCookieSource.auto.rawValue
+            let browsers = ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
+            let names = browsers.map(\.displayName).joined(separator: ", ")
+            #expect(picker.subtitle.contains("Supported browsers: \(names). Use Manual for other browsers."))
+            #expect(picker.dynamicSubtitle?()?.contains("Supported browsers: \(names).") == true)
+        }
+    }
 
     @Test
     func `plugin registration and settings preserve their baseline`() async throws {

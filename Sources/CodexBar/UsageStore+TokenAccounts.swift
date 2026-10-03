@@ -527,7 +527,8 @@ extension UsageStore {
     func refreshTokenAccounts(
         provider: UsageProvider,
         accounts: [ProviderTokenAccount],
-        generation: UInt64? = nil) async
+        generation: UInt64? = nil,
+        sleep: (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) async
     {
         let selectedAccount = self.settings.selectedTokenAccount(for: provider)
         let limitedAccounts = self.limitedTokenAccounts(accounts, selected: selectedAccount)
@@ -555,7 +556,10 @@ extension UsageStore {
         var selectedAccountSnapshot: TokenAccountUsageSnapshot?
         var sawAnyNonCancellationOutcome = false
 
-        let results = await self.fetchTokenAccountOutcomes(provider: provider, accounts: limitedAccounts)
+        let results = await self.fetchTokenAccountOutcomes(
+            provider: provider,
+            accounts: limitedAccounts,
+            sleep: sleep)
         guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
         for result in results {
             guard let account = self.uniqueTokenAccount(provider: provider, accountID: result.account.id)
@@ -702,7 +706,8 @@ extension UsageStore {
 
     private func fetchTokenAccountOutcomes(
         provider: UsageProvider,
-        accounts: [ProviderTokenAccount]) async -> [TokenAccountFetchResult]
+        accounts: [ProviderTokenAccount],
+        sleep: (Duration) async throws -> Void) async -> [TokenAccountFetchResult]
     {
         let requests:
             [(
@@ -728,7 +733,7 @@ extension UsageStore {
             for request in requests {
                 if !results.isEmpty {
                     do {
-                        try await Task.sleep(for: delay)
+                        try await sleep(delay)
                     } catch {
                         for pending in requests.dropFirst(results.count) {
                             results.append(

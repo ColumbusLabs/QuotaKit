@@ -54,6 +54,10 @@ can take a few extra seconds while CodexBar waits for readiness; later refreshes
 The local and CLI paths both prefer Antigravity's internal `RetrieveUserQuotaSummary` quota payload and may fall back to
 `GetUserStatus`, then `GetCommandModelConfigs`; QuotaKit never scrapes the desktop UI or the `agy` TUI.
 
+Google OAuth Cloud Code requests use the fixed compatibility identity
+`antigravity/hub/2.9.1 <darwin|linux>/<arm64|amd64>` for account setup, quota summaries, and legacy quota fallbacks,
+including selected Google accounts. Google OAuth token refresh keeps its own request identity.
+
 As of Antigravity 2.x, the Antigravity app and `agy` CLI payloads can be richer than Google OAuth and IDE payloads.
 `RetrieveUserQuotaSummary` exposes the same two groups shown by Antigravity's Model Quota UI:
 

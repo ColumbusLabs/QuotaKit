@@ -40,6 +40,37 @@ struct CursorSandUsageTests {
         #expect(status.extraRateWindow(resetDescription: { _ in "Resets" }) == nil)
     }
 
+    @Test
+    func `paid grok bot cadence uses a full week when period starts mid-week`() throws {
+        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: "2026-10-02T18:03:04Z",
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 44.935,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let window = try #require(status.extraRateWindow(now: now, resetDescription: { _ in "Resets" }))
+        #expect(window.window.windowMinutes == 7 * 24 * 60)
+        #expect(window.window.usedPercent == 44.935)
+
+        let pace = try #require(UsagePace.weekly(window: window.window, now: now))
+        #expect(abs(pace.expectedUsedPercent - 64.702) < 0.001)
+        #expect(abs(pace.deltaPercent + 19.767) < 0.001)
+        #expect(pace.willLastToReset)
+    }
+
+    @Test(arguments: [nil, "not-a-date", "2026-10-02T18:03:04Z"] as [String?])
+    func `paid grok bot weekly cadence ignores its reported start`(start: String?) throws {
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: start,
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 10,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let window = try #require(status.extraRateWindow(resetDescription: { _ in "Resets" }))
+        #expect(window.window.windowMinutes == 7 * 24 * 60)
+    }
+
     @Test(arguments: [12.3, 100.0])
     func `reported trial schema keeps available and exhausted usage without recurring reset`(used: Double) throws {
         let status = try Self.status(expiry: "2026-09-21T09:12:32.776Z", used: used)

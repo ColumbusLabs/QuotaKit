@@ -132,7 +132,8 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             domains: runtime.manifest.cookieDomains,
             context: context,
             importer: importer,
-            usesCookieJar: runtime.manifest.usesCookieJar)
+            usesCookieJar: runtime.manifest.usesCookieJar,
+            policy: runtime.manifest.cookiePolicy)
         let result = try await runtime.fetchResult(
             settings: values.settings,
             secrets: values.secrets,

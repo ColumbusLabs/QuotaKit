@@ -93,6 +93,7 @@ enum BurnProviderChoice: String, AppEnum {
     case llmman
     case xkiro
     case museai
+    case lithosai
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -188,6 +189,7 @@ enum BurnProviderChoice: String, AppEnum {
         .llmman: DisplayRepresentation(title: "llmman"),
         .xkiro: DisplayRepresentation(title: "xKiro"),
         .museai: DisplayRepresentation(title: "Muse (muse.ai)"),
+        .lithosai: DisplayRepresentation(title: "LithosAI"),
     ]
 
     var provider: UsageProvider? {

@@ -91,6 +91,7 @@ extension ProviderInstanceID {
     public static let muse = UsageProvider.muse.instanceID
     public static let pi = UsageProvider.pi.instanceID
     public static let museai = UsageProvider.museai.instanceID
+    public static let lithosai = UsageProvider.lithosai.instanceID
 }
 
 // swiftformat:enable sortDeclarations

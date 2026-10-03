@@ -55,7 +55,9 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
                 source: context.settings.opencodegoCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies from opencode.ai."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies from opencode.ai."),
+                        provider: .opencodego),
                     manual: L("Paste a Cookie header captured from %@.", "opencode.ai"),
                     off: L("%@ cookies are disabled.", "OpenCode Go")))
         }
@@ -64,7 +66,9 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "opencodego-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies from opencode.ai."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies from opencode.ai."),
+                    provider: .opencodego),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

@@ -54,13 +54,17 @@ struct MuseProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "muse-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatically imports browser cookies."),
+                    provider: .muse),
                 dynamicSubtitle: {
                     ProviderCookieSourceUI.subtitle(
                         source: context.settings.museCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
                         subtitles: ProviderCookieSourceUI.Subtitles(
-                            auto: L("Automatically imports browser cookies."),
+                            auto: ProviderCookieSourceUI.browserImportSubtitle(
+                                L("Automatically imports browser cookies."),
+                                provider: .muse),
                             manual: L("Paste a Cookie header from %@.", "dev.meta.ai"),
                             off: L("%@ cookies are disabled.", "Muse Code")))
                 },

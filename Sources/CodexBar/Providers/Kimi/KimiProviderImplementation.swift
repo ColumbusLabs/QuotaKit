@@ -81,7 +81,9 @@ struct KimiProviderImplementation: ProviderImplementation {
                 source: context.settings.kimiCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies."),
+                        provider: .kimi),
                     manual: L("Paste a full cookie header or the %@ value.", "kimi-auth"),
                     off: L("%@ cookies are disabled.", "Kimi")))
         }
@@ -117,7 +119,9 @@ struct KimiProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "kimi-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies."),
+                    provider: .kimi),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

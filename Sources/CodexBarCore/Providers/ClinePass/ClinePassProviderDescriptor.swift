@@ -16,7 +16,6 @@ public enum ClinePassProviderDescriptor {
         dashboardURL: "https://app.cline.bot/dashboard/subscription?personal=true",
         color: .init(hex: 0x5487C8),
         confetti: [0x61A3FA, 0x111111, 0xFFFFFF],
-        widgetColor: .init(red: 0.38, green: 0.64, blue: 0.98),
         noDataMessage: "ClinePass cost history is not available via the usage-limits API.",
         environmentKey: "CLINE_API_KEY",
         environmentAliases: ["CLINEPASS_API_KEY"],

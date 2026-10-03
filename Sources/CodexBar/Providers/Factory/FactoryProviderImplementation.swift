@@ -75,7 +75,9 @@ struct FactoryProviderImplementation: ProviderImplementation {
                 source: context.settings.factoryCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies and WorkOS tokens."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies and WorkOS tokens."),
+                        provider: .factory),
                     manual: L("Paste a Cookie or Authorization header from %@.", "app.factory.ai"),
                     off: L("%@ cookies are disabled.", "Factory")))
         }
@@ -98,7 +100,9 @@ struct FactoryProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "factory-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies and WorkOS tokens."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies and WorkOS tokens."),
+                    provider: .factory),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

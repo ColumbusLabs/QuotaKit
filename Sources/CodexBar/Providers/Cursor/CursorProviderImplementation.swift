@@ -75,7 +75,9 @@ struct CursorProviderImplementation: ProviderImplementation {
                 source: context.settings.cursorCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies or stored sessions."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies or stored sessions."),
+                        provider: .cursor),
                     manual: L("Paste a Cookie header from %@.", "cursor.com"),
                     off: L("%@ cookies are disabled.", "Cursor")))
         }
@@ -97,7 +99,9 @@ struct CursorProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "cursor-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies or stored sessions."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies or stored sessions."),
+                    provider: .cursor),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

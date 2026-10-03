@@ -105,7 +105,7 @@ defineProvider({
       throw rejected
         ? ctx.fail.authenticationExpired("muse.ai session expired. Sign in at muse.ai and refresh.")
         : ctx.fail.missingCredential(
-            "No muse.ai session found. Sign in at muse.ai in Chrome, or set a manual Cookie header.",
+            `No muse.ai session found. Sign in at muse.ai. Supported browsers: ${ctx.browser.supportedBrowsers}. Or set a manual Cookie header.`,
           );
     }
     if (response.status !== 200) throw ctx.fail.apiFailure(`muse.ai returned HTTP ${response.status}.`);

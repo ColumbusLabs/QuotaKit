@@ -51,7 +51,9 @@ struct AugmentProviderImplementation: ProviderImplementation {
                 source: context.settings.augmentCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies."),
+                        provider: .augment),
                     manual: L("Paste a Cookie header or cURL capture from %@.", "Augment dashboard"),
                     off: L("%@ cookies are disabled.", "Augment")))
         }
@@ -60,7 +62,9 @@ struct AugmentProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "augment-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies."),
+                    provider: .augment),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

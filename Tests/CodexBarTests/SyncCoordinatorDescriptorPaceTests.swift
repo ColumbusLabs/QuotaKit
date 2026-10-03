@@ -1,8 +1,8 @@
-import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 @Suite("SyncCoordinator descriptor pace", .serialized)
@@ -75,6 +75,33 @@ struct SyncCoordinatorDescriptorPaceTests {
 
         let credits = try #require(provider.rateWindows.first { $0.label == "Credits" })
         #expect(credits.pace != nil)
+    }
+
+    @Test
+    func `Cursor paid Grok Bot extra publishes weekly identity and pace to iPhone`() async throws {
+        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
+        let resetsAt = try #require(ISO8601DateParser.parse("2026-10-05T11:20:04Z"))
+        let extraWindow = NamedRateWindow(
+            id: CursorSandUsageStatus.extraWindowID,
+            title: CursorSandUsageStatus.extraWindowTitle,
+            window: RateWindow(
+                usedPercent: 44.935,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: resetsAt,
+                resetDescription: "Resets"))
+        let provider = try await self.syncedProvider(
+            .cursor,
+            snapshot: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                extraRateWindows: [extraWindow],
+                updatedAt: now),
+            suite: "SyncCoord-descriptor-pace-cursor-grok-bot-\(UUID().uuidString)")
+
+        let grokBot = try #require(provider.rateWindows.first { $0.label == "Grok Bot" })
+        #expect(grokBot.windowMinutes == 7 * 24 * 60)
+        #expect(grokBot.identity == .weekly)
+        #expect(grokBot.pace != nil)
     }
 
     @Test

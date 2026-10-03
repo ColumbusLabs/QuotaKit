@@ -38,7 +38,9 @@ struct MiMoProviderImplementation: ProviderImplementation {
                 source: context.settings.miMoCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatic imports browser cookies from Xiaomi MiMo."),
+                    auto: ProviderCookieSourceUI.browserImportSubtitle(
+                        L("Automatic imports browser cookies from Xiaomi MiMo."),
+                        provider: .mimo),
                     manual: L("Paste a Cookie header from %@.", "platform.xiaomimimo.com"),
                     off: L("%@ cookies are disabled.", "Xiaomi MiMo")))
         }
@@ -47,7 +49,9 @@ struct MiMoProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "mimo-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatic imports browser cookies from Xiaomi MiMo."),
+                subtitle: ProviderCookieSourceUI.browserImportSubtitle(
+                    L("Automatic imports browser cookies from Xiaomi MiMo."),
+                    provider: .mimo),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

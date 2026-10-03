@@ -1719,3 +1719,4 @@
 "QuotaKit Help" = "QuotaKit 說明";
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "選擇或傳入 Google 帳號後，Auto 僅在身分相符時接受本機應用程式、agy CLI 和 IDE 的報告，然後嘗試 OAuth。明確選擇 Local API / agy CLI 時，可以使用另一個已在本機登入的帳號。";
+"Supported browsers: %@. Use Manual for other browsers." = "支援的瀏覽器：%@。其他瀏覽器請使用「手動」模式。";
