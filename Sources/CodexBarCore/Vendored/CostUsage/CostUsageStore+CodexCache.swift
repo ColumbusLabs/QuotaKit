@@ -990,6 +990,7 @@ extension CostUsageStore {
         from snapshot: CostUsageStoreSnapshot,
         hydratingPaths: Set<String>? = nil,
         tokenSnapshotsLoaded: Bool = true,
+        explicitlyLoadedTokenSnapshotPaths: Set<String> = [],
         preserveMalformedFiles: Bool = false,
         decodedUsageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
         makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
@@ -1084,7 +1085,13 @@ extension CostUsageStore {
             let restoredTokenSnapshots: [CostUsageCodexTokenSnapshot]? = if
                 details.hasTokenSnapshots || hasMalformedDetails, isHydrated
             {
-                if tokenSnapshotsLoaded || snapshot.tokenSnapshotCounts?[file.path] == tokenSnapshots.count {
+                // A compact row count can confirm an empty valid history, but malformed
+                // details cannot establish whether the manifest's token-history marker was
+                // present. Keep that path unloaded until its rows are read under the receipt.
+                if tokenSnapshotsLoaded
+                    || explicitlyLoadedTokenSnapshotPaths.contains(file.path)
+                    || (!hasMalformedDetails && snapshot.tokenSnapshotCounts?[file.path] == tokenSnapshots.count)
+                {
                     tokenSnapshots
                 } else {
                     nil

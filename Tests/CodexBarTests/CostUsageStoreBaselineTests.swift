@@ -346,8 +346,10 @@ struct CostUsageStoreBaselineTests {
             .codexPriorityTurnsCursor == advancedCursor)
     }
 
-    @Test
-    func `metadata refresh preserves partially hydrated token history`() async throws {
+    @Test(arguments: [false, true])
+    func `metadata refresh preserves partially hydrated token history with malformed details`(
+        malformedDetails: Bool) async throws
+    {
         let fixture = try BaselineStoreFixture()
         defer { fixture.remove() }
         let calendar = Calendar(identifier: .gregorian)
@@ -376,6 +378,12 @@ struct CostUsageStoreBaselineTests {
         cache.days = usage.days
         let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
         #expect(!store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window).catchUpRequired)
+
+        if malformedDetails {
+            var file = try #require(await store.fetchFile(path: path))
+            file.scanState.detailsPayload = Data("{malformed".utf8)
+            #expect(await store.upsertFile(file))
+        }
 
         var staleMetadata = await store.fetchMetadata()
         staleMetadata.verifiedScanSinceDay = nil

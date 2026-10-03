@@ -109,11 +109,13 @@ extension CostUsageStore {
         stamp: CodexScanStamp,
         decoded: CostUsageCache? = nil,
         usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
-        usageRowCountsByPath: [String: Int]? = nil) -> CodexDecodedBaseline
+        usageRowCountsByPath: [String: Int]? = nil,
+        explicitlyLoadedTokenSnapshotPaths: Set<String> = []) -> CodexDecodedBaseline
     {
         let decoded = decoded ?? Self.decodeCodexCache(
             from: snapshot,
             tokenSnapshotsLoaded: snapshot.tokenSnapshotsLoaded,
+            explicitlyLoadedTokenSnapshotPaths: explicitlyLoadedTokenSnapshotPaths,
             preserveMalformedFiles: !snapshot.tokenSnapshotsLoaded,
             decodedUsageRowsByPath: usageRowsByPath)
         var persistence = CodexPersistenceState(
@@ -124,7 +126,9 @@ extension CostUsageStore {
             persistence.unloadedTokenSnapshotPaths = Set(persistence.snapshotCounts.compactMap { path, count in
                 guard count > 0, decoded.files[path]?.codexTokenSnapshots == nil else { return nil }
                 return path
-            }).union(persistence.malformedDetailsPaths)
+            }).union(persistence.malformedDetailsPaths.filter {
+                decoded.files[$0]?.codexTokenSnapshots == nil
+            })
         }
         return CodexDecodedBaseline(
             decoded: decoded,
@@ -160,7 +164,8 @@ extension CostUsageStore {
             from: read.snapshot,
             stamp: read.stamp,
             usageRowsByPath: read.usageRowsByPath,
-            usageRowCountsByPath: read.usageRowCountsByPath)
+            usageRowCountsByPath: read.usageRowCountsByPath,
+            explicitlyLoadedTokenSnapshotPaths: loadedTokenSnapshotPaths)
     }
 
     #if DEBUG

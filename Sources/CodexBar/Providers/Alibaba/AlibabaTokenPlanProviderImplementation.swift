@@ -69,7 +69,7 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
                 subtitles: ProviderCookieSourceUI.Subtitles(
                     auto: ProviderCookieSourceUI.browserImportSubtitle(
                         L("Automatic imports browser cookies from Model Studio/Bailian."),
-                        provider: .alibabatokenplan),
+                        provider: self.id),
                     manual: Self.manualCookieHeaderSubtitle(host: host),
                     off: L("%@ cookies are disabled.", "Alibaba Token Plan")))
         }
@@ -103,7 +103,7 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
                 title: "Cookie source",
                 subtitle: ProviderCookieSourceUI.browserImportSubtitle(
                     L("Automatic imports browser cookies from Model Studio/Bailian."),
-                    provider: .alibabatokenplan),
+                    provider: self.id),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
