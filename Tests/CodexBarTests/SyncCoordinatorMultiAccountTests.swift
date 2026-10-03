@@ -19,28 +19,21 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct SyncCoordinatorMultiAccountTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        defaults.set(true, forKey: "providerDetectionCompleted")
         // Reset mock-provider state — see same comment in
         // SyncMultiAccountEdgeCasesTests.makeSettingsStore.
         UserDefaults.standard.removeObject(
             forKey: MockProviderInjector.userDefaultsKey)
-        let configStore = testConfigStore(suiteName: suite)
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
-        settings.providerDetectionCompleted = true
-        return settings
+        return testSettingsStore(
+            suiteName: suite,
+            prepareDefaults: { $0.set(true, forKey: "providerDetectionCompleted") })
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {
         UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            startupBehavior: .testing)
     }
 
     private func makeTokenAccount(

@@ -8816,6 +8816,17 @@ enum CostUsageScanner {
                 var dependencyLookbackState = finalizedLookbackState ?? activeLookbackState
                 Self.reseedCodexActiveLookbackPathKeys(
                     scanResult.deferredParentPaths.sorted(), state: &dependencyLookbackState)
+                let processedPaths = Set(scanResult.processedPaths.map {
+                    Self.codexResolvedPath(URL(fileURLWithPath: $0))
+                })
+                if let promotedPendingPath,
+                   !processedPaths.contains(Self.codexResolvedPath(URL(fileURLWithPath: promotedPendingPath)))
+                {
+                    // A child deferred before processing still owes its queued parent a FIFO
+                    // turn; otherwise the next refresh would promote that same child again.
+                    dependencyLookbackState.priorityAdmissionDebt = max(
+                        1, dependencyLookbackState.priorityAdmissionDebt ?? 0)
+                }
                 finalizedLookbackState = dependencyLookbackState
             }
             cache.codexActiveLookbackState = finalizedLookbackState

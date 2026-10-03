@@ -94,6 +94,26 @@ struct CostFormattingTests {
 
 @Suite("Provider detail daily spend presentation")
 struct ProviderDailySpendPresentationTests {
+    private static func dailyPoints(from startDayKey: String, count: Int) -> [SyncDailyPoint] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.isLenient = false
+        guard let startDate = formatter.date(from: startDayKey) else { return [] }
+
+        return (0..<count).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: startDate) else { return nil }
+            return SyncDailyPoint(
+                dayKey: formatter.string(from: date),
+                costUSD: Double(offset),
+                totalTokens: offset)
+        }
+    }
+
     @Test
     func `latest day defaults to the lexically latest wire day key`() {
         let daily = [
@@ -108,6 +128,90 @@ struct ProviderDailySpendPresentationTests {
             "2026-07-30",
             "2026-07-31",
         ])
+    }
+
+    @Test
+    func `thirty day axis uses five compact ticks and leaves selected day key intact`() {
+        let daily = Self.dailyPoints(from: "2026-01-01", count: 30)
+        let ticks = ProviderDailySpendPresentation.axisTicks(
+            in: daily,
+            locale: Locale(identifier: "en_US"))
+        let selectedPoint = daily[18]
+
+        #expect(ticks.map(\.dayKey) == [
+            "2026-01-01",
+            "2026-01-08",
+            "2026-01-15",
+            "2026-01-22",
+            "2026-01-29",
+        ])
+        #expect(ticks.allSatisfy { !$0.label.contains("-") })
+        #expect(!ticks.contains(where: { $0.dayKey == selectedPoint.dayKey }))
+        #expect(ProviderDailySpendPresentation.detail(for: selectedPoint).dayKey == selectedPoint.dayKey)
+    }
+
+    @Test
+    func `year of daily points has at most five axis ticks in every thirty day viewport`() {
+        let daily = Self.dailyPoints(from: "2025-01-01", count: 365)
+        let ticks = ProviderDailySpendPresentation.axisTicks(in: daily, locale: Locale(identifier: "en_US"))
+        let indices = Dictionary(uniqueKeysWithValues: daily.enumerated().map { ($0.element.dayKey, $0.offset) })
+        let tickIndices = ticks.compactMap { indices[$0.dayKey] }
+        let maximumVisibleTicks = (0...(daily.count - 30)).map { startIndex in
+            tickIndices.filter { $0 >= startIndex && $0 < startIndex + 30 }.count
+        }
+        .max() ?? 0
+
+        #expect(tickIndices.first == 0)
+        #expect(tickIndices.last == 364)
+        #expect(maximumVisibleTicks == 5)
+    }
+
+    @Test
+    func `axis ticks sort and deduplicate keys while keeping short histories readable`() {
+        let shuffled = [
+            "2026-01-08",
+            "2026-01-02",
+            "2026-01-01",
+            "2026-01-03",
+            "2026-01-04",
+            "2026-01-05",
+            "2026-01-06",
+            "2026-01-07",
+            "2026-01-01",
+        ].map { SyncDailyPoint(dayKey: $0, costUSD: 1, totalTokens: 1) }
+        let shortHistory = Self.dailyPoints(from: "2026-02-01", count: 7)
+
+        #expect(ProviderDailySpendPresentation.axisTicks(in: []).isEmpty)
+        #expect(ProviderDailySpendPresentation.axisTicks(in: shuffled).map(\.dayKey) == [
+            "2026-01-01",
+            "2026-01-08",
+        ])
+        #expect(ProviderDailySpendPresentation.axisTicks(in: shortHistory).count == 7)
+        #expect(ProviderDailySpendPresentation.axisTicks(in: Array(shortHistory.prefix(1))).count == 1)
+    }
+
+    @Test
+    func `axis labels preserve civil day across year and daylight saving boundaries`() {
+        let locale = Locale(identifier: "en_US")
+
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2025-12-31", locale: locale) == "12/31")
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2026-03-08", locale: locale) == "3/8")
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2026-11-01", locale: locale) == "11/1")
+        #expect(
+            ProviderDailySpendPresentation.compactDateLabel(
+                for: "2026-03-08",
+                locale: Locale(identifier: "en_GB")) == "08/03")
+    }
+
+    @Test
+    func `axis labels reject malformed and impossible civil dates`() {
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2026-02-30") == nil)
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2026-13-01") == nil)
+        #expect(ProviderDailySpendPresentation.compactDateLabel(for: "2026-2-01") == nil)
+        #expect(
+            ProviderDailySpendPresentation.axisTicks(in: [
+                SyncDailyPoint(dayKey: "2026-02-30", costUSD: 1, totalTokens: 1),
+            ]).isEmpty)
     }
 
     @Test

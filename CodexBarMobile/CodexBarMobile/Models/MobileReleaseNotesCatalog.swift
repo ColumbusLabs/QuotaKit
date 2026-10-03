@@ -46,6 +46,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Verified Codex daily spend and model details now update while your Mac rebuilds older history."),
                         String(
+                            localized: "Daily Spend date labels stay readable when the chart fills with history."),
+                        String(
                             localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),
                         String(
                             localized: "GitKraken AI weekly usage, branding, and quota alerts now sync from QuotaKit Mac."),

@@ -168,3 +168,75 @@ files genuinely pending through valid appends, resumes the restored old fork
 within its byte limit, then gives an older waiter its admission-debt turn.
 Current-day activity and unknown activity dates still fail closed. Independent
 review passed the scheduling, migration and final fairness fixture changes.
+
+## Final candidate review follow-up
+
+Mac 0.32.4.33 source `66c51f2cb` was signed and notarized but remains a
+private draft. Further review identified a conditional scheduling deadlock:
+a promoted child can defer to a discovered parent whose cached session ID
+is missing or stale. Reseeding that parent is insufficient if the child is
+promoted again before it on every refresh. The repair must give an unserved
+child's deferred dependency a bounded FIFO turn, preserve larger admission
+debt, and keep coverage closed until the required baseline resolves. A
+regression must demonstrate actual parent parsing rather than queue order
+alone. The installed producer remains 0.32.4.32.
+
+Hosted CI for that candidate passed the other required jobs but timed out
+`SyncCoordinatorMultiAccountTests` in both a grouped run and an isolated
+retry. The same test passed on the preceding published source. This failure
+is under separate investigation; increasing the timeout or omitting the
+selection would not establish the release gate. Publication requires a new
+source candidate with the accepted scheduling finding resolved and the
+required hosted gates passing. TestFlight 1.11.4 (179) remains installed;
+the user reports that daily spend still does not update.
+
+At 23:03 UTC, the installed 0.32.4.32 producer eventually completed the
+historical blocker and began publishing current-day evidence. Outgoing
+revisions advanced from 16 to 18 through normal refreshes. At 23:05 UTC,
+revision 18, lineage and verification time matched the persisted daily proof;
+outgoing known dollars and tokens exactly matched the certified aggregate
+($260.74378756 and 1,019,905,847 tokens). These observations establish Mac
+source and local outgoing progress, not CloudKit server receipt or iPhone
+behavior. The bounded scheduling repair remains needed to avoid the observed
+hours of delayed verification after catch-up starts. Phone verification and
+repaired-source delivery remain pending.
+
+The multi-account fixture now uses the shared isolated defaults/config and
+in-memory token/cookie stores, with a no-op Keychain policy and explicit
+testing startup behavior. Its identity and sync assertions are unchanged.
+The focused suite passed 21 tests in 0.414 seconds, and independent review
+passed the isolation changes. This does not identify the original blocked
+thread; hosted verification of the new source is still required.
+
+## Phone confirmation and date-axis repair
+
+The user subsequently confirmed that spend updates on TestFlight 179. Their
+October 3 screenshot shows $262.18 and 1.0 billion tokens, with the correct
+selected day but overlapping full ISO date labels along the chart axis. The
+axis uses string categories, so numeric stride marks did not enforce sparse
+date labels. The repair retains those original day keys for scrolling and
+selection, supplies explicit ticks spaced every seven categories for longer
+histories, and formats compact localized civil dates in Gregorian UTC. The
+selected detail keeps its complete day key. Tests cover long histories,
+sorting, duplicates, locale order, year/DST boundaries and invalid dates.
+
+The deferred-parent scheduling regression now demonstrates actual bounded
+parent parsing, with a clean failing run before the fix and a passing run
+after it. Seven existing scheduling/fairness cases also passed. Independent
+review accepted the bounded admission-debt repair without relaxing coverage
+guards. The final generated parser hash is `af117122edc4c286`; the private
+source-66 release artifacts are retained separately and will not be published.
+The corrected source requires fresh hosted CI and new signed Mac artifacts.
+TestFlight 180 is prepared for the date-axis repair; its simulator, archive,
+upload and distribution results remain pending. App Store submission remains
+excluded.
+
+The mobile date-axis repair passed the full iPhone 17 Pro / iOS 27 simulator
+release gate: 793 tests, zero failures or skips. The new narrow-width render
+case was inspected for 30- and 365-day histories in both bar and line styles;
+compact labels stay separated and selected detail remains 2026-10-03. The
+existing chart scrubbing UI case passed. The first focused run exposed only an
+incorrect UK-format expectation (08/03 is the platform's localized result);
+that expectation was corrected before the successful full gate. The new
+release-note key is translated in all 23 supported locales. Build 180 signing
+and upload preflight passed for the expected Columbus Labs team.

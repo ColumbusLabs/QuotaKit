@@ -33,6 +33,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Fixed
 
+- Daily Spend date labels use compact, spaced labels instead of overlapping full dates, while preserving the selected day's details and history scrolling.
+
 - Verified Codex daily spend and model details update during Mac historical catch-up across both spend views, persisted caches, and the Cost Ledger, including corrected lower totals and zero days.
 
 - Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.

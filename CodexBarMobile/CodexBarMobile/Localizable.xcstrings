@@ -20624,6 +20624,149 @@
           }
         }
       }
+    },
+    "Daily Spend date labels stay readable when the chart fills with history.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تبقى تسميات تواريخ الإنفاق اليومي واضحة عندما يمتلئ الرسم البياني بالسجل."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les etiquetes de data de la despesa diària continuen sent llegibles quan el gràfic s’omple d’historial."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datumsbeschriftungen der täglichen Ausgaben bleiben auch bei umfangreichem Verlauf lesbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily Spend date labels stay readable when the chart fills with history."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las etiquetas de fecha del gasto diario siguen siendo legibles cuando el gráfico se llena de historial."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "برچسب‌های تاریخ هزینهٔ روزانه با پر شدن نمودار از سابقه همچنان خوانا می‌مانند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les dates des dépenses quotidiennes restent lisibles lorsque le graphique se remplit d’historique."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As etiquetas de data do gasto diario seguen sendo lexibles cando a gráfica se enche de historial."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Label tanggal pengeluaran harian tetap terbaca saat grafik terisi riwayat."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le etichette delle date della spesa giornaliera restano leggibili quando il grafico si riempie di dati storici."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴が増えても、日別支出グラフの日付ラベルを読みやすく表示します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록이 많아져도 일일 지출 차트의 날짜 라벨이 읽기 쉽게 표시됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De datumlabels van dagelijkse uitgaven blijven leesbaar wanneer de grafiek zich vult met geschiedenis."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etykiety dat dziennych wydatków pozostają czytelne, gdy wykres wypełnia się historią."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os rótulos de data dos gastos diários continuam legíveis quando o gráfico se enche de histórico."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подписи дат ежедневных расходов остаются читаемыми даже при большом объёме истории на графике."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datumetiketterna för dagliga utgifter förblir läsbara när diagrammet fylls med historik."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ป้ายวันที่ของค่าใช้จ่ายรายวันยังอ่านได้ชัดเจนเมื่อกราฟมีประวัติมากขึ้น"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grafik geçmişle dolduğunda günlük harcama tarih etiketleri okunabilir kalır."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Підписи дат щоденних витрат залишаються читабельними, коли графік заповнюється історією."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nhãn ngày của chi tiêu hằng ngày vẫn dễ đọc khi biểu đồ có nhiều dữ liệu lịch sử."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史数据增多时，每日支出图表的日期标签仍清晰可读。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "歷史資料增多時，每日支出圖表的日期標籤仍清晰可讀。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

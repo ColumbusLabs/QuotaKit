@@ -1243,6 +1243,177 @@ struct CostUsageBoundedProgressTests {
     }
 
     @Test
+    func `stale cached parent identity gets a bounded FIFO turn before child retries`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        var options = Self.boundedOptions(env: env)
+        options.preferNewestCodexSessionsFirst = true
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = nil
+        let parentSessionID = "target-000"
+        let fixture = try Self.prepareResumableMissingParentFixture(
+            env: env,
+            historicalDay: historicalDay,
+            currentDay: currentDay,
+            options: &options,
+            parentSessionID: parentSessionID,
+            includeForkTimestamp: true)
+        let forkPath = fixture.forkURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let parentURL = try #require(fixture.historicalURLs.first)
+        let parentPath = parentURL.resolvingSymlinksInPath().standardizedFileURL.path
+
+        let initial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let initialParent = try #require(initial.files[parentPath])
+        let initialParentSessionID = try #require(initialParent.sessionId)
+        #expect(initialParent.codexScanComplete == true)
+        #expect(initialParent.hasCurrentCodexParser)
+        let initialDiscovery = try #require(initial.codexSessionDiscovery)
+
+        // The durable metadata index has the correct parent path, while the compact cached
+        // parent entry has lost its session ID. Keep the file's size, identity, and mtime stable
+        // so bounded metadata refresh cannot discover the mismatch by stat alone.
+        let originalParentData = try Data(contentsOf: parentURL)
+        let originalParentText = try #require(String(bytes: originalParentData, encoding: .utf8))
+        let updatedParentText = originalParentText.replacingOccurrences(
+            of: #"session_id":"\#(initialParentSessionID)"#,
+            with: #"session_id":"\#(parentSessionID)"#)
+        #expect(updatedParentText != originalParentText)
+        #expect(updatedParentText.utf8.count == originalParentData.count)
+        let parentHandle = try FileHandle(forWritingTo: parentURL)
+        try parentHandle.seek(toOffset: 0)
+        try parentHandle.write(contentsOf: Data(updatedParentText.utf8))
+        try parentHandle.close()
+        let parentMtime = Date(timeIntervalSince1970: TimeInterval(initialParent.mtimeUnixMs) / 1000)
+        try FileManager.default.setAttributes([.modificationDate: parentMtime], ofItemAtPath: parentURL.path)
+
+        var staleParentCache = initial
+        var staleParent = initialParent
+        staleParent.sessionId = nil
+        staleParent.codexSession?.sessionId = nil
+        staleParent.codexSession?.concreteSessionId = nil
+        staleParentCache.files[parentPath] = staleParent
+        var completedDiscovery = initialDiscovery
+        completedDiscovery.filePathBySessionId.removeValue(forKey: initialParentSessionID)
+        completedDiscovery.filePathBySessionId[parentSessionID] = parentPath
+        completedDiscovery.missingSessionIds.removeAll { $0 == parentSessionID }
+        completedDiscovery.pendingSessionIds.removeAll { $0 == parentSessionID }
+        completedDiscovery.metadataCandidateIndex = completedDiscovery.filePaths.count
+        completedDiscovery.metadataInventoryEstablished = true
+        completedDiscovery.isComplete = true
+        staleParentCache.codexSessionDiscovery = completedDiscovery
+        staleParentCache.codexActiveLookbackState = try Self.completedLookbackState(
+            cache: staleParentCache,
+            options: options,
+            pendingFilePaths: fixture.historicalURLs.map(\.path.resolvingTemporaryPath))
+        staleParentCache.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleParentCache)
+
+        let beforeResume = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let beforeChild = try #require(beforeResume.files[forkPath])
+        #expect(beforeChild.codexScanComplete == false)
+        #expect(CostUsageScanner.isUnresolvedMissingParentFork(beforeChild))
+        #expect(beforeChild.codexBufferedUnresolvedForkLines?.contains { buffered in
+            guard case let .sessionMeta(metadata) = buffered.line else { return false }
+            return metadata.forkTimestamp != nil
+        } == true)
+        #expect(beforeResume.codexSessionDiscovery?.metadataCandidateIndex == completedDiscovery.filePaths.count)
+        #expect(beforeResume.codexSessionDiscovery?.metadataInventoryEstablished == true)
+        #expect(beforeResume.codexSessionDiscovery?.filePathBySessionId[parentSessionID] == parentPath)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        // The boosted child cannot use the cached parent row because its session identity is
+        // missing. It defers before spending byte budget and queues that parent for the next pass.
+        let blockedBudget = CostUsageScanner.CodexScanBudget(maxFileBytes: 512, maxBytesPerRefresh: 512)
+        let blockedRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanBudgetForTesting = blockedBudget
+        options.codexScanWorkRecorderForTesting = blockedRecorder
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay.addingTimeInterval(2),
+            options: options)
+
+        let blocked = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(blockedRecorder.attemptedCodexFilePaths().contains(forkPath))
+        #expect(!blockedRecorder.attemptedCodexFilePaths().contains(parentPath))
+        #expect(blocked.codexActiveLookbackState?.pendingFilePaths.first == parentPath)
+        #expect(blocked.files[parentPath]?.sessionId == nil)
+        #expect(blockedBudget.bytesConsumed == 0)
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: blocked,
+            roots: roots,
+            dayKey: fixture.todayKey,
+            calendar: options.calendar) == .fork)
+
+        // Debt must let the newly queued dependency parse before promoting the blocking child
+        // again. A 512-byte refresh admits only one uncached detail path at a time.
+        let parentTurnBudget = CostUsageScanner.CodexScanBudget(maxFileBytes: 512, maxBytesPerRefresh: 512)
+        let parentTurnRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanBudgetForTesting = parentTurnBudget
+        options.codexScanWorkRecorderForTesting = parentTurnRecorder
+        _ = CostUsageControlledClockScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay.addingTimeInterval(3),
+            options: options)
+
+        let parentTurn = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let parsedParent = try #require(parentTurn.files[parentPath])
+        #expect(parentTurnRecorder.attemptedCodexFilePaths().contains(parentPath))
+        #expect(parsedParent.sessionId == parentSessionID)
+        #expect(parsedParent.parsedBytes == parsedParent.size)
+        #expect(parentTurnBudget.bytesConsumed > 0)
+        #expect(parentTurnBudget.bytesConsumed <= 512)
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: parentTurn,
+            roots: roots,
+            dayKey: fixture.todayKey,
+            calendar: options.calendar) == .fork)
+
+        options.maxCodexSessionFileBytes = 4 * 1024 * 1024
+        options.maxCodexScanBytesPerRefresh = 4 * 1024 * 1024
+        for pass in 0..<6 {
+            let current = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if current.files[forkPath]?.codexScanComplete == true { break }
+            let budget = CostUsageScanner.CodexScanBudget(
+                maxFileBytes: 4 * 1024 * 1024,
+                maxBytesPerRefresh: 4 * 1024 * 1024)
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanBudgetForTesting = budget
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageControlledClockScanner.loadDailyReport(
+                provider: .codex,
+                since: historicalDay,
+                until: currentDay,
+                now: currentDay.addingTimeInterval(TimeInterval(pass + 4)),
+                options: options)
+            #expect(recorder.snapshot().codexCandidateSelectionVisits
+                <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+            #expect(budget.bytesConsumed <= 4 * 1024 * 1024)
+        }
+
+        options.codexScanBudgetForTesting = nil
+        let resolved = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let resolvedChild = try #require(resolved.files[forkPath])
+        #expect(resolvedChild.codexScanComplete == true)
+        #expect(!CostUsageScanner.isUnresolvedMissingParentFork(resolvedChild))
+        #expect(CostUsageScanner.codexCurrentDayProjectionGateReason(
+            cache: resolved,
+            roots: roots,
+            dayKey: fixture.todayKey,
+            calendar: options.calendar) == nil)
+        let projection = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(
+            calendar: options.calendar,
+            temporalRange: (sinceDay: fixture.todayKey, untilDay: fixture.todayKey))
+        #expect(projection.verifiedDayKeys.contains(fixture.todayKey))
+        #expect((projection.verifiedDayEvidence[fixture.todayKey]?.revision ?? 0) > 0)
+    }
+
+    @Test
     func `settled missing parent fork with a current activity suffix still blocks today's proof`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -1905,7 +2076,9 @@ struct CostUsageBoundedProgressTests {
         env: CostUsageTestEnvironment,
         historicalDay: Date,
         currentDay: Date,
-        options: inout CostUsageScanner.Options) throws -> (
+        options: inout CostUsageScanner.Options,
+        parentSessionID: String = "missing-parent",
+        includeForkTimestamp: Bool = false) throws -> (
         historicalURLs: [URL],
         forkURL: URL,
         todayKey: String,
@@ -1922,7 +2095,7 @@ struct CostUsageBoundedProgressTests {
                 [
                     #"{"type":"session_meta","timestamp":"2026-05-08T16:00:00Z","payload":{"#,
                     #""id":"old-orphan","forked_from_id":"#,
-                    #""missing-parent"}}"#,
+                    #""\#(parentSessionID)"}}"#,
                 ].joined(),
                 #"{"type":"turn_context","timestamp":"2026-05-08T16:00:01Z","payload":{"model":"openai/gpt-5.4"}}"#,
                 [
@@ -1956,10 +2129,11 @@ struct CostUsageBoundedProgressTests {
         let paddingLines = (0..<2000).map { _ in
             #"{"type":"turn_context","payload":{"model":"openai/gpt-5.4"}}"#
         }
+        let forkTimestampField = includeForkTimestamp ? #","timestamp":"\#(currentISO)""# : ""
         let orphanContents = ([
             [
                 #"{"type":"session_meta","timestamp":"\#(currentISO)","payload":{"id":"old-orphan","forked_from_id":"#,
-                #""missing-parent"}}"#,
+                #""\#(parentSessionID)"\#(forkTimestampField)}}"#,
             ].joined(),
             #"{"type":"turn_context","timestamp":"\#(currentISO)","payload":{"model":"openai/gpt-5.4"}}"#,
             [

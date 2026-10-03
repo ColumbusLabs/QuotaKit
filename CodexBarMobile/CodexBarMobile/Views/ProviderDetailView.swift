@@ -1,5 +1,6 @@
 import Charts
 import CodexBarSync
+import Foundation
 import SwiftUI
 
 struct ProviderDetailView: View {
@@ -396,6 +397,8 @@ struct ProviderDetailView: View {
         // selected mark and detail card visible during that first pass.
         let selectedDayKey = self.selectedDate
             ?? ProviderDailySpendPresentation.latestDayKey(in: daily)
+        let xAxisTicks = ProviderDailySpendPresentation.axisTicks(in: daily)
+        let xAxisLabels = Dictionary(uniqueKeysWithValues: xAxisTicks.map { ($0.dayKey, $0.label) })
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
@@ -459,9 +462,14 @@ struct ProviderDetailView: View {
             .chartXVisibleDomain(length: min(daily.count, Self.chartVisibleDays))
             .chartScrollPosition(initialX: Self.chartScrollInitialDayKey(daily: daily))
             .chartXAxis {
-                AxisMarks(values: .stride(by: 7)) { _ in
+                AxisMarks(values: xAxisTicks.map(\.dayKey)) { value in
                     AxisGridLine()
-                    AxisValueLabel()
+                    AxisValueLabel {
+                        if let dayKey = value.as(String.self), let label = xAxisLabels[dayKey] {
+                            Text(label)
+                                .font(.caption2)
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -643,11 +651,88 @@ struct ProviderDailySpendDetail: Equatable {
     let splitSubtitle: String?
 }
 
+struct ProviderDailySpendAxisTick: Equatable {
+    let dayKey: String
+    let label: String
+}
+
 enum ProviderDailySpendPresentation {
     static let maxVisibleModelRows = 4
+    private static let dateAxisTickInterval = 7
 
     static func orderedDayKeys(in daily: [SyncDailyPoint]) -> [String] {
         Array(Set(daily.map(\.dayKey))).sorted()
+    }
+
+    /// Produces sparse, compact labels while keeping each chart category keyed
+    /// by its original wire-format day key for selection and scrolling.
+    static func axisTicks(
+        in daily: [SyncDailyPoint],
+        locale: Locale = .current) -> [ProviderDailySpendAxisTick]
+    {
+        let dayKeys = self.orderedDayKeys(in: daily)
+        let sampledDayKeys = if dayKeys.count <= self.dateAxisTickInterval {
+            dayKeys
+        } else {
+            stride(from: 0, to: dayKeys.count, by: self.dateAxisTickInterval)
+                .map { dayKeys[$0] }
+        }
+
+        let dayKeyFormatter = Self.makeDayKeyFormatter()
+        guard let labelFormatter = Self.makeAxisLabelFormatter(locale: locale) else { return [] }
+
+        return sampledDayKeys.compactMap { dayKey in
+            guard let date = Self.civilDate(from: dayKey, formatter: dayKeyFormatter) else { return nil }
+            return ProviderDailySpendAxisTick(dayKey: dayKey, label: labelFormatter.string(from: date))
+        }
+    }
+
+    /// Formats a wire day key as a localized month/day label without applying
+    /// the device time zone to the civil date.
+    static func compactDateLabel(for dayKey: String, locale: Locale = .current) -> String? {
+        let dayKeyFormatter = Self.makeDayKeyFormatter()
+        guard let date = Self.civilDate(from: dayKey, formatter: dayKeyFormatter),
+              let labelFormatter = Self.makeAxisLabelFormatter(locale: locale)
+        else {
+            return nil
+        }
+        return labelFormatter.string(from: date)
+    }
+
+    private static func makeDayKeyFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.isLenient = false
+        return formatter
+    }
+
+    private static func makeAxisLabelFormatter(locale: Locale) -> DateFormatter? {
+        guard let dateFormat = DateFormatter.dateFormat(fromTemplate: "Md", options: 0, locale: locale) else {
+            return nil
+        }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.dateFormat = dateFormat
+        return formatter
+    }
+
+    private static func civilDate(from dayKey: String, formatter: DateFormatter) -> Date? {
+        guard dayKey.utf8.count == 10,
+              let date = formatter.date(from: dayKey),
+              formatter.string(from: date) == dayKey
+        else {
+            return nil
+        }
+        return date
     }
 
     static func latestDayKey(in daily: [SyncDailyPoint]) -> String? {

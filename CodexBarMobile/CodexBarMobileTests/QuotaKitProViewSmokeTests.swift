@@ -1,3 +1,4 @@
+import CodexBarSync
 import SwiftData
 import SwiftUI
 import UIKit
@@ -133,6 +134,55 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         XCTAssertNotNil(self.renderToImage(view))
     }
 
+    func testProviderDailySpendAxisRendersLongHistoryAtNarrowWidth() throws {
+        let previousStyle = UserDefaults.standard.object(forKey: MobileSettingsKeys.usageCostChartStyle)
+        defer {
+            if let previousStyle {
+                UserDefaults.standard.set(previousStyle, forKey: MobileSettingsKeys.usageCostChartStyle)
+            } else {
+                UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.usageCostChartStyle)
+            }
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let latestDate = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 3)))
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        for historyDays in [30, 365] {
+            let daily = try (0..<historyDays).reversed().map { daysAgo in
+                let date = try XCTUnwrap(calendar.date(byAdding: .day, value: -daysAgo, to: latestDate))
+                return SyncDailyPoint(
+                    dayKey: formatter.string(from: date),
+                    costUSD: Double(daysAgo % 8 + 1),
+                    totalTokens: 1000)
+            }
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+                accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: latestDate,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: nil,
+                    last30DaysTokens: nil, daily: daily, historyDays: historyDays))
+            for style in CostChartStyle.allCases {
+                UserDefaults.standard.set(style.rawValue, forKey: MobileSettingsKeys.usageCostChartStyle)
+                let view = NavigationStack {
+                    ProviderDetailView(provider: provider, isDemoMode: true)
+                }
+                .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+                .preferredColorScheme(.dark)
+                let image = try XCTUnwrap(self.renderToImage(view, size: CGSize(width: 320, height: 900)))
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "provider-daily-spend-\(historyDays)-\(style.rawValue)-320pt"
+                attachment.lifetime = .keepAlways
+                self.add(attachment)
+            }
+        }
+    }
+
     func testDemoProviderDetailRendersHistoryAndCostDetailsWhenLocked() {
         let view = NavigationStack {
             ProviderDetailView(provider: PreviewData.claudeProvider, isDemoMode: true)
@@ -209,8 +259,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         XCTAssertEqual(reloadCount, 1)
     }
 
-    private func renderToImage(_ view: some View) -> UIImage? {
-        let size = CGSize(width: 390, height: 900)
+    private func renderToImage(_ view: some View, size: CGSize = CGSize(width: 390, height: 900)) -> UIImage? {
         guard let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive })
