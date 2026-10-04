@@ -627,8 +627,12 @@ enum MenuBarLayoutBalanceResolver {
         case .devpass:
             return snapshot?.detailRow(label: "Cycle remaining")?.value
         default:
-            guard ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow.stripsBalancePrefix
-            else { return nil }
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            if descriptor.metadata.balanceOnly,
+               snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID,
+               let balance = snapshot?.detailRow(label: "Balance")?.value, !balance.isEmpty
+            { return balance }
+            guard descriptor.presentation.planRow.stripsBalancePrefix else { return nil }
             return self.displayValue(from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")
         }
     }

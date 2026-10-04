@@ -7,6 +7,19 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.34 — Unreleased
 
+### Added
+
+- Claude promotional cloud-session credits appear separately from prepaid balance and quota, and sync to iPhone without reset-credit redemption data.
+- Antigravity scans additional Gemini profile homes configured in provider settings.
+
+### Fixed
+
+- Resumed Codex sessions reconcile response identities, mirrored events, and saved pricing across incremental scans and cache upgrades.
+- Automatic Codex discovery continues in bounded bursts without a long initial sleep, while preserving validated spend publication.
+- Claude OAuth refresh preserves live reset inventory with bounded fallback and uncached transport.
+- Muse Code recovers selected-team quota from blank-email browser sessions using verified membership; LithosAI retries cookie permission requests and displays prepaid balance in the menu bar.
+- Browser cookie imports use SweetCookieKit 0.5.5 with expanded Muse and Cursor support.
+
 ## 0.32.4.33 — 2026-10-03
 
 ### Fixed

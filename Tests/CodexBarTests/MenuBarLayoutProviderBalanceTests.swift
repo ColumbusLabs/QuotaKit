@@ -7,7 +7,29 @@ import Testing
 struct MenuBarLayoutProviderBalanceTests {
     private let now = Date(timeIntervalSince1970: 1_752_768_000)
 
-    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass])
+    @Test(arguments: ["$2.57", "$0.00", "-$1.25", "Less than $0.01"])
+    func `LithosAI prepaid balance reaches automatic and explicit layout tokens`(amount: String) throws {
+        let snapshot = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [ProviderDetailSection(title: "Billing", rows: [.init(label: "Balance", value: amount)])],
+            updatedAt: self.now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .lithosai,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Browser session"))
+        let data = self.data(provider: .lithosai, snapshot: snapshot)
+        #expect(data.balance == amount)
+        #expect(data.automaticText == amount)
+        for token: MenuBarLayoutToken in [.balance, .percent(window: .automatic)] {
+            #expect(self.render(layout: MenuBarLayout(lines: [[token]]), data: data).attributedTitle.string == amount)
+        }
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .claude, snapshot: snapshot) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .poe, snapshot: snapshot) == nil)
+    }
+
+    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .lithosai])
     func `stored balance and automatic tokens resolve provider amounts`(provider: UsageProvider) throws {
         let (snapshot, expected) = try self.fixture(provider: provider)
         let data = self.data(provider: provider, snapshot: snapshot)
@@ -57,7 +79,7 @@ struct MenuBarLayoutProviderBalanceTests {
             .attributedTitle.string == "25%")
     }
 
-    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao])
+    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao, .lithosai])
     func `absent balances never borrow unrelated spend`(provider: UsageProvider) throws {
         let snapshot = try UsageSnapshot(
             primary: nil,
@@ -101,8 +123,9 @@ struct MenuBarLayoutProviderBalanceTests {
                 giftBalance: 0,
                 updatedAt: self.now).toUsageSnapshot(), "$4.84")
         }
-        let label = provider == .devpass ? "Cycle remaining" : provider == .hyper ? "Balance" : "Available balance"
-        let value = provider == .hyper ? "42.5 HC" : "$25.00"
+        let label = provider == .devpass ? "Cycle remaining"
+            : [.hyper, .lithosai].contains(provider) ? "Balance" : "Available balance"
+        let value = provider == .hyper ? "42.5 HC" : provider == .lithosai ? "$2.57" : "$25.00"
         return try (UsageSnapshot(
             primary: nil,
             secondary: nil,

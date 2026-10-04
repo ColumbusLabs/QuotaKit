@@ -267,6 +267,7 @@ extension CostUsageScanner {
             range: context.range,
             startOffset: resumeOffset ?? 0,
             initialModel: stagedUsage?.lastModel,
+            initialSessionID: stagedUsage?.sessionId,
             initialTotals: stagedUsage?.lastCountedTotals,
             initialRawTotalsBaseline: stagedUsage?.lastRawTotalsBaseline,
             initialRawTotalsWatermark: stagedUsage?.lastRawTotalsWatermark,
@@ -283,6 +284,8 @@ extension CostUsageScanner {
             includeInitialBufferedTokenSnapshots: includeInitialBufferedTokenSnapshots,
             initialJSONLResumeState: stagedUsage?.codexJSONLResumeState,
             initialForkAccountingState: stagedUsage?.codexForkAccountingState,
+            initialRequestLedgerState: stagedUsage?.codexRequestLedgerState,
+            initialRequestLedgerRows: stagedUsage?.codexStagedRecoveryRows ?? [],
             maxBytesToRead: maxBytesToRead,
             shouldStopReading: context.scanBudget.map { budget in
                 { bytesRead in budget.shouldYield(additionalBytes: bytesRead) }
@@ -358,7 +361,9 @@ extension CostUsageScanner {
             context.resources.projectPathResolver.canonicalProjectPath(for: $0)
         } ?? input.cached?.canonicalProjectPath ?? context.resources.projectPathResolver
             .canonicalProjectPath(for: projectPath)
-        let stagedRows = plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []
+        let stagedRows = (plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []).filter {
+            $0.eventIndex.map { !parsed.replacedLegacyRowIndices.contains($0) } ?? true
+        }
         let sourceSessionID = parsed.sessionId ?? input.cached?.sessionId
         let sourcePricing = input.cached?.sessionId != nil && parsed.sessionId != nil
             && parsed.sessionId != input.cached?.sessionId ? [:] : plan.sourcePricing
@@ -475,6 +480,7 @@ extension CostUsageScanner {
                 : CostUsageFileUsage.currentCodexParserRevision,
             codexJSONLResumeState: parsed.jsonlResumeState,
             codexForkAccountingState: parsed.forkAccountingState,
+            codexRequestLedgerState: parsed.requestLedgerState,
             codexBufferedSubagentLines: parsed.bufferedSubagentLines,
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
@@ -485,7 +491,7 @@ extension CostUsageScanner {
         usage.codexStagedRecoveryRows = plan.replacementPending ? uniqueRows : nil
         usage.codexStagedRecoverySnapshots = plan.replacementPending
             ? replayedSnapshots : nil
-        if duplicateWithoutUniqueUsage,
+        if duplicateWithoutUniqueUsage, parsed.requestLedgerState == nil,
            !parsed.rows.isEmpty || !Self.isCompleteEmptyCodexFragment(usage)
         {
             return nil

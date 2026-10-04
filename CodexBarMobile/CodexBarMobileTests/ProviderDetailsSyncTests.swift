@@ -6,6 +6,30 @@ import Testing
 @Suite("Provider detail sync")
 struct ProviderDetailsSyncTests {
     @Test
+    func `Claude cloud dollars survive the wire and expire in cached iPhone presentation`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let expiry = now.addingTimeInterval(3600)
+        let details = [SyncProviderDetailSection(title: "Cloud credits", rows: [
+            .init(label: "Cloud credits", value: "$15.00 of $20.00 remaining",
+                  secondaryValue: "Expires \(expiry.ISO8601Format())"),
+        ])]
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: "OAuth", statusMessage: nil, isError: false,
+            lastUpdated: now, providerDetails: details)
+        let roundTrip = try JSONDecoder().decode(ProviderUsageSnapshot.self, from: JSONEncoder().encode(snapshot))
+        #expect(roundTrip.providerDetails == details)
+        #expect(roundTrip.rateWindows.isEmpty)
+        #expect(ProviderDetailSectionDispatcher.sections(for: roundTrip, hasRateWindowPace: false)
+            .map(\.id) == ["provider-details"])
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: roundTrip, now: now)?
+            .first?.rows.first?.value == "$15.00 of $20.00 remaining")
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: roundTrip, now: expiry)?
+            .first?.rows.first?.value == String(localized: "Expired"))
+        #expect(roundTrip.providerDetails?.first?.rows.first?.value == "$15.00 of $20.00 remaining")
+    }
+
+    @Test
     func `Copilot seat credits render from synced detail rows`() throws {
         let details = [SyncProviderDetailSection(
             title: "Credits",

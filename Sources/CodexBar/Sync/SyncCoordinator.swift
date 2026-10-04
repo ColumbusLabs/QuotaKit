@@ -899,6 +899,25 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
+        if provider == .claude {
+            // Only promotional dollars cross iCloud. Reset-credit redemption inventory stays live-only.
+            guard let snapshot else { return nil }
+            let details = snapshot.details
+            guard let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })
+                    .flatMap(\.rows).first(where: { $0.id == ClaudeCloudCreditsSnapshot.detailRowID }),
+                  let status = ClaudeCloudCreditsSnapshot.detailStatus(in: details, now: Date())
+            else { return [] } // Explicitly clear an older synced balance when a successful snapshot omits it.
+            let value: String
+            switch status {
+            case .available: value = row.value
+            case .expired: value = "Expired"
+            case .unavailable: value = "Unavailable"
+            }
+            return [SyncProviderDetailSection(
+                title: ClaudeCloudCreditsSnapshot.detailTitle,
+                rows: [.init(label: ClaudeCloudCreditsSnapshot.detailTitle, value: value,
+                             secondaryValue: row.secondaryValue)])]
+        }
         // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
         if provider == .muse {
             // The selected browser team's source is useful on iPhone; the full team list and

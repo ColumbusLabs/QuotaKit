@@ -109,9 +109,30 @@ enum ProviderDetailSectionDispatcher {
             hasRateWindowPace: hasRateWindowPace)
     }
 
+    static func displayProviderDetails(
+        for provider: ProviderUsageSnapshot,
+        now: Date = Date()) -> [SyncProviderDetailSection]?
+    {
+        guard provider.providerID == "claude", let details = provider.providerDetails else {
+            return provider.providerDetails
+        }
+        return details.map { section in
+            guard section.title == "Cloud credits" else { return section }
+            return SyncProviderDetailSection(title: String(localized: "Cloud credits"), rows: section.rows.map { row in
+                guard row.label == "Cloud credits" else { return row }
+                let rawExpiry = row.secondaryValue?.split(separator: " ").last.map(String.init)
+                let expiry = rawExpiry.flatMap { try? Date.ISO8601FormatStyle().parse($0) }
+                let expired = row.value == "Expired" || expiry.map { $0 <= now } == true
+                let value = expired ? String(localized: "Expired")
+                    : row.value == "Unavailable" ? String(localized: "Unavailable") : row.value
+                return .init(label: String(localized: "Cloud credits"), value: value, secondaryValue: row.secondaryValue)
+            })
+        }
+    }
+
     private static func structuredSections(for provider: ProviderUsageSnapshot) -> [ProviderDetailSection] {
         var sections: [ProviderDetailSection] = []
-        if let details = provider.providerDetails, !details.isEmpty {
+        if let details = self.displayProviderDetails(for: provider), !details.isEmpty {
             sections.append(.providerDetails(details))
         }
         if provider.providerID == "kiro", let value = provider.kiroCredits {

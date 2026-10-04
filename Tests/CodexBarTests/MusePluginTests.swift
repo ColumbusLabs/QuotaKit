@@ -114,6 +114,7 @@ struct MusePluginTests {
     static let teamID = "424242424242"
     static let teams = #"{"teams":[{"team_id":424242424242,"team_name":"My Team"}]}"#
     static let me = #"{"userId":"1","email":"Ada@Example.com","accountType":"META_ACCOUNT"}"#
+    static let blankEmailMe = #"{"userId":"1001","displayName":"1001","email":""}"#
     /// The fixture clock; reset times are relative to it.
     static let now = 1_790_341_873
 
@@ -141,6 +142,140 @@ struct MusePluginTests {
             default: ("{}", 404)
             }
         }
+    }
+
+    static func members(userID: String = "1001", email: String = "Ada@Example.com") -> String {
+        #"{"members":[{"member_id":"9","user_id":"\#(userID)","name":"Ada","email":"\#(email)","role":"owner"}]}"#
+    }
+
+    static func blankEmailWeb(members: (String, Int)) -> @Sendable (String) -> (String, Int) {
+        { path in
+            switch path {
+            case "/api/auth/me": (Self.blankEmailMe, 200)
+            case "/api/portal/teams/\(Self.teamID)/members": members
+            default: Self.web(quota: Self.quota())(path)
+            }
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `a blank browser email is bound through the session user's team membership`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let (result, requests, rejected) = try await Self.fetchWithSessions(
+            engine: engine,
+            first: Self.blankEmailWeb(members: (Self.members(), 200)),
+            second: Self.web(quota: Self.quota()))
+        #expect(result.sourceLabel == "oauth+web")
+        #expect(result.usage.secondary != nil)
+        #expect(result.usage.identity?.accountEmail == "ada@example.com")
+        #expect(requests.map(\.path) == [
+            "/api/auth/me",
+            "/api/portal/teams",
+            "/api/portal/teams/\(Self.teamID)/members",
+            "/api/portal/teams/\(Self.teamID)/subscription-quota",
+        ])
+        #expect(rejected.isEmpty)
+    }
+
+    @Test(arguments: [
+        (Self.members(email: "bob@example.com"), 200),
+        (#"{"members":[{"user_id":"2002","email":"ada@example.com"},{"user_id":"1001","email":"bob@example.com"}]}"#, 200),
+        (Self.members(userID: "2002"), 200),
+        (#"{"error":"Forbidden"}"#, 403),
+        ("{}", 404),
+        ("{}", 429),
+        ("{}", 500),
+        ("<html>Unavailable</html>", 200),
+        (#"{"members":[null,1,"member",{}, {"user_id":"1001","email":42}]}"#, 200),
+    ], BundledPluginTestSupport.engines)
+    func `a blank email without matching membership contributes no teams or quotas`(
+        membership: (body: String, status: Int),
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let (result, requests, rejected) = try await Self.fetchWithSessions(
+            engine: engine,
+            sessionCount: 1,
+            first: Self.blankEmailWeb(members: membership),
+            second: Self.web(quota: Self.quota()))
+        #expect(result.usage.secondary == nil)
+        #expect(!result.usage.details.contains { $0.title == "Browser teams" })
+        #expect(!requests.contains { $0.path.hasSuffix("/subscription-quota") })
+        #expect(result.usage.identity?.accountEmail == "ada@example.com")
+        #expect(rejected.isEmpty)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `a forbidden membership list preserves the session and a rejected one clears it`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let (_, forbiddenRequests, forbiddenRejected) = try await Self.fetchWithSessions(
+            engine: engine,
+            sessionCount: 1,
+            first: Self.blankEmailWeb(members: ("{}", 403)),
+            second: Self.web(quota: Self.quota()))
+        #expect(forbiddenRequests.contains { $0.path.hasSuffix("/members") })
+        #expect(forbiddenRejected.isEmpty)
+
+        let (_, rejectedRequests, rejected) = try await Self.fetchWithSessions(
+            engine: engine,
+            sessionCount: 1,
+            first: Self.blankEmailWeb(members: ("{}", 401)),
+            second: Self.web(quota: Self.quota()))
+        #expect(rejectedRequests.contains { $0.path.hasSuffix("/members") })
+        #expect(rejected == ["first"])
+    }
+
+    @Test(arguments: [200, 403], BundledPluginTestSupport.engines)
+    func `matching email sessions are tried before blank email membership requests`(
+        membershipStatus: Int,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let blank = Self.blankEmailWeb(members: (Self.members(), membershipStatus))
+        let (result, requests, _) = try await Self.fetchWithSessions(
+            engine: engine,
+            first: blank,
+            second: Self.web(quota: Self.quota()))
+        #expect(result.sourceLabel == "oauth+web")
+        #expect(result.usage.secondary != nil)
+        #expect(requests.filter { $0.session == "first" }.map(\.path) == ["/api/auth/me"])
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `a blank session with an unavailable team list does not stop the next session`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let first: @Sendable (String) -> (String, Int) = { path in
+            path == "/api/auth/me" ? (Self.blankEmailMe, 200) : ("{}", 500)
+        }
+        let (result, requests, _) = try await Self.fetchWithSessions(
+            engine: engine,
+            teamID: nil,
+            first: first,
+            second: Self.blankEmailWeb(members: (Self.members(), 200)))
+        let teams = try #require(result.usage.details.first { $0.title == "Browser teams" })
+        #expect(teams.rows.contains { $0.label == "My Team" && $0.value == Self.teamID })
+        #expect(requests.map(\.session) == ["first", "second", "first", "second", "second"])
+    }
+
+    @Test(arguments: ["null", "true", "-1", "1.5", "9007199254740992", "\"bad/id\""],
+          BundledPluginTestSupport.engines)
+    func `invalid user IDs never reach team membership`(
+        userID: String,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let me: @Sendable (String) -> (String, Int) = { path in
+            path == "/api/auth/me"
+                ? (#"{"userId":\#(userID),"email":""}"#, 200)
+                : Self.blankEmailWeb(members: (Self.members(), 200))(path)
+        }
+        let (result, requests, _) = try await Self.fetchWithSessions(
+            engine: engine,
+            sessionCount: 1,
+            first: me,
+            second: Self.web(quota: Self.quota()))
+        #expect(result.usage.secondary == nil)
+        #expect(requests.filter { $0.session == "first" }.map(\.path) == ["/api/auth/me"])
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -527,6 +662,50 @@ struct MusePluginTests {
         func reject(_ domain: String) {
             self.lock.withLock { self.rejectedDomains.append(domain) }
         }
+    }
+
+    static func fetchWithSessions(
+        engine: ProviderPluginEngineKind,
+        teamID: String? = Self.teamID,
+        sessionCount: Int = 2,
+        first: @escaping @Sendable (String) -> (String, Int),
+        second: @escaping @Sendable (String) -> (String, Int)) async throws
+        -> (ProviderPluginResult, [(session: String, path: String)], [String])
+    {
+        let next = LockIsolated(0)
+        let requests = LockIsolated<[(session: String, path: String)]>([])
+        let rejected = LockIsolated<[String]>([])
+        let runtime = try BundledPluginTestSupport.runtime(
+            "muse", engine: engine, transport: ProviderHTTPTransportHandler { request in
+                guard request.url?.host == "dev.meta.ai" else {
+                    return try Self.response(request, body: Self.activeWithoutWindows)
+                }
+                #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+                #expect(request.value(forHTTPHeaderField: "User-Agent") == "QuotaKit")
+                #expect(request.timeoutInterval == 8)
+                let path = request.url?.path ?? ""
+                let session = request.value(forHTTPHeaderField: "Cookie") == "session=first" ? "first" : "second"
+                requests.setValue(requests.value + [(session, path)])
+                let (body, status) = (session == "first" ? first : second)(path)
+                return try Self.response(request, body: body, status: status)
+            })
+        let result = try await runtime.fetchResult(
+            settings: teamID.map { ["MUSE_WEB_TEAM_ID": $0] } ?? [:],
+            secrets: ["MUSE_DEVICE_TOKEN": "dca:fixture-token"],
+            now: Date(timeIntervalSince1970: TimeInterval(Self.now)),
+            cookieSource: .auto,
+            cookieSessionResolver: { domain, _ in
+                #expect(domain == "dev.meta.ai")
+                let index = next.value
+                next.setValue(index + 1)
+                guard index < sessionCount else { return nil }
+                let name = index == 0 ? "first" : "second"
+                return ProviderPluginCookieSession(
+                    header: "session=\(name)", source: "fixture", origin: "https://dev.meta.ai", id: name)
+            },
+            cookieSessionInvalidator: { _, id in rejected.setValue(rejected.value + [id]) },
+            cookieResolver: { _, _ in "session=first" })
+        return (result, requests.value, rejected.value)
     }
 
     static func fetchWithWeb(

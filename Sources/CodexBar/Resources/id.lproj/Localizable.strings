@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d lainnya";
+"Add folder…" = "Tambahkan folder…";
+"Additional Gemini profile homes" = "Folder profil Gemini tambahan";
+"Cloud credits" = "Kredit cloud";
 "Conversations (%@)" = "Percakapan (%@)";
+"Expired" = "Kedaluwarsa";
 "Fast" = "Cepat";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Opsional. Pilih folder .gemini tiap profil untuk menggabungkan riwayat token dan biaya lokal. Folder utama selalu disertakan. Tidak mengubah proses masuk atau kuota.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Proyek";
 "Session %@" = "Sesi %@";

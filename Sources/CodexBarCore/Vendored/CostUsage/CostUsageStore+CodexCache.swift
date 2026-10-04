@@ -889,6 +889,8 @@ extension CostUsageStore {
         var hasExactUsageRowIndex: Bool?
         var forkAccountingState: CostUsageScanner.CodexForkAccountingState?
         var ledgerRevision: String?
+        var requestLedgerState: CostUsageScanner.CodexRequestLedgerState?
+        var requestReconciliation: CostUsageCodexRequestReconciliation?
     }
 
     private struct StoredPriorityState: Codable {
@@ -1189,6 +1191,8 @@ extension CostUsageStore {
                     try? decoder.decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
                 codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
+                codexRequestLedgerState: isHydrated ? details.requestLedgerState : nil,
+                codexRequestReconciliation: details.requestReconciliation,
                 codexBufferedSubagentLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .subagent, decoder: decoder) : nil,
                 codexBufferedUnresolvedForkLines: isHydrated
@@ -1683,6 +1687,8 @@ extension CostUsageStore {
             parserRevision: usage.codexParserRevision)
         details.hasExactUsageRowIndex = usage.codexNextUsageRowIndex != nil
         details.forkAccountingState = usage.codexForkAccountingState
+        details.requestLedgerState = usage.codexRequestLedgerState
+        details.requestReconciliation = usage.codexRequestReconciliation
         details.ledgerRevision = replacementPending ? committedDetails?.ledgerRevision : UUID().uuidString
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is

@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Claude promotional cloud-session credits sync separately from quotas and prepaid usage; cached credits show expired after their expiration.
+
 - Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.
 - Bifrost and DevPass quota windows now sync from QuotaKit Mac with provider branding and quota alerts.
 - Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now show branded iPhone cards and quota alerts when synced from QuotaKit Mac.

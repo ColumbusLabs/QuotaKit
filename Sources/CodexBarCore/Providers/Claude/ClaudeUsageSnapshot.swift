@@ -20,6 +20,8 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let providerCost: ProviderCostSnapshot?
     /// Live-only resets returned by Claude Web's usage endpoint.
     public let resetCredits: ClaudeRateLimitResetCreditsSnapshot?
+    /// Promotional cloud-session credits reported by Claude's OAuth and Web usage endpoints.
+    public let cloudCredits: ClaudeCloudCreditsSnapshot?
     public let updatedAt: Date
     public let accountEmail: String?
     public let accountOrganization: String?
@@ -48,6 +50,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         extraRateWindows: [NamedRateWindow] = [],
         providerCost: ProviderCostSnapshot? = nil,
         resetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil,
+        cloudCredits: ClaudeCloudCreditsSnapshot? = nil,
         updatedAt: Date,
         accountEmail: String?,
         accountOrganization: String?,
@@ -68,6 +71,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         self.extraRateWindows = extraRateWindows
         self.providerCost = providerCost
         self.resetCredits = resetCredits
+        self.cloudCredits = cloudCredits
         self.updatedAt = updatedAt
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization

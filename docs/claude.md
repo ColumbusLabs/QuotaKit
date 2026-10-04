@@ -97,12 +97,16 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   creates a model-request token, not a usage-scope token. Before switching Claude Source to Web/CLI, remove any
   configured OAuth token override.
 - Endpoints:
-  - `GET https://api.anthropic.com/api/oauth/usage`
+  - `GET https://api.anthropic.com/api/oauth/usage?cedar_ember=1` → quota, spend, cloud-session credits, and saved limit-reset inventory.
+    HTTP 400 or a non-scope 403 retries once without the optional query; missing-scope 403, 401, and 429 keep their
+    existing handling. Spending stays in the same request.
   - `GET https://api.anthropic.com/api/oauth/profile` → account identity used to verify that optional Web enrichment
     belongs to the same Claude account.
 - Headers:
   - `Authorization: Bearer <access_token>`
   - `anthropic-beta: oauth-2025-04-20`
+  - The inventory request uses `claude-cli/<detected-version> (external, cli)`; the retry uses the legacy
+    `claude-code/<detected-version>` identity.
 - Mapping:
   - `five_hour` → session window.
   - `seven_day` → weekly window; also becomes the primary fallback when `five_hour` is absent or has no utilization.
@@ -111,9 +115,11 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - `seven_day_routines` / `seven_day_cowork` → Daily Routines extra window.
   - Claude Design/Omelette keys are ignored because Claude Design shares the main Claude usage limit.
   - `extra_usage` → Extra usage cost (monthly spend/limit).
-- Preferences → Providers → Claude → Visible usage items lets you hide the Daily Routines row in menus, the Settings
-  preview, and Overview. The global optional credits and extra usage setting remains its master switch. Hiding this
-  row does not change fetching, history, notifications, widgets, model-scoped weekly limits, hooks, or CLI output.
+  - `iguana_necktie` → promotional Cloud credits, separate from prepaid Extra usage.
+- Preferences → Providers → Claude → Visible usage items lets you hide the Daily Routines and Cloud credits rows in
+  menus, the Settings preview, and Overview. The global optional credits and extra usage setting remains their master
+  switch. Hiding either row does not change fetching, history, notifications, widgets, model-scoped weekly limits,
+  hooks, or CLI output.
 - Preferences → Providers → Claude → Show model-specific weekly usage in widgets controls model-scoped weekly quota
   rows in desktop widgets. It is on by default and displays every known Claude window with a
   `claude-weekly-scoped-` identifier (for example, Fable). It does not change fetching, the menu, history,
@@ -123,6 +129,32 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
 - Plan inference: `subscriptionType` is preferred when present; `rate_limit_tier` falls back to
   Max/Pro/Team/Enterprise. When a Max `rate_limit_tier` carries a usage multiplier
   (`default_claude_max_5x` / `default_claude_max_20x`), it is surfaced in the label as "Max 5x" / "Max 20x".
+
+### Limit Reset Credits
+
+- OAuth and Web usage can include saved resets from the `cedar_ember` response block. They are separate from the
+  normal session/weekly quota resets and are never redeemed by QuotaKit.
+- The app sends the opt-in inventory query with its ordinary usage request. If the optional query is rejected with
+  HTTP 400 or a non-scope 403, QuotaKit retries ordinary usage once with the same credential, preserving quota and
+  spending data.
+- The parser reads only grant counts, availability bounds, pause state, and expiry. Grant IDs and labels are never
+  decoded; the result is live-only and is not restored from cached or synced snapshots.
+
+### Cloud-session credits
+
+- OAuth and Web usage can supply promotional cloud-session credit in `iguana_necktie`. QuotaKit shows a separate
+  **Cloud credits** balance when optional credits and extra usage are enabled. CLI text and JSON include the detail
+  section; JSON exposes numeric progress and remaining dollars through `usage.details`. No additional request,
+  login, or browser discovery is needed.
+- `limit_dollars`, `used_dollars`, and `remaining_dollars` are already USD. They are never divided by 100, added to
+  prepaid Extra usage, counted as local spending, or used for quota pacing. The reported remaining amount wins when
+  present; otherwise it is derived from the allowance and reported used dollars.
+- `resets_at` is an expiration timestamp, not a recurring quota reset. The detail section shows its absolute UTC
+  time. Cached details retain the observed expiry, and the menu marks the balance expired after that time. Exhausted
+  balances remain `$0`; locked balances are unavailable.
+- Missing or malformed credit data omits the section without failing ordinary usage. Availability does not depend on
+  Pro/Max plan labels. CLI-only quota probes do not include cloud credits, and optional Web enrichment preserves the
+  primary source's cloud credits instead of importing a different source's balance.
 
 ## Web API (cookies)
 - Preferences → Providers → Claude → Cookie source (Automatic or Manual).

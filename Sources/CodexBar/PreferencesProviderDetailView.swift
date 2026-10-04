@@ -18,6 +18,7 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
     let settingsPickers: [ProviderSettingsPickerDescriptor]
     let settingsToggles: [ProviderSettingsToggleDescriptor]
     let settingsFields: [ProviderSettingsFieldDescriptor]
+    let settingsDirectoryLists: [ProviderSettingsDirectoryListDescriptor]
     let settingsActions: [ProviderSettingsActionsDescriptor]
     let settingsTokenAccounts: ProviderSettingsTokenAccountsDescriptor?
     let settingsOrganizations: ProviderSettingsOrganizationsDescriptor?
@@ -39,6 +40,7 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         settingsPickers: [ProviderSettingsPickerDescriptor],
         settingsToggles: [ProviderSettingsToggleDescriptor],
         settingsFields: [ProviderSettingsFieldDescriptor],
+        settingsDirectoryLists: [ProviderSettingsDirectoryListDescriptor] = [],
         settingsActions: [ProviderSettingsActionsDescriptor] = [],
         settingsTokenAccounts: ProviderSettingsTokenAccountsDescriptor?,
         settingsOrganizations: ProviderSettingsOrganizationsDescriptor? = nil,
@@ -59,6 +61,7 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         self.settingsPickers = settingsPickers
         self.settingsToggles = settingsToggles
         self.settingsFields = settingsFields
+        self.settingsDirectoryLists = settingsDirectoryLists
         self.settingsActions = settingsActions
         self.settingsTokenAccounts = settingsTokenAccounts
         self.settingsOrganizations = settingsOrganizations
@@ -195,6 +198,10 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
 
             ForEach(self.settingsFields) { field in
                 ProviderSettingsFieldRowView(field: field)
+            }
+
+            ForEach(self.settingsDirectoryLists) { descriptor in
+                ProviderSettingsDirectoryListRowView(descriptor: descriptor)
             }
 
             if let organizations = self.settingsOrganizations {
@@ -439,8 +446,11 @@ struct ProviderMetricsInlineView: View {
         let hasProviderCost = self.model.providerCost?.showsInProviderDetails == true
         let hasTokenUsage = self.model.tokenUsage != nil
         let hasResetCredits = self.model.codexResetCredits != nil
+        let hasCloudCredits = self.model.cloudCredits != nil
 
-        if !hasMetrics, !hasUsageNotes, !hasProviderCost, infoRows.isEmpty, !hasTokenUsage, !hasResetCredits {
+        if !hasMetrics, !hasUsageNotes, !hasProviderCost, infoRows.isEmpty,
+           !hasTokenUsage, !hasResetCredits, !hasCloudCredits
+        {
             Text(self.placeholderText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -470,6 +480,10 @@ struct ProviderMetricsInlineView: View {
 
             if let resetCredits = self.model.codexResetCredits {
                 ProviderCodexResetCreditsInlineRow(presentation: resetCredits)
+            }
+
+            if let cloudCredits = self.model.cloudCredits {
+                ProviderMetricInlineTextRow(title: cloudCredits.title, value: cloudCredits.spendLine)
             }
 
             if let providerCost = self.model.providerCost, providerCost.showsInProviderDetails {

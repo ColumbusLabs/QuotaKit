@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d مورد دیگر";
+"Add folder…" = "افزودن پوشه…";
+"Additional Gemini profile homes" = "پوشه‌های نمایهٔ Gemini بیشتر";
+"Cloud credits" = "اعتبار ابری";
 "Conversations (%@)" = "گفتگوها (%@)";
+"Expired" = "منقضی شده";
 "Fast" = "سریع";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "اختیاری. پوشهٔ ‎.gemini‎ هر نمایه را برای ترکیب سابقهٔ محلی توکن و هزینه انتخاب کنید. پوشهٔ اصلی همیشه لحاظ می‌شود. ورود به سیستم یا سهمیه‌ها تغییر نمی‌کنند.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "پروژه‌ها";
 "Session %@" = "نشست %@";

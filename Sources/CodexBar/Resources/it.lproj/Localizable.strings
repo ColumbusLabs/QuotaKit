@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ altri %d";
+"Add folder…" = "Aggiungi cartella…";
+"Additional Gemini profile homes" = "Cartelle di profili Gemini aggiuntive";
+"Cloud credits" = "Crediti cloud";
 "Conversations (%@)" = "Conversazioni (%@)";
+"Expired" = "Scaduto";
 "Fast" = "Veloce";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Opzionale. Seleziona la cartella .gemini di ciascun profilo per unire la cronologia locale di token e costi. La cartella principale è sempre inclusa. L’accesso e le quote non cambiano.";
 "iCloud Sync" = "Sincronizzazione iCloud";
 "Projects" = "Progetti";
 "Session %@" = "Sessione %@";

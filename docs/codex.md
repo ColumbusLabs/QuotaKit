@@ -261,6 +261,13 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Pending local-history files receive bounded turns alongside fresh sessions. Unfinished files that received a turn
   rotate behind waiting files, and the queue persists across refreshes. Rotation alone does not count as scan progress;
   byte and time limits still bound each refresh.
+- Automatic catch-up starts without assumed scan-time debt, then continues cheap discovery pages within a two-second
+  burst capped at eight passes. Each pass receives the remaining scan time, and current-day publication continues
+  through QuotaKit's validated-window and snapshot safeguards. The later duty-cycle delay uses cumulative active scan
+  time, excluding shared account/provider queue waits, with a two-second minimum when the pass cap ends a shorter
+  burst. Returning to automatic mode counts only the in-flight accelerated pass. App Low Power Mode still floors each
+  scheduled delay; physical low-power and thermal pauses, no-progress detection, cancellation, and complete-history
+  publication rules still apply.
 - Parent discovery continues within those bounds after requesting forks leave the scan roots. Once discovery confirms
   a missing parent, fully read forks and their orphaned descendants stop keeping catch-up pending. Unresolved usage
   remains buffered and unmetered; a changed dependency retries accounting when parent history returns.

@@ -1,0 +1,7 @@
+# Claude cloud credits over existing detail sync
+
+Status: implemented; exact-head hosted verification required before merge.
+
+Promotional cloud-session dollars are supplemental balances, independent from quota, prepaid extra usage, pacing and estimated cost. Reuse the existing optional providerDetails payload rather than changing CloudKit records or wire versions. Mac allows only the canonical Claude cloud-credit row; reset-credit redemption inventory and arbitrary provider detail rows remain local. iPhone reevaluates an absolute cached expiration in its provider overview and detail sections. Existing snapshots without providerDetails decode unchanged.
+
+Regression coverage: Mac per-provider/legacy publication, detail-only no-quota/no-budget/no-cost behavior, omission of credential and reset inventory fixture rows, and cached-expiry handling; iPhone wire round trip, section dispatch, expiration and unchanged stored payload. Mac publication and iPhone multi-device fixtures also verify explicit empty arrays clear older cloud balances while legacy nil payloads preserve them. Hosted Mac and iOS simulator CI provide runtime verification. All new mobile localized keys cover all 23 supported locales. No build/version bump, release, account probe or live CloudKit mutation.

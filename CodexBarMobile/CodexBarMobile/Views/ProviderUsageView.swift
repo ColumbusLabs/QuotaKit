@@ -182,7 +182,7 @@ struct ProviderUsageView: View {
     private var usageMetricsSection: some View {
         VStack(spacing: 10) {
             if self.provider.displayRateWindows.isEmpty,
-               let rows = self.provider.providerDetails?.first?.rows
+               let rows = ProviderDetailSectionDispatcher.displayProviderDetails(for: self.provider)?.first?.rows
             {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     HStack(alignment: .firstTextBaseline) {

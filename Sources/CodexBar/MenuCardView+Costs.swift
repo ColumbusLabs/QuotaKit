@@ -633,6 +633,32 @@ extension UsageMenuCardView.Model {
             personalSpendLine: personalSpendLine)
     }
 
+    /// Claude cloud credits share the inline balance style of its prepaid credits.
+    static func cloudCreditsSection(input: Input) -> ProviderCostSection? {
+        guard input.provider == .claude,
+              input.showOptionalCreditsAndExtraUsage,
+              let details = input.snapshot?.details,
+              let status = ClaudeCloudCreditsSnapshot.detailStatus(in: details, now: input.now)
+        else { return nil }
+        let value = switch status {
+        case let .available(remainingDollars):
+            UsageFormatter.convertedCostString(
+                remainingDollars,
+                preferredCurrency: input.preferredCurrencyCode,
+                providerCurrency: "USD")
+        case .expired:
+            L("Expired")
+        case .unavailable:
+            L("Unavailable")
+        }
+        return ProviderCostSection(
+            title: L(ClaudeCloudCreditsSnapshot.detailTitle),
+            percentUsed: nil,
+            spendLine: value,
+            percentLine: nil,
+            presentation: .inlineValue)
+    }
+
     private static func creditsUsageSection(
         cost: ProviderCostSnapshot,
         percentStyle: PercentStyle) -> ProviderCostSection?

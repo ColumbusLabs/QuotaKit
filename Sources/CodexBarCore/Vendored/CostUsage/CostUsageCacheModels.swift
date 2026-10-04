@@ -371,8 +371,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Fork accounting changes require bounded reparsing of older files.
-    static let currentCodexParserRevision = 7
+    /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
+    static let currentCodexParserRevision = 8
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -428,6 +428,8 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
+    var codexRequestLedgerState: CostUsageScanner.CodexRequestLedgerState?
+    var codexRequestReconciliation: CostUsageCodexRequestReconciliation?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?
@@ -467,7 +469,17 @@ struct CostUsageFileUsage: Codable, Equatable {
 
     var hasPendingCodexScanWork: Bool {
         self.codexScanComplete == false || self.hasPendingCodexForkRetry || self.hasPendingCodexReplacementScan
+            || self.codexRequestReconciliation?.pendingPaths.isEmpty == false
     }
+}
+
+/// Manifest-visible progress for bounded cross-page request reconciliation.
+struct CostUsageCodexRequestReconciliation: Codable, Equatable {
+    var size: Int64
+    var mtimeUnixMs: Int64
+    var parserRevision: Int
+    var sessionID: String?
+    var pendingPaths: [String]
 }
 
 struct CostUsageCodexAppendOnlyPrefix: Codable, Equatable {

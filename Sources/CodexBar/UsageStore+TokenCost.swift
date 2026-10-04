@@ -162,6 +162,9 @@ extension UsageStore {
                 settings: self.settings,
                 tokenOverride: nil)
             : self.environmentBase
+        let antigravityProfileHomes = provider == .antigravity
+            ? self.settings.configSnapshot.providerConfig(for: provider.instanceID)?.antigravityAdditionalProfileHomes ?? []
+            : []
         let scopedCodexHomePath = codexHomePath?.trimmingCharacters(in: .whitespacesAndNewlines)
         // Provider-specific by design: only Pi-owned, Claude-inclusive, or unscoped Codex scans consume Pi roots.
         let shouldDiscoverPiSessionProcessContexts = provider == .pi ||
@@ -177,6 +180,7 @@ extension UsageStore {
                 try await fetcher.loadTokenResult(
                     provider: provider,
                     environment: environment,
+                    antigravityAdditionalProfileHomes: antigravityProfileHomes,
                     now: now,
                     forceRefresh: force,
                     allowVertexClaudeFallback: !self.isEnabled(.claude),
@@ -534,6 +538,12 @@ extension UsageStore {
     }
 
     func tokenCostScope(for provider: UsageProvider) -> (codexHomePath: String?, signature: String) {
+        // Provider-specific by design: Antigravity history ownership includes every explicitly selected Gemini home.
+        if provider == .antigravity {
+            return (nil, "antigravity:" + CostUsageFetcher.antigravityHistoryScope(
+                environment: self.environmentBase,
+                additionalProfileHomes: self.settings.antigravityAdditionalProfileHomes))
+        }
         if provider == .vertexai {
             return (nil, "vertexai:allow-claude-fallback=\(!self.isEnabled(.claude))")
         }
