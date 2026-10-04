@@ -1044,6 +1044,7 @@ public struct CostUsageFetcher: Sendable {
 
             var projects: [CostUsageProjectBreakdown] = []
             var sessions: [CostUsageSessionBreakdown] = []
+            var projectSessionIDs: [String: Set<String>] = [:]
             var piScanIsComplete = true
             var nativeTemporalIsComplete = true
             var staleSnapshotUpdatedAt: Date?
@@ -1058,6 +1059,7 @@ public struct CostUsageFetcher: Sendable {
                 let cache = CostUsageScanner.codexCache(
                     projection.cache,
                     scopedTo: roots)
+                projectSessionIDs = CostUsageStoreReadView(cache: cache).projectSessionIDs(range: range)
                 nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
                     ? projection.verifiedTemporalCoverageIsComplete
                     : projection.fileTemporalCoverageIsComplete
@@ -1096,6 +1098,7 @@ public struct CostUsageFetcher: Sendable {
                 (projects, sessions) = Self.codexBreakdownsWithMetadata(
                     sessions,
                     projects: projects,
+                    projectSessionIDs: projectSessionIDs,
                     sessionsRoot: CostUsageScanner.codexSessionsRoots(options: scanOptions).first,
                     environment: options.environment)
             }
@@ -1158,11 +1161,12 @@ public struct CostUsageFetcher: Sendable {
     static func codexBreakdownsWithMetadata(
         _ sessions: [CostUsageSessionBreakdown],
         projects: [CostUsageProjectBreakdown] = [],
+        projectSessionIDs: [String: Set<String>] = [:],
         sessionsRoot: URL?,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default,
-        projectNameLookup: (URL, Set<String>) -> [String: String] = {
-            CodexThreadMetadataReader(databaseURL: $0).projectNames(for: $1)
+        projectMetadataLookup: (URL, Set<String>, Set<String>) -> CodexThreadMetadataReader.ProjectMetadata = {
+            CodexThreadMetadataReader(databaseURL: $0).projectMetadata(for: $1, sessionIDs: $2)
         }) -> (projects: [CostUsageProjectBreakdown], sessions: [CostUsageSessionBreakdown])
     {
         var result = (projects: projects, sessions: sessions)
@@ -1170,6 +1174,7 @@ public struct CostUsageFetcher: Sendable {
               let sessionsRoot, sessionsRoot.lastPathComponent == "sessions"
         else { return result }
         let home = sessionsRoot.deletingLastPathComponent()
+        let projectlessMetadata = CodexProjectlessWorkspaceMetadata.load(codexHomeDirectory: home)
         var databasesByWorkingDirectory: [String?: URL] = [:]
         var databasesBySQLiteHome: [URL: URL] = [:]
         func database(for workingDirectory: String?) -> URL {
@@ -1177,49 +1182,53 @@ public struct CostUsageFetcher: Sendable {
             let sqliteHome = CodexThreadMetadataReader.sqliteHomeDirectory(
                 codexHomeDirectory: home,
                 environment: environment,
-                resolvedWorkingDirectory: workingDirectory.map {
-                    URL(fileURLWithPath: $0, isDirectory: true)
-                })
+                resolvedWorkingDirectory: workingDirectory.map { URL(fileURLWithPath: $0, isDirectory: true) })
             let database = databasesBySQLiteHome[sqliteHome] ?? CodexThreadMetadataReader.databaseURL(
                 sqliteHomeDirectory: sqliteHome, fileManager: fileManager)
             databasesBySQLiteHome[sqliteHome] = database
             databasesByWorkingDirectory[workingDirectory] = database
             return database
         }
-
-        let projectSourcePaths = projects.map { project in
-            project.sources.map(\.path)
-        }
         var pathsByDatabase: [URL: Set<String>] = [:]
-        let projectLookups = projectSourcePaths.map { paths in
-            paths.compactMap { path -> (database: URL, path: String)? in
-                guard let path else { return nil }
+        var memberIDsByDatabase: [URL: Set<String>] = [:]
+        let projectLookups = projects.map { project in
+            // A canonical project may combine worktrees with different relative SQLite homes.
+            project.sources.compactMap { source -> (database: URL, path: String)? in
+                guard let path = source.path else { return nil }
                 let database = database(for: path)
                 pathsByDatabase[database, default: []].insert(path)
+                memberIDsByDatabase[database, default: []].formUnion(projectSessionIDs[path] ?? [])
                 return (database, path)
             }
         }
         let sessionGroups = Dictionary(grouping: sessions.indices) { index in
-            let database = database(for: sessions[index].workingDirectory)
-            if let path = sessions[index].workingDirectory {
-                pathsByDatabase[database, default: []].insert(path)
-            }
+            let session = sessions[index]
+            let database = database(for: session.workingDirectory)
+            pathsByDatabase[database, default: []].formUnion(session.workingDirectory.map { [$0] } ?? [])
+            memberIDsByDatabase[database, default: []].insert(session.sessionID)
             return database
         }
-        let namesByDatabase = Dictionary(uniqueKeysWithValues: pathsByDatabase.map { database, paths in
-            (database, projectNameLookup(database, paths))
+        let metadataByDatabase = Dictionary(uniqueKeysWithValues: pathsByDatabase.map { database, paths in
+            let candidates = (memberIDsByDatabase[database] ?? []).intersection(projectlessMetadata?.threadIDs ?? [])
+            return (database, projectMetadataLookup(database, paths, candidates))
         })
+        var assignedSessionIDs: Set<String> = []
+        for metadata in metadataByDatabase.values {
+            assignedSessionIDs.formUnion(metadata.assignedSessionIDs)
+            for path in metadata.ownedPaths {
+                assignedSessionIDs.formUnion(projectSessionIDs[path] ?? [])
+            }
+        }
         for index in projects.indices {
             let lookups = projectLookups[index]
-            guard !lookups.isEmpty, lookups.count == projectSourcePaths[index].count else { continue }
-            let names = lookups.compactMap { namesByDatabase[$0.database]?[$0.path] }
-            guard names.count == lookups.count, Set(names).count == 1, let name = names.first else { continue }
+            guard !lookups.isEmpty, lookups.count == projects[index].sources.count else { continue }
+            let names = lookups.compactMap { metadataByDatabase[$0.database]?.names[$0.path] }
+            guard names.count == lookups.count, Set(names).count == 1,
+                  let name = names.first else { continue }
             result.projects[index].name = name
         }
-
         let indexedNames = CodexThreadMetadataReader.indexedThreadNames(
-            codexHomeDirectory: home,
-            sessionIDs: Set(sessions.map(\.sessionID)))
+            codexHomeDirectory: home, sessionIDs: Set(sessions.map(\.sessionID)))
         for (database, indices) in sessionGroups {
             let metadata = CodexThreadMetadataReader(databaseURL: database).metadata(
                 for: Set(indices.map { sessions[$0].sessionID }), indexedNames: indexedNames)
@@ -1228,12 +1237,22 @@ public struct CostUsageFetcher: Sendable {
                 if let title = metadata[session.sessionID]?.title {
                     result.sessions[index] = session.withTitle(title)
                 }
-                if let path = session.workingDirectory, let name = namesByDatabase[database]?[path] {
-                    result.sessions[index].projectName = name
+                if let path = session.workingDirectory {
+                    if let name = metadataByDatabase[database]?.names[path] {
+                        result.sessions[index].projectName = name
+                    }
+                    if metadataByDatabase[database]?.ownedPaths.contains(path) == true {
+                        assignedSessionIDs.insert(session.sessionID)
+                    }
                 }
             }
         }
-        return result
+        return Self.codexBreakdownsWithProjectlessMetadata(
+            projects: result.projects,
+            sessions: result.sessions,
+            projectSessionIDs: projectSessionIDs,
+            metadata: projectlessMetadata,
+            assignedSessionIDs: assignedSessionIDs)
     }
 
     private struct PricingRefreshOptions: Sendable {
@@ -1796,6 +1815,7 @@ public struct CostUsageFetcher: Sendable {
             let presentation = Self.codexBreakdownsWithMetadata(
                 sessions,
                 projects: Self.mergedProjectBreakdowns(projects),
+                projectSessionIDs: CostUsageStoreReadView(cache: cache).projectSessionIDs(range: range),
                 sessionsRoot: roots.first,
                 environment: environment)
             return CachedCodexTokenSnapshotResult(
@@ -2534,16 +2554,20 @@ public struct CostUsageFetcher: Sendable {
             ])
     }
 
-    private static func mergedProjectBreakdowns(
+    static func mergedProjectBreakdowns(
         _ projects: [CostUsageProjectBreakdown]) -> [CostUsageProjectBreakdown]
     {
         var dailyByPath: [String: [CostUsageDailyReport]] = [:]
         var namesByPath: [String: String] = [:]
+        var projectlessByPath: [String: Bool] = [:]
         var sourceDailyByProjectPath: [String: [String: [CostUsageDailyReport]]] = [:]
         var sourceNamesByProjectPath: [String: [String: String]] = [:]
         for project in projects {
             let key = project.path ?? ""
-            namesByPath[key] = project.name
+            if namesByPath[key] == nil || projectlessByPath[key] != false || !project.isProjectless {
+                namesByPath[key] = project.name
+            }
+            projectlessByPath[key] = (projectlessByPath[key] ?? true) && project.isProjectless
             dailyByPath[key, default: []].append(CostUsageDailyReport(data: project.daily, summary: nil))
             let sources = project.sources.isEmpty
                 ? [
@@ -2574,7 +2598,8 @@ public struct CostUsageFetcher: Sendable {
                 modelBreakdowns: Self.projectModelBreakdowns(from: merged.data),
                 sources: Self.mergedProjectSources(
                     sourceDailyByPath: sourceDailyByProjectPath[key] ?? [:],
-                    sourceNamesByPath: sourceNamesByProjectPath[key] ?? [:]))
+                    sourceNamesByPath: sourceNamesByProjectPath[key] ?? [:]),
+                isProjectless: projectlessByPath[key] == true)
         }
         .sorted { lhs, rhs in
             let lhsCost = lhs.totalCostUSD ?? -1

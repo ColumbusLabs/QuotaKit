@@ -88,7 +88,8 @@
     "muse",
     "pi",
     "museai",
-    "lithosai"
+    "lithosai",
+    "workbuddy"
   ],
   "order": [
     "codex",
@@ -179,7 +180,8 @@
     "muse",
     "pi",
     "museai",
-    "lithosai"
+    "lithosai",
+    "workbuddy"
   ],
   "providers": [
     {

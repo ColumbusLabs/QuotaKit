@@ -512,8 +512,22 @@ struct WorkBuddyPluginTests {
         private var rejections: [String] = []
 
         init(headers: [String]) {
-            self.candidates = headers.map {
-                ProviderPluginCookieSession(header: $0, source: "Fixture", origin: "https://www.workbuddy.cn")
+            self.candidates = headers.map { header in
+                let records = CookieHeaderNormalizer.pairs(from: header).map { cookie in
+                    ProviderPluginCookieRecord(
+                        name: cookie.name,
+                        value: cookie.value,
+                        domain: "www.workbuddy.cn",
+                        hostOnly: true,
+                        path: "/",
+                        secure: true,
+                        expires: nil)
+                }
+                return ProviderPluginCookieSession(
+                    header: header,
+                    source: "Fixture",
+                    origin: "https://www.workbuddy.cn",
+                    records: records)
             }
         }
 

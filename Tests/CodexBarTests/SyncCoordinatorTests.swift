@@ -141,6 +141,84 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Grok wallet does not sync as a zero-limit budget`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let wallet = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "USD",
+            balance: 14.46,
+            balanceUpdatedAt: now,
+            updatedAt: now)
+        let budget = ProviderCostSnapshot(
+            used: 2.5,
+            limit: 10,
+            currencyCode: "USD",
+            balance: 14.46,
+            balanceUpdatedAt: now,
+            updatedAt: now)
+
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .grok, providerCost: wallet) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .grok, providerCost: budget) ==
+            SyncBudgetSnapshot(
+                usedAmount: 2.5,
+                limitAmount: 10,
+                currencyCode: "USD",
+                period: nil,
+                resetsAt: nil))
+
+        let zeroWallet = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "USD",
+            balance: 0,
+            updatedAt: now)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .grok, providerCost: zeroWallet) == nil)
+        #expect(SyncCoordinator.syncedStatusMessage(
+            provider: .grok,
+            snapshot: nil,
+            providerCost: zeroWallet,
+            error: nil,
+            rateWindows: []) == "Prepaid balance: USD 0.00")
+    }
+
+    @Test
+    func `Grok wallet-only snapshot syncs a status signal without a budget`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-grok-wallet-only")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .grok,
+            metadata: #require(ProviderDefaults.metadata[.grok]),
+            enabled: true)
+
+        let updatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let wallet = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "USD",
+            balance: 14.46,
+            balanceUpdatedAt: updatedAt,
+            updatedAt: updatedAt)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, providerCost: wallet, updatedAt: updatedAt),
+            provider: .grok)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let status = "Prepaid balance: USD 14.46"
+        let legacyProvider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "grok" })
+        #expect(legacyProvider.statusMessage == status)
+        #expect(legacyProvider.budget == nil)
+
+        let envelope = try #require(mock.lastPerProviderEnvelopes.first { $0.provider.providerID == "grok" })
+        #expect(envelope.provider.statusMessage == status)
+        #expect(envelope.provider.budget == nil)
+    }
+
+    @Test
     func `OpenCode pay as you go syncs spend and balance without a false zero limit budget`() {
         let cost = ProviderCostSnapshot(
             used: 15,

@@ -22017,6 +22017,33 @@
           }
         }
       }
+    },
+    "Grok's prepaid USD wallet balance now syncs from QuotaKit Mac to iPhone as provider status.": {
+      "localizations": {
+        "ar": { "stringUnit": { "state": "translated", "value": "تتم الآن مزامنة رصيد محفظة Grok المدفوعة مسبقًا بالدولار الأمريكي من QuotaKit على Mac إلى iPhone كحالة للمزوّد." } },
+        "ca": { "stringUnit": { "state": "translated", "value": "El saldo de la cartera prepagada de Grok en USD ara se sincronitza de QuotaKit per a Mac a l’iPhone com a estat del proveïdor." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Das vorausbezahlte USD-Wallet-Guthaben von Grok wird jetzt von QuotaKit auf dem Mac als Anbieterstatus mit dem iPhone synchronisiert." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Grok's prepaid USD wallet balance now syncs from QuotaKit Mac to iPhone as provider status." } },
+        "es": { "stringUnit": { "state": "translated", "value": "El saldo de la cartera prepago de Grok en USD ahora se sincroniza desde QuotaKit para Mac al iPhone como estado del proveedor." } },
+        "fa": { "stringUnit": { "state": "translated", "value": "موجودی کیف پول پیش‌پرداخت‌شده دلاری Grok اکنون از QuotaKit در Mac به iPhone به‌عنوان وضعیت ارائه‌دهنده همگام‌سازی می‌شود." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Le solde prépayé du portefeuille Grok en USD est désormais synchronisé depuis QuotaKit sur Mac vers l’iPhone sous forme d’état du fournisseur." } },
+        "gl": { "stringUnit": { "state": "translated", "value": "O saldo da carteira prepagada de Grok en USD sincronízase agora desde QuotaKit para Mac co iPhone como estado do provedor." } },
+        "id": { "stringUnit": { "state": "translated", "value": "Saldo dompet prabayar Grok dalam USD kini disinkronkan dari QuotaKit di Mac ke iPhone sebagai status penyedia." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Il saldo prepagato del wallet Grok in USD ora si sincronizza da QuotaKit su Mac a iPhone come stato del provider." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Grok の USD プリペイドウォレット残高が、QuotaKit Mac から iPhone にプロバイダのステータスとして同期されるようになりました。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "Grok의 선불 USD 지갑 잔액이 이제 QuotaKit Mac에서 iPhone으로 제공업체 상태로 동기화됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Het voorafbetaalde USD-walletsaldo van Grok wordt nu vanuit QuotaKit op de Mac naar de iPhone gesynchroniseerd als providerstatus." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Saldo przedpłaconego portfela Grok w USD jest teraz synchronizowane z QuotaKit na Macu na iPhone jako status dostawcy." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O saldo da carteira pré-paga em USD do Grok agora é sincronizado do QuotaKit no Mac para o iPhone como status do provedor." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Баланс предоплаченного кошелька Grok в долларах США теперь синхронизируется из QuotaKit на Mac на iPhone как статус провайдера." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Groks förbetalda USD-saldo i plånboken synkas nu från QuotaKit på Mac till iPhone som leverantörsstatus." } },
+        "th": { "stringUnit": { "state": "translated", "value": "ยอดเงินในกระเป๋า Grok แบบเติมเงินล่วงหน้าเป็น USD ซิงค์จาก QuotaKit บน Mac ไปยัง iPhone ในรูปแบบสถานะของผู้ให้บริการแล้ว" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Grok'un ön ödemeli USD cüzdan bakiyesi artık QuotaKit Mac'ten iPhone'a sağlayıcı durumu olarak eşitleniyor." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Баланс передплаченого гаманця Grok у доларах США тепер синхронізується з QuotaKit на Mac на iPhone як статус провайдера." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Số dư ví trả trước USD của Grok hiện được đồng bộ từ QuotaKit trên Mac sang iPhone dưới dạng trạng thái nhà cung cấp." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Grok 的预付 USD 钱包余额现会作为提供商状态从 Mac 版 QuotaKit 同步到 iPhone。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Grok 的預付 USD 錢包餘額現在會以提供者狀態從 Mac 版 QuotaKit 同步到 iPhone。" } }
+      }
     }
   },
   "version": "1.0"

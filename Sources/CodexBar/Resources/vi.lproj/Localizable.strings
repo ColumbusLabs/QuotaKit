@@ -1566,6 +1566,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Cuộc trò chuyện độc lập";
+"Independent chats" = "Các cuộc trò chuyện độc lập";
+"Chat %d" = "Cuộc trò chuyện %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";

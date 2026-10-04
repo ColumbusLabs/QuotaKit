@@ -241,6 +241,7 @@ func spendDashboardModelHistoryPresentation(
 enum SpendDashboardDetailSection: Hashable, Identifiable {
     case providers
     case projects
+    case chats
     case sessions
 
     var id: Self {
@@ -251,6 +252,7 @@ enum SpendDashboardDetailSection: Hashable, Identifiable {
         switch self {
         case .providers: L("Providers")
         case .projects: L("Projects")
+        case .chats: L("Independent chats")
         case .sessions: L("Sessions")
         }
     }
@@ -258,12 +260,26 @@ enum SpendDashboardDetailSection: Hashable, Identifiable {
 
 func spendDashboardAvailableDetailSections(
     hasProjects: Bool,
-    hasSessions: Bool) -> [SpendDashboardDetailSection]
+    hasSessions: Bool,
+    hasChats: Bool = false) -> [SpendDashboardDetailSection]
 {
     var sections: [SpendDashboardDetailSection] = [.providers]
     if hasProjects { sections.append(.projects) }
+    if hasChats { sections.append(.chats) }
     if hasSessions { sections.append(.sessions) }
     return sections
+}
+
+/// Filter for display without regrouping ledger paths or changing any amounts.
+func spendDashboardProjectRows(
+    _ rows: [SpendDashboardModel.ProjectRow],
+    isProjectless: Bool) -> [SpendDashboardModel.ProjectRow]
+{
+    rows.filter { $0.isProjectless == isProjectless }.enumerated().map { index, row in
+        var ranked = row
+        ranked.rank = index + 1
+        return ranked
+    }
 }
 
 enum SpendDashboardTrendSection: Hashable, Identifiable {
@@ -752,21 +768,23 @@ struct SpendDashboardCurrencySection: View {
         group: SpendDashboardModel.CurrencyGroup,
         requestedDays: Int,
         hidePersonalInfo: Bool = false,
-        onClearSelectedDay: (() -> Void)? = nil)
+        onClearSelectedDay: (() -> Void)? = nil,
+        detailSection: SpendDashboardDetailSection = .providers)
     {
         self.group = group
         self.requestedDays = requestedDays
         self.hidePersonalInfo = hidePersonalInfo
         self.onClearSelectedDay = onClearSelectedDay
-        self._selectedDetailSection = State(initialValue: .providers)
+        self._selectedDetailSection = State(initialValue: detailSection)
         self._selectedTrendSection = State(
             initialValue: group.selectedDay != nil && !group.hourlyPoints.isEmpty ? .hourly : .daily)
     }
 
     private var availableDetailSections: [SpendDashboardDetailSection] {
         spendDashboardAvailableDetailSections(
-            hasProjects: !self.group.projects.isEmpty,
-            hasSessions: !self.group.sessions.isEmpty)
+            hasProjects: self.group.projects.contains { !$0.isProjectless },
+            hasSessions: !self.group.sessions.isEmpty,
+            hasChats: self.group.projects.contains(where: \.isProjectless))
     }
 
     private var activeDetailSection: SpendDashboardDetailSection {
@@ -811,7 +829,9 @@ struct SpendDashboardCurrencySection: View {
                     }
                 }
             } else if self.activeDetailSection == .projects {
-                SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
+                SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: false)
+            } else if self.activeDetailSection == .chats {
+                SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: true)
             } else {
                 SpendSessionPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
             }
@@ -846,6 +866,7 @@ struct SpendDashboardCurrencySection: View {
 private struct SpendProjectPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
     let hidePersonalInfo: Bool
+    let isProjectless: Bool
     @State private var showsAllRows = false
 
     private static let collapsedRowCount = 8
@@ -853,12 +874,10 @@ private struct SpendProjectPanel: View {
     var body: some View {
         SpendDashboardPanel {
             VStack(alignment: .leading, spacing: 0) {
-                Text(L("Projects")).font(.headline).padding(.bottom, 8)
+                Text(self.isProjectless ? L("Independent chats") : L("Projects")).font(.headline).padding(.bottom, 8)
                 ForEach(self.visibleRows) { row in
                     let identity = row.displayIdentity(hidePersonalInfo: self.hidePersonalInfo)
-                    let hasDuplicateLabel = self.group.projects.contains {
-                        $0.id != row.id && $0.projectName == row.projectName
-                    }
+                    let hasDuplicateLabel = row.needsPathDisambiguation(in: self.rows)
                     if row.rank > 1 {
                         Divider()
                     }
@@ -867,7 +886,7 @@ private struct SpendProjectPanel: View {
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.tertiary)
                             .frame(width: 26, alignment: .leading)
-                        Image(systemName: "folder")
+                        Image(systemName: row.isProjectless ? "bubble.left.and.bubble.right" : "folder")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                         VStack(alignment: .leading, spacing: 2) {
@@ -894,7 +913,7 @@ private struct SpendProjectPanel: View {
                     .padding(.vertical, 9)
                 }
                 SpendPanelExpandButton(
-                    rowCount: self.group.projects.count,
+                    rowCount: self.rows.count,
                     collapsedRowCount: Self.collapsedRowCount,
                     showsAllRows: self.$showsAllRows)
             }
@@ -902,8 +921,11 @@ private struct SpendProjectPanel: View {
     }
 
     private var visibleRows: ArraySlice<SpendDashboardModel.ProjectRow> {
-        self.group.projects.prefix(
-            self.showsAllRows ? self.group.projects.count : Self.collapsedRowCount)
+        self.rows.prefix(self.showsAllRows ? self.rows.count : Self.collapsedRowCount)
+    }
+
+    private var rows: [SpendDashboardModel.ProjectRow] {
+        spendDashboardProjectRows(self.group.projects, isProjectless: self.isProjectless)
     }
 }
 

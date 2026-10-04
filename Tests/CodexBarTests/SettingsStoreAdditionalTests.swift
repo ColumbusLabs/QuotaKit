@@ -260,7 +260,7 @@ struct SettingsStoreAdditionalTests {
             .nous: [.automatic, .primary],
             .museai: [.automatic, .primary],
             .lithosai: [.automatic],
-            .workbuddy: [.automatic],
+            .workbuddy: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {

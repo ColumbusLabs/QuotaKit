@@ -1368,6 +1368,9 @@
 "Cache write" = "缓存写入";
 "Reasoning" = "推理";
 "Sessions" = "会话";
+"Independent chats" = "独立聊天";
+"Independent chat" = "独立聊天";
+"Chat %d" = "聊天 %d";
 "Projects" = "项目";
 "Plan metered" = "套餐计量";
 "List-price equivalent" = "目录价等值";

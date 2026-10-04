@@ -3,10 +3,8 @@ import SwiftUI
 /// Provider colors for in-app surfaces and widgets.
 ///
 /// The app raw swatches mirror the Mac `ProviderDescriptorRegistry` branding
-/// colors. WorkBuddy's app tint is shifted slightly from `#0DC8A6` to keep it
-/// distinct from Sub2API's `#14B8A6` while staying in the same green hue family.
-/// `color(for:)` returns an appearance-adaptive app tint. The widget palette
-/// retains established widget colors where the app accent changed.
+/// colors. `color(for:)` returns an appearance-adaptive app tint. The widget
+/// palette retains established widget colors where the app accent changed.
 enum ProviderColorPalette {
     struct RawColor: Equatable {
         let red: Double

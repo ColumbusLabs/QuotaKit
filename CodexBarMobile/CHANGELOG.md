@@ -67,6 +67,8 @@ current Columbus Labs product surface and recent release history.
   its own provider icon, color, and quota alerts.
 - Kiro overage details now show available credit and charge limits, remaining
   credits, accrued charges, and the provider's reported currency when available.
+- Grok's prepaid USD wallet balance now appears on iPhone as provider status
+  synced from QuotaKit Mac.
 
 ## [1.11.3 (177)] — 2026-08-11 — Recovery
 

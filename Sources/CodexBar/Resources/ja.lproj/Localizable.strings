@@ -1566,6 +1566,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "独立したチャット";
+"Independent chats" = "独立したチャット";
+"Chat %d" = "チャット %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";

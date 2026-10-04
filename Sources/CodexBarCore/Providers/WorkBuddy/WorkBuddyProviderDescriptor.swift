@@ -11,8 +11,8 @@ public enum WorkBuddyProviderDescriptor {
         weeklyLabel: "Plan",
         usesDetailBackedWindow: true,
         dashboardURL: "https://www.workbuddy.cn/profile/plans-usage",
-        color: .init(hex: 0x0DC8A6),
-        confetti: [0x0DC8A6, 0x7BE8D3, 0x1A1A1A],
+        color: .init(hex: 0x0DD2A6),
+        confetti: [0x0DD2A6, 0x7BE8D3, 0x1A1A1A],
         noDataMessage: "No cost history data.",
         menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary]),
         presentation: ProviderUsagePresentation(

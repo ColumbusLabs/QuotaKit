@@ -89,6 +89,22 @@ struct CostUsageStoreReadView: Sendable {
             modelsDevCacheRoot: cacheRoot)
     }
 
+    func projectSessionIDs(range: CostUsageScanner.CostUsageDayRange) -> [String: Set<String>] {
+        // Session rows deduplicate to the latest file. Ownership must include older files too,
+        // even after a thread moves directories. This conservative superset is refresh-only.
+        var sessionIDsByPath: [String: Set<String>] = [:]
+        for (filePath, usage) in self.cache.files {
+            guard let path = usage.projectPath,
+                  usage.touchesCodexScanWindow(
+                      sinceKey: range.scanSinceKey,
+                      untilKey: range.scanUntilKey,
+                      calendar: range.calendar) else { continue }
+            let id = usage.sessionId ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+            sessionIDsByPath[path, default: []].insert(id)
+        }
+        return sessionIDsByPath
+    }
+
     func sessions(
         range: CostUsageScanner.CostUsageDayRange,
         cacheRoot: URL?,

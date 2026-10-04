@@ -165,7 +165,10 @@ enum DashboardSnapshotBuilder {
             status: self.makeStatus(payload.status),
             identity: self.makeIdentity(provider: provider, usage: payload.usage, mode: identityMode),
             windows: self.makeWindows(provider: provider, metadata: metadata, usage: payload.usage),
-            credits: self.makeCredits(payload.credits),
+            credits: self.makeCredits(
+                payload.credits,
+                provider: provider,
+                providerCost: payload.usage?.providerCost),
             cost: cost != nil
                 ? self.makeCost(cost, referenceDate: generatedAt)
                 : self.makeReportedCost(payload.usage?.costUsage),
@@ -455,9 +458,22 @@ enum DashboardSnapshotBuilder {
         min(100, max(0, value))
     }
 
-    private static func makeCredits(_ credits: CreditsSnapshot?) -> DashboardCreditsPayload? {
-        guard let credits, credits.balanceReadSucceeded else { return nil }
-        return DashboardCreditsPayload(remaining: credits.remaining, unit: "credits")
+    private static func makeCredits(
+        _ credits: CreditsSnapshot?,
+        provider: UsageProvider?,
+        providerCost: ProviderCostSnapshot?) -> DashboardCreditsPayload?
+    {
+        if let credits, credits.balanceReadSucceeded {
+            return DashboardCreditsPayload(remaining: credits.remaining, unit: "credits")
+        }
+        guard provider == .grok,
+              let providerCost,
+              providerCost.currencyCode == "USD",
+              let balance = providerCost.balance,
+              balance.isFinite,
+              balance >= 0
+        else { return nil }
+        return DashboardCreditsPayload(remaining: balance, unit: "USD")
     }
 
     private static func makeReportedCost(_ snapshot: CostUsageTokenSnapshot?) -> DashboardCostPayload? {

@@ -1569,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Obrolan mandiri";
+"Independent chats" = "Obrolan mandiri";
+"Chat %d" = "Obrolan %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";

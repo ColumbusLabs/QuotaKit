@@ -170,7 +170,7 @@ struct GrokCreditsProxyFetcherTests {
         }
         """.utf8), now: now)
 
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.windowMinutes == 10080)
     }
 

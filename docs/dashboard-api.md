@@ -282,7 +282,9 @@ retain their own usage and errors; ambient credits are not presented as a shared
   an adapter, ignores the key and keeps the row. The built-in web UI drops these rows so the page matches the app
   menu, which hides an untouched Antigravity model family. Only the producer can set this: a zero `usedPercent` also
    stands for a lane whose usage the provider never reported, and the payload does not carry that distinction.
-- `providers[].credits`: Remaining credits or balance when available.
+- `providers[].credits`: Remaining credits or balance when available. For Grok, when ordinary credits are absent,
+  a valid purchased Extra Usage Credits wallet uses this existing shape with `unit: "USD"`; quota windows remain
+  separate. CLI usage JSON exposes the same wallet at `usage.providerCost.balance`.
 - `providers[].cost`: Local cost data when available, otherwise provider-reported 30-day USD history.
   Reported history preserves a known zero and leaves `todayUSD` null because completed UTC days are not
   necessarily local Today. Other currencies or window lengths remain unavailable; local cost retains precedence.

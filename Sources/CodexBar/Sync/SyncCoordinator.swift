@@ -1010,6 +1010,16 @@ final class SyncCoordinator {
             let amount = String(format: "%.2f", providerCost.used)
             return "Prepaid balance: \(providerCost.currencyCode) \(amount)"
         }
+        if provider == .grok,
+           let providerCost,
+           providerCost.currencyCode == "USD",
+           let balance = providerCost.balance,
+           balance.isFinite,
+           balance >= 0
+        {
+            let amount = String(format: "%.2f", balance)
+            return "Prepaid balance: USD \(amount)"
+        }
         guard provider == .copilot,
               rateWindows.isEmpty,
               let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1041,6 +1051,14 @@ final class SyncCoordinator {
            providerCost.limit <= 0,
            providerCost.balance != nil
         {
+            return nil
+        }
+        if provider == .grok,
+           let providerCost,
+           providerCost.limit <= 0,
+           providerCost.balance != nil
+        {
+            // Grok's purchased credits are a wallet, not a spend-only $0 budget.
             return nil
         }
         if provider == .opencode || provider == .codex,

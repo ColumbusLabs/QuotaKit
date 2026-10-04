@@ -19,9 +19,9 @@ struct CodexProjectDisplayNameTests {
                 ('other', '/ambiguous'), ('outer', '/ambiguous'), ('blank', '/blank');
             """)
 
-            let names = CodexThreadMetadataReader(databaseURL: database).projectNames(for: [
+            let names = CodexThreadMetadataReader(databaseURL: database).projectMetadata(for: [
                 "/work", "/work/sub", "/work/nested/src", "/worker", "/ambiguous", "/blank",
-            ])
+            ]).names
             #expect(names == [
                 "/work": "My Workspace",
                 "/work/sub": "My Workspace",
@@ -29,7 +29,7 @@ struct CodexProjectDisplayNameTests {
             ])
 
             try Self.execute(database, "UPDATE projects SET name = 'Renamed' WHERE id = 'outer'")
-            #expect(CodexThreadMetadataReader(databaseURL: database).projectNames(for: ["/work"])["/work"]
+            #expect(CodexThreadMetadataReader(databaseURL: database).projectMetadata(for: ["/work"]).names["/work"]
                 == "Renamed")
         }
     }
@@ -141,10 +141,12 @@ struct CodexProjectDisplayNameTests {
                 projects: [first, combined, mixed, unproven],
                 sessionsRoot: home.appendingPathComponent("sessions"),
                 environment: ["CODEX_SQLITE_HOME": "state"],
-                projectNameLookup: { url, paths in
+                projectMetadataLookup: { url, paths, sessionIDs in
                     #expect(lookupPaths[url] == nil, "Each SQLite database should be queried once per load")
                     lookupPaths[url] = paths
-                    return CodexThreadMetadataReader(databaseURL: url).projectNames(for: paths)
+                    return CodexThreadMetadataReader(databaseURL: url).projectMetadata(
+                        for: paths,
+                        sessionIDs: sessionIDs)
                 }).projects
             var expectedFirst = first
             expectedFirst.name = "First"
@@ -160,10 +162,10 @@ struct CodexProjectDisplayNameTests {
     func `missing project tables or databases preserve folder labels without creating files`() throws {
         try Self.withDatabase { database in
             try Self.execute(database, "DROP TABLE project_roots; DROP TABLE projects;")
-            #expect(CodexThreadMetadataReader(databaseURL: database).projectNames(for: ["/work"]).isEmpty)
+            #expect(CodexThreadMetadataReader(databaseURL: database).projectMetadata(for: ["/work"]).names.isEmpty)
 
             let missing = database.deletingLastPathComponent().appendingPathComponent("missing.sqlite")
-            #expect(CodexThreadMetadataReader(databaseURL: missing).projectNames(for: ["/work"]).isEmpty)
+            #expect(CodexThreadMetadataReader(databaseURL: missing).projectMetadata(for: ["/work"]).names.isEmpty)
             #expect(!FileManager.default.fileExists(atPath: missing.path))
         }
     }

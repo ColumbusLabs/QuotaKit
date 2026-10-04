@@ -12,6 +12,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Claude promotional cloud-session credits appear separately from prepaid balance and quota, and sync to iPhone without reset-credit redemption data.
 - Antigravity scans additional Gemini profile homes configured in provider settings.
 - WorkBuddy tracks monthly credits, reserved credits, plan and optional cycle resets through Chrome or manual website sessions.
+- Grok purchased credit balances appear in usage JSON and the local dashboard and sync to iPhone as prepaid status, separately from quota and spend budgets.
+- Spend history separates explicitly independent Codex chats from projects, preserving project ownership and privacy labels.
 
 ### Fixed
 

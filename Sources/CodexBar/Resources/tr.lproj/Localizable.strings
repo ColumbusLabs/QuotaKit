@@ -1567,6 +1567,10 @@
 "Cache write" = "Önbellek yazımı";
 "Reasoning" = "Akıl yürütme";
 "Sessions" = "Oturumlar";
+
+"Independent chat" = "Bağımsız sohbet";
+"Independent chats" = "Bağımsız sohbetler";
+"Chat %d" = "Sohbet %d";
 "Projects" = "Projeler";
 "Plan metered" = "Plan kotasıyla ölçülen";
 "List-price equivalent" = "Liste fiyatı karşılığı";

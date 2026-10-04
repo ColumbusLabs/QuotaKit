@@ -1569,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Niezależny czat";
+"Independent chats" = "Niezależne czaty";
+"Chat %d" = "Czat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";

@@ -1596,6 +1596,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "獨立聊天";
+"Independent chats" = "獨立聊天";
+"Chat %d" = "聊天 %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";

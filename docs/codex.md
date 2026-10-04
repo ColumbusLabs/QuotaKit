@@ -247,6 +247,17 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
     and widget cost summaries contain aggregate values only.
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
+
+Independent desktop chats appear in a separate **Independent chats** section, using saved thread titles or a
+neutral chat label instead of generated workspace folder names. Every contributing thread, including older files
+from moved threads, must have an explicit marker in the selected Codex home's desktop state. Registered project
+roots and current or legacy assignments veto stale markers; missing, malformed, or conflicting ownership keeps
+the Projects fallback. A null project ID or an unregistered CLI folder alone never establishes chat ownership.
+Project names and ownership share a bounded SQLite snapshot per database per refresh (1,024 roots and 4,096
+candidate threads); desktop state reads are capped at 8 MiB. This leaves identities, totals, caches, and dashboard
+and widget schemas unchanged. Privacy mode uses numbered chat labels and hides titles and paths through the
+existing display identity projection.
+
 - Cache:
   - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
