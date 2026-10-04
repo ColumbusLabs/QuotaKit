@@ -1,6 +1,6 @@
 # Independently verified Codex daily spend
 
-Status: in progress — installed delivery exposed a remaining source verification blocker
+Status: done — released Mac verification and TestFlight phone confirmation complete
 Date: 2026-10-03
 
 ## Failure and endpoint
@@ -240,3 +240,46 @@ incorrect UK-format expectation (08/03 is the platform's localized result);
 that expectation was corrected before the successful full gate. The new
 release-note key is translated in all 23 supported locales. Build 180 signing
 and upload preflight passed for the expected Columbus Labs team.
+
+
+## Final delivery and closeout
+
+Released source `ed030d4ade37abb2cfd9f763c79a3586ab9b5917` passed all
+required hosted CI jobs (run 37163346569), including the previously timed-out
+multi-account selection. The separate Mac artifact verification workflow
+(run 37164434999) also passed. The focused accounting, migration and bounded
+scheduling checks, independent reviews, lint and 793-test iOS simulator gate
+passed. No coverage guard was weakened, no test was skipped, and no timeout
+was increased. The original CI blocked thread remains unidentified; the
+isolated fixtures and successful fresh hosted run establish the release gate.
+
+TestFlight 1.11.4 (180) uploaded successfully, processed as VALID and became
+available to the internal Team group. The user confirmed installation with
+“I got the TestFlight. Looks good,” completing actual phone verification of
+the repaired date axis after their earlier spend-update confirmation. The
+App Store version states were identical before and after delivery. No App
+Store version, submission or review action was created.
+
+Mac 0.32.4.33 was rebuilt from that exact released source with parser hash
+`af117122edc4c286`, signed for Columbus Labs and notarized. The release and
+signed appcast are public. Downloaded public ZIP and DMG signatures, asset
+hashes and notarization checks passed. The installed Mac updated from
+0.32.4.32 through the supported Sparkle path, whose log confirmed the
+EdDSA signature. The temporary scheduled-check interval was restored to its
+prior absent state. The actual installed app identity and live ledger parser
+hash match the released source.
+
+Normal installed refresh advanced the retained daily-proof revision from 97
+to 99. A subsequent normal quit and relaunch preserved lineage and advanced
+revision to 102. At 00:49 UTC on October 4 (still October 3 locally), the
+October 3 certified aggregate and local outgoing snapshot matched exactly:
+$311.15722064 and 1,197,924,030 tokens, with matching source kind, lineage,
+revision and verification time at wire precision. This is local source and
+outgoing evidence; it does not claim a separately observed CloudKit server
+receipt. The user's phone confirmations supply the device behavior evidence.
+
+The tested simulator and temporary diagnostic helpers were stopped; the
+public DMG was detached. The installed released Mac app remains running.
+Source-66 candidate artifacts remain isolated audit evidence and were not
+published. Post-release metadata opens Mac 0.32.4.34 as Unreleased without
+changing iOS version 1.11.4 or build 180, or installing a development bundle.
