@@ -133,6 +133,9 @@
     availability(domain) {
       return host.cookieAvailability(String(domain));
     },
+    acceptCookie(domain, session) {
+      host.acceptCookie(String(domain), session === undefined ? "" : String(session.id));
+    },
     rejectCookie(domain, session) {
       host.rejectCookie(String(domain), session === undefined ? "" : String(session.id));
     },

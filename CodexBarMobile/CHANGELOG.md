@@ -9,6 +9,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts.
 - Claude promotional cloud-session credits sync separately from quotas and prepaid usage; cached credits show expired after their expiration.
 
 - Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.

@@ -6,6 +6,11 @@ import Testing
 
 @Suite(.serialized)
 struct CLICookieRefreshTests {
+    private static let browserCookieAccessFailureHint =
+        "No browser session cookie was refreshed. Sign in in a configured browser and retry. " +
+        "If Keychain access was declined, QuotaKit keeps the six-hour denial cooldown; " +
+        "use --allow-keychain-prompt only for an explicit interactive retry."
+
     @Test
     func `cookie refresh parses explicit keychain acknowledgement`() throws {
         let parser = CommandParser(signature: CommandSignature.describe(CookieOptions()))
@@ -279,6 +284,108 @@ struct CLICookieRefreshTests {
     }
 
     @Test
+    func `header importer retains explicit retry in a detached task`() async throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+        BrowserCookieAccessGate.recordDenied(for: .chrome)
+        let storage = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: storage) }
+        let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
+        let domain = "cookies.example.test"
+        let broker = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            BrowserCookieAccessGate.withExplicitRetry {
+                ProviderPluginCookieBroker(
+                    provider: .raycast,
+                    domains: [domain],
+                    settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                    batches: { _, batch in
+                        #expect(ProviderInteractionContext.current == .userInitiated)
+                        return KeychainAccessGate.withTaskOverrideForTesting(false) {
+                            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                                .interactionRequired
+                            } operation: {
+                                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome))
+                                return batch == 0 ? [("session=synthetic", "Chrome")] : nil
+                            }
+                        }
+                    })
+            }
+        }
+        let session = try await Task.detached {
+            try KeychainCacheStore.withServiceOverrideForTesting(service) {
+                try KeychainCacheStore.withImplicitTestStoreForTesting {
+                    try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                        try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+                            try broker.nextSession(domain: domain)
+                        }
+                    }
+                }
+            }
+        }.value
+        #expect(session?.header == "session=synthetic")
+    }
+
+    @Test
+    func `classified cookie failures retain safe category hints`() throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+        try KeychainAccessGate.withTaskOverrideForTesting(false) {
+            let hints: [ProviderFetchClassifiedError.Kind: String] = [
+                .authenticationExpired: "The provider rejected the browser session. Sign in again and retry.",
+                .permissionDenied:
+                    "Permission was denied while refreshing the browser session. Check access and retry.",
+                .rateLimited: "The provider rate limited the refresh. Wait and retry.",
+                .providerUnavailable: "The provider is temporarily unavailable. Retry later.",
+                .parseFailure: "The provider response could not be read. Check for a QuotaKit update.",
+                .networkFailure: "The provider could not be reached. Check your connection and retry.",
+                .apiFailure: "The provider could not validate the browser session. Retry later.",
+            ]
+            for kind in ProviderFetchClassifiedError.Kind.allCases {
+                let result = CodexBarCLI.cookieRefreshFailure(
+                    provider: .raycast,
+                    error: ProviderFetchClassifiedError(kind: kind, message: "opaque-test-marker"))
+                #expect(result.status == .failed)
+                #expect(result.message == (hints[kind] ?? Self.browserCookieAccessFailureHint))
+                #expect(!CodexBarCLI.cookieRefreshText([result]).contains("opaque-test-marker"))
+                let data = try JSONEncoder().encode(result)
+                let json = try #require(String(data: data, encoding: .utf8))
+                #expect(!json.contains("opaque-test-marker"))
+            }
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `plugin authentication rejection reaches cookie refresh output`(engine: ProviderPluginEngineKind) async throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+        let runtime = try ProviderPluginRuntime(source: """
+        defineProvider({id: 'raycast', name: 'Fixture', endpoints: ['https://cookies.example.test'],
+          settings: [], capabilities: ['http-status'],
+          async fetchUsage(ctx) {
+            const response = await ctx.http.getJSON('https://cookies.example.test/session');
+            if (response.status === 401) throw ctx.fail.authenticationExpired('opaque-test-marker');
+            throw new Error('Expected HTTP 401');
+          }
+        });
+        """, transport: ProviderHTTPTransportHandler { request in
+            let url = try #require(request.url)
+            return try (Data("{}".utf8), #require(HTTPURLResponse(
+                url: url, statusCode: 401, httpVersion: nil, headerFields: nil)))
+        }, engine: engine)
+        do {
+            _ = try await runtime.fetchUsage()
+            Issue.record("Expected authentication failure")
+        } catch {
+            #expect((error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired)
+            KeychainAccessGate.withTaskOverrideForTesting(false) {
+                let result = CodexBarCLI.cookieRefreshFailure(provider: .raycast, error: error)
+                #expect(result.message == "The provider rejected the browser session. Sign in again and retry.")
+                #expect(!result.message.contains("opaque-test-marker"))
+            }
+        }
+    }
+
+    @Test
     func `raw provider failures cannot leak cookie values`() {
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             let privateMarker = "opaque-test-marker"
@@ -292,26 +399,31 @@ struct CLICookieRefreshTests {
             let encoded = try? JSONEncoder().encode(result)
             let json = encoded.flatMap { String(data: $0, encoding: .utf8) } ?? ""
 
+            #expect(result.message == Self.browserCookieAccessFailureHint)
             #expect(!text.contains(privateMarker))
             #expect(!json.contains(privateMarker))
             #expect(text.contains("six-hour denial cooldown"))
         }
     }
 
-    @Test
-    func `keychain failure reuses actionable denial hint`() {
+    @Test(arguments: [false, true], ProviderFetchClassifiedError.Kind.allCases)
+    func `keychain failure takes precedence over classified hints`(
+        disabled: Bool, kind: ProviderFetchClassifiedError.Kind)
+    {
         BrowserCookieAccessGate.resetForTesting()
         defer { BrowserCookieAccessGate.resetForTesting() }
         BrowserCookieAccessGate.recordDenied(for: .chrome)
 
-        KeychainAccessGate.withTaskOverrideForTesting(false) {
+        KeychainAccessGate.withTaskOverrideForTesting(disabled) {
             let result = CodexBarCLI.cookieRefreshFailure(
                 provider: .opencode,
-                error: NSError(domain: "opaque-test-marker", code: 1))
+                error: ProviderFetchClassifiedError(kind: kind, message: "opaque-test-marker"))
 
-            #expect(result.message ==
+            let expected = disabled ?
+                "Chrome cookie decryption is disabled in QuotaKit; enable Keychain access and refresh." :
                 "Chrome cookie decryption was declined in Keychain; " +
-                "rerun with --allow-keychain-prompt to request Keychain access again.")
+                "rerun with --allow-keychain-prompt to request Keychain access again."
+            #expect(result.message == expected)
             #expect(!result.message.contains("opaque-test-marker"))
         }
     }

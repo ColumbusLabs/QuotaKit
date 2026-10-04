@@ -231,6 +231,7 @@ interface CodexBarPluginContext {
   readonly browser: {
     readonly supportedBrowsers: string;
     availability(domain: string): "available" | "off" | "manual";
+    acceptCookie(domain: string, session: CodexBarCookieSession): void;
     rejectCookie(domain: string, session?: CodexBarCookieSession): void;
     sessions(domain: string, options?: { cachedOnly?: boolean }): AsyncIterable<CodexBarCookieSession>;
     cookieHeader(domain: string): Promise<string>;
@@ -289,10 +290,10 @@ interface CodexBarProviderDefinition {
   /** Grants declared cookie access, HTTP status handling, or bounded non-secret persistent state. */
   capabilities?: Array<"browser-cookies" | "http-status" | "persistent-storage">;
   cookieDomains?: string[];
-  /** Use host-side request-URL cookie matching without persistent cookie storage. Bundled plugins only. */
+  /** Use host-side request-URL cookie matching with optional validated host persistence. Bundled plugins only. */
   cookiePolicy?: {
     selection: "request-url";
-    cache: "nonpersistent";
+    cache: "nonpersistent" | "validated-single-entry";
     imports?: "app-interactive" | "access-gated";
     requiredCookies?: string[];
     /** Host-only echo of a required cookie into a custom X- header on one declared HTTPS origin. */

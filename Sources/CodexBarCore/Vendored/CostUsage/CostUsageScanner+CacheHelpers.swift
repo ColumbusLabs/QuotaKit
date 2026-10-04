@@ -664,10 +664,18 @@ extension CostUsageScanner {
         let fileId: String?
     }
 
-    struct CodexFileScanInput {
+    /// Immutable scan inputs retain the large cached value on the heap while nested
+    /// parser and inherited-baseline calls use the cooperative thread's bounded stack.
+    final class CodexFileScanInput {
         let fileURL: URL
         let metadata: CodexFileMetadata
         let cached: CostUsageFileUsage?
+
+        init(fileURL: URL, metadata: CodexFileMetadata, cached: CostUsageFileUsage?) {
+            self.fileURL = fileURL
+            self.metadata = metadata
+            self.cached = cached
+        }
     }
 
     static func codexFileMetadata(fileURL: URL) -> CodexFileMetadata {
@@ -880,7 +888,7 @@ extension CostUsageScanner {
         return !(Set(cached.codexTurnIDs ?? []).isDisjoint(with: context.changedPriorityTurnIDs))
     }
 
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // swiftlint:disable:next cyclomatic_complexity
     static func appendCodexFileIncrementIfPossible(
         input: CodexFileScanInput,
         context: CodexFileScanContext,
@@ -1039,6 +1047,46 @@ extension CostUsageScanner {
         if delta.forkedFromId != nil, !isResumablePartial, !isBufferedForkResume {
             return false
         }
+        return try Self.commitCodexIncrement(
+            input: input,
+            context: context,
+            increment: CodexIncrementCommit(
+                delta: delta,
+                startOffset: startOffset,
+                isBufferedForkResume: isBufferedForkResume,
+                needsBufferedSnapshotRecovery: needsBufferedSnapshotRecovery,
+                sourcePricingForResume: sourcePricingForResume,
+                initialAccumulatorState: initialAccumulatorState),
+            cache: &cache,
+            state: &state)
+    }
+
+    private struct CodexIncrementCommit {
+        let delta: CodexParseResult
+        let startOffset: Int64
+        let isBufferedForkResume: Bool
+        let needsBufferedSnapshotRecovery: Bool
+        let sourcePricingForResume: [CodexSourcePricingKey: CodexPricingEvidence]?
+        let initialAccumulatorState: CostUsageCodexTokenAccumulatorState
+    }
+
+    // Finish parsing before reserving the pricing/materialization temporaries. Inherited
+    // parent lookups must not run with this large cache-assembly frame still on the stack.
+    // swiftlint:disable:next function_body_length
+    private static func commitCodexIncrement(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        increment: CodexIncrementCommit,
+        cache: inout CostUsageCache,
+        state: inout CodexScanState) throws -> Bool
+    {
+        guard let cached = input.cached else { return false }
+        let delta = increment.delta
+        let startOffset = increment.startOffset
+        let isBufferedForkResume = increment.isBufferedForkResume
+        let needsBufferedSnapshotRecovery = increment.needsBufferedSnapshotRecovery
+        let sourcePricingForResume = increment.sourcePricingForResume
+        let initialAccumulatorState = increment.initialAccumulatorState
         let migrated = Self.codexFileUsageWithPricingMetadata(cached, context: context)
         let cachedSessionMetadata = migrated.codexSession ?? CostUsageCodexSessionMetadata(
             sessionId: migrated.sessionId,

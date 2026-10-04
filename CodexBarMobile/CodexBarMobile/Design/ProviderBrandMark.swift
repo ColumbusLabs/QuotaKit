@@ -83,6 +83,7 @@ enum ProviderBrandAsset {
         "vertexai",
         "warp",
         "windsurf",
+        "workbuddy",
         "xai",
         "zai",
         "zed",

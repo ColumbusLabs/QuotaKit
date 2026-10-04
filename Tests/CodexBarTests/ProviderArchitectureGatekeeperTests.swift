@@ -3628,8 +3628,9 @@ struct ProviderArchitectureGatekeeperTests {
                 "zed",
                 "zenmux",
                 "zoommate",
+                "workbuddy",
             ],
-            expectedReferenceCount: 89,
+            expectedReferenceCount: 90,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "claude@2",
@@ -3720,6 +3721,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "nous@39",
                 "pi@39",
                 "vercel@39",
+                "workbuddy@39",
             ],
             reason: "This exhaustive fallback preserves stable Mac-to-iOS account grouping for providers without Tier-A identity data, including MuseAI's explicit nil-identity branch."),
         AllowedProviderConstruct(
@@ -4359,15 +4361,15 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Copilot's selected GitHub host scopes mobile account identity across public and Enterprise accounts."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 758,
+            line: 760,
             anchor: "guard provider == .copilot, let tokenAccount,",
-            expectedProviderIDs: ["copilot"],
-            expectedReferenceCount: 1,
-            expectedReferenceFingerprint: ["copilot@0"],
-            reason: "Copilot's readable mobile account key includes its GitHub host to keep Enterprise accounts distinct."),
+            expectedProviderIDs: ["copilot", "workbuddy"],
+            expectedReferenceCount: 2,
+            expectedReferenceFingerprint: ["workbuddy@0", "copilot@1"],
+            reason: "WorkBuddy omits public account identity while Copilot scopes readable mobile account keys by GitHub host."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 790,
+            line: 792,
             anchor: "let bedrockRegion: String? = provider == .bedrock ? {",
             expectedProviderIDs: ["bedrock"],
             expectedReferenceCount: 1,
@@ -4375,7 +4377,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Bedrock's AWS region is read from its settings because the flattened usage snapshot omits that field."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 828,
+            line: 830,
             anchor: "let openCodeGoWorkspaceID: String? = provider == .opencodego ? {",
             expectedProviderIDs: ["opencodego"],
             expectedReferenceCount: 1,
@@ -4383,7 +4385,15 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "OpenCode Go's workspace identifier is settings-backed metadata required by its mobile envelope."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 966,
+            line: 939,
+            anchor: "if provider == .workbuddy {",
+            expectedProviderIDs: ["workbuddy"],
+            expectedReferenceCount: 1,
+            expectedReferenceFingerprint: ["workbuddy@0"],
+            reason: "WorkBuddy sync exposes only finite credit balances and prevents account or credential details from leaving Mac."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
+            line: 990,
             anchor: "if provider == .aiand || provider == .fireworks, let providerCost {",
             expectedProviderIDs: ["aiand", "copilot", "fireworks", "lithosai", "opencode", "xai"],
             expectedReferenceCount: 6,
@@ -4398,7 +4408,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "These provider-native balance and spend summaries preserve their distinct mobile status wording."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1005,
+            line: 1029,
             anchor: "guard provider != .zenmux,",
             expectedProviderIDs: [
                 "aiand",
@@ -4426,7 +4436,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Balance-only providers must not be serialized as used-versus-limit budgets with a false zero limit."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1044,
+            line: 1068,
             anchor: "if provider == .antigravity, let snapshot {",
             expectedProviderIDs: ["antigravity", "codex"],
             expectedReferenceCount: 2,
@@ -4434,7 +4444,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Antigravity idle families and Codex optional-credit controls filter only their mobile extra windows."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1063,
+            line: 1087,
             anchor: "guard provider == .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4450,7 +4460,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex credit limits map into their dedicated versioned mobile payload."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1111,
+            line: 1135,
             anchor: "if provider == .amp {",
             expectedProviderIDs: ["alibabatokenplan", "amp", "cursor", "opencode", "qwencloud"],
             expectedReferenceCount: 5,
@@ -4458,7 +4468,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "These provider-native window labels preserve the established mobile presentation contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1216,
+            line: 1240,
             anchor: "if provider == .cursor, role == .weekly {",
             expectedProviderIDs: ["cursor"],
             expectedReferenceCount: 1,
@@ -4466,7 +4476,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Cursor's persisted request layout assigns its weekly window the matching mobile pace role."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1255,
+            line: 1279,
             anchor: "if provider == .abacus {",
             expectedProviderIDs: ["abacus"],
             expectedReferenceCount: 1,
@@ -4474,7 +4484,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Abacus session-shaped windows use weekly pace semantics because its reset contract is weekly."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1366,
+            line: 1390,
             anchor: "guard provider == .codex else { return nil }",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4482,7 +4492,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex workspace context is a dedicated mobile envelope backed by Codex account settings."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1404,
+            line: 1428,
             anchor: "if enabledSet.contains(.codex) {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -4490,7 +4500,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex multi-account expansion and stale-account purging are isolated to its managed-account cache."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1518,
+            line: 1542,
             anchor: "let codexProviderID = UsageProvider.codex.rawValue",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4498,7 +4508,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex reconciliation uses its stable provider ID when expanding managed accounts for mobile sync."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1718,
+            line: 1742,
             anchor: "guard provider == .antigravity, snapshot?.identity == nil else { return false }",
             expectedProviderIDs: ["antigravity"],
             expectedReferenceCount: 1,
@@ -4506,7 +4516,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Unowned Antigravity offline cache snapshots must stay Mac-local instead of becoming ambiguous iCloud records."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1964,
+            line: 1988,
             anchor: "guard provider == .xai,",
             expectedProviderIDs: ["xai"],
             expectedReferenceCount: 1,
@@ -4514,7 +4524,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "xAI usage projects provider-native cost history into its mobile cost summary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1989,
+            line: 2013,
             anchor: "sourceRevisions: (snapshot?.updatedAt).map { [\"xai\": $0] })",
             expectedProviderIDs: ["xai"],
             expectedReferenceCount: 1,
@@ -4522,7 +4532,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "xAI's revision key identifies the independent source behind its mobile cost history."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 2027,
+            line: 2051,
             anchor: "case .claude, .vertexai:",
             expectedProviderIDs: [
                 "abacus",
@@ -4614,8 +4624,9 @@ struct ProviderArchitectureGatekeeperTests {
                 "zed",
                 "zenmux",
                 "zoommate",
+                "workbuddy",
             ],
-            expectedReferenceCount: 89,
+            expectedReferenceCount: 90,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4706,11 +4717,12 @@ struct ProviderArchitectureGatekeeperTests {
                 "nous@38",
                 "pi@38",
                 "vercel@38",
+                "workbuddy@39",
             ],
             reason: "Cost-estimation badges follow provider-specific model-family knowledge and pricing provenance."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1826,
+            line: 1850,
             anchor: "let resolvedCost = if provider == .codex, let entry {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4718,7 +4730,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex mobile daily costs use the local ledger when present, keeping them distinct from dashboard charges."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1853,
+            line: 1877,
             anchor: "dayEvidence: provider == .codex ? Self.syncDayEvidence(",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4726,7 +4738,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex mobile daily points carry account-scoped local-ledger proof for independently verified day coverage."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 2074,
+            line: 2098,
             anchor: "guard provider == .codex else { return [:] }",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4921,38 +4933,24 @@ struct ProviderArchitectureGatekeeperTests {
             line: 468,
             anchor: "guard self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) == nil else { return }",
             expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 10,
-            expectedReferenceFingerprint: [
-                "codex@0",
-                "codex@1",
-                "codex@7",
-                "codex@8",
-                "codex@10",
-                "codex@11",
-                "codex@13",
-                "codex@14",
-                "codex@15",
-                "codex@16",
-            ],
+            expectedReferenceCount: 5,
+            expectedReferenceFingerprint: ["codex@0", "codex@1", "codex@7", "codex@15", "codex@16"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+TokenCost.swift",
             line: 501,
             anchor: "self.providerPublicationRevisionIsCurrent(publicationRevision, for: .codex),",
             expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 14,
+            expectedReferenceCount: 11,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "codex@1",
                 "codex@2",
                 "codex@3",
-                "codex@5",
-                "codex@6",
                 "codex@7",
                 "codex@9",
                 "codex@10",
                 "codex@11",
-                "codex@15",
                 "codex@16",
                 "codex@25",
                 "codex@26",
@@ -5136,7 +5134,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Model family classification via string matching."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 938,
+            line: 955,
             anchor: ".atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot, .lithosai,",
             expectedProviderIDs: [
                 "atlascloud",

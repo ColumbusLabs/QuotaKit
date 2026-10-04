@@ -9,6 +9,7 @@ private enum QuickJSHostFunction: Int32 {
     case settingGet
     case http
     case cookieAvailability
+    case acceptCookie
     case rejectCookie
     case cookieHeader
     case cookieSession
@@ -511,6 +512,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (QuickJSHostFunction.settingGet, "settingGet", 2),
             (.http, "http", 6),
             (.cookieHeader, "cookieHeader", 4),
+            (.acceptCookie, "acceptCookie", 2),
             (.rejectCookie, "rejectCookie", 2),
             (.cookieSession, "cookieSession", 4),
             (.cookieAvailability, "cookieAvailability", 1),
@@ -555,6 +557,17 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                     hasResolver: state.contextOptions.cookieSessionResolver != nil
                         || (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
                         || state.instanceCookieResolver != nil))
+            case .acceptCookie:
+                guard self.manifest.cookiePolicy?.cache == .validatedSingleEntry else {
+                    throw ProviderPluginError.secretAccess("cookie persistence is not declared")
+                }
+                let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
+                let id = values.count > 1 ? try self.string(from: values[1]) : ""
+                guard let state = self.fetchState else {
+                    throw ProviderPluginError.secretAccess("cookie validation is unavailable")
+                }
+                try state.contextOptions.acceptCookie(domain: domain, id: id)
+                return cqjs_undefined()
             case .rejectCookie:
                 let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
                 let id = values.count > 1 ? try self.string(from: values[1]) : ""

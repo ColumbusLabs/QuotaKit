@@ -26,6 +26,7 @@ struct CLIProviderSelectionTests {
             "|vercel|",
             "|llmman|",
             "|lithosai|",
+            "|workbuddy|",
             "|both|",
             "|all]",
         ]

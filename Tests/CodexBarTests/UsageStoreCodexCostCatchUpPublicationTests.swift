@@ -10,7 +10,9 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
     func `automatic discovery publishes fresh today before the next scheduling sleep`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
-        let now = try env.makeLocalNoon(year: 2026, month: 10, day: 3)
+        // The worker's final cached publication uses the live clock. Keep the fixture on
+        // that same calendar day so its completed scan remains readable at publication time.
+        let now = Date()
         let iso = env.isoString(for: now)
         let today = try env.writeCodexSessionFile(
             day: now,

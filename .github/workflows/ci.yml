@@ -213,7 +213,6 @@ jobs:
           swift package --version
 
       - name: Swift Test
-        id: swift_test
         if: ${{ needs.changes.outputs.macos-test-filter == '' }}
         # Keep small suite batches so a hung suite fails its shard while avoiding one SwiftPM process per suite.
         timeout-minutes: 50
@@ -227,23 +226,12 @@ jobs:
             ./Scripts/test.sh
 
       - name: Focused Swift Test
-        id: focused_swift_test
         if: ${{ needs.changes.outputs.macos-test-filter != '' }}
         timeout-minutes: 20
         env:
           CODEXBAR_TEST_FILTER: ${{ needs.changes.outputs.macos-test-filter }}
           CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS: 1
         run: swift test --filter "$CODEXBAR_TEST_FILTER"
-
-      - name: Diagnose failed macOS test process
-        if: ${{ failure() && (steps.swift_test.outcome == 'failure' || steps.focused_swift_test.outcome == 'failure') }}
-        timeout-minutes: 3
-        shell: bash
-        run: |
-          export CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS=0
-          export CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1
-          source Scripts/test_environment.sh
-          python3 Scripts/ci_swift_test_crash_diagnostic.py
 
       - name: Provider plugin engine A/B goldens
         if: ${{ matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == '' }}

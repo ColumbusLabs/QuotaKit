@@ -87,6 +87,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private let importer: BatchImporter
     private let usesCookieJar: Bool
     private let policy: ProviderPluginCookiePolicy?
+    private let validatedCookies: ProviderPluginValidatedCookies?
     let cookieJar: ProviderPluginCookieJar
     private let jarImporter: JarImporter?
     private var importedJar: [String: [(records: [ProviderPluginCookieRecord], source: String)]] = [:]
@@ -142,7 +143,9 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             },
             usesCookieJar: usesCookieJar,
             jarImporter: jarImporter,
-            policy: policy)
+            policy: policy,
+            background: ProviderInteractionContext.current != .userInitiated,
+            accountID: context.selectedTokenAccountID)
     }
 
     convenience init(
@@ -164,13 +167,21 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         usesCookieJar: Bool = false,
         jarImporter: JarImporter? = nil,
         cookieJar: ProviderPluginCookieJar? = nil,
-        policy: ProviderPluginCookiePolicy? = nil)
+        policy: ProviderPluginCookiePolicy? = nil,
+        background: Bool = false,
+        accountID: UUID? = nil)
     {
         self.provider = provider
         self.domains = domains
         self.settings = settings
         self.usesCookieJar = usesCookieJar
         self.policy = policy
+        self.validatedCookies = policy.flatMap {
+            $0.cache == .validatedSingleEntry
+                ? ProviderPluginValidatedCookies(
+                    provider: provider, policy: $0, background: background, accountID: accountID)
+                : nil
+        }
         #if os(macOS)
         let importBatch = BrowserCookieAccessGate.operationPreservingAccessContext { (input: (String, Int)) in
             try batches(input.0, input.1)
@@ -216,6 +227,21 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         }
     }
 
+    func acceptCookie(domain: String, id: String) throws {
+        try self.lock.withLock {
+            try self.validate(domain)
+            guard self.policy?.cache == .validatedSingleEntry,
+                  let issued = self.issuedSessions[id], issued.session.origin == "https://\(domain)"
+            else { throw ProviderPluginError.secretAccess("validated cookie session is unavailable") }
+            guard issued.session.source != "manual" else { return }
+            try self.validatedCookies?.accept(domain: domain, id: id)
+        }
+    }
+
+    func commitAcceptedCookies() throws {
+        try self.lock.withLock { try self.validatedCookies?.commit() }
+    }
+
     func rejectCookie(domain: String, id: String? = nil) {
         self.lock.withLock {
             guard self.domains.contains(domain),
@@ -225,6 +251,9 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             if self.observed[domain]?.session.id == issued.session.id { self.observed[domain] = nil }
             self.issuedSessions[issued.session.id] = nil
             if self.usesCookieJar { self.cookieJar.reject(id: issued.session.id) }
+            if issued.session.source != "manual" {
+                self.validatedCookies?.reject(domain: domain, id: issued.session.id)
+            }
             if let expected = issued.cacheEntry {
                 CookieHeaderCache.clearIfCurrent(provider: self.provider, scope: issued.cacheScope, expected: expected)
             }
@@ -298,6 +327,12 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             return self.issue(header: header, source: "manual", domain: domain, cacheEntry: nil)
         }
         if self.usesCookieJar {
+            if let validatedCookies {
+                if let session = validatedCookies.cachedSession(domain: domain) {
+                    return self.registerValidatedSession(session, domain: domain)
+                }
+                guard validatedCookies.mayImport(domain: domain) else { return nil }
+            }
             guard !cachedOnly, let jarImporter, !self.exhaustedJarImports.contains(domain) else { return nil }
             if self.loadedJarImports.insert(domain).inserted {
                 let candidates = try self.importCandidates { try jarImporter(domain) } ?? []
@@ -316,6 +351,11 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                       self.policy?.hasRequiredCookies(candidate.records) != false,
                       self.seenJar[domain, default: []].insert(signature).inserted
                 else { continue }
+                if let validatedCookies {
+                    guard let session = validatedCookies.importedSession(
+                        records: candidate.records, domain: domain, source: candidate.source) else { continue }
+                    return self.registerValidatedSession(session, domain: domain)
+                }
                 return self.issue(
                     header: "",
                     source: candidate.source,
@@ -375,6 +415,16 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                 cacheScope: self.scope(domain))
         }
         return nil
+    }
+
+    private func registerValidatedSession(
+        _ session: ProviderPluginCookieSession, domain: String) -> ProviderPluginCookieSession
+    {
+        let issued = Issued(session: session, cacheEntry: nil, cacheScope: nil)
+        self.observed[domain] = issued
+        self.issuedSessions[session.id] = issued
+        self.cookieJar.register(session)
+        return session
     }
 
     private func issue(

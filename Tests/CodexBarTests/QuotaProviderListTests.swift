@@ -26,7 +26,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Provider list has expected count (72 with MuseAI)`() {
+    func `Provider list has expected count (73 with WorkBuddy)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -40,12 +40,12 @@ struct QuotaProviderListTests {
         // 60 after Notion AI, 61 after IBM Bob, 62 after GitKraken AI,
         // 63 after v0 billing, 64 after Hugging Face ZeroGPU quota,
         // 72 after Nous and Muse, then 71 after Crof retirement and 72
-        // after appending MuseAI.
+        // after appending MuseAI. WorkBuddy is the 73rd appended quota provider.
         // Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 72)
+        #expect(QuotaProviderList.providers.count == 73)
     }
 
     @Test
@@ -105,7 +105,7 @@ struct QuotaProviderListTests {
         #expect(Array(ids.prefix(Self.providerIDsBeforeV0.count)) == Self.providerIDsBeforeV0)
         #expect(Array(ids.dropFirst(Self.providerIDsBeforeV0.count)) == [
             "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
-            "xkiro", "raycast", "helmcode", "nous", "muse", "museai",
+            "xkiro", "raycast", "helmcode", "nous", "muse", "museai", "workbuddy",
         ])
     }
 
@@ -137,7 +137,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 72 × 3 = 216 (depleted + restored + warning)`() {
+    func `iOS subscription count is 73 × 3 = 219 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -149,14 +149,15 @@ struct QuotaProviderListTests {
         // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux →
         // 162 after adding ClinePass and LongCat, 165 after Neuralwatt,
         // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate,
-        // reaching 216 after MuseAI was appended after the Crof retirement.
+        // reaching 216 after MuseAI was appended after the Crof retirement,
+        // then 219 after appending WorkBuddy.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 216)
+        #expect(subscriptionCount == 219)
     }
 
     @Test
@@ -186,6 +187,22 @@ struct QuotaProviderListTests {
     func `Hugging Face is registered for synced ZeroGPU quota alerts`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "huggingface" })
         #expect(entry.displayName == "Hugging Face")
+    }
+
+    @Test
+    func `WorkBuddy is appended with stable quota notification zone identifiers`() throws {
+        let workBuddy = try #require(QuotaProviderList.providers.last)
+        #expect(workBuddy.id == "workbuddy")
+        #expect(workBuddy.displayName == "WorkBuddy")
+        #expect(
+            QuotaProviderList.quotaZoneName(providerID: workBuddy.id, state: "depleted")
+                == "Quota-workbuddy-depletedZone")
+        #expect(
+            QuotaProviderList.quotaZoneName(providerID: workBuddy.id, state: "restored")
+                == "Quota-workbuddy-restoredZone")
+        #expect(
+            QuotaProviderList.quotaZoneName(providerID: workBuddy.id, state: "warning")
+                == "Quota-workbuddy-warningZone")
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

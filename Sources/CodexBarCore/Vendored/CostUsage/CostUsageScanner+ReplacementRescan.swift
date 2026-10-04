@@ -1,7 +1,9 @@
 import Foundation
 
 extension CostUsageScanner {
-    private struct CodexRescanPlan {
+    /// These immutable phase values hold inline cache/parser results on the heap, so
+    /// their return storage does not accumulate across nested inherited-parent lookups.
+    private final class CodexRescanPlan {
         let cached: CostUsageFileUsage?
         let migratedCached: CostUsageFileUsage?
         let parsed: CodexParseResult
@@ -14,20 +16,68 @@ extension CostUsageScanner {
         let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
         let sourceAnchor: CostUsageCodexTokenIndexAnchor?
         let stageParsedRows: Bool
+
+        init(
+            cached: CostUsageFileUsage?,
+            migratedCached: CostUsageFileUsage?,
+            parsed: CodexParseResult,
+            replacementWasPending: Bool,
+            parserRevisionNeedsReplacement: Bool,
+            replacementGeneration: Bool,
+            replacementPending: Bool,
+            scanComplete: Bool,
+            usageDays: [String: [String: [Int]]],
+            sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
+            sourceAnchor: CostUsageCodexTokenIndexAnchor?,
+            stageParsedRows: Bool)
+        {
+            self.cached = cached
+            self.migratedCached = migratedCached
+            self.parsed = parsed
+            self.replacementWasPending = replacementWasPending
+            self.parserRevisionNeedsReplacement = parserRevisionNeedsReplacement
+            self.replacementGeneration = replacementGeneration
+            self.replacementPending = replacementPending
+            self.scanComplete = scanComplete
+            self.usageDays = usageDays
+            self.sourcePricing = sourcePricing
+            self.sourceAnchor = sourceAnchor
+            self.stageParsedRows = stageParsedRows
+        }
     }
 
-    private struct CodexRescanPreparation {
+    private final class CodexRescanPreparation {
         let migratedCached: CostUsageFileUsage?
         let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
         let sourceAnchor: CostUsageCodexTokenIndexAnchor?
         let parserRevisionNeedsReplacement: Bool
         let stageParsedRows: Bool
+
+        init(
+            migratedCached: CostUsageFileUsage?,
+            sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
+            sourceAnchor: CostUsageCodexTokenIndexAnchor?,
+            parserRevisionNeedsReplacement: Bool,
+            stageParsedRows: Bool)
+        {
+            self.migratedCached = migratedCached
+            self.sourcePricing = sourcePricing
+            self.sourceAnchor = sourceAnchor
+            self.parserRevisionNeedsReplacement = parserRevisionNeedsReplacement
+            self.stageParsedRows = stageParsedRows
+        }
     }
 
-    private struct CodexRescanMaterialized {
+    private final class CodexRescanMaterialized {
         let usage: CostUsageFileUsage
         let session: CodexScannedSession
         let rows: [CodexUsageRow]
+
+        init(usage: CostUsageFileUsage, session: CodexScannedSession, rows: [CodexUsageRow]) {
+            self.usage = usage
+            self.session = session
+            self.rows = rows
+        }
     }
 
     private struct CodexRescanAccounting {

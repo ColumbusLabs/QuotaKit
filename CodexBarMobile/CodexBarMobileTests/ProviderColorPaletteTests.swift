@@ -74,6 +74,7 @@ struct ProviderColorPaletteTests {
             ("llmproxy", 36 / 255, 180 / 255, 126 / 255),
             ("litellm", 76 / 255, 137 / 255, 192 / 255),
             ("lithosai", 107 / 255, 114 / 255, 128 / 255),
+            ("workbuddy", 13 / 255, 200 / 255, 166 / 255),
             ("deepgram", 0.49, 0.23, 0.93),
             ("hyper", 1, 96 / 255, 1),
             ("aixy", 18 / 255, 54 / 255, 80 / 255),
@@ -213,7 +214,7 @@ private let knownDistinctProviders = [
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "lithosai", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
-    "zenmux", "zoommate", "xai", "replicate", "hyper", "bifrost", "devpass",
+    "zenmux", "zoommate", "xai", "replicate", "hyper", "bifrost", "devpass", "sub2api", "workbuddy",
 ]
 
 /// These pairs retain their providers' published brand colors. The mobile palette mirrors
@@ -227,6 +228,7 @@ private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["minimax", "amp"]: 0.07,
     ["abacus", "commandcode"]: 0.08,
     ["litellm", "clinepass"]: 0.065,
+    ["sub2api", "workbuddy"]: 0.08,
 ]
 
 private func expectDistinctColors(

@@ -7,6 +7,96 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct SyncCoordinatorProviderDetailsTests {
+    @Test
+    func `WorkBuddy sync whitelists numeric credit details and clears empty results`() {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [
+                .makeSection(title: "Credits", rows: [
+                    .makeRow(label: "Left", value: "1,234.5"),
+                    .makeRow(label: "Total", value: "2,000"),
+                    .makeRow(label: "Reserved", value: "10"),
+                    .makeRow(label: "Cookie", value: "fixture-secret"),
+                    .makeRow(label: "Account Email", value: "person@example.com"),
+                    .makeRow(label: "Left", value: "NaN"),
+                ]),
+                .makeSection(title: "Account", rows: [.makeRow(label: "ID", value: "private-id")]),
+            ],
+            updatedAt: Date())
+
+        #expect(SyncCoordinator.mapProviderDetails(provider: .workbuddy, snapshot: snapshot) == [
+            SyncProviderDetailSection(title: "Credits", rows: [
+                .init(label: "Left", value: "1,234.5"),
+                .init(label: "Total", value: "2,000"),
+                .init(label: "Reserved", value: "10"),
+            ]),
+        ])
+        #expect(SyncCoordinator.mapProviderDetails(provider: .workbuddy, snapshot: nil) == nil)
+
+        let empty = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Credits", rows: [.makeRow(label: "Cookie", value: "secret")])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .workbuddy, snapshot: empty) == [])
+    }
+
+    @Test
+    func `WorkBuddy phone payload omits account identity and cookie details`() async throws {
+        let suite = "SyncCoordinatorWorkBuddyDetailsTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .workbuddy,
+            metadata: #require(ProviderDefaults.metadata[.workbuddy]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                details: [.makeSection(title: "Credits", rows: [
+                    .makeRow(label: "Left", value: "450"),
+                    .makeRow(label: "Total", value: "500"),
+                    .makeRow(label: "Cookie", value: "session=fixture-secret"),
+                    .makeRow(label: "Account Email", value: "person@example.com"),
+                ])],
+                updatedAt: Date(),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .workbuddy,
+                    accountEmail: "person@example.com",
+                    accountOrganization: nil,
+                    loginMethod: "Pro",
+                    accountID: "private-id")),
+            provider: .workbuddy)
+
+        let pusher = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
+        let provider = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "workbuddy"
+        }?.provider)
+        #expect(provider.accountEmail == nil)
+        #expect(provider.accountIdentities == nil)
+        #expect(provider.providerDetails == [SyncProviderDetailSection(title: "Credits", rows: [
+            .init(label: "Left", value: "450"),
+            .init(label: "Total", value: "500"),
+        ])])
+        let wire = try #require(String(bytes: JSONEncoder().encode(provider), encoding: .utf8))
+        #expect(!wire.contains("person@example.com"))
+        #expect(!wire.contains("private-id"))
+        #expect(!wire.contains("fixture-secret"))
+    }
+
     @Test(arguments: [0, 1, 2])
     func `Claude sync publishes only cloud dollars and handles missing or expired balances`(phase: Int) async throws {
         let expired = phase == 1

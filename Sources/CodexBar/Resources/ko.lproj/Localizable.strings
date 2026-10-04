@@ -1663,3 +1663,8 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Google 계정을 선택하거나 주입하면 Auto는 계정 신원이 일치하는 로컬 앱, agy CLI 및 IDE 보고서만 수락한 후 OAuth를 시도합니다. Local API / agy CLI를 명시적으로 선택하면 로컬에 로그인된 다른 계정을 사용할 수 있습니다.";
 "Supported browsers: %@. Use Manual for other browsers." = "지원되는 브라우저: %@. 다른 브라우저는 수동 모드를 사용하세요.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome에서 www.workbuddy.cn/profile/plans-usage로 보낸 요청의 Cookie 헤더를 붙여넣으세요.";
+"Reserved" = "보류됨";
+
+"Left" = "남음";

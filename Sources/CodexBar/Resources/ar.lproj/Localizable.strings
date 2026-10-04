@@ -1698,3 +1698,8 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "عند تحديد حساب Google أو تمريره، يقبل Auto تقارير التطبيق المحلي وagy CLI وIDE فقط إذا تطابقت الهوية، ثم يحاول OAuth. يمكن لوضع Local API أو agy CLI المحدد صراحةً استخدام حساب محلي آخر مسجّل الدخول.";
 "Supported browsers: %@. Use Manual for other browsers." = "المتصفحات المدعومة: %@. استخدم الوضع اليدوي للمتصفحات الأخرى.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "الصق ترويسة Cookie من طلب Chrome إلى www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "محجوز";
+
+"Left" = "المتبقي";

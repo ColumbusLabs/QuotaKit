@@ -61,6 +61,82 @@ extension ProviderPluginRuntimeTests {
         #expect(await requests.first?.value(forHTTPHeaderField: "Cookie") == "session=synthetic-cookie")
     }
 
+    @Test(arguments: Self.labelValidationEngines)
+    func `validated cookie acceptance checks policy domain identity and callback failures`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            endpoints: #"["https://example.test"]"#,
+            capabilities: """
+            capabilities: ["browser-cookies"],
+            cookieDomains: ["example.test"],
+            cookiePolicy: { selection: "request-url", cache: "validated-single-entry", imports: "access-gated" },
+            """,
+            fetchBody: """
+            for await (const session of ctx.browser.sessions("example.test")) {
+              if (session.header !== undefined) throw new Error("credential leaked");
+              try {
+                ctx.browser.acceptCookie("other.test", session);
+                throw new Error("undeclared acceptance permitted");
+              } catch (error) {
+                if (!String(error).includes("cookie domain is not declared")) throw error;
+              }
+              ctx.browser.acceptCookie(" EXAMPLE.TEST ", session);
+              return { primary: { usedPercent: 17 } };
+            }
+            throw new Error("no fixture session");
+            """), engine: engine)
+        let session = ProviderPluginCookieSession(header: "", source: "Fixture", origin: "https://example.test")
+        let snapshot = try await runtime.fetchUsage(
+            secrets: ["TEST_KEY": "fixture"],
+            cookieSessionResolver: { _, _ in session },
+            cookieSessionValidator: { domain, id in
+                #expect(domain == "example.test")
+                #expect(id == session.id)
+            })
+        #expect(snapshot.primary?.usedPercent == 17)
+        await #expect(throws: ProviderPluginError.self) {
+            try await runtime.fetchUsage(
+                secrets: ["TEST_KEY": "fixture"],
+                cookieSessionResolver: { _, _ in session },
+                cookieSessionValidator: { _, _ in
+                    throw ProviderPluginError.secretAccess("fixture rejected validation")
+                })
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `nonpersistent manifests cannot invoke cookie acceptance`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: """
+            capabilities: ["browser-cookies"], cookieDomains: ["example.test"],
+            cookiePolicy: { selection: "request-url", cache: "nonpersistent" },
+            """,
+            fetchBody: "ctx.browser.acceptCookie('example.test', {id: 'fixture'}); return {};"), engine: engine)
+        await #expect(throws: ProviderPluginError.self) {
+            try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture"], cookieSessionValidator: { _, _ in
+                Issue.record("A nonpersistent manifest must not invoke acceptance")
+            })
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `Off and API source mode cannot validate cookie sessions`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: """
+            capabilities: ["browser-cookies"], cookieDomains: ["example.test"],
+            cookiePolicy: { selection: "request-url", cache: "validated-single-entry" },
+            """,
+            fetchBody: "ctx.browser.acceptCookie('example.test', {id: 'fixture'}); return {};"), engine: engine)
+        for (mode, source) in [(ProviderSourceMode.auto, ProviderCookieSource.off), (.api, .auto)] {
+            await #expect(throws: ProviderPluginError.self) {
+                try await runtime.fetchUsage(
+                    secrets: ["TEST_KEY": "fixture"], sourceMode: mode, cookieSource: source,
+                    cookieSessionValidator: { _, _ in Issue.record("Disabled cookies must not invoke validation") })
+            }
+        }
+    }
+
     @Test
     func `dynamic plugins cannot opt into the bundled cookie jar policy`() {
         let source = Self.plugin(

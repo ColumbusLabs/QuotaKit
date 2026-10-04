@@ -1694,3 +1694,8 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Google アカウントを選択または指定した場合、Auto は本人情報が一致するローカルアプリ、agy CLI、IDE のレポートのみを受け入れ、その後 OAuth を試します。Local API / agy CLI を明示的に選択すると、ローカルでログイン済みの別アカウントを使用できます。";
 "Supported browsers: %@. Use Manual for other browsers." = "対応ブラウザ: %@。その他のブラウザでは「手動」を使用してください。";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome で www.workbuddy.cn/profile/plans-usage に送信したリクエストの Cookie ヘッダーを貼り付けてください。";
+"Reserved" = "確保済み";
+
+"Left" = "残り";

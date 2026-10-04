@@ -113,6 +113,21 @@ enum ProviderDetailSectionDispatcher {
         for provider: ProviderUsageSnapshot,
         now: Date = Date()) -> [SyncProviderDetailSection]?
     {
+        if provider.providerID == "workbuddy" {
+            guard let details = provider.providerDetails else { return nil }
+            let rows = details
+                .filter { $0.title == "Credits" }
+                .flatMap(\.rows)
+                .filter { ["Left", "Total", "Reserved"].contains($0.label) && Self.isWorkBuddyCreditNumber($0.value) }
+            var seen: Set<String> = []
+            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                guard seen.insert(row.label).inserted else { return nil }
+                return .init(label: String(localized: row.label), value: row.value)
+            }
+            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(
+                title: String(localized: "Credits"),
+                rows: safeRows)]
+        }
         guard provider.providerID == "claude", let details = provider.providerDetails else {
             return provider.providerDetails
         }
@@ -131,6 +146,12 @@ enum ProviderDetailSectionDispatcher {
                     secondaryValue: row.secondaryValue)
             })
         }
+    }
+
+    private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {
+        let pattern = #"^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$"#
+        guard raw.range(of: pattern, options: .regularExpression) != nil else { return false }
+        return Double(raw.replacingOccurrences(of: ",", with: "")).map { $0.isFinite && $0 >= 0 } ?? false
     }
 
     private static func structuredSections(for provider: ProviderUsageSnapshot) -> [ProviderDetailSection] {

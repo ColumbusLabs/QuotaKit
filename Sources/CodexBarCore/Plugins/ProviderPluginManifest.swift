@@ -68,21 +68,29 @@ public enum ProviderPluginCapability: String, Hashable, Sendable {
 }
 
 struct ProviderPluginCookiePolicy: Sendable {
+    enum Cache: String, Sendable {
+        case nonpersistent
+        case validatedSingleEntry = "validated-single-entry"
+    }
+
     enum Imports: String, Sendable {
         case appInteractive = "app-interactive"
         case accessGated = "access-gated"
     }
 
     let imports: Imports
+    let cache: Cache
     let requiredCookies: Set<String>
     let headerEcho: ProviderPluginCookieHeaderEcho?
 
     init(
         imports: Imports = .appInteractive,
+        cache: Cache = .nonpersistent,
         requiredCookies: Set<String> = [],
         headerEcho: ProviderPluginCookieHeaderEcho? = nil)
     {
         self.imports = imports
+        self.cache = cache
         self.requiredCookies = requiredCookies
         self.headerEcho = headerEcho
     }
@@ -335,7 +343,7 @@ public struct ProviderPluginManifest: Sendable {
                   let selection = value.property("selection"), selection.isString,
                   selection.stringValue() == "request-url",
                   let cache = value.property("cache"), cache.isString,
-                  cache.stringValue() == "nonpersistent",
+                  let cachePolicy = ProviderPluginCookiePolicy.Cache(rawValue: cache.stringValue()),
                   endpoints.allSatisfy({
                       if case let .fixed(origin) = $0,
                          let url = URL(string: origin), url.scheme?.lowercased() == "https"
@@ -346,7 +354,7 @@ public struct ProviderPluginManifest: Sendable {
             else {
                 throw ProviderPluginError.invalidManifest(
                     "cookiePolicy requires bundled browser cookies, HTTPS origins, " +
-                        "request-url selection, and nonpersistent storage")
+                        "request-url selection, and a supported cookie cache")
             }
             var requiredCookies = Set<String>()
             if let list = value.property("requiredCookies"), !list.isUndefined {
@@ -382,6 +390,7 @@ public struct ProviderPluginManifest: Sendable {
                 }
             let cookiePolicy = ProviderPluginCookiePolicy(
                 imports: imports,
+                cache: cachePolicy,
                 requiredCookies: requiredCookies,
                 headerEcho: headerEcho)
             if let echo = cookiePolicy.headerEcho, let auth = self.auth,

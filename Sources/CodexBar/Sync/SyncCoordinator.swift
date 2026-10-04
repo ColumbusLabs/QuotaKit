@@ -755,6 +755,8 @@ final class SyncCoordinator {
         // Older records retain their previous key until normal per-device
         // stale-record reconciliation removes them after a successful push.
         let accountEmail: String? = {
+            // WorkBuddy has a plan label but no stable public account identity; keep all personal identifiers Mac-local.
+            guard provider != .workbuddy else { return nil }
             guard provider == .copilot, let tokenAccount,
                   let apiHost = copilotAPIHost
             else { return snapshot?.identity?.accountEmail }
@@ -895,7 +897,7 @@ final class SyncCoordinator {
 
     // swiftlint:enable function_body_length
 
-    private static func mapProviderDetails(
+    static func mapProviderDetails(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
@@ -932,6 +934,21 @@ final class SyncCoordinator {
                 title: "Browser team quota (dev.meta.ai)",
                 rows: [.init(label: "Team", value: team.value)])]
         }
+        // WorkBuddy's generic plugin details can include account or credential metadata. Sync only the finite
+        // numeric credit balance rows the iPhone needs, and clear stale details after a successful empty result.
+        if provider == .workbuddy {
+            guard let snapshot else { return nil }
+            let rows = snapshot.details
+                .filter { $0.title == "Credits" }
+                .flatMap(\.rows)
+                .filter { ["Left", "Total", "Reserved"].contains($0.label) && Self.isWorkBuddyCreditNumber($0.value) }
+            var seen: Set<String> = []
+            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                guard seen.insert(row.label).inserted else { return nil }
+                return .init(label: row.label, value: row.value)
+            }
+            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(title: "Credits", rows: safeRows)]
+        }
         // These providers expose useful rows that have no dedicated iPhone payload. In particular,
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
@@ -951,6 +968,13 @@ final class SyncCoordinator {
                         secondaryValue: row.secondaryValue)
                 })
         }
+    }
+
+    private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {
+        // The plugin formats values as en-US digits with optional comma grouping and a decimal point.
+        let pattern = #"^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$"#
+        guard raw.range(of: pattern, options: .regularExpression) != nil else { return false }
+        return Double(raw.replacingOccurrences(of: ",", with: "")).map { $0.isFinite && $0 >= 0 } ?? false
     }
 
     static func syncedStatusMessage(
@@ -2062,7 +2086,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
