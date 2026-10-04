@@ -63,7 +63,10 @@ extension CostUsageScanner {
 
     /// Preserve the canonical response's accounting evidence while keeping this page's local row index.
     private static func codexRequestRowPreservingLocalIdentity(
-        _ row: CodexUsageRow, canonical: CodexUsageRow, additional: CodexUsageRow? = nil) -> CodexUsageRow
+        _ row: CodexUsageRow,
+        canonical: CodexUsageRow,
+        additional: CodexUsageRow? = nil,
+        responseID: String? = nil) -> CodexUsageRow
     {
         let candidates = [canonical] + (additional.map { [$0] } ?? []) + [row]
         let price = candidates.first {
@@ -87,7 +90,7 @@ extension CostUsageScanner {
             unpricedTokens: price.unpricedTokens,
             pricingModel: price.pricingModel,
             pricingMode: price.pricingMode,
-            responseID: row.responseID,
+            responseID: responseID ?? row.responseID,
             requestMirrorKeys: Array(Set(candidates.flatMap { $0.requestMirrorKeys ?? [] })).sorted())
     }
 
@@ -167,8 +170,10 @@ extension CostUsageScanner {
                    context.requestReconciliationCandidatePaths.contains(path)
                 {
                     let canonical = row(at: match)
-                    var promoted = Self.codexRequestRowPreservingLocalIdentity(candidate, canonical: canonical)
-                    promoted.responseID = canonical.responseID
+                    let promoted = Self.codexRequestRowPreservingLocalIdentity(
+                        candidate,
+                        canonical: canonical,
+                        responseID: canonical.responseID)
                     var targets = replacements[path] ?? cache.files[path]?.codexRows ?? []
                     targets[index] = promoted
                     replacements[path] = targets

@@ -44,7 +44,7 @@ struct AntigravityProfileHomesTests {
             try process.run()
             let data = output.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            let outputText = String(decoding: data, as: UTF8.self)
+            let outputText = String(bytes: data, encoding: .utf8) ?? "Invalid UTF-8 CLI fixture output"
             #expect(process.terminationStatus == 0, Comment(rawValue: outputText))
             let payload = try #require(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
             #expect(payload.first?["last30DaysTokens"] as? Int == expected, Comment(rawValue: outputText))

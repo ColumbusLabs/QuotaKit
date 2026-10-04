@@ -3428,7 +3428,7 @@ enum CostUsageScanner {
         }
     }
 
-    private static func codexResolvedPath(_ url: URL) -> String {
+    static func codexResolvedPath(_ url: URL) -> String {
         self.codexPathKey(standardizedPath: url.resolvingSymlinksInPath().standardizedFileURL.path)
     }
 
