@@ -1439,6 +1439,7 @@ public struct CostUsageFetcher: Sendable {
     {
         let projectionOptions = Self.resolvedScannerOptions(
             overrideScannerOptions,
+            // Provider-specific by design: activity snapshots project cached Codex session roots and ledger state.
             provider: .codex,
             codexHomePath: codexHomePath)
         let cachedActivity: CostUsageTokenActivityCache?? = try? await CostUsageScanExecutor.run { _ in
@@ -1524,6 +1525,7 @@ public struct CostUsageFetcher: Sendable {
 
         let projectionOptions = Self.resolvedScannerOptions(
             overrideScannerOptions,
+            // Provider-specific by design: cached Codex reports read Codex-only persisted aggregates for this snapshot.
             provider: .codex,
             codexHomePath: codexHomePath)
         let projectionSince = projectionOptions.calendar.date(

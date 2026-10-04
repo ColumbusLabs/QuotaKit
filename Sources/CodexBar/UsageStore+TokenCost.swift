@@ -184,6 +184,7 @@ extension UsageStore {
                     antigravityAdditionalProfileHomes: antigravityProfileHomes,
                     now: now,
                     forceRefresh: force,
+                    // Provider-specific by design: Vertex reads Claude transcripts only while Claude is disabled.
                     allowVertexClaudeFallback: !self.isEnabled(.claude),
                     codexHomePath: codexHomePath,
                     historyDays: historyDays,
@@ -638,6 +639,7 @@ extension UsageStore {
         #if DEBUG
         if let override = self._test_cursorCostCredentialFingerprintOverride { return override() }
         #endif
+        // Provider-specific by design: Cursor cache identity includes its dashboard credential fingerprint.
         return CookieHeaderCache.loadForDisplay(provider: .cursor)
             .map { CookieHeaderCache.credentialFingerprint($0.cookieHeader) }
     }

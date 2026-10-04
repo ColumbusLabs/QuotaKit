@@ -36,14 +36,18 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
         #expect(initial.historyCoverageIsEstablished)
         #expect(initial.last30DaysTokens == 100)
 
-        // Establish the publication baseline before adding a large discovery backlog. Keeping
-        // the backlog out of the initial scan makes the baseline independent of filesystem
-        // enumeration order on slower CI runners.
-        for index in 0..<1600 {
-            _ = try env.writeCodexSessionFile(
+        // Keep the backlog several bounded hydration batches deep. The current-day baseline
+        // must be independent of filesystem enumeration order, and the automatic burst must
+        // be able to finish this fixture on slower CI runners.
+        let pendingHistoryFileCount = CostUsageScanner.codexCatchUpHydrationPathLimit * 3
+        for index in 0..<pendingHistoryFileCount {
+            let historyFile = try env.writeCodexSessionFile(
                 day: now.addingTimeInterval(-86400),
                 filename: "rollout-history-\(index).jsonl",
                 contents: #"{"type":"session_meta","payload":{"session_id":"history-\#(index)"}}"# + "\n")
+            try FileManager.default.setAttributes(
+                [.modificationDate: now.addingTimeInterval(-86400 + TimeInterval(index))],
+                ofItemAtPath: historyFile.path)
         }
 
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -54,8 +58,8 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
         options.maxCodexScanDurationPerRefresh = 2
         var stagingOptions = options
         stagingOptions.codexScanBudgetForTesting = .init(
-            maxFileBytes: 0,
-            maxBytesPerRefresh: 0,
+            maxFileBytes: 1,
+            maxBytesPerRefresh: 1,
             maxDuration: 2,
             now: { instant })
         _ = CostUsageScanner.loadDailyReport(
@@ -66,7 +70,7 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
             options: stagingOptions)
         cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(cache.codexScanCatchUpPending == true)
-        #expect(cache.codexActiveLookbackState?.currentWindowNextDayKeyByRoot?.isEmpty == false)
+        #expect((cache.codexActiveLookbackState?.pendingFilePaths.count ?? 0) >= pendingHistoryFileCount)
 
         _ = try env.writeCodexSessionFile(
             day: now,
@@ -82,6 +86,7 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
         let store = try Self.makeStore(suite: "discovery-scheduling", costUsageFetcher: fetcher)
         defer { store.cancelCodexCostCatchUp() }
         store.settings.backgroundWorkLowPowerModePreference = .off
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
         store.publishTokenSnapshot(initial, for: .codex)
         store._test_widgetSnapshotSaveOverride = { _ in }
         store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, days in
