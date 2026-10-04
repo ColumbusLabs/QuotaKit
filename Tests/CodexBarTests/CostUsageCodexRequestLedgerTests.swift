@@ -724,7 +724,7 @@ struct CostUsageCodexRequestLedgerTests {
 
 extension CostUsageCodexRequestLedgerTests {
     @Test
-    func `compact request progress saves preserve committed details and explicit empty generations still clear`() throws {
+    func `compact progress preserves committed details and explicit empty generations clear`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         var calendar = Calendar(identifier: .gregorian)
@@ -855,9 +855,7 @@ extension CostUsageCodexRequestLedgerTests {
         #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
             currentSession: session,
             currentHasTypedResponseIdentity: currentTyped,
-            currentPath: "/synthetic/current-page.jsonl",
-            currentMtimeUnixMs: 2,
-            currentSize: 2,
+            currentFile: (path: "/synthetic/current-page.jsonl", mtimeUnixMs: 2, size: 2),
             cache: &cache))
         #expect((cache.files["/synthetic/older-page.jsonl"] != nil) == (currentTyped || aliasTyped))
 
@@ -867,9 +865,7 @@ extension CostUsageCodexRequestLedgerTests {
         #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
             currentSession: session,
             currentHasTypedResponseIdentity: false,
-            currentPath: "/synthetic/current-page.jsonl",
-            currentMtimeUnixMs: 2,
-            currentSize: 2,
+            currentFile: (path: "/synthetic/current-page.jsonl", mtimeUnixMs: 2, size: 2),
             cache: &cache))
         #expect(cache.files["/synthetic/unknown-page.jsonl"] != nil)
         for peerIdentity in [nil, true] as [Bool?] {
@@ -886,9 +882,7 @@ extension CostUsageCodexRequestLedgerTests {
                 #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
                     currentSession: session,
                     currentHasTypedResponseIdentity: false,
-                    currentPath: "/synthetic/current-page.jsonl",
-                    currentMtimeUnixMs: currentMtime,
-                    currentSize: 2,
+                    currentFile: (path: "/synthetic/current-page.jsonl", mtimeUnixMs: currentMtime, size: 2),
                     cache: &cache))
                 #expect(cache.files.count == 3)
             }

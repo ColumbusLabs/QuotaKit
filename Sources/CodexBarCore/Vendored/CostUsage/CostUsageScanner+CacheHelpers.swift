@@ -712,11 +712,10 @@ extension CostUsageScanner {
     static func dropStaleCodexSessionAliases(
         currentSession: CostUsageCodexSessionMetadata?,
         currentHasTypedResponseIdentity: Bool,
-        currentPath: String,
-        currentMtimeUnixMs: Int64,
-        currentSize: Int64,
+        currentFile: (path: String, mtimeUnixMs: Int64, size: Int64),
         cache: inout CostUsageCache) -> Bool
     {
+        let (currentPath, currentMtimeUnixMs, currentSize) = currentFile
         // Typed pages can own different requests in the same session. Preserve their rows and
         // saved prices until bounded request-level reconciliation establishes duplicate ownership.
         guard !currentHasTypedResponseIdentity,

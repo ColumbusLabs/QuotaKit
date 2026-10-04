@@ -108,9 +108,10 @@ extension CostUsageScanner {
                currentSession: plan.parsed.codexSession,
                currentHasTypedResponseIdentity: plan.parsed.requestLedgerState?.hasTypedResponseIdentity == true
                    || input.cached?.codexTypedResponseIdentity == true,
-               currentPath: input.metadata.path,
-               currentMtimeUnixMs: input.metadata.mtimeUnixMs,
-               currentSize: input.metadata.size,
+               currentFile: (
+                   path: input.metadata.path,
+                   mtimeUnixMs: input.metadata.mtimeUnixMs,
+                   size: input.metadata.size),
                cache: &cache)
         {
             return
