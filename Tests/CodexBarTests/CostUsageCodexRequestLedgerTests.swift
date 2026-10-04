@@ -1034,7 +1034,8 @@ extension CostUsageCodexRequestLedgerTests {
             ($0.responseID ?? "") < ($1.responseID ?? "")
         }
         #expect(rows.compactMap(\.responseID) == (0..<5).map { "priced-response-\($0)" })
-        #expect(rows.compactMap(\.knownCostNanos) == (0..<5).map { Int64(100_000_000 + $0 * 1_000_000) })
+        let expectedKnownCosts: [Int64] = [100_000_000, 101_000_000, 102_000_000, 103_000_000, 104_000_000]
+        #expect(rows.compactMap(\.knownCostNanos) == expectedKnownCosts)
         #expect(rows.allSatisfy { $0.pricingMode == "priority" })
         if !appendBeforeReplay {
             #expect(abs((recovered.summary?.totalCostUSD ?? -1) - 0.51) < 0.000001)
@@ -1150,10 +1151,11 @@ extension CostUsageCodexRequestLedgerTests {
         let candidatePath = env.root.appendingPathComponent("missing-candidate.jsonl").path
         let forkPath = env.root.appendingPathComponent("unresolved-fork.jsonl").path
         let owner = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 1, days: ["2026-08-29": ["gpt-5": [100, 20, 10]]])
+            mtimeUnixMs: 1, size: 1, days: ["2026-08-29": ["gpt-5": [100, 20, 10]]], parsedBytes: 1)
         var cache = CostUsageCache()
         cache.files[ownerPath] = owner
-        cache.files[candidatePath] = CostUsageScanner.makeFileUsage(mtimeUnixMs: 1, size: 1, days: [:])
+        cache.files[candidatePath] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1, size: 1, days: [:], parsedBytes: 1)
         let forkRetry = CodexHistoryHydrationRetry(retainedPaths: [ownerPath, forkPath], forceFullRescan: true)
         var retries = [
             candidatePath: CodexHistoryHydrationRetry(
