@@ -1003,11 +1003,13 @@ extension CostUsageStore {
         hydratingPaths: Set<String>? = nil,
         tokenSnapshotsLoaded: Bool = true) -> CostUsageCache
     {
-        let persistence = CodexPersistenceState(snapshot: snapshot)
         let decoded = Self.decodeCodexCache(
             from: snapshot,
             hydratingPaths: hydratingPaths,
             tokenSnapshotsLoaded: tokenSnapshotsLoaded)
+        let persistence = CodexPersistenceState(
+            snapshot: snapshot,
+            malformedDetailsPaths: decoded.codexMalformedDetailsPaths)
         return Self.reconciledCodexCache(decoded, persistence: persistence)
     }
 
@@ -1041,9 +1043,6 @@ extension CostUsageStore {
         cache.codexScanTotalFiles = metadata.totalFiles
         cache.codexScanInventoryPaths = metadata.scanInventoryPaths
         cache.codexHistoryHydrationRetries = metadata.codexHistoryHydrationRetries
-        cache.codexMalformedDetailsPaths = Self.codexMalformedDetailsPaths(
-            from: snapshot.files,
-            decoder: decoder)
         if cache.codexHistoryHydrationRetries?.isEmpty == false {
             cache.codexScanCatchUpPending = true
         }
@@ -1075,16 +1074,25 @@ extension CostUsageStore {
         let lineageByPath = Dictionary(uniqueKeysWithValues: snapshot.forkLineage.map { ($0.path, $0) })
         let buffersByPath = Dictionary(grouping: snapshot.bufferedLines, by: \.path)
         let accumulatorByPath = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
-        let malformedDetailsPaths = Self.codexMalformedDetailsPaths(
-            from: snapshot.files,
+        // SQLite manifests have unique paths. Preserve path-wide malformed authority for
+        // synthetic duplicate records without decoding every ordinary manifest twice.
+        var seenPaths: Set<String> = []
+        var duplicatePaths: Set<String> = []
+        for file in snapshot.files where !seenPaths.insert(file.path).inserted {
+            duplicatePaths.insert(file.path)
+        }
+        var malformedDetailsPaths = Self.codexMalformedDetailsPaths(
+            from: snapshot.files.filter { duplicatePaths.contains($0.path) },
             decoder: decoder)
         for file in snapshot.files {
+            let decodedDetails = file.scanState.detailsPayload.flatMap {
+                try? decoder.decode(StoredFileDetails.self, from: $0)
+            }
+            if decodedDetails == nil { malformedDetailsPaths.insert(file.path) }
             let hasMalformedDetails = malformedDetailsPaths.contains(file.path)
             let details: StoredFileDetails
-            if let detailsData = file.scanState.detailsPayload,
-               let decoded = try? decoder.decode(StoredFileDetails.self, from: detailsData)
-            {
-                details = decoded
+            if let decodedDetails {
+                details = decodedDetails
             } else if hydratingPaths != nil || preserveMalformedFiles {
                 // Keep a malformed/legacy manifest entry visible to bounded discovery and the
                 // receipt-backed scanner. A lazy baseline cannot safely drop the file: its raw
@@ -1230,6 +1238,7 @@ extension CostUsageStore {
                     ? false : nil)
             cache.files[file.path] = usage
         }
+        cache.codexMalformedDetailsPaths = malformedDetailsPaths
         cache.days = Self.days(from: snapshot.dayAggregates)
         return cache
     }
