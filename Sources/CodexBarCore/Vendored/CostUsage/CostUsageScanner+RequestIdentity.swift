@@ -183,9 +183,10 @@ extension CostUsageScanner {
                     for snapshot in promoted.requestMirrorKeys ?? [] {
                         aliases[scope + "\u{1F}" + snapshot] = key
                     }
-                    cache.files[path]?.codexRequestLedgerState = Self.codexLedgerRetainingPromotedRow(
+                    let promotedLedgerState = Self.codexLedgerRetainingPromotedRow(
                         promoted,
                         state: cache.files[path]?.codexRequestLedgerState)
+                    cache.files[path]?.codexRequestLedgerState = promotedLedgerState
                 } else {
                     removals[path, default: []].insert(index)
                     retainPricing(from: candidate, at: match)
