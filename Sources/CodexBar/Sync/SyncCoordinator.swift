@@ -899,8 +899,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
+        // Provider-specific by design: Sync Claude promotional dollars; reset inventory stays live-only.
         if provider == .claude {
-            // Only promotional dollars cross iCloud. Reset-credit redemption inventory stays live-only.
             guard let snapshot else { return nil }
             let details = snapshot.details
             guard let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })

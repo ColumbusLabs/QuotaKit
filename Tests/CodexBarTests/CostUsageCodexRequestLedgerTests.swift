@@ -8,88 +8,6 @@ struct CostUsageCodexRequestLedgerTests {
     private static let timestampB = "2026-08-29T16:01:00Z"
     private static let timestampC = "2026-08-29T16:01:05Z"
 
-    @Test(arguments: [false, true], [false, true])
-    func `working set deduplicates settled typed siblings in bounded cohorts across reopen`(
-        newestFirst: Bool, earlierReplay: Bool) throws
-    {
-        let env = try CostUsageTestEnvironment()
-        defer { env.cleanup() }
-        let start = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
-        let end = try #require(ISO8601DateFormatter().date(from: Self.timestampC))
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
-        var options = CostUsageScanner.Options(
-            codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot,
-            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
-            calendar: calendar)
-        options.refreshMinIntervalSeconds = 0
-        options.useCodexCatchUpWorkingSet = true
-        options.preferNewestCodexSessionsFirst = newestFirst
-        func fetch() -> CostUsageDailyReport {
-            CostUsageScanner.loadDailyReport(provider: .codex, since: start, until: end, now: end, options: options)
-        }
-        func settle() -> CostUsageDailyReport {
-            var report = fetch()
-            for _ in 0..<100 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
-                    .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
-                if manifest.codexScanCatchUpPending != true { break }
-                report = fetch()
-            }
-            return report
-        }
-        for index in 0..<7 {
-            _ = try env.writeCodexSessionFile(
-                day: start,
-                filename: "settled-\(index).jsonl",
-                contents: env.jsonl(Self.header() + [Self.record(
-                    id: "response-\(index)",
-                    timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
-                    usage: [100, 20, 10, 4],
-                    total: [100, 20, 10, 4])]))
-        }
-        #expect(settle().summary?.totalTokens == 770)
-        let replay = (0..<7).map { Self.record(
-            id: "response-\($0)",
-            timestamp: earlierReplay ? Self.timestampA : Self.timestampB,
-            usage: [100, 20, 10, 4],
-            total: [100, 20, 10, 4]) }
-        let page = try env.writeCodexSessionFile(
-            day: start, filename: "z-replayed-page.jsonl", contents: env.jsonl(Self.header() + replay))
-        let recorder = CostUsageScanner.CodexScanWorkRecorder()
-        options.codexScanWorkRecorderForTesting = recorder
-        _ = fetch()
-        #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
-        let partial = CostUsageStore(cacheRoot: env.cacheRoot)
-            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
-        #expect(partial.codexScanCatchUpPending == true)
-        #expect(partial.files[page.path]?.codexRequestReconciliation?.pendingPaths.isEmpty == false)
-        options.codexScanWorkRecorderForTesting = nil
-        let reconciled = settle()
-        #expect(reconciled.summary?.totalTokens == 770)
-        #expect(reconciled.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
-        #expect(reopened.codexScanCatchUpPending != true)
-        #expect(reopened.files.values.flatMap { $0.codexRows ?? [] }.compactMap(\.responseID).count == 7)
-        let handle = try FileHandle(forWritingTo: page)
-        try handle.seekToEnd()
-        try handle.write(contentsOf: Data(env.jsonl([Self.record(
-            id: "new-response",
-            timestamp: Self.timestampC,
-            usage: [60, 20, 6, 3],
-            total: [760, 160, 76, 31])]).utf8))
-        try handle.close()
-        #expect(settle().summary?.totalTokens == 836)
-        // The old owner pages are now rowless. Visit them before the active owner in later
-        // hydration cohorts and prove its carried aliases still eliminate this legacy copy.
-        _ = try env.writeCodexSessionFile(
-            day: start, filename: "a-legacy-copy.jsonl", contents: env.jsonl(Self.header() + [Self.legacy(
-                timestamp: Self.timestampA, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])]))
-        #expect(settle().summary?.totalTokens == 836)
-        #expect(fetch().summary?.totalTokens == 836)
-    }
-
     @Test
     func `pricing reconstruction retains request identity and mirror aliases`() {
         let row = CostUsageScanner.CodexUsageRow(
@@ -802,6 +720,455 @@ struct CostUsageCodexRequestLedgerTests {
 }
 
 extension CostUsageCodexRequestLedgerTests {
+    @Test(arguments: [false, true], [false, true])
+    func `working set deduplicates settled typed siblings in bounded cohorts across reopen`(
+        newestFirst: Bool, earlierReplay: Bool) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let start = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
+        let end = try #require(ISO8601DateFormatter().date(from: Self.timestampC))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
+            calendar: calendar)
+        options.refreshMinIntervalSeconds = 0
+        options.useCodexCatchUpWorkingSet = true
+        options.preferNewestCodexSessionsFirst = newestFirst
+        func fetch() -> CostUsageDailyReport {
+            CostUsageScanner.loadDailyReport(provider: .codex, since: start, until: end, now: end, options: options)
+        }
+        func settle() -> CostUsageDailyReport {
+            var report = fetch()
+            for _ in 0..<100 {
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                    .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+                if manifest.codexScanCatchUpPending != true { break }
+                report = fetch()
+            }
+            return report
+        }
+        for index in 0..<7 {
+            _ = try env.writeCodexSessionFile(
+                day: start,
+                filename: "settled-\(index).jsonl",
+                contents: env.jsonl(Self.header() + [Self.record(
+                    id: "response-\(index)",
+                    timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
+                    usage: [100, 20, 10, 4],
+                    total: [100, 20, 10, 4])]))
+        }
+        let settledCopy = (0..<7).map { Self.record(
+            id: "response-\($0)",
+            timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
+            usage: [100, 20, 10, 4],
+            total: [100, 20, 10, 4]) }
+        let settledCopyURL = try env.writeCodexSessionFile(
+            day: start, filename: "settled-7-copy.jsonl", contents: env.jsonl(Self.header() + settledCopy))
+        #expect(settle().summary?.totalTokens == 770)
+        let replay = (0..<7).map { Self.record(
+            id: "response-\($0)",
+            timestamp: earlierReplay ? Self.timestampA : Self.timestampB,
+            usage: [100, 20, 10, 4],
+            total: [100, 20, 10, 4]) }
+        let page = try env.writeCodexSessionFile(
+            day: start, filename: "z-replayed-page.jsonl", contents: env.jsonl(Self.header() + replay))
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanWorkRecorderForTesting = recorder
+        _ = fetch()
+        #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
+        let partial = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(partial.codexScanCatchUpPending == true)
+        #expect(partial.files[page.path]?.codexRequestReconciliation?.pendingPaths.isEmpty == false)
+        options.codexScanWorkRecorderForTesting = nil
+        let reconciled = settle()
+        #expect(reconciled.summary?.totalTokens == 770)
+        #expect(reconciled.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(reopened.codexScanCatchUpPending != true)
+        #expect(reopened.files.values.flatMap { $0.codexRows ?? [] }.compactMap(\.responseID).count == 7)
+        #expect(reopened.files.values.contains {
+            $0.codexRows?.isEmpty == true && $0.codexRequestLedgerState?.responseIDs.isEmpty == false
+        })
+        let handle = try FileHandle(forWritingTo: page)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(env.jsonl([Self.record(
+            id: "new-response",
+            timestamp: Self.timestampC,
+            usage: [60, 20, 6, 3],
+            total: [760, 160, 76, 31])]).utf8))
+        try handle.close()
+        #expect(settle().summary?.totalTokens == 836)
+        // The old owner pages are now rowless. Visit them before the active owner in later
+        // hydration cohorts and prove its carried aliases still eliminate this legacy copy.
+        _ = try env.writeCodexSessionFile(
+            day: start, filename: "a-legacy-copy.jsonl", contents: env.jsonl(Self.header() + [Self.legacy(
+                timestamp: Self.timestampA, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])]))
+        #expect(settle().summary?.totalTokens == 836)
+        #expect(fetch().summary?.totalTokens == 836)
+
+        var pricedCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var owner = try #require(pricedCache.files[page.path])
+        owner.codexRows = owner.codexRows?.map { row in
+            var row = row
+            if row.responseID == "response-0" {
+                row.knownCostNanos = 123_000_000
+                row.pricingMode = "priority"
+            }
+            return row
+        }
+        pricedCache.files[page.path] = owner
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pricedCache).catchUpRequired)
+        _ = settle()
+        try FileManager.default.removeItem(at: page)
+        try FileManager.default.removeItem(at: settledCopyURL)
+        _ = fetch()
+        let queuedRecovery = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(queuedRecovery.codexScanCatchUpPending == true)
+        #expect(queuedRecovery.files[page.path] != nil)
+        let recovered = settle()
+        #expect(recovered.summary?.totalTokens == 770)
+        #expect(recovered.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
+        let recoveredCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(recoveredCache.files[page.path] == nil)
+        #expect(recoveredCache.codexScanCatchUpPending != true)
+        #expect(recoveredCache.codexHistoryHydrationRetries?.isEmpty != false)
+        let recoveredPrice = try #require(recoveredCache.files.values.flatMap { $0.codexRows ?? [] }
+            .first { $0.responseID == "response-0" })
+        #expect(recoveredPrice.knownCostNanos == 123_000_000)
+        #expect(recoveredPrice.pricingMode == "priority")
+        #expect(fetch().summary == recovered.summary)
+    }
+
+    @Test(arguments: [false, true], [1, 5])
+    func `deleting every typed owner drains recovery without retaining ghost quota`(
+        targetsDisappearAfterQueue: Bool,
+        ownerCount: Int) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
+            calendar: calendar)
+        options.refreshMinIntervalSeconds = 0
+        options.useCodexCatchUpWorkingSet = true
+        options.preferNewestCodexSessionsFirst = false
+        func fetch() -> CostUsageDailyReport {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            let report = CostUsageScanner.loadDailyReport(
+                provider: .codex, since: day, until: day, now: day, options: options)
+            #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
+            options.codexScanWorkRecorderForTesting = nil
+            return report
+        }
+        func settle() -> CostUsageDailyReport {
+            var report = fetch()
+            for _ in 0..<150 {
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                    .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+                if manifest.codexScanCatchUpPending != true { break }
+                report = fetch()
+            }
+            return report
+        }
+        var files: [URL] = []
+        var mirrors: [[String: Any]] = []
+        for index in 0..<ownerCount {
+            let total = [(index + 1) * 100, (index + 1) * 20, (index + 1) * 10, (index + 1) * 4]
+            let record = Self.record(
+                id: "removed-response-\(index)", usage: [100, 20, 10, 4], total: total)
+            let mirror = Self.legacy(timestamp: Self.timestampB, usage: [100, 20, 10, 4], total: total)
+            mirrors.append(mirror)
+            try files.append(env.writeCodexSessionFile(
+                day: day,
+                filename: "removed-owner-\(index).jsonl",
+                contents: env.jsonl(Self.header() + [record, mirror])))
+        }
+        #expect(settle().summary?.totalTokens == ownerCount * 110)
+        var queuedSource: URL?
+        if targetsDisappearAfterQueue {
+            queuedSource = try env.writeCodexSessionFile(
+                day: day,
+                filename: "z-disappearing-source.jsonl",
+                contents: env.jsonl(Self.header() + mirrors))
+            #expect(settle().summary?.totalTokens == ownerCount * 110)
+        }
+        for file in files {
+            try FileManager.default.removeItem(at: file)
+        }
+        if let queuedSource {
+            _ = fetch()
+            let queued = CostUsageStore(cacheRoot: env.cacheRoot)
+                .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+            #expect(queued.codexScanCatchUpPending == true)
+            #expect(queued.codexHistoryHydrationRetries?[queuedSource.path]?.requestOwnerPaths?.isEmpty == false)
+            try FileManager.default.removeItem(at: queuedSource)
+        }
+        #expect((settle().summary?.totalTokens ?? 0) == 0)
+        let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(cache.files.isEmpty)
+        #expect(cache.codexScanCatchUpPending != true)
+        #expect(cache.codexHistoryHydrationRetries?.isEmpty != false)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func `missing typed owners transfer canonical accounting to a sole legacy survivor`(
+        forkParent: Bool,
+        appendBeforeReplay: Bool) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let start = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
+        let end = try #require(ISO8601DateFormatter().date(from: Self.timestampC))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
+            calendar: calendar)
+        options.refreshMinIntervalSeconds = 0
+        options.useCodexCatchUpWorkingSet = true
+        options.preferNewestCodexSessionsFirst = false
+        func fetch() -> CostUsageDailyReport {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            let report = CostUsageScanner.loadDailyReport(
+                provider: .codex, since: start, until: end, now: end, options: options)
+            #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
+            options.codexScanWorkRecorderForTesting = nil
+            return report
+        }
+        func settle() -> CostUsageDailyReport {
+            var report = fetch()
+            for _ in 0..<150 {
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                    .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+                if manifest.codexScanCatchUpPending != true { break }
+                report = fetch()
+            }
+            return report
+        }
+        var owners: [URL] = []
+        var mirrors: [[String: Any]] = []
+        for index in 0..<5 {
+            let total = [(index + 1) * 100, (index + 1) * 20, (index + 1) * 10, (index + 1) * 4]
+            let mirror = Self.legacy(timestamp: Self.timestampB, usage: [100, 20, 10, 4], total: total)
+            mirrors.append(mirror)
+            try owners.append(env.writeCodexSessionFile(
+                day: start,
+                filename: "a-priced-owner-\(index).jsonl",
+                contents: env.jsonl(Self.header() + [Self.record(
+                    id: "priced-response-\(index)", usage: [100, 20, 10, 4], total: total), mirror])))
+        }
+        var survivorHeader = Self.header()
+        if forkParent {
+            var metadata = try #require(survivorHeader[0]["payload"] as? [String: Any])
+            metadata["forked_from_id"] = "dependency-thread"
+            metadata["timestamp"] = Self.timestampA
+            survivorHeader[0]["payload"] = metadata
+            var parentHeader = Self.header()
+            parentHeader[0]["payload"] = ["id": "dependency-thread"]
+            _ = try env.writeCodexSessionFile(
+                day: start,
+                filename: "dependency-parent.jsonl",
+                contents: env.jsonl(parentHeader + [Self.legacy(
+                    timestamp: Self.timestampA, usage: [0, 0, 0, 0], total: [0, 0, 0, 0])]))
+        }
+        let survivor = try env.writeCodexSessionFile(
+            day: start, filename: "z-legacy-survivor.jsonl", contents: env.jsonl(survivorHeader + mirrors))
+        #expect(settle().summary?.totalTokens == 550)
+        var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        for (index, path) in owners.enumerated() {
+            var owner = try #require(cache.files[path.path])
+            owner.codexRows = owner.codexRows?.map { row in
+                var row = row
+                row.knownCostNanos = Int64(100_000_000 + index * 1_000_000)
+                row.pricingMode = "priority"
+                return row
+            }
+            cache.files[path.path] = owner
+        }
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache).catchUpRequired)
+        _ = settle()
+        for owner in owners {
+            try FileManager.default.removeItem(at: owner)
+        }
+        if appendBeforeReplay {
+            let handle = try FileHandle(forWritingTo: survivor)
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data(env.jsonl([Self.record(
+                id: "unrelated-appended-request",
+                timestamp: Self.timestampC,
+                usage: [60, 20, 6, 3],
+                total: [560, 120, 56, 23])]).utf8))
+            try handle.close()
+        }
+        _ = fetch()
+        let pending = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(pending.codexScanCatchUpPending == true)
+        let recovered = settle()
+        #expect(recovered.summary?.totalTokens == 550 + (appendBeforeReplay ? 66 : 0))
+        let canonicalDay = try #require(recovered.data.first { $0.date == "2026-08-29" })
+        #expect(canonicalDay.totalTokens == 550)
+        #expect(abs((canonicalDay.costUSD ?? -1) - 0.51) < 0.000001)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(owners.allSatisfy { reopened.files[$0.path] == nil })
+        #expect(reopened.codexHistoryHydrationRetries?.isEmpty != false)
+        #expect(reopened.codexScanCatchUpPending != true)
+        let survivorRows = try #require(reopened.files[survivor.path]?.codexRows)
+        #expect(survivorRows.contains { $0.responseID == "unrelated-appended-request" } == appendBeforeReplay)
+        let rows = survivorRows.filter { $0.responseID?.hasPrefix("priced-response-") == true }.sorted {
+            ($0.responseID ?? "") < ($1.responseID ?? "")
+        }
+        #expect(rows.compactMap(\.responseID) == (0..<5).map { "priced-response-\($0)" })
+        #expect(rows.compactMap(\.knownCostNanos) == (0..<5).map { Int64(100_000_000 + $0 * 1_000_000) })
+        #expect(rows.allSatisfy { $0.pricingMode == "priority" })
+        if !appendBeforeReplay {
+            #expect(abs((recovered.summary?.totalCostUSD ?? -1) - 0.51) < 0.000001)
+        }
+        #expect(fetch().summary == recovered.summary)
+        let handle = try FileHandle(forWritingTo: survivor)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(env.jsonl([
+            Self.record(id: "priced-response-0", usage: [100, 20, 10, 4], total: [100, 20, 10, 4]),
+            Self.record(
+                id: "new-after-recovery",
+                timestamp: Self.timestampC,
+                usage: [60, 20, 6, 3],
+                total: [560, 120, 56, 23]),
+            Self.legacy(timestamp: Self.timestampC, usage: [60, 20, 6, 3], total: [560, 120, 56, 23]),
+        ]).utf8))
+        try handle.close()
+        #expect(settle().summary?.totalTokens == 616 + (appendBeforeReplay ? 66 : 0))
+    }
+
+    @Test
+    func `disappearing recovery target preserves its own canonical request for a surviving sibling`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let start = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
+        let end = try #require(ISO8601DateFormatter().date(from: Self.timestampC))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
+            calendar: calendar)
+        options.refreshMinIntervalSeconds = 0
+        options.useCodexCatchUpWorkingSet = true
+        options.preferNewestCodexSessionsFirst = false
+        func fetch() -> CostUsageDailyReport {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            let report = CostUsageScanner.loadDailyReport(
+                provider: .codex, since: start, until: end, now: end, options: options)
+            #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
+            options.codexScanWorkRecorderForTesting = nil
+            return report
+        }
+        func settle() -> CostUsageDailyReport {
+            var report = fetch()
+            for _ in 0..<100 {
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                    .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+                if manifest.codexScanCatchUpPending != true { break }
+                report = fetch()
+            }
+            return report
+        }
+        let firstMirror = Self.legacy(timestamp: Self.timestampB, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])
+        let secondMirror = Self.legacy(timestamp: Self.timestampB, usage: [100, 20, 10, 4], total: [200, 40, 20, 8])
+        let first = try env.writeCodexSessionFile(
+            day: start,
+            filename: "a-missing-owner.jsonl",
+            contents: env.jsonl(Self.header() + [Self.record(
+                id: "first-request", usage: [100, 20, 10, 4], total: [100, 20, 10, 4]), firstMirror]))
+        let second = try env.writeCodexSessionFile(
+            day: start,
+            filename: "b-disappearing-target.jsonl",
+            contents: env.jsonl(Self.header() + [Self.record(
+                id: "second-request", usage: [100, 20, 10, 4], total: [200, 40, 20, 8]), secondMirror, firstMirror]))
+        let survivor = try env.writeCodexSessionFile(
+            day: start,
+            filename: "c-surviving-mirror.jsonl",
+            contents: env.jsonl(Self.header() + [secondMirror]))
+        #expect(settle().summary?.totalTokens == 220)
+        var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var secondUsage = try #require(cache.files[second.path])
+        #expect(secondUsage.codexRows?.contains { $0.responseID == "second-request" } == true)
+        secondUsage.codexRows = secondUsage.codexRows?.map { row in
+            var row = row
+            row.knownCostNanos = 123_000_000
+            row.pricingMode = "priority"
+            return row
+        }
+        cache.files[second.path] = secondUsage
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache).catchUpRequired)
+        _ = settle()
+        try FileManager.default.removeItem(at: first)
+        _ = fetch()
+        let queued = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(queued.codexHistoryHydrationRetries?[second.path]?.requestOwnerPaths?.isEmpty == false)
+        #expect(queued.codexScanCatchUpPending == true)
+        try FileManager.default.removeItem(at: second)
+        let recovered = settle()
+        #expect(recovered.summary?.totalTokens == 110)
+        #expect(abs((recovered.summary?.totalCostUSD ?? 0) - 0.123) < 0.000_001)
+        #expect(recovered.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let row = try #require(reopened.files[survivor.path]?.codexRows?.first)
+        #expect(row.responseID == "second-request")
+        #expect(row.knownCostNanos == 123_000_000)
+        #expect(row.pricingMode == "priority")
+        #expect(reopened.files[first.path] == nil)
+        #expect(reopened.files[second.path] == nil)
+        #expect(reopened.codexScanCatchUpPending != true)
+        #expect(reopened.codexHistoryHydrationRetries?.isEmpty != false)
+        #expect(fetch().summary == recovered.summary)
+    }
+
+    @Test
+    func `request owner retirement preserves a baseline protected by another history retry`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let ownerPath = env.root.appendingPathComponent("missing-owner.jsonl").path
+        let candidatePath = env.root.appendingPathComponent("missing-candidate.jsonl").path
+        let forkPath = env.root.appendingPathComponent("unresolved-fork.jsonl").path
+        let owner = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1, size: 1, days: ["2026-08-29": ["gpt-5": [100, 20, 10]]])
+        var cache = CostUsageCache()
+        cache.files[ownerPath] = owner
+        cache.files[candidatePath] = CostUsageScanner.makeFileUsage(mtimeUnixMs: 1, size: 1, days: [:])
+        let forkRetry = CodexHistoryHydrationRetry(retainedPaths: [ownerPath, forkPath], forceFullRescan: true)
+        var retries = [
+            candidatePath: CodexHistoryHydrationRetry(
+                retainedPaths: [ownerPath, candidatePath], forceFullRescan: false, requestOwnerPaths: [ownerPath]),
+            forkPath: forkRetry,
+        ]
+        let retired = CostUsageScanner.completeCodexRequestOwnerRetries(
+            processedPaths: [candidatePath], retries: &retries, cache: &cache)
+        #expect(retired == [candidatePath])
+        #expect(cache.files[candidatePath] == nil)
+        #expect(cache.files[ownerPath] == owner)
+        #expect(retries[candidatePath] == nil)
+        #expect(retries[forkPath] == forkRetry)
+    }
+
     private static func partialLegacy(lastOnly: Bool) throws -> [String: Any] {
         var row = Self.legacy(timestamp: Self.timestampA, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])
         var payload = try #require(row["payload"] as? [String: Any])

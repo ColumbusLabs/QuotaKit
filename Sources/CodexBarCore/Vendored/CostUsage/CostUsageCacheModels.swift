@@ -37,15 +37,24 @@ struct CodexHistoryHydrationRetry: Codable, Equatable, Sendable {
     /// Exact persisted file keys whose complete baseline must survive until the retry resolves.
     var retainedPaths: [String]
     var forceFullRescan: Bool
+    /// Missing canonical request owners held until bounded source reconciliation completes.
+    var requestOwnerPaths: [String]?
 
-    init(retainedPaths: some Sequence<String>, forceFullRescan: Bool) {
+    init(
+        retainedPaths: some Sequence<String>,
+        forceFullRescan: Bool,
+        requestOwnerPaths: [String]? = nil)
+    {
         self.retainedPaths = Array(Set(retainedPaths)).sorted()
         self.forceFullRescan = forceFullRescan
+        self.requestOwnerPaths = requestOwnerPaths
     }
 
     mutating func merge(_ other: Self) {
         self.retainedPaths = Array(Set(self.retainedPaths).union(other.retainedPaths)).sorted()
         self.forceFullRescan = self.forceFullRescan || other.forceFullRescan
+        let owners = Set(self.requestOwnerPaths ?? []).union(other.requestOwnerPaths ?? [])
+        self.requestOwnerPaths = owners.isEmpty ? nil : owners.sorted()
     }
 }
 

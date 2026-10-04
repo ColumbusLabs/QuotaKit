@@ -44,9 +44,10 @@ struct AntigravityProfileHomesTests {
             try process.run()
             let data = output.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            #expect(process.terminationStatus == 0)
+            let outputText = String(decoding: data, as: UTF8.self)
+            #expect(process.terminationStatus == 0, Comment(rawValue: outputText))
             let payload = try #require(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
-            #expect(payload.first?["last30DaysTokens"] as? Int == expected)
+            #expect(payload.first?["last30DaysTokens"] as? Int == expected, Comment(rawValue: outputText))
         }
     }
 

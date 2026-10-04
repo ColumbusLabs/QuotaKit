@@ -768,6 +768,7 @@ extension CostUsageScanner {
     {
         let forceFullScan = context.forceFullScan
             || context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
+            || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
         guard let cached = input.cached, cached.hasCurrentCodexParser,
               !cached.hasPendingCodexForkRetry else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
@@ -812,7 +813,7 @@ extension CostUsageScanner {
                 sessionId: cached.sessionId,
                 fileIdentity: input.metadata.path,
                 state: &state)
-            guard !uniqueRows.isEmpty || cached.codexRequestLedgerState != nil else {
+            guard !uniqueRows.isEmpty || cached.codexRequestLedgerState?.hasTypedResponseIdentity == true else {
                 Self.dropCachedCodexFile(path: input.metadata.path, cached: cached, cache: &cache)
                 return true
             }
@@ -889,6 +890,7 @@ extension CostUsageScanner {
     {
         try context.checkCancellation?()
         let forceFullScanForRetry = context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
+            || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
         let forceFullScan = context.forceFullScan || forceFullScanForRetry
         guard let cached = input.cached, cached.hasCurrentCodexParser,
               cached.sessionId != nil else { return false }
@@ -1101,7 +1103,7 @@ extension CostUsageScanner {
             .isEmpty
             ? Self.codexFileUsageByFilteringRows(migrated, rows: retainedCachedRows, context: context)
             : migrated
-        if sessionAlreadyContributed, delta.requestLedgerState == nil,
+        if sessionAlreadyContributed, delta.requestLedgerState?.hasTypedResponseIdentity != true,
            migratedCached.days.isEmpty,
            uniqueRows.isEmpty,
            !Self.isCompleteEmptyCodexFragment(migratedCached)

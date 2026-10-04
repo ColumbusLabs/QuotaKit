@@ -109,7 +109,7 @@ struct ClaudeOAuthResetCreditsTests {
     func `OAuth inventory reaches CLI details without redemption handles or persisted credits`() throws {
         let data = Data(Self.payload(block: Self.eligibleBlock).utf8)
         let usage = try ClaudeUsageFetcher._mapOAuthUsageForTesting(data)
-        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage)
+        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage, includeResetCredits: true)
         #expect(snapshot.primary?.usedPercent == 12)
         #expect(snapshot.providerCost != nil)
         #expect(snapshot.detailRow(label: "Limit Reset Credits")?.value == "2 available")
@@ -136,7 +136,7 @@ struct ClaudeOAuthResetCreditsTests {
         #expect(usage.opus == nil)
         #expect(usage.providerCost?.used == 3)
         #expect(usage.resetCredits?.expirations.count == 2)
-        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage)
+        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage, includeResetCredits: true)
         #expect(snapshot.primary == nil)
         #expect(snapshot.detailRow(label: "Limit Reset Credits")?.value == "2 available")
     }

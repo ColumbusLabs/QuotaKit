@@ -497,7 +497,7 @@ extension CostUsageScanner {
         usage.codexStagedRecoveryRows = plan.replacementPending ? uniqueRows : nil
         usage.codexStagedRecoverySnapshots = plan.replacementPending
             ? replayedSnapshots : nil
-        if duplicateWithoutUniqueUsage, parsed.requestLedgerState == nil,
+        if duplicateWithoutUniqueUsage, parsed.requestLedgerState?.hasTypedResponseIdentity != true,
            !parsed.rows.isEmpty || !Self.isCompleteEmptyCodexFragment(usage)
         {
             return nil

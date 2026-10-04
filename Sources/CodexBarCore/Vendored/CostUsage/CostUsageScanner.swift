@@ -433,6 +433,13 @@ enum CostUsageScanner {
         var pendingLegacyRowIndex: Int?
         var countedUsage: CostUsageCodexTotals?
 
+        /// Legacy snapshot bookkeeping alone cannot retain a deduplicated rowless file:
+        /// dropping that file lets it recover from source if its contributor later disappears.
+        var hasTypedResponseIdentity: Bool {
+            !self.responseIDs.isEmpty || self.mirroredResponses?.isEmpty == false
+                || self.pendingLedgerResponseID != nil
+        }
+
         mutating func clearPendingMirrors(when shouldClear: Bool = true) {
             guard shouldClear else { return }
             self.pendingLedgerMirrors = nil
@@ -4351,7 +4358,7 @@ enum CostUsageScanner {
     private static func applyCodexHistoryRetryOutcomes(
         _ result: CodexFileScanResult,
         hydrationRetries: [String: CodexHistoryHydrationRetry] = [:],
-        cache: inout CostUsageCache)
+        cache: inout CostUsageCache) -> Set<String>
     {
         var retries = cache.codexHistoryHydrationRetries ?? [:]
         for (path, retry) in hydrationRetries.merging(
@@ -4370,13 +4377,20 @@ enum CostUsageScanner {
             }
         }
         let failedTargets = Set(result.historyHydrationRetries.keys)
-        for target in result.completedHistoryRetryTargets where !failedTargets.contains(target) {
+        for target in result.completedHistoryRetryTargets where !failedTargets.contains(target)
+            && retries[target]?.requestOwnerPaths == nil
+        {
             retries.removeValue(forKey: target)
         }
+        let retiredOwners = Self.completeCodexRequestOwnerRetries(
+            processedPaths: result.processedPaths.subtracting(failedTargets),
+            retries: &retries,
+            cache: &cache)
         cache.codexHistoryHydrationRetries = retries.isEmpty ? nil : retries
         if !retries.isEmpty {
             cache.codexScanCatchUpPending = true
         }
+        return retiredOwners
     }
 
     private static func reseedCodexActiveLookbackPathKeys(
@@ -6823,9 +6837,20 @@ enum CostUsageScanner {
                     Self.codexUnavailableHistoryNeedsRecovery($0, range: context.range)
                 } == true)
         if metadata.fileId == nil, !FileManager.default.fileExists(atPath: metadata.path) {
-            if retainsRecoveryHistory { return .deferred }
             let retryTarget = Self.codexResolvedPath(fileURL)
             let retry = cache.codexHistoryHydrationRetries?[retryTarget]
+            if retry?.requestOwnerPaths != nil {
+                // An absent recovery target has no source to replay. Resolve only its retry;
+                // other live targets still protect the shared owners' canonical date/pricing.
+                state.completedHistoryRetryTargets.insert(retryTarget)
+                return .processed
+            }
+            if Self.deferMissingCodexRequestOwner(path: metadata.path, cache: &cache) {
+                // The durable queue now protects this baseline. Rotate the serviced missing
+                // path so its live sibling retries can enter the next bounded admission.
+                return .processed
+            }
+            if retainsRecoveryHistory { return .deferred }
             if let retry {
                 guard Self.canReleaseMissingCodexHistoryRetry(retry, context: context, cache: cache) else {
                     Self.deferCodexHistoryHydration(
@@ -7319,6 +7344,7 @@ enum CostUsageScanner {
 
         var requestReconciliations: [String: CostUsageCodexRequestReconciliation] = [:]
         var admittedFiles: [URL] = []
+        var admittedSessionIDs = Set<String>()
         var admittedPaths = prehydratedPaths
         var plannedBytes: Int64 = 0
         let remainingBytes = scanBudget.planningRemainingBytes
@@ -7329,8 +7355,15 @@ enum CostUsageScanner {
             let dependencyPath = candidate?.forkedFromId.flatMap { pathBySessionID[$0] }
             let metadata = Self.codexFileMetadata(fileURL: fileURL)
             let sessionID = candidate?.sessionId ?? Self.codexBoundedRequestSessionID(fileURL)
+            // One candidate owns the canonical anchor while its bounded sibling cohort drains.
+            // Concurrent anchors for the same thread can otherwise move each other's response rows.
+            if let sessionID, admittedSessionIDs.contains(sessionID) { continue }
             var reconciliation = candidate?.codexRequestReconciliation
-            if reconciliation?.size != metadata.size || reconciliation?.mtimeUnixMs != metadata.mtimeUnixMs
+            let ownerRetry = cache.codexHistoryHydrationRetries?[candidatePath]
+            let rebuildingRequestOwner = ownerRetry?.requestOwnerPaths?.isEmpty == false
+                && ownerRetry?.forceFullRescan == true
+            if rebuildingRequestOwner || reconciliation?.size != metadata.size
+                || reconciliation?.mtimeUnixMs != metadata.mtimeUnixMs
                 || reconciliation?.parserRevision != CostUsageFileUsage.currentCodexParserRevision
                 || reconciliation?.sessionID != sessionID
             {
@@ -7343,8 +7376,17 @@ enum CostUsageScanner {
                         $0 != candidatePath && sessionID != nil && cache.files[$0]?.sessionId == sessionID
                     }.sorted())
             }
+            let ownerPaths = cache.codexHistoryHydrationRetries?[candidatePath]?.requestOwnerPaths ?? []
             let requiredPaths = [dependencyPath, candidatePath].compactMap(\.self)
-            let basePaths = Set(requiredPaths).subtracting(admittedPaths)
+            let ownerAllowance = max(
+                0,
+                Self.codexCatchUpHydrationPathLimit - admittedPaths.count
+                    - Set(requiredPaths).subtracting(admittedPaths).count)
+            let pendingOwnerPaths = Set(reconciliation?.pendingPaths ?? [])
+            let retainedOwnerPaths = Array(ownerPaths.filter {
+                pendingOwnerPaths.contains($0) && !admittedPaths.contains($0) && !requiredPaths.contains($0)
+            }.prefix(ownerAllowance))
+            let basePaths = Set(requiredPaths + retainedOwnerPaths).subtracting(admittedPaths)
             let siblingAllowance = max(0, Self.codexCatchUpHydrationPathLimit - admittedPaths.count - basePaths.count)
             let siblingPaths = Array((reconciliation?.pendingPaths ?? []).filter {
                 !basePaths.contains($0) && !admittedPaths.contains($0)
@@ -7363,6 +7405,7 @@ enum CostUsageScanner {
             }
 
             admittedFiles.append(URL(fileURLWithPath: candidatePath))
+            if let sessionID { admittedSessionIDs.insert(sessionID) }
             requestReconciliations[candidatePath] = reconciliation
             admittedPaths.formUnion(newPaths)
             plannedBytes = plannedBytes > Int64.max - groupBytes ? Int64.max : plannedBytes + groupBytes
@@ -7725,6 +7768,13 @@ enum CostUsageScanner {
         let path = Self.codexResolvedPath(fileURL)
         let metadata = Self.codexFileMetadata(fileURL: URL(fileURLWithPath: path))
         guard let identity = metadata.fileId else {
+            if Self.deferMissingCodexRequestOwner(path: path, cache: &cache) {
+                Self.appendCodexActiveLookbackPaths(
+                    (cache.codexHistoryHydrationRetries ?? [:]).keys.map { URL(fileURLWithPath: $0) },
+                    state: &state)
+                Self.resetCodexExactValidation(&state)
+                return false
+            }
             if !FileManager.default.fileExists(atPath: path), let removed = cache.files.removeValue(forKey: path) {
                 Self.applyFileDays(cache: &cache, fileDays: removed.days, sign: -1)
             }
@@ -8651,6 +8701,7 @@ enum CostUsageScanner {
                     for path in missingMetadataPaths {
                         let standardizedPath = URL(fileURLWithPath: path).standardizedFileURL.path
                         let cachePath = cache.files[path] != nil ? path : standardizedPath
+                        if Self.deferMissingCodexRequestOwner(path: cachePath, cache: &cache) { continue }
                         if let removed = cache.files.removeValue(forKey: cachePath) {
                             Self.applyFileDays(cache: &cache, fileDays: removed.days, sign: -1)
                         }
@@ -8733,7 +8784,7 @@ enum CostUsageScanner {
                 usage.codexRequestReconciliation = reconciliation
                 cache.files[path] = usage
             }
-            Self.applyCodexHistoryRetryOutcomes(
+            let retiredRequestOwnerPaths = Self.applyCodexHistoryRetryOutcomes(
                 scanResult,
                 hydrationRetries: historyHydrator?.retryDescriptors ?? [:],
                 cache: &cache)
@@ -8851,6 +8902,8 @@ enum CostUsageScanner {
                             untilKey: range.scanUntilKey,
                             calendar: range.calendar)
                     guard shouldDrop else { continue }
+                    if !options.forceRescan, !FileManager.default.fileExists(atPath: key),
+                       Self.deferMissingCodexRequestOwner(path: key, cache: &cache) { continue }
                     Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
                     cache.files.removeValue(forKey: key)
                 }
@@ -8865,6 +8918,8 @@ enum CostUsageScanner {
                         calendar: range.calendar)
                     else { continue }
                     guard FileManager.default.fileExists(atPath: key) else {
+                        if !options.forceRescan,
+                           Self.deferMissingCodexRequestOwner(path: key, cache: &cache) { continue }
                         if plan.preserveUnavailableHistoryDuringRecovery,
                            Self.codexUnavailableHistoryNeedsRecovery(old, range: range) { continue }
                         Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
@@ -9002,7 +9057,8 @@ enum CostUsageScanner {
                         Self.codexResolvedPath(URL(fileURLWithPath: $0))
                     })
                     : nil,
-                confirmedAbsentHistoryRetryPaths: scanResult.confirmedAbsentHistoryRetryPaths,
+                confirmedAbsentHistoryRetryPaths: scanResult.confirmedAbsentHistoryRetryPaths
+                    .union(retiredRequestOwnerPaths),
                 retryRegistryToken: retryRegistryToken,
                 independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow,
                 independentlyVerifiedDayKeys: independentlyVerifiedDayKeys)

@@ -1033,7 +1033,7 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
-        // Claude reset credits use their dedicated live-only section; generic details remain for CLI output.
+        // Claude reset and cloud-credit details use dedicated live UI rows; generic details remain for CLI output.
         if input.provider == .claude {
             details.removeAll { $0.title == ClaudeCloudCreditsSnapshot.detailTitle }
             details = details.compactMap { section in

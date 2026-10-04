@@ -634,6 +634,7 @@ extension UsageMenuCardView.Model {
     }
 
     /// Claude cloud credits share the inline balance style of its prepaid credits.
+    /// Provider-specific by design: Claude cloud dollars are promotional balance data, not spend or reset inventory.
     static func cloudCreditsSection(input: Input) -> ProviderCostSection? {
         guard input.provider == .claude,
               input.showOptionalCreditsAndExtraUsage,

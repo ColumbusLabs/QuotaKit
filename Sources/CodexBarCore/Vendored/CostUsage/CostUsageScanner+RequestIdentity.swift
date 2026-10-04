@@ -155,14 +155,36 @@ extension CostUsageScanner {
                 owned[key] = winner
             }
         }
+        let retainedRequestOwners = Set((cache.codexHistoryHydrationRetries ?? [:]).values
+            .flatMap { $0.requestOwnerPaths ?? [] })
         for path in paths {
             guard let file = cache.files[path] else { continue }
             let scope = file.sessionId ?? path
             for (index, candidate) in (file.codexRows ?? []).enumerated() where candidate.responseID == nil {
                 guard let match = (candidate.requestMirrorKeys ?? []).compactMap({ aliases[scope + "\u{1F}" + $0] })
                     .compactMap({ owned[$0] }).first else { continue }
-                removals[path, default: []].insert(index)
-                retainPricing(from: candidate, at: match)
+                if retainedRequestOwners.contains(match.path),
+                   context.requestReconciliationCandidatePaths.contains(path)
+                {
+                    let canonical = row(at: match)
+                    var promoted = Self.codexRequestRowPreservingLocalIdentity(candidate, canonical: canonical)
+                    promoted.responseID = canonical.responseID
+                    var targets = replacements[path] ?? cache.files[path]?.codexRows ?? []
+                    targets[index] = promoted
+                    replacements[path] = targets
+                    removals[match.path, default: []].insert(match.index)
+                    let key = Self.codexUsageRowKey(sessionId: file.sessionId, fileIdentity: path, row: promoted)
+                    owned[key] = (path, index)
+                    for snapshot in promoted.requestMirrorKeys ?? [] {
+                        aliases[scope + "\u{1F}" + snapshot] = key
+                    }
+                    cache.files[path]?.codexRequestLedgerState = Self.codexLedgerRetainingPromotedRow(
+                        promoted,
+                        state: cache.files[path]?.codexRequestLedgerState)
+                } else {
+                    removals[path, default: []].insert(index)
+                    retainPricing(from: candidate, at: match)
+                }
             }
         }
         for path in Set(replacements.keys).union(removals.keys) {
@@ -180,6 +202,89 @@ extension CostUsageScanner {
             cache.files[path] = updated
             Self.applyFileDays(cache: &cache, fileDays: updated.days, sign: 1)
         }
+    }
+
+    private static func codexLedgerRetainingPromotedRow(
+        _ row: CodexUsageRow,
+        state: CodexRequestLedgerState?) -> CodexRequestLedgerState?
+    {
+        guard let responseID = row.responseID else { return state }
+        var ledger = state ?? CodexRequestLedgerState()
+        ledger.responseIDs.insert(responseID)
+        if let eventIndex = row.eventIndex {
+            ledger.legacyRowIndices = ledger.legacyRowIndices.filter { $0.value != eventIndex }
+            if ledger.pendingLegacyRowIndex == eventIndex { ledger.clearPendingMirrors() }
+        }
+        ledger.rememberMirrors(row.requestMirrorKeys ?? [], responseID: responseID)
+        return ledger
+    }
+
+    /// Preserve the removed owner's canonical date/pricing until surviving source pages rebuild.
+    static func deferMissingCodexRequestOwner(path: String, cache: inout CostUsageCache) -> Bool {
+        guard let owner = cache.files[path], !owner.days.isEmpty,
+              let sessionID = owner.sessionId,
+              owner.codexRequestReconciliation != nil || owner.codexRequestLedgerState?.hasTypedResponseIdentity == true
+        else { return false }
+        let siblings = cache.files.keys.filter {
+            $0 != path && cache.files[$0]?.sessionId == sessionID && FileManager.default.fileExists(atPath: $0)
+        }
+        guard !siblings.isEmpty else { return false }
+        var retries = cache.codexHistoryHydrationRetries ?? [:]
+        // Existing recovery owns the full source cohort; keep its bounded visit progress intact.
+        if retries.values.contains(where: { $0.requestOwnerPaths?.contains(path) == true }) { return true }
+        for sibling in siblings {
+            let retry = CodexHistoryHydrationRetry(
+                retainedPaths: [path, sibling],
+                forceFullRescan: true,
+                requestOwnerPaths: [path])
+            if var existing = retries[sibling] {
+                existing.merge(retry)
+                retries[sibling] = existing
+            } else {
+                retries[sibling] = retry
+            }
+        }
+        cache.codexHistoryHydrationRetries = retries
+        cache.codexScanCatchUpPending = true
+        return true
+    }
+
+    static func completeCodexRequestOwnerRetries(
+        processedPaths: Set<String>,
+        retries: inout [String: CodexHistoryHydrationRetry],
+        cache: inout CostUsageCache) -> Set<String>
+    {
+        var completedOwners = Set<String>()
+        var completedMissingTargets = Set<String>()
+        for target in processedPaths {
+            guard var retry = retries[target], let owners = retry.requestOwnerPaths else { continue }
+            let missingSource = !FileManager.default.fileExists(atPath: target)
+            if !missingSource, let usage = cache.files[target] {
+                guard usage.codexScanComplete == true, usage.hasCurrentCodexParser,
+                      !usage.hasPendingCodexReplacementScan else { continue }
+            }
+            if !missingSource, cache.files[target]?.hasPendingCodexScanWork == true {
+                // Source replay is complete; subsequent passes only hydrate the remaining siblings.
+                retry.forceFullRescan = false
+                retries[target] = retry
+            } else {
+                completedOwners.formUnion(owners)
+                // A target with its own contribution still needs the ordinary owner-recovery path.
+                if missingSource, cache.files[target]?.days.isEmpty == true {
+                    completedMissingTargets.insert(target)
+                }
+                retries.removeValue(forKey: target)
+            }
+        }
+        // Generic fork/history retries also protect complete canonical baselines.
+        let retainedOwners = Set(retries.values.flatMap(\.retainedPaths))
+        var retiredOwners = Set<String>()
+        for owner in completedOwners.union(completedMissingTargets).subtracting(retainedOwners) {
+            guard !FileManager.default.fileExists(atPath: owner) else { continue }
+            Self.dropCachedCodexFile(path: owner, cached: cache.files[owner], cache: &cache)
+            retiredOwners.insert(owner)
+        }
+        return retiredOwners
     }
 
     private static func codexResponseKey(scope: String, responseID: String) -> String {

@@ -164,6 +164,7 @@ struct MusePluginTests {
     {
         let (result, requests, rejected) = try await Self.fetchWithSessions(
             engine: engine,
+            sessionCount: 1,
             first: Self.blankEmailWeb(members: (Self.members(), 200)),
             second: Self.web(quota: Self.quota()))
         #expect(result.sourceLabel == "oauth+web")
@@ -522,7 +523,10 @@ struct MusePluginTests {
         #expect(rejected.domains == (quota.status == 401 ? ["dev.meta.ai"] : []))
     }
 
-    @Test(arguments: [#"{"email":"bob@example.com"}"#, #"{"userId":"1"}"#], BundledPluginTestSupport.engines)
+    @Test(arguments: [
+        #"{"userId":"1001","email":"bob@example.com"}"#,
+        #"{"email":""}"#,
+    ], BundledPluginTestSupport.engines)
     func `a browser session for another account never supplies quotas`(
         me: String,
         engine: ProviderPluginEngineKind) async throws

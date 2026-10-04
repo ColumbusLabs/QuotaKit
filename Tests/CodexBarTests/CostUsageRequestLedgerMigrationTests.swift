@@ -139,9 +139,36 @@ struct CostUsageRequestLedgerMigrationTests {
         #expect(try !CostUsageStoreAccess.replace(cacheRoot: #require(coldOptions.cacheRoot), cache: cold)
             .catchUpRequired)
         let expected = report(coldOptions)
-        #expect(expected.data == appended.data)
+        // Independent cache stores issue their own proof lineage, revision and verification time.
+        // Every accounting field and the proof's validated source/scope must still match.
+        #expect(try Self.entriesIgnoringCacheProofIdentity(expected.data, options: options)
+            == Self.entriesIgnoringCacheProofIdentity(appended.data, options: options))
         #expect(expected.summary == appended.summary)
         #expect(report(options).data == appended.data)
+    }
+
+    private static func entriesIgnoringCacheProofIdentity(
+        _ entries: [CostUsageDailyReport.Entry],
+        options: CostUsageScanner.Options) throws -> [CostUsageDailyReport.Entry]
+    {
+        let rootPaths = CostUsageScanner.codexSessionsRoots(options: options).map(\.standardizedFileURL.path).sorted()
+        let scopeID = CostUsageScanner.codexDayEvidenceScopeID(rootPaths: rootPaths, calendar: options.calendar)
+        return try entries.map { entry in
+            let proof = try #require(entry.dayEvidence)
+            #expect(proof.sourceKind == "codexLocalLedger")
+            #expect(proof.scopeID == scopeID)
+            #expect(!proof.lineageID.isEmpty && proof.revision > 0)
+            #expect(proof.verifiedAt.timeIntervalSince1970.isFinite && proof.verifiedAt.timeIntervalSince1970 > 0)
+            var object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(entry)) as? [String: Any])
+            var evidence = try #require(object["dayEvidence"] as? [String: Any])
+            evidence["lineageID"] = "independent-cache-lineage"
+            evidence["revision"] = 1
+            evidence["verifiedAt"] = 0
+            object["dayEvidence"] = evidence
+            return try JSONDecoder().decode(
+                CostUsageDailyReport.Entry.self,
+                from: JSONSerialization.data(withJSONObject: object))
+        }
     }
 
     private static func executeMigrationSQL(at url: URL, sql: String) throws {

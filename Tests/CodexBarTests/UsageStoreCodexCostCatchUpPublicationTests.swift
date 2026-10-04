@@ -21,12 +21,6 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
             \(Self.tokenRecord(iso: iso, input: 100))
 
             """)
-        for index in 0..<1600 {
-            _ = try env.writeCodexSessionFile(
-                day: now.addingTimeInterval(-86400),
-                filename: "rollout-history-\(index).jsonl",
-                contents: #"{"type":"session_meta","payload":{"session_id":"history-\#(index)"}}"# + "\n")
-        }
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             cacheRoot: env.cacheRoot,
@@ -42,23 +36,34 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
         #expect(initial.historyCoverageIsEstablished)
         #expect(initial.last30DaysTokens == 100)
 
+        // Establish the publication baseline before adding a large discovery backlog. Keeping
+        // the backlog out of the initial scan makes the baseline independent of filesystem
+        // enumeration order on slower CI runners.
+        for index in 0..<1600 {
+            _ = try env.writeCodexSessionFile(
+                day: now.addingTimeInterval(-86400),
+                filename: "rollout-history-\(index).jsonl",
+                contents: #"{"type":"session_meta","payload":{"session_id":"history-\#(index)"}}"# + "\n")
+        }
+
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         cache.codexPricingKey = "previous-pricing-generation"
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
         try Self.append(Self.tokenRecord(iso: iso, input: 200), to: today)
         let instant = ContinuousClock.now
-        options.codexScanBudgetForTesting = .init(
+        options.maxCodexScanDurationPerRefresh = 2
+        var stagingOptions = options
+        stagingOptions.codexScanBudgetForTesting = .init(
             maxFileBytes: 0,
             maxBytesPerRefresh: 0,
             maxDuration: 2,
             now: { instant })
-        options.maxCodexScanDurationPerRefresh = 2
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: now.addingTimeInterval(-29 * 86400),
             until: now,
             now: now.addingTimeInterval(1),
-            options: options)
+            options: stagingOptions)
         cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(cache.codexScanCatchUpPending == true)
         #expect(cache.codexActiveLookbackState?.currentWindowNextDayKeyByRoot?.isEmpty == false)
