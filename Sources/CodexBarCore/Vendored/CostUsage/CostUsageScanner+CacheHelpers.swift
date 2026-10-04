@@ -711,12 +711,16 @@ extension CostUsageScanner {
 
     static func dropStaleCodexSessionAliases(
         currentSession: CostUsageCodexSessionMetadata?,
+        currentHasTypedResponseIdentity: Bool,
         currentPath: String,
         currentMtimeUnixMs: Int64,
         currentSize: Int64,
         cache: inout CostUsageCache) -> Bool
     {
-        guard let concreteSessionId = currentSession?.concreteSessionId,
+        // Typed pages can own different requests in the same session. Preserve their rows and
+        // saved prices until bounded request-level reconciliation establishes duplicate ownership.
+        guard !currentHasTypedResponseIdentity,
+              let concreteSessionId = currentSession?.concreteSessionId,
               !concreteSessionId.isEmpty
         else { return false }
         var currentIsStale = false
@@ -724,6 +728,7 @@ extension CostUsageScanner {
             path != currentPath
                 && usage.codexSession?.concreteSessionId == concreteSessionId
         }
+        guard aliases.values.allSatisfy({ $0.codexTypedResponseIdentity == false }) else { return false }
         for (path, usage) in aliases {
             let currentIsPreferred = currentMtimeUnixMs > usage.mtimeUnixMs
                 || (currentMtimeUnixMs == usage.mtimeUnixMs && currentSize > usage.size)

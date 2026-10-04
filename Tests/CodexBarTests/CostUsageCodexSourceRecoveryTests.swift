@@ -800,7 +800,9 @@ struct CostUsageCodexSourceRecoveryTests {
             knownCostNanos: row.knownCostNanos,
             unpricedTokens: row.unpricedTokens,
             pricingModel: model ?? row.pricingModel,
-            pricingMode: mode ?? row.pricingMode)
+            pricingMode: mode ?? row.pricingMode,
+            responseID: row.responseID,
+            requestMirrorKeys: row.requestMirrorKeys)
     }
 
     private static func sourceLines(

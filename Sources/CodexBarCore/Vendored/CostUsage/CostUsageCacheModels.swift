@@ -438,12 +438,26 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
     var codexRequestLedgerState: CostUsageScanner.CodexRequestLedgerState?
+    /// Derived from stored ledger details so compact manifests classify pages without hydrating identities.
+    var codexHasTypedResponseIdentity: Bool?
     var codexRequestReconciliation: CostUsageCodexRequestReconciliation?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?
     var codexHasBufferedUnresolvedForkLines: Bool?
     var codexParserRevision: Int? = CostUsageFileUsage.currentCodexParserRevision
+
+    /// Nil means an older or malformed manifest has not established the page's identity kind.
+    var codexTypedResponseIdentity: Bool? {
+        if self.codexRequestLedgerState?.hasTypedResponseIdentity == true
+            || self.codexHasTypedResponseIdentity == true
+            || self.codexRows?.contains(where: { $0.responseID != nil }) == true
+        { return true }
+        if self.codexRequestLedgerState != nil || self.codexHasTypedResponseIdentity != nil || self.codexRows != nil {
+            return false
+        }
+        return nil
+    }
 
     var hasCurrentCodexParser: Bool {
         self.codexParserRevision == Self.currentCodexParserRevision

@@ -636,6 +636,9 @@ struct CostUsageCodexRequestLedgerTests {
             return report
         }
         _ = fetch()
+        let legacyManifest = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(legacyManifest.files[legacyFile.path]?.codexTypedResponseIdentity == false)
         var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
         var file = try #require(cache.files[legacyFile.path])
         var savedPrice = try #require(file.codexRows?.first)
@@ -720,6 +723,178 @@ struct CostUsageCodexRequestLedgerTests {
 }
 
 extension CostUsageCodexRequestLedgerTests {
+    @Test
+    func `compact request progress saves preserve committed details and explicit empty generations still clear`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        let parsed = try Self.parse(
+            Self.header() + [Self.record(id: "saved-response", usage: [100, 20, 10, 4], total: [100, 20, 10, 4])],
+            env: env)
+        var row = try #require(parsed.rows.first)
+        row.knownCostNanos = 123_000_000
+        row.pricingMode = "priority"
+        let path = env.root.appendingPathComponent("synthetic.jsonl").path
+        let usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1,
+            size: parsed.parsedBytes,
+            days: parsed.days,
+            parsedBytes: parsed.parsedBytes,
+            lastCountedTotals: parsed.lastCountedTotals,
+            sessionId: parsed.sessionId,
+            codexRows: [row],
+            codexTokenSnapshots: parsed.tokenSnapshots,
+            codexScanComplete: true,
+            codexRequestLedgerState: parsed.requestLedgerState)
+        var seed = CostUsageCache()
+        seed.scanSinceKey = "2026-08-29"
+        seed.scanUntilKey = "2026-08-30"
+        seed.days = usage.days
+        seed.files[path] = usage
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: seed, calendar: calendar)
+            .catchUpRequired)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let baseline = try #require(store.syncLoadCodexCache(calendar: calendar).files[path])
+        var compact = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        #expect(compact.files[path]?.codexRows == nil)
+        #expect(compact.files[path]?.codexTokenSnapshots == nil)
+        #expect(compact.files[path]?.codexRequestLedgerState == nil)
+        #expect(compact.files[path]?.codexTypedResponseIdentity == true)
+        let progress = CostUsageCodexRequestReconciliation(
+            size: usage.size,
+            mtimeUnixMs: usage.mtimeUnixMs,
+            parserRevision: CostUsageFileUsage.currentCodexParserRevision,
+            sessionID: parsed.sessionId,
+            pendingPaths: ["/synthetic/sibling.jsonl"])
+        compact.files[path]?.codexRequestReconciliation = progress
+        compact.files[path]?.codexInventoryValidationGeneration = "synthetic-validation"
+        let window = (sinceKey: "2026-08-29", untilKey: "2026-08-30")
+        #expect(!store.syncSaveCodexCatchUpCache(
+            compact,
+            calendar: calendar,
+            requestedScanWindow: window,
+            hydratedPaths: [path]).catchUpRequired)
+        let reopenedStore = CostUsageStore(cacheRoot: env.cacheRoot)
+        var reopened = reopenedStore.syncLoadCodexCache(calendar: calendar)
+        let preserved = try #require(reopened.files[path])
+        #expect(preserved.codexRows == baseline.codexRows)
+        #expect(preserved.codexTokenSnapshots == baseline.codexTokenSnapshots)
+        #expect(preserved.codexRequestLedgerState == baseline.codexRequestLedgerState)
+        #expect(preserved.lastCountedTotals == baseline.lastCountedTotals)
+        #expect(preserved.days == baseline.days)
+        #expect(preserved.codexRequestReconciliation == progress)
+        #expect(preserved.codexInventoryValidationGeneration == "synthetic-validation")
+        #expect(preserved.codexTypedResponseIdentity == true)
+        let empty = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: usage.mtimeUnixMs,
+            size: usage.size,
+            days: [:],
+            parsedBytes: usage.parsedBytes,
+            sessionId: parsed.sessionId,
+            codexRows: [],
+            codexTokenSnapshots: [],
+            codexScanComplete: true,
+            codexReplacementScanPending: false)
+        reopened.files[path] = empty
+        reopened.days = [:]
+        #expect(!reopenedStore.syncSaveCodexCatchUpCache(
+            reopened,
+            calendar: calendar,
+            requestedScanWindow: window,
+            hydratedPaths: [path]).catchUpRequired)
+        let cleared = try #require(CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar).files[path])
+        #expect(cleared.codexRows?.isEmpty == true)
+        #expect(cleared.codexTokenSnapshots?.isEmpty == true)
+        #expect(cleared.codexRequestLedgerState == nil)
+        #expect(cleared.codexTypedResponseIdentity == false)
+        #expect(cleared.days.isEmpty)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func `session alias cleanup preserves typed pages and still removes proven legacy duplicates`(
+        currentTyped: Bool,
+        aliasTyped: Bool)
+    {
+        let session = CostUsageCodexSessionMetadata(
+            sessionId: "synthetic-session",
+            concreteSessionId: "synthetic-session",
+            forkedFromId: nil,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil)
+        var alias = CostUsageFileUsage(mtimeUnixMs: 1, size: 1, days: [:], codexSession: session)
+        alias.codexHasTypedResponseIdentity = aliasTyped
+        var contradictory = alias
+        contradictory.codexHasTypedResponseIdentity = false
+        contradictory.codexRequestLedgerState = .init()
+        #expect(contradictory.codexTypedResponseIdentity == false)
+        contradictory.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-29",
+            model: "gpt-5",
+            input: 1,
+            cached: 0,
+            output: 1,
+            responseID: "synthetic-response")]
+        #expect(contradictory.codexTypedResponseIdentity == true)
+        contradictory.codexRequestLedgerState = nil
+        #expect(contradictory.codexTypedResponseIdentity == true)
+        contradictory.codexHasTypedResponseIdentity = nil
+        contradictory.codexRequestLedgerState = .init()
+        #expect(contradictory.codexTypedResponseIdentity == true)
+        contradictory.codexRows = nil
+        contradictory.codexRequestLedgerState = nil
+        contradictory.codexHasTypedResponseIdentity = nil
+        #expect(contradictory.codexTypedResponseIdentity == nil)
+        contradictory.codexHasTypedResponseIdentity = false
+        #expect(contradictory.codexTypedResponseIdentity == false)
+        var cache = CostUsageCache()
+        cache.files["/synthetic/older-page.jsonl"] = alias
+        #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
+            currentSession: session,
+            currentHasTypedResponseIdentity: currentTyped,
+            currentPath: "/synthetic/current-page.jsonl",
+            currentMtimeUnixMs: 2,
+            currentSize: 2,
+            cache: &cache))
+        #expect((cache.files["/synthetic/older-page.jsonl"] != nil) == (currentTyped || aliasTyped))
+
+        // Missing identity metadata is not proof that an older page contains only legacy rows.
+        alias.codexHasTypedResponseIdentity = nil
+        cache.files["/synthetic/unknown-page.jsonl"] = alias
+        #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
+            currentSession: session,
+            currentHasTypedResponseIdentity: false,
+            currentPath: "/synthetic/current-page.jsonl",
+            currentMtimeUnixMs: 2,
+            currentSize: 2,
+            cache: &cache))
+        #expect(cache.files["/synthetic/unknown-page.jsonl"] != nil)
+        for peerIdentity in [nil, true] as [Bool?] {
+            for currentMtime in [Int64(0), Int64(2)] {
+                var legacy = alias
+                legacy.codexHasTypedResponseIdentity = false
+                var peer = alias
+                peer.codexHasTypedResponseIdentity = peerIdentity
+                cache.files = [
+                    "/synthetic/current-page.jsonl": legacy,
+                    "/synthetic/legacy-peer.jsonl": legacy,
+                    "/synthetic/mixed-peer.jsonl": peer,
+                ]
+                #expect(!CostUsageScanner.dropStaleCodexSessionAliases(
+                    currentSession: session,
+                    currentHasTypedResponseIdentity: false,
+                    currentPath: "/synthetic/current-page.jsonl",
+                    currentMtimeUnixMs: currentMtime,
+                    currentSize: 2,
+                    cache: &cache))
+                #expect(cache.files.count == 3)
+            }
+        }
+    }
+
     @Test(arguments: [false, true], [false, true])
     func `working set deduplicates settled typed siblings in bounded cohorts across reopen`(
         newestFirst: Bool, earlierReplay: Bool) throws
@@ -896,6 +1071,14 @@ extension CostUsageCodexRequestLedgerTests {
                 contents: env.jsonl(Self.header() + [record, mirror])))
         }
         #expect(settle().summary?.totalTokens == ownerCount * 110)
+        let compact = CostUsageStore(cacheRoot: env.cacheRoot)
+            .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+        for file in files {
+            let owner = try #require(compact.files[file.path])
+            #expect(owner.codexTypedResponseIdentity == true)
+            #expect(owner.codexRequestLedgerState == nil)
+            #expect(owner.codexRows == nil)
+        }
         var queuedSource: URL?
         if targetsDisappearAfterQueue {
             queuedSource = try env.writeCodexSessionFile(

@@ -106,6 +106,8 @@ extension CostUsageScanner {
            !plan.replacementPending,
            Self.dropStaleCodexSessionAliases(
                currentSession: plan.parsed.codexSession,
+               currentHasTypedResponseIdentity: plan.parsed.requestLedgerState?.hasTypedResponseIdentity == true
+                   || input.cached?.codexTypedResponseIdentity == true,
                currentPath: input.metadata.path,
                currentMtimeUnixMs: input.metadata.mtimeUnixMs,
                currentSize: input.metadata.size,

@@ -229,7 +229,7 @@ extension CostUsageScanner {
     static func deferMissingCodexRequestOwner(path: String, cache: inout CostUsageCache) -> Bool {
         guard let owner = cache.files[path], !owner.days.isEmpty,
               let sessionID = owner.sessionId,
-              owner.codexRequestReconciliation != nil || owner.codexRequestLedgerState?.hasTypedResponseIdentity == true
+              owner.codexRequestReconciliation != nil || owner.codexTypedResponseIdentity == true
         else { return false }
         let siblings = cache.files.keys.filter {
             $0 != path && cache.files[$0]?.sessionId == sessionID && FileManager.default.fileExists(atPath: $0)

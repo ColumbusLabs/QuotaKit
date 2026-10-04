@@ -559,6 +559,9 @@ extension CostUsageStore {
                 if let usage = cache.files[path] {
                     guard !Self.shouldPreserveMalformedCodexDetails(path: path, usage: usage, cache: cache)
                     else { continue }
+                    if try self.persistCodexManifestProgress(usage: usage, committed: oldFile) {
+                        continue
+                    }
                     if usage.codexReplacementScanPending == true {
                         // Staging updates only the manifest, accumulator, and buffers. Keep the
                         // committed file rows, snapshots, aliases, and aggregate contribution
@@ -670,6 +673,25 @@ extension CostUsageStore {
         self.preservePreviousReportOnCatchUp(result, previousReport: compactPreviousReport)
         result.cacheWasPersisted = true
         return result
+    }
+
+    /// Missing processed targets can still be compact manifests. Nil detail arrays are not an
+    /// empty replacement generation; only the explicit manifest progress may change in that case.
+    private func persistCodexManifestProgress(
+        usage: CostUsageFileUsage,
+        committed: CostUsageStoreFile?) throws -> Bool
+    {
+        guard usage.codexRows == nil, usage.codexTokenSnapshots == nil,
+              usage.codexReplacementScanPending != true,
+              var file = committed,
+              let payload = file.scanState.detailsPayload,
+              var details = try? JSONDecoder().decode(StoredFileDetails.self, from: payload)
+        else { return false }
+        details.requestReconciliation = usage.codexRequestReconciliation
+        file.scanState.detailsPayload = try JSONEncoder().encode(details)
+        file.scanState.inventoryValidationGeneration = usage.codexInventoryValidationGeneration
+        _ = self.upsertFile(file)
+        return true
     }
 
     private func preservePreviousReportOnCatchUp(
@@ -1201,6 +1223,11 @@ extension CostUsageStore {
                 codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines,
                 codexParserRevision: details.parserRevision)
             usage.codexLedgerRevision = details.ledgerRevision
+            // Current parsers always persist typed response identity, including rowless pages.
+            // Older or malformed manifests without that evidence remain unclassified.
+            usage.codexHasTypedResponseIdentity = details.requestLedgerState?.hasTypedResponseIdentity
+                ?? (!hasMalformedDetails && details.parserRevision == CostUsageFileUsage.currentCodexParserRevision
+                    ? false : nil)
             cache.files[file.path] = usage
         }
         cache.days = Self.days(from: snapshot.dayAggregates)
