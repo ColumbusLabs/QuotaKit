@@ -1,6 +1,6 @@
 # Claude cloud credits over existing detail sync
 
-Status: done. Hosted iOS wire, cached-expiry and multi-device clearing regressions passed in CI 37193430933. Mac publication and all applicable integration checks must pass on the final reviewed PR head before merge.
+Status: done. On exact PR #226 head `07e23dc21fddd3d037e62ce46d079e5e4e696ea6`, [hosted Mac shard 1](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500300750) passed Claude cloud-credit parsing/publication and OAuth reset-credit suites; [iOS](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500300762) passed wire, cached-expiry and clearing regressions. All applicable integration checks must still pass on the final reviewed PR head before merge; unrelated scanner and architecture-gate failures keep the overall Mac gate open.
 
 Promotional cloud-session dollars are supplemental balances, independent from quota, prepaid extra usage, pacing and estimated cost. Reuse the existing optional providerDetails payload rather than changing CloudKit records or wire versions. Mac allows only the canonical Claude cloud-credit row; reset-credit redemption inventory and arbitrary provider detail rows remain local. iPhone reevaluates an absolute cached expiration in its provider overview and detail sections. Existing snapshots without providerDetails decode unchanged.
 

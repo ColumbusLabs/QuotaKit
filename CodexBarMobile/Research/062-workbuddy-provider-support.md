@@ -1,6 +1,6 @@
 # WorkBuddy provider support
 
-Status: `in-progress` — implementation is staged for independent review; hosted integration validation is pending.
+Status: `done` — implemented behavior passed focused hosted verification; the broader Mac integration gate remains open.
 
 ## Scope
 
@@ -16,4 +16,8 @@ Add WorkBuddy's Chrome-bound credit quota source to QuotaKit Mac and synchronize
 
 ## Validation
 
-Local builds, tests, lint, and account-backed checks were intentionally not run for this staged integration task. The host integration gate must validate provider registry, parser fixtures, localization, phone detail sanitization, and widget selection before this research entry moves to `done`.
+[Hosted CI run 37224122297](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297) tested exact PR #226 head `07e23dc21fddd3d037e62ce46d079e5e4e696ea6`. In [Mac shard 3](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500300747), all 23 named WorkBuddy plugin tests passed with explicit QuickJS and JavaScriptCore parameterizations, including cookie acceptance, malformed/overflowing summaries, optional reset failures, cancellation, and authentication retry. WorkBuddy settings and localization tests also passed. The dedicated generic plugin A/B step did not run because the preceding full Mac shard failed; the WorkBuddy engine evidence comes from its parameterized suite.
+
+The [iOS job](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500300762) passed 174 XCTest cases, 619 Swift Testing cases across 46 suites, and four UI tests, including WorkBuddy sanitized details and the 73-provider/219-subscription catalog contracts. [Hosted lint](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500146762) passed localization completeness, generated manifests, and palette parity across all 90 Mac providers.
+
+These focused receipts verify this implemented feature. The overall Mac integration gate remains open for nine scanner SIGBUS process failures and two stale architecture fingerprints; their repairs and all applicable checks on the final reviewed PR head remain required before merge. No local WorkBuddy tests/builds or account-backed checks were run, and no real account or browser-cookie session was used.
