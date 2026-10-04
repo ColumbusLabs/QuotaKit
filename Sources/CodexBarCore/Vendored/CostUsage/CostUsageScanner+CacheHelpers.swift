@@ -888,7 +888,15 @@ extension CostUsageScanner {
         return !(Set(cached.codexTurnIDs ?? []).isDisjoint(with: context.changedPriorityTurnIDs))
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
+    private static func codexInterleaveStateIsIncomplete(_ cached: CostUsageFileUsage) -> Bool {
+        // Correctness-critical interleave state is watermark + interleaved flag (+ counted/raw).
+        // `seenRawTotals` is optional precision only and must not gate incremental resume (#2037).
+        let hasDivergentTotals = cached.hasDivergentTotals ?? (cached.lastTotals == nil)
+        return (cached.hasInterleavedTotals == true && cached.lastRawTotalsWatermark == nil)
+            || (cached.lastRawTotalsWatermark != nil && cached.hasInterleavedTotals == nil)
+            || (hasDivergentTotals && cached.lastRawTotalsWatermark == nil)
+    }
+
     static func appendCodexFileIncrementIfPossible(
         input: CodexFileScanInput,
         context: CodexFileScanContext,
@@ -981,7 +989,6 @@ extension CostUsageScanner {
             return false
         }
         let initialCountedTotals = cached.lastCountedTotals ?? cached.lastTotals
-        let hasLedgerUsage = cached.codexRequestLedgerState?.responseIDs.isEmpty == false
         let initialRawTotalsBaseline = cached.lastRawTotalsBaseline ?? cached.lastTotals
         let initialHasDivergentTotals = cached.hasDivergentTotals ?? (cached.lastTotals == nil)
         let initialAccumulatorState = CostUsageCodexTokenAccumulatorState(
@@ -991,18 +998,13 @@ extension CostUsageScanner {
             rawTotalsWatermark: cached.lastRawTotalsWatermark,
             seenRawTotals: cached.seenRawTotals ?? [],
             sawInterleavedTotals: cached.hasInterleavedTotals ?? false)
-        // Correctness-critical interleave state is watermark + interleaved flag (+ counted/raw).
-        // `seenRawTotals` is optional precision only and must not gate incremental resume (#2037).
-        let hasIncompleteInterleaveState =
-            (cached.hasInterleavedTotals == true && cached.lastRawTotalsWatermark == nil)
-            || (cached.lastRawTotalsWatermark != nil && cached.hasInterleavedTotals == nil)
-            || (initialHasDivergentTotals && cached.lastRawTotalsWatermark == nil)
+        let hasIncompleteInterleaveState = Self.codexInterleaveStateIsIncomplete(cached)
         let canIncremental = startOffset > 0
             && startOffset <= input.metadata.size
             && (isResumablePartial
                 || isBufferedForkResume
                 || (input.metadata.size > cached.size
-                    && (initialCountedTotals != nil || hasLedgerUsage)
+                    && (initialCountedTotals != nil || cached.codexRequestLedgerState?.responseIDs.isEmpty == false)
                     && cached.forkedFromId == nil
                     && !hasIncompleteInterleaveState))
         guard canIncremental, cached.codexNextUsageRowIndex != nil else { return false }

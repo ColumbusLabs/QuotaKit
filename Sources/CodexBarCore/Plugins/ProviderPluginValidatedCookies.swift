@@ -45,14 +45,16 @@ final class ProviderPluginValidatedCookies {
     func cachedSession(domain: String, now: Date = Date()) -> ProviderPluginCookieSession? {
         if self.states[domain] == nil {
             let observation = CookieHeaderCache.observeForConditionalMutation(
-                provider: self.provider, scope: Self.scope(domain: domain, accountID: self.accountID),
+                provider: self.provider,
+                scope: Self.scope(domain: domain, accountID: self.accountID),
                 preserveInvalidEntry: self.background)
             let blocksBackgroundImport: Bool = switch observation {
             case let .authoritative(entry, _, _): entry != nil
             case .keychainTemporarilyUnavailable: true
             }
             self.states[domain] = DomainState(
-                observation: observation, blocksBackgroundImport: blocksBackgroundImport)
+                observation: observation,
+                blocksBackgroundImport: blocksBackgroundImport)
         }
         guard var state = self.states[domain], !state.visitedCache else { return nil }
         state.visitedCache = true
@@ -65,8 +67,11 @@ final class ProviderPluginValidatedCookies {
               let records = self.selected(payload.records, domain: domain, now: now)
         else { return nil }
         return self.issue(
-            records: records, domain: domain, source: entry.sourceLabel,
-            cachedAt: entry.storedAt.timeIntervalSince1970, ownsCache: true)
+            records: records,
+            domain: domain,
+            source: entry.sourceLabel,
+            cachedAt: entry.storedAt.timeIntervalSince1970,
+            ownsCache: true)
     }
 
     func mayImport(domain: String) -> Bool {
@@ -74,7 +79,9 @@ final class ProviderPluginValidatedCookies {
     }
 
     func importedSession(
-        records: [ProviderPluginCookieRecord], domain: String, source: String) -> ProviderPluginCookieSession?
+        records: [ProviderPluginCookieRecord],
+        domain: String,
+        source: String) -> ProviderPluginCookieSession?
     {
         guard let records = self.selected(records, domain: domain, now: Date()) else { return nil }
         return self.issue(records: records, domain: domain, source: source, ownsCache: false)
@@ -98,10 +105,9 @@ final class ProviderPluginValidatedCookies {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let encoded = try encoder.encode(currentRecords)
+        guard let encodedJSON = String(data: encoded, encoding: .utf8) else { return }
         // Generic cache display/header consumers get an opaque fingerprint, never a header assembled without URL scope.
-        let fingerprint = CookieHeaderCache.credentialFingerprint(issued.session.origin + String(
-            decoding: encoded,
-            as: UTF8.self))
+        let fingerprint = CookieHeaderCache.credentialFingerprint(issued.session.origin + encodedJSON)
         var entry = CookieHeaderCache.Entry(
             cookieHeader: "__quotakit_cookie_session=\(fingerprint)",
             storedAt: Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down)),
@@ -109,8 +115,10 @@ final class ProviderPluginValidatedCookies {
         entry.pluginCookieSession = payload
         try Task.checkCancellation()
         let result = CookieHeaderCache.storeIfObservationCurrentReceipt(
-            provider: self.provider, scope: Self.scope(domain: domain, accountID: self.accountID),
-            expected: issued.observation, entry: entry)
+            provider: self.provider,
+            scope: Self.scope(domain: domain, accountID: self.accountID),
+            expected: issued.observation,
+            entry: entry)
         if let receipt = result.receipt {
             issued.observation = receipt.observation
             issued.ownsCache = true
@@ -127,7 +135,8 @@ final class ProviderPluginValidatedCookies {
         // Keep durable account pinning across background polls. Explicit Refresh may evict and replace it.
         guard issued.ownsCache, !self.background else { return }
         if CookieHeaderCache.clearIfObservationCurrent(
-            provider: self.provider, scope: Self.scope(domain: domain, accountID: self.accountID),
+            provider: self.provider,
+            scope: Self.scope(domain: domain, accountID: self.accountID),
             expected: issued.observation) == .stored
         {
             self.states[domain]?.observation = issued.observation.afterOwnedClear()
@@ -135,14 +144,23 @@ final class ProviderPluginValidatedCookies {
     }
 
     private func issue(
-        records: [ProviderPluginCookieRecord], domain: String, source: String,
-        cachedAt: TimeInterval? = nil, ownsCache: Bool) -> ProviderPluginCookieSession
+        records: [ProviderPluginCookieRecord],
+        domain: String,
+        source: String,
+        cachedAt: TimeInterval? = nil,
+        ownsCache: Bool) -> ProviderPluginCookieSession
     {
         let session = ProviderPluginCookieSession(
-            header: "", source: source, origin: "https://\(domain)", cachedAt: cachedAt, records: records)
+            header: "",
+            source: source,
+            origin: "https://\(domain)",
+            cachedAt: cachedAt,
+            records: records)
         if let state = self.states[domain] {
             self.issued[session.id] = Issued(
-                session: session, observation: state.observation, ownsCache: ownsCache)
+                session: session,
+                observation: state.observation,
+                ownsCache: ownsCache)
         }
         return session
     }

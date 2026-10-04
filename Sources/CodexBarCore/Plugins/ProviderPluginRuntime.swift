@@ -708,23 +708,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let env = JSValue(newObjectIn: self.context)!
         env.setObject(Self.normalizedTimeZoneIdentifier(timeZone), forKeyedSubscript: "timeZone" as NSString)
         ctx.setObject(env, forKeyedSubscript: "env" as NSString)
-        let percentage: @convention(block) (Double, Double) -> Double = { used, limit in
-            guard used.isFinite, limit.isFinite, limit > 0 else { return 100 }
-            return min(100, max(0, used / limit * 100))
-        }
-        host.setObject(percentage, forKeyedSubscript: "pct" as NSString)
-        let amountFromPercent: @convention(block) (Double, Double) -> Double = { percent, limit in
-            percent / 100 * limit
-        }
-        host.setObject(amountFromPercent, forKeyedSubscript: "amountFromPercent" as NSString)
-        let isDetailLabel: @convention(block) (String) -> Bool = { label in
-            (try? ProviderDetailSection.Row(label: label, value: "—")) != nil
-        }
-        host.setObject(isDetailLabel, forKeyedSubscript: "isDetailLabel" as NSString)
-        let currency: @convention(block) (Double, String) -> String = { amount, code in
-            UsageFormatter.currencyString(amount, currencyCode: code)
-        }
-        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
+        self.installValueFormattingFunctions(on: host)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
             do {
@@ -831,6 +815,26 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
 
         _ = self.applyPrelude.call(withArguments: [ctx, host])
         return ctx
+    }
+
+    private func installValueFormattingFunctions(on host: JSValue) {
+        let percentage: @convention(block) (Double, Double) -> Double = { used, limit in
+            guard used.isFinite, limit.isFinite, limit > 0 else { return 100 }
+            return min(100, max(0, used / limit * 100))
+        }
+        host.setObject(percentage, forKeyedSubscript: "pct" as NSString)
+        let amountFromPercent: @convention(block) (Double, Double) -> Double = { percent, limit in
+            percent / 100 * limit
+        }
+        host.setObject(amountFromPercent, forKeyedSubscript: "amountFromPercent" as NSString)
+        let isDetailLabel: @convention(block) (String) -> Bool = { label in
+            (try? ProviderDetailSection.Row(label: label, value: "—")) != nil
+        }
+        host.setObject(isDetailLabel, forKeyedSubscript: "isDetailLabel" as NSString)
+        let currency: @convention(block) (Double, String) -> String = { amount, code in
+            UsageFormatter.currencyString(amount, currencyCode: code)
+        }
+        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
     }
 
     func requestInterrupt() {

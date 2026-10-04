@@ -311,61 +311,73 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private func advance(domain: String, cachedOnly: Bool = false) throws -> ProviderPluginCookieSession? {
         self.observed[domain] = nil
         if self.settings.cookieSource == .manual {
-            // Legacy origin-less headers are pinned to the first selected domain for this fetch.
-            let origin = self.settings.manualCookieOrigin ?? self.manualDomain.map { "https://\($0)" }
-            guard origin == nil || origin == "https://\(domain)",
-                  !self.visited.contains(domain),
-                  let header = CookieHeaderNormalizer.normalize(self.settings.manualCookieHeader)
-            else { return nil }
-            self.manualDomain = domain
-            self.visited.insert(domain)
-            if self.usesCookieJar {
-                let records = Self.manualRecords(header, domain: domain)
-                guard self.policy?.hasRequiredCookies(records) != false else { return nil }
-                return self.issue(header: "", source: "manual", domain: domain, cacheEntry: nil, records: records)
-            }
-            return self.issue(header: header, source: "manual", domain: domain, cacheEntry: nil)
+            return self.advanceManual(domain: domain)
         }
         if self.usesCookieJar {
-            if let validatedCookies {
-                if let session = validatedCookies.cachedSession(domain: domain) {
-                    return self.registerValidatedSession(session, domain: domain)
-                }
-                guard validatedCookies.mayImport(domain: domain) else { return nil }
-            }
-            guard !cachedOnly, let jarImporter, !self.exhaustedJarImports.contains(domain) else { return nil }
-            if self.loadedJarImports.insert(domain).inserted {
-                let candidates = try self.importCandidates { try jarImporter(domain) } ?? []
-                self.importedJar[domain] = candidates
-                if candidates.isEmpty { self.exhaustedJarImports.insert(domain) }
-            }
-            while self.importedJar[domain]?.isEmpty == false {
-                var candidates = self.importedJar[domain] ?? []
-                let candidate = candidates.removeFirst()
-                self.importedJar[domain] = candidates
-                let signature = candidate.records.map {
-                    [$0.name, $0.value, $0.domain, $0.path, String($0.hostOnly), String($0.secure)]
-                        .joined(separator: "\u{1f}")
-                }.sorted().joined(separator: "\u{1e}")
-                guard !candidate.records.isEmpty,
-                      self.policy?.hasRequiredCookies(candidate.records) != false,
-                      self.seenJar[domain, default: []].insert(signature).inserted
-                else { continue }
-                if let validatedCookies {
-                    guard let session = validatedCookies.importedSession(
-                        records: candidate.records, domain: domain, source: candidate.source) else { continue }
-                    return self.registerValidatedSession(session, domain: domain)
-                }
-                return self.issue(
-                    header: "",
-                    source: candidate.source,
-                    domain: domain,
-                    cacheEntry: nil,
-                    records: candidate.records)
-            }
-            self.exhaustedJarImports.insert(domain)
-            return nil
+            return try self.advanceCookieJar(domain: domain, cachedOnly: cachedOnly)
         }
+        return try self.advanceCachedAndImported(domain: domain, cachedOnly: cachedOnly)
+    }
+
+    private func advanceManual(domain: String) -> ProviderPluginCookieSession? {
+        // Legacy origin-less headers are pinned to the first selected domain for this fetch.
+        let origin = self.settings.manualCookieOrigin ?? self.manualDomain.map { "https://\($0)" }
+        guard origin == nil || origin == "https://\(domain)",
+              !self.visited.contains(domain),
+              let header = CookieHeaderNormalizer.normalize(self.settings.manualCookieHeader)
+        else { return nil }
+        self.manualDomain = domain
+        self.visited.insert(domain)
+        if self.usesCookieJar {
+            let records = Self.manualRecords(header, domain: domain)
+            guard self.policy?.hasRequiredCookies(records) != false else { return nil }
+            return self.issue(header: "", source: "manual", domain: domain, cacheEntry: nil, records: records)
+        }
+        return self.issue(header: header, source: "manual", domain: domain, cacheEntry: nil)
+    }
+
+    private func advanceCookieJar(domain: String, cachedOnly: Bool) throws -> ProviderPluginCookieSession? {
+        if let validatedCookies {
+            if let session = validatedCookies.cachedSession(domain: domain) {
+                return self.registerValidatedSession(session, domain: domain)
+            }
+            guard validatedCookies.mayImport(domain: domain) else { return nil }
+        }
+        guard !cachedOnly, let jarImporter, !self.exhaustedJarImports.contains(domain) else { return nil }
+        if self.loadedJarImports.insert(domain).inserted {
+            let candidates = try self.importCandidates { try jarImporter(domain) } ?? []
+            self.importedJar[domain] = candidates
+            if candidates.isEmpty { self.exhaustedJarImports.insert(domain) }
+        }
+        while self.importedJar[domain]?.isEmpty == false {
+            var candidates = self.importedJar[domain] ?? []
+            let candidate = candidates.removeFirst()
+            self.importedJar[domain] = candidates
+            let signature = candidate.records.map {
+                [$0.name, $0.value, $0.domain, $0.path, String($0.hostOnly), String($0.secure)]
+                    .joined(separator: "\u{1f}")
+            }.sorted().joined(separator: "\u{1e}")
+            guard !candidate.records.isEmpty,
+                  self.policy?.hasRequiredCookies(candidate.records) != false,
+                  self.seenJar[domain, default: []].insert(signature).inserted
+            else { continue }
+            if let validatedCookies {
+                guard let session = validatedCookies.importedSession(
+                    records: candidate.records, domain: domain, source: candidate.source) else { continue }
+                return self.registerValidatedSession(session, domain: domain)
+            }
+            return self.issue(
+                header: "",
+                source: candidate.source,
+                domain: domain,
+                cacheEntry: nil,
+                records: candidate.records)
+        }
+        self.exhaustedJarImports.insert(domain)
+        return nil
+    }
+
+    private func advanceCachedAndImported(domain: String, cachedOnly: Bool) throws -> ProviderPluginCookieSession? {
         if self.visited.insert(domain).inserted,
            let (cached, scope) = self.cachedEntry(domain: domain),
            let header = CookieHeaderNormalizer.normalize(cached.cookieHeader)

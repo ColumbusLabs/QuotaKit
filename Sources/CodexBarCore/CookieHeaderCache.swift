@@ -20,7 +20,7 @@ public struct CookieHeaderCacheEntry: Codable, Equatable, Sendable {
     public let sourceLabel: String
     public let authenticationFailurePolicy: CookieAuthenticationFailurePolicy?
     /// Host-only metadata; legacy header consumers see a credential fingerprint, never this payload.
-    var pluginCookieSession: ProviderPluginCachedCookieSession? = nil
+    var pluginCookieSession: ProviderPluginCachedCookieSession?
 
     public init(
         cookieHeader: String,

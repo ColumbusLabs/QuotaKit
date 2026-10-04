@@ -131,7 +131,9 @@ extension ProviderPluginRuntimeTests {
         for (mode, source) in [(ProviderSourceMode.auto, ProviderCookieSource.off), (.api, .auto)] {
             await #expect(throws: ProviderPluginError.self) {
                 try await runtime.fetchUsage(
-                    secrets: ["TEST_KEY": "fixture"], sourceMode: mode, cookieSource: source,
+                    secrets: ["TEST_KEY": "fixture"],
+                    sourceMode: mode,
+                    cookieSource: source,
                     cookieSessionValidator: { _, _ in Issue.record("Disabled cookies must not invoke validation") })
             }
         }

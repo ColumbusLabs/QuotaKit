@@ -8,7 +8,7 @@ import Testing
 @Suite(.serialized)
 struct SyncCoordinatorProviderDetailsTests {
     @Test
-    func `WorkBuddy sync whitelists numeric credit details and clears empty results`() {
+    func `WorkBuddy sync allowlists numeric credit details and clears empty results`() {
         let snapshot = UsageSnapshot(
             primary: nil,
             secondary: nil,

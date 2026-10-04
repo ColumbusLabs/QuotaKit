@@ -355,7 +355,9 @@ struct CLICookieRefreshTests {
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
-    func `plugin authentication rejection reaches cookie refresh output`(engine: ProviderPluginEngineKind) async throws {
+    func `plugin authentication rejection reaches cookie refresh output`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         BrowserCookieAccessGate.resetForTesting()
         defer { BrowserCookieAccessGate.resetForTesting() }
         let runtime = try ProviderPluginRuntime(source: """
