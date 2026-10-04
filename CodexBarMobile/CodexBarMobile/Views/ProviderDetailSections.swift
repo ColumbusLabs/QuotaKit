@@ -122,7 +122,13 @@ enum ProviderDetailSectionDispatcher {
             var seen: Set<String> = []
             let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
                 guard seen.insert(row.label).inserted else { return nil }
-                return .init(label: String(localized: row.label), value: row.value)
+                let label = switch row.label {
+                case "Left": String(localized: "Left")
+                case "Total": String(localized: "Total")
+                case "Reserved": String(localized: "Reserved")
+                default: row.label
+                }
+                return .init(label: label, value: row.value)
             }
             return safeRows.isEmpty ? [] : [SyncProviderDetailSection(
                 title: String(localized: "Credits"),

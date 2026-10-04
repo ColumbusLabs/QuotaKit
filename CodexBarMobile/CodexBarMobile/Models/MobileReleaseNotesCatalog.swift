@@ -32,7 +32,8 @@ enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Claude cloud credits now sync from Mac to iPhone."),
-                        String(localized: "WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."),
+                        String(
+                            localized: "WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."),
                         String(
                             localized: "Crof is retired from active quota alerts; existing synced records remain readable."),
                         String(

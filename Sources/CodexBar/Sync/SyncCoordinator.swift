@@ -755,7 +755,8 @@ final class SyncCoordinator {
         // Older records retain their previous key until normal per-device
         // stale-record reconciliation removes them after a successful push.
         let accountEmail: String? = {
-            // WorkBuddy has a plan label but no stable public account identity; keep all personal identifiers Mac-local.
+            // WorkBuddy has a plan label but no stable public account identity; keep all personal identifiers
+            // Mac-local.
             guard provider != .workbuddy else { return nil }
             guard provider == .copilot, let tokenAccount,
                   let apiHost = copilotAPIHost

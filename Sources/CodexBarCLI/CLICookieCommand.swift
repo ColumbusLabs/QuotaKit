@@ -139,17 +139,16 @@ extension CodexBarCLI {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let promptCapableBrowsers = (descriptor.metadata.browserCookieOrder ?? [])
             .filter { BrowserCookieAccessGate.requiresKeychainPromptAcknowledgement(for: [$0]) }
-        let message: String
-        if let browser = promptCapableBrowsers.first, KeychainAccessGate.isDisabled {
-            message = "\(browser.displayName) cookie decryption is disabled in QuotaKit; " +
+        let message: String = if let browser = promptCapableBrowsers.first, KeychainAccessGate.isDisabled {
+            "\(browser.displayName) cookie decryption is disabled in QuotaKit; " +
                 "enable Keychain access and refresh."
         } else if let browser = promptCapableBrowsers
             .first(where: { BrowserCookieAccessGate.hasActiveDenial(for: $0) })
         {
-            message = "\(browser.displayName) cookie decryption was declined in Keychain; " +
+            "\(browser.displayName) cookie decryption was declined in Keychain; " +
                 "rerun with --allow-keychain-prompt to request Keychain access again."
         } else {
-            message = switch (error as? ProviderFetchClassifiedError)?.kind {
+            switch (error as? ProviderFetchClassifiedError)?.kind {
             case .authenticationExpired:
                 "The provider rejected the browser session. Sign in again and retry."
             case .permissionDenied:
