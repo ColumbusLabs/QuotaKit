@@ -241,9 +241,9 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
 
     private func importCandidates<Candidate>(_ operation: () throws -> [Candidate]?) throws -> [Candidate]? {
         #if os(macOS)
-        return try BrowserCookieAccessGate.withAccessFailureObserver({
+        return try BrowserCookieAccessGate.withAccessFailureObserver {
             self.recordAccessFailure(for: $0)
-        }) {
+        } operation: {
             do {
                 return try operation()
             } catch let error as BrowserCookieError {

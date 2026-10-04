@@ -41,15 +41,20 @@ struct CostUsageCodexRequestLedgerTests {
         }
         for index in 0..<7 {
             _ = try env.writeCodexSessionFile(
-                day: start, filename: "settled-\(index).jsonl",
+                day: start,
+                filename: "settled-\(index).jsonl",
                 contents: env.jsonl(Self.header() + [Self.record(
-                    id: "response-\(index)", timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
-                    usage: [100, 20, 10, 4], total: [100, 20, 10, 4])]))
+                    id: "response-\(index)",
+                    timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
+                    usage: [100, 20, 10, 4],
+                    total: [100, 20, 10, 4])]))
         }
         #expect(settle().summary?.totalTokens == 770)
         let replay = (0..<7).map { Self.record(
-            id: "response-\($0)", timestamp: earlierReplay ? Self.timestampA : Self.timestampB,
-            usage: [100, 20, 10, 4], total: [100, 20, 10, 4]) }
+            id: "response-\($0)",
+            timestamp: earlierReplay ? Self.timestampA : Self.timestampB,
+            usage: [100, 20, 10, 4],
+            total: [100, 20, 10, 4]) }
         let page = try env.writeCodexSessionFile(
             day: start, filename: "z-replayed-page.jsonl", contents: env.jsonl(Self.header() + replay))
         let recorder = CostUsageScanner.CodexScanWorkRecorder()
@@ -70,8 +75,10 @@ struct CostUsageCodexRequestLedgerTests {
         let handle = try FileHandle(forWritingTo: page)
         try handle.seekToEnd()
         try handle.write(contentsOf: Data(env.jsonl([Self.record(
-            id: "new-response", timestamp: Self.timestampC,
-            usage: [60, 20, 6, 3], total: [760, 160, 76, 31])]).utf8))
+            id: "new-response",
+            timestamp: Self.timestampC,
+            usage: [60, 20, 6, 3],
+            total: [760, 160, 76, 31])]).utf8))
         try handle.close()
         #expect(settle().summary?.totalTokens == 836)
         // The old owner pages are now rowless. Visit them before the active owner in later
@@ -792,7 +799,9 @@ struct CostUsageCodexRequestLedgerTests {
         let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         #expect(cache.files.values.flatMap { $0.codexRows ?? [] }.compactMap(\.responseID) == ["partial"])
     }
+}
 
+extension CostUsageCodexRequestLedgerTests {
     private static func partialLegacy(lastOnly: Bool) throws -> [String: Any] {
         var row = Self.legacy(timestamp: Self.timestampA, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])
         var payload = try #require(row["payload"] as? [String: Any])

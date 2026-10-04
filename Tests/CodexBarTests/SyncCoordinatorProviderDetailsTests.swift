@@ -43,7 +43,9 @@ struct SyncCoordinatorProviderDetailsTests {
                     windowMinutes: 300,
                     resetsAt: nil,
                     resetDescription: nil) : nil,
-                secondary: nil, details: phase == 2 ? [] : details, updatedAt: Date()),
+                secondary: nil,
+                details: phase == 2 ? [] : details,
+                updatedAt: Date()),
             provider: .claude)
         let pusher = MockSyncPusher()
         await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
@@ -62,7 +64,7 @@ struct SyncCoordinatorProviderDetailsTests {
         #expect(provider.budget == nil)
         #expect(provider.costSummary == nil)
         #expect(pusher.lastSnapshot?.providers.first { $0.providerID == "claude" }?.providerDetails == expectedDetails)
-        let wire = try String(decoding: JSONEncoder().encode(provider), as: UTF8.self)
+        let wire = try #require(String(bytes: JSONEncoder().encode(provider), encoding: .utf8))
         #expect(!wire.contains("fixture-secret"))
         #expect(!wire.contains("fixture-redemption"))
     }

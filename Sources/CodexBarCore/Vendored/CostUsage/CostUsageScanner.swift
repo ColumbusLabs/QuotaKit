@@ -9256,6 +9256,25 @@ enum CostUsageScanner {
         }
     }
 
+    private static func codexCommittedResponseRows(
+        cache: CostUsageCache,
+        replacingPaths: Set<String>) -> [String: CodexUsageRow]
+    {
+        var rows: [String: CodexUsageRow] = [:]
+        for (path, usage) in cache.files where !replacingPaths.contains(path)
+            && usage.hasCurrentCodexParser && usage.codexScanComplete == true
+            && !usage.hasPendingCodexReplacementScan
+        {
+            for row in usage.codexRows ?? [] where row.responseID != nil {
+                let key = Self.codexUsageRowKey(sessionId: usage.sessionId, fileIdentity: path, row: row)
+                if let previous = rows[key],
+                   (previous.timestampUnixMs ?? .max) <= (row.timestampUnixMs ?? .max) { continue }
+                rows[key] = row
+            }
+        }
+        return rows
+    }
+
     private static func scanCodexFiles(
         _ files: [URL],
         context: CodexFileScanContext,
@@ -9265,18 +9284,9 @@ enum CostUsageScanner {
     {
         var scanState = CodexScanState()
         scanState.retainCandidateResponseDuplicates = true
-        let replacingPaths = Set(files.map { Self.codexResolvedPath($0) })
-        for (path, usage) in cache.files where !replacingPaths.contains(path)
-            && usage.hasCurrentCodexParser && usage.codexScanComplete == true
-            && !usage.hasPendingCodexReplacementScan
-        {
-            for row in usage.codexRows ?? [] where row.responseID != nil {
-                let key = Self.codexUsageRowKey(sessionId: usage.sessionId, fileIdentity: path, row: row)
-                if let previous = scanState.committedCodexResponseRows[key],
-                   (previous.timestampUnixMs ?? .max) <= (row.timestampUnixMs ?? .max) { continue }
-                scanState.committedCodexResponseRows[key] = row
-            }
-        }
+        scanState.committedCodexResponseRows = Self.codexCommittedResponseRows(
+            cache: cache,
+            replacingPaths: Set(files.map { Self.codexResolvedPath($0) }))
         var bufferedForkRetries: [URL] = []
         var visitedPaths: Set<String> = []
         var scannedPaths: Set<String> = []

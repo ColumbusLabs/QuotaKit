@@ -172,7 +172,9 @@ extension CostUsageScanner {
             }
             let allDays = Array(old.days.keys) + (old.codexRows ?? []).map(\.day) + rows.map(\.day)
             let updated = Self.codexFileUsageByFilteringRows(
-                old, rows: rows, context: context,
+                old,
+                rows: rows,
+                context: context,
                 rangeOverride: CostUsageDayRange(coveringDayKeys: allDays, calendar: context.range.calendar))
             Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
             cache.files[path] = updated

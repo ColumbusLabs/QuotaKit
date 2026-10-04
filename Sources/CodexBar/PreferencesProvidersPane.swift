@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 enum ProviderSettingsRefreshInteraction {
-    static func perform(operation: () async -> Void) async {
+    static func perform<Result>(operation: () async -> Result) async -> Result {
         await BrowserCookieAccessGate.withExplicitRetry {
             await ProviderInteractionContext.$current.withValue(.userInitiated) {
                 await operation()

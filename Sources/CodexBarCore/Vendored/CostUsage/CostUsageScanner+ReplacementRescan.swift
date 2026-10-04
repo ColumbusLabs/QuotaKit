@@ -338,6 +338,20 @@ extension CostUsageScanner {
             stageParsedRows: preparation.stageParsedRows)
     }
 
+    private static func codexRescanSessionMetadata(
+        cached: CostUsageFileUsage?,
+        parsed: CodexParseResult) -> CostUsageCodexSessionMetadata
+    {
+        let cachedSessionMetadata = cached?.codexSession ?? CostUsageCodexSessionMetadata(
+            sessionId: cached?.sessionId,
+            forkedFromId: cached?.forkedFromId,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil)
+        return cachedSessionMetadata.merging(parsed.codexSession)
+    }
+
     private static func materializeCodexRescan(
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
@@ -346,15 +360,7 @@ extension CostUsageScanner {
     {
         let parsed = plan.parsed
         let migratedCached = plan.migratedCached
-        let parsedCodexSession: CostUsageCodexSessionMetadata
-        let cachedSessionMetadata = input.cached?.codexSession ?? CostUsageCodexSessionMetadata(
-            sessionId: input.cached?.sessionId,
-            forkedFromId: input.cached?.forkedFromId,
-            cwd: nil,
-            title: nil,
-            startedAtUnixMs: nil,
-            latestActivityUnixMs: nil)
-        parsedCodexSession = cachedSessionMetadata.merging(parsed.codexSession)
+        let parsedCodexSession = Self.codexRescanSessionMetadata(cached: input.cached, parsed: parsed)
         let sessionId = parsedCodexSession.sessionId ?? parsed.sessionId ?? input.cached?.sessionId
         let projectPath = parsed.projectPath ?? input.cached?.projectPath
         let canonicalProjectPath = parsed.projectPath.map {

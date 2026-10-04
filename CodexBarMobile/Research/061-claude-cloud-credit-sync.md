@@ -1,6 +1,6 @@
 # Claude cloud credits over existing detail sync
 
-Status: implemented; exact-head hosted verification required before merge.
+Status: done. Hosted iOS wire, cached-expiry and multi-device clearing regressions passed in CI 37193430933. Mac publication and all applicable integration checks must pass on the final reviewed PR head before merge.
 
 Promotional cloud-session dollars are supplemental balances, independent from quota, prepaid extra usage, pacing and estimated cost. Reuse the existing optional providerDetails payload rather than changing CloudKit records or wire versions. Mac allows only the canonical Claude cloud-credit row; reset-credit redemption inventory and arbitrary provider detail rows remain local. iPhone reevaluates an absolute cached expiration in its provider overview and detail sections. Existing snapshots without providerDetails decode unchanged.
 
