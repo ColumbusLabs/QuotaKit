@@ -834,6 +834,8 @@ extension CostUsageCodexRequestLedgerTests {
         contradictory.codexRows = [CostUsageScanner.CodexUsageRow(
             day: "2026-08-29",
             model: "gpt-5",
+            turnID: nil,
+            eventIndex: nil,
             input: 1,
             cached: 0,
             output: 1,
