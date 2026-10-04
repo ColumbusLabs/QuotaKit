@@ -2,6 +2,12 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+#if canImport(SQLite3)
+import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
+#endif
+
 @Suite(.serialized)
 struct CostUsageRequestLedgerMigrationTests {
     @Test(arguments: [5, 6, 7], [false, true])
@@ -76,9 +82,10 @@ struct CostUsageRequestLedgerMigrationTests {
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion, parserHash: predecessorHash)
         let adoptedStore = CostUsageStore(cacheRoot: env.cacheRoot)
-        let connection = try BaselineSQLiteConnection(url: adoptedStore.databaseURL)
-        try connection.execute("UPDATE meta SET value = '\(predecessorHash)' WHERE key = 'parser_hash'")
-        try connection.execute("PRAGMA user_version = \(predecessorVersion)")
+        try Self.executeMigrationSQL(at: adoptedStore.databaseURL, sql: """
+        UPDATE meta SET value = '\(predecessorHash)' WHERE key = 'parser_hash';
+        PRAGMA user_version = \(predecessorVersion);
+        """)
         let adopted = adoptedStore.syncLoadCodexCache(calendar: .current)
         #expect(adopted.files[file.path]?.codexRows == usage.codexRows)
         #expect(await adoptedStore.rebuildCount == 0)
@@ -135,5 +142,14 @@ struct CostUsageRequestLedgerMigrationTests {
         #expect(expected.data == appended.data)
         #expect(expected.summary == appended.summary)
         #expect(report(options).data == appended.data)
+    }
+
+    private static func executeMigrationSQL(at url: URL, sql: String) throws {
+        var database: OpaquePointer?
+        let opened = sqlite3_open_v2(url.path, &database, SQLITE_OPEN_READWRITE, nil)
+        defer { sqlite3_close_v2(database) }
+        guard opened == SQLITE_OK, let database else { throw CostUsageStore.StoreError.sqlite(opened) }
+        let result = sqlite3_exec(database, sql, nil, nil, nil)
+        guard result == SQLITE_OK else { throw CostUsageStore.StoreError.sqlite(result) }
     }
 }

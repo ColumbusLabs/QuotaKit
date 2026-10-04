@@ -100,11 +100,11 @@ struct ProviderPluginCookieResultTests {
                     provider: .lithosai,
                     domains: [domain, "unused.example.test"],
                     settings: .init(cookieSource: .auto, manualCookieHeader: nil),
-                    usesCookieJar: jar,
                     batches: { _, batch in
                         #expect(ProviderInteractionContext.current == .userInitiated)
                         return batch == 0 ? [("session=fixture", "Chrome")] : nil
                     },
+                    usesCookieJar: jar,
                     jarImporter: jar ? importJar : nil)
                 let usage = try await runtime.fetchUsage(cookieSessionResolver: { domain, cachedOnly in
                     try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
@@ -137,11 +137,11 @@ struct ProviderPluginCookieResultTests {
             directoryContents: { _ in ["Default"] },
             applicationURLs: { _ in [] },
             profileAccessIssue: { _ in nil })
-        let importJar: ProviderPluginCookieBroker.JarImporter = {
+        let importJar: ProviderPluginCookieBroker.JarImporter = { _ in
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
                 try BrowserCookieAccessGate.withShouldAttemptOverrideForTesting(false) {
-                    try ProviderPluginCookieBroker.importCookieJars(
-                        provider: provider, domains: runtime.manifest.cookieDomains, browserDetection: detection)
+                    #expect(!BrowserCookieAccessGate.shouldAttempt(.chrome))
+                    return []
                 }
             }
         }
@@ -162,6 +162,7 @@ struct ProviderPluginCookieResultTests {
                     }
                 }
             },
+            usesCookieJar: runtime.manifest.usesCookieJar,
             jarImporter: runtime.manifest.usesCookieJar ? importJar : nil,
             policy: runtime.manifest.cookiePolicy)
         do {

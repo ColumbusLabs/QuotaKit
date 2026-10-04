@@ -4,6 +4,14 @@ import Testing
 @testable import CodexBarCore
 
 struct AntigravityProfileHomesTests {
+    private static var cliExecutableURL: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".build/debug/CodexBarCLI")
+    }
+
     @Test
     func `CLI config unions explicit profiles and deduplicates copied conversations`() throws {
         let primary = try AntigravityLocalFixture()
@@ -21,7 +29,7 @@ struct AntigravityProfileHomesTests {
             ]]]
             try JSONSerialization.data(withJSONObject: config).write(to: configURL)
             let process = Process()
-            process.executableURL = TestBuildProducts.executableURL(named: "CodexBarCLI")
+            process.executableURL = Self.cliExecutableURL
             process.arguments = ["cost", "--provider", "antigravity", "--json"]
             process.environment = [
                 "HOME": primary.root.path, "CFFIXED_USER_HOME": primary.root.path,
