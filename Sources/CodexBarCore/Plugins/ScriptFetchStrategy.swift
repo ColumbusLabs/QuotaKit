@@ -150,7 +150,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             throw cookies.preferredFailure(over: error)
         }
         try Task.checkCancellation()
-        if runtime.manifest.cookiePolicy?.cache == .nonpersistent {
+        if runtime.manifest.usesCookieJar {
             CookieHeaderCache.markNonpersistentRefreshValidated(provider: self.provider)
         }
         let saved = result.persist.isEmpty ? ProviderSettingsSaveOutcome.unchanged

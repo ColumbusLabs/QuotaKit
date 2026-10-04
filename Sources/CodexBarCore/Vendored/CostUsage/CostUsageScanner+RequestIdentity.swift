@@ -34,7 +34,7 @@ extension CostUsageScanner {
             let unseen = row.responseID == nil
                 ? !state.seenCodexUsageRowKeys.contains(key)
                 : !acceptedKeys.contains(key)
-                    && (state.retainCandidateResponseDuplicates || !state.seenCodexUsageRowKeys.contains(key))
+                && (state.retainCandidateResponseDuplicates || !state.seenCodexUsageRowKeys.contains(key))
             if unseen {
                 unique.append(state.committedCodexResponseRows[key].map {
                     let canonical = (row.timestampUnixMs ?? .max) < ($0.timestampUnixMs ?? .max) ? row : $0

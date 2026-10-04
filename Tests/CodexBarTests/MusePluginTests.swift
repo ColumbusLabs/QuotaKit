@@ -180,7 +180,9 @@ struct MusePluginTests {
 
     @Test(arguments: [
         (Self.members(email: "bob@example.com"), 200),
-        (#"{"members":[{"user_id":"2002","email":"ada@example.com"},{"user_id":"1001","email":"bob@example.com"}]}"#, 200),
+        (
+            #"{"members":[{"user_id":"2002","email":"ada@example.com"},{"user_id":"1001","email":"bob@example.com"}]}"#,
+            200),
         (Self.members(userID: "2002"), 200),
         (#"{"error":"Forbidden"}"#, 403),
         ("{}", 404),
@@ -258,8 +260,9 @@ struct MusePluginTests {
         #expect(requests.map(\.session) == ["first", "second", "first", "second", "second"])
     }
 
-    @Test(arguments: ["null", "true", "-1", "1.5", "9007199254740992", "\"bad/id\""],
-          BundledPluginTestSupport.engines)
+    @Test(
+        arguments: ["null", "true", "-1", "1.5", "9007199254740992", "\"bad/id\""],
+        BundledPluginTestSupport.engines)
     func `invalid user IDs never reach team membership`(
         userID: String,
         engine: ProviderPluginEngineKind) async throws

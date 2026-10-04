@@ -1097,7 +1097,8 @@ extension CostUsageScanner {
         let shouldReconcileBufferedRows = isBufferedForkResume
             && delta.bufferedUnresolvedForkLines == nil
             && delta.bufferedSubagentLines == nil
-        let migratedCached = sessionAlreadyContributed || shouldReconcileBufferedRows || !delta.replacedLegacyRowIndices.isEmpty
+        let migratedCached = sessionAlreadyContributed || shouldReconcileBufferedRows || !delta.replacedLegacyRowIndices
+            .isEmpty
             ? Self.codexFileUsageByFilteringRows(migrated, rows: retainedCachedRows, context: context)
             : migrated
         if sessionAlreadyContributed, delta.requestLedgerState == nil,

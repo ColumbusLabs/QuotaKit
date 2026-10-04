@@ -1021,7 +1021,9 @@ extension ClaudeUsageFetcher {
             usage.extraUsage,
             loginMethod: loginMethod,
             treatAsSpendLimit: treatAsSpendLimit)
-        guard let primary = primaryWindow ?? Self.oauthSpendLimitWindow(from: providerCost, extraUsage: usage.extraUsage) else {
+        guard let primary = primaryWindow ?? Self
+            .oauthSpendLimitWindow(from: providerCost, extraUsage: usage.extraUsage)
+        else {
             throw ClaudeUsageError.parseFailed("missing session data")
         }
 

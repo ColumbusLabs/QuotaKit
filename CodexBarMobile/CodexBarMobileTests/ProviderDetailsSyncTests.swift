@@ -10,8 +10,10 @@ struct ProviderDetailsSyncTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let expiry = now.addingTimeInterval(3600)
         let details = [SyncProviderDetailSection(title: "Cloud credits", rows: [
-            .init(label: "Cloud credits", value: "$15.00 of $20.00 remaining",
-                  secondaryValue: "Expires \(expiry.ISO8601Format())"),
+            .init(
+                label: "Cloud credits",
+                value: "$15.00 of $20.00 remaining",
+                secondaryValue: "Expires \(expiry.ISO8601Format())"),
         ])]
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,

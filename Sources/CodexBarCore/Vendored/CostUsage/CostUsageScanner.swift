@@ -9270,7 +9270,7 @@ enum CostUsageScanner {
             && usage.hasCurrentCodexParser && usage.codexScanComplete == true
             && !usage.hasPendingCodexReplacementScan
         {
-            for row in (usage.codexRows ?? []) where row.responseID != nil {
+            for row in usage.codexRows ?? [] where row.responseID != nil {
                 let key = Self.codexUsageRowKey(sessionId: usage.sessionId, fileIdentity: path, row: row)
                 if let previous = scanState.committedCodexResponseRows[key],
                    (previous.timestampUnixMs ?? .max) <= (row.timestampUnixMs ?? .max) { continue }

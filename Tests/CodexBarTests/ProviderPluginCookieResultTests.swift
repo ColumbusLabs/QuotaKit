@@ -94,8 +94,7 @@ struct ProviderPluginCookieResultTests {
                             path: "/",
                             secure: true,
                             expires: nil)],
-                        source: "Chrome"
-                    )]
+                        source: "Chrome")]
                 }
                 let broker = ProviderPluginCookieBroker(
                     provider: .lithosai,

@@ -163,7 +163,8 @@ extension UsageStore {
                 tokenOverride: nil)
             : self.environmentBase
         let antigravityProfileHomes = provider == .antigravity
-            ? self.settings.configSnapshot.providerConfig(for: provider.instanceID)?.antigravityAdditionalProfileHomes ?? []
+            ? self.settings.configSnapshot.providerConfig(for: provider.instanceID)?
+            .antigravityAdditionalProfileHomes ?? []
             : []
         let scopedCodexHomePath = codexHomePath?.trimmingCharacters(in: .whitespacesAndNewlines)
         // Provider-specific by design: only Pi-owned, Claude-inclusive, or unscoped Codex scans consume Pi roots.

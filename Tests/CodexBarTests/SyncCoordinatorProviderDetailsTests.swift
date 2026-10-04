@@ -28,22 +28,32 @@ struct SyncCoordinatorProviderDetailsTests {
             settings: settings)
         let expiry = Date().addingTimeInterval(expired ? -3600 : 3600).ISO8601Format()
         let details = [ProviderDetailSection.makeSection(title: "Cloud credits", rows: [
-            .makeRow(id: "claude-cloud-credits", label: "Cloud credits", value: "$15.00 of $20.00 remaining",
-                     secondaryValue: "Expires \(expiry)", usageValue: 15),
+            .makeRow(
+                id: "claude-cloud-credits",
+                label: "Cloud credits",
+                value: "$15.00 of $20.00 remaining",
+                secondaryValue: "Expires \(expiry)",
+                usageValue: 15),
             .makeRow(label: "Cookie", value: "fixture-secret"),
         ]), .makeSection(rows: [.makeRow(label: "Limit Reset Credits", value: "fixture-redemption")])]
         store._setSnapshotForTesting(
             UsageSnapshot(
-                primary: phase == 2 ? RateWindow(usedPercent: 12, windowMinutes: 300,
-                                               resetsAt: nil, resetDescription: nil) : nil,
+                primary: phase == 2 ? RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil) : nil,
                 secondary: nil, details: phase == 2 ? [] : details, updatedAt: Date()),
             provider: .claude)
         let pusher = MockSyncPusher()
         await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
-        let provider = try #require(pusher.lastPerProviderEnvelopes.first { $0.provider.providerID == "claude" }?.provider)
+        let provider = try #require(pusher.lastPerProviderEnvelopes.first { $0.provider.providerID == "claude" }?
+            .provider)
         let expected = [SyncProviderDetailSection(title: "Cloud credits", rows: [
-            .init(label: "Cloud credits", value: expired ? "Expired" : "$15.00 of $20.00 remaining",
-                  secondaryValue: "Expires \(expiry)"),
+            .init(
+                label: "Cloud credits",
+                value: expired ? "Expired" : "$15.00 of $20.00 remaining",
+                secondaryValue: "Expires \(expiry)"),
         ])]
         let expectedDetails = phase == 2 ? [] : expected
         #expect(provider.providerDetails == expectedDetails)
@@ -52,7 +62,7 @@ struct SyncCoordinatorProviderDetailsTests {
         #expect(provider.budget == nil)
         #expect(provider.costSummary == nil)
         #expect(pusher.lastSnapshot?.providers.first { $0.providerID == "claude" }?.providerDetails == expectedDetails)
-        let wire = String(decoding: try JSONEncoder().encode(provider), as: UTF8.self)
+        let wire = try String(decoding: JSONEncoder().encode(provider), as: UTF8.self)
         #expect(!wire.contains("fixture-secret"))
         #expect(!wire.contains("fixture-redemption"))
     }

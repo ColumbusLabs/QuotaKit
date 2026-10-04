@@ -70,7 +70,8 @@ enum ClaudeOAuthUsageFetcher {
         accessToken: String,
         detectClaudeVersion: Bool = true,
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        transport: any ProviderHTTPTransport = ClaudeOAuthUsageFetcher.usageTransport) async throws -> OAuthUsageResponse
+        transport: any ProviderHTTPTransport = ClaudeOAuthUsageFetcher
+            .usageTransport) async throws -> OAuthUsageResponse
     {
         if let blockedUntil = ClaudeOAuthUsageRateLimitGate.blockedUntil(accessToken: accessToken) {
             throw ClaudeOAuthFetchError.rateLimited(retryAfter: blockedUntil)

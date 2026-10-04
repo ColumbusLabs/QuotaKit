@@ -125,7 +125,10 @@ enum ProviderDetailSectionDispatcher {
                 let expired = row.value == "Expired" || expiry.map { $0 <= now } == true
                 let value = expired ? String(localized: "Expired")
                     : row.value == "Unavailable" ? String(localized: "Unavailable") : row.value
-                return .init(label: String(localized: "Cloud credits"), value: value, secondaryValue: row.secondaryValue)
+                return .init(
+                    label: String(localized: "Cloud credits"),
+                    value: value,
+                    secondaryValue: row.secondaryValue)
             })
         }
     }

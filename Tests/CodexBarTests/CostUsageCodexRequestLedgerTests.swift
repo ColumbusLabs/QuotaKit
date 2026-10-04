@@ -134,7 +134,7 @@ struct CostUsageCodexRequestLedgerTests {
             initialCodexUsageRowIndex: partial.nextUsageRowIndex,
             initialRequestLedgerState: partial.requestLedgerState,
             initialRequestLedgerRows: [retained])
-        #expect(resumed.replacedLegacyRowIndices == [try #require(retained.eventIndex)])
+        #expect(try resumed.replacedLegacyRowIndices == [#require(retained.eventIndex)])
         #expect(resumed.rows.map(\.responseID) == ["cross-boundary"])
         #expect(resumed.rows.first?.pricingMode == "priority")
         #expect(resumed.requestLedgerState?.responseIDs == ["cross-boundary"])
