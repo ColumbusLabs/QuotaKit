@@ -801,7 +801,7 @@ struct DashboardSnapshotBuilderTests {
         let snapshot = DashboardSnapshotBuilder.makeSnapshot(
             usagePayloads: [payload],
             costPayloads: [],
-            config: CodexBarConfig(providers: [ProviderConfig(id: provider, enabled: true)]),
+            config: CodexBarConfig(providers: [ProviderConfig(id: provider.instanceID, enabled: true)]),
             identityMode: .none,
             generatedAt: now,
             refreshInterval: 60,
