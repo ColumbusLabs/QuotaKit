@@ -1,6 +1,6 @@
 # WorkBuddy provider support
 
-Status: `done` — implemented behavior passed focused hosted verification; the broader Mac integration gate remains open.
+Status: `done` — focused feature verification and the final integration gate passed on `027900bcc75db61ab327e52bb926e11314c8bee1`; PR #226 merged as `d62d2c881bb8ce4192590723c28e0b5973eb57c9` ([hosted run](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37332130170)).
 
 ## Scope
 
@@ -20,4 +20,4 @@ Add WorkBuddy's Chrome-bound credit quota source to QuotaKit Mac and synchronize
 
 The [iOS job](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500300762) passed 174 XCTest cases, 619 Swift Testing cases across 46 suites, and four UI tests, including WorkBuddy sanitized details and the 73-provider/219-subscription catalog contracts. [Hosted lint](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37224122297/job/111500146762) passed localization completeness, generated manifests, and palette parity across all 90 Mac providers.
 
-These focused receipts verify this implemented feature. Those scanner crashes and architecture fingerprints were repaired in subsequent hosted cycles. The overall integration gate remains open for Codex request-ledger recovery failures; all applicable checks on the final reviewed PR head remain required before merge. No local WorkBuddy tests/builds or account-backed checks were run, and no real account or browser-cookie session was used.
+These focused receipts verify this implemented feature. The scanner crashes, architecture fingerprints, and request-ledger failures were repaired in subsequent hosted cycles. Final exact-head hosted CI run 37332130170 passed the applicable lint, Linux, macOS, iOS, and Xcode compatibility gates on PR #226 head `027900bcc75db61ab327e52bb926e11314c8bee1` ([run](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37332130170)). PR #226 merged as `d62d2c881bb8ce4192590723c28e0b5973eb57c9`. Verified origin/main cursor and tail readback: `cursor=14567f0b6711ef38741cadd7ff20ef76a2053af2; fetched upstream=6a26b2e9b1b60471970deb6fe663f9e5f284e2ce; newer tail=20 DAG/7 non-merge commits outside the pinned reviewed range; UPSTREAM_VERSION=v0.69.0`. No local WorkBuddy tests/builds or account-backed checks were run, and no real account or browser-cookie session was used.
