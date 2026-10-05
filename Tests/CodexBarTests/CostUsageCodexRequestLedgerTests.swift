@@ -1229,7 +1229,29 @@ extension CostUsageCodexRequestLedgerTests {
         let pending = CostUsageStore(cacheRoot: env.cacheRoot)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(pending.codexScanCatchUpPending == true)
-        let recovered = settle()
+        var recovered = fetch()
+        var transferredIDs = Set<String>()
+        for _ in 0..<150 {
+            let checkpoint = CostUsageStore(cacheRoot: env.cacheRoot)
+                .syncLoadCodexCache(calendar: calendar, hydratingPaths: [survivor.path])
+            let transferred = (checkpoint.files[survivor.path]?.codexRows ?? []).filter {
+                $0.responseID?.hasPrefix("priced-response-") == true
+            }
+            let currentIDs = Set(transferred.compactMap(\.responseID))
+            // Later cohorts must carry every completed transfer even after its original
+            // owner leaves the detail working set. Final totals alone can hide date/price loss.
+            #expect(transferredIDs.isSubset(of: currentIDs))
+            for row in transferred {
+                let responseID = try #require(row.responseID)
+                let index = try #require(Int(responseID.replacingOccurrences(of: "priced-response-", with: "")))
+                #expect(row.day == "2026-08-29")
+                #expect(row.knownCostNanos == Int64(100_000_000 + index * 1_000_000))
+                #expect(row.pricingMode == "priority")
+            }
+            transferredIDs = currentIDs
+            if checkpoint.codexScanCatchUpPending != true { break }
+            recovered = fetch()
+        }
         #expect(recovered.summary?.totalTokens == 550 + (appendBeforeReplay ? 66 : 0))
         let canonicalDay = try #require(recovered.data.first { $0.date == "2026-08-29" })
         #expect(canonicalDay.totalTokens == 550)

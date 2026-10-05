@@ -124,7 +124,7 @@ final class SyncCoordinator {
     /// upstream's account-scoped refresh machinery. See
     /// `Research/020-multi-account-comprehensive.md` and
     /// `SyncMultiAccountSnapshotCache.swift`.
-    private let multiAccountCache = SyncMultiAccountSnapshotCache()
+    let multiAccountCache = SyncMultiAccountSnapshotCache()
 
     /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
     /// hashing is insensitive to encoding key order. Built on top of the
@@ -247,7 +247,9 @@ final class SyncCoordinator {
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
-        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+            ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+        }
         guard !enabledProviders.isEmpty else { return }
 
         self.pushPending = true
@@ -274,13 +276,16 @@ final class SyncCoordinator {
     private func performCurrentSnapshotPush() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
-        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+            ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+        }
         guard !enabledProviders.isEmpty else { return }
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
         for provider in enabledProviders {
             let snapshot = self.store.snapshots[provider.instanceID]
+            guard snapshot?.browserSessionOwner == nil else { continue }
             let error = self.store.errors[provider.instanceID]
             let meta = self.store.providerMetadata[provider]
 
@@ -356,7 +361,7 @@ final class SyncCoordinator {
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String
         let synced = SyncedUsageSnapshot(
-            providers: Self.providersForIPhoneSync(providerSnapshots),
+            providers: Self.iphoneExportableSnapshots(providerSnapshots),
             syncTimestamp: Date(),
             deviceName: deviceName,
             deviceID: self.deviceID,
@@ -1367,6 +1372,12 @@ final class SyncCoordinator {
         // path doesn't yet read from cache for token providers; that's an
         // R3 hardening item).
         for tokenProvider in Self.tokenBasedMultiAccountProviders {
+            guard ProviderDescriptorRegistry.descriptor(for: tokenProvider).snapshotExport.allowsIPhoneSync else {
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: tokenProvider.rawValue,
+                    livingAccountIDs: [])
+                continue
+            }
             guard enabledSet.contains(tokenProvider) else {
                 // Provider disabled — purge any cached entries so a
                 // re-enable starts clean (R3 P1: disabled-provider
@@ -1379,8 +1390,13 @@ final class SyncCoordinator {
             guard let entries = self.store.accountSnapshots[tokenProvider.instanceID],
                   entries.count >= 2
             else { continue }
-
             let providerID = tokenProvider.rawValue
+            guard entries.allSatisfy({ $0.snapshot?.browserSessionOwner == nil }) else {
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: providerID,
+                    livingAccountIDs: [])
+                continue
+            }
             let meta = self.store.providerMetadata[tokenProvider]
             let sharedCostSummary = self.makeCostSummary(for: tokenProvider)
             let sharedUtilizationHistory = self.makeUtilizationHistory(
@@ -2101,11 +2117,15 @@ final class SyncCoordinator {
         return newID
     }
 
-    private static func providersForIPhoneSync(
+    static func iphoneExportableSnapshots(
         _ providers: [ProviderUsageSnapshot]) -> [ProviderUsageSnapshot]
     {
         // Provider-specific by design: CodeRabbit detail rows have no iPhone wire field yet.
-        providers.filter { $0.providerID != UsageProvider.coderabbit.rawValue }
+        providers.filter { snapshot in
+            guard snapshot.providerID != UsageProvider.coderabbit.rawValue else { return false }
+            guard let provider = UsageProvider(rawValue: snapshot.providerID) else { return true }
+            return ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsIPhoneSync
+        }
     }
 }
 

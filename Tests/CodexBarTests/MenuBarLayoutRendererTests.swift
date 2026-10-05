@@ -164,12 +164,12 @@ struct MenuBarLayoutRendererTests {
             icon: nil,
             options: self.options())
 
-        #expect(output.attributedTitle.string == "10%\u{2009}9%\u{2009}17%\u{2009}42%")
+        #expect(output.attributedTitle.string == "10%\u{2009}9%\u{2009}17%\u{2009}Grok Bot 42%")
         #expect(output.accessibilityLabel == "Total 10%, Auto 9%, API 17%, Grok Bot 42%")
     }
 
     @Test
-    func `missing or foreign named extra leaves sibling tokens visible`() {
+    func `missing named extra shows its label and foreign extra stays hidden`() {
         let renderer = MenuBarLayoutRenderer()
         let layout = MenuBarLayout(lines: [[.lanePercent(lane: .primary), .extraPercent(id: "cursor-grok-bot")]])
         let extra = MenuBarLayoutRenderExtra(NamedRateWindow(
@@ -188,8 +188,8 @@ struct MenuBarLayoutRendererTests {
             icon: nil,
             options: self.options())
 
-        #expect(missing.attributedTitle.string == "10%")
-        #expect(missing.accessibilityLabel == "Total 10%")
+        #expect(missing.attributedTitle.string == "10%\u{2009}Grok Bot –")
+        #expect(missing.accessibilityLabel == "Total 10%, Grok Bot unavailable")
         #expect(foreign.attributedTitle.string == "10%")
     }
 
@@ -208,7 +208,26 @@ struct MenuBarLayoutRendererTests {
                 data: self.data(provider: .cursor, extraRateWindows: [extra]),
                 icon: nil,
                 options: self.options(showUsed: false))
-            #expect(output.attributedTitle.string == "\(Int(100 - used))%")
+            #expect(output.attributedTitle.string == "Grok Bot \(Int(100 - used))%")
+        }
+    }
+
+    @Test(arguments: [0.0, 42.0])
+    func `named allowance distinguishes an unknown reading from real zero`(used: Double) {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.extraPercent(id: "cursor-grok-bot")]])
+        for known in [false, true] {
+            let extra = MenuBarLayoutRenderExtra(NamedRateWindow(
+                id: "cursor-grok-bot",
+                title: "Grok Bot",
+                window: RateWindow(usedPercent: used, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+                usageKnown: known))
+            let rendered = renderer.render(
+                layout: layout,
+                data: self.data(provider: .cursor, extraRateWindows: [extra]),
+                icon: nil,
+                options: self.options())
+            #expect(rendered.attributedTitle.string == (known ? "Grok Bot \(Int(used))%" : "Grok Bot –"))
         }
     }
 

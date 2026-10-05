@@ -1556,11 +1556,13 @@ struct CostUsageBoundedProgressTests {
         let currentURL = try #require(Self.writeSyntheticCorpus(
             env: env,
             day: currentDay,
-            fileCount: 1).first)
+            fileCount: 1,
+            sessionIDPrefix: "progress-current").first)
         let closedURL = try #require(Self.writeSyntheticCorpus(
             env: env,
             day: closedDay,
-            fileCount: 1).first)
+            fileCount: 1,
+            sessionIDPrefix: "progress-closed").first)
         try FileManager.default.setAttributes(
             [.modificationDate: currentDay],
             ofItemAtPath: currentURL.path)
@@ -2193,14 +2195,15 @@ struct CostUsageBoundedProgressTests {
     private static func writeSyntheticCorpus(
         env: CostUsageTestEnvironment,
         day: Date,
-        fileCount: Int) throws -> [URL]
+        fileCount: Int,
+        sessionIDPrefix: String = "progress") throws -> [URL]
     {
         let iso = env.isoString(for: day)
         var fileURLs: [URL] = []
         fileURLs.reserveCapacity(fileCount)
         for index in 0..<fileCount {
             let lines = [
-                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"progress-\#(index)"}}"#,
+                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"\#(sessionIDPrefix)-\#(index)"}}"#,
                 #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"openai/gpt-5.2-codex"}}"#,
                 #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
                     + #"{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"#

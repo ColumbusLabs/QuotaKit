@@ -366,3 +366,36 @@ Note: Using CLI fallback
 - Safari cookie import may require granting QuotaKit Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
 - The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--source auto|web` refreshes it live via WebKit using a per-account cookie store.
 - Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).
+
+## Managed Codex accounts (macOS)
+
+`quotakit codex-accounts list --json` lists managed account UUIDs, emails, and whether each readable
+saved identity matches the current system authentication. It never emits tokens or private home paths.
+
+`quotakit codex-accounts promote <uuid-or-email>` explicitly promotes one managed account to system
+authentication. Use the exact UUID when several accounts share an email. Promotion preserves the
+current live credentials in their managed account (or imports that account) before publishing the
+target's authentication through the private atomic writer. Missing, unreadable, conflicting, or
+workspace-mismatched state fails without replacing live authentication. Participating app/CLI
+account-store writers share a nonblocking process lock and report contention rather than waiting for
+each other. The operating system releases the lock if a process exits or crashes; do not delete the
+lock file. A changed live or selected managed auth file detected before replacement requires retrying
+the operation. External writers do not share this lock, so avoid running `codex login` concurrently.
+
+This command does not add accounts, sign in, rotate accounts automatically, change the app's display
+selection, or restart existing Codex processes. Already-running processes may retain their old identity.
+External Codex clients do not participate in QuotaKit's process lock.
+
+Both commands use local account metadata and auth files only: they do not access Keychain, import
+browser cookies, or make provider requests. `CODEX_HOME` selects the system destination; the managed
+account list still comes from QuotaKit's account store for the current macOS user.
+The destination must be separate from every managed home, including symlink aliases, so preservation
+cannot be overwritten by the promotion itself. If it is a managed home, unset `CODEX_HOME` or choose
+a separate live home before promoting.
+
+Promotion does not renew expired credentials. Use **Reauthenticate** on the affected managed row in
+Settings → Providers → Codex, or run `CODEX_HOME='/absolute/path/to/that/managed/home' codex login`
+with that account's existing home and select the intended workspace. Ordinary browser login remains
+available when device-code login is disabled. There is no `codex-accounts reauth` command or automatic
+managed-workspace renewal: a safe CLI flow also needs staged login, post-login identity/workspace
+validation, and a locked commit that rejects a removed or changed account.

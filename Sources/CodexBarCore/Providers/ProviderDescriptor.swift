@@ -83,11 +83,39 @@ public struct ProviderTokenCostConfig: Sendable {
 public struct ProviderHistoryCapability: Sendable, Equatable {
     public static let optIn = ProviderHistoryCapability(alwaysTracksPlanUtilization: false)
     public static let alwaysTracked = ProviderHistoryCapability(alwaysTracksPlanUtilization: true)
+    public static let unavailable = ProviderHistoryCapability(
+        alwaysTracksPlanUtilization: false,
+        supportsPlanUtilization: false)
 
     public let alwaysTracksPlanUtilization: Bool
+    public let supportsPlanUtilization: Bool
 
-    public init(alwaysTracksPlanUtilization: Bool) {
+    public init(alwaysTracksPlanUtilization: Bool, supportsPlanUtilization: Bool = true) {
         self.alwaysTracksPlanUtilization = alwaysTracksPlanUtilization
+        self.supportsPlanUtilization = supportsPlanUtilization
+    }
+}
+
+/// Controls which durable snapshot surfaces may receive a provider's live usage.
+public struct ProviderSnapshotExportPolicy: Sendable, Equatable {
+    public static let standard = ProviderSnapshotExportPolicy()
+    public static let localOnly = ProviderSnapshotExportPolicy(
+        allowsWidgets: false,
+        allowsFleetCloudSync: false,
+        allowsIPhoneSync: false)
+
+    public let allowsWidgets: Bool
+    public let allowsFleetCloudSync: Bool
+    public let allowsIPhoneSync: Bool
+
+    public init(
+        allowsWidgets: Bool = true,
+        allowsFleetCloudSync: Bool = true,
+        allowsIPhoneSync: Bool = true)
+    {
+        self.allowsWidgets = allowsWidgets
+        self.allowsFleetCloudSync = allowsFleetCloudSync
+        self.allowsIPhoneSync = allowsIPhoneSync
     }
 }
 
@@ -324,6 +352,7 @@ public struct ProviderDescriptor: Sendable {
     public let tokenCost: ProviderTokenCostConfig
     public let pace: ProviderPaceCapability
     public let history: ProviderHistoryCapability
+    public let snapshotExport: ProviderSnapshotExportPolicy
     public let presentation: ProviderUsagePresentation
     public let settingsSection: ProviderSettingsSectionRegistration
     public let credentials: ProviderCredentialAdapter?
@@ -346,6 +375,7 @@ public struct ProviderDescriptor: Sendable {
         tokenCost: ProviderTokenCostConfig,
         pace: ProviderPaceCapability = .unsupported,
         history: ProviderHistoryCapability = .optIn,
+        snapshotExport: ProviderSnapshotExportPolicy = .standard,
         presentation: ProviderUsagePresentation = ProviderUsagePresentation(),
         fetchPlan: ProviderFetchPlan,
         cli: ProviderCLIConfig,
@@ -358,6 +388,7 @@ public struct ProviderDescriptor: Sendable {
         self.tokenCost = tokenCost
         self.pace = pace
         self.history = history
+        self.snapshotExport = snapshotExport
         self.presentation = presentation
         self.credentials = credentials
         self.pluginResultPolicy = pluginResultPolicy

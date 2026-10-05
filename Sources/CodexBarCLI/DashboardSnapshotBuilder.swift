@@ -1,7 +1,7 @@
 import CodexBarCore
 import Foundation
 
-struct DashboardClaudeSwapInput {
+struct DashboardAccountsInput: Sendable {
     let accounts: [ProviderAccountUsageSnapshot]?
     let adapterError: String?
     let weeklyWorkDays: Int?
@@ -39,20 +39,18 @@ enum DashboardSnapshotBuilder {
         generatedAt: Date,
         refreshInterval: TimeInterval,
         codexBarVersion: String?,
-        claudeSwap: DashboardClaudeSwapInput? = nil,
+        accountCollections: [UsageProvider: DashboardAccountsInput] = [:],
         usageBarsShowUsed: Bool = false) -> DashboardSnapshotPayload
     {
         var costByProvider: [String: CostPayload] = [:]
         for cost in costPayloads {
             costByProvider[cost.provider] = cost
         }
-        var attachedClaudeSwap = false
+        var attachedProviders: Set<UsageProvider> = []
         let providers = usagePayloads.enumerated().map { index, payload in
-            var rowClaudeSwap: DashboardClaudeSwapInput?
-            // Provider-specific by design: claude-swap account data belongs only on the first Claude row.
-            if !attachedClaudeSwap, UsageProvider(rawValue: payload.provider) == .claude {
-                rowClaudeSwap = claudeSwap
-                attachedClaudeSwap = true
+            var rowAccounts: DashboardAccountsInput?
+            if let provider = UsageProvider(rawValue: payload.provider), attachedProviders.insert(provider).inserted {
+                rowAccounts = accountCollections[provider]
             }
             let presentation = self.providerPresentation(
                 id: payload.provider,
@@ -64,7 +62,7 @@ enum DashboardSnapshotBuilder {
                 presentation: presentation,
                 identityMode: identityMode,
                 generatedAt: generatedAt,
-                claudeSwap: rowClaudeSwap)
+                accountCollection: rowAccounts)
         }
 
         let refreshSeconds = self.dashboardRefreshSeconds(refreshInterval)
@@ -130,30 +128,32 @@ enum DashboardSnapshotBuilder {
         presentation: ProviderPresentation,
         identityMode: DashboardIdentityMode,
         generatedAt: Date,
-        claudeSwap: DashboardClaudeSwapInput?) -> DashboardProviderPayload
+        accountCollection: DashboardAccountsInput?) -> DashboardProviderPayload
     {
         let provider = UsageProvider(rawValue: payload.provider)
         let descriptor = provider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
         let metadata = descriptor?.metadata
 
         let error = payload.error ?? cost?.error
-        let projectedAccounts: [ProviderAccountUsageSnapshot]? = if let claudeSwapAccounts = claudeSwap?.accounts,
-                                                                    claudeSwapAccounts.isEmpty ||
-                                                                    ClaudeSwapAccountProjection.shouldPresentAccounts(
-                                                                        accountCount: claudeSwapAccounts.count,
-                                                                        showSingleAccount: claudeSwap?
-                                                                            .showSingleAccount == true)
+        let providerAccounts = accountCollection?.accounts?.filter { $0.provider == provider }
+        let projectedAccounts: [ProviderAccountUsageSnapshot]? = if provider == .claude,
+                                                                   let providerAccounts,
+                                                                   !providerAccounts.isEmpty,
+                                                                   !ClaudeSwapAccountProjection.shouldPresentAccounts(
+                                                                       accountCount: providerAccounts.count,
+                                                                       showSingleAccount: accountCollection?
+                                                                           .showSingleAccount == true)
         {
-            claudeSwapAccounts
-        } else {
             nil
+        } else {
+            providerAccounts
         }
-        let accounts = claudeSwap?.adapterError == nil
+        let accounts = accountCollection?.adapterError == nil
             ? projectedAccounts?.map { account in
-                self.makeClaudeSwapAccount(
+                self.makeAccount(
                     account,
                     identityMode: identityMode,
-                    weeklyWorkDays: claudeSwap?.weeklyWorkDays,
+                    weeklyWorkDays: accountCollection?.weeklyWorkDays,
                     generatedAt: generatedAt)
             }
             : nil
@@ -180,7 +180,7 @@ enum DashboardSnapshotBuilder {
                 error: error,
                 generatedAt: generatedAt),
             accounts: accounts,
-            accountsError: claudeSwap?.adapterError)
+            accountsError: accountCollection?.adapterError)
     }
 
     private static func providerPresentation(
@@ -206,7 +206,7 @@ enum DashboardSnapshotBuilder {
                 priority: "normal"))
     }
 
-    private static func makeClaudeSwapAccount(
+    private static func makeAccount(
         _ account: ProviderAccountUsageSnapshot,
         identityMode: DashboardIdentityMode,
         weeklyWorkDays: Int?,
@@ -215,37 +215,36 @@ enum DashboardSnapshotBuilder {
         // Provider-specific by design: identity stays the source email. Aliases and organization labels can
         // contain personal or workspace-identifying text, so redacted output retains only the redacted mailbox.
         let sourceEmail: String? = {
-            if let email = account.accountEmail, email.contains("@") {
-                return email
-            }
-            if let email = account.snapshot?.identity?.accountEmail, email.contains("@") {
-                return email
-            }
+            if let email = account.accountEmail, email.contains("@") { return email }
+            if let email = account.snapshot?.identity(for: account.provider.instanceID)?.accountEmail,
+               email.contains("@") { return email }
             return nil
         }()
         let presentedEmail = identityMode != .none && sourceEmail?.contains("@") == true
             ? self.dashboardEmail(sourceEmail, mode: identityMode)
             : nil
-        let identity = presentedEmail.map { DashboardIdentityPayload(accountEmail: $0, plan: nil) }
+        // Provider-specific by design: claude-swap has no plan; Codex retains its saved account plan.
+        let plan = account.provider == .codex
+            ? self.makeIdentity(provider: account.provider, usage: account.snapshot, mode: identityMode)?.plan : nil
+        let identity = presentedEmail.map { DashboardIdentityPayload(accountEmail: $0, plan: plan) }
         let trimmedLabel = account.displayLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackLabel = trimmedLabel.isEmpty ? "Account \(account.id.opaqueID)" : trimmedLabel
-        let label = self.claudeSwapDashboardLabel(
+        let label = self.dashboardAccountLabel(
             displayLabel: fallbackLabel,
             sourceEmail: sourceEmail,
             presentedEmail: presentedEmail,
             accountID: account.id.opaqueID,
             identityMode: identityMode)
-        // Provider-specific by design: claude-swap account windows and pace use Claude's presentation semantics.
-        let metadata = ProviderDescriptorRegistry.descriptor(for: UsageProvider.claude).metadata
+        let metadata = ProviderDescriptorRegistry.descriptor(for: account.provider).metadata
         return DashboardAccountPayload(
             id: "\(account.id.source):\(account.id.opaqueID)",
             label: label,
             active: account.isActive,
             identity: identity,
-            windows: self.makeWindows(provider: .claude, metadata: metadata, usage: account.snapshot),
+            windows: self.makeWindows(provider: account.provider, metadata: metadata, usage: account.snapshot),
             pace: account.snapshot.flatMap {
                 CLIRenderer.providerPacePayload(
-                    provider: .claude,
+                    provider: account.provider,
                     snapshot: $0,
                     weeklyWorkDays: weeklyWorkDays,
                     now: generatedAt)
@@ -254,7 +253,7 @@ enum DashboardSnapshotBuilder {
             updatedAt: account.snapshot?.updatedAt)
     }
 
-    private static func claudeSwapDashboardLabel(
+    private static func dashboardAccountLabel(
         displayLabel: String,
         sourceEmail: String?,
         presentedEmail: String?,

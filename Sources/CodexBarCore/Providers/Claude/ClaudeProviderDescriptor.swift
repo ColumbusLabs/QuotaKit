@@ -24,7 +24,16 @@ public enum ClaudeProviderDescriptor {
         supportsCostCommand: true,
         prefersBinaryLocatorForWhich: true,
         ttyLaunch: Self.ttyLaunch,
-        browserSupportExemption: { sourceMode, _, _ in sourceMode == .auto })
+        browserSupportExemption: { sourceMode, _, settings in
+            if sourceMode == .auto { return true }
+            // Linux has no browser cookie import, but an explicitly configured
+            // manual sessionKey cookie makes the web source usable there.
+            guard sourceMode == .web,
+                  let claude = settings?.claude,
+                  claude.cookieSource == .manual
+            else { return false }
+            return ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: claude.manualCookieHeader)
+        })
     private static let credentials = ProviderCredentialAdapter(
         supportsAPIKeyOverride: true,
         environmentProjections: [
@@ -362,7 +371,9 @@ public enum ClaudeProviderDescriptor {
             break
         }
 
-        guard ClaudeWebFetchStrategy.isSupportedOnCurrentPlatform else { return false }
+        guard ClaudeWebFetchStrategy.isSupportedOnCurrentPlatform
+            || context.settings?.claude?.cookieSource == .manual
+        else { return false }
 
         switch context.settings?.claude?.cookieSource {
         case .off?:

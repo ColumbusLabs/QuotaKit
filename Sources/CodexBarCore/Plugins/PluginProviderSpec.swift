@@ -56,6 +56,8 @@ public struct PluginProviderSpec: Sendable {
     public var config = ProviderConfigCapabilities()
     public var menuBarMetrics: ProviderMenuBarMetricCapabilities?
     public var presentation = ProviderUsagePresentation()
+    public var history = ProviderHistoryCapability.optIn
+    public var snapshotExport = ProviderSnapshotExportPolicy.standard
     public var aliases: [String] = []
     public var timeout = ProviderPluginRuntime.defaultTimeout
     public var scriptSettings: @Sendable (ProviderFetchContext) -> [String: String] = { _ in [:] }
@@ -130,6 +132,8 @@ public struct PluginProviderSpec: Sendable {
                 widgetColor: self.widgetColor,
                 progressColorStyle: self.progressColorStyle),
             tokenCost: ProviderTokenCostConfig(supportsTokenCost: false, noDataMessage: { self.noDataMessage }),
+            history: self.history,
+            snapshotExport: self.snapshotExport,
             presentation: self.presentation,
             fetchPlan: resolvedFetchPlan,
             cli: ProviderCLIConfig(

@@ -126,7 +126,7 @@ struct MenuBarPane: View {
                 Toggle(isOn: self.$settings.randomBlinkEnabled) {
                     SettingsRowLabel(L("surprise_me_title"), subtitle: L("surprise_me_subtitle"))
                 }
-                .disabled(self.isStackedStyleActive)
+                .disabled(self.settings.menuBarShowsBrandIconWithPercent)
             } header: {
                 Text(L("section_animation"))
             }

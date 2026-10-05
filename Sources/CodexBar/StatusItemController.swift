@@ -220,6 +220,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         (@MainActor (TimeInterval) async -> CLILoginRunner.Result)?
     #endif
     var manualRefreshViewportRestoreState = ManualRefreshViewportRestoreState()
+    var blinkNow: @MainActor () -> Date = Date.init
+    var blinkSleep: @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    var brandIcon: @MainActor (UsageProvider) -> NSImage? = { ProviderBrandIcon.image(for: $0) }
     var blinkTask: Task<Void, Never>?
     var menuBarCountdownRefreshTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {

@@ -1,5 +1,7 @@
 # Upstream integration — 2026-10-04
 
+This slice is consolidated with the next 54-commit slice in PR #226. Current source, verification status and the full 103-commit closeout are in `docs/upstream-sync-2026-10-05.md`; the historical evidence below does not substitute for final-head hosted checks.
+
 ## Pinned scope
 
 QuotaKit origin/main `3782f3269f678d9fdff5c35338a9b55040699d13`. Reviewed upstream `917ae1465d984710817f8010a824612f74b1a6f9..60c1adbce5c8b1c78dde618878875ddfe4dbac8c`: 49 DAG commits (33 non-merges, 16 merges). Every commit and merge resolution inspected; 33 product commits/resolutions adopted or adapted, 7 bookkeeping commits/resolutions rejected, 9 empty wrappers accounted. No applicable slice deferred. Intermediate generated parser hashes superseded by QuotaKit regeneration.

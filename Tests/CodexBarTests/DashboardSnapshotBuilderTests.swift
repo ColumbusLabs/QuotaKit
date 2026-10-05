@@ -835,11 +835,11 @@ struct DashboardSnapshotBuilderTests {
             generatedAt: Date(timeIntervalSince1970: 0),
             refreshInterval: 60,
             codexBarVersion: nil,
-            claudeSwap: DashboardClaudeSwapInput(
+            accountCollections: [.claude: DashboardAccountsInput(
                 accounts: account,
                 adapterError: nil,
                 weeklyWorkDays: nil,
-                showSingleAccount: true))
+                showSingleAccount: true)])
     }
 
     private func firstClaudeSwapAccount(_ snapshot: DashboardSnapshotPayload) throws -> [String: Any] {

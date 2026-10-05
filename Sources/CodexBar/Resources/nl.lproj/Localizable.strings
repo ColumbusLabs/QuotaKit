@@ -1702,3 +1702,8 @@
 "Reserved" = "Gereserveerd";
 
 "Left" = "Resterend";
+
+/* Selected browser profile */
+"Browser profile" = "Browserprofiel";
+"Unavailable profile: %@" = "Profiel niet beschikbaar: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Lees alleen het geselecteerde %@-profiel. Accounts worden nooit automatisch geselecteerd.";

@@ -398,3 +398,7 @@ require Command, Control or Option. `none` disables an action. Modifier order an
 Omitted actions retain their defaults. Duplicate assignments (including conflicts with defaults) and
 reserved commands are rejected. Reserved combinations are `cmd+r`, `cmd+,`, `cmd+q`, `cmd+h`, `cmd+m`,
 `cmd+w` and `alt+cmd+h`; Escape, Tab, Return and up/down arrows remain available to menu navigation.
+
+### Static menu bar icons
+
+**Surprise me** is disabled while brand icons are selected, and static brand layouts do not run the blink timer. Your animation preference is kept for switching back to critters. If a brand image is unavailable and the legacy layout falls back to a critter, that visible critter can still animate; stored layouts remain static.

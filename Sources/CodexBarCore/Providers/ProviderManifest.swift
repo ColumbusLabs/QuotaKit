@@ -95,5 +95,6 @@ public enum ProviderManifest {
         MuseAIProviderDescriptor.descriptor,
         LithosAIProviderDescriptor.descriptor,
         WorkBuddyProviderDescriptor.descriptor,
+        LangdockProviderDescriptor.descriptor,
     ]
 }

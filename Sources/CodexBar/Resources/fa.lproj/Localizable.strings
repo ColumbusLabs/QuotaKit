@@ -1707,3 +1707,8 @@
 "Reserved" = "رزروشده";
 
 "Left" = "باقی‌مانده";
+
+/* Selected browser profile */
+"Browser profile" = "نمایهٔ مرورگر";
+"Unavailable profile: %@" = "نمایه در دسترس نیست: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "فقط نمایهٔ انتخاب‌شدهٔ %@ خوانده می‌شود. حساب‌ها هرگز به‌طور خودکار انتخاب نمی‌شوند.";

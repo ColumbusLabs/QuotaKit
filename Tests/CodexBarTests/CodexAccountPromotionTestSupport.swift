@@ -1,4 +1,4 @@
-import CodexBarCore
+@testable import CodexBarCore
 import Foundation
 @testable import CodexBar
 
@@ -94,7 +94,6 @@ final class CodexAccountPromotionTestContainer {
         CodexAccountPromotionService(
             store: store ?? self.fileStore,
             homeFactory: self.homeFactory,
-            identityReader: self.identityReader,
             workspaceResolver: self.workspaceResolver,
             snapshotLoader: snapshotLoader
                 ?? SettingsStoreCodexAccountReconciliationSnapshotLoader(settingsStore: self.settings),
@@ -409,6 +408,10 @@ private struct TestPromotionCodexFetchStrategy: ProviderFetchStrategy {
 
 final class RecordingManagedCodexAccountStore: ManagedCodexAccountStoring, @unchecked Sendable {
     let base: any ManagedCodexAccountStoring
+    var lockURL: URL? {
+        self.base.lockURL
+    }
+
     var storedSnapshots: [ManagedCodexAccountSet] = []
     var onStore: (@Sendable (ManagedCodexAccountSet) throws -> Void)?
 

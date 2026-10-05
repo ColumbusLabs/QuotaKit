@@ -1017,7 +1017,7 @@ extension UsageStore {
         if provider == .codex, let resetBackfillSource {
             return Self.codexBackfillingResetWindows(preserved, from: resetBackfillSource)
         }
-        return preserved.backfillingResetTimes(from: resetBackfillSource)
+        return preserved.backfillingResetTimesForProvider(provider, from: resetBackfillSource)
     }
 
     private func preservingDeepSeekProfileCatalog(
@@ -1566,9 +1566,12 @@ extension UsageStore {
                 self.clearProviderDerivedTokenSnapshot(for: provider)
                 self.clearDeepSeekProfileTransition()
             }
-            let shouldSurface = restoredClaudeHistory ||
-                self.failureGates[provider.instanceID]?
-                .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
+            let shouldSurface = self.shouldSurfaceProviderRefreshFailure(
+                provider: provider,
+                state: (
+                    hadPriorData: hadPriorData,
+                    preservesPriorData: preservesPriorData,
+                    restoredClaudeHistory: restoredClaudeHistory))
             let preservesClaudeWebSessionFailure =
                 provider == .claude &&
                 hadPriorData &&

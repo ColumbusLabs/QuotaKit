@@ -1714,3 +1714,8 @@
 "Reserved" = "已预留";
 
 "Left" = "剩余";
+
+/* Selected browser profile */
+"Browser profile" = "浏览器配置文件";
+"Unavailable profile: %@" = "配置文件不可用：%@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "仅读取所选的 %@ 配置文件。绝不会自动选择账户。";

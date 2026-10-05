@@ -209,15 +209,19 @@ real account emails.
 }
 ```
 
-### Multi-account providers (claude-swap)
+### Multi-account providers
 
 When the claude-swap integration is enabled, the Claude provider row additionally includes an `accounts` array. This
 is an additive schema-v1 extension: other provider rows and Claude rows without the integration keep their existing
 shape. An account's `label` is its email when known and otherwise falls back to its slot label; `identity` is present
 whenever claude-swap reports an email, independently of whether that account's usage fetch succeeds. Both fields follow
 the dashboard identity mode: redacted by default, or full with `--identity full`.
+Managed Codex accounts use the same additive schema-v1 `accounts` array on `quotakit dashboard` and `GET /dashboard/v1/snapshot`. Entries follow account-store order with stable `codex-managed:<uuid>` IDs. `active` marks the configured managed account; system or profile-home selection leaves all managed entries inactive. The ambient Codex row remains separate.
+
+Windows, pace, plan, and update time come from saved usage only when managed UUID, email, workspace, and provider identity match. Projection reads metadata and saved usage, without credentials, refreshes, authentication switches, or migration writes. Missing or mismatched usage leaves a visible account with empty windows and a fixed local diagnostic. Raw refresh errors and private paths are not exported. No managed accounts means no `accounts` field. QuotaKit keeps redacted identity as the default, including labels and workspace text; `--identity full` remains explicit.
+
 A failure limited to one account stays in that account's `error`; a failure of the whole adapter sets `accountsError`
-while leaving the ambient Claude row intact.
+while leaving the ambient provider row intact.
 The web dashboard shows local spend totals and the daily chart once within a provider's account group. Account cards
 retain their own usage and errors; ambient credits are not presented as a shared account balance.
 

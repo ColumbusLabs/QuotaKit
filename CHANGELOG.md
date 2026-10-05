@@ -9,6 +9,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Langdock personal session and weekly usage from an explicitly selected Edge profile, with session ownership checks and local-only measurements.
+- Explicit managed Codex account promotion through the QuotaKit CLI, plus metadata-only saved account usage in the local dashboard.
+- Menu bar metrics can select named Cursor and Antigravity allowances while retaining labels for unavailable readings.
+
 - Claude promotional cloud-session credits appear separately from prepaid balance and quota, and sync to iPhone without reset-credit redemption data.
 - Antigravity scans additional Gemini profile homes configured in provider settings.
 - WorkBuddy tracks monthly credits, reserved credits, plan and optional cycle resets through Chrome or manual website sessions.
@@ -16,6 +20,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Spend history separates explicitly independent Codex chats from projects, preserving project ownership and privacy labels.
 
 ### Fixed
+
+- Static brand icons avoid idle blink tasks; visible legacy critters retain their animation preference.
+- Antigravity empty requests omit unknown model breakdowns and preserve established model history.
+- Claude cache-write recovery retains valid credentials only for the failed-write generation and original consent; Linux supports explicit manual web cookies with existing fallback behavior.
+- Claude and Vertex cost caches reduce temporary memory through row references, exact string reuse, bounded report decoding, streamed fragments, and trimmed row capacity. Independent database locations no longer share SQLite executor lock waits.
 
 - Resumed Codex sessions reconcile response identities, mirrored events, and saved pricing across incremental scans and cache upgrades.
 - Automatic Codex discovery continues in bounded bursts without a long initial sleep, while preserving validated spend publication.

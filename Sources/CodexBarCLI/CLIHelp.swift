@@ -2,6 +2,22 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func codexAccountsHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit codex-accounts list [--json] [--pretty]
+          quotakit codex-accounts promote <exact-uuid-or-email> [--json] [--pretty]
+
+        Description:
+          macOS only. List QuotaKit managed accounts without credential contents.
+          Promote explicitly replaces system Codex authentication after preserving its account.
+          Ambiguous emails require an exact UUID. Concurrent account changes fail without overwriting.
+          Existing Codex processes may retain their current account; restart them to use the promoted account.
+        """
+    }
+
     static func pluginsHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -488,6 +504,7 @@ extension CodexBarCLI {
                        [--dashboard-token <token>] [--allow-plain-http]
                        [--identity <redacted|full>]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+          quotakit codex-accounts <list|promote> [--json] [--pretty]
           quotakit config <validate|dump|providers> [--format text|json]
                                         [--json]
                                         [--json-only]

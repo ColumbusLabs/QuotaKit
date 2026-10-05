@@ -1703,3 +1703,8 @@
 "Reserved" = "Зарезервовано";
 
 "Left" = "Залишилося";
+
+/* Selected browser profile */
+"Browser profile" = "Профіль браузера";
+"Unavailable profile: %@" = "Профіль недоступний: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Читати лише вибраний профіль %@. Облікові записи ніколи не вибираються автоматично.";

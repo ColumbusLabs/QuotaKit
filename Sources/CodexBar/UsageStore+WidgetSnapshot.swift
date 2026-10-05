@@ -12,6 +12,10 @@ private enum WidgetSnapshotLoadTestOverrides {
 #endif
 
 extension UsageStore {
+    static func supportsWidgetUsage(_ provider: UsageProvider) -> Bool {
+        ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable
+    }
+
     static func reloadWidgetTimelines() {
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
@@ -249,6 +253,10 @@ extension UsageStore {
         var payloads: [String: AccountSnapshotSyncPayload] = [:]
 
         for (instanceID, usage) in self.snapshots {
+            guard usage.browserSessionOwner == nil else { continue }
+            guard instanceID.firstPartyProvider.map({
+                ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsFleetCloudSync
+            }) ?? true else { continue }
             let identity = usage.identity?.accountID ?? usage.identity?.accountEmail
             let label = usage.identity?.accountEmail
                 ?? usage.identity?.accountOrganization
@@ -265,8 +273,11 @@ extension UsageStore {
         }
 
         for (provider, accountSnapshots) in self.accountSnapshots {
+            guard provider.firstPartyProvider.map({
+                ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsFleetCloudSync
+            }) ?? true else { continue }
             for accountSnapshot in accountSnapshots {
-                guard let usage = accountSnapshot.snapshot else { continue }
+                guard let usage = accountSnapshot.snapshot, usage.browserSessionOwner == nil else { continue }
                 let identity = usage.identity?.accountID
                     ?? usage.identity?.accountEmail
                     ?? accountSnapshot.account.externalIdentifier
@@ -282,6 +293,9 @@ extension UsageStore {
         }
 
         for accountSnapshot in self.claudeSwapAccountSnapshots {
+            guard accountSnapshot.snapshot?.browserSessionOwner == nil else { continue }
+            guard ProviderDescriptorRegistry.descriptor(for: accountSnapshot.provider)
+                .snapshotExport.allowsFleetCloudSync else { continue }
             guard let usage = accountSnapshot.snapshot else { continue }
             let identity = usage.identity?.accountID
                 ?? usage.identity?.accountEmail
@@ -299,6 +313,9 @@ extension UsageStore {
     }
 
     func cloudSyncLocalAccountKeys(for provider: UsageProvider) -> Set<String> {
+        guard ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsFleetCloudSync else {
+            return []
+        }
         let snapshotKeys = self.cloudSyncAccountSnapshots().filter { $0.provider == provider.instanceID }
             .map(\.accountKey)
         var identities = Set(snapshotKeys)
@@ -307,10 +324,11 @@ extension UsageStore {
             guard let identity else { return }
             identities.insert(AccountSnapshotSyncPayload.accountKey(for: identity))
         }
-        if let usage = self.snapshots[provider.instanceID] {
+        if let usage = self.snapshots[provider.instanceID], usage.browserSessionOwner == nil {
             insert(usage.identity?.accountID ?? usage.identity?.accountEmail)
         }
         for accountSnapshot in self.accountSnapshots[provider.instanceID] ?? [] {
+            guard accountSnapshot.snapshot?.browserSessionOwner == nil else { continue }
             insert(accountSnapshot.snapshot?.identity?.accountID)
             insert(accountSnapshot.snapshot?.identity?.accountEmail)
             insert(accountSnapshot.account.externalIdentifier)
@@ -323,6 +341,7 @@ extension UsageStore {
         // Provider-specific by design: Claude swap subprocesses own extra IDs; Codex alone has scoped account info.
         if provider == .claude {
             for accountSnapshot in self.claudeSwapAccountSnapshots {
+                guard accountSnapshot.snapshot?.browserSessionOwner == nil else { continue }
                 insert(accountSnapshot.snapshot?.identity?.accountID)
                 insert(accountSnapshot.snapshot?.identity?.accountEmail)
                 insert("\(accountSnapshot.id.source):\(accountSnapshot.id.opaqueID)")
@@ -401,7 +420,10 @@ extension UsageStore {
         let now = Date()
         let previousGeneration = self.lastQueuedWidgetSnapshot?.generatedAt ?? previousSnapshot?.generatedAt
         let generatedAt = previousGeneration.map { max(now, $0.addingTimeInterval(0.001)) } ?? now
-        let enabledProviders = self.enabledProviders()
+        let enabledProviders = self.enabledProviders().filter { instanceID in
+            guard let provider = instanceID.firstPartyProvider else { return true }
+            return ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets
+        }
         let entries = UsageProvider.allCases.compactMap { provider -> WidgetSnapshot.ProviderEntry? in
             guard enabledProviders.contains(provider.instanceID),
                   ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable
@@ -447,6 +469,7 @@ extension UsageStore {
         let snapshot = swapOwnsClaude
             ? claudeSwapAccount?.snapshot
             : self.snapshots[provider.instanceID]
+        guard snapshot?.browserSessionOwner == nil else { return nil }
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let expectedClaudeQuotaOwnerKey: String? = if swapOwnsClaude {
             claudeSwapAccount.flatMap(Self.claudeSwapWidgetQuotaOwnerKey)

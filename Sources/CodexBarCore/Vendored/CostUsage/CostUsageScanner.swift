@@ -7520,12 +7520,15 @@ enum CostUsageScanner {
         var plannedBytes: Int64 = 0
         let remainingBytes = scanBudget.planningRemainingBytes
 
-        for fileURL in scheduledFiles {
+        for entry in Self.codexCatchUpOrderedCandidates(
+            scheduledFiles: scheduledFiles, cache: cache, scanBudget: scanBudget)
+        {
+            let fileURL = entry.fileURL
             let candidatePath = Self.codexResolvedPath(fileURL)
             let candidate = cache.files[candidatePath]
             let dependencyPath = candidate?.forkedFromId.flatMap { pathBySessionID[$0] }
-            let metadata = Self.codexFileMetadata(fileURL: fileURL)
-            let sessionID = candidate?.sessionId ?? Self.codexBoundedRequestSessionID(fileURL)
+            let metadata = entry.metadata
+            let sessionID = entry.sessionID
             // One candidate owns the canonical anchor while its bounded sibling cohort drains.
             // Concurrent anchors for the same thread can otherwise move each other's response rows.
             if let sessionID, admittedSessionIDs.contains(sessionID) { continue }
@@ -7592,6 +7595,60 @@ enum CostUsageScanner {
             paths: admittedPaths,
             deferredCandidates: admittedFiles.count < scheduledFiles.count,
             requestReconciliations: requestReconciliations)
+    }
+
+    /// Choose a live work anchor within each thread without moving another thread ahead of
+    /// the requested-window/FIFO queue. A settled or missing sibling cannot reserve its
+    /// thread before a changed page or live recovery target in this bounded candidate batch.
+    private static func codexCatchUpOrderedCandidates(
+        scheduledFiles: [URL],
+        cache: CostUsageCache,
+        scanBudget: CodexScanBudget) -> [(fileURL: URL, metadata: CodexFileMetadata, sessionID: String?)]
+    {
+        var unknownSessionProbes = 0
+        let entries = scheduledFiles.prefix(Self.codexCatchUpScanCandidateLimit).compactMap { fileURL
+            -> (fileURL: URL, metadata: CodexFileMetadata, sessionID: String?, priority: Int)? in
+            let path = Self.codexResolvedPath(fileURL)
+            let cached = cache.files[path]
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            var sessionID = cached?.sessionId
+            if sessionID == nil, metadata.fileId != nil {
+                // Defer unprobed sources rather than admitting unidentified competing anchors.
+                guard unknownSessionProbes < Self.codexCatchUpHydrationPathLimit,
+                      !scanBudget.shouldStopBeforeNextFile() else { return nil }
+                unknownSessionProbes += 1
+                sessionID = Self.codexBoundedRequestSessionID(fileURL)
+            }
+            let priority: Int
+            if metadata.fileId == nil {
+                priority = 2
+            } else if cache.codexHistoryHydrationRetries?[path] != nil
+                || cached?.hasPendingCodexScanWork == true
+            {
+                priority = 0
+            } else if cached == nil || cached?.size != metadata.size
+                || cached?.mtimeUnixMs != metadata.mtimeUnixMs
+                || cached?.codexScanFileId != metadata.fileId || cached?.hasCurrentCodexParser != true
+            {
+                priority = 1
+            } else {
+                priority = 3
+            }
+            return (fileURL: fileURL, metadata: metadata, sessionID: sessionID, priority: priority)
+        }
+        var preferredIndices: [String: Int] = [:]
+        for (index, entry) in entries.enumerated() {
+            guard let sessionID = entry.sessionID else { continue }
+            if let previous = preferredIndices[sessionID], entries[previous].priority <= entry.priority { continue }
+            preferredIndices[sessionID] = index
+        }
+        var seenSessions = Set<String>()
+        return entries.compactMap { entry in
+            guard let sessionID = entry.sessionID else { return (entry.fileURL, entry.metadata, nil) }
+            guard seenSessions.insert(sessionID).inserted, let index = preferredIndices[sessionID] else { return nil }
+            let preferred = entries[index]
+            return (preferred.fileURL, preferred.metadata, preferred.sessionID)
+        }
     }
 
     /// Only the metadata prefix is needed to group a newly discovered page with persisted siblings.
@@ -9295,8 +9352,12 @@ enum CostUsageScanner {
                 }.sorted()
             }
             if usage.codexScanComplete == true, usage.hasCurrentCodexParser,
-               !usage.hasPendingCodexReplacementScan, !usage.hasPendingCodexForkRetry
+               !usage.hasPendingCodexReplacementScan, !usage.hasPendingCodexForkRetry,
+               usage.size == reconciliation.size, usage.mtimeUnixMs == reconciliation.mtimeUnixMs,
+               FileManager.default.fileExists(atPath: path)
             {
+                // Hydrating an absent owner's evidence does not reconcile the live source.
+                // Only a completed anchor for this source generation can drain its cohort.
                 reconciliation.pendingPaths.removeAll { siblingPath in
                     guard let sibling = cache.files[siblingPath] else { return true }
                     return hydratedCodexPaths.contains(siblingPath)

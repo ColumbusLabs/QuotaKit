@@ -18,7 +18,7 @@ struct PluginProviderSpecTests {
         .clinepass,
         .aiand,
         .synthetic, .chutes, .v0, .elevenlabs, .neuralwatt, .clawrouter,
-        .aixy, .bifrost, .deepgram, .llmproxy, .litellm, .sub2api, .llmman,
+        .aixy, .bifrost, .deepgram, .llmproxy, .litellm, .sub2api, .llmman, .langdock,
     ]
 
     @Test

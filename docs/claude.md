@@ -91,6 +91,7 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
 - Fresh credentials from an allowed source can replace a QuotaKit-owned OAuth cache item whose ACL rejects the
   current build. This uses no-UI Keychain operations and does not delete Claude Code's credential item.
+- When an explicitly permitted cache write fails, automatic refresh can retain an unexpired in-memory credential beyond the normal 30-minute window only for that exact committed failed-write generation, profile, and original consent. The next refresh retries cache cleanup before persisting it. Token expiry, profile changes, unrelated invalidation, and Never prompt prevent extended reuse. This does not discover external logins or grant additional background access to Claude Code's Keychain item.
 - On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
 - Missing-scope recovery requires a Claude Code sign-in token with `user:profile` usage access. `claude setup-token`
@@ -351,7 +352,7 @@ Compact multi-account layout proof (synthetic accounts and usage data):
   - Claude and Vertex cache saves retain a bounded set of file-stamped content identities independently of decoded-cache eviction. Unchanged artifacts avoid re-encoding; byte-identical reconstructed content preserves its file stamp. Changed artifacts and report memos use atomic replacement, with full file identity checks rejecting externally replaced data.
   - If the pricing catalog changes during a refresh, QuotaKit preserves the parsed transcript-window certificate. The next refresh applies the new prices to cached rows without reparsing unchanged transcripts, including after a restart; an externally replaced transcript cache still requires window certification again.
   - Raw-line prechecks skip impossible Vertex-only transcript records before decoding or recursively visiting metadata; escaped marker forms still receive full classification.
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v16.json`
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v17.json`. The parser refactor conservatively rebuilds regular and dashboard artifacts from transcripts, leaving prior v16 files and report memos intact.
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Quota warnings
@@ -371,3 +372,7 @@ predictive warnings keep their own source keys.
   `Sources/CodexBarCore/PiSessionCostScanner.swift`,
   `Sources/CodexBarCore/PiSessionCostCache.swift`,
   `Sources/CodexBarCore/Vendored/CostUsage/*`
+
+### Manual web cookies on Linux
+
+Linux supports an explicitly configured manual `sessionKey` cookie using the same web API path as macOS; automatic browser import remains unavailable. Auto mode can use a valid manual cookie before CLI fallback. Authentication rejection or a Cloudflare challenge follows the existing Auto fallback policy; cancellation stops without launching Claude Code. Explicit Web does not fall back, and explicit OAuth remains the passive polling choice. A manual cookie does not bypass challenges or refresh OAuth credentials.

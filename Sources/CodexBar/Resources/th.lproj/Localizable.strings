@@ -1707,3 +1707,8 @@
 "Reserved" = "สำรองไว้";
 
 "Left" = "คงเหลือ";
+
+/* Selected browser profile */
+"Browser profile" = "โปรไฟล์เบราว์เซอร์";
+"Unavailable profile: %@" = "โปรไฟล์ไม่พร้อมใช้งาน: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "อ่านเฉพาะโปรไฟล์ %@ ที่เลือกเท่านั้น ระบบจะไม่เลือกบัญชีโดยอัตโนมัติ";

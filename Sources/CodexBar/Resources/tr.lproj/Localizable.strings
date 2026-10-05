@@ -1705,3 +1705,8 @@
 "Reserved" = "Ayrılmış";
 
 "Left" = "Kalan";
+
+/* Selected browser profile */
+"Browser profile" = "Tarayıcı profili";
+"Unavailable profile: %@" = "Profil kullanılamıyor: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Yalnızca seçilen %@ profilini oku. Hesaplar asla otomatik seçilmez.";

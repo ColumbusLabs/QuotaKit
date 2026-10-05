@@ -93,6 +93,7 @@ extension ProviderInstanceID {
     public static let museai = UsageProvider.museai.instanceID
     public static let lithosai = UsageProvider.lithosai.instanceID
     public static let workbuddy = UsageProvider.workbuddy.instanceID
+    public static let langdock = UsageProvider.langdock.instanceID
 }
 
 // swiftformat:enable sortDeclarations

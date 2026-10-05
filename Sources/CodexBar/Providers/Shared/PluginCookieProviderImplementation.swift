@@ -36,6 +36,9 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        if self.web.settingsSection?.selectedProfileBrowser != nil {
+            _ = settings.providerConfig(for: self.id)?.browserProfileID
+        }
         _ = settings.resolvedCookieSource(provider: self.id, fallback: .auto)
         _ = settings[providerConfig: self.id, field: .cookieHeader]
         if self.spec.apiKeyField != nil { _ = settings[providerConfig: self.id, field: .apiKey] }
@@ -48,16 +51,16 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
-        let registration = ProviderDescriptorRegistry.descriptor(for: self.id).settingsSection
-        guard let cookieContribution = registration.cookieContribution else {
-            return registration.defaultContribution
+        let section = ProviderDescriptorRegistry.descriptor(for: self.id).settingsSection
+        if section.selectedProfileBrowser != nil {
+            return section.credentialContribution(context: ProviderCredentialSettingsContext(
+                config: context.settings.providerConfig(for: self.id), account: nil))
         }
-        let cookies: ProviderSettingsSnapshot.CookieProviderSettings = context.settings.resolvedCookieSettings(
+        return section.cookieContribution?(context.settings.resolvedCookieSettings(
             provider: self.id,
             configuredSource: self.source(context.settings),
             configuredHeader: context.settings[providerConfig: self.id, field: .cookieHeader],
-            tokenOverride: context.tokenOverride)
-        return cookieContribution(cookies)
+            tokenOverride: context.tokenOverride)) ?? section.defaultContribution
     }
 
     @MainActor
@@ -80,6 +83,9 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        if let browser = self.web.settingsSection?.selectedProfileBrowser {
+            return [self.browserProfilePicker(browser: browser, context: context)]
+        }
         guard let picker = self.web.picker else { return [] }
         let autoSubtitle = ProviderCookieSourceUI.browserImportSubtitle(picker.auto.localized, provider: self.id)
         let sourceBinding = context.settings.providerCookieSourceBinding(provider: self.id, fallback: .auto)
@@ -121,6 +127,7 @@ struct PluginCookieProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        if self.web.settingsSection?.selectedProfileBrowser != nil { return [] }
         let field = self.web.field
         let actions: [ProviderSettingsActionDescriptor] = if let fieldActions = self.fieldActions {
             fieldActions(context)

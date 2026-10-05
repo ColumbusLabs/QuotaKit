@@ -1672,3 +1672,8 @@
 "Reserved" = "보류됨";
 
 "Left" = "남음";
+
+/* Selected browser profile */
+"Browser profile" = "브라우저 프로필";
+"Unavailable profile: %@" = "사용할 수 없는 프로필: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "선택한 %@ 프로필만 읽습니다. 계정은 자동으로 선택되지 않습니다.";

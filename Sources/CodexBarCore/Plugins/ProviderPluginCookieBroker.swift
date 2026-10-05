@@ -87,6 +87,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private let importer: BatchImporter
     private let usesCookieJar: Bool
     private let policy: ProviderPluginCookiePolicy?
+    private let selectedProfile: ProviderPluginSelectedProfile?
     private let validatedCookies: ProviderPluginValidatedCookies?
     let cookieJar: ProviderPluginCookieJar
     private let jarImporter: JarImporter?
@@ -169,13 +170,22 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         cookieJar: ProviderPluginCookieJar? = nil,
         policy: ProviderPluginCookiePolicy? = nil,
         background: Bool = false,
-        accountID: UUID? = nil)
+        accountID: UUID? = nil,
+        profileReader: ProviderPluginSelectedProfile.Reader? = nil)
     {
         self.provider = provider
         self.domains = domains
         self.settings = settings
-        self.usesCookieJar = usesCookieJar
+        self.usesCookieJar = usesCookieJar || policy?.selectedProfile == true
         self.policy = policy
+        self.selectedProfile = policy.flatMap {
+            $0.selectedProfile ? ProviderPluginSelectedProfile(
+                provider: provider,
+                profile: settings.selectedBrowserProfile,
+                policy: $0,
+                domains: domains,
+                reader: profileReader) : nil
+        }
         self.validatedCookies = policy.flatMap {
             $0.cache == .validatedSingleEntry
                 ? ProviderPluginValidatedCookies(
@@ -205,10 +215,17 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         self.settings.cookieSource
     }
 
+    func finish(_ result: Result<ProviderPluginResult, Error>) throws -> ProviderPluginResult {
+        try self.lock.withLock {
+            let result = result.mapError { self.preferredFailure(over: $0) }
+            return try self.selectedProfile?.finish(result) ?? result.get()
+        }
+    }
+
     func cookieHeader(domain: String) throws -> String {
         try self.lock.withLock {
             try self.validate(domain)
-            guard !self.usesCookieJar else {
+            guard !self.usesCookieJar, self.selectedProfile == nil else {
                 throw ProviderPluginError.secretAccess("cookie jars do not expose headers")
             }
             if let issued = self.observed[domain] { return issued.session.header }
@@ -310,6 +327,18 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
 
     private func advance(domain: String, cachedOnly: Bool = false) throws -> ProviderPluginCookieSession? {
         self.observed[domain] = nil
+        if let selectedProfile = self.selectedProfile {
+            guard self.settings.cookieSource == .auto else {
+                throw ProviderPluginError.secretAccess("selected profiles require automatic browser cookies")
+            }
+            guard let session = try selectedProfile.next(domain: domain, cachedOnly: cachedOnly) else { return nil }
+            return self.issue(
+                header: session.header,
+                source: session.source,
+                domain: domain,
+                cacheEntry: nil,
+                records: session.records)
+        }
         if self.settings.cookieSource == .manual {
             return self.advanceManual(domain: domain)
         }

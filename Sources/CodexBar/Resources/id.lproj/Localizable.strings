@@ -1706,3 +1706,8 @@
 "Reserved" = "Dicadangkan";
 
 "Left" = "Tersisa";
+
+/* Selected browser profile */
+"Browser profile" = "Profil browser";
+"Unavailable profile: %@" = "Profil tidak tersedia: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Hanya baca profil %@ yang dipilih. Akun tidak pernah dipilih secara otomatis.";

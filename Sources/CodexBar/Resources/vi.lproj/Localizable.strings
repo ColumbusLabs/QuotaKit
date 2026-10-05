@@ -1704,3 +1704,8 @@
 "Reserved" = "Đã giữ lại";
 
 "Left" = "Còn lại";
+
+/* Selected browser profile */
+"Browser profile" = "Hồ sơ trình duyệt";
+"Unavailable profile: %@" = "Hồ sơ không khả dụng: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Chỉ đọc hồ sơ %@ đã chọn. Tài khoản không bao giờ được chọn tự động.";

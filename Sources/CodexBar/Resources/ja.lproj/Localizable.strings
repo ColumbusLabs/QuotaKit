@@ -1703,3 +1703,8 @@
 "Reserved" = "確保済み";
 
 "Left" = "残り";
+
+/* Selected browser profile */
+"Browser profile" = "ブラウザープロファイル";
+"Unavailable profile: %@" = "利用できないプロファイル: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "選択した %@ プロファイルのみを読み取ります。アカウントが自動で選択されることはありません。";
