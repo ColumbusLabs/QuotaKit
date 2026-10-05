@@ -311,7 +311,9 @@ package struct CodexDisplacedLivePreservationExecutor {
     }
 
     private func removeManagedHomeIfSafe(_ homeURL: URL) throws {
-        guard CodexCredentialFileAccess.permits(CodexAuthFingerprint.authFileURL(homePath: homeURL.path)) else { return }
+        guard CodexCredentialFileAccess.permits(CodexAuthFingerprint.authFileURL(homePath: homeURL.path)) else {
+            return
+        }
         try self.homeFactory.validateManagedHomeForDeletion(homeURL)
         if self.fileManager.fileExists(atPath: homeURL.path) {
             try self.fileManager.removeItem(at: homeURL)

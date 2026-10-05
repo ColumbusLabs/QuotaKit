@@ -196,10 +196,10 @@ struct ProviderSnapshotExportPolicyTests {
         let credentialScope = store.tokenAccountSnapshotCacheKey(provider: .claude, account: account)
         store.accountSnapshots[.claude] = [TokenAccountUsageSnapshot(
             account: account,
-                snapshot: session,
-                error: "Synthetic transient profile failure",
-                sourceLabel: "synthetic",
-                cacheKey: credentialScope,
+            snapshot: session,
+            error: "Synthetic transient profile failure",
+            sourceLabel: "synthetic",
+            cacheKey: credentialScope,
             fetchError: ClaudeOAuthFetchError.networkError(URLError(.timedOut)))]
         store.widgetVerifiedTokenSnapshots[.claude] = [account.id: WidgetVerifiedTokenSnapshot(
             credentialScope: credentialScope,

@@ -343,7 +343,8 @@ final class ManagedCodexAccountService {
             account.providerAccountID == expected.providerAccountID &&
             account.workspaceLabel == expected.workspaceLabel &&
             account.workspaceAccountID == expected.workspaceAccountID &&
-            account.authFingerprint == expected.authFingerprint && account.managedHomePath == expected.managedHomePath &&
+            account.authFingerprint == expected.authFingerprint &&
+            account.managedHomePath == expected.managedHomePath &&
             account.createdAt == expected.createdAt && account.updatedAt == expected.updatedAt &&
             account.lastAuthenticatedAt == expected.lastAuthenticatedAt
     }

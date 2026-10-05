@@ -77,7 +77,10 @@ struct CostUsageClaudeRowStorageTests {
             provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try bytes.write(to: url)
-        let decoded = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
+        let decoded = CostUsageClaudeCacheIO.loadArtifact(
+            provider: .claude,
+            cacheRoot: env.cacheRoot,
+            reportContext: context)
         let rows = decoded.usage.files.keys.sorted().flatMap { decoded.usage.files[$0]?.claudeRows ?? [] }
         try self.assertShared(rows)
         #expect(try self.identities(rows.compactMap(\.messageId)).count == 10000)

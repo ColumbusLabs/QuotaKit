@@ -7619,20 +7619,19 @@ enum CostUsageScanner {
                 unknownSessionProbes += 1
                 sessionID = Self.codexBoundedRequestSessionID(fileURL)
             }
-            let priority: Int
-            if metadata.fileId == nil {
-                priority = 2
+            let priority = if metadata.fileId == nil {
+                2
             } else if cache.codexHistoryHydrationRetries?[path] != nil
                 || cached?.hasPendingCodexScanWork == true
             {
-                priority = 0
+                0
             } else if cached == nil || cached?.size != metadata.size
                 || cached?.mtimeUnixMs != metadata.mtimeUnixMs
                 || cached?.codexScanFileId != metadata.fileId || cached?.hasCurrentCodexParser != true
             {
-                priority = 1
+                1
             } else {
-                priority = 3
+                3
             }
             return (fileURL: fileURL, metadata: metadata, sessionID: sessionID, priority: priority)
         }

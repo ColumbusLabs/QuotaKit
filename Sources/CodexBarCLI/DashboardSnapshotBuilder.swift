@@ -137,12 +137,12 @@ enum DashboardSnapshotBuilder {
         let error = payload.error ?? cost?.error
         let providerAccounts = accountCollection?.accounts?.filter { $0.provider == provider }
         let projectedAccounts: [ProviderAccountUsageSnapshot]? = if provider == .claude,
-                                                                   let providerAccounts,
-                                                                   !providerAccounts.isEmpty,
-                                                                   !ClaudeSwapAccountProjection.shouldPresentAccounts(
-                                                                       accountCount: providerAccounts.count,
-                                                                       showSingleAccount: accountCollection?
-                                                                           .showSingleAccount == true)
+            let providerAccounts,
+            !providerAccounts.isEmpty,
+            !ClaudeSwapAccountProjection.shouldPresentAccounts(
+                accountCount: providerAccounts.count,
+                showSingleAccount: accountCollection?
+                    .showSingleAccount == true)
         {
             nil
         } else {
