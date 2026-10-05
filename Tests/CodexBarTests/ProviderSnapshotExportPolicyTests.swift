@@ -80,15 +80,21 @@ struct ProviderSnapshotExportPolicyTests {
 
         let widget = try #require(saved)
         #expect(!widget.enabledProviders.contains(.langdock))
-        #expect(!widget.entries.contains { $0.provider == .langdock })
+        #expect(!widget.entries.contains { $0.provider == UsageProvider.langdock.instanceID })
         #expect(widget.enabledProviders.contains(.zai))
-        #expect(widget.entries.contains { $0.provider == .zai })
-        #expect(!store.makeWidgetAccountEntries(now: self.now).contains { $0.provider == .langdock.instanceID })
+        #expect(widget.entries.contains { $0.provider == UsageProvider.zai.instanceID })
+        #expect(!store.makeWidgetAccountEntries(now: self.now).contains {
+            $0.provider == UsageProvider.langdock.instanceID
+        })
 
         let fleet = store.cloudSyncAccountSnapshots()
-        #expect(!fleet.contains { $0.provider == .langdock.instanceID })
-        #expect(fleet.contains { $0.provider == .zai.instanceID && $0.accountKey == "default" })
-        #expect(!fleet.contains { $0.provider == .zai.instanceID && $0.accountKey != "default" })
+        #expect(!fleet.contains { $0.provider == UsageProvider.langdock.instanceID })
+        #expect(fleet.contains {
+            $0.provider == UsageProvider.zai.instanceID && $0.accountKey == "default"
+        })
+        #expect(!fleet.contains {
+            $0.provider == UsageProvider.zai.instanceID && $0.accountKey != "default"
+        })
         #expect(store.cloudSyncLocalAccountKeys(for: .zai) == ["default"])
 
         store.snapshots[.zai] = session
@@ -96,8 +102,10 @@ struct ProviderSnapshotExportPolicyTests {
         store.persistWidgetSnapshot(reason: "session-owned-provider")
         await store.widgetSnapshotPersistTask?.value
         let sessionWidget = try #require(saved)
-        #expect(!sessionWidget.entries.contains { $0.provider == .zai })
-        #expect(!store.cloudSyncAccountSnapshots().contains { $0.provider == .zai.instanceID })
+        #expect(!sessionWidget.entries.contains { $0.provider == UsageProvider.zai.instanceID })
+        #expect(!store.cloudSyncAccountSnapshots().contains {
+            $0.provider == UsageProvider.zai.instanceID
+        })
         #expect(store.cloudSyncLocalAccountKeys(for: .zai).isEmpty)
     }
 

@@ -20,9 +20,17 @@ struct LangdockPluginTests {
         domain: String = "app.langdock.com",
         path: String = "/") throws -> ProviderPluginCookieRecord
     {
-        try ProviderPluginCookieRecord(cookie: #require(HTTPCookie(properties: [
+        let cookie = try #require(HTTPCookie(properties: [
             .domain: domain, .path: path, .name: name, .value: value, .secure: "TRUE",
-        ])))
+        ]))
+        return ProviderPluginCookieRecord(
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            hostOnly: !cookie.domain.hasPrefix("."),
+            path: cookie.path,
+            secure: cookie.isSecure,
+            expires: cookie.expiresDate)
     }
 
     static func broker(
@@ -39,7 +47,7 @@ struct LangdockPluginTests {
             settings: settings,
             batches: { _, _ in Issue.record("Must not import another profile or cached header"); return nil },
             usesCookieJar: true,
-            jarImporter: { Issue.record("Must not enumerate other profiles"); return [] },
+            jarImporter: { _ in Issue.record("Must not enumerate other profiles"); return [] },
             policy: runtime.manifest.cookiePolicy,
             profileReader: reader)
     }

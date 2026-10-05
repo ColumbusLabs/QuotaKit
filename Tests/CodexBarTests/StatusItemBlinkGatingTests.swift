@@ -116,8 +116,8 @@ struct StatusItemBlinkGatingTests {
     private final class Harness {
         let settings = testSettingsStore(
             suiteName: "StatusItemBlinkGatingTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         let clock = Clock()
         let image = NSImage(size: NSSize(width: 18, height: 18))
         let store: UsageStore

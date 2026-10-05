@@ -33,7 +33,8 @@ struct LangdockProfileScreenshotTests {
                                 placeholder: "/synthetic/Edge/Profile 2",
                                 binding: .constant("/synthetic/Edge/Profile 2"),
                                 actions: [],
-                                isVisible: nil))
+                                isVisible: nil,
+                                onActivate: nil))
                         } else {
                             ProviderSettingsPickerRowView(picker: picker)
                         }
@@ -49,7 +50,7 @@ struct LangdockProfileScreenshotTests {
             view.layoutSubtreeIfNeeded()
             let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
             view.cacheDisplay(in: view.bounds, to: bitmap)
-            try #require(bitmap.representation(using: .png, properties: [:]))
+            try #require(bitmap.representation(using: NSBitmapImageRep.FileType.png, properties: [:]))
                 .write(to: output.appendingPathComponent("langdock-settings-\(before ? "before" : "after").png"))
         }
     }

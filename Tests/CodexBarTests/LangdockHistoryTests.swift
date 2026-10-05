@@ -52,7 +52,10 @@ struct LangdockHistoryTests {
                     for: .langdock, snapshotOverride: snapshot).histories.isEmpty)
                 #expect(store.weeklyQuotaWindowResetObservations(for: .langdock).isEmpty)
                 #expect(store.weeklyQuotaWindowResetObservations(
-                    for: .langdock, historySelection: prior.selection(for: nil)).isEmpty)
+                    for: .langdock,
+                    historySelection: PlanUtilizationHistorySelection(
+                        accountKey: nil,
+                        histories: prior.histories(for: nil))).isEmpty)
             }
 
             await store.recordPlanUtilizationHistorySample(

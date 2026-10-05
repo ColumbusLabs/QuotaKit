@@ -197,3 +197,16 @@ private final class StoreBusyGate: Sendable {
     let resume = DispatchSemaphore(value: 0)
     let exited = CostUsageTestCounter()
 }
+
+private final class CostUsageTestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        self.lock.withLock { self.count }
+    }
+
+    func increment() {
+        self.lock.withLock { self.count += 1 }
+    }
+}

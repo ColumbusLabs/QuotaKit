@@ -17,7 +17,7 @@ struct DashboardManagedCodexCollectionTests {
         let configURL = fixture.root.appendingPathComponent("config.json")
         try CodexBarConfigStore(fileURL: configURL).save(fixture.config)
         let process = Process()
-        process.executableURL = TestBuildProducts.executableURL(named: "CodexBarCLI")
+        process.executableURL = CLIEntryTests.cliExecutableURL
         process.arguments = ["dashboard", "--identity", "redacted", "--timeout", "10"]
         process.environment = try CodexCredentialFileAccess.FixtureScope(roots: [fixture.root]).childEnvironment(base: [
             "HOME": fixture.root.path,
