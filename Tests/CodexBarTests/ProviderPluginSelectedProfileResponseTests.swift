@@ -79,6 +79,7 @@ struct ProviderPluginSelectedProfileResponseTests {
             domains: runtime.manifest.cookieDomains,
             settings: settings,
             batches: { _, _ in nil },
+            usesCookieJar: true,
             jarImporter: { _ in [(records: [record], source: "Fixture")] },
             policy: runtime.manifest.cookiePolicy,
             profileReader: { _ in [record] })

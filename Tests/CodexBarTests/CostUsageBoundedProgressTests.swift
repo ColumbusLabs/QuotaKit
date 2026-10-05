@@ -1488,9 +1488,14 @@ struct CostUsageBoundedProgressTests {
         let currentURLs = try Self.writeSyntheticCorpus(
             env: env,
             day: currentDay,
-            fileCount: CostUsageScanner.codexCatchUpScanCandidateLimit + 1)
-        let closedURL = try #require(
-            Self.writeSyntheticCorpus(env: env, day: closedDay, fileCount: 1).first)
+            fileCount: CostUsageScanner.codexCatchUpScanCandidateLimit + 1,
+            sessionIDPrefix: "queue-current")
+        // Independent sessions isolate day priority from same-thread request reconciliation.
+        let closedURL = try #require(Self.writeSyntheticCorpus(
+            env: env,
+            day: closedDay,
+            fileCount: 1,
+            sessionIDPrefix: "queue-closed").first)
         try FileManager.default.setAttributes(
             [.modificationDate: closedDay],
             ofItemAtPath: closedURL.path)
@@ -1507,6 +1512,11 @@ struct CostUsageBoundedProgressTests {
             options: options)
 
         var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let closedPath = closedURL.path.resolvingTemporaryPath
+        let closedUsage = try #require(pendingCache.files[closedPath])
+        #expect(closedUsage.sessionId == "queue-closed-0")
+        #expect(!closedUsage.hasPendingCodexScanWork)
+        #expect(pendingCache.files.filter { $0.value.sessionId == closedUsage.sessionId }.count == 1)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
             .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
             .sorted()

@@ -12,6 +12,10 @@ struct LangdockHistoryTests {
         let store = Self.makeStore()
         store.settings.setProviderEnabled(
             provider: .langdock, metadata: LangdockProviderDescriptor.descriptor.metadata, enabled: true)
+        store.settings.setProviderEnabled(
+            provider: .zai, metadata: ZaiProviderDescriptor.descriptor.metadata, enabled: true)
+        store.settings.zaiAPIToken = "synthetic-zai-api-key"
+        #expect(store.enabledProviders().contains(.zai))
         store.snapshots[.langdock] = Self.snapshot(provider: .langdock, accountID: "synthetic-profile")
         store.snapshots[.zai] = Self.snapshot(provider: .zai, accountID: "synthetic-account")
         var saved: WidgetSnapshot?

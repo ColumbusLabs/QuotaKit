@@ -27,6 +27,7 @@ enum BurnProviderChoice: String, AppEnum {
     case manus
     case kimi
     case kilo
+    case langdock
     case kiro
     case vertexai
     case augment
@@ -192,6 +193,7 @@ enum BurnProviderChoice: String, AppEnum {
         .museai: DisplayRepresentation(title: "Muse (muse.ai)"),
         .lithosai: DisplayRepresentation(title: "LithosAI"),
         .workbuddy: DisplayRepresentation(title: "WorkBuddy"),
+        .langdock: DisplayRepresentation(title: "Langdock"),
     ]
 
     var provider: UsageProvider? {
@@ -271,6 +273,7 @@ struct BurnProviderOptions: DynamicOptionsProvider {
         guard let snapshot else { return [] }
         return BurnProviderChoice.allCases.filter { choice in
             guard let provider = choice.provider,
+                  ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets,
                   snapshot.enabledProviders.contains(provider.instanceID),
                   let state = BurnDownState(snapshot: snapshot, provider: provider, selection: .primary)
             else { return false }
@@ -306,7 +309,9 @@ struct BurnDownState {
         selection: BurnWindowChoice,
         now: Date = Date())
     {
-        guard let entry = snapshot.entries.first(where: { $0.provider == provider.instanceID }) else { return nil }
+        guard ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets,
+              let entry = snapshot.entries.first(where: { $0.provider == provider.instanceID })
+        else { return nil }
         self.entry = entry
         self.selection = selection
         self.now = now

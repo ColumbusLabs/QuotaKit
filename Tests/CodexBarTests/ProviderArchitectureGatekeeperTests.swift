@@ -1542,13 +1542,13 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "The Claude version detector asks its injected locator for the fixed Claude executable name."),
         SuppressedProviderReference(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 453,
+            line: 458,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This WidgetKit default or preview pins the established Codex sample provider."),
         SuppressedProviderReference(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 484,
+            line: 489,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This WidgetKit default or preview pins the established Codex sample provider."),
@@ -4415,7 +4415,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "These provider-native balance and spend summaries preserve their distinct mobile status wording."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/DashboardSnapshotBuilder.swift",
-            line: 468,
+            line: 469,
             anchor: "guard provider == .grok,",
             expectedProviderIDs: ["grok"],
             expectedReferenceCount: 1,
@@ -5209,7 +5209,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Helmcode authenticates on cloud.helmcode.com or cloud.nan.builders, so cookie import must include that host."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Plugins/ProviderPluginSnapshotMapper.swift",
-            line: 51,
+            line: 52,
             anchor: "if provider == UsageProvider.hyper.instanceID {",
             expectedProviderIDs: ["hyper"],
             expectedReferenceCount: 1,
@@ -5420,13 +5420,14 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 184,
+            line: 185,
             anchor: "// Provider-specific by design: AppIntents requires literal catalog titles; snapshot data gates eligibility.",
             expectedProviderIDs: [
                 "atlascloud",
                 "devpass",
                 "gitkraken",
                 "hyper",
+                "langdock",
                 "lithosai",
                 "llmman",
                 "museai",
@@ -5434,7 +5435,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "workbuddy",
                 "xkiro",
             ],
-            expectedReferenceCount: 11,
+            expectedReferenceCount: 12,
             expectedReferenceFingerprint: [
                 "hyper@0",
                 "gitkraken@1",
@@ -5447,11 +5448,12 @@ struct ProviderArchitectureGatekeeperTests {
                 "museai@7",
                 "lithosai@8",
                 "workbuddy@9",
+                "langdock@10",
             ],
             reason: "AppIntents needs literal per-provider titles for this widget selector; snapshot data separately decides provider eligibility."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 461,
+            line: 466,
             anchor: "provider: configuration.provider.provider ?? .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -5459,7 +5461,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 494,
+            line: 499,
             anchor: "provider: configuration.provider.provider ?? .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,

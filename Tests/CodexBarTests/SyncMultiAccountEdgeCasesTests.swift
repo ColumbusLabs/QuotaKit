@@ -364,8 +364,12 @@ struct SyncMultiAccountEdgeCasesTests {
         let pushedCount = mock.lastSnapshot?.providers.count ?? 0
         // CodeRabbit reports detail rows but no quota or spend field that the iPhone snapshot can
         // represent. It is deliberately omitted from that wire format until a compatible field exists.
-        let syncEligible = enabled.filter { $0 != .coderabbit }
+        // Local-only providers must also remain excluded even when enabled and carrying quota data.
+        let syncEligible = enabled.filter {
+            $0 != .coderabbit && ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+        }
         #expect(enabled.contains(.coderabbit))
+        #expect(enabled.contains(.langdock))
         // `enabled` is the set of providers actually enabled in settings
         // (which may be smaller than all cases if `ProviderDefaults.metadata` is missing
         // some providers; we skipped those during setup).
@@ -376,6 +380,8 @@ struct SyncMultiAccountEdgeCasesTests {
         // Verify no duplicates.
         let providerIDs = mock.lastSnapshot?.providers.map(\.providerID) ?? []
         #expect(!providerIDs.contains(UsageProvider.coderabbit.rawValue))
+        #expect(!providerIDs.contains(UsageProvider.langdock.rawValue))
+        #expect(Set(providerIDs) == Set(syncEligible.map(\.rawValue)))
         #expect(
             Set(providerIDs).count == providerIDs.count,
             "no duplicate providerIDs in single-account scenario")

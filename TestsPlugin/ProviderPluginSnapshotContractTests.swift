@@ -116,12 +116,65 @@ struct ProviderPluginSnapshotContractTests {
         }
     }
 
-    private static func runtime(engine: ProviderPluginEngineKind, body: String) throws -> ProviderPluginRuntime {
+    @Test(arguments: Self.engines)
+    func `over quota values require an explicit manifest policy`(engine: ProviderPluginEngineKind) async throws {
+        for (manifestFields, expectedPrimary, expectedTertiary, expectedExtra) in [
+            ("", 100.0, 100.0, 100.0),
+            ("snapshotPolicy: { percent: 'clamp' },", 100.0, 100.0, 100.0),
+            ("snapshotPolicy: { percent: 'preserve-overage' },", 120.0, 135.0, 145.0),
+        ] {
+            let usage = """
+            { primary: { usedPercent: 120 }, secondary: { usedPercent: -5 },
+              tertiary: { usedPercent: 135 },
+              extraWindows: [{ id: 'extra', title: 'Extra', usedPercent: 145 }] }
+            """
+            for envelope in [false, true] {
+                let body = envelope ? "{ usage: \(usage) }" : usage
+                let runtime = try Self.runtime(
+                    engine: engine,
+                    body: body,
+                    manifestFields: manifestFields)
+                let snapshot = try await runtime.fetchUsage()
+
+                #expect(snapshot.primary?.usedPercent == expectedPrimary)
+                #expect(snapshot.secondary?.usedPercent == 0)
+                #expect(snapshot.tertiary?.usedPercent == expectedTertiary)
+                #expect(snapshot.extraRateWindows?.first?.window.usedPercent == expectedExtra)
+            }
+        }
+    }
+
+    @Test(arguments: Self.engines)
+    func `invalid snapshot policies fail manifest loading`(engine: ProviderPluginEngineKind) {
+        for policy in [
+            "null",
+            "true",
+            "[]",
+            "{}",
+            "{ percent: 'unbounded' }",
+            "{ percent: 'clamp', extra: true }",
+            "{ percent: 1 }",
+        ] {
+            #expect(throws: ProviderPluginError.self) {
+                _ = try Self.runtime(
+                    engine: engine,
+                    body: "{ empty: true }",
+                    manifestFields: "snapshotPolicy: \(policy),")
+            }
+        }
+    }
+
+    private static func runtime(
+        engine: ProviderPluginEngineKind,
+        body: String,
+        manifestFields: String = "") throws -> ProviderPluginRuntime
+    {
         let source = """
         defineProvider({
           id: "synthetic",
           name: "Snapshot Fixture",
           endpoints: ["https://api.synthetic.test"],
+          \(manifestFields)
           settings: [],
           async fetchUsage() {
             return \(body);

@@ -44,8 +44,10 @@ struct ProviderSnapshotExportPolicyTests {
                 metadata: ProviderDescriptorRegistry.descriptor(for: provider).metadata,
                 enabled: true)
         }
+        settings.zaiAPIToken = "synthetic-zai-api-key"
 
         let store = self.makeUsageStore(settings: settings)
+        #expect(store.enabledProviders().contains(.zai))
         store.snapshots[.langdock] = self.snapshot()
         store.snapshots[.zai] = self.snapshot()
         let account = ProviderTokenAccount(
@@ -119,8 +121,10 @@ struct ProviderSnapshotExportPolicyTests {
                 metadata: ProviderDescriptorRegistry.descriptor(for: provider).metadata,
                 enabled: true)
         }
+        settings.zaiAPIToken = "synthetic-zai-api-key"
 
         let store = self.makeUsageStore(settings: settings)
+        #expect(store.enabledProviders().contains(.zai))
         store._setSnapshotForTesting(self.snapshot(), provider: .langdock)
         store._setSnapshotForTesting(self.snapshot(), provider: .zai)
         let pusher = MockSyncPusher()

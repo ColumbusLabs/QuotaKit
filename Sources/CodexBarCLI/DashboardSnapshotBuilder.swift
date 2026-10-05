@@ -136,6 +136,7 @@ enum DashboardSnapshotBuilder {
 
         let error = payload.error ?? cost?.error
         let providerAccounts = accountCollection?.accounts?.filter { $0.provider == provider }
+        // Provider-specific by design: Claude Swap hides one account row unless its display option is enabled.
         let projectedAccounts: [ProviderAccountUsageSnapshot]? = if provider == .claude,
                                                                     let providerAccounts,
                                                                     !providerAccounts.isEmpty,

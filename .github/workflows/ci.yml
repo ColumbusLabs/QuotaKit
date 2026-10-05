@@ -214,8 +214,8 @@ jobs:
 
       - name: Swift Test
         if: ${{ needs.changes.outputs.macos-test-filter == '' }}
-        # Keep small suite batches so a hung suite fails its shard while avoiding one SwiftPM process per suite.
-        timeout-minutes: 50
+        # Include hosted Swift discovery/compilation; each suite still has a 120-second hang limit.
+        timeout-minutes: 60
         run: |
           CODEXBAR_TEST_GROUP_SIZE=4 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \

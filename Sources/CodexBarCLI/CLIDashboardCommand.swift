@@ -77,6 +77,7 @@ struct DashboardSnapshotProducer: Sendable {
                     accounts: collection.accounts,
                     adapterError: collection.adapterError,
                     weeklyWorkDays: self.weeklyWorkDays(),
+                    // Provider-specific by design: Claude Swap opts into showing a single account row in the dashboard.
                     showSingleAccount: provider == .claude &&
                         config.providerConfig(for: .claude)?.claudeSwapShowSingleAccount == true)
             }

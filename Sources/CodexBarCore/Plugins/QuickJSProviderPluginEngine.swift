@@ -504,6 +504,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             QuickJSPluginValue(engine: self, value: result),
             provider: self.manifest.id,
             now: now,
+            percentPolicy: self.manifest.percentPolicy,
             allowsProviderExtensions: !self.enforcesUserResponsePolicy)
     }
 
