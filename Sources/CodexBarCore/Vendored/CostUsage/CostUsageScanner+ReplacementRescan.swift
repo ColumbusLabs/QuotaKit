@@ -405,6 +405,25 @@ extension CostUsageScanner {
         return cachedSessionMetadata.merging(parsed.codexSession)
     }
 
+    private static func codexRescanRowsRetainingRequestOwnership(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        rows: [CodexUsageRow],
+        sessionID: String?,
+        sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?) -> [CodexUsageRow]
+    {
+        guard !context.dropDeferredCodexRows, sourcePricing == nil,
+              let cached = input.cached, cached.hasCurrentCodexParser,
+              cached.sessionId == sessionID, cached.codexScanFileId == input.metadata.fileId,
+              let anchor = cached.codexTokenIndexAnchor,
+              codexTokenIndexAnchorMatches(anchor, fileURL: input.fileURL, metadata: input.metadata)
+        else { return rows }
+        return Self.codexRowsRetainingRequestOwnership(
+            rows,
+            ownedRows: Self.codexRowsWithLedgerMirrorAliases(
+                cached.codexRows ?? [], ledger: cached.codexRequestLedgerState))
+    }
+
     private static func materializeCodexRescan(
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
@@ -431,8 +450,10 @@ extension CostUsageScanner {
             metadata: input.metadata,
             sessionId: sourceSessionID,
             preserveCachedRows: sourcePricing == nil && !plan.parserRevisionNeedsReplacement)
+        let ownershipRows = Self.codexRescanRowsRetainingRequestOwnership(
+            input: input, context: context, rows: parsed.rows, sessionID: sourceSessionID, sourcePricing: sourcePricing)
         let classifiedNewRows = Self.codexRowsWithRetainedPricing(
-            parsed.rows,
+            ownershipRows,
             source: (sourcePricing, parsed.rowSourceEndOffsets, plan.sourceAnchor?.indexedBytes),
             pendingPricing: &pendingPricing,
             sessionId: sourceSessionID,
@@ -449,6 +470,9 @@ extension CostUsageScanner {
         // Source-boundary and pending pricing are applied before deduplication so invalidated
         // historical evidence cannot reprice a replacement generation.
         let classifiedRows = uniqueRows
+        let requestLedgerState = classifiedRows.reduce(parsed.requestLedgerState) { ledger, row in
+            Self.codexLedgerRetainingPromotedRow(row, state: ledger)
+        }
         context.workRecorder?.record(processed: uniqueRows.count, repriced: uniqueRows.count)
         let usageDays = plan.usageDays
         let duplicateWithoutUniqueUsage = plan.scanComplete
@@ -539,7 +563,7 @@ extension CostUsageScanner {
                 : CostUsageFileUsage.currentCodexParserRevision,
             codexJSONLResumeState: parsed.jsonlResumeState,
             codexForkAccountingState: parsed.forkAccountingState,
-            codexRequestLedgerState: parsed.requestLedgerState,
+            codexRequestLedgerState: requestLedgerState,
             codexBufferedSubagentLines: parsed.bufferedSubagentLines,
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()

@@ -922,15 +922,20 @@ extension CostUsageCodexRequestLedgerTests {
             }
             return report
         }
+        var aliasOwner: URL?
         for index in 0..<7 {
-            _ = try env.writeCodexSessionFile(
+            let response = Self.record(
+                id: "response-\(index)",
+                timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
+                usage: [100, 20, 10, 4],
+                total: [100, 20, 10, 4])
+            let mirror = index == 0 ? [Self.legacy(
+                timestamp: Self.timestampC, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])] : []
+            let file = try env.writeCodexSessionFile(
                 day: start,
                 filename: "settled-\(index).jsonl",
-                contents: env.jsonl(Self.header() + [Self.record(
-                    id: "response-\(index)",
-                    timestamp: earlierReplay ? Self.timestampB : Self.timestampA,
-                    usage: [100, 20, 10, 4],
-                    total: [100, 20, 10, 4])]))
+                contents: env.jsonl(Self.header() + [response] + mirror))
+            if index == 0 { aliasOwner = file }
         }
         let settledCopy = (0..<7).map { Self.record(
             id: "response-\($0)",
@@ -982,6 +987,20 @@ extension CostUsageCodexRequestLedgerTests {
         #expect(settle().summary?.totalTokens == 836)
         #expect(fetch().summary?.totalTokens == 836)
 
+        // A proven adjacent mirror may carry a different timestamp from its typed response.
+        // Its alias must move with the canonical response before the rowless source disappears.
+        let aliasOwnerPath = try #require(aliasOwner).path
+        let aliasCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(aliasCache.files[aliasOwnerPath]?.codexRows?.isEmpty == true)
+        try FileManager.default.removeItem(atPath: aliasOwnerPath)
+        #expect(settle().summary?.totalTokens == 836)
+        _ = try env.writeCodexSessionFile(
+            day: start, filename: "aa-late-legacy-copy.jsonl", contents: env.jsonl(Self.header() + [Self.legacy(
+                timestamp: Self.timestampC, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])]))
+        #expect(settle().summary?.totalTokens == 836)
+        let aliasRecovered = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(aliasRecovered.files.values.flatMap { $0.codexRows ?? [] }.count == 8)
+
         var pricedCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
         var owner = try #require(pricedCache.files[page.path])
         owner.codexRows = owner.codexRows?.map { row in
@@ -993,7 +1012,12 @@ extension CostUsageCodexRequestLedgerTests {
             return row
         }
         pricedCache.files[page.path] = owner
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pricedCache).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pricedCache, calendar: calendar)
+            .catchUpRequired)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
+        #expect(savedPricing.files[page.path]?.codexRows?.first { $0.responseID == "response-0" }?
+            .knownCostNanos == 123_000_000)
         _ = settle()
         try FileManager.default.removeItem(at: page)
         try FileManager.default.removeItem(at: settledCopyURL)
@@ -1179,7 +1203,14 @@ extension CostUsageCodexRequestLedgerTests {
             }
             cache.files[path.path] = owner
         }
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+            .catchUpRequired)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
+        for (index, path) in owners.enumerated() {
+            #expect(savedPricing.files[path.path]?.codexRows?.first?.knownCostNanos
+                == Int64(100_000_000 + index * 1_000_000))
+        }
         _ = settle()
         for owner in owners {
             try FileManager.default.removeItem(at: owner)
@@ -1297,7 +1328,11 @@ extension CostUsageCodexRequestLedgerTests {
             return row
         }
         cache.files[second.path] = secondUsage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+            .catchUpRequired)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
+        #expect(savedPricing.files[second.path]?.codexRows?.first?.knownCostNanos == 123_000_000)
         _ = settle()
         try FileManager.default.removeItem(at: first)
         _ = fetch()

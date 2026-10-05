@@ -7495,7 +7495,8 @@ enum CostUsageScanner {
         scheduledFiles: [URL],
         cache: CostUsageCache,
         scanBudget: CodexScanBudget,
-        prehydratedPaths: Set<String> = []) -> CodexCatchUpHydrationPlan
+        prehydratedPaths: Set<String> = [],
+        priorCandidatePaths: Set<String> = []) -> CodexCatchUpHydrationPlan
     {
         var pathBySessionID: [String: String] = [:]
         for (path, usage) in cache.files {
@@ -7514,7 +7515,7 @@ enum CostUsageScanner {
 
         var requestReconciliations: [String: CostUsageCodexRequestReconciliation] = [:]
         var admittedFiles: [URL] = []
-        var admittedSessionIDs = Set<String>()
+        var admittedSessionIDs = Set(priorCandidatePaths.compactMap { cache.files[$0]?.sessionId })
         var admittedPaths = prehydratedPaths
         var plannedBytes: Int64 = 0
         let remainingBytes = scanBudget.planningRemainingBytes
@@ -9189,7 +9190,8 @@ enum CostUsageScanner {
                 scheduledFiles: metadataRefreshCandidates,
                 cache: cache,
                 scanBudget: scanBudget,
-                prehydratedPaths: hydratedCodexPaths)
+                prehydratedPaths: hydratedCodexPaths,
+                priorCandidatePaths: Set(requestReconciliations.keys))
             let immediateCandidates = immediatePlan.scheduledFiles
             if !immediateCandidates.isEmpty,
                scanBudget.shouldStopBeforeNextFile() == false

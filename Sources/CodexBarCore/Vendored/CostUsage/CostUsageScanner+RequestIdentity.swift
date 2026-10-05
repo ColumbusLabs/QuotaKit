@@ -66,7 +66,8 @@ extension CostUsageScanner {
         _ row: CodexUsageRow,
         canonical: CodexUsageRow,
         additional: CodexUsageRow? = nil,
-        responseID: String? = nil) -> CodexUsageRow
+        responseID: String? = nil,
+        mirrorKeys: [String] = []) -> CodexUsageRow
     {
         let candidates = [canonical] + (additional.map { [$0] } ?? []) + [row]
         let price = candidates.first {
@@ -91,7 +92,56 @@ extension CostUsageScanner {
             pricingModel: price.pricingModel,
             pricingMode: price.pricingMode,
             responseID: responseID ?? row.responseID,
-            requestMirrorKeys: Array(Set(candidates.flatMap { $0.requestMirrorKeys ?? [] })).sorted())
+            requestMirrorKeys: Array(Set(candidates.flatMap { $0.requestMirrorKeys ?? [] } + mirrorKeys)).sorted())
+    }
+
+    /// Carry aliases learned from adjacent legacy observations with the response's owned row.
+    static func codexRowsWithLedgerMirrorAliases(
+        _ rows: [CodexUsageRow],
+        ledger: CodexRequestLedgerState?) -> [CodexUsageRow]
+    {
+        var mirrors: [String: [String]] = [:]
+        for (key, responseID) in ledger?.mirroredResponses ?? [:] {
+            mirrors[responseID, default: []].append(key)
+        }
+        return rows.map { row in
+            guard let responseID = row.responseID, let keys = mirrors[responseID] else { return row }
+            return Self.codexRequestRowPreservingLocalIdentity(row, canonical: row, mirrorKeys: keys)
+        }
+    }
+
+    /// A source replay may produce legacy rows for requests whose typed owners were transferred here.
+    /// Restore identity only onto observed rows; never merge unobserved rows from the old generation.
+    static func codexRowsRetainingRequestOwnership(
+        _ rows: [CodexUsageRow],
+        ownedRows: [CodexUsageRow]) -> [CodexUsageRow]
+    {
+        var responses: [String: CodexUsageRow] = [:]
+        var mirrors: [String: Set<String>] = [:]
+        for row in ownedRows {
+            guard let responseID = row.responseID else { continue }
+            responses[responseID] = row
+            for key in row.requestMirrorKeys ?? [] {
+                mirrors[key, default: []].insert(responseID)
+            }
+        }
+        return rows.map { row in
+            let matchingIDs = row.responseID.map { Set([$0]) } ?? Set((row.requestMirrorKeys ?? [])
+                .flatMap { mirrors[$0] ?? [] })
+            guard matchingIDs.count == 1, let responseID = matchingIDs.first,
+                  let canonical = responses[responseID],
+                  row.model == canonical.model, row.input == canonical.input,
+                  row.cached == canonical.cached, row.output == canonical.output,
+                  row.reasoning == canonical.reasoning
+            else { return row }
+            let earlierTypedRow = row.responseID != nil
+                && (row.timestampUnixMs ?? .max) < (canonical.timestampUnixMs ?? .max)
+            return Self.codexRequestRowPreservingLocalIdentity(
+                row,
+                canonical: earlierTypedRow ? row : canonical,
+                additional: canonical,
+                responseID: responseID)
+        }
     }
 
     /// Reconcile committed siblings and new pages before their aggregate updates share one transaction.
@@ -105,6 +155,9 @@ extension CostUsageScanner {
         var owned: [String: (path: String, index: Int)] = [:]
         var replacements: [String: [CodexUsageRow]] = [:]
         var removals: [String: Set<Int>] = [:]
+        let retainedRequestOwners = Set((cache.codexHistoryHydrationRetries ?? [:]).values
+            .flatMap { $0.requestOwnerPaths ?? [] })
+        let missingRequestOwners = retainedRequestOwners.filter { !FileManager.default.fileExists(atPath: $0) }
         func row(at location: (path: String, index: Int)) -> CodexUsageRow {
             (replacements[location.path] ?? cache.files[location.path]?.codexRows ?? [])[location.index]
         }
@@ -126,10 +179,13 @@ extension CostUsageScanner {
         for path in paths {
             guard let file = cache.files[path] else { continue }
             let scope = file.sessionId ?? path
+            let sourceRows = replacements[path] ?? file.codexRows ?? []
+            let aliasedRows = Self.codexRowsWithLedgerMirrorAliases(sourceRows, ledger: file.codexRequestLedgerState)
+            if aliasedRows != sourceRows { replacements[path] = aliasedRows }
             for (snapshot, responseID) in file.codexRequestLedgerState?.mirroredResponses ?? [:] {
                 aliases[scope + "\u{1F}" + snapshot] = Self.codexResponseKey(scope: scope, responseID: responseID)
             }
-            for (index, candidate) in (file.codexRows ?? []).enumerated() where candidate.responseID != nil {
+            for (index, candidate) in aliasedRows.enumerated() where candidate.responseID != nil {
                 let key = Self.codexUsageRowKey(sessionId: file.sessionId, fileIdentity: path, row: candidate)
                 // Canonical rows carry aliases from earlier sibling slices even when the original
                 // owner is now rowless or outside the current hydration cohort.
@@ -145,7 +201,10 @@ extension CostUsageScanner {
                 let previousAnchor = context.requestReconciliationCandidatePaths.contains(previous.path)
                 let earlierCandidate = (candidate.timestampUnixMs ?? .max, path, index)
                     < (previousRow.timestampUnixMs ?? .max, previous.path, previous.index)
-                let candidateWins = candidateAnchor != previousAnchor ? candidateAnchor : earlierCandidate
+                let candidateMissing = missingRequestOwners.contains(path)
+                let previousMissing = missingRequestOwners.contains(previous.path)
+                let candidateWins = candidateMissing != previousMissing ? !candidateMissing
+                    : (candidateAnchor != previousAnchor ? candidateAnchor : earlierCandidate)
                 let winner = candidateWins ? location : previous
                 let loser = candidateWins ? previous : location
                 let canonical = earlierCandidate ? candidate : previousRow
@@ -153,13 +212,13 @@ extension CostUsageScanner {
                 targets[winner.index] = Self.codexRequestRowPreservingLocalIdentity(
                     row(at: winner), canonical: canonical, additional: row(at: loser))
                 replacements[winner.path] = targets
+                cache.files[winner.path]?.codexRequestLedgerState = Self.codexLedgerRetainingPromotedRow(
+                    targets[winner.index], state: cache.files[winner.path]?.codexRequestLedgerState)
                 retainPricing(from: row(at: loser), at: winner)
                 removals[loser.path, default: []].insert(loser.index)
                 owned[key] = winner
             }
         }
-        let retainedRequestOwners = Set((cache.codexHistoryHydrationRetries ?? [:]).values
-            .flatMap { $0.requestOwnerPaths ?? [] })
         for path in paths {
             guard let file = cache.files[path] else { continue }
             let scope = file.sessionId ?? path
@@ -168,6 +227,7 @@ extension CostUsageScanner {
                     .compactMap({ owned[$0] }).first else { continue }
                 if retainedRequestOwners.contains(match.path),
                    context.requestReconciliationCandidatePaths.contains(path)
+                   || (missingRequestOwners.contains(match.path) && FileManager.default.fileExists(atPath: path))
                 {
                     let canonical = row(at: match)
                     let promoted = Self.codexRequestRowPreservingLocalIdentity(
@@ -210,7 +270,7 @@ extension CostUsageScanner {
         }
     }
 
-    private static func codexLedgerRetainingPromotedRow(
+    static func codexLedgerRetainingPromotedRow(
         _ row: CodexUsageRow,
         state: CodexRequestLedgerState?) -> CodexRequestLedgerState?
     {
