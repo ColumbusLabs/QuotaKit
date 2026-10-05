@@ -44,7 +44,7 @@ struct BurnDownCapabilityTests {
         #expect(BurnProviderOptions.choices(in: snapshot).isEmpty)
         #expect(BurnProviderOptions.choices(in: snapshot, combined: true).isEmpty)
         #expect(BurnDownState(snapshot: snapshot, provider: .langdock, selection: .primary)
-            .map { $0.availableSelections.isEmpty } == nil)
+            .map(\.availableSelections.isEmpty) == nil)
     }
 
     @Test
