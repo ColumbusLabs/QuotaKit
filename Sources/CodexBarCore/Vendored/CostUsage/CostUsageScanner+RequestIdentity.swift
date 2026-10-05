@@ -212,8 +212,9 @@ extension CostUsageScanner {
                 targets[winner.index] = Self.codexRequestRowPreservingLocalIdentity(
                     row(at: winner), canonical: canonical, additional: row(at: loser))
                 replacements[winner.path] = targets
-                cache.files[winner.path]?.codexRequestLedgerState = Self.codexLedgerRetainingPromotedRow(
+                let winnerLedger = Self.codexLedgerRetainingPromotedRow(
                     targets[winner.index], state: cache.files[winner.path]?.codexRequestLedgerState)
+                cache.files[winner.path]?.codexRequestLedgerState = winnerLedger
                 retainPricing(from: row(at: loser), at: winner)
                 removals[loser.path, default: []].insert(loser.index)
                 owned[key] = winner
