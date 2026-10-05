@@ -2202,8 +2202,9 @@ struct CostUsageBoundedProgressTests {
         var fileURLs: [URL] = []
         fileURLs.reserveCapacity(fileCount)
         for index in 0..<fileCount {
+            let sessionID = "\(sessionIDPrefix)-\(index)"
             let lines = [
-                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"\#(sessionIDPrefix)-\#(index)"}}"#,
+                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"\#(sessionID)"}}"#,
                 #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"openai/gpt-5.2-codex"}}"#,
                 #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
                     + #"{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"#

@@ -1234,21 +1234,9 @@ extension CostUsageCodexRequestLedgerTests {
         for _ in 0..<150 {
             let checkpoint = CostUsageStore(cacheRoot: env.cacheRoot)
                 .syncLoadCodexCache(calendar: calendar, hydratingPaths: [survivor.path])
-            let transferred = (checkpoint.files[survivor.path]?.codexRows ?? []).filter {
-                $0.responseID?.hasPrefix("priced-response-") == true
-            }
-            let currentIDs = Set(transferred.compactMap(\.responseID))
-            // Later cohorts must carry every completed transfer even after its original
-            // owner leaves the detail working set. Final totals alone can hide date/price loss.
-            #expect(transferredIDs.isSubset(of: currentIDs))
-            for row in transferred {
-                let responseID = try #require(row.responseID)
-                let index = try #require(Int(responseID.replacingOccurrences(of: "priced-response-", with: "")))
-                #expect(row.day == "2026-08-29")
-                #expect(row.knownCostNanos == Int64(100_000_000 + index * 1_000_000))
-                #expect(row.pricingMode == "priority")
-            }
-            transferredIDs = currentIDs
+            transferredIDs = try Self.assertTransferredRequestAccounting(
+                rows: checkpoint.files[survivor.path]?.codexRows ?? [],
+                retaining: transferredIDs)
             if checkpoint.codexScanCatchUpPending != true { break }
             recovered = fetch()
         }
@@ -1405,6 +1393,25 @@ extension CostUsageCodexRequestLedgerTests {
         #expect(cache.files[ownerPath] == owner)
         #expect(retries[candidatePath] == nil)
         #expect(retries[forkPath] == forkRetry)
+    }
+
+    /// Later cohorts must carry every completed transfer after its original owner leaves
+    /// the detail working set. Final totals alone can hide canonical date or saved price loss.
+    private static func assertTransferredRequestAccounting(
+        rows: [CostUsageScanner.CodexUsageRow],
+        retaining previousIDs: Set<String>) throws -> Set<String>
+    {
+        let transferred = rows.filter { $0.responseID?.hasPrefix("priced-response-") == true }
+        let currentIDs = Set(transferred.compactMap(\.responseID))
+        #expect(previousIDs.isSubset(of: currentIDs))
+        for row in transferred {
+            let responseID = try #require(row.responseID)
+            let index = try #require(Int(responseID.replacingOccurrences(of: "priced-response-", with: "")))
+            #expect(row.day == "2026-08-29")
+            #expect(row.knownCostNanos == Int64(100_000_000 + index * 1_000_000))
+            #expect(row.pricingMode == "priority")
+        }
+        return currentIDs
     }
 
     private static func partialLegacy(lastOnly: Bool) throws -> [String: Any] {

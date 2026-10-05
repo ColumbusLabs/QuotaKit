@@ -12,7 +12,7 @@ struct ProviderPluginValidatedCookieTests {
     @Test
     func `import and acceptance remain transient until a successful commit`() throws {
         try self.isolated {
-            let broker = self.broker()
+            let broker = try self.broker()
             let session = try #require(try broker.nextSession(domain: self.domain))
             #expect(CookieHeaderCache.load(provider: .manus, scope: self.scope) == nil)
             try broker.acceptCookie(domain: self.domain, id: session.id)
@@ -22,7 +22,7 @@ struct ProviderPluginValidatedCookieTests {
             #expect(!entry.cookieHeader.contains("fixture-secret"))
             #expect(entry.pluginCookieSession?.origin == "https://\(self.domain)")
             #expect(entry.pluginCookieSession?.records.map(\.value) == ["fixture-secret"])
-            let cached = self.broker(background: true, importer: { _ in
+            let cached = try self.broker(background: true, importer: { _ in
                 Issue.record("Validated sessions must survive a background fetch without browser import")
                 return []
             })
@@ -39,11 +39,11 @@ struct ProviderPluginValidatedCookieTests {
         try self.isolated {
             try self.seed()
             let baseline = CookieHeaderCache.load(provider: .manus, scope: self.scope)
-            let broker = self.broker()
+            let broker = try self.broker()
             let session = try #require(try broker.nextSession(domain: self.domain))
             try broker.commitAcceptedCookies()
             #expect(CookieHeaderCache.load(provider: .manus, scope: self.scope) == baseline)
-            let fresh = self.broker(domain: "fresh.example.test")
+            let fresh = try self.broker(domain: "fresh.example.test")
             let freshSession = try #require(try fresh.nextSession(domain: "fresh.example.test"))
             try fresh.acceptCookie(domain: "fresh.example.test", id: freshSession.id)
             fresh.rejectCookie(domain: "fresh.example.test", id: freshSession.id)
@@ -62,9 +62,9 @@ struct ProviderPluginValidatedCookieTests {
     @Test
     func `late accepted and rejected sessions preserve the winning successor`() throws {
         try self.isolated {
-            let stale = self.broker()
+            let stale = try self.broker()
             let staleSession = try #require(try stale.nextSession(domain: self.domain))
-            let winner = self.broker(importer: { domain in [(Self.records(domain, value: "winner"), "Winner")] })
+            let winner = try self.broker(importer: { domain in [(Self.records(domain, value: "winner"), "Winner")] })
             let winnerSession = try #require(try winner.nextSession(domain: self.domain))
             try winner.acceptCookie(domain: self.domain, id: winnerSession.id)
             try winner.commitAcceptedCookies()
@@ -73,9 +73,9 @@ struct ProviderPluginValidatedCookieTests {
             try stale.commitAcceptedCookies()
             stale.rejectCookie(domain: self.domain, id: staleSession.id)
             #expect(CookieHeaderCache.load(provider: .manus, scope: self.scope) == baseline)
-            let cached = self.broker()
+            let cached = try self.broker()
             let old = try #require(try cached.nextSession(domain: self.domain))
-            let replacement = self.broker()
+            let replacement = try self.broker()
             let replacementSession = try #require(try replacement.nextSession(domain: self.domain))
             try replacement.acceptCookie(domain: self.domain, id: replacementSession.id)
             try replacement.commitAcceptedCookies()
@@ -89,14 +89,14 @@ struct ProviderPluginValidatedCookieTests {
     func `background expired rejected and malformed caches never switch browser accounts`() throws {
         try self.isolated {
             try self.seed()
-            let broker = self.broker(background: true, importer: { _ in
+            let broker = try self.broker(background: true, importer: { _ in
                 Issue.record("Rejected background credentials must require explicit refresh")
                 return []
             })
             let cached = try #require(try broker.nextSession(domain: self.domain))
             broker.rejectCookie(domain: self.domain, id: cached.id)
             #expect(try broker.nextSession(domain: self.domain) == nil)
-            let nextPoll = self.broker(background: true, importer: { _ in
+            let nextPoll = try self.broker(background: true, importer: { _ in
                 Issue.record("A later background poll must not switch after cached rejection")
                 return []
             })
@@ -115,7 +115,7 @@ struct ProviderPluginValidatedCookieTests {
                 let observation = CookieHeaderCache.observeForConditionalMutation(provider: .manus, scope: self.scope)
                 _ = CookieHeaderCache.storeIfObservationCurrentReceipt(
                     provider: .manus, scope: self.scope, expected: observation, entry: malformed)
-                let invalid = self.broker(background: true, importer: { _ in
+                let invalid = try self.broker(background: true, importer: { _ in
                     Issue.record("Originless and mismatched caches must not import in background")
                     return []
                 })
@@ -128,7 +128,7 @@ struct ProviderPluginValidatedCookieTests {
             let observation = CookieHeaderCache.observeForConditionalMutation(provider: .manus, scope: self.scope)
             _ = CookieHeaderCache.storeIfObservationCurrentReceipt(
                 provider: .manus, scope: self.scope, expected: observation, entry: expired)
-            let invalid = self.broker(background: true, importer: { _ in
+            let invalid = try self.broker(background: true, importer: { _ in
                 Issue.record("Session cookies past the cache age must require explicit refresh")
                 return []
             })
@@ -143,7 +143,7 @@ struct ProviderPluginValidatedCookieTests {
                 provider: UsageProvider.manus.instanceID,
                 scopeIdentifier: self.scope.isolationIdentifier)
             #expect(KeychainCacheStore.storeResult(key: key, entry: "malformed-fixture"))
-            let background = self.broker(background: true, importer: { _ in
+            let background = try self.broker(background: true, importer: { _ in
                 Issue.record("Decode failure must not erase durable background account pinning")
                 return []
             })
@@ -153,7 +153,7 @@ struct ProviderPluginValidatedCookieTests {
             } else {
                 Issue.record("Malformed baseline was removed by a background refresh")
             }
-            let interactive = self.broker()
+            let interactive = try self.broker()
             let repaired = try #require(try interactive.nextSession(domain: self.domain))
             try interactive.acceptCookie(domain: self.domain, id: repaired.id)
             try interactive.commitAcceptedCookies()
@@ -169,7 +169,7 @@ struct ProviderPluginValidatedCookieTests {
         #expect(entry.cookieHeader == "session=fixture")
         try self.isolated {
             CookieHeaderCache.store(provider: .manus, cookieHeader: entry.cookieHeader, sourceLabel: entry.sourceLabel)
-            let broker = self.broker(background: true)
+            let broker = try self.broker(background: true)
             let candidate = try #require(try broker.nextSession(domain: self.domain))
             #expect(candidate.cachedAt == nil)
             #expect(CookieHeaderCache.load(provider: .manus)?.pluginCookieSession == nil)
@@ -182,7 +182,7 @@ struct ProviderPluginValidatedCookieTests {
             try self.seed()
             let baseline = CookieHeaderCache.load(provider: .manus, scope: self.scope)
             let gate = try #require(CookieHeaderCache.beginRefreshReadSuppression(provider: .manus))
-            let replacement = self
+            let replacement = try self
                 .broker(importer: { domain in [(Self.records(domain, value: "replacement"), "Refresh")] })
             let session = try #require(try replacement.nextSession(domain: self.domain))
             try replacement.acceptCookie(domain: self.domain, id: session.id)
@@ -190,7 +190,7 @@ struct ProviderPluginValidatedCookieTests {
             CookieHeaderCache.endRefreshReadSuppression(gate)
             #expect(CookieHeaderCache.load(provider: .manus, scope: self.scope) == baseline)
             let retry = try #require(CookieHeaderCache.beginRefreshReadSuppression(provider: .manus))
-            let successful = self
+            let successful = try self
                 .broker(importer: { domain in [(Self.records(domain, value: "replacement"), "Refresh")] })
             let successfulSession = try #require(try successful.nextSession(domain: self.domain))
             try successful.acceptCookie(domain: self.domain, id: successfulSession.id)
@@ -207,7 +207,7 @@ struct ProviderPluginValidatedCookieTests {
         try await KeychainCacheStore.withImplicitTestStoreForTesting {
             try await KeychainCacheStore.withServiceOverrideForTesting("cancelled-plugin-\(UUID().uuidString)") {
                 let task = Task {
-                    let broker = self.broker()
+                    let broker = try self.broker()
                     let session = try #require(try broker.nextSession(domain: self.domain))
                     try broker.acceptCookie(domain: self.domain, id: session.id)
                     withUnsafeCurrentTask { $0?.cancel() }
@@ -222,7 +222,7 @@ struct ProviderPluginValidatedCookieTests {
     @Test
     func `interactive mutation gates prevent stale accepted sessions from writing`() throws {
         try self.isolated {
-            let broker = self.broker()
+            let broker = try self.broker()
             let session = try #require(try broker.nextSession(domain: self.domain))
             let gate = CookieHeaderCache.beginConditionalMutationGate(provider: .manus, scope: self.scope)
             defer { CookieHeaderCache.endConditionalMutationGate(gate) }
@@ -238,7 +238,7 @@ struct ProviderPluginValidatedCookieTests {
             try self.seed()
             let baseline = CookieHeaderCache.load(provider: .manus, scope: self.scope)
             for source in [ProviderCookieSource.manual, .off] {
-                let broker = self.broker(source: source, importer: { _ in
+                let broker = try self.broker(source: source, importer: { _ in
                     Issue.record("Manual and Off must not import")
                     return []
                 })
@@ -253,7 +253,7 @@ struct ProviderPluginValidatedCookieTests {
                 #expect(CookieHeaderCache.load(provider: .manus, scope: self.scope) == baseline)
             }
             let accountID = UUID()
-            let account = self.broker(accountID: accountID)
+            let account = try self.broker(accountID: accountID)
             let session = try #require(try account.nextSession(domain: self.domain))
             #expect(session.cachedAt == nil)
             try account.acceptCookie(domain: self.domain, id: session.id)
@@ -278,7 +278,7 @@ struct ProviderPluginValidatedCookieTests {
     @Test
     func `validated cache retains host path expiry and secure request selection`() throws {
         try self.isolated {
-            let broker = self.broker(importer: { domain in [([
+            let broker = try self.broker(importer: { domain in [([
                 Self.record(domain, value: "root"),
                 Self.record(domain, name: "path", value: "path", path: "/billing"),
                 Self.record("sibling.example.test", name: "sibling", value: "excluded"),
@@ -287,7 +287,7 @@ struct ProviderPluginValidatedCookieTests {
             let session = try #require(try broker.nextSession(domain: self.domain))
             try broker.acceptCookie(domain: self.domain, id: session.id)
             try broker.commitAcceptedCookies()
-            let cached = self.broker(background: true)
+            let cached = try self.broker(background: true)
             let reused = try #require(try cached.nextSession(domain: self.domain))
             #expect(try cached.cookieJar.header(
                 id: reused.id,
@@ -308,18 +308,33 @@ struct ProviderPluginValidatedCookieTests {
     private func broker(
         domain: String? = nil, source: ProviderCookieSource = .auto, background: Bool = false, accountID: UUID? = nil,
         importer: @escaping ProviderPluginCookieBroker.JarImporter = { [(Self.records($0), "Fixture")] })
-        -> ProviderPluginCookieBroker
+        throws -> ProviderPluginCookieBroker
     {
-        ProviderPluginCookieBroker(
-            provider: .manus, domains: [domain ?? self.domain],
+        let domain = domain ?? self.domain
+        return ProviderPluginCookieBroker(
+            provider: .manus, domains: [domain],
             settings: .init(cookieSource: source, manualCookieHeader: "session=manual"),
             batches: { _, _ in nil }, usesCookieJar: true, jarImporter: importer,
-            policy: .init(imports: .accessGated, cache: .validatedSingleEntry, requiredCookies: ["session"]),
+            policy: try Self.validatedCookiePolicy(for: domain),
             background: background, accountID: accountID)
     }
 
+    private static func validatedCookiePolicy(for domain: String) throws -> ProviderPluginCookiePolicy {
+        let value = JSONProviderPluginValue([
+            "selection": "ranked-source-domains",
+            "cache": "validated-single-entry",
+            "sourceDomains": [domain],
+            "requiredCookies": ["session"],
+            "imports": "access-gated",
+        ])
+        return try ProviderPluginCookiePolicy(
+            value,
+            domains: [domain],
+            endpoints: [.fixed("https://\(domain)")])
+    }
+
     private func seed() throws {
-        let broker = self.broker()
+        let broker = try self.broker()
         let session = try #require(try broker.nextSession(domain: self.domain))
         try broker.acceptCookie(domain: self.domain, id: session.id)
         try broker.commitAcceptedCookies()

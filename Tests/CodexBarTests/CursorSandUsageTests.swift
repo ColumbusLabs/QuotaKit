@@ -222,9 +222,10 @@ struct CursorSandUsageTests {
         defer { session.invalidateAndCancel() }
         let baseURL = try #require(URL(string: "https://cursor.test"))
 
-        let snapshot = try await CursorStatusProbe.$sandUsageObservedForTesting.withValue({
+        let sandObserved: @Sendable () -> Void = {
             CursorSandOrderedURLProtocol.markSandUsageObserved()
-        }) {
+        }
+        let snapshot = try await CursorStatusProbe.$sandUsageObservedForTesting.withValue(sandObserved) {
             try await CursorStatusProbe(
                 baseURL: baseURL,
                 browserDetection: BrowserDetection(cacheTTL: 0),

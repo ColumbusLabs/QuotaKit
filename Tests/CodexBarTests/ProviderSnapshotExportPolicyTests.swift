@@ -59,7 +59,11 @@ struct ProviderSnapshotExportPolicyTests {
         let session = try await LangdockPluginTests.fetch(
             LangdockPluginTests.body(LangdockPluginTests.plan), now: self.now)
         let sessionAccount = ProviderTokenAccount(
-            id: UUID(), label: "Synthetic account", token: "synthetic", addedAt: 1, lastUsed: nil,
+            id: UUID(),
+            label: "Synthetic account",
+            token: "synthetic",
+            addedAt: 1,
+            lastUsed: nil,
             externalIdentifier: "synthetic-session-account")
         store.accountSnapshots[.zai] = [TokenAccountUsageSnapshot(
             account: sessionAccount,

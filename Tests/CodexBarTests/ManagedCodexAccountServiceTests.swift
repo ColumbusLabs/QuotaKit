@@ -6,69 +6,6 @@ import Testing
 @Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct ManagedCodexAccountServiceTests {
-    @Test(arguments: [false, true])
-    func `reauthentication preserves a removal or newer account change during awaited login`(
-        removed: Bool) async throws
-    {
-        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let store = FileManagedCodexAccountStore(fileURL: root.appendingPathComponent("managed.json"))
-        let original = ManagedCodexAccount(
-            id: UUID(), email: "user@example.com", providerAccountID: "account-live",
-            workspaceLabel: "Original", authFingerprint: "original-fingerprint",
-            managedHomePath: root.appendingPathComponent("accounts/original").path,
-            createdAt: 1, updatedAt: 1, lastAuthenticatedAt: 1)
-        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: [original]))
-        let login = SuspendedManagedCodexLoginRunner()
-        let homeFactory = TestManagedCodexHomeFactory(root: root)
-        let service = ManagedCodexAccountService(
-            store: store, homeFactory: homeFactory, loginRunner: login,
-            identityReader: StubManagedCodexIdentityReader.emails([original.email]),
-            workspaceResolver: StubManagedCodexWorkspaceResolver())
-        let authentication = Task {
-            try await service.authenticateManagedAccount(existingAccountID: original.id)
-        }
-        await login.waitUntilStarted()
-        let newer = ManagedCodexAccount(
-            id: original.id, email: original.email, providerAccountID: "account-live",
-            workspaceLabel: "Newer", authFingerprint: "newer-fingerprint",
-            managedHomePath: root.appendingPathComponent("accounts/newer").path,
-            createdAt: 1, updatedAt: 2, lastAuthenticatedAt: 2)
-        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: removed ? [] : [newer]))
-        let committedBytes = try Data(contentsOf: root.appendingPathComponent("managed.json"))
-        await login.finish()
-        await #expect(throws: ManagedCodexAccountServiceError.accountChangedWhileAuthenticating) {
-            try await authentication.value
-        }
-        #expect(try Data(contentsOf: root.appendingPathComponent("managed.json")) == committedBytes)
-        #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("accounts/account-1").path))
-    }
-
-    @Test
-    func `new account authentication merges additions committed during awaited login`() async throws {
-        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let store = FileManagedCodexAccountStore(fileURL: root.appendingPathComponent("managed.json"))
-        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: []))
-        let login = SuspendedManagedCodexLoginRunner()
-        let service = ManagedCodexAccountService(
-            store: store, homeFactory: TestManagedCodexHomeFactory(root: root), loginRunner: login,
-            identityReader: StubManagedCodexIdentityReader.emails(["new@example.com"]),
-            workspaceResolver: StubManagedCodexWorkspaceResolver())
-        let authentication = Task { try await service.authenticateManagedAccount() }
-        await login.waitUntilStarted()
-        let other = ManagedCodexAccount(
-            id: UUID(), email: "other@example.com", managedHomePath: root.appendingPathComponent("accounts/other").path,
-            createdAt: 1, updatedAt: 1, lastAuthenticatedAt: 1)
-        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: [other]))
-        await login.finish()
-        let authenticated = try await authentication.value
-        let accounts = try store.loadAccounts().accounts
-        #expect(accounts.count == 2)
-        #expect(accounts.contains { $0.id == other.id && $0.managedHomePath == other.managedHomePath })
-        #expect(accounts.contains { $0.id == authenticated.id && $0.email == "new@example.com" })
-    }
-
     @Test
     func `upsert preserves uuid for matching canonical email`() async throws {
         let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -915,6 +852,89 @@ struct ManagedCodexAccountServiceTests {
 
         #expect(store.snapshot.accounts.isEmpty)
         #expect(FileManager.default.fileExists(atPath: outsideRoot.path))
+    }
+}
+
+extension ManagedCodexAccountServiceTests {
+    @Test(arguments: [false, true])
+    func `reauthentication preserves a removal or newer account change during awaited login`(
+        removed: Bool) async throws
+    {
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileManagedCodexAccountStore(fileURL: root.appendingPathComponent("managed.json"))
+        let original = ManagedCodexAccount(
+            id: UUID(),
+            email: "user@example.com",
+            providerAccountID: "account-live",
+            workspaceLabel: "Original",
+            authFingerprint: "original-fingerprint",
+            managedHomePath: root.appendingPathComponent("accounts/original").path,
+            createdAt: 1,
+            updatedAt: 1,
+            lastAuthenticatedAt: 1)
+        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: [original]))
+        let login = SuspendedManagedCodexLoginRunner()
+        let homeFactory = TestManagedCodexHomeFactory(root: root)
+        let service = ManagedCodexAccountService(
+            store: store,
+            homeFactory: homeFactory,
+            loginRunner: login,
+            identityReader: StubManagedCodexIdentityReader.emails([original.email]),
+            workspaceResolver: StubManagedCodexWorkspaceResolver())
+        let authentication = Task {
+            try await service.authenticateManagedAccount(existingAccountID: original.id)
+        }
+        await login.waitUntilStarted()
+        let newer = ManagedCodexAccount(
+            id: original.id,
+            email: original.email,
+            providerAccountID: "account-live",
+            workspaceLabel: "Newer",
+            authFingerprint: "newer-fingerprint",
+            managedHomePath: root.appendingPathComponent("accounts/newer").path,
+            createdAt: 1,
+            updatedAt: 2,
+            lastAuthenticatedAt: 2)
+        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: removed ? [] : [newer]))
+        let committedBytes = try Data(contentsOf: root.appendingPathComponent("managed.json"))
+        await login.finish()
+        await #expect(throws: ManagedCodexAccountServiceError.accountChangedWhileAuthenticating) {
+            try await authentication.value
+        }
+        #expect(try Data(contentsOf: root.appendingPathComponent("managed.json")) == committedBytes)
+        #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("accounts/account-1").path))
+    }
+
+    @Test
+    func `new account authentication merges additions committed during awaited login`() async throws {
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = FileManagedCodexAccountStore(fileURL: root.appendingPathComponent("managed.json"))
+        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: []))
+        let login = SuspendedManagedCodexLoginRunner()
+        let service = ManagedCodexAccountService(
+            store: store,
+            homeFactory: TestManagedCodexHomeFactory(root: root),
+            loginRunner: login,
+            identityReader: StubManagedCodexIdentityReader.emails(["new@example.com"]),
+            workspaceResolver: StubManagedCodexWorkspaceResolver())
+        let authentication = Task { try await service.authenticateManagedAccount() }
+        await login.waitUntilStarted()
+        let other = ManagedCodexAccount(
+            id: UUID(),
+            email: "other@example.com",
+            managedHomePath: root.appendingPathComponent("accounts/other").path,
+            createdAt: 1,
+            updatedAt: 1,
+            lastAuthenticatedAt: 1)
+        try store.storeAccounts(ManagedCodexAccountSet(version: 3, accounts: [other]))
+        await login.finish()
+        let authenticated = try await authentication.value
+        let accounts = try store.loadAccounts().accounts
+        #expect(accounts.count == 2)
+        #expect(accounts.contains { $0.id == other.id && $0.managedHomePath == other.managedHomePath })
+        #expect(accounts.contains { $0.id == authenticated.id && $0.email == "new@example.com" })
     }
 }
 
