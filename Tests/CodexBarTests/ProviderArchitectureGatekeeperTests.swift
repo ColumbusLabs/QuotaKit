@@ -4642,8 +4642,9 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
                 "workbuddy",
+                "langdock",
             ],
-            expectedReferenceCount: 90,
+            expectedReferenceCount: 91,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4727,6 +4728,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "typesafe@37",
                 "xkiro@37",
                 "atlascloud@38",
+                "langdock@38",
                 "lithosai@38",
                 "llmman@38",
                 "muse@38",
