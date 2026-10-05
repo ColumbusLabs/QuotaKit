@@ -18,6 +18,7 @@ struct CLICodexAccountsTests {
         let promote = try program.resolve(argv: ["codex-accounts", "promote", id, "--json"])
         #expect(promote.path == ["codex-accounts", "promote"])
         #expect(promote.parsedValues.positional == [id])
+        #expect(promote.parsedValues.flags.contains("jsonShortcut"))
         #expect(CodexBarCLI.codexAccountsHelp(version: "synthetic").contains("macOS only"))
     }
 

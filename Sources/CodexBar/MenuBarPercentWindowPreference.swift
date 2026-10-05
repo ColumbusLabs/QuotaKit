@@ -113,7 +113,7 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
     {
         guard available.count > 1 else { return false }
         if available.contains(.monthlyPlan) { return true }
-        return iconStyle == .iconAndPercent && hasPercentToken(in: layout)
+        return iconStyle == .iconAndPercent && self.hasPercentToken(in: layout)
     }
 
     static func isVisible(
@@ -121,10 +121,10 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
         layout: MenuBarLayout,
         provider: UsageProvider) -> Bool
     {
-        isVisible(
+        self.isVisible(
             iconStyle: iconStyle,
             layout: layout,
-            available: available(for: provider, layout: layout))
+            available: self.available(for: provider, layout: layout))
     }
 
     /// Writes the per-provider layout override without flipping `menuBarIconStyle`.
@@ -156,8 +156,8 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
     }
 
     static func hasPercentToken(in layout: MenuBarLayout) -> Bool {
-        !percentWindows(in: layout).isEmpty || hasTertiaryPercent(in: layout)
-            || !extraIDs(in: layout).isEmpty
+        !self.percentWindows(in: layout).isEmpty || self.hasTertiaryPercent(in: layout)
+            || !self.extraIDs(in: layout).isEmpty
     }
 
     /// Changes only the common percentage group, preserving pace, resets and custom tokens.
@@ -209,8 +209,8 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
         secondarySemanticWindow: ProviderSemanticWindow) -> PercentWindow
     {
         switch metric {
-        case .primary: percentWindow(primarySemanticWindow)
-        case .secondary: percentWindow(secondarySemanticWindow)
+        case .primary: self.percentWindow(primarySemanticWindow)
+        case .secondary: self.percentWindow(secondarySemanticWindow)
         case .automatic, .primaryAndSecondary, .tertiary, .extraUsage, .average, .monthlyPlan: .automatic
         }
     }

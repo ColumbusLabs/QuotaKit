@@ -128,7 +128,7 @@ extension CodexBarCLI {
 }
 
 struct CodexAccountPromoteOptions: CommanderParsable {
-    @OptionGroup var common: CLICommonOptions
+    @OptionGroup var common: ConfigOptions
     @Argument(help: "Exact managed account UUID or unambiguous email") var account: String = ""
 }
 
