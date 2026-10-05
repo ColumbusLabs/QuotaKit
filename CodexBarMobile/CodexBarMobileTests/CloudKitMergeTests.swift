@@ -48,6 +48,28 @@ struct CloudKitMergeTests {
             deviceID: deviceID)
     }
 
+    @Test(arguments: [false, true])
+    func `Claude cleared cloud details override older balances while legacy nil preserves them`(cleared: Bool) throws {
+        let details = [SyncProviderDetailSection(title: "Cloud credits", rows: [
+            .init(label: "Cloud credits", value: "$15.00 of $20.00 remaining"),
+        ])]
+        func provider(updatedAt: Date, details: [SyncProviderDetailSection]?) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+                accountEmail: "fixture@example.com", loginMethod: "OAuth", statusMessage: nil,
+                isError: false, lastUpdated: updatedAt, providerDetails: details)
+        }
+        let old = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            provider(updatedAt: self.olderDate, details: details),
+        ])
+        let new = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            provider(updatedAt: self.newerDate, details: cleared ? [] : nil),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([old, new]))
+        let claude = try #require(merged.providers.first)
+        #expect(claude.providerDetails == (cleared ? [] : details))
+    }
+
     // MARK: - Single device (degenerate case)
 
     @Test

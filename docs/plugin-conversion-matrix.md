@@ -8,7 +8,7 @@ read_when:
 # Provider plugin conversion matrix
 
 This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
-catalog. The current checkout registers 89 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+catalog. The current checkout registers 91 `UsageProvider` cases. Notion remains in the audit because it was explicitly
 requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
 for the prototype context.
 
@@ -115,3 +115,5 @@ classifications or registry count below.
 | zoommate | `needs-cookie-import` | No | Skipped: cookie-to-JWT exchange plus paginated history requires provider-specific retry state. |
 | xai | `converted` | Yes | Converted: bearer GET balance plus best-effort JSON POST history and billing details. |
 | notion | `needs-cookie-import` | No | Workspace selection and AI allowance calls require imported Notion cookies and forwarded session headers. |
+
+Langdock is a plugin-first addition beyond the historical audit. Its selected Edge profile, live session revalidation, and personal tRPC limits use QuickJS and JavaScriptCore. Session-bound readings remain local and do not enter quota history, iPhone sync, fleet CloudKit, or widgets.

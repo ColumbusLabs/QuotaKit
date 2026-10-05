@@ -5,8 +5,35 @@ import Testing
 struct CodexCostCatchUpPolicyTests {
     @Test
     func `only accelerated mode uses the longer dashboard scan burst`() {
-        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh == 2)
-        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh == 10)
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh() == 2)
+        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh() == 10)
+    }
+
+    @Test
+    func `automatic discovery shares a bounded burst without initial sleep debt`() {
+        for passes in 0..<CodexCostCatchUpPolicy.automaticMaximumBurstPasses {
+            let activeDuration = Double(passes) / 10
+            let decision = CodexCostCatchUpPolicy().decision(for: .init(
+                mode: .automatic,
+                previousActiveDuration: passes == 0 ? nil : activeDuration,
+                powerSource: .ac,
+                lowPowerModeEnabled: false,
+                thermalState: .nominal,
+                completedPasses: passes))
+            #expect(decision.action == .runAfter(0))
+        }
+
+        let capped = CodexCostCatchUpPolicy().decision(for: .init(
+            mode: .automatic,
+            previousActiveDuration: 0.8,
+            powerSource: .ac,
+            lowPowerModeEnabled: false,
+            thermalState: .nominal,
+            completedPasses: CodexCostCatchUpPolicy.automaticMaximumBurstPasses))
+        #expect(capped.action == .runAfter(1998))
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh(after: 1.5) == 0.5)
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh(after: 2) == 0.001)
+        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh(after: 20) == 10)
     }
 
     @Test
@@ -56,13 +83,14 @@ struct CodexCostCatchUpPolicyTests {
     }
 
     @Test
-    func `automatic mode keeps a minimum burst duration for very short passes`() {
+    func `automatic mode keeps a minimum duration after a bounded burst`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,
             previousActiveDuration: 0,
             powerSource: .ac,
             lowPowerModeEnabled: false,
-            thermalState: .nominal))
+            thermalState: .nominal,
+            completedPasses: CodexCostCatchUpPolicy.automaticMaximumBurstPasses))
 
         #expect(decision == .init(action: .runAfter(1998), targetDutyCycle: 0.001))
     }

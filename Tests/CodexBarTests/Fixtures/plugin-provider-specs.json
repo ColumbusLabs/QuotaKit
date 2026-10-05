@@ -88,7 +88,9 @@
     "muse",
     "pi",
     "museai",
-    "lithosai"
+    "lithosai",
+    "workbuddy",
+    "langdock"
   ],
   "order": [
     "codex",
@@ -179,7 +181,9 @@
     "muse",
     "pi",
     "museai",
-    "lithosai"
+    "lithosai",
+    "workbuddy",
+    "langdock"
   ],
   "providers": [
     {
@@ -2783,6 +2787,94 @@
         0.4235294117647059,
         0.7725490196078432,
         0.6901960784313725
+      ],
+      "workspaceOrder": null
+    },
+    {
+      "apiKeyDebugLabel": "",
+      "availability": [
+        true,
+        true,
+        true
+      ],
+      "cli": [
+        "langdock"
+      ],
+      "color": [
+        0.35294117647058826,
+        0.2901960784313726,
+        0.9058823529411765
+      ],
+      "confetti": [
+        [
+          0.35294117647058826,
+          0.2901960784313726,
+          0.9058823529411765
+        ],
+        [
+          0.7019607843137254,
+          0.6666666666666666,
+          1.0
+        ]
+      ],
+      "creditsHint": "",
+      "dashboard": "https://app.langdock.com/settings/account/usage",
+      "debug": "",
+      "detail": "Selected browser profile",
+      "enterpriseHost": false,
+      "environmentAvailability": [
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ],
+        [
+          true,
+          true
+        ]
+      ],
+      "fields": [],
+      "flags": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon": "ProviderIcon-langdock",
+      "id": "langdock",
+      "labels": [
+        "Session",
+        "Weekly",
+        ""
+      ],
+      "name": "Langdock",
+      "noData": "Langdock cost usage is not supported.",
+      "planLabels": {},
+      "progressColor": "brand",
+      "projectToken": "",
+      "projections": {},
+      "status": [
+        "",
+        ""
+      ],
+      "subscriptionDashboard": "",
+      "toggle": "Show Langdock usage",
+      "toggles": [],
+      "widgetColor": [
+        0.35294117647058826,
+        0.2901960784313726,
+        0.9058823529411765
       ],
       "workspaceOrder": null
     }

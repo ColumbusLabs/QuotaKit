@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "还有 %d 个";
+"Add folder…" = "添加文件夹…";
+"Additional Gemini profile homes" = "其他 Gemini 配置目录";
+"Cloud credits" = "云端额度";
 "Conversations (%@)" = "会话（%@）";
+"Expired" = "已过期";
 "Fast" = "高速";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "可选。选择每个配置的 .gemini 文件夹以合并本地令牌和费用历史记录。主目录始终包含在内。不会更改登录状态或配额。";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "项目";
 "Session %@" = "会话 %@";
@@ -1363,6 +1368,9 @@
 "Cache write" = "缓存写入";
 "Reasoning" = "推理";
 "Sessions" = "会话";
+"Independent chats" = "独立聊天";
+"Independent chat" = "独立聊天";
+"Chat %d" = "聊天 %d";
 "Projects" = "项目";
 "Plan metered" = "套餐计量";
 "List-price equivalent" = "目录价等值";
@@ -1701,3 +1709,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "选择或传入 Google 账户后，Auto 仅在身份匹配时接受本地应用、agy CLI 和 IDE 的报告，然后尝试 OAuth。明确选择 Local API / agy CLI 时，可以使用另一个已在本地登录的账户。";
 "Supported browsers: %@. Use Manual for other browsers." = "支持的浏览器：%@。其他浏览器请使用“手动”模式。";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "粘贴 Chrome 向 www.workbuddy.cn/profile/plans-usage 发送的请求中的 Cookie 标头。";
+"Reserved" = "已预留";
+
+"Left" = "剩余";
+
+/* Selected browser profile */
+"Browser profile" = "浏览器配置文件";
+"Unavailable profile: %@" = "配置文件不可用：%@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "仅读取所选的 %@ 配置文件。绝不会自动选择账户。";

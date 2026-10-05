@@ -150,6 +150,31 @@ struct ProviderDetailSectionDispatcherTests {
             .map(\.id) == ["hyper"])
     }
 
+    @Test
+    func `WorkBuddy details show only sanitized credit rows`() {
+        let provider = Self.snapshot(
+            providerID: "workbuddy",
+            providerName: "WorkBuddy",
+            providerDetails: [
+                .init(title: "Credits", rows: [
+                    .init(label: "Left", value: "1,234.5"),
+                    .init(label: "Total", value: "2,000"),
+                    .init(label: "Reserved", value: "10"),
+                    .init(label: "Cookie", value: "fixture-secret"),
+                    .init(label: "Account Email", value: "person@example.com"),
+                    .init(label: "Left", value: "NaN"),
+                ]),
+                .init(title: "Account", rows: [.init(label: "ID", value: "private-id")]),
+            ])
+
+        let details = ProviderDetailSectionDispatcher.displayProviderDetails(for: provider)
+        #expect(details == [SyncProviderDetailSection(title: "Credits", rows: [
+            .init(label: "Left", value: "1,234.5"),
+            .init(label: "Total", value: "2,000"),
+            .init(label: "Reserved", value: "10"),
+        ])])
+    }
+
     private static func snapshot(
         providerID: String,
         providerName: String,
@@ -159,7 +184,8 @@ struct ProviderDetailSectionDispatcherTests {
         antigravityAccounts: SyncMultiAccountList? = nil,
         codexWorkspace: SyncCodexWorkspaceContext? = nil,
         crossModelUsage: SyncCrossModelUsage? = nil,
-        hyperBalance: SyncHyperBalance? = nil) -> ProviderUsageSnapshot
+        hyperBalance: SyncHyperBalance? = nil,
+        providerDetails: [SyncProviderDetailSection]? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: providerID,
@@ -182,6 +208,7 @@ struct ProviderDetailSectionDispatcherTests {
             antigravityAccounts: antigravityAccounts,
             codexWorkspace: codexWorkspace,
             crossModelUsage: crossModelUsage,
-            hyperBalance: hyperBalance)
+            hyperBalance: hyperBalance,
+            providerDetails: providerDetails)
     }
 }

@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ อีก %d รายการ";
+"Add folder…" = "เพิ่มโฟลเดอร์…";
+"Additional Gemini profile homes" = "โฟลเดอร์โปรไฟล์ Gemini เพิ่มเติม";
+"Cloud credits" = "เครดิตคลาวด์";
 "Conversations (%@)" = "บทสนทนา (%@)";
+"Expired" = "หมดอายุแล้ว";
 "Fast" = "เร็ว";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "ไม่บังคับ เลือกโฟลเดอร์ .gemini ของแต่ละโปรไฟล์เพื่อรวมประวัติโทเค็นและค่าใช้จ่ายในเครื่อง โดยจะรวมโฟลเดอร์หลักเสมอ และไม่เปลี่ยนการลงชื่อเข้าใช้หรือโควตา";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "โปรเจกต์";
 "Session %@" = "เซสชัน %@";
@@ -1564,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "แชทอิสระ";
+"Independent chats" = "แชทอิสระ";
+"Chat %d" = "แชท %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1693,3 +1702,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "เมื่อเลือกหรือระบุบัญชี Google แล้ว Auto จะยอมรับรายงานจากแอปในเครื่อง agy CLI และ IDE เฉพาะเมื่อข้อมูลระบุตัวตนตรงกัน จากนั้นจึงลอง OAuth หากเลือก Local API / agy CLI โดยตรง สามารถใช้บัญชีอื่นที่ลงชื่อเข้าใช้ในเครื่องได้";
 "Supported browsers: %@. Use Manual for other browsers." = "เบราว์เซอร์ที่รองรับ: %@ ใช้โหมดกำหนดเองสำหรับเบราว์เซอร์อื่น";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "วางส่วนหัว Cookie จากคำขอของ Chrome ไปยัง www.workbuddy.cn/profile/plans-usage";
+"Reserved" = "สำรองไว้";
+
+"Left" = "คงเหลือ";
+
+/* Selected browser profile */
+"Browser profile" = "โปรไฟล์เบราว์เซอร์";
+"Unavailable profile: %@" = "โปรไฟล์ไม่พร้อมใช้งาน: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "อ่านเฉพาะโปรไฟล์ %@ ที่เลือกเท่านั้น ระบบจะไม่เลือกบัญชีโดยอัตโนมัติ";

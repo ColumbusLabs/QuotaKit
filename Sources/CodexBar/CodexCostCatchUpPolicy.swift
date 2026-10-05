@@ -5,9 +5,10 @@ enum CodexCostCatchUpMode: String, Sendable {
     case automatic
     case accelerated
 
-    var scanDurationPerRefresh: TimeInterval {
+    func scanDurationPerRefresh(after activeDuration: TimeInterval? = nil) -> TimeInterval {
         switch self {
-        case .automatic: CodexCostCatchUpPolicy.automaticBurstDuration
+        case .automatic:
+            max(0.001, CodexCostCatchUpPolicy.automaticBurstDuration - max(0, activeDuration ?? 0))
         case .accelerated: 10
         }
     }
@@ -74,6 +75,7 @@ struct CodexCostCatchUpPolicy: Sendable {
         let powerSource: CodexCostCatchUpPowerSource
         let lowPowerModeEnabled: Bool
         let thermalState: ProcessInfo.ThermalState
+        var completedPasses: Int = 0
     }
 
     struct Decision: Sendable, Equatable {
@@ -87,6 +89,7 @@ struct CodexCostCatchUpPolicy: Sendable {
     }
 
     static let automaticBurstDuration: TimeInterval = 2
+    static let automaticMaximumBurstPasses = 8
     static let constrainedRetryDelay: TimeInterval = 60
 
     func decision(for input: Input) -> Decision {
@@ -117,12 +120,17 @@ struct CodexCostCatchUpPolicy: Sendable {
         case .battery: 0.0002
         case .unknown: 0.0005
         }
-        // Even a tiny scan incurs parser and database setup. Keep QuotaKit's minimum burst
-        // duration so a growing tail cannot schedule near-zero automatic retries.
-        let activeDuration = max(
-            Self.automaticBurstDuration,
-            max(0, input.previousActiveDuration ?? Self.automaticBurstDuration))
-        let delay = activeDuration * (1 - dutyCycle) / dutyCycle
+        let activeDuration = max(0, input.previousActiveDuration ?? 0)
+        // Cheap discovery pages share one bounded burst; readiness is still checked after every page.
+        if activeDuration < Self.automaticBurstDuration,
+           input.completedPasses < Self.automaticMaximumBurstPasses
+        {
+            return Decision(action: .runAfter(0), targetDutyCycle: dutyCycle)
+        }
+        // If the pass cap ends a burst early, retain QuotaKit's minimum delay so a growing tail
+        // cannot schedule near-zero automatic retries.
+        let accountedDuration = max(Self.automaticBurstDuration, activeDuration)
+        let delay = accountedDuration * (1 - dutyCycle) / dutyCycle
         return Decision(action: .runAfter(delay), targetDutyCycle: dutyCycle)
     }
 }

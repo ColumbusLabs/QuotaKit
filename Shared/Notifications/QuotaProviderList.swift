@@ -158,6 +158,7 @@ public enum QuotaProviderList {
         Provider(id: "muse", displayName: "Muse Code"),
         // Append-only: MuseAI (muse.ai) quota pushes preserve every existing zone name.
         Provider(id: "museai", displayName: "Muse (muse.ai)"),
+        Provider(id: "workbuddy", displayName: "WorkBuddy"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

@@ -103,6 +103,8 @@ extension CodexBarCLI {
                 // cookie-authenticated dashboard API via the shared session resolution.
                 let snapshot = try await fetcher.loadTokenSnapshot(
                     provider: provider,
+                    antigravityAdditionalProfileHomes:
+                    config.providerConfig(for: provider.instanceID)?.antigravityAdditionalProfileHomes ?? [],
                     now: now,
                     forceRefresh: forceRefresh,
                     historyDays: historyDays,
@@ -444,6 +446,7 @@ extension CodexBarCLI {
         var lines = [header, "Projects (\(historyLabel)):"]
         guard !snapshot.projects.isEmpty else {
             lines.append("—")
+            // Provider-specific by design: the Codex project report keeps its estimate caveat when rows are empty.
             lines.append(Self.costEstimateHint(provider: .codex))
             return lines.joined(separator: "\n")
         }
@@ -467,6 +470,7 @@ extension CodexBarCLI {
                 }
             }
         }
+        // Provider-specific by design: Codex project totals retain the local token-cost estimate caveat.
         lines.append(Self.costEstimateHint(provider: .codex))
         return lines.joined(separator: "\n")
     }

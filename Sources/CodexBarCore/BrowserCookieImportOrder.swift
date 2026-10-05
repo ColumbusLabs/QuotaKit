@@ -22,6 +22,11 @@ extension [Browser] {
     func lazyCookieImportCandidates(using detection: BrowserDetection) -> some Sequence<Browser> {
         self.lazy.filter { browser in
             if KeychainAccessGate.isDisabled, browser.usesKeychainForCookieDecryption {
+                #if os(macOS)
+                if KeychainAccessGate.isExplicitlyDisabled {
+                    BrowserCookieAccessGate.recordAccessFailure(for: browser)
+                }
+                #endif
                 return false
             }
             return detection.isCookieSourceAvailable(browser) && BrowserCookieAccessGate.shouldAttempt(browser)
@@ -37,7 +42,7 @@ extension [Browser] {
 #if os(macOS)
 extension Browser {
     var usesKeychainForCookieDecryption: Bool {
-        self.usesChromiumProfileStore
+        self != .safari && !self.usesGeckoProfileStore
     }
 }
 #else

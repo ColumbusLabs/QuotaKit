@@ -15,6 +15,7 @@ enum ProviderPluginHTTPResponse {
         let optional: URLRequest?
         let primaryCookieSessionID: String?
         let optionalCookieSessionID: String?
+        let hidesResponseCookies: Bool
         let retryPolicy: ProviderHTTPRetryPolicy
         let optionalBudget: Duration?
 
@@ -30,6 +31,7 @@ enum ProviderPluginHTTPResponse {
             cookieJar: ProviderPluginCookieJar? = nil) throws
         {
             self.primaryCookieSessionID = options["cookieSession"] as? String
+            self.hidesResponseCookies = manifest.cookiePolicy?.selectedProfile == true
             Self.redactForm(options, into: redactionValues)
             if let budget = options["optionalBudgetSeconds"] {
                 guard let number = budget as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
@@ -173,7 +175,8 @@ enum ProviderPluginHTTPResponse {
                 responseSizeLimit: responseSizeLimit,
                 enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                 rejectsNonSuccessResponses: rejectsNonSuccessResponses,
-                allowsRetry: request.retryPolicy.maxRetries == 0)
+                allowsRetry: request.retryPolicy.maxRetries == 0,
+                hidesResponseCookies: request.hidesResponseCookies)
             if request.optional != nil {
                 if let optional, (200..<300).contains(primary.statusCode) {
                     payload["optional"] = try? self.checkedPayload(
@@ -182,7 +185,8 @@ enum ProviderPluginHTTPResponse {
                         responseSizeLimit: responseSizeLimit,
                         enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                         rejectsNonSuccessResponses: true,
-                        allowsRetry: false)
+                        allowsRetry: false,
+                        hidesResponseCookies: request.hidesResponseCookies)
                 }
                 if payload["optional"] == nil { payload["optional"] = NSNull() }
             }
@@ -197,7 +201,8 @@ enum ProviderPluginHTTPResponse {
         responseSizeLimit: Int,
         enforcesUserResponsePolicy: Bool,
         rejectsNonSuccessResponses: Bool,
-        allowsRetry: Bool) throws -> [String: Any]
+        allowsRetry: Bool,
+        hidesResponseCookies: Bool) throws -> [String: Any]
     {
         guard response.data.count <= responseSizeLimit else {
             throw ProviderPluginError.http("response exceeded the \(responseSizeLimit)-byte limit")
@@ -211,7 +216,7 @@ enum ProviderPluginHTTPResponse {
         {
             throw ProviderPluginError.http("compressed responses are not allowed")
         }
-        return try self.payload(response, wantsJSON: wantsJSON)
+        return try self.payload(response, wantsJSON: wantsJSON, hidesResponseCookies: hidesResponseCookies)
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -435,10 +440,16 @@ enum ProviderPluginHTTPResponse {
         }
     }
 
-    static func payload(_ response: ProviderHTTPResponse, wantsJSON: Bool) throws -> [String: Any] {
+    static func payload(
+        _ response: ProviderHTTPResponse,
+        wantsJSON: Bool,
+        hidesResponseCookies: Bool = false) throws -> [String: Any]
+    {
         var headers: [String: String] = [:]
         for (key, value) in response.response.allHeaderFields {
-            headers[String(describing: key).lowercased()] = String(describing: value)
+            let name = String(describing: key).lowercased()
+            if hidesResponseCookies, ["cookie", "set-cookie", "set-cookie2"].contains(name) { continue }
+            headers[name] = String(describing: value)
         }
         var payload: [String: Any] = [
             "status": response.statusCode,

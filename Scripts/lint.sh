@@ -205,6 +205,7 @@ check_release_feed_url() {
 }
 
 check_swift_test_sharding() {
+  python3 "${ROOT_DIR}/Scripts/test_direct_swift_test_groups.py"
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
 

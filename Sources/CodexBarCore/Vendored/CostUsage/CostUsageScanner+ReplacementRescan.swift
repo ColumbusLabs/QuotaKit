@@ -1,7 +1,9 @@
 import Foundation
 
 extension CostUsageScanner {
-    private struct CodexRescanPlan {
+    /// These immutable phase values hold inline cache/parser results on the heap, so
+    /// their return storage does not accumulate across nested inherited-parent lookups.
+    private final class CodexRescanPlan {
         let cached: CostUsageFileUsage?
         let migratedCached: CostUsageFileUsage?
         let parsed: CodexParseResult
@@ -14,20 +16,68 @@ extension CostUsageScanner {
         let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
         let sourceAnchor: CostUsageCodexTokenIndexAnchor?
         let stageParsedRows: Bool
+
+        init(
+            cached: CostUsageFileUsage?,
+            migratedCached: CostUsageFileUsage?,
+            parsed: CodexParseResult,
+            replacementWasPending: Bool,
+            parserRevisionNeedsReplacement: Bool,
+            replacementGeneration: Bool,
+            replacementPending: Bool,
+            scanComplete: Bool,
+            usageDays: [String: [String: [Int]]],
+            sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
+            sourceAnchor: CostUsageCodexTokenIndexAnchor?,
+            stageParsedRows: Bool)
+        {
+            self.cached = cached
+            self.migratedCached = migratedCached
+            self.parsed = parsed
+            self.replacementWasPending = replacementWasPending
+            self.parserRevisionNeedsReplacement = parserRevisionNeedsReplacement
+            self.replacementGeneration = replacementGeneration
+            self.replacementPending = replacementPending
+            self.scanComplete = scanComplete
+            self.usageDays = usageDays
+            self.sourcePricing = sourcePricing
+            self.sourceAnchor = sourceAnchor
+            self.stageParsedRows = stageParsedRows
+        }
     }
 
-    private struct CodexRescanPreparation {
+    private final class CodexRescanPreparation {
         let migratedCached: CostUsageFileUsage?
         let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
         let sourceAnchor: CostUsageCodexTokenIndexAnchor?
         let parserRevisionNeedsReplacement: Bool
         let stageParsedRows: Bool
+
+        init(
+            migratedCached: CostUsageFileUsage?,
+            sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
+            sourceAnchor: CostUsageCodexTokenIndexAnchor?,
+            parserRevisionNeedsReplacement: Bool,
+            stageParsedRows: Bool)
+        {
+            self.migratedCached = migratedCached
+            self.sourcePricing = sourcePricing
+            self.sourceAnchor = sourceAnchor
+            self.parserRevisionNeedsReplacement = parserRevisionNeedsReplacement
+            self.stageParsedRows = stageParsedRows
+        }
     }
 
-    private struct CodexRescanMaterialized {
+    private final class CodexRescanMaterialized {
         let usage: CostUsageFileUsage
         let session: CodexScannedSession
         let rows: [CodexUsageRow]
+
+        init(usage: CostUsageFileUsage, session: CodexScannedSession, rows: [CodexUsageRow]) {
+            self.usage = usage
+            self.session = session
+            self.rows = rows
+        }
     }
 
     private struct CodexRescanAccounting {
@@ -56,9 +106,12 @@ extension CostUsageScanner {
            !plan.replacementPending,
            Self.dropStaleCodexSessionAliases(
                currentSession: plan.parsed.codexSession,
-               currentPath: input.metadata.path,
-               currentMtimeUnixMs: input.metadata.mtimeUnixMs,
-               currentSize: input.metadata.size,
+               currentHasTypedResponseIdentity: plan.parsed.requestLedgerState?.hasTypedResponseIdentity == true
+                   || input.cached?.codexTypedResponseIdentity == true,
+               currentFile: (
+                   path: input.metadata.path,
+                   mtimeUnixMs: input.metadata.mtimeUnixMs,
+                   size: input.metadata.size),
                cache: &cache)
         {
             return
@@ -267,6 +320,7 @@ extension CostUsageScanner {
             range: context.range,
             startOffset: resumeOffset ?? 0,
             initialModel: stagedUsage?.lastModel,
+            initialSessionID: stagedUsage?.sessionId,
             initialTotals: stagedUsage?.lastCountedTotals,
             initialRawTotalsBaseline: stagedUsage?.lastRawTotalsBaseline,
             initialRawTotalsWatermark: stagedUsage?.lastRawTotalsWatermark,
@@ -283,6 +337,8 @@ extension CostUsageScanner {
             includeInitialBufferedTokenSnapshots: includeInitialBufferedTokenSnapshots,
             initialJSONLResumeState: stagedUsage?.codexJSONLResumeState,
             initialForkAccountingState: stagedUsage?.codexForkAccountingState,
+            initialRequestLedgerState: stagedUsage?.codexRequestLedgerState,
+            initialRequestLedgerRows: stagedUsage?.codexStagedRecoveryRows ?? [],
             maxBytesToRead: maxBytesToRead,
             shouldStopReading: context.scanBudget.map { budget in
                 { bytesRead in budget.shouldYield(additionalBytes: bytesRead) }
@@ -335,6 +391,39 @@ extension CostUsageScanner {
             stageParsedRows: preparation.stageParsedRows)
     }
 
+    private static func codexRescanSessionMetadata(
+        cached: CostUsageFileUsage?,
+        parsed: CodexParseResult) -> CostUsageCodexSessionMetadata
+    {
+        let cachedSessionMetadata = cached?.codexSession ?? CostUsageCodexSessionMetadata(
+            sessionId: cached?.sessionId,
+            forkedFromId: cached?.forkedFromId,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil)
+        return cachedSessionMetadata.merging(parsed.codexSession)
+    }
+
+    private static func codexRescanRowsRetainingRequestOwnership(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        rows: [CodexUsageRow],
+        sessionID: String?,
+        sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?) -> [CodexUsageRow]
+    {
+        guard !context.dropDeferredCodexRows, sourcePricing == nil,
+              let cached = input.cached, cached.hasCurrentCodexParser,
+              cached.sessionId == sessionID, cached.codexScanFileId == input.metadata.fileId,
+              let anchor = cached.codexTokenIndexAnchor,
+              codexTokenIndexAnchorMatches(anchor, fileURL: input.fileURL, metadata: input.metadata)
+        else { return rows }
+        return Self.codexRowsRetainingRequestOwnership(
+            rows,
+            ownedRows: Self.codexRowsWithLedgerMirrorAliases(
+                cached.codexRows ?? [], ledger: cached.codexRequestLedgerState))
+    }
+
     private static func materializeCodexRescan(
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
@@ -343,22 +432,16 @@ extension CostUsageScanner {
     {
         let parsed = plan.parsed
         let migratedCached = plan.migratedCached
-        let parsedCodexSession: CostUsageCodexSessionMetadata
-        let cachedSessionMetadata = input.cached?.codexSession ?? CostUsageCodexSessionMetadata(
-            sessionId: input.cached?.sessionId,
-            forkedFromId: input.cached?.forkedFromId,
-            cwd: nil,
-            title: nil,
-            startedAtUnixMs: nil,
-            latestActivityUnixMs: nil)
-        parsedCodexSession = cachedSessionMetadata.merging(parsed.codexSession)
+        let parsedCodexSession = Self.codexRescanSessionMetadata(cached: input.cached, parsed: parsed)
         let sessionId = parsedCodexSession.sessionId ?? parsed.sessionId ?? input.cached?.sessionId
         let projectPath = parsed.projectPath ?? input.cached?.projectPath
         let canonicalProjectPath = parsed.projectPath.map {
             context.resources.projectPathResolver.canonicalProjectPath(for: $0)
         } ?? input.cached?.canonicalProjectPath ?? context.resources.projectPathResolver
             .canonicalProjectPath(for: projectPath)
-        let stagedRows = plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []
+        let stagedRows = (plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []).filter {
+            $0.eventIndex.map { !parsed.replacedLegacyRowIndices.contains($0) } ?? true
+        }
         let sourceSessionID = parsed.sessionId ?? input.cached?.sessionId
         let sourcePricing = input.cached?.sessionId != nil && parsed.sessionId != nil
             && parsed.sessionId != input.cached?.sessionId ? [:] : plan.sourcePricing
@@ -367,8 +450,10 @@ extension CostUsageScanner {
             metadata: input.metadata,
             sessionId: sourceSessionID,
             preserveCachedRows: sourcePricing == nil && !plan.parserRevisionNeedsReplacement)
+        let ownershipRows = Self.codexRescanRowsRetainingRequestOwnership(
+            input: input, context: context, rows: parsed.rows, sessionID: sourceSessionID, sourcePricing: sourcePricing)
         let classifiedNewRows = Self.codexRowsWithRetainedPricing(
-            parsed.rows,
+            ownershipRows,
             source: (sourcePricing, parsed.rowSourceEndOffsets, plan.sourceAnchor?.indexedBytes),
             pendingPricing: &pendingPricing,
             sessionId: sourceSessionID,
@@ -385,6 +470,9 @@ extension CostUsageScanner {
         // Source-boundary and pending pricing are applied before deduplication so invalidated
         // historical evidence cannot reprice a replacement generation.
         let classifiedRows = uniqueRows
+        let requestLedgerState = classifiedRows.reduce(parsed.requestLedgerState) { ledger, row in
+            Self.codexLedgerRetainingPromotedRow(row, state: ledger)
+        }
         context.workRecorder?.record(processed: uniqueRows.count, repriced: uniqueRows.count)
         let usageDays = plan.usageDays
         let duplicateWithoutUniqueUsage = plan.scanComplete
@@ -475,6 +563,7 @@ extension CostUsageScanner {
                 : CostUsageFileUsage.currentCodexParserRevision,
             codexJSONLResumeState: parsed.jsonlResumeState,
             codexForkAccountingState: parsed.forkAccountingState,
+            codexRequestLedgerState: requestLedgerState,
             codexBufferedSubagentLines: parsed.bufferedSubagentLines,
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
@@ -485,7 +574,7 @@ extension CostUsageScanner {
         usage.codexStagedRecoveryRows = plan.replacementPending ? uniqueRows : nil
         usage.codexStagedRecoverySnapshots = plan.replacementPending
             ? replayedSnapshots : nil
-        if duplicateWithoutUniqueUsage,
+        if duplicateWithoutUniqueUsage, parsed.requestLedgerState?.hasTypedResponseIdentity != true,
            !parsed.rows.isEmpty || !Self.isCompleteEmptyCodexFragment(usage)
         {
             return nil

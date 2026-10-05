@@ -1,4 +1,4 @@
-/** A secret session bound to one declared origin; opaque IDs omit the header for host cookie jars. */
+/** A host-issued candidate. Request-URL cookie policies expose metadata only. */
 interface CodexBarCookieSession {
   readonly id: string;
   readonly header?: string;
@@ -231,6 +231,7 @@ interface CodexBarPluginContext {
   readonly browser: {
     readonly supportedBrowsers: string;
     availability(domain: string): "available" | "off" | "manual";
+    acceptCookie(domain: string, session: CodexBarCookieSession): void;
     rejectCookie(domain: string, session?: CodexBarCookieSession): void;
     sessions(domain: string, options?: { cachedOnly?: boolean }): AsyncIterable<CodexBarCookieSession>;
     cookieHeader(domain: string): Promise<string>;
@@ -289,12 +290,19 @@ interface CodexBarProviderDefinition {
   /** Grants declared cookie access, HTTP status handling, or bounded non-secret persistent state. */
   capabilities?: Array<"browser-cookies" | "http-status" | "persistent-storage">;
   cookieDomains?: string[];
-  /** Use host-side request-URL cookie matching without persistent cookie storage. Bundled plugins only. */
+  snapshotPolicy?: { percent: "clamp" | "preserve-overage" };
+  /** Use host-side cookie policy and optional selected-profile ownership validation. Bundled plugins only. */
   cookiePolicy?: {
-    selection: "request-url";
-    cache: "nonpersistent";
+    selection: "request-url" | "ranked-source-domains";
+    cache: "nonpersistent" | "validated-single-entry";
     imports?: "app-interactive" | "access-gated";
+    sourceDomains?: string[];
     requiredCookies?: string[];
+    missingCookies?: "reject" | "omit";
+    /** Restrict reads to the configured browser profile and revalidate ownership before publication. */
+    store?: "selected-profile";
+    /** URL whose requiredCookies establish session ownership; required for selected-profile. */
+    sessionURL?: string;
     /** Host-only echo of a required cookie into a custom X- header on one declared HTTPS origin. */
     headerEcho?: { origin: string; cookie: string; header: string };
   };

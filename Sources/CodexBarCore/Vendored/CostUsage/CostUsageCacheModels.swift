@@ -37,15 +37,24 @@ struct CodexHistoryHydrationRetry: Codable, Equatable, Sendable {
     /// Exact persisted file keys whose complete baseline must survive until the retry resolves.
     var retainedPaths: [String]
     var forceFullRescan: Bool
+    /// Missing canonical request owners held until bounded source reconciliation completes.
+    var requestOwnerPaths: [String]?
 
-    init(retainedPaths: some Sequence<String>, forceFullRescan: Bool) {
+    init(
+        retainedPaths: some Sequence<String>,
+        forceFullRescan: Bool,
+        requestOwnerPaths: [String]? = nil)
+    {
         self.retainedPaths = Array(Set(retainedPaths)).sorted()
         self.forceFullRescan = forceFullRescan
+        self.requestOwnerPaths = requestOwnerPaths
     }
 
     mutating func merge(_ other: Self) {
         self.retainedPaths = Array(Set(self.retainedPaths).union(other.retainedPaths)).sorted()
         self.forceFullRescan = self.forceFullRescan || other.forceFullRescan
+        let owners = Set(self.requestOwnerPaths ?? []).union(other.requestOwnerPaths ?? [])
+        self.requestOwnerPaths = owners.isEmpty ? nil : owners.sorted()
     }
 }
 
@@ -371,8 +380,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Fork accounting changes require bounded reparsing of older files.
-    static let currentCodexParserRevision = 7
+    /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
+    static let currentCodexParserRevision = 8
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -428,11 +437,27 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
+    var codexRequestLedgerState: CostUsageScanner.CodexRequestLedgerState?
+    /// Derived from stored ledger details so compact manifests classify pages without hydrating identities.
+    var codexHasTypedResponseIdentity: Bool?
+    var codexRequestReconciliation: CostUsageCodexRequestReconciliation?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?
     var codexHasBufferedUnresolvedForkLines: Bool?
     var codexParserRevision: Int? = CostUsageFileUsage.currentCodexParserRevision
+
+    /// Nil means an older or malformed manifest has not established the page's identity kind.
+    var codexTypedResponseIdentity: Bool? {
+        if self.codexRequestLedgerState?.hasTypedResponseIdentity == true
+            || self.codexHasTypedResponseIdentity == true
+            || self.codexRows?.contains(where: { $0.responseID != nil }) == true
+        { return true }
+        if self.codexRequestLedgerState != nil || self.codexHasTypedResponseIdentity != nil || self.codexRows != nil {
+            return false
+        }
+        return nil
+    }
 
     var hasCurrentCodexParser: Bool {
         self.codexParserRevision == Self.currentCodexParserRevision
@@ -467,7 +492,17 @@ struct CostUsageFileUsage: Codable, Equatable {
 
     var hasPendingCodexScanWork: Bool {
         self.codexScanComplete == false || self.hasPendingCodexForkRetry || self.hasPendingCodexReplacementScan
+            || self.codexRequestReconciliation?.pendingPaths.isEmpty == false
     }
+}
+
+/// Manifest-visible progress for bounded cross-page request reconciliation.
+struct CostUsageCodexRequestReconciliation: Codable, Equatable {
+    var size: Int64
+    var mtimeUnixMs: Int64
+    var parserRevision: Int
+    var sessionID: String?
+    var pendingPaths: [String]
 }
 
 struct CostUsageCodexAppendOnlyPrefix: Codable, Equatable {

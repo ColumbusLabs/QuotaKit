@@ -79,8 +79,8 @@ struct SyncCoordinatorDescriptorPaceTests {
 
     @Test
     func `Cursor paid Grok Bot extra publishes weekly identity and pace to iPhone`() async throws {
-        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
-        let resetsAt = try #require(ISO8601DateParser.parse("2026-10-05T11:20:04Z"))
+        let now = Date()
+        let resetsAt = now.addingTimeInterval(48 * 60 * 60)
         let extraWindow = NamedRateWindow(
             id: CursorSandUsageStatus.extraWindowID,
             title: CursorSandUsageStatus.extraWindowTitle,

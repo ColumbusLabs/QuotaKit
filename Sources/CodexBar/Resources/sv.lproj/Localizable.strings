@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d till";
+"Add folder…" = "Lägg till mapp…";
+"Additional Gemini profile homes" = "Ytterligare Gemini-profilmappar";
+"Cloud credits" = "Molnkrediter";
 "Conversations (%@)" = "Konversationer (%@)";
+"Expired" = "Upphört";
 "Fast" = "Snabbt";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Valfritt. Välj varje profils .gemini-mapp för att slå ihop lokal historik över token och kostnader. Den primära mappen ingår alltid. Inloggning och kvoter påverkas inte.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Projekt";
 "Session %@" = "Session %@";
@@ -1559,6 +1564,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Fristående chatt";
+"Independent chats" = "Fristående chattar";
+"Chat %d" = "Chatt %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1688,3 +1697,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Med ett valt eller angivet Google-konto accepterar Auto rapporter från den lokala appen, agy CLI och IDE endast om identiteten matchar och försöker sedan med OAuth. Uttryckligen valda Local API / agy CLI kan använda ett annat lokalt inloggat konto.";
 "Supported browsers: %@. Use Manual for other browsers." = "Webbläsare som stöds: %@. Använd Manuellt för andra webbläsare.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Klistra in Cookie-headern från en Chrome-begäran till www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reserverat";
+
+"Left" = "Kvar";
+
+/* Selected browser profile */
+"Browser profile" = "Webbläsarprofil";
+"Unavailable profile: %@" = "Profilen är inte tillgänglig: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Läs endast den valda %@-profilen. Konton väljs aldrig automatiskt.";

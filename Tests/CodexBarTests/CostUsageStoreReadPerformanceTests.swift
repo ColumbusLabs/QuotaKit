@@ -150,14 +150,172 @@ struct CostUsageStoreReadPerformanceTests {
 
         let snapshot = await store.readSnapshot()
         var decoderConstructions = 0
+        let decoder = CountingReadPerformanceDecoder()
         let decoded = CostUsageStore.decodeCodexCache(from: snapshot, makeDecoder: {
             decoderConstructions += 1
-            return JSONDecoder()
+            return decoder
         })
 
         #expect(decoderConstructions == 1)
+        for file in snapshot.files {
+            let payload = try #require(file.scanState.detailsPayload)
+            #expect(decoder.count(for: payload) == 1)
+        }
         #expect(decoded.days == cache.days)
         #expect(decoded.files[path]?.codexRows?.map(\.input) == [10, 20])
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func `one details decode preserves complete legacy malformed and lazy restoration`(
+        manifestOnly: Bool,
+        preserveMalformed: Bool) async throws
+    {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        let snapshot = try await Self.detailsSnapshot(root: fixture.root)
+        let decoder = CountingReadPerformanceDecoder()
+        let paths: Set<String>? = manifestOnly ? [] : nil
+        let decoded = CostUsageStore.decodeCodexCache(
+            from: snapshot,
+            hydratingPaths: paths,
+            preserveMalformedFiles: preserveMalformed,
+            makeDecoder: { decoder })
+
+        for file in snapshot.files {
+            if let payload = file.scanState.detailsPayload {
+                #expect(decoder.count(for: payload) == 1)
+            }
+        }
+        let malformedPaths: Set = ["/sessions/malformed.jsonl", "/sessions/missing.jsonl"]
+        #expect(decoded.codexMalformedDetailsPaths == malformedPaths)
+        #expect(decoded.days == ["2026-08-01": ["gpt-5.5": [40, 0, 20]]])
+        let typed = try #require(decoded.files["/sessions/typed.jsonl"])
+        #expect(typed.codexTypedResponseIdentity == true)
+        #expect(typed.projectPath == "/synthetic/project")
+        #expect(typed.codexParserRevision == CostUsageFileUsage.currentCodexParserRevision)
+        #expect(typed.codexCostNanos?["2026-08-01"]?["gpt-5.5"] == 123_000_000)
+        let legacy = try #require(decoded.files["/sessions/legacy.jsonl"])
+        #expect(legacy.codexHasTypedResponseIdentity == nil)
+        #expect(legacy.codexParserRevision == nil)
+        if manifestOnly {
+            #expect(typed.codexRows == nil)
+            #expect(typed.codexTokenSnapshots == nil)
+            #expect(typed.codexRequestLedgerState == nil)
+            #expect(legacy.codexRows == nil)
+        } else {
+            #expect(typed.codexRows?.first?.responseID == "saved-response")
+            #expect(typed.codexRows?.first?.knownCostNanos == 123_000_000)
+            #expect(typed.codexRows?.first?.day == "2026-08-01")
+            #expect(typed.codexRows?.first?.pricingMode == "priority")
+            #expect(typed.codexRows?.first?.requestMirrorKeys == ["saved-mirror"])
+            let expectedSnapshots = [CostUsageCodexTokenSnapshot(
+                timestamp: "2026-08-01T12:00:00Z",
+                last: nil,
+                total: CostUsageCodexTotals(input: 10, cached: 0, output: 5),
+                endOffset: 64)]
+            #expect(typed.codexTokenSnapshots == expectedSnapshots)
+            let expectedLedger = CostUsageScanner.CodexRequestLedgerState(
+                responseIDs: ["saved-response"],
+                mirroredResponses: ["saved-mirror": "saved-response"])
+            #expect(typed.codexRequestLedgerState == expectedLedger)
+            #expect(legacy.codexRows?.first?.responseID == nil)
+        }
+        for path in malformedPaths {
+            if manifestOnly || preserveMalformed {
+                let usage = try #require(decoded.files[path])
+                #expect(usage.codexHasTypedResponseIdentity == nil)
+                if manifestOnly {
+                    #expect(usage.codexRows == nil)
+                    #expect(usage.codexTokenSnapshots == nil)
+                } else {
+                    #expect(usage.codexRows?.count == 1)
+                    #expect(usage.codexTokenSnapshots?.count == 1)
+                }
+            } else {
+                #expect(decoded.files[path] == nil)
+            }
+        }
+        let persistence = CostUsageStore.CodexPersistenceState(
+            snapshot: snapshot,
+            malformedDetailsPaths: decoded.codexMalformedDetailsPaths)
+        #expect(persistence.malformedDetailsPaths == malformedPaths)
+        #expect(persistence.files.map(\.scanState.detailsPayload) == snapshot.files.map(\.scanState.detailsPayload))
+    }
+
+    @Test(arguments: [false, true])
+    func `duplicate paths retain path wide malformed token authority`(invalidFirst: Bool) async throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        var snapshot = try await Self.detailsSnapshot(root: fixture.root)
+        var valid = try #require(snapshot.files.first { $0.path == "/sessions/legacy.jsonl" })
+        valid.scanState.detailsPayload = try Self.detailsPayload(valid, removing: [], parserRevision: true)
+        var invalid = valid
+        invalid.scanState.detailsPayload = Data("invalid duplicate".utf8)
+        snapshot.files = invalidFirst ? [invalid, valid] : [valid, invalid]
+        snapshot.tokenSnapshots = []
+        snapshot.tokenSnapshotCounts = [valid.path: 0]
+        snapshot.tokenSnapshotsLoaded = false
+
+        let decoder = CountingReadPerformanceDecoder()
+        let decoded = CostUsageStore.decodeCodexCache(
+            from: snapshot,
+            tokenSnapshotsLoaded: false,
+            makeDecoder: { decoder })
+        let usage = try #require(decoded.files[valid.path])
+        #expect(decoded.codexMalformedDetailsPaths == [valid.path])
+        #expect(usage.codexRows?.first?.input == 10)
+        #expect(usage.codexTokenSnapshots == nil)
+        #expect(usage.codexHasTypedResponseIdentity == nil)
+        // Duplicate records alone keep the original path-wide validation fallback.
+        let validPayload = try #require(valid.scanState.detailsPayload)
+        let invalidPayload = try #require(invalid.scanState.detailsPayload)
+        #expect(decoder.count(for: validPayload) == 2)
+        #expect(decoder.count(for: invalidPayload) == 2)
+        let compact = CostUsageStore.decodeCodexCache(
+            from: snapshot,
+            hydratingPaths: [],
+            tokenSnapshotsLoaded: false)
+        #expect(compact.files[valid.path]?.codexRows == nil)
+        #expect(compact.files[valid.path]?.codexTokenSnapshots == nil)
+        #expect(compact.files[valid.path]?.codexHasTypedResponseIdentity == nil)
+        #expect(compact.codexMalformedDetailsPaths == [valid.path])
+    }
+
+    @Test
+    func `supplied empty malformed set remains authoritative for persistence`() async throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        let snapshot = try await Self.detailsSnapshot(root: fixture.root)
+        let defaultPersistence = CostUsageStore.CodexPersistenceState(snapshot: snapshot)
+        #expect(defaultPersistence.malformedDetailsPaths == ["/sessions/malformed.jsonl", "/sessions/missing.jsonl"])
+        let supplied = CostUsageStore.CodexPersistenceState(snapshot: snapshot, malformedDetailsPaths: [])
+        #expect(supplied.malformedDetailsPaths.isEmpty)
+    }
+
+    @Test
+    func `malformed details do not certify omitted empty token history`() async throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        var snapshot = try await Self.detailsSnapshot(root: fixture.root)
+        snapshot.tokenSnapshots = []
+        snapshot.tokenSnapshotsLoaded = false
+        snapshot.tokenSnapshotCounts = Dictionary(uniqueKeysWithValues: snapshot.files.map { ($0.path, 0) })
+        let decoded = CostUsageStore.decodeCodexCache(
+            from: snapshot,
+            tokenSnapshotsLoaded: false,
+            preserveMalformedFiles: true)
+        #expect(decoded.files["/sessions/typed.jsonl"]?.codexTokenSnapshots?.isEmpty == true)
+        #expect(decoded.files["/sessions/malformed.jsonl"]?.codexTokenSnapshots == nil)
+        #expect(decoded.files["/sessions/missing.jsonl"]?.codexTokenSnapshots == nil)
+        let malformedPaths: Set = ["/sessions/malformed.jsonl", "/sessions/missing.jsonl"]
+        let hydrated = CostUsageStore.decodeCodexCache(
+            from: snapshot,
+            tokenSnapshotsLoaded: false,
+            explicitlyLoadedTokenSnapshotPaths: malformedPaths,
+            preserveMalformedFiles: true)
+        for path in malformedPaths {
+            #expect(hydrated.files[path]?.codexTokenSnapshots?.isEmpty == true)
+        }
     }
 
     @Test
@@ -336,6 +494,86 @@ struct CostUsageStoreReadPerformanceTests {
         #endif
     }
 
+    private static func detailsSnapshot(root: URL) async throws -> CostUsageStoreSnapshot {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        var cache = Self.seededCache()
+        cache.days = ["2026-08-01": ["gpt-5.5": [40, 0, 20]]]
+        for name in ["typed", "legacy", "malformed", "missing"] {
+            var row = Self.row(model: "gpt-5.5", input: 10, eventIndex: 0)
+            row.knownCostNanos = 123_000_000
+            row.pricingMode = "priority"
+            if name == "typed" {
+                row = CostUsageScanner.CodexUsageRow(
+                    day: row.day,
+                    model: row.model,
+                    turnID: row.turnID,
+                    eventIndex: row.eventIndex,
+                    input: row.input,
+                    cached: row.cached,
+                    output: row.output,
+                    knownCostNanos: row.knownCostNanos,
+                    pricingModel: row.pricingModel,
+                    pricingMode: row.pricingMode,
+                    responseID: "saved-response",
+                    requestMirrorKeys: ["saved-mirror"])
+            }
+            var usage = CostUsageScanner.makeFileUsage(
+                mtimeUnixMs: 1,
+                size: 64,
+                days: ["2026-08-01": ["gpt-5.5": [10, 0, 5]]],
+                parsedBytes: 64,
+                projectPath: "/synthetic/project",
+                codexRows: [row],
+                codexTokenSnapshots: [CostUsageCodexTokenSnapshot(
+                    timestamp: "2026-08-01T12:00:00Z",
+                    last: nil,
+                    total: CostUsageCodexTotals(input: 10, cached: 0, output: 5),
+                    endOffset: 64)],
+                codexScanComplete: true)
+            if name == "typed" {
+                usage.codexRequestLedgerState = .init(
+                    responseIDs: ["saved-response"],
+                    mirroredResponses: ["saved-mirror": "saved-response"])
+            }
+            cache.files["/sessions/\(name).jsonl"] = usage
+        }
+        let store = CostUsageStore(cacheRoot: root)
+        #expect(!store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01")).catchUpRequired)
+        var snapshot = await store.readSnapshot()
+        for index in snapshot.files.indices {
+            switch snapshot.files[index].path {
+            case "/sessions/legacy.jsonl":
+                snapshot.files[index].scanState.detailsPayload = try Self.detailsPayload(
+                    snapshot.files[index], removing: ["parserRevision", "requestLedgerState"])
+            case "/sessions/malformed.jsonl":
+                snapshot.files[index].scanState.detailsPayload = Data("malformed details".utf8)
+            case "/sessions/missing.jsonl":
+                snapshot.files[index].scanState.detailsPayload = nil
+            default:
+                break
+            }
+        }
+        return snapshot
+    }
+
+    private static func detailsPayload(
+        _ file: CostUsageStoreFile,
+        removing keys: [String],
+        parserRevision: Bool = false) throws -> Data
+    {
+        let payload = try #require(file.scanState.detailsPayload)
+        var object = try #require(JSONSerialization.jsonObject(with: payload) as? [String: Any])
+        for key in keys {
+            object.removeValue(forKey: key)
+        }
+        if parserRevision { object["parserRevision"] = CostUsageFileUsage.currentCodexParserRevision }
+        return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    }
+
     private static func seededCache() -> CostUsageCache {
         var cache = CostUsageCache()
         cache.scanSinceKey = "2026-08-01"
@@ -426,4 +664,17 @@ private struct StreamedUsageRowVisit: Sendable {
     let rowIndex: Int
     let payloadBytes: Int
     let decoded: Bool
+}
+
+private final class CountingReadPerformanceDecoder: JSONDecoder, @unchecked Sendable {
+    private var counts: [Data: Int] = [:]
+
+    override func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        self.counts[data, default: 0] += 1
+        return try super.decode(type, from: data)
+    }
+
+    func count(for data: Data) -> Int {
+        self.counts[data] ?? 0
+    }
 }

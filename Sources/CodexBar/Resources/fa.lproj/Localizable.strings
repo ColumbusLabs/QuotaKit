@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d مورد دیگر";
+"Add folder…" = "افزودن پوشه…";
+"Additional Gemini profile homes" = "پوشه‌های نمایهٔ Gemini بیشتر";
+"Cloud credits" = "اعتبار ابری";
 "Conversations (%@)" = "گفتگوها (%@)";
+"Expired" = "منقضی شده";
 "Fast" = "سریع";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "اختیاری. پوشهٔ ‎.gemini‎ هر نمایه را برای ترکیب سابقهٔ محلی توکن و هزینه انتخاب کنید. پوشهٔ اصلی همیشه لحاظ می‌شود. ورود به سیستم یا سهمیه‌ها تغییر نمی‌کنند.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "پروژه‌ها";
 "Session %@" = "نشست %@";
@@ -1564,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "گفتگوی مستقل";
+"Independent chats" = "گفتگوهای مستقل";
+"Chat %d" = "گفتگو %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1693,3 +1702,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "با انتخاب یا تزریق حساب Google، حالت Auto فقط در صورت تطابق هویت، گزارش‌های برنامهٔ محلی، agy CLI و IDE را می‌پذیرد و سپس OAuth را امتحان می‌کند. انتخاب صریح Local API یا agy CLI می‌تواند از حساب محلی دیگری که وارد شده است استفاده کند.";
 "Supported browsers: %@. Use Manual for other browsers." = "مرورگرهای پشتیبانی‌شده: %@. برای مرورگرهای دیگر از حالت دستی استفاده کنید.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "هدر Cookie را از یک درخواست Chrome به www.workbuddy.cn/profile/plans-usage جای‌گذاری کنید.";
+"Reserved" = "رزروشده";
+
+"Left" = "باقی‌مانده";
+
+/* Selected browser profile */
+"Browser profile" = "نمایهٔ مرورگر";
+"Unavailable profile: %@" = "نمایه در دسترس نیست: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "فقط نمایهٔ انتخاب‌شدهٔ %@ خوانده می‌شود. حساب‌ها هرگز به‌طور خودکار انتخاب نمی‌شوند.";

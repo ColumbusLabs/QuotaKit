@@ -187,6 +187,7 @@ struct UsageMenuCardView: View {
         var creditsHintText: String?
         var creditsHintCopyText: String?
         var codexResetCredits: CodexResetCreditsPresentation?
+        var cloudCredits: ProviderCostSection?
         let providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
         let placeholder: String?
@@ -645,6 +646,14 @@ private struct UsageMenuCardUsageContentView: View {
             if self.model.showsOverviewSupplementalContent(compact: self.compactMetrics) {
                 self.supplementalContent
             }
+            if let cloudCredits = self.model.cloudCredits,
+               self.model.showsOverviewSupplementalContent(compact: self.compactMetrics)
+            {
+                if self.model.hasUsageContentAboveCloudCredits, self.showsSectionDividers {
+                    Divider()
+                }
+                ProviderCostContent(section: cloudCredits, progressColor: self.model.progressColor)
+            }
             if self.showBottomDivider {
                 Divider()
             }
@@ -661,7 +670,7 @@ private struct UsageMenuCardUsageContentView: View {
         } else if !self.model.usageNotes.isEmpty {
             UsageNotesContent(notes: self.model.usageNotes)
         } else if let placeholder = self.model.placeholder, self.model.metrics.isEmpty,
-                  self.model.codexResetCredits == nil
+                  self.model.codexResetCredits == nil, self.model.cloudCredits == nil
         {
             Text(placeholder)
                 .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
@@ -970,6 +979,7 @@ extension UsageMenuCardView.Model {
             creditsHintText: codexCreditLimitDetail ?? redacted.creditsHintText,
             creditsHintCopyText: codexCreditLimitDetail ?? redacted.creditsHintCopyText,
             codexResetCredits: Self.codexResetCredits(input: input),
+            cloudCredits: Self.cloudCreditsSection(input: input),
             providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
@@ -1023,8 +1033,9 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
-        // Claude reset credits use their dedicated live-only section; generic details remain for CLI output.
+        // Claude reset and cloud-credit details use dedicated live UI rows; generic details remain for CLI output.
         if input.provider == .claude {
+            details.removeAll { $0.title == ClaudeCloudCreditsSnapshot.detailTitle }
             details = details.compactMap { section in
                 let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
                 guard rows.count != section.rows.count else { return section }

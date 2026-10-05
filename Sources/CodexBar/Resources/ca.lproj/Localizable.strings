@@ -2,9 +2,18 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d més";
+"Add folder…" = "Afegeix una carpeta…";
+"Additional Gemini profile homes" = "Carpetes de perfils de Gemini addicionals";
+"Cloud credits" = "Crèdits al núvol";
 "Conversations (%@)" = "Converses (%@)";
+"Expired" = "Caducat";
 "Fast" = "Ràpid";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Opcional. Selecciona la carpeta .gemini de cada perfil per combinar l’historial local de tokens i costos. La carpeta principal sempre s’inclou. No canvia l’inici de sessió ni les quotes.";
 "iCloud Sync" = "Sincronització amb iCloud";
+
+"Independent chat" = "Xat independent";
+"Independent chats" = "Xats independents";
+"Chat %d" = "Xat %d";
 "Projects" = "Projectes";
 "Session %@" = "Sessió %@";
 "Std" = "Est.";
@@ -1691,3 +1700,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Amb un compte de Google seleccionat o injectat, Auto només accepta informes de l’app local, agy CLI i IDE si la identitat coincideix; després prova OAuth. Local API o agy CLI seleccionats explícitament poden usar un altre compte local amb sessió iniciada.";
 "Supported browsers: %@. Use Manual for other browsers." = "Navegadors compatibles: %@. Fes servir Manual per als altres navegadors.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Enganxeu la capçalera Cookie d’una sol·licitud de Chrome a www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reservat";
+
+"Left" = "Restant";
+
+/* Selected browser profile */
+"Browser profile" = "Perfil del navegador";
+"Unavailable profile: %@" = "Perfil no disponible: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Llegeix només el perfil de %@ seleccionat. Els comptes no se seleccionen mai automàticament.";

@@ -689,6 +689,71 @@ struct DashboardSnapshotBuilderTests {
         #expect(costObject["todayUSD"] as? Double == 2.5)
     }
 
+    @Test
+    func `Grok prepaid balance projects as USD credits when ordinary credits are absent`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let wallet = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "USD",
+            balance: 14.46,
+            balanceUpdatedAt: now,
+            updatedAt: now)
+
+        let projected = try self.dashboardCredits(provider: .grok, providerCost: wallet, credits: nil)
+        #expect(projected?["remaining"] as? Double == 14.46)
+        #expect(projected?["unit"] as? String == "USD")
+
+        let ordinaryCredits = CreditsSnapshot(remaining: 3, events: [], updatedAt: now)
+        let preferred = try self.dashboardCredits(
+            provider: .grok,
+            providerCost: wallet,
+            credits: ordinaryCredits)
+        #expect(preferred?["remaining"] as? Double == 3)
+        #expect(preferred?["unit"] as? String == "credits")
+    }
+
+    @Test
+    func `dashboard wallet credits require a finite nonnegative USD Grok balance`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let invalidBalances = [
+            ProviderCostSnapshot(
+                used: 0,
+                limit: 0,
+                currencyCode: "USD",
+                balance: -1,
+                updatedAt: now),
+            ProviderCostSnapshot(
+                used: 0,
+                limit: 0,
+                currencyCode: "EUR",
+                balance: 14.46,
+                updatedAt: now),
+            ProviderCostSnapshot(
+                used: 0,
+                limit: 0,
+                currencyCode: "USD",
+                balance: .infinity,
+                updatedAt: now),
+        ]
+        for invalidBalance in invalidBalances {
+            #expect(try self.dashboardCredits(
+                provider: .grok,
+                providerCost: invalidBalance,
+                credits: nil) == nil)
+        }
+        let validBalance = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "USD",
+            balance: 14.46,
+            updatedAt: now)
+        #expect(try self.dashboardCredits(
+            provider: .claude,
+            providerCost: validBalance,
+            credits: nil) == nil)
+    }
+
     private func identityPayload(email: String) -> ProviderPayload {
         ProviderPayload(
             provider: .claude,
@@ -710,6 +775,40 @@ struct DashboardSnapshotBuilderTests {
             antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: nil)
+    }
+
+    private func dashboardCredits(
+        provider: UsageProvider,
+        providerCost: ProviderCostSnapshot,
+        credits: CreditsSnapshot?) throws -> [String: Any]?
+    {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let payload = ProviderPayload(
+            provider: provider,
+            account: nil,
+            version: nil,
+            source: "test",
+            status: nil,
+            usage: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                providerCost: providerCost,
+                updatedAt: now),
+            credits: credits,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [payload],
+            costPayloads: [],
+            config: CodexBarConfig(providers: [ProviderConfig(id: provider.instanceID, enabled: true)]),
+            identityMode: .none,
+            generatedAt: now,
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let object = try self.jsonObject(snapshot)
+        let row = try #require((object["providers"] as? [[String: Any]])?.first)
+        return row["credits"] as? [String: Any]
     }
 
     private func claudeSwapSnapshot(
@@ -736,11 +835,11 @@ struct DashboardSnapshotBuilderTests {
             generatedAt: Date(timeIntervalSince1970: 0),
             refreshInterval: 60,
             codexBarVersion: nil,
-            claudeSwap: DashboardClaudeSwapInput(
+            accountCollections: [.claude: DashboardAccountsInput(
                 accounts: account,
                 adapterError: nil,
                 weeklyWorkDays: nil,
-                showSingleAccount: true))
+                showSingleAccount: true)])
     }
 
     private func firstClaudeSwapAccount(_ snapshot: DashboardSnapshotPayload) throws -> [String: Any] {

@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 import Observation
 
@@ -86,31 +87,33 @@ final class CodexAccountPromotionCoordinator {
         if let error = error as? CodexAccountPromotionError {
             let message = switch error {
             case .targetManagedAccountNotFound:
-                L("That account is no longer available in CodexBar. Refresh the account list and try again.")
+                L("That account is no longer available in QuotaKit. Refresh the account list and try again.")
             case .targetManagedAccountAuthMissing:
-                L("CodexBar could not find saved auth for that account. Re-authenticate it and try again.")
+                L("QuotaKit could not find saved auth for that account. Re-authenticate it and try again.")
             case .targetManagedAccountAuthUnreadable:
-                L("CodexBar could not read saved auth for that account. Re-authenticate it and try again.")
+                L("QuotaKit could not read saved auth for that account. Re-authenticate it and try again.")
             case .targetManagedAccountWorkspaceDiffersFromAuthDefault:
                 L(
                     "That managed account uses a workspace that differs from its saved Codex auth default. " +
                         "Keep it as a managed account; QuotaKit will not rewrite Codex-owned auth to promote it.")
             case .liveAccountUnreadable:
-                L("CodexBar could not read the current system account on this Mac.")
+                L("QuotaKit could not read the current system account on this Mac.")
             case .liveAccountMissingIdentityForPreservation:
-                L("CodexBar could not safely preserve the current system account before switching.")
+                L("QuotaKit could not safely preserve the current system account before switching.")
             case .liveAccountAPIKeyOnlyUnsupported:
-                L("CodexBar can't replace a system account that is signed in with an API key only setup.")
+                L("QuotaKit can't replace a system account that is signed in with an API key only setup.")
             case .displacedLiveManagedAccountConflict:
                 L(
-                    "CodexBar found another managed account that already uses the current system account. " +
+                    "QuotaKit found another managed account that already uses the current system account. " +
                         "Resolve the duplicate account before switching.")
             case .displacedLiveImportFailed:
-                L("CodexBar could not save the current system account before switching.")
+                L("QuotaKit could not save the current system account before switching.")
             case .managedStoreCommitFailed:
-                L("CodexBar could not update managed account storage.")
+                L("QuotaKit could not update managed account storage.")
             case .liveAuthSwapFailed:
-                L("CodexBar could not replace the live Codex auth on this Mac.")
+                L("QuotaKit could not replace the live Codex auth on this Mac.")
+            case .liveAuthChangedDuringPromotion, .targetAuthChangedDuringPromotion, .liveHomeIsManaged:
+                error.localizedDescription
             }
 
             return CodexSystemAccountPromotionUserFacingError(title: title, message: message)

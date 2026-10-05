@@ -1446,6 +1446,11 @@ public struct CursorStatusProbe: Sendable {
     }
     #endif
 
+    #if DEBUG
+    /// Tests can order required responses after the optional result is consumed, rather than after HTTP delivery.
+    @TaskLocal static var sandUsageObservedForTesting: (@Sendable () -> Void)?
+    #endif
+
     func fetchWithCookieHeader(
         _ cookieHeader: String,
         identityFallback: CursorSessionIdentity? = nil,
@@ -1499,6 +1504,9 @@ public struct CursorStatusProbe: Sendable {
                     if let (status, rawJSON) = try? value.get() {
                         sandUsage = status
                         sandUsageRawJSON = rawJSON
+                        #if DEBUG
+                        Self.sandUsageObservedForTesting?()
+                        #endif
                     }
                 }
                 // Sand usage is optional enrichment. Let it race the required usage and identity

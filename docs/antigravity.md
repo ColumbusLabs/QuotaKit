@@ -79,6 +79,8 @@ empty quota card.
 
 - OAuth refresh form-encodes credential values, preserving literal plus signs and other reserved characters.
 - Login still uses Antigravity's Google OAuth client, discovered from `Antigravity.app` or overridden with `ANTIGRAVITY_OAUTH_CLIENT_ID` and `ANTIGRAVITY_OAUTH_CLIENT_SECRET`.
+- Discovery pairs the client ID and secret from the same recognized OAuth configuration record in the language server. String-pool order is not a pairing rule. Older app artifacts with one unambiguous ID and secret remain supported; ambiguous artifacts without a recognized record are rejected.
+- If discovery fails, update or install Antigravity or set both overrides to a matching client ID and secret. The `invalid_client` alert gives that recovery path without echoing Google's response body.
 - A successful login writes the latest shared credentials to the app's compatibility credentials store and upserts a token-account entry for the Google account.
 - Each token-account entry stores serialized `AntigravityOAuthCredentials` and is injected into remote fetches through `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON`.
 - When a token account is selected, the OAuth fetcher uses that account before falling back to the shared credentials file.
@@ -288,7 +290,32 @@ five-hour duration.
 
 Local history reads only the existing recognized roots: `~/.gemini/antigravity-cli/conversations/*.db`,
 `~/.gemini/antigravity/*.db`, and `~/.gemini/antigravity/conversations/*.db`. `GEMINI_CLI_HOME` replaces
-`~/.gemini`. When SQLite discovery completes without any databases, the reader can use
+`~/.gemini` as the primary home. **Settings → Providers → Antigravity → Additional Gemini profile homes** lets you
+add profile directories with a folder picker and remove them individually. Select each profile's `.gemini` directory,
+not its parent home or a `conversations` subdirectory. The CLI, cost endpoint, and dashboard use the same
+`antigravityAdditionalProfileHomes` array from the `antigravity` provider entry in `~/.codexbar/config.json`
+(or the file selected by `CODEXBAR_CONFIG`):
+
+```json
+{
+  "version": 1,
+  "providers": [{
+    "id": "antigravity",
+    "enabled": true,
+    "antigravityAdditionalProfileHomes": ["/path/to/profile/.gemini"]
+  }]
+}
+```
+
+Use absolute paths or `~/…` relative to the refresh environment's `HOME`. An empty or omitted list keeps the
+single-home behavior. Each explicit home contributes the same three recognized directories; QuotaKit does not
+discover profiles from running processes or traverse unrelated folders. Symlink aliases are scanned once. Copied
+conversation databases retaining their filename are deduplicated by conversation and row/request identity, while
+conflicting copies leave coverage partial instead of selecting an arbitrary count. Missing additional homes contribute
+no history; unreadable roots retain the existing partial-history handling. Changing the selected home set invalidates
+menu and dashboard history caches. These paths affect local history only, not sign-in, quota queries, or account
+attribution, and remain in the Mac config rather than syncing to iPhone. When SQLite discovery across all selected
+homes completes without any databases, the reader can use
 `~/.config/tokscale/antigravity-cache/sessions/*.jsonl`; `TOKSCALE_CONFIG_DIR` replaces `~/.config/tokscale`.
 Both overrides and `HOME` come from the same refresh environment. Declared roots and session files may be symlinks;
 discovery still visits only the immediate entries of the recognized directories. This is machine-local token history,
@@ -299,7 +326,10 @@ affected models unpriced rather than failing the scan.
 
 Use `quotakit cost --provider antigravity --format json` to read this same local history from the CLI.
 The cost endpoint and dashboard also include it when Antigravity is selected. Known models receive local token ×
-public API-price estimates from the pricing catalog. Unknown models stay unpriced. These figures are not Antigravity
+public API-price estimates from the pricing catalog. Unknown models with tokens stay unpriced.
+Requests with no model and zero tokens still count for the day but add no model row. With pricing enabled,
+they count as estimated at $0; without pricing, their cost remains absent. Named zero-token rows are unchanged. A model-less zero-token day does not hide
+named unpriced model rows from other days. These figures are not Antigravity
 charges or credit deductions, and these entry points do not expand the supported timestamp layouts described below.
 Local reads use cached or built-in prices first. Routine catalog updates run in the background; `quotakit cost --provider antigravity --refresh` may wait for a bounded pricing refresh when a recorded model has no known rate. Empty or absent history never starts a pricing download. Historical requests use prices applicable to their event timestamps.
 

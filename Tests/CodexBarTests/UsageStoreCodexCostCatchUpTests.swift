@@ -27,7 +27,82 @@ struct UsageStoreCodexCostCatchUpTests {
         store.startCodexCostCatchUpIfNeeded()
         let task = try #require(store.codexCostCatchUpTask)
         await task.value
-        #expect(sleeps == [1998, 1998])
+        #expect(sleeps == [0, 1998])
+    }
+
+    @Test(arguments: [0.1, 0.75])
+    func `automatic discovery yields after its accumulated time or page budget`(duration: TimeInterval)
+        async throws
+    {
+        let store = try Self.makeStore(suite: "bounded-discovery")
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in .init(pending: true, progressKey: "start") }
+        store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
+        store._test_codexCostCatchUpActiveDuration = duration
+        var advances = 0
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            return .init(pending: true, progressKey: "page-\(advances)")
+        }
+        var delayed = false
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            guard delay > 0 else { return }
+            delayed = true
+            #expect(advances == (duration == 0.1 ? 8 : 3))
+            let accountedDuration = max(2, Double(advances) * duration)
+            #expect(abs(delay - accountedDuration * 999) < 0.000001)
+            throw CancellationError()
+        }
+        store.startCodexCostCatchUpIfNeeded()
+        await store.codexCostCatchUpTask?.value
+        #expect(delayed)
+    }
+
+    @Test(arguments: [false, true])
+    func `accelerated work does not accumulate automatic sleep debt`(switchDuringYield: Bool) async throws {
+        let store = try Self.makeStore(suite: "acceleration-debt-\(switchDuringYield)")
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in .init(pending: true, progressKey: "start") }
+        store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
+        store._test_codexCostCatchUpActiveDuration = 2
+        let expectedAdvances = switchDuringYield ? 4 : 3
+        var advances = 0
+        var switched = false
+        var delayed = false
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            guard advances <= expectedAdvances else { throw CancellationError() }
+            if advances == 3, !switchDuringYield {
+                #expect(store.codexCostCatchUpPassIsRunning)
+                switched = true
+                store.startCodexCostCatchUpIfNeeded(mode: .automatic)
+            }
+            return .init(pending: true, progressKey: "page-\(advances)")
+        }
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            if switchDuringYield, advances == 3, !switched {
+                #expect(delay == 0)
+                #expect(!store.codexCostCatchUpPassIsRunning)
+                switched = true
+                store.startCodexCostCatchUpIfNeeded(mode: .automatic)
+                return
+            }
+            guard delay > 0 else { return }
+            delayed = true
+            #expect(delay == 1998)
+            #expect(advances == expectedAdvances)
+            throw CancellationError()
+        }
+        store.startCodexCostCatchUpIfNeeded(mode: .accelerated)
+        let original = try #require(store.codexCostCatchUpTask)
+        await original.value
+        await store.codexCostCatchUpTask?.value
+        #expect(advances == expectedAdvances)
+        #expect(delayed)
+        #expect(switched)
+        #expect(store.codexCostCatchUpMode == .automatic)
     }
 
     @Test(arguments: [CodexCostCatchUpPowerSource.ac, .battery, .unknown])
@@ -39,15 +114,11 @@ struct UsageStoreCodexCostCatchUpTests {
         store.settings.backgroundWorkLowPowerModePreference = .on
         let decision = store.codexCostCatchUpDecision(
             mode: .automatic, previousActiveDuration: 0.1, resourceState: resources)
-        // QuotaKit retains a two-second minimum active burst. With the upstream duty cycles,
-        // even a 100ms scan therefore schedules later than the app's 30-minute floor.
-        let expectedDelay: TimeInterval = switch source {
-        case .ac: 1998
-        case .battery: 9998
-        case .unknown: 3998
-        }
+        // An initial automatic pass has no assumed sleep debt. The app preference still
+        // imposes its 30-minute floor before the first scan.
+        let expectedDelay = BackgroundWorkPowerPolicy.lowPowerMinimumInterval
         #expect(decision.action == .runAfter(expectedDelay))
-        #expect(expectedDelay >= BackgroundWorkPowerPolicy.lowPowerMinimumInterval)
+        #expect(expectedDelay == 1800)
         #expect(store.codexCostCatchUpDecision(
             mode: .accelerated, previousActiveDuration: 0.1, resourceState: resources).action == .runAfter(0))
         store.settings.backgroundWorkLowPowerModePreference = .off
@@ -63,7 +134,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.codexCostCatchUpDecision(
             mode: .automatic,
             previousActiveDuration: nil,
-            resourceState: (.ac, false, .nominal)).action == .runAfter(1998))
+            resourceState: (.ac, false, .nominal)).action == .runAfter(1800))
         #expect(store.codexCostCatchUpDecision(
             mode: .automatic,
             previousActiveDuration: 0.1,
@@ -306,7 +377,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(advanceCount == 2)
         #expect(statusLoadCount == 2)
         #expect(snapshotLoadCount == 3)
-        #expect(sleepDurations.first == 1998)
+        #expect(sleepDurations.first == 0)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 3)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 3)
         #expect(store.tokenError(for: .codex) == nil)

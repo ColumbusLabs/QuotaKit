@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 89 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 91 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -715,3 +715,7 @@ See also: `docs/provider.md` for architecture notes.
 - When enabled as its own spend source, shared Codex and Claude views exclude the same Pi rows from combined totals.
 - Incomplete or unsupported transcript evidence remains unavailable rather than becoming zero.
 - Details: `docs/pi.md`.
+
+## Langdock personal usage
+
+[Langdock](langdock.md) reads included session and weekly limits from an explicitly selected Microsoft Edge profile on Mac. This session-bound data remains local: quota history, iPhone sync, fleet CloudKit export, and widgets are unavailable.

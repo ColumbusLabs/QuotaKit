@@ -211,7 +211,7 @@ struct ClaudeRateLimitResetCreditsTests {
         let ordinary = ClaudeOAuthFetchStrategy._snapshotForTesting(from: claudeUsage)
         let webPrimary = ClaudeOAuthFetchStrategy._snapshotForTesting(
             from: claudeUsage,
-            includeWebResetCredits: true)
+            includeResetCredits: true)
         let optionalWebEnrichment = oauthUsage.replacingWebExtras(extraRateWindows: [], providerCost: nil)
 
         #expect(ordinary.claudeResetCredits == nil)

@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d daha";
+"Add folder…" = "Klasör Ekle…";
+"Additional Gemini profile homes" = "Ek Gemini profil klasörleri";
+"Cloud credits" = "Bulut kredileri";
 "Conversations (%@)" = "Konuşmalar (%@)";
+"Expired" = "Süresi doldu";
 "Fast" = "Hızlı";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "İsteğe bağlı. Yerel jeton ve maliyet geçmişini birleştirmek için her profilin .gemini klasörünü seçin. Birincil klasör her zaman eklenir. Oturum açma veya kotalar değişmez.";
 "iCloud Sync" = "iCloud eşzamanlama";
 "Projects" = "Projeler";
 "Session %@" = "Oturum %@";
@@ -1562,6 +1567,10 @@
 "Cache write" = "Önbellek yazımı";
 "Reasoning" = "Akıl yürütme";
 "Sessions" = "Oturumlar";
+
+"Independent chat" = "Bağımsız sohbet";
+"Independent chats" = "Bağımsız sohbetler";
+"Chat %d" = "Sohbet %d";
 "Projects" = "Projeler";
 "Plan metered" = "Plan kotasıyla ölçülen";
 "List-price equivalent" = "Liste fiyatı karşılığı";
@@ -1691,3 +1700,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Seçilen veya sağlanan bir Google hesabı varsa Auto, yerel uygulama, agy CLI ve IDE raporlarını yalnızca kimlik eşleştiğinde kabul eder, ardından OAuth dener. Açıkça seçilen Local API / agy CLI, yerel olarak oturum açmış farklı bir hesabı kullanabilir.";
 "Supported browsers: %@. Use Manual for other browsers." = "Desteklenen tarayıcılar: %@. Diğer tarayıcılar için Manuel seçeneğini kullanın.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome’dan www.workbuddy.cn/profile/plans-usage adresine gönderilen isteğin Cookie başlığını yapıştırın.";
+"Reserved" = "Ayrılmış";
+
+"Left" = "Kalan";
+
+/* Selected browser profile */
+"Browser profile" = "Tarayıcı profili";
+"Unavailable profile: %@" = "Profil kullanılamıyor: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Yalnızca seçilen %@ profilini oku. Hesaplar asla otomatik seçilmez.";

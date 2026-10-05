@@ -4,6 +4,188 @@ import Testing
 @testable import CodexBarCore
 
 struct ProviderPluginCookieResultTests {
+    @Test(arguments: [true, false])
+    func `only a successful nonpersistent script fetch validates an empty refresh`(authenticated: Bool) async throws {
+        let storage = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: storage) }
+        let strategy = ScriptFetchStrategy(
+            id: "lithosai.fixture",
+            provider: .lithosai,
+            bundledPlugin: "lithosai",
+            sourceLabel: "web",
+            kind: .web,
+            transport: ProviderHTTPTransportHandler { request in
+                let url = try #require(request.url)
+                let body: String
+                let code: Int
+                switch url.path {
+                case "/api/me":
+                    code = 200
+                    body = #"{"user":{},"activeOrganization":{"id":"fixture-org"}}"#
+                case "/api/billing":
+                    code = authenticated ? 200 : 401
+                    body = #"{"balanceNanos":2570000000,"hasCard":true,"onHold":false}"#
+                default:
+                    code = 503
+                    body = "{}"
+                }
+                return try (Data(body.utf8), #require(HTTPURLResponse(
+                    url: url, statusCode: code, httpVersion: nil, headerFields: ["Content-Type": "application/json"])))
+            },
+            resolveValues: { _ in .init() },
+            isEnabled: { _ in true })
+        let context = ProviderCutoverTestSupport.context(settings: ProviderSettingsSnapshot(
+            CookieProviderSettings(
+                cookieSource: .manual,
+                manualCookieHeader: "__Host-console_session=fixture; __Host-console_csrf=fixture-csrf"),
+            for: LithosAIProviderSettingsKey.self))
+        try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+            let gate = try #require(CookieHeaderCache.beginRefreshReadSuppression(provider: .lithosai))
+            defer { CookieHeaderCache.endRefreshReadSuppression(gate) }
+            do {
+                let result = try await strategy.fetch(context)
+                #expect(authenticated)
+                #expect(result.usage.detailRow(label: "Balance")?.value == "$2.57")
+            } catch let error as ProviderFetchClassifiedError {
+                #expect(!authenticated)
+                #expect(error.kind == .authenticationExpired)
+            }
+            let commit = CookieHeaderCache.commitRefreshReadSuppression(gate)
+            #expect(commit.stagedCount == 0)
+            #expect(commit.failedCount == (authenticated ? 0 : 1))
+            #expect(CookieHeaderCache.load(provider: .lithosai) == nil)
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines, [false, true])
+    func `plugin importers retain the explicit interaction across engine callbacks`(
+        engine: ProviderPluginEngineKind, jar: Bool) async throws
+    {
+        let domain = "fixture-\(UUID().uuidString.lowercased()).example.test"
+        let storage = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: storage) }
+        defer {
+            _ = CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+                CookieHeaderCache.clear(provider: .lithosai, scope: .providerVariant(domain))
+            }
+        }
+        let cookiePolicy = jar ? "cookiePolicy: { selection: 'request-url', cache: 'nonpersistent' }," : ""
+        let runtime = try ProviderPluginRuntime(source: """
+        defineProvider({id: 'lithosai', name: 'Fixture', endpoints: ['https://\(domain)'], settings: [],
+          capabilities: ['browser-cookies'], cookieDomains: ['\(domain)'], \(cookiePolicy)
+          async fetchUsage(ctx) {
+            for await (const session of ctx.browser.sessions('\(domain)')) {
+              return {primary: {usedPercent: 42}};
+            }
+            throw new Error('No session');
+          }
+        });
+        """, engine: engine)
+        try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await BrowserCookieAccessGate.withExplicitRetry {
+                let importJar: ProviderPluginCookieBroker.JarImporter = { domain in
+                    #expect(ProviderInteractionContext.current == .userInitiated)
+                    return [(
+                        records: [ProviderPluginCookieRecord(
+                            name: "session",
+                            value: "fixture",
+                            domain: domain,
+                            hostOnly: true,
+                            path: "/",
+                            secure: true,
+                            expires: nil)],
+                        source: "Chrome")]
+                }
+                let broker = ProviderPluginCookieBroker(
+                    provider: .lithosai,
+                    domains: [domain, "unused.example.test"],
+                    settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                    batches: { _, batch in
+                        #expect(ProviderInteractionContext.current == .userInitiated)
+                        return batch == 0 ? [("session=fixture", "Chrome")] : nil
+                    },
+                    usesCookieJar: jar,
+                    jarImporter: jar ? importJar : nil)
+                let usage = try await runtime.fetchUsage(cookieSessionResolver: { domain, cachedOnly in
+                    try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+                        try broker.nextSession(domain: domain, cachedOnly: cachedOnly)
+                    }
+                })
+                #expect(usage.primary?.usedPercent == 42)
+                if !jar {
+                    #expect(CookieHeaderCache.load(provider: .lithosai, scope: .providerVariant(domain))?
+                        .cookieHeader == "session=fixture")
+                }
+            }
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines, [
+        UsageProvider.lithosai, .museai, .abacus, .helmcode, .qoder,
+    ])
+    func `suppressed plugin imports explain permission recovery instead of missing login`(
+        engine: ProviderPluginEngineKind, provider: UsageProvider) async throws
+    {
+        let storage = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: storage) }
+        let runtime = try Self.missingSessionRuntime(plugin: provider.rawValue, engine: engine, storage: storage)
+        let detection = BrowserDetection(
+            homeDirectory: "/synthetic-cookie-home",
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { $0.contains("/Google/Chrome") || $0.contains("/Google Chrome.app") },
+            directoryContents: { _ in ["Default"] },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
+        let importJar: ProviderPluginCookieBroker.JarImporter = { _ in
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                try BrowserCookieAccessGate.withShouldAttemptOverrideForTesting(false) {
+                    #expect(!BrowserCookieAccessGate.shouldAttempt(.chrome))
+                    return []
+                }
+            }
+        }
+        let broker = ProviderPluginCookieBroker(
+            provider: provider,
+            domains: runtime.manifest.cookieDomains,
+            settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+            batches: { domain, batch in
+                guard batch == 0 else { return nil }
+                return try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                    try BrowserCookieAccessGate.withShouldAttemptOverrideForTesting(false) {
+                        if provider == .abacus {
+                            return AbacusCookieImporter.importSessions(browserDetection: detection)
+                                .map { ($0.cookieHeader, $0.sourceLabel) }
+                        }
+                        return try ProviderPluginCookieBroker.importCookieHeaders(
+                            provider: provider, domain: domain, browserDetection: detection)
+                    }
+                }
+            },
+            usesCookieJar: runtime.manifest.usesCookieJar,
+            jarImporter: runtime.manifest.usesCookieJar ? importJar : nil,
+            policy: runtime.manifest.cookiePolicy)
+        do {
+            _ = try await runtime.fetchUsage(cookieSessionResolver: { domain, cachedOnly in
+                try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+                    try broker.nextSession(domain: domain, cachedOnly: cachedOnly)
+                }
+            }, cookieResolver: { _, domain in
+                try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(storage) {
+                    try broker.cookieHeader(domain: domain)
+                }
+            })
+            Issue.record("Expected browser permission failure")
+        } catch {
+            let failure = broker.preferredFailure(over: error)
+            #expect((failure as? ProviderFetchClassifiedError)?.kind == .permissionDenied)
+            #expect(failure.localizedDescription.contains("cookie access needs Keychain permission"))
+            #expect(failure.localizedDescription.contains("Refresh beside Cookie source"))
+            #expect(failure.localizedDescription.contains("provider menu"))
+            #expect(failure.localizedDescription.contains("Manual"))
+        }
+    }
+
     @Test(arguments: BundledPluginTestSupport.engines, [UsageProvider.museai, .perplexity, .opencode])
     func `plugin browser names follow each provider catalog subset`(
         engine: ProviderPluginEngineKind, provider: UsageProvider) async throws
@@ -21,6 +203,11 @@ struct ProviderPluginCookieResultTests {
         });
         """, engine: engine)
         let order = ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
+        if provider != .opencode {
+            for name in ["Aside", "Opera", "Opera Neon"] {
+                #expect(order.map(\.displayName).contains(name))
+            }
+        }
         let usage = try await runtime.fetchUsage(settings: [
             "EXPECTED_BROWSERS": order.map(\.displayName).joined(separator: ", "),
         ])

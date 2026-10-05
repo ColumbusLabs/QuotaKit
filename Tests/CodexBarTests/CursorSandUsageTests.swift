@@ -222,12 +222,17 @@ struct CursorSandUsageTests {
         defer { session.invalidateAndCancel() }
         let baseURL = try #require(URL(string: "https://cursor.test"))
 
-        let snapshot = try await CursorStatusProbe(
-            baseURL: baseURL,
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            urlSession: session).fetchWithManualCookies("auth=test")
+        let sandObserved: @Sendable () -> Void = {
+            CursorSandOrderedURLProtocol.markSandUsageObserved()
+        }
+        let snapshot = try await CursorStatusProbe.$sandUsageObservedForTesting.withValue(sandObserved) {
+            try await CursorStatusProbe(
+                baseURL: baseURL,
+                browserDetection: BrowserDetection(cacheTTL: 0),
+                urlSession: session).fetchWithManualCookies("auth=test")
+        }
 
-        #expect(CursorSandOrderedURLProtocol.sandResponseFinished)
+        #expect(CursorSandOrderedURLProtocol.sandUsageObserved)
         #expect(snapshot.sandUsage?.usagePercent == 100)
         #expect(snapshot.sandUsage?.includedLimitZero == isTrial)
         let grokBot = snapshot.toUsageSnapshot(now: Self.now).extraRateWindows?.first {
@@ -261,20 +266,27 @@ struct CursorSandUsageTests {
 
 private final class CursorSandOrderedURLProtocol: URLProtocol, @unchecked Sendable {
     private static let condition = NSCondition()
-    private nonisolated(unsafe) static var finishedSand = false
+    private nonisolated(unsafe) static var observedSand = false
     private nonisolated(unsafe) static var trial = false
     private var requiredResponse: DispatchWorkItem?
 
-    static var sandResponseFinished: Bool {
+    static var sandUsageObserved: Bool {
         self.condition.lock()
         defer { self.condition.unlock() }
-        return self.finishedSand
+        return self.observedSand
     }
 
     static func reset(isTrial: Bool) {
         self.condition.lock()
-        self.finishedSand = false
+        self.observedSand = false
         self.trial = isTrial
+        self.condition.unlock()
+    }
+
+    static func markSandUsageObserved() {
+        self.condition.lock()
+        self.observedSand = true
+        self.condition.broadcast()
         self.condition.unlock()
     }
 
@@ -298,21 +310,17 @@ private final class CursorSandOrderedURLProtocol: URLProtocol, @unchecked Sendab
               "sandTrialExpiresAt": "2026-09-21T09:12:32.776Z"
             }
             """, statusCode: 200)
-            Self.condition.lock()
-            Self.finishedSand = true
-            Self.condition.broadcast()
-            Self.condition.unlock()
             return
         }
 
-        // Required responses run off the URLProtocol callback so a request that
-        // arrives first cannot block delivery of the optional Sand response.
+        // Required responses wait off the URLProtocol callback until the task group
+        // has consumed Sand; HTTP delivery alone does not order asynchronous task completion.
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             Self.condition.lock()
             let deadline = Date().addingTimeInterval(3)
-            while !Self.finishedSand, Self.condition.wait(until: deadline) {}
-            let sandFinished = Self.finishedSand
+            while !Self.observedSand, Self.condition.wait(until: deadline) {}
+            let sandFinished = Self.observedSand
             Self.condition.unlock()
             guard sandFinished else {
                 self.client?.urlProtocol(self, didFailWithError: URLError(.timedOut))

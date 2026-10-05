@@ -29,6 +29,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let usedPercentIsWirePublished: Bool
     /// Shares compose this payload's credit usage percentage; empty when the composition is unverified.
     public let productUsage: [GrokProductUsage]
+    /// Purchased credits from the CLI proxy, denominated in USD separately from included quota.
+    public let prepaidBalanceUSD: Double?
 
     public init(
         usedPercent: Double?,
@@ -37,7 +39,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         allowsCadenceFallback: Bool = true,
         subscriptionTier: String? = nil,
         usedPercentIsWirePublished: Bool = true,
-        productUsage: [GrokProductUsage] = [])
+        productUsage: [GrokProductUsage] = [],
+        prepaidBalanceUSD: Double? = nil)
     {
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
@@ -46,6 +49,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         self.subscriptionTier = subscriptionTier
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
         self.productUsage = productUsage
+        self.prepaidBalanceUSD = prepaidBalanceUSD
     }
 
     /// Overlay the CLI settings plan name. Usage percent stays on the existing credits rules.
@@ -57,7 +61,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             allowsCadenceFallback: self.allowsCadenceFallback,
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
-            productUsage: self.productUsage)
+            productUsage: self.productUsage,
+            prepaidBalanceUSD: self.prepaidBalanceUSD)
     }
 
     /// Keep period and plan metadata a second billing surface did not publish. Usage percent
@@ -71,7 +76,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             allowsCadenceFallback: other.resetsAt == nil ? self.allowsCadenceFallback : other.allowsCadenceFallback,
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
-            productUsage: self.productUsage)
+            productUsage: self.productUsage,
+            prepaidBalanceUSD: self.prepaidBalanceUSD ?? other.prepaidBalanceUSD)
     }
 }
 

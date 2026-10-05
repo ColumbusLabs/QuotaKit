@@ -3,6 +3,7 @@ import Foundation
 
 extension UsageStore {
     nonisolated static func underlyingProviderTransportError(_ error: Error) -> Error {
+        if let error = error as? ProviderBrowserSessionFailure { return error.underlyingError }
         if let error = error as? DeepSeekPlatformTransportError { return error.underlyingError }
         if case let .networkError(underlyingError) = error as? CodexOAuthFetchError {
             return underlyingError

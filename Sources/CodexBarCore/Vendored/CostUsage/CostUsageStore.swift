@@ -25,6 +25,42 @@ actor CostUsageStore {
     private final class StoreSerialExecutor: SerialExecutor, @unchecked Sendable {
         private let queue: DispatchQueue
         private static let queueKey = DispatchSpecificKey<ObjectIdentifier>()
+        private static let registryLock = NSLock()
+        private nonisolated(unsafe) static var registry: [String: WeakExecutor] = [:]
+
+        private struct WeakExecutor {
+            weak var value: StoreSerialExecutor?
+        }
+
+        static func shared(for databaseURL: URL) -> StoreSerialExecutor {
+            var location = databaseURL
+            var visited: Set<String> = []
+            while true {
+                let directory = location.deletingLastPathComponent()
+                // Resolve existing parents and follow file links even when their target is missing.
+                // Open retries directory creation and reports errors through the normal store path.
+                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                location = directory.resolvingSymlinksInPath().standardizedFileURL
+                    .appendingPathComponent(location.lastPathComponent)
+                guard visited.insert(location.path).inserted,
+                      let target = try? FileManager.default.destinationOfSymbolicLink(atPath: location.path)
+                else { break }
+                location = URL(fileURLWithPath: target, relativeTo: location.deletingLastPathComponent())
+            }
+            let caseSensitive = try? location.deletingLastPathComponent()
+                .resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames
+            let key = caseSensitive == false
+                ? location.path.folding(options: .caseInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+                : location.path
+            return Self.registryLock.withLock {
+                if let executor = Self.registry[key]?.value { return executor }
+                Self.registry = Self.registry.filter { $0.value.value != nil }
+                let suffix = String(UInt(bitPattern: key.hashValue), radix: 16).suffix(8)
+                let executor = StoreSerialExecutor(label: "com.steipete.codexbar.cost-usage-store.\(suffix)")
+                Self.registry[key] = WeakExecutor(value: executor)
+                return executor
+            }
+        }
 
         init(label: String) {
             self.queue = DispatchQueue(label: label, qos: .utility)
@@ -33,9 +69,8 @@ actor CostUsageStore {
 
         func enqueue(_ job: consuming ExecutorJob) {
             let unownedJob = UnownedJob(job)
-            let executor = self.asUnownedSerialExecutor()
-            self.queue.async {
-                unownedJob.runSynchronously(on: executor)
+            self.queue.async { [self] in
+                unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
             }
         }
 
@@ -183,6 +218,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "af117122edc4c286", // QuotaKit revision 7 history survives bounded request-ledger reparsing.
         "755dfa55c816c503", // QuotaKit 0.32.4.32; day-proof scheduling preserves parsed rows and existing evidence.
         "c52728bbaeedeb90", // QuotaKit 0.32.4.31; optional lineage and daily proof preserve revision-7 rows.
         "0001601034856fb6", // Daily proof is additive; existing parsed rows remain compatible.
@@ -250,19 +286,24 @@ actor CostUsageStore {
         return root.appendingPathComponent("CodexBar", isDirectory: true)
     }
 
-    /// Process-wide serialization keeps every writable store connection on the same queue.
-    /// This matches the scan pipeline's single-writer contract without multiplying executor
-    /// threads when tests or short-lived readers create several store actors.
-    private nonisolated static let sharedExecutor = StoreSerialExecutor(
-        label: "com.steipete.codexbar.cost-usage-store")
+    /// Connections to one canonical database location share a serial queue. Independent
+    /// databases do not share SQLite busy waits; hard-linked database paths are not canonical aliases.
+    private nonisolated let executor: StoreSerialExecutor
     private nonisolated static let historyHydrationExecutor = HistoryHydrationExecutor()
     nonisolated var unownedExecutor: UnownedSerialExecutor {
-        Self.sharedExecutor.asUnownedSerialExecutor()
+        self.executor.asUnownedSerialExecutor()
     }
+
+    #if DEBUG
+    nonisolated var executorForTesting: AnyObject {
+        self.executor
+    }
+    #endif
 
     nonisolated let databaseURL: URL
     private let expectedSchemaVersion: Int32
     private let expectedParserHash: String
+    private let busyTimeoutMilliseconds: Int32
     private var connection: SQLiteConnection?
     private var failureGeneration = UUID()
     var retainedCodexBaseline: RetainedCodexBaseline?
@@ -342,14 +383,17 @@ actor CostUsageStore {
     init(
         cacheRoot: URL? = nil,
         schemaVersion: Int32 = CostUsageStore.schemaVersion,
-        parserHash: String = CodexParserHash.value)
+        parserHash: String = CodexParserHash.value,
+        busyTimeoutMilliseconds: Int32 = 5000)
     {
         let root = cacheRoot ?? Self.defaultCacheRoot()
         self.databaseURL = root
             .appendingPathComponent("cost-usage", isDirectory: true)
             .appendingPathComponent(Self.databaseFilename, isDirectory: false)
+        self.executor = StoreSerialExecutor.shared(for: self.databaseURL)
         self.expectedSchemaVersion = schemaVersion
         self.expectedParserHash = parserHash
+        self.busyTimeoutMilliseconds = busyTimeoutMilliseconds
     }
 
     static func combinedSchemaVersion(base: Int, parserHash: String) -> Int32 {
@@ -364,12 +408,12 @@ actor CostUsageStore {
 }
 
 extension CostUsageStore {
-    /// The shared queue establishes isolation; runtime checks are unreliable for SDK-14 binaries on macOS 15.
+    /// The database queue establishes isolation; runtime checks are unreliable for SDK-14 binaries on macOS 15.
     private nonisolated func syncWithStoreIsolation<T: Sendable>(
         _ operation: (isolated CostUsageStore) throws -> T) rethrows -> T
     {
-        try Self.sharedExecutor.sync {
-            Self.sharedExecutor.checkIsolated()
+        try self.executor.sync {
+            self.executor.checkIsolated()
             typealias Isolated = (isolated CostUsageStore) throws -> T
             typealias Unisolated = (CostUsageStore) throws -> T
             return try withoutActuallyEscaping(operation) { (operation: @escaping Isolated) throws -> T in
@@ -406,7 +450,7 @@ extension CostUsageStore {
                     expectedScanStamp: expectedScanStamp)
             }
         }
-        guard !Self.sharedExecutor.isExecutingCurrentContext() else { return hydrate() }
+        guard !self.executor.isExecutingCurrentContext() else { return hydrate() }
         return Self.historyHydrationExecutor.sync(hydrate)
     }
 
@@ -786,7 +830,7 @@ extension CostUsageStore {
             throw StoreError.sqlite(result)
         }
         do {
-            try Self.configure(opened)
+            try Self.configure(opened, busyTimeoutMilliseconds: self.busyTimeoutMilliseconds)
             if existed {
                 try self.validateExistingDatabase(opened)
                 // The verified aggregate ledger is an additive migration. Keep the existing
@@ -1154,8 +1198,8 @@ extension CostUsageStore {
 // MARK: - SQLite primitives
 
 extension CostUsageStore {
-    static func configure(_ database: OpaquePointer) throws {
-        guard sqlite3_busy_timeout(database, 5000) == SQLITE_OK else {
+    static func configure(_ database: OpaquePointer, busyTimeoutMilliseconds: Int32 = 5000) throws {
+        guard sqlite3_busy_timeout(database, busyTimeoutMilliseconds) == SQLITE_OK else {
             throw self.sqliteError(database)
         }
         try self.execute(database, "PRAGMA foreign_keys=ON")

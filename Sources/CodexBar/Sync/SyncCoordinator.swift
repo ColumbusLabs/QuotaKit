@@ -124,7 +124,7 @@ final class SyncCoordinator {
     /// upstream's account-scoped refresh machinery. See
     /// `Research/020-multi-account-comprehensive.md` and
     /// `SyncMultiAccountSnapshotCache.swift`.
-    private let multiAccountCache = SyncMultiAccountSnapshotCache()
+    let multiAccountCache = SyncMultiAccountSnapshotCache()
 
     /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
     /// hashing is insensitive to encoding key order. Built on top of the
@@ -247,7 +247,9 @@ final class SyncCoordinator {
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
-        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+            ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+        }
         guard !enabledProviders.isEmpty else { return }
 
         self.pushPending = true
@@ -274,13 +276,16 @@ final class SyncCoordinator {
     private func performCurrentSnapshotPush() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
-        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+            ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+        }
         guard !enabledProviders.isEmpty else { return }
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
         for provider in enabledProviders {
             let snapshot = self.store.snapshots[provider.instanceID]
+            guard snapshot?.browserSessionOwner == nil else { continue }
             let error = self.store.errors[provider.instanceID]
             let meta = self.store.providerMetadata[provider]
 
@@ -356,7 +361,7 @@ final class SyncCoordinator {
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String
         let synced = SyncedUsageSnapshot(
-            providers: Self.providersForIPhoneSync(providerSnapshots),
+            providers: Self.iphoneExportableSnapshots(providerSnapshots),
             syncTimestamp: Date(),
             deviceName: deviceName,
             deviceID: self.deviceID,
@@ -755,6 +760,9 @@ final class SyncCoordinator {
         // Older records retain their previous key until normal per-device
         // stale-record reconciliation removes them after a successful push.
         let accountEmail: String? = {
+            // WorkBuddy has a plan label but no stable public account identity; keep all personal identifiers
+            // Mac-local.
+            guard provider != .workbuddy else { return nil }
             guard provider == .copilot, let tokenAccount,
                   let apiHost = copilotAPIHost
             else { return snapshot?.identity?.accountEmail }
@@ -895,10 +903,30 @@ final class SyncCoordinator {
 
     // swiftlint:enable function_body_length
 
-    private static func mapProviderDetails(
+    static func mapProviderDetails(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
+        // Provider-specific by design: Sync Claude promotional dollars; reset inventory stays live-only.
+        if provider == .claude {
+            guard let snapshot else { return nil }
+            let details = snapshot.details
+            guard let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })
+                .flatMap(\.rows).first(where: { $0.id == ClaudeCloudCreditsSnapshot.detailRowID }),
+                let status = ClaudeCloudCreditsSnapshot.detailStatus(in: details, now: Date())
+            else { return [] } // Explicitly clear an older synced balance when a successful snapshot omits it.
+            let value: String = switch status {
+            case .available: row.value
+            case .expired: "Expired"
+            case .unavailable: "Unavailable"
+            }
+            return [SyncProviderDetailSection(
+                title: ClaudeCloudCreditsSnapshot.detailTitle,
+                rows: [.init(
+                    label: ClaudeCloudCreditsSnapshot.detailTitle,
+                    value: value,
+                    secondaryValue: row.secondaryValue)])]
+        }
         // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
         if provider == .muse {
             // The selected browser team's source is useful on iPhone; the full team list and
@@ -911,6 +939,21 @@ final class SyncCoordinator {
             return [SyncProviderDetailSection(
                 title: "Browser team quota (dev.meta.ai)",
                 rows: [.init(label: "Team", value: team.value)])]
+        }
+        // WorkBuddy's generic plugin details can include account or credential metadata. Sync only the finite
+        // numeric credit balance rows the iPhone needs, and clear stale details after a successful empty result.
+        if provider == .workbuddy {
+            guard let snapshot else { return nil }
+            let rows = snapshot.details
+                .filter { $0.title == "Credits" }
+                .flatMap(\.rows)
+                .filter { ["Left", "Total", "Reserved"].contains($0.label) && Self.isWorkBuddyCreditNumber($0.value) }
+            var seen: Set<String> = []
+            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                guard seen.insert(row.label).inserted else { return nil }
+                return .init(label: row.label, value: row.value)
+            }
+            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(title: "Credits", rows: safeRows)]
         }
         // These providers expose useful rows that have no dedicated iPhone payload. In particular,
         // DevPass and Poe can have details without a rate window or cost summary.
@@ -933,87 +976,11 @@ final class SyncCoordinator {
         }
     }
 
-    static func syncedStatusMessage(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot?,
-        providerCost: ProviderCostSnapshot?,
-        error: String?,
-        rateWindows: [SyncRateWindow]) -> String?
-    {
-        if let error {
-            return error
-        }
-        if provider == .aiand || provider == .fireworks, let providerCost {
-            let amount = String(format: "%.2f", providerCost.used)
-            let period = providerCost.period ?? "Last 30 days"
-            return "\(period) spend: \(providerCost.currencyCode) \(amount)"
-        }
-        if provider == .opencode, let providerCost, providerCost.limit <= 0 {
-            let spend = String(format: "%.2f", providerCost.used)
-            let period = providerCost.period ?? "Monthly"
-            if let balance = providerCost.balance {
-                return "\(period) spend: \(providerCost.currencyCode) \(spend) · Balance: " +
-                    "\(providerCost.currencyCode) \(String(format: "%.2f", balance))"
-            }
-            return "\(period) spend: \(providerCost.currencyCode) \(spend)"
-        }
-        if provider == .xai, let xaiUsage = snapshot?.xaiUsage {
-            let amount = String(format: "%.2f", xaiUsage.balanceUSD)
-            return "Prepaid credits: USD \(amount)"
-        }
-        if provider == .lithosai, let providerCost {
-            let amount = String(format: "%.2f", providerCost.used)
-            return "Prepaid balance: \(providerCost.currencyCode) \(amount)"
-        }
-        guard provider == .copilot,
-              rateWindows.isEmpty,
-              let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !plan.isEmpty
-        else { return nil }
-        // Unlimited and token-billed Copilot plans intentionally have no metered windows. Keep a
-        // meaningful signal on the wire so QuotaKit's Mac/iOS ghost filters retain the provider.
-        return "Plan: \(plan)"
-    }
-
-    static func syncBudgetSnapshot(
-        provider: UsageProvider,
-        providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
-    {
-        // ZenMux, Neuralwatt, LithosAI, and xAI report remaining balances through
-        // ProviderCostSnapshot with a zero limit. Those are not used/limit
-        // budgets and would render on iOS as the false statement "$balance / $0".
-        guard provider != .zenmux,
-              provider != .neuralwatt,
-              provider != .aiand,
-              provider != .fireworks,
-              provider != .lithosai,
-              provider != .xai
-        else {
-            return nil
-        }
-        if provider == .claude,
-           let providerCost,
-           providerCost.limit <= 0,
-           providerCost.balance != nil
-        {
-            return nil
-        }
-        if provider == .opencode || provider == .codex,
-           let providerCost,
-           providerCost.limit <= 0
-        {
-            // A standalone Codex workspace credit pool is a balance, not a $0 budget.
-            return nil
-        }
-        return providerCost.map { pc in
-            SyncBudgetSnapshot(
-                usedAmount: pc.used,
-                limitAmount: pc.limit,
-                currencyCode: pc.currencyCode,
-                period: pc.period,
-                resetsAt: pc.resetsAt,
-                personalUsedAmount: pc.personalUsed)
-        }
+    private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {
+        // The plugin formats values as en-US digits with optional comma grouping and a decimal point.
+        let pattern = #"^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$"#
+        guard raw.range(of: pattern, options: .regularExpression) != nil else { return false }
+        return Double(raw.replacingOccurrences(of: ",", with: "")).map { $0.isFinite && $0 >= 0 } ?? false
     }
 
     private func visibleExtraRateWindows(
@@ -1405,6 +1372,12 @@ final class SyncCoordinator {
         // path doesn't yet read from cache for token providers; that's an
         // R3 hardening item).
         for tokenProvider in Self.tokenBasedMultiAccountProviders {
+            guard ProviderDescriptorRegistry.descriptor(for: tokenProvider).snapshotExport.allowsIPhoneSync else {
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: tokenProvider.rawValue,
+                    livingAccountIDs: [])
+                continue
+            }
             guard enabledSet.contains(tokenProvider) else {
                 // Provider disabled — purge any cached entries so a
                 // re-enable starts clean (R3 P1: disabled-provider
@@ -1417,8 +1390,13 @@ final class SyncCoordinator {
             guard let entries = self.store.accountSnapshots[tokenProvider.instanceID],
                   entries.count >= 2
             else { continue }
-
             let providerID = tokenProvider.rawValue
+            guard entries.allSatisfy({ $0.snapshot?.browserSessionOwner == nil }) else {
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: providerID,
+                    livingAccountIDs: [])
+                continue
+            }
             let meta = self.store.providerMetadata[tokenProvider]
             let sharedCostSummary = self.makeCostSummary(for: tokenProvider)
             let sharedUtilizationHistory = self.makeUtilizationHistory(
@@ -2042,7 +2020,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
@@ -2139,11 +2117,15 @@ final class SyncCoordinator {
         return newID
     }
 
-    private static func providersForIPhoneSync(
+    static func iphoneExportableSnapshots(
         _ providers: [ProviderUsageSnapshot]) -> [ProviderUsageSnapshot]
     {
         // Provider-specific by design: CodeRabbit detail rows have no iPhone wire field yet.
-        providers.filter { $0.providerID != UsageProvider.coderabbit.rawValue }
+        providers.filter { snapshot in
+            guard snapshot.providerID != UsageProvider.coderabbit.rawValue else { return false }
+            guard let provider = UsageProvider(rawValue: snapshot.providerID) else { return true }
+            return ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsIPhoneSync
+        }
     }
 }
 

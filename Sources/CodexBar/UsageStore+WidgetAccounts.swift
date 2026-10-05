@@ -10,6 +10,8 @@ extension UsageStore {
             return []
         }
         let providers = self.enabledProviders().compactMap(\.firstPartyProvider)
+            .filter(Self.supportsWidgetUsage)
+            .filter { ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsWidgets }
         self.widgetVerifiedTokenSnapshots = self.widgetVerifiedTokenSnapshots.filter { providers.contains($0.key) }
         return providers.flatMap { provider in
             self.widgetAccounts(for: provider, now: now)
@@ -80,6 +82,9 @@ extension UsageStore {
                 let matches = snapshots.filter { $0.id == account.id }
                 guard matches.count <= 1 else { return nil }
                 let current = matches.first
+                // A selected-browser session has no account identity to pin. Do not publish it
+                // through this token-account path or fall back to a previously verified quota.
+                guard current?.snapshot?.browserSessionOwner == nil else { return nil }
                 let record: WidgetVerifiedTokenSnapshot
                 if let snapshot = current?.snapshot,
                    let id = Self.widgetTokenAccountID(provider: provider, account: account, snapshot: snapshot)
@@ -203,8 +208,9 @@ extension UsageStore {
         id: String,
         label: String,
         snapshot: UsageSnapshot?,
-        now: Date) -> WidgetSnapshot.AccountEntry
+        now: Date) -> WidgetSnapshot.AccountEntry?
     {
+        guard snapshot?.browserSessionOwner == nil else { return nil }
         let usage = snapshot.map { self.widgetAccountQuota(provider: provider, snapshot: $0, now: now) }
         return WidgetSnapshot.AccountEntry(id: id, provider: provider.instanceID, label: label, usage: usage)
     }

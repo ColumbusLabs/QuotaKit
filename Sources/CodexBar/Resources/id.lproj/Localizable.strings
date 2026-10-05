@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d lainnya";
+"Add folder…" = "Tambahkan folder…";
+"Additional Gemini profile homes" = "Folder profil Gemini tambahan";
+"Cloud credits" = "Kredit cloud";
 "Conversations (%@)" = "Percakapan (%@)";
+"Expired" = "Kedaluwarsa";
 "Fast" = "Cepat";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Opsional. Pilih folder .gemini tiap profil untuk menggabungkan riwayat token dan biaya lokal. Folder utama selalu disertakan. Tidak mengubah proses masuk atau kuota.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Proyek";
 "Session %@" = "Sesi %@";
@@ -1564,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Obrolan mandiri";
+"Independent chats" = "Obrolan mandiri";
+"Chat %d" = "Obrolan %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1692,3 +1701,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Dengan akun Google yang dipilih atau disuntikkan, Auto hanya menerima laporan aplikasi lokal, agy CLI, dan IDE jika identitas cocok, lalu mencoba OAuth. Local API / agy CLI yang dipilih secara eksplisit dapat memakai akun lokal lain yang sudah masuk.";
 "Supported browsers: %@. Use Manual for other browsers." = "Browser yang didukung: %@. Gunakan Manual untuk browser lain.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Tempel header Cookie dari permintaan Chrome ke www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Dicadangkan";
+
+"Left" = "Tersisa";
+
+/* Selected browser profile */
+"Browser profile" = "Profil browser";
+"Unavailable profile: %@" = "Profil tidak tersedia: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Hanya baca profil %@ yang dipilih. Akun tidak pernah dipilih secara otomatis.";

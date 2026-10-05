@@ -38,7 +38,8 @@ extension CostUsageStore {
         init(
             snapshot: CostUsageStoreSnapshot,
             tokenSnapshotMarkersByPath: [String: Bool] = [:],
-            usageRowCountsByPath: [String: Int]? = nil)
+            usageRowCountsByPath: [String: Int]? = nil,
+            malformedDetailsPaths: Set<String>? = nil)
         {
             self.metadata = snapshot.metadata
             self.files = snapshot.files.map { file in
@@ -52,7 +53,8 @@ extension CostUsageStore {
                 ?? snapshot.tokenSnapshots.reduce(into: [:]) { $0[$1.path, default: 0] += 1 }
             self.tokenSnapshotsLoaded = snapshot.tokenSnapshotsLoaded
             self.tokenSnapshotMarkersByPath = tokenSnapshotMarkersByPath
-            self.malformedDetailsPaths = CostUsageStore.codexMalformedDetailsPaths(from: snapshot.files)
+            self.malformedDetailsPaths = malformedDetailsPaths
+                ?? CostUsageStore.codexMalformedDetailsPaths(from: snapshot.files)
             self.unloadedTokenSnapshotPaths = snapshot.tokenSnapshotsLoaded
                 ? []
                 : Set(self.snapshotCounts.compactMap { path, count in count > 0 ? path : nil })

@@ -106,6 +106,7 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
 - [Mistral](docs/mistral.md) — Browser cookies for API spend, credit balance, and monthly-plan usage.
 - [Muse (muse.ai)](docs/museai.md) — Browser or manual session cookie for weekly subscription quota and remaining tokens.
+- [Langdock](docs/langdock.md) — Personal session and weekly limits from a selected Edge profile; Mac-only session data.
 - [LithosAI](docs/lithosai.md) — Chrome or manual console cookies for prepaid balance and optional daily/monthly spend.
 - [Notion AI](docs/notion.md) — Browser cookies for rolling six-hour and monthly workspace allowance windows.
 - [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).

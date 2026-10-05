@@ -49,7 +49,7 @@ read_when:
 | Group | Tokens | Behavior |
 | --- | --- | --- |
 | Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
-| Usage | Session %, Weekly %, Auto %, provider-specific %, Usage bar | Window percentage or a compact three-glyph usage bar; Cursor can pin its Grok Bot allowance separately when present |
+| Usage | Session %, Weekly %, Auto %, provider-specific %, Usage bar | Window percentage or a compact three-glyph usage bar; named Cursor and Antigravity allowances retain their own labels and show a dash when unavailable |
 | Usage | Session pace, Weekly pace, Auto pace | Signed pace delta for that window |
 | Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
 | Money | Balance, Cost today, Cost 30d | OpenRouter credit balance, or local cost estimate for the selected period |
@@ -70,7 +70,8 @@ at tokens retain automatic-window behavior. Conditional branches can use the sam
 V4 data and older-readable V3, V2, and legacy projections that omit explicit reset tokens so older app versions can
 still load supported tokens.
 
-Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
+Balance uses provider-reported amounts where available, including OpenRouter remaining credits and LithosAI prepaid
+balance. Auto %
 uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
 derive their first layout from the prior style, display mode, metric, and reset settings; those legacy keys remain
@@ -152,3 +153,7 @@ Usage visibility is presentation-only: it does not change fetching, quota calcul
 See also: `docs/widgets.md`.
 
 Cost-history submenus keep tall charts in an app-owned scrollable viewport. The Token/Cost picker sits below the chart so hovering near the top does not trigger native menu auto-scrolling; it aligns with the chart's content edge.
+
+### Menu bar metric
+
+In Icon and Percent mode, the provider's **Menu bar metric** picker offers Auto, Session, Weekly, and declared named allowances: Cursor's Grok Bot and Antigravity's Gemini weekly and Claude/GPT weekly quotas. Choices remain available before a reading arrives and persist through the existing layout override. Named allowances retain their labels, preserve a real zero, and show an en dash for missing or unknown data. Balance, reset, conditional tokens, and other providers' layouts remain independent.

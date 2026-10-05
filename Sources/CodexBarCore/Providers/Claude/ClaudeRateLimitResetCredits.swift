@@ -1,6 +1,6 @@
 import Foundation
 
-/// Display-safe inventory from Claude Web's `cedar_ember` usage block.
+/// Display-safe inventory from Claude Web's or OAuth's `cedar_ember` usage block.
 ///
 /// Grant identifiers are redemption handles and are intentionally never decoded. This snapshot is
 /// live-only; `UsageSnapshot` does not encode or decode it.
@@ -60,8 +60,20 @@ struct ClaudeLimitResetStatusResponse: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.eligible = try container.decode(Bool.self, forKey: .eligible)
-        let lossyGrants = try? container.decodeIfPresent([LossyGrant].self, forKey: .grants)
-        self.grants = lossyGrants?.compactMap(\.grant) ?? []
+        var records = try container.nestedUnkeyedContainer(forKey: .grants)
+        var grants: [ClaudeLimitResetGrantResponse] = []
+        while !records.isAtEnd {
+            guard records.currentIndex < Self.maximumGrantRecords else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .grants,
+                    in: container,
+                    debugDescription: "Too many reset grants")
+            }
+            if let grant = try records.decode(LossyGrant.self).grant {
+                grants.append(grant)
+            }
+        }
+        self.grants = grants
     }
 
     func snapshot(updatedAt: Date) -> ClaudeRateLimitResetCreditsSnapshot? {

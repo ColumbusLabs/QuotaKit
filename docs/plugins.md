@@ -105,6 +105,12 @@ defineProvider({
   URL-matched cookie records without persistent cookie storage. It may also declare `imports`, `requiredCookies`, and
   a host-owned `headerEcho`; these cannot be enabled by user-installed plugins. `imports` defaults to
   `"app-interactive"`; `"access-gated"` lets the host browser access gate govern the import attempt.
+- During an explicit app refresh, the host may allow one bounded retry for one browser whose cookie access was blocked.
+  The retry context follows the importer across plugin engines. Scheduled refreshes remain noninteractive and never
+  gain permission to show a Keychain prompt. If cookie permission blocks available sessions and the provider then
+  reports missing or expired authentication, QuotaKit surfaces a permission error with explicit-refresh and Manual
+  source guidance; unrelated provider errors keep their original classification.
+- For `cache: "nonpersistent"`, a successfully validated refresh counts as success without a persistent cookie-cache write.
 - `fetchUsage(ctx)`: function returning a snapshot or fetch result envelope, or a promise for one.
 
 First-party plugins with the `browser-cookies` capability may call
@@ -366,3 +372,24 @@ enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh bu
 refreshes update visible plugin cards, and repeated requests for the same plugin share its in-flight refresh.
 Overview continues to summarize built-in providers. This setting changes placement only: it grants no additional host
 capabilities and does not change network approval.
+
+## Selected browser profiles
+
+A bundled plugin can declare `cookiePolicy.store: "selected-profile"` with `selection: "request-url"`,
+`cache: "nonpersistent"`, `imports: "access-gated"`, a nonempty `requiredCookies` list, and a `sessionURL` on
+its single declared request host. Its `PluginProviderSpec.WebSource` registers a settings section with
+`selectedProfileBrowser`; the shared **Browser profile** picker persists the explicit `browserProfileID`.
+There is no default profile, Manual header path, other-profile fallback, or cookie-cache read/write.
+
+The host fingerprints the selected browser/profile and the applicable required cookies before fetching. After
+success, failure, or cancellation it reads that same profile again under the background no-interaction gate.
+Only matching, unambiguous live ownership authorizes publication or transient-error retention. Cookie values and
+the digest stay in Swift; neither is exposed to the script, logs, or serialized usage. Preference cookies do not
+change ownership. Changes are detected on refresh, not continuously. Unreadable or changed sessions fail closed.
+Selected-profile responses omit `Cookie`, `Set-Cookie`, and `Set-Cookie2` headers from the script-facing response;
+ordinary headers remain available. Response cookies are neither applied to the browser nor persisted by the host.
+
+Providers without stable account identity can set `history: .unavailable` and `burnDownWidgetSelectable: false`
+on the spec. Langdock uses these capabilities and does not backfill missing reset dates from prior sessions.
+Providers with both widget capabilities disabled are omitted from widget files. Selected-profile usage is never
+exported to iPhone sync, fleet CloudKit account snapshots, or widgets: its ownership can only be verified on the importing device.

@@ -272,8 +272,9 @@ enum AntigravityLocalReader {
         let inherited = label.flatMap { conflicts.contains($0) ? nil : models[$0] }
         let model = self.normalizeModelID(event.turn.model ?? inherited ?? "unknown")
         let date = Date(timeIntervalSince1970: Double(timestamp) / 1000)
+        let unattributedZero = total == 0 && model == "unknown"
         let cost = pricing.flatMap {
-            self.costUSD(
+            unattributedZero ? 0 : self.costUSD(
                 pricing: $0,
                 model: model,
                 date: date,
@@ -292,7 +293,7 @@ enum AntigravityLocalReader {
             requestCount: 1,
             costUSD: cost,
             modelsUsed: nil,
-            modelBreakdowns: [.init(
+            modelBreakdowns: unattributedZero ? [] : [.init(
                 modelName: model,
                 costUSD: cost,
                 totalTokens: total,

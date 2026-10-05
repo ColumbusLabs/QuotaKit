@@ -9,6 +9,7 @@ private enum QuickJSHostFunction: Int32 {
     case settingGet
     case http
     case cookieAvailability
+    case acceptCookie
     case rejectCookie
     case cookieHeader
     case cookieSession
@@ -503,6 +504,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             QuickJSPluginValue(engine: self, value: result),
             provider: self.manifest.id,
             now: now,
+            percentPolicy: self.manifest.percentPolicy,
             allowsProviderExtensions: !self.enforcesUserResponsePolicy)
     }
 
@@ -511,6 +513,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (QuickJSHostFunction.settingGet, "settingGet", 2),
             (.http, "http", 6),
             (.cookieHeader, "cookieHeader", 4),
+            (.acceptCookie, "acceptCookie", 2),
             (.rejectCookie, "rejectCookie", 2),
             (.cookieSession, "cookieSession", 4),
             (.cookieAvailability, "cookieAvailability", 1),
@@ -548,18 +551,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             case .http:
                 try self.hostHTTP(values)
                 return cqjs_undefined()
-            case .cookieAvailability:
-                _ = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
-                guard let state = self.fetchState else { return self.makeString("off") }
-                return self.makeString(state.contextOptions.cookieSource.pluginAvailability(
-                    hasResolver: state.contextOptions.cookieSessionResolver != nil
-                        || (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
-                        || state.instanceCookieResolver != nil))
-            case .rejectCookie:
-                let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
-                let id = values.count > 1 ? try self.string(from: values[1]) : ""
-                self.fetchState?.contextOptions.rejectCookie(domain: domain, id: id)
-                return cqjs_undefined()
+            case .cookieAvailability, .acceptCookie, .rejectCookie:
+                return try self.hostCookieControl(function, values)
             case .cookieHeader, .cookieSession:
                 try self.hostCookieHeader(values, session: function == .cookieSession)
                 return cqjs_undefined()
@@ -581,24 +574,69 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 return try self.hostNextDailyReset(values)
             case .addMonths:
                 return try self.hostAddMonths(values)
-            case .pct:
-                return try self.hostPercentage(values)
-            case .amountFromPercent:
-                return try self.hostAmountFromPercent(values)
-            case .isDetailLabel:
-                let label = try values.first.map { try self.string(from: $0) } ?? ""
-                return JS_NewBool(self.context, (try? ProviderDetailSection.Row(label: label, value: "—")) != nil)
-            case .formatCurrency:
-                var amount = 0.0
-                guard values.count == 2, JS_ToFloat64(self.context, &amount, values[0]) == 0 else {
-                    throw ProviderPluginError.script("currency requires an amount and currency code")
-                }
-                return try self.makeString(UsageFormatter.currencyString(
-                    amount,
-                    currencyCode: self.string(from: values[1])))
+            case .pct, .amountFromPercent, .isDetailLabel, .formatCurrency:
+                return try self.hostValueUtility(function, values)
             }
         } catch {
             return self.throwError(error)
+        }
+    }
+
+    private func hostCookieControl(
+        _ function: QuickJSHostFunction,
+        _ values: UnsafeBufferPointer<JSValue>) throws -> JSValue
+    {
+        switch function {
+        case .cookieAvailability:
+            _ = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
+            guard let state = self.fetchState else { return self.makeString("off") }
+            return self.makeString(state.contextOptions.cookieSource.pluginAvailability(
+                hasResolver: state.contextOptions.cookieSessionResolver != nil
+                    || (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
+                    || state.instanceCookieResolver != nil))
+        case .acceptCookie:
+            guard self.manifest.cookiePolicy?.cache == .validatedSingleEntry else {
+                throw ProviderPluginError.secretAccess("cookie persistence is not declared")
+            }
+            let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
+            let id = values.count > 1 ? try self.string(from: values[1]) : ""
+            guard let state = self.fetchState else {
+                throw ProviderPluginError.secretAccess("cookie validation is unavailable")
+            }
+            try state.contextOptions.acceptCookie(domain: domain, id: id)
+            return cqjs_undefined()
+        case .rejectCookie:
+            let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
+            let id = values.count > 1 ? try self.string(from: values[1]) : ""
+            self.fetchState?.contextOptions.rejectCookie(domain: domain, id: id)
+            return cqjs_undefined()
+        default:
+            throw ProviderPluginError.script("unsupported cookie-control host function")
+        }
+    }
+
+    private func hostValueUtility(
+        _ function: QuickJSHostFunction,
+        _ values: UnsafeBufferPointer<JSValue>) throws -> JSValue
+    {
+        switch function {
+        case .pct:
+            return try self.hostPercentage(values)
+        case .amountFromPercent:
+            return try self.hostAmountFromPercent(values)
+        case .isDetailLabel:
+            let label = try values.first.map { try self.string(from: $0) } ?? ""
+            return JS_NewBool(self.context, (try? ProviderDetailSection.Row(label: label, value: "—")) != nil)
+        case .formatCurrency:
+            var amount = 0.0
+            guard values.count == 2, JS_ToFloat64(self.context, &amount, values[0]) == 0 else {
+                throw ProviderPluginError.script("currency requires an amount and currency code")
+            }
+            return try self.makeString(UsageFormatter.currencyString(
+                amount,
+                currencyCode: self.string(from: values[1])))
+        default:
+            throw ProviderPluginError.script("unsupported value-utility host function")
         }
     }
 

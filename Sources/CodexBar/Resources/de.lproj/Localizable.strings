@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d weitere";
+"Add folder…" = "Ordner hinzufügen…";
+"Additional Gemini profile homes" = "Zusätzliche Gemini-Profilordner";
+"Cloud credits" = "Cloud-Guthaben";
 "Conversations (%@)" = "Unterhaltungen (%@)";
+"Expired" = "Abgelaufen";
 "Fast" = "Schnell";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Optional. Wähle den .gemini-Ordner jedes Profils aus, um den lokalen Token- und Kostenverlauf zusammenzuführen. Der primäre Ordner ist immer enthalten. Anmeldung und Kontingente bleiben unverändert.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Projekte";
 "Session %@" = "Sitzung %@";
@@ -1561,6 +1566,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Unabhängiger Chat";
+"Independent chats" = "Unabhängige Chats";
+"Chat %d" = "Chat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1689,3 +1698,13 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Bei einem ausgewählten oder übergebenen Google-Konto akzeptiert Auto Berichte der lokalen App, agy CLI und IDE nur bei übereinstimmender Identität und versucht danach OAuth. Explizit gewählte Local API / agy CLI können ein anderes lokal angemeldetes Konto verwenden.";
 "Supported browsers: %@. Use Manual for other browsers." = "Unterstützte Browser: %@. Verwende für andere Browser „Manuell“.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Füge den Cookie-Header einer Chrome-Anfrage an www.workbuddy.cn/profile/plans-usage ein.";
+"Reserved" = "Reserviert";
+
+"Left" = "Verbleibend";
+
+/* Selected browser profile */
+"Browser profile" = "Browserprofil";
+"Unavailable profile: %@" = "Nicht verfügbares Profil: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Nur das ausgewählte %@-Profil lesen. Konten werden nie automatisch ausgewählt.";

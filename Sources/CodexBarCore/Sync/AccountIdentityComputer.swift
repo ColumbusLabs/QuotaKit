@@ -92,7 +92,7 @@ public enum AccountIdentityComputer {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .notion,
              .fireworks, .ibmbob, .gitkraken, .v0, .coderabbit, .huggingface, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS uses legacy email or provider-only
             // grouping. If a future provider needs account-specific merging, add

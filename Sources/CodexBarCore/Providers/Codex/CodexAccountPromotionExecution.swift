@@ -1,23 +1,22 @@
-import CodexBarCore
 import Foundation
 
 private struct CodexPreparedImportedAccount {
-    let account: ManagedCodexAccount
-    let homeURL: URL
+    package let account: ManagedCodexAccount
+    package let homeURL: URL
 }
 
-struct CodexDisplacedLivePreservationExecutionResult: Equatable {
-    let displacedLiveDisposition: CodexAccountPromotionResult.DisplacedLiveDisposition
+package struct CodexDisplacedLivePreservationExecutionResult: Equatable {
+    package let displacedLiveDisposition: CodexAccountPromotionResult.DisplacedLiveDisposition
 }
 
 @MainActor
-struct CodexDisplacedLivePreservationExecutor {
+package struct CodexDisplacedLivePreservationExecutor {
     private let store: any ManagedCodexAccountStoring
     private let homeFactory: any ManagedCodexHomeProducing
     private let authMaterialReader: any CodexAuthMaterialReading
     private let fileManager: FileManager
 
-    init(
+    package init(
         store: any ManagedCodexAccountStoring,
         homeFactory: any ManagedCodexHomeProducing,
         authMaterialReader: any CodexAuthMaterialReading = DefaultCodexAuthMaterialReader(),
@@ -29,7 +28,7 @@ struct CodexDisplacedLivePreservationExecutor {
         self.fileManager = fileManager
     }
 
-    func execute(
+    package func execute(
         plan: CodexDisplacedLivePreservationPlan,
         context: PreparedPromotionContext) throws
         -> CodexDisplacedLivePreservationExecutionResult
@@ -87,7 +86,7 @@ struct CodexDisplacedLivePreservationExecutor {
         }
 
         let importedHomeURL = self.homeFactory.makeHomeURL()
-        guard CodexCredentialFileAccess.permits(CodexAccountPromotionService.authFileURL(for: importedHomeURL)) else {
+        guard CodexCredentialFileAccess.permits(CodexAuthFingerprint.authFileURL(homePath: importedHomeURL.path)) else {
             throw CodexAccountPromotionError.displacedLiveImportFailed
         }
         let importedAccountID = Self.accountID(for: importedHomeURL)
@@ -279,7 +278,7 @@ struct CodexDisplacedLivePreservationExecutor {
                 lastAuthenticatedAt: now)
 
             let refreshedHomeURL = URL(fileURLWithPath: persistedManagedAccount.managedHomePath, isDirectory: true)
-            guard CodexCredentialFileAccess.permits(CodexAccountPromotionService.authFileURL(for: refreshedHomeURL))
+            guard CodexCredentialFileAccess.permits(CodexAuthFingerprint.authFileURL(homePath: refreshedHomeURL.path))
             else {
                 throw CodexAccountPromotionError.displacedLiveImportFailed
             }
@@ -306,13 +305,15 @@ struct CodexDisplacedLivePreservationExecutor {
     }
 
     private func writeManagedAuthData(_ data: Data, to homeURL: URL) throws {
-        let authFileURL = CodexAccountPromotionService.authFileURL(for: homeURL)
+        let authFileURL = CodexAuthFingerprint.authFileURL(homePath: homeURL.path)
         guard CodexCredentialFileAccess.permits(authFileURL) else { throw CodexOAuthCredentialsError.notFound }
         try CredentialFileWriter.writePrivate(data, to: authFileURL)
     }
 
     private func removeManagedHomeIfSafe(_ homeURL: URL) throws {
-        guard CodexCredentialFileAccess.permits(CodexAccountPromotionService.authFileURL(for: homeURL)) else { return }
+        guard CodexCredentialFileAccess.permits(CodexAuthFingerprint.authFileURL(homePath: homeURL.path)) else {
+            return
+        }
         try self.homeFactory.validateManagedHomeForDeletion(homeURL)
         if self.fileManager.fileExists(atPath: homeURL.path) {
             try self.fileManager.removeItem(at: homeURL)

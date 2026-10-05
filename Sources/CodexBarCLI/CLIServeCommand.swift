@@ -1508,6 +1508,8 @@ extension CodexBarCLI {
             do {
                 let snapshot = try await fetcher.loadTokenSnapshot(
                     provider: provider,
+                    antigravityAdditionalProfileHomes:
+                    context.config.providerConfig(for: provider.instanceID)?.antigravityAdditionalProfileHomes ?? [],
                     now: context.now,
                     forceRefresh: false,
                     historyDays: context.period.days(now: context.now, calendar: context.calendar),

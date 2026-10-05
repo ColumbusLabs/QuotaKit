@@ -3,26 +3,37 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct ManagedCodexAccountCoordinatorTests {
     @Test
     func `coordinator exposes in flight state and rejects overlapping managed authentication`() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         let existingAccountID = try #require(UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-111111111111"))
+        let existingAccount = self.existingAccount(id: existingAccountID, root: root)
         let runner = BlockingManagedCodexLoginRunner()
         let service = ManagedCodexAccountService(
             store: InMemoryManagedCodexAccountStoreForCoordinatorTests(
-                accounts: ManagedCodexAccountSet(version: 1, accounts: [])),
+                accounts: ManagedCodexAccountSet(version: 3, accounts: [existingAccount])),
             homeFactory: CoordinatorTestManagedCodexHomeFactory(root: root),
             loginRunner: runner,
-            identityReader: CoordinatorStubManagedCodexIdentityReader(email: "user@example.com"))
+            identityReader: CoordinatorStubManagedCodexIdentityReader(email: "user@example.com"),
+            workspaceResolver: CoordinatorStubManagedCodexWorkspaceResolver())
         let coordinator = ManagedCodexAccountCoordinator(service: service)
 
-        let authTask = Task { try await coordinator.authenticateManagedAccount(existingAccountID: existingAccountID) }
-        await runner.waitUntilStarted()
+        let authTask = Task {
+            do {
+                let account = try await coordinator.authenticateManagedAccount(existingAccountID: existingAccountID)
+                await runner.authenticationDidFinish()
+                return account
+            } catch {
+                await runner.authenticationDidFinish()
+                throw error
+            }
+        }
+        try #require(await runner.waitUntilStarted())
 
         #expect(coordinator.isAuthenticatingManagedAccount)
         #expect(coordinator.authenticatingManagedAccountID == existingAccountID)
@@ -35,23 +46,27 @@ struct ManagedCodexAccountCoordinatorTests {
         let account = try await authTask.value
 
         #expect(account.email == "user@example.com")
+        #expect(account.id == existingAccountID)
         #expect(coordinator.isAuthenticatingManagedAccount == false)
         #expect(coordinator.authenticatingManagedAccountID == nil)
     }
 
     @Test
     func `coordinator clears in flight state after managed login timeout`() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         let loginResult = CLILoginRunner.Result(outcome: .timedOut, output: "timed out")
         let existingAccountID = try #require(UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-222222222222"))
+        let existingAccount = self.existingAccount(id: existingAccountID, root: root)
+        let runner = TimedOutManagedCodexLoginRunner(result: loginResult)
         let service = ManagedCodexAccountService(
             store: InMemoryManagedCodexAccountStoreForCoordinatorTests(
-                accounts: ManagedCodexAccountSet(version: 1, accounts: [])),
+                accounts: ManagedCodexAccountSet(version: 3, accounts: [existingAccount])),
             homeFactory: CoordinatorTestManagedCodexHomeFactory(root: root),
-            loginRunner: TimedOutManagedCodexLoginRunner(result: loginResult),
-            identityReader: CoordinatorStubManagedCodexIdentityReader(email: "user@example.com"))
+            loginRunner: runner,
+            identityReader: CoordinatorStubManagedCodexIdentityReader(email: "user@example.com"),
+            workspaceResolver: CoordinatorStubManagedCodexWorkspaceResolver())
         let coordinator = ManagedCodexAccountCoordinator(service: service)
 
         do {
@@ -65,27 +80,72 @@ struct ManagedCodexAccountCoordinatorTests {
 
         #expect(coordinator.isAuthenticatingManagedAccount == false)
         #expect(coordinator.authenticatingManagedAccountID == nil)
+        #expect(await runner.callCount == 1)
+    }
+
+    @Test
+    func `missing managed account fails before login and clears coordinator state`() async throws {
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let runner = TimedOutManagedCodexLoginRunner(result: .init(outcome: .timedOut, output: "synthetic timeout"))
+        let service = ManagedCodexAccountService(
+            store: InMemoryManagedCodexAccountStoreForCoordinatorTests(
+                accounts: ManagedCodexAccountSet(version: 3, accounts: [])),
+            homeFactory: CoordinatorTestManagedCodexHomeFactory(root: root),
+            loginRunner: runner,
+            identityReader: CoordinatorStubManagedCodexIdentityReader(email: "user@example.com"),
+            workspaceResolver: CoordinatorStubManagedCodexWorkspaceResolver())
+        let coordinator = ManagedCodexAccountCoordinator(service: service)
+
+        await #expect(throws: ManagedCodexAccountServiceError.accountChangedWhileAuthenticating) {
+            try await coordinator.authenticateManagedAccount(existingAccountID: UUID())
+        }
+
+        #expect(await runner.callCount == 0)
+        #expect(coordinator.isAuthenticatingManagedAccount == false)
+        #expect(coordinator.authenticatingManagedAccountID == nil)
+    }
+
+    private func existingAccount(id: UUID, root: URL) -> ManagedCodexAccount {
+        ManagedCodexAccount(
+            id: id,
+            email: "user@example.com",
+            managedHomePath: root.appendingPathComponent(id.uuidString, isDirectory: true).path,
+            createdAt: 100,
+            updatedAt: 100,
+            lastAuthenticatedAt: nil)
     }
 }
 
 private actor BlockingManagedCodexLoginRunner: ManagedCodexLoginRunning {
     private var waiters: [CheckedContinuation<CLILoginRunner.Result, Never>] = []
-    private var startedWaiters: [CheckedContinuation<Void, Never>] = []
+    private var startedWaiters: [CheckedContinuation<Bool, Never>] = []
     private var didStart = false
+    private var didFinish = false
 
     func run(homePath _: String, timeout _: TimeInterval) async -> CLILoginRunner.Result {
         self.didStart = true
-        self.startedWaiters.forEach { $0.resume() }
+        self.startedWaiters.forEach { $0.resume(returning: true) }
         self.startedWaiters.removeAll()
         return await withCheckedContinuation { continuation in
             self.waiters.append(continuation)
         }
     }
 
-    func waitUntilStarted() async {
-        if self.didStart { return }
-        await withCheckedContinuation { continuation in
+    func waitUntilStarted() async -> Bool {
+        if self.didStart { return true }
+        if self.didFinish { return false }
+        return await withCheckedContinuation { continuation in
             self.startedWaiters.append(continuation)
+        }
+    }
+
+    func authenticationDidFinish() {
+        self.didFinish = true
+        if !self.didStart {
+            self.startedWaiters.forEach { $0.resume(returning: false) }
+            self.startedWaiters.removeAll()
         }
     }
 
@@ -96,11 +156,17 @@ private actor BlockingManagedCodexLoginRunner: ManagedCodexLoginRunning {
     }
 }
 
-private struct TimedOutManagedCodexLoginRunner: ManagedCodexLoginRunning {
+private actor TimedOutManagedCodexLoginRunner: ManagedCodexLoginRunning {
     let result: CLILoginRunner.Result
+    private(set) var callCount = 0
+
+    init(result: CLILoginRunner.Result) {
+        self.result = result
+    }
 
     func run(homePath _: String, timeout _: TimeInterval) async -> CLILoginRunner.Result {
-        self.result
+        self.callCount += 1
+        return self.result
     }
 }
 
@@ -153,5 +219,14 @@ private final class CoordinatorStubManagedCodexIdentityReader: ManagedCodexIdent
             identity: CodexIdentityResolver.resolve(accountId: nil, email: self.email),
             email: self.email,
             plan: "Pro")
+    }
+}
+
+private struct CoordinatorStubManagedCodexWorkspaceResolver: ManagedCodexWorkspaceResolving {
+    func resolveWorkspaceIdentity(
+        homePath _: String,
+        providerAccountID _: String) async -> CodexOpenAIWorkspaceIdentity?
+    {
+        nil
     }
 }

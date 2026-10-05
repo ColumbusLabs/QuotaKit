@@ -9,6 +9,9 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts.
+- Claude promotional cloud-session credits sync separately from quotas and prepaid usage; cached credits show expired after their expiration.
+
 - Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.
 - Bifrost and DevPass quota windows now sync from QuotaKit Mac with provider branding and quota alerts.
 - Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now show branded iPhone cards and quota alerts when synced from QuotaKit Mac.
@@ -64,6 +67,8 @@ current Columbus Labs product surface and recent release history.
   its own provider icon, color, and quota alerts.
 - Kiro overage details now show available credit and charge limits, remaining
   credits, accrued charges, and the provider's reported currency when available.
+- Grok's prepaid USD wallet balance now appears on iPhone as provider status
+  synced from QuotaKit Mac.
 
 ## [1.11.3 (177)] — 2026-08-11 — Recovery
 

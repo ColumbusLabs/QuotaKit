@@ -69,7 +69,7 @@ struct ProviderPluginCookieRecord: Codable, Equatable, Sendable {
         return matching.isEmpty ? nil : matching.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
     }
 
-    private var hasSafeHeaderFields: Bool {
+    var hasSafeHeaderFields: Bool {
         let name = Array(self.name.utf8)
         let value = Array(self.value.utf8)
         let separators: Set<UInt8> = [34, 40, 41, 44, 47, 58, 59, 60, 61, 62, 63, 64, 91, 92, 93, 123, 125]
