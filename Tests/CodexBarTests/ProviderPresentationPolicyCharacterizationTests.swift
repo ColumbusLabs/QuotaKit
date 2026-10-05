@@ -280,7 +280,7 @@ struct ProviderPresentationPolicyCharacterizationTests {
 
         for provider in UsageProvider.allCases
             where ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable &&
-                ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets
+            ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets
         {
             let entry = self.widgetEntry(
                 provider: provider,
