@@ -7,6 +7,8 @@ import Testing
 @Suite(.serialized)
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
+    private typealias Fixture = CostUsageBoundedProgressFixture
+
     @Test
     func `bounded catch up completes before a fresh Codex home creates session roots`() throws {
         let env = try CostUsageTestEnvironment()
@@ -15,11 +17,11 @@ struct CostUsageBoundedProgressTests {
         let freshCodexHome = env.root.appendingPathComponent("fresh-codex-home", isDirectory: true)
         try FileManager.default.createDirectory(at: freshCodexHome, withIntermediateDirectories: true)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.codexSessionsRoot = freshCodexHome.appendingPathComponent("sessions", isDirectory: true)
         #expect(CostUsageScanner.codexSessionsRoots(options: options).isEmpty)
 
-        let converged = try Self.finishBoundedCatchUp(
+        let converged = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -35,15 +37,15 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         try FileManager.default.removeItem(at: env.codexArchivedSessionsRoot)
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
         let archivedRoot = env.codexArchivedSessionsRoot
         #expect(!FileManager.default.fileExists(atPath: archivedRoot.path))
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         #expect(roots.map(\.standardizedFileURL.path) == [env.codexSessionsRoot.standardizedFileURL.path])
 
-        let converged = try Self.finishBoundedCatchUp(
+        let converged = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -59,10 +61,10 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let wideSince = try #require(options.calendar.date(byAdding: .day, value: -364, to: day))
         let narrowSince = try #require(options.calendar.date(byAdding: .day, value: -89, to: day))
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 2)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 2)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex, since: wideSince, until: day, now: day, options: options)
@@ -133,11 +135,11 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let wideSince = try #require(options.calendar.date(byAdding: .day, value: -364, to: day))
         let narrowSince = try #require(options.calendar.date(byAdding: .day, value: -89, to: day))
         let discoveredDay = try #require(options.calendar.date(byAdding: .day, value: newDay ? 2 : -200, to: day))
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
         options.maxCodexScanDurationPerRefresh = nil
         let baseline = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex, since: wideSince, until: day, now: day, options: options)
@@ -196,7 +198,7 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let priorDay = try #require(options.calendar.date(byAdding: .day, value: -1, to: day))
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -207,7 +209,7 @@ struct CostUsageBoundedProgressTests {
             options: options)
 
         let corpusSize = 600
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
         options.maxCodexScanDurationPerRefresh = 60
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -237,7 +239,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondCache.codexScanInventoryPaths == nil)
         #expect(secondCache.codexScanCatchUpPending == true)
 
-        let finalCache = try Self.finishBoundedCatchUp(
+        let finalCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -256,7 +258,7 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let firstDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let firstSince = try #require(Calendar.current.date(byAdding: .day, value: -2, to: firstDay))
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
 
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -295,7 +297,7 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -334,13 +336,13 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let historicalDay = try env.makeLocalNoon(year: 2020, month: 1, day: 2)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        let historicalURLs = try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: 600)
+        let historicalURLs = try Fixture.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: 600)
         for url in historicalURLs {
             try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: url.path)
         }
-        try Self.writeSyntheticCorpus(env: env, day: currentDay, fileCount: 1)
+        try Fixture.writeSyntheticCorpus(env: env, day: currentDay, fileCount: 1)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -351,7 +353,7 @@ struct CostUsageBoundedProgressTests {
         #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.count == 601)
 
         var prepared = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        prepared.codexActiveLookbackState = try Self.completedLookbackState(
+        prepared.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: prepared,
             options: options,
             pendingFilePaths: [])
@@ -381,7 +383,7 @@ struct CostUsageBoundedProgressTests {
             [.modificationDate: currentDay.addingTimeInterval(2)],
             ofItemAtPath: historicalURLs[0].path)
         // Start a fresh exact proof after the append, regardless of an earlier page cursor.
-        narrowed.codexActiveLookbackState = try Self.completedLookbackState(
+        narrowed.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: narrowed, options: options, pendingFilePaths: [])
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: narrowed)
 
@@ -394,7 +396,7 @@ struct CostUsageBoundedProgressTests {
         #expect(pending.codexActiveLookbackState?.pendingFilePaths.contains(changedPath) == true)
         #expect(pending.codexScanCatchUpPending == true)
 
-        let converged = try Self.finishBoundedCatchUp(
+        let converged = try Fixture.finishBoundedCatchUp(
             env: env,
             day: currentDay,
             options: &options,
@@ -416,9 +418,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let historicalDay = try env.makeLocalNoon(year: 2020, month: 1, day: 2)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: 2)
-        try Self.writeSyntheticCorpus(env: env, day: currentDay, fileCount: 1)
-        var options = Self.boundedOptions(env: env)
+        try Fixture.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: 2)
+        try Fixture.writeSyntheticCorpus(env: env, day: currentDay, fileCount: 1)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -432,7 +434,7 @@ struct CostUsageBoundedProgressTests {
         #expect(cache.files.count == 3)
         cache.scanSinceKey = "2026-05-10"
         cache.scanUntilKey = "2026-05-10"
-        cache.codexActiveLookbackState = try Self.completedLookbackState(
+        cache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: cache, options: options, pendingFilePaths: [])
         cache.codexScanInventoryPaths = nil
         cache.codexScanCatchUpPending = true
@@ -464,8 +466,8 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
-        var options = Self.boundedOptions(env: env)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -475,7 +477,7 @@ struct CostUsageBoundedProgressTests {
             options: options)
 
         var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        pendingCache.codexActiveLookbackState = try Self.completedLookbackState(
+        pendingCache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: pendingCache,
             options: options,
             pendingFilePaths: [])
@@ -504,7 +506,7 @@ struct CostUsageBoundedProgressTests {
         #expect(unavailable.codexScanInventoryPaths == nil)
 
         CostUsageScanner.setUnavailableCodexDirectoriesForTesting([])
-        let converged = try Self.finishBoundedCatchUp(
+        let converged = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -520,9 +522,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let priorDay = try #require(Calendar.current.date(byAdding: .day, value: -1, to: day))
-        let retainedURL = try #require(Self.writeSyntheticCorpus(env: env, day: priorDay, fileCount: 1).first)
+        let retainedURL = try #require(Fixture.writeSyntheticCorpus(env: env, day: priorDay, fileCount: 1).first)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
             provider: .codex,
@@ -589,9 +591,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = 1500
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let saveCounter = BoundedProgressCounter()
         var hooks = CostUsageStoreTestHooks.current
         hooks.codexCatchUpReconciliationVisit = { saveCounter.increment() }
@@ -687,7 +689,7 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
         let oldModificationDate = day.addingTimeInterval(-24 * 60 * 60)
         for fileURL in fileURLs {
             try FileManager.default.setAttributes(
@@ -714,7 +716,7 @@ struct CostUsageBoundedProgressTests {
         let incompleteFilename = try #require(fileURLs.last?.lastPathComponent)
         let incompletePath = try #require(pendingCache.files.keys.first { $0.hasSuffix(incompleteFilename) })
         pendingCache.files[incompletePath]?.codexScanComplete = false
-        pendingCache.codexActiveLookbackState = try Self.completedLookbackState(
+        pendingCache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: pendingCache,
             options: options,
             pendingFilePaths: fileURLs.map(\.path.resolvingTemporaryPath))
@@ -762,7 +764,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondCache.codexScanTotalFiles == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
-        let finalCache = try Self.finishBoundedCatchUp(
+        let finalCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -778,9 +780,9 @@ struct CostUsageBoundedProgressTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 2)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 2)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -804,7 +806,7 @@ struct CostUsageBoundedProgressTests {
         pendingCache.files[partialPath]?.codexScanComplete = false
         pendingCache.files[partialPath]?.parsedBytes = 0
         pendingCache.files[partialPath]?.codexTokenIndexAnchor = nil
-        pendingCache.codexActiveLookbackState = try Self.completedLookbackState(
+        pendingCache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: pendingCache,
             options: options,
             pendingFilePaths: [
@@ -834,7 +836,7 @@ struct CostUsageBoundedProgressTests {
         #expect(repairedCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
         #expect(repairedCache.days == baselineDays)
 
-        let finalCache = try Self.finishBoundedCatchUp(
+        let finalCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -849,7 +851,7 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 2
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
         let oldModificationDate = day.addingTimeInterval(-24 * 60 * 60)
         for fileURL in fileURLs {
             try FileManager.default.setAttributes(
@@ -857,7 +859,7 @@ struct CostUsageBoundedProgressTests {
                 ofItemAtPath: fileURL.path)
         }
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -877,7 +879,7 @@ struct CostUsageBoundedProgressTests {
         #expect(beforeTotals.input == 100)
         #expect(beforeTotals.cached == 20)
         pendingCache.files[incompletePath]?.codexScanComplete = false
-        pendingCache.codexActiveLookbackState = try Self.completedLookbackState(
+        pendingCache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: pendingCache,
             options: options,
             pendingFilePaths: fileURLs.map(\.path.resolvingTemporaryPath))
@@ -935,7 +937,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondCache.codexScanTotalFiles == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
-        let finalCache = try Self.finishBoundedCatchUp(
+        let finalCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -952,9 +954,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.preferNewestCodexSessionsFirst = false
         let firstRecorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = firstRecorder
@@ -997,7 +999,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondCache.files.count == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
-        let exactCache = try Self.finishBoundedCatchUp(
+        let exactCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -1008,6 +1010,12 @@ struct CostUsageBoundedProgressTests {
         #expect(exactCache.codexScanTotalFiles == corpusSize + 1)
         #expect(exactCache.codexScanCatchUpPending == false)
     }
+}
+
+@Suite(.serialized)
+// swiftlint:disable:next type_body_length
+struct CostUsageQueuePriorityAndMigrationTests {
+    private typealias Fixture = CostUsageBoundedProgressFixture
 
     @Test
     func `current day discovery jumps ahead of a historical bounded queue`() throws {
@@ -1016,12 +1024,12 @@ struct CostUsageBoundedProgressTests {
         let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit * 2 + 1
-        let historicalURLs = try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
+        let historicalURLs = try Fixture.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
         for url in historicalURLs {
             try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: url.path)
         }
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.preferNewestCodexSessionsFirst = false
         options.useCodexCatchUpWorkingSet = true
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1084,11 +1092,11 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.preferNewestCodexSessionsFirst = true
         options.useCodexCatchUpWorkingSet = true
         options.maxCodexScanDurationPerRefresh = nil
-        let fixture = try Self.prepareResumableMissingParentFixture(
+        let fixture = try Fixture.prepareResumableMissingParentFixture(
             env: env,
             historicalDay: historicalDay,
             currentDay: currentDay,
@@ -1100,7 +1108,7 @@ struct CostUsageBoundedProgressTests {
 
         // Appended token rows keep each cached parser anchor valid while making all saved
         // historical waiters genuinely dirty across the persisted queue round trip.
-        try Self.appendHistoryUsageRows(historicalURLs, timestamp: currentISO, modificationDate: historicalDay)
+        try Fixture.appendHistoryUsageRows(historicalURLs, timestamp: currentISO, modificationDate: historicalDay)
         let forkPath = forkURL.resolvingSymlinksInPath().standardizedFileURL.path
         let partialCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let oldestHistoryPath = historicalURLs[0].path.resolvingTemporaryPath
@@ -1126,7 +1134,7 @@ struct CostUsageBoundedProgressTests {
         // Model a persisted queue that contains the historical backlog but omitted its cached
         // partial fork. Reconciliation must restore the fork before bounded candidate admission.
         var queued = partialCache
-        queued.codexActiveLookbackState = try Self.completedLookbackState(
+        queued.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: queued,
             options: options,
             pendingFilePaths: historicalURLs.map(\.path.resolvingTemporaryPath))
@@ -1248,12 +1256,12 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.preferNewestCodexSessionsFirst = true
         options.useCodexCatchUpWorkingSet = true
         options.maxCodexScanDurationPerRefresh = nil
         let parentSessionID = "target-000"
-        let fixture = try Self.prepareResumableMissingParentFixture(
+        let fixture = try Fixture.prepareResumableMissingParentFixture(
             env: env,
             historicalDay: historicalDay,
             currentDay: currentDay,
@@ -1303,7 +1311,7 @@ struct CostUsageBoundedProgressTests {
         completedDiscovery.metadataInventoryEstablished = true
         completedDiscovery.isComplete = true
         staleParentCache.codexSessionDiscovery = completedDiscovery
-        staleParentCache.codexActiveLookbackState = try Self.completedLookbackState(
+        staleParentCache.codexActiveLookbackState = try Fixture.completedLookbackState(
             cache: staleParentCache,
             options: options,
             pendingFilePaths: fixture.historicalURLs.map(\.path.resolvingTemporaryPath))
@@ -1438,7 +1446,7 @@ struct CostUsageBoundedProgressTests {
             ].joined(separator: "\n") + "\n")
         try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: fileURL.path)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.useCodexCatchUpWorkingSet = true
         options.maxCodexScanDurationPerRefresh = nil
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1485,13 +1493,13 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let closedDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        let currentURLs = try Self.writeSyntheticCorpus(
+        let currentURLs = try Fixture.writeSyntheticCorpus(
             env: env,
             day: currentDay,
             fileCount: CostUsageScanner.codexCatchUpScanCandidateLimit + 1,
             sessionIDPrefix: "queue-current")
         // Independent sessions isolate day priority from same-thread request reconciliation.
-        let closedURL = try #require(Self.writeSyntheticCorpus(
+        let closedURL = try #require(Fixture.writeSyntheticCorpus(
             env: env,
             day: closedDay,
             fileCount: 1,
@@ -1500,7 +1508,7 @@ struct CostUsageBoundedProgressTests {
             [.modificationDate: closedDay],
             ofItemAtPath: closedURL.path)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         options.useCodexCatchUpWorkingSet = true
@@ -1563,12 +1571,12 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let closedDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        let currentURL = try #require(Self.writeSyntheticCorpus(
+        let currentURL = try #require(Fixture.writeSyntheticCorpus(
             env: env,
             day: currentDay,
             fileCount: 1,
             sessionIDPrefix: "progress-current").first)
-        let closedURL = try #require(Self.writeSyntheticCorpus(
+        let closedURL = try #require(Fixture.writeSyntheticCorpus(
             env: env,
             day: closedDay,
             fileCount: 1,
@@ -1580,7 +1588,7 @@ struct CostUsageBoundedProgressTests {
             [.modificationDate: closedDay],
             ofItemAtPath: closedURL.path)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.useCodexCatchUpWorkingSet = true
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1675,9 +1683,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1751,7 +1759,7 @@ struct CostUsageBoundedProgressTests {
         #expect(thirdMetrics.codexProgressAccountingVisits == 0)
         #expect(thirdCache.codexScanCatchUpPending == true)
 
-        let finalCache = try Self.finishBoundedCatchUp(
+        let finalCache = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -1769,9 +1777,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1852,7 +1860,7 @@ struct CostUsageBoundedProgressTests {
         #expect(validatedCache.codexActiveLookbackState == nil)
         #expect(validatedCache.codexScanCatchUpPending == false)
 
-        let converged = try Self.finishBoundedCatchUp(
+        let converged = try Fixture.finishBoundedCatchUp(
             env: env,
             day: day,
             options: &options,
@@ -1870,9 +1878,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        let fileURLs = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1920,9 +1928,9 @@ struct CostUsageBoundedProgressTests {
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit + 1
-        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
+        try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: corpusSize)
 
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         options.maxCodexScanDurationPerRefresh = nil
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageControlledClockScanner.loadDailyReport(
@@ -1961,35 +1969,14 @@ struct CostUsageBoundedProgressTests {
         #expect(migratedCache.codexScanCatchUpPending == true)
     }
 
-    private static func completedLookbackState(
-        cache: CostUsageCache,
-        options: CostUsageScanner.Options,
-        pendingFilePaths: [String]) throws -> CostUsageCodexActiveLookbackState
-    {
-        let roots = CostUsageScanner.codexSessionsRoots(options: options)
-            .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
-            .sorted()
-        return try CostUsageCodexActiveLookbackState(
-            scanSinceKey: #require(cache.scanSinceKey),
-            rootPaths: roots,
-            completedRootPaths: roots,
-            pendingFilePaths: pendingFilePaths,
-            currentWindowNextDayKeyByRoot: [:],
-            currentWindowDirectoryOffsetByRoot: [:],
-            completedCurrentWindowRootPaths: roots,
-            currentWindowFlatDirectoryOffsetByRoot: [:],
-            completedCurrentWindowFlatRootPaths: roots,
-            directoryCursorVersion: 3)
-    }
-
     @Test
     func `parser migration reseed keeps persisted waiters ahead of revisited files`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        var options = Self.boundedOptions(env: env)
+        var options = Fixture.boundedOptions(env: env)
         let since = try #require(options.calendar.date(byAdding: .day, value: -364, to: day))
-        let files = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 600)
+        let files = try Fixture.writeSyntheticCorpus(env: env, day: day, fileCount: 600)
         for (index, file) in files.enumerated() {
             try FileManager.default.setAttributes(
                 [.modificationDate: day.addingTimeInterval(Double(-index))], ofItemAtPath: file.path)
@@ -2050,8 +2037,31 @@ struct CostUsageBoundedProgressTests {
         #expect(completed.codexScanCompletedFiles == 600)
         #expect(completed.codexScanTotalFiles == 600)
     }
+}
 
-    private static func boundedOptions(env: CostUsageTestEnvironment) -> CostUsageScanner.Options {
+private enum CostUsageBoundedProgressFixture {
+    static func completedLookbackState(
+        cache: CostUsageCache,
+        options: CostUsageScanner.Options,
+        pendingFilePaths: [String]) throws -> CostUsageCodexActiveLookbackState
+    {
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+            .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
+            .sorted()
+        return try CostUsageCodexActiveLookbackState(
+            scanSinceKey: #require(cache.scanSinceKey),
+            rootPaths: roots,
+            completedRootPaths: roots,
+            pendingFilePaths: pendingFilePaths,
+            currentWindowNextDayKeyByRoot: [:],
+            currentWindowDirectoryOffsetByRoot: [:],
+            completedCurrentWindowRootPaths: roots,
+            currentWindowFlatDirectoryOffsetByRoot: [:],
+            completedCurrentWindowFlatRootPaths: roots,
+            directoryCursorVersion: 3)
+    }
+
+    static func boundedOptions(env: CostUsageTestEnvironment) -> CostUsageScanner.Options {
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             claudeProjectsRoots: nil,
@@ -2064,7 +2074,7 @@ struct CostUsageBoundedProgressTests {
         return options
     }
 
-    private static func appendHistoryUsageRows(
+    static func appendHistoryUsageRows(
         _ historyURLs: [URL],
         timestamp: String,
         modificationDate: Date) throws
@@ -2084,7 +2094,7 @@ struct CostUsageBoundedProgressTests {
         }
     }
 
-    private static func prepareResumableMissingParentFixture(
+    static func prepareResumableMissingParentFixture(
         env: CostUsageTestEnvironment,
         historicalDay: Date,
         currentDay: Date,
@@ -2171,7 +2181,7 @@ struct CostUsageBoundedProgressTests {
         return (historicalURLs, forkURL, todayKey, currentISO)
     }
 
-    private static func finishBoundedCatchUp(
+    static func finishBoundedCatchUp(
         env: CostUsageTestEnvironment,
         day: Date,
         options: inout CostUsageScanner.Options,
@@ -2202,7 +2212,7 @@ struct CostUsageBoundedProgressTests {
     }
 
     @discardableResult
-    private static func writeSyntheticCorpus(
+    static func writeSyntheticCorpus(
         env: CostUsageTestEnvironment,
         day: Date,
         fileCount: Int,
