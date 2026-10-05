@@ -60,6 +60,20 @@ For Mac local development:
 ./Scripts/compile_and_run.sh --test
 ```
 
+### Optional local macOS direct test groups
+
+The default `make test` and `./Scripts/compile_and_run.sh --test` flows keep the existing sharded SwiftPM runner.
+For an opt-in local macOS run, use `./Scripts/test.sh --direct-workers 4` (between one and eight workers).
+SwiftPM still builds and discovers the suite; the adapter enumerates XCTest and Swift Testing with the selected
+Xcode toolchain helpers and requires an exact, duplicate-free match with `swift test list` before any group runs.
+An inventory mismatch fails closed. Unsupported toolchains, Linux, and hosted CI use the serial SwiftPM path.
+
+Each group runs in a fresh process with temporary `HOME`, `CFFIXED_USER_HOME`, and `CODEX_HOME` paths, while retaining
+the existing test-file isolation and Keychain suppression. Group deadlines, retry behavior, and process-group cleanup
+remain active, and output is buffered per group. A failure after direct execution starts fails the run rather than
+silently switching runtimes. This opt-in mode depends on SwiftPM's toolchain helper contract and should be
+rechecked when updating Xcode; it does not change hosted CI.
+
 ## Project Structure
 
 | Path | Purpose |

@@ -9,6 +9,7 @@ import FoundationNetworking
 public final class ProviderPluginRuntime: @unchecked Sendable {
     public typealias CookieInvalidator = @Sendable (String) -> Void
     public typealias CookieSessionResolver = @Sendable (String, Bool) async throws -> ProviderPluginCookieSession?
+    public typealias CookieSessionValidator = @Sendable (String, String) throws -> Void
     public typealias CookieSessionInvalidator = @Sendable (String, String) -> Void
     public typealias CookieResolver = @Sendable (UsageProvider, String) async throws -> String
     public typealias InstanceCookieResolver = @Sendable (ProviderInstanceID, String) async throws -> String
@@ -172,6 +173,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         cookieInvalidator: CookieInvalidator? = nil,
         cookieSessionResolver: CookieSessionResolver? = nil,
         cookieSessionInvalidator: CookieSessionInvalidator? = nil,
+        cookieSessionValidator: CookieSessionValidator? = nil,
         cookieJar: ProviderPluginCookieJar? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> UsageSnapshot
@@ -186,6 +188,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             cookieInvalidator: cookieInvalidator,
             cookieSessionResolver: cookieSessionResolver,
             cookieSessionInvalidator: cookieSessionInvalidator,
+            cookieSessionValidator: cookieSessionValidator,
             cookieJar: cookieJar,
             cookieResolver: cookieResolver,
             instanceCookieResolver: instanceCookieResolver).usage
@@ -201,6 +204,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         cookieInvalidator: CookieInvalidator? = nil,
         cookieSessionResolver: CookieSessionResolver? = nil,
         cookieSessionInvalidator: CookieSessionInvalidator? = nil,
+        cookieSessionValidator: CookieSessionValidator? = nil,
         cookieJar: ProviderPluginCookieJar? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> ProviderPluginResult
@@ -227,6 +231,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             resolver: cookieResolver,
             instanceResolver: instanceCookieResolver)
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
+        contextOptions.cookieSessionValidator = cookieSessionValidator
         contextOptions.cookieJar = cookieJar
         if self.manifest.usesCookieJar {
             let jar = contextOptions.cookieJar ?? ProviderPluginCookieJar(
@@ -703,23 +708,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let env = JSValue(newObjectIn: self.context)!
         env.setObject(Self.normalizedTimeZoneIdentifier(timeZone), forKeyedSubscript: "timeZone" as NSString)
         ctx.setObject(env, forKeyedSubscript: "env" as NSString)
-        let percentage: @convention(block) (Double, Double) -> Double = { used, limit in
-            guard used.isFinite, limit.isFinite, limit > 0 else { return 100 }
-            return min(100, max(0, used / limit * 100))
-        }
-        host.setObject(percentage, forKeyedSubscript: "pct" as NSString)
-        let amountFromPercent: @convention(block) (Double, Double) -> Double = { percent, limit in
-            percent / 100 * limit
-        }
-        host.setObject(amountFromPercent, forKeyedSubscript: "amountFromPercent" as NSString)
-        let isDetailLabel: @convention(block) (String) -> Bool = { label in
-            (try? ProviderDetailSection.Row(label: label, value: "—")) != nil
-        }
-        host.setObject(isDetailLabel, forKeyedSubscript: "isDetailLabel" as NSString)
-        let currency: @convention(block) (Double, String) -> String = { amount, code in
-            UsageFormatter.currencyString(amount, currencyCode: code)
-        }
-        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
+        self.installValueFormattingFunctions(on: host)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
             do {
@@ -763,6 +752,20 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             }
         }
         host.setObject(cookieAvailability, forKeyedSubscript: "cookieAvailability" as NSString)
+
+        let acceptCookie: @convention(block) (String, String) -> Void = { [weak self] rawDomain, id in
+            guard let self else { return }
+            do {
+                guard self.manifest.cookiePolicy?.cache == .validatedSingleEntry else {
+                    throw ProviderPluginError.secretAccess("cookie persistence is not declared")
+                }
+                let domain = try self.manifest.cookieDomain(rawDomain)
+                try contextOptions.acceptCookie(domain: domain, id: id)
+            } catch {
+                self.context.exception = JSValue(newErrorFromMessage: error.localizedDescription, in: self.context)
+            }
+        }
+        host.setObject(acceptCookie, forKeyedSubscript: "acceptCookie" as NSString)
 
         let rejectCookie: @convention(block) (String, String) -> Void = { [weak self] rawDomain, id in
             guard let self else { return }
@@ -812,6 +815,26 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
 
         _ = self.applyPrelude.call(withArguments: [ctx, host])
         return ctx
+    }
+
+    private func installValueFormattingFunctions(on host: JSValue) {
+        let percentage: @convention(block) (Double, Double) -> Double = { used, limit in
+            guard used.isFinite, limit.isFinite, limit > 0 else { return 100 }
+            return min(100, max(0, used / limit * 100))
+        }
+        host.setObject(percentage, forKeyedSubscript: "pct" as NSString)
+        let amountFromPercent: @convention(block) (Double, Double) -> Double = { percent, limit in
+            percent / 100 * limit
+        }
+        host.setObject(amountFromPercent, forKeyedSubscript: "amountFromPercent" as NSString)
+        let isDetailLabel: @convention(block) (String) -> Bool = { label in
+            (try? ProviderDetailSection.Row(label: label, value: "—")) != nil
+        }
+        host.setObject(isDetailLabel, forKeyedSubscript: "isDetailLabel" as NSString)
+        let currency: @convention(block) (Double, String) -> String = { amount, code in
+            UsageFormatter.currencyString(amount, currencyCode: code)
+        }
+        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
     }
 
     func requestInterrupt() {

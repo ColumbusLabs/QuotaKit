@@ -262,3 +262,21 @@ points to `https://status.x.ai`.
 - `Sources/QuotaKitCore/Providers/Grok/GrokStatusProbe.swift`
 - `Sources/QuotaKitCore/Providers/Grok/GrokLocalSessionScanner.swift`
 - `Sources/QuotaKit/Providers/Grok/GrokProviderImplementation.swift`
+
+## Purchased credits in JSON
+
+When the CLI proxy publishes `config.prepaidBalance`, `quotakit --provider grok --format json` exports the wallet at
+`usage.providerCost.balance` in USD. The typed `Cent.val` is USD cents, so `1446` becomes `14.46`; an empty Cent
+object (`{}`) is a confirmed zero. Missing, null, negative, malformed, overflowing, or inexact values remain absent.
+This wallet is separate from included quota. A balance-only cost snapshot uses neutral zero `used` and `limit` fields;
+those values do not infer spend, a budget, or a reset period.
+
+When ordinary credits are absent, `quotakit serve` also projects a valid Grok wallet into the existing dashboard
+`providers[].credits` shape with `unit: "USD"`. Quota windows remain separate. See [CLI](cli.md) and
+[Dashboard API](dashboard-api.md).
+
+Mac-to-iPhone sync retains a wallet-only Grok provider through its existing status message, formatted as
+`Prepaid balance: USD 14.46`. This is a visibility signal; it does not add a mobile billing field or represent a
+quota budget.
+
+Unit contract: [official Grok billing source](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs).

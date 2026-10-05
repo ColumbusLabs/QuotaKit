@@ -109,9 +109,60 @@ enum ProviderDetailSectionDispatcher {
             hasRateWindowPace: hasRateWindowPace)
     }
 
+    static func displayProviderDetails(
+        for provider: ProviderUsageSnapshot,
+        now: Date = Date()) -> [SyncProviderDetailSection]?
+    {
+        if provider.providerID == "workbuddy" {
+            guard let details = provider.providerDetails else { return nil }
+            let rows = details
+                .filter { $0.title == "Credits" }
+                .flatMap(\.rows)
+                .filter { ["Left", "Total", "Reserved"].contains($0.label) && Self.isWorkBuddyCreditNumber($0.value) }
+            var seen: Set<String> = []
+            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                guard seen.insert(row.label).inserted else { return nil }
+                let label = switch row.label {
+                case "Left": String(localized: "Left")
+                case "Total": String(localized: "Total")
+                case "Reserved": String(localized: "Reserved")
+                default: row.label
+                }
+                return .init(label: label, value: row.value)
+            }
+            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(
+                title: String(localized: "Credits"),
+                rows: safeRows)]
+        }
+        guard provider.providerID == "claude", let details = provider.providerDetails else {
+            return provider.providerDetails
+        }
+        return details.map { section in
+            guard section.title == "Cloud credits" else { return section }
+            return SyncProviderDetailSection(title: String(localized: "Cloud credits"), rows: section.rows.map { row in
+                guard row.label == "Cloud credits" else { return row }
+                let rawExpiry = row.secondaryValue?.split(separator: " ").last.map(String.init)
+                let expiry = rawExpiry.flatMap { try? Date.ISO8601FormatStyle().parse($0) }
+                let expired = row.value == "Expired" || expiry.map { $0 <= now } == true
+                let value = expired ? String(localized: "Expired")
+                    : row.value == "Unavailable" ? String(localized: "Unavailable") : row.value
+                return .init(
+                    label: String(localized: "Cloud credits"),
+                    value: value,
+                    secondaryValue: row.secondaryValue)
+            })
+        }
+    }
+
+    private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {
+        let pattern = #"^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$"#
+        guard raw.range(of: pattern, options: .regularExpression) != nil else { return false }
+        return Double(raw.replacingOccurrences(of: ",", with: "")).map { $0.isFinite && $0 >= 0 } ?? false
+    }
+
     private static func structuredSections(for provider: ProviderUsageSnapshot) -> [ProviderDetailSection] {
         var sections: [ProviderDetailSection] = []
-        if let details = provider.providerDetails, !details.isEmpty {
+        if let details = self.displayProviderDetails(for: provider), !details.isEmpty {
             sections.append(.providerDetails(details))
         }
         if provider.providerID == "kiro", let value = provider.kiroCredits {

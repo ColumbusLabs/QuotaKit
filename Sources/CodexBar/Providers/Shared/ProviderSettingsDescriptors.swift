@@ -27,6 +27,13 @@ struct ProviderSettingsContext {
     let requestConfirmation: (ProviderSettingsConfirmation) -> Void
     let runLoginFlow: () async -> Void
 
+    func binding<Value>(_ keyPath: ReferenceWritableKeyPath<SettingsStore, Value>) -> Binding<Value> {
+        let settings = self.settings
+        return Binding(
+            get: { settings[keyPath: keyPath] },
+            set: { settings[keyPath: keyPath] = $0 })
+    }
+
     func providerConfigBinding(_ field: ProviderConfigStringField) -> Binding<String> {
         self.settings.providerConfigBinding(provider: self.provider, field: field)
     }
@@ -179,6 +186,15 @@ struct ProviderSettingsFieldDescriptor: Identifiable {
         self.onActivate = onActivate
         self.onChange = onChange
     }
+}
+
+/// Shared opt-in directory list; provider implementations supply data, not custom views.
+@MainActor
+struct ProviderSettingsDirectoryListDescriptor: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let binding: Binding<[String]>
 }
 
 /// Shared action row descriptor rendered in the Providers settings pane.

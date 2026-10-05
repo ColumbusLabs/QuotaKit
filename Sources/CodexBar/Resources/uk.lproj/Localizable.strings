@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "Ще %d";
+"Add folder…" = "Додати теку…";
+"Additional Gemini profile homes" = "Додаткові теки профілів Gemini";
+"Cloud credits" = "Хмарні кредити";
 "Conversations (%@)" = "Розмови (%@)";
+"Expired" = "Термін дії минув";
 "Fast" = "Швидко";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Необов’язково. Виберіть теку .gemini кожного профілю, щоб об’єднати локальну історію токенів і витрат. Основна тека завжди включена. Це не змінює вхід і квоти.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Проєкти";
 "Session %@" = "Сесія %@";
@@ -1560,6 +1565,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Окремий чат";
+"Independent chats" = "Окремі чати";
+"Chat %d" = "Чат %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1689,3 +1698,8 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Для вибраного або переданого облікового запису Google режим Auto приймає звіти локального застосунку, agy CLI та IDE лише за збігу особи, потім пробує OAuth. Явно вибрані Local API / agy CLI можуть використовувати інший локально авторизований обліковий запис.";
 "Supported browsers: %@. Use Manual for other browsers." = "Підтримувані браузери: %@. Для інших браузерів використовуйте ручний режим.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Вставте заголовок Cookie із запиту Chrome до www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Зарезервовано";
+
+"Left" = "Залишилося";

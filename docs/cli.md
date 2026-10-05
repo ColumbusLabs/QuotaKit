@@ -51,6 +51,8 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   - JSON uses the generic `usage.details` array for provider-specific information. Each section contains an optional
     `title`, `rows` (`label`, `value`, and optional `secondaryValue`), and an optional `bars` or `line` chart. The same
     shape is returned by `GET /usage` from `quotakit serve`.
+  - Grok purchased Extra Usage Credits appear as `usage.providerCost.balance` in USD. Zero balances are retained;
+    missing or invalid wallets are omitted. The wallet is separate from quota windows and local token-cost history.
   - Legacy provider-specific keys such as `openRouterUsage`, `clawRouterUsage`, and `sub2APIUsage` are not compatibility
     aliases; clients must read `usage.details`. Unknown legacy keys in cached or iCloud-synced snapshots are ignored
     when decoding.

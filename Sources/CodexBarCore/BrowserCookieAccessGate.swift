@@ -59,6 +59,7 @@ public enum BrowserCookieAccessGate {
     private static let cooldownInterval: TimeInterval = 60 * 60 * 6
     private static let log = CodexBarLog.logger(LogCategories.browserCookieGate)
     @TaskLocal private static var explicitRetryScope: ExplicitRetryScope?
+    @TaskLocal private static var accessFailureObserver: (@Sendable (Browser) -> Void)?
     @TaskLocal private static var deniedBrowsersForTesting: [Browser]?
     #if DEBUG
     @TaskLocal private static var shouldAttemptOverrideForTesting: Bool?
@@ -87,6 +88,23 @@ public enum BrowserCookieAccessGate {
     }
 
     public static func shouldAttempt(_ browser: Browser, now: Date = Date()) -> Bool {
+        let allowed = self.shouldAttemptWithPolicy(browser, now: now)
+        if !allowed { self.recordAccessFailure(for: browser) }
+        return allowed
+    }
+
+    static func withAccessFailureObserver<T>(
+        _ observer: @escaping @Sendable (Browser) -> Void,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$accessFailureObserver.withValue(observer, operation: operation)
+    }
+
+    static func recordAccessFailure(for browser: Browser) {
+        self.accessFailureObserver?(browser)
+    }
+
+    private static func shouldAttemptWithPolicy(_ browser: Browser, now: Date) -> Bool {
         #if DEBUG
         if let shouldAttemptOverrideForTesting {
             return shouldAttemptOverrideForTesting
@@ -224,6 +242,7 @@ public enum BrowserCookieAccessGate {
     public static func recordIfNeeded(_ error: Error, now: Date = Date()) {
         guard let error = error as? BrowserCookieError else { return }
         guard case .accessDenied = error else { return }
+        self.recordAccessFailure(for: error.browser)
         self.recordDenied(for: error.browser, now: now)
     }
 
@@ -290,7 +309,9 @@ public enum BrowserCookieAccessGate {
             return state.deniedUntilByBrowser[browser.rawValue] != nil
         }
         guard hasActiveBrowserCooldown else { return true }
-        return retryScope.claimCookieRead(for: browser)
+        let claimed = retryScope.claimCookieRead(for: browser)
+        if !claimed { self.recordAccessFailure(for: browser) }
+        return claimed
     }
 
     public static func resetForTesting() {

@@ -31,6 +31,9 @@ enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
+                        String(localized: "Claude cloud credits now sync from Mac to iPhone."),
+                        String(
+                            localized: "WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."),
                         String(
                             localized: "Crof is retired from active quota alerts; existing synced records remain readable."),
                         String(
@@ -69,6 +72,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "LithosAI prepaid balance and optional console spend now sync from QuotaKit Mac to iPhone."),
+                        String(
+                            localized: "Grok's prepaid USD wallet balance now syncs from QuotaKit Mac to iPhone as provider status."),
                         String(
                             localized: "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."),
                         String(

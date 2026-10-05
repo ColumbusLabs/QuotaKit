@@ -93,6 +93,13 @@ extension UsageMenuCardView.Model {
                 return ProviderUsageItemDescriptor(id: .detailSection(rawTitle), title: title)
             })
 
+        // Claude cloud credits have their own inline balance row instead of a generic details section.
+        if let cloudCredits = self.cloudCredits {
+            descriptors.append(ProviderUsageItemDescriptor(
+                id: .detailSection(ClaudeCloudCreditsSnapshot.detailTitle),
+                title: cloudCredits.title))
+        }
+
         var seen = Set<ProviderUsageItemID>()
         return descriptors.filter { seen.insert($0.id).inserted }
     }
@@ -131,6 +138,9 @@ extension UsageMenuCardView.Model {
         }
         if hiddenItemIDs.contains(.codexResetCredits) {
             projected.codexResetCredits = nil
+        }
+        if hiddenItemIDs.contains(.detailSection(ClaudeCloudCreditsSnapshot.detailTitle)) {
+            projected.cloudCredits = nil
         }
         let hiddenSectionIDs = Set(hiddenItemIDs.filter { $0.detailSectionTitle != nil })
         if !hiddenSectionIDs.isEmpty {

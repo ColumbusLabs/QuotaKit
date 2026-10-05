@@ -559,6 +559,9 @@ extension CostUsageStore {
                 if let usage = cache.files[path] {
                     guard !Self.shouldPreserveMalformedCodexDetails(path: path, usage: usage, cache: cache)
                     else { continue }
+                    if try self.persistCodexManifestProgress(usage: usage, committed: oldFile) {
+                        continue
+                    }
                     if usage.codexReplacementScanPending == true {
                         // Staging updates only the manifest, accumulator, and buffers. Keep the
                         // committed file rows, snapshots, aliases, and aggregate contribution
@@ -670,6 +673,25 @@ extension CostUsageStore {
         self.preservePreviousReportOnCatchUp(result, previousReport: compactPreviousReport)
         result.cacheWasPersisted = true
         return result
+    }
+
+    /// Missing processed targets can still be compact manifests. Nil detail arrays are not an
+    /// empty replacement generation; only the explicit manifest progress may change in that case.
+    private func persistCodexManifestProgress(
+        usage: CostUsageFileUsage,
+        committed: CostUsageStoreFile?) throws -> Bool
+    {
+        guard usage.codexRows == nil, usage.codexTokenSnapshots == nil,
+              usage.codexReplacementScanPending != true,
+              var file = committed,
+              let payload = file.scanState.detailsPayload,
+              var details = try? JSONDecoder().decode(StoredFileDetails.self, from: payload)
+        else { return false }
+        details.requestReconciliation = usage.codexRequestReconciliation
+        file.scanState.detailsPayload = try JSONEncoder().encode(details)
+        file.scanState.inventoryValidationGeneration = usage.codexInventoryValidationGeneration
+        _ = self.upsertFile(file)
+        return true
     }
 
     private func preservePreviousReportOnCatchUp(
@@ -889,6 +911,8 @@ extension CostUsageStore {
         var hasExactUsageRowIndex: Bool?
         var forkAccountingState: CostUsageScanner.CodexForkAccountingState?
         var ledgerRevision: String?
+        var requestLedgerState: CostUsageScanner.CodexRequestLedgerState?
+        var requestReconciliation: CostUsageCodexRequestReconciliation?
     }
 
     private struct StoredPriorityState: Codable {
@@ -979,11 +1003,13 @@ extension CostUsageStore {
         hydratingPaths: Set<String>? = nil,
         tokenSnapshotsLoaded: Bool = true) -> CostUsageCache
     {
-        let persistence = CodexPersistenceState(snapshot: snapshot)
         let decoded = Self.decodeCodexCache(
             from: snapshot,
             hydratingPaths: hydratingPaths,
             tokenSnapshotsLoaded: tokenSnapshotsLoaded)
+        let persistence = CodexPersistenceState(
+            snapshot: snapshot,
+            malformedDetailsPaths: decoded.codexMalformedDetailsPaths)
         return Self.reconciledCodexCache(decoded, persistence: persistence)
     }
 
@@ -1017,9 +1043,6 @@ extension CostUsageStore {
         cache.codexScanTotalFiles = metadata.totalFiles
         cache.codexScanInventoryPaths = metadata.scanInventoryPaths
         cache.codexHistoryHydrationRetries = metadata.codexHistoryHydrationRetries
-        cache.codexMalformedDetailsPaths = Self.codexMalformedDetailsPaths(
-            from: snapshot.files,
-            decoder: decoder)
         if cache.codexHistoryHydrationRetries?.isEmpty == false {
             cache.codexScanCatchUpPending = true
         }
@@ -1051,16 +1074,25 @@ extension CostUsageStore {
         let lineageByPath = Dictionary(uniqueKeysWithValues: snapshot.forkLineage.map { ($0.path, $0) })
         let buffersByPath = Dictionary(grouping: snapshot.bufferedLines, by: \.path)
         let accumulatorByPath = Dictionary(uniqueKeysWithValues: snapshot.accumulators.map { ($0.path, $0) })
-        let malformedDetailsPaths = Self.codexMalformedDetailsPaths(
-            from: snapshot.files,
+        // SQLite manifests have unique paths. Preserve path-wide malformed authority for
+        // synthetic duplicate records without decoding every ordinary manifest twice.
+        var seenPaths: Set<String> = []
+        var duplicatePaths: Set<String> = []
+        for file in snapshot.files where !seenPaths.insert(file.path).inserted {
+            duplicatePaths.insert(file.path)
+        }
+        var malformedDetailsPaths = Self.codexMalformedDetailsPaths(
+            from: snapshot.files.filter { duplicatePaths.contains($0.path) },
             decoder: decoder)
         for file in snapshot.files {
+            let decodedDetails = file.scanState.detailsPayload.flatMap {
+                try? decoder.decode(StoredFileDetails.self, from: $0)
+            }
+            if decodedDetails == nil { malformedDetailsPaths.insert(file.path) }
             let hasMalformedDetails = malformedDetailsPaths.contains(file.path)
             let details: StoredFileDetails
-            if let detailsData = file.scanState.detailsPayload,
-               let decoded = try? decoder.decode(StoredFileDetails.self, from: detailsData)
-            {
-                details = decoded
+            if let decodedDetails {
+                details = decodedDetails
             } else if hydratingPaths != nil || preserveMalformedFiles {
                 // Keep a malformed/legacy manifest entry visible to bounded discovery and the
                 // receipt-backed scanner. A lazy baseline cannot safely drop the file: its raw
@@ -1189,6 +1221,8 @@ extension CostUsageStore {
                     try? decoder.decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
                 codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
+                codexRequestLedgerState: isHydrated ? details.requestLedgerState : nil,
+                codexRequestReconciliation: details.requestReconciliation,
                 codexBufferedSubagentLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .subagent, decoder: decoder) : nil,
                 codexBufferedUnresolvedForkLines: isHydrated
@@ -1197,8 +1231,14 @@ extension CostUsageStore {
                 codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines,
                 codexParserRevision: details.parserRevision)
             usage.codexLedgerRevision = details.ledgerRevision
+            // Current parsers always persist typed response identity, including rowless pages.
+            // Older or malformed manifests without that evidence remain unclassified.
+            usage.codexHasTypedResponseIdentity = details.requestLedgerState?.hasTypedResponseIdentity
+                ?? (!hasMalformedDetails && details.parserRevision == CostUsageFileUsage.currentCodexParserRevision
+                    ? false : nil)
             cache.files[file.path] = usage
         }
+        cache.codexMalformedDetailsPaths = malformedDetailsPaths
         cache.days = Self.days(from: snapshot.dayAggregates)
         return cache
     }
@@ -1627,7 +1667,74 @@ extension CostUsageStore {
             metadata: metadata)
     }
 
-    // swiftlint:disable:next function_body_length
+    /// File metadata and row-planning temporaries must finish before aggregate pricing runs
+    /// inside the existing save transaction on a bounded cooperative-thread stack.
+    private final class CodexFilePersistenceSource {
+        let path: String
+        let usage: CostUsageFileUsage
+        let baseline: PersistedFileBaseline
+        let calendar: Calendar
+        let aggregatePricing: AggregatePricingContext
+        let sourceSnapshots: [CostUsageCodexTokenSnapshot]
+        let sourceRows: [CostUsageScanner.CodexUsageRow]
+        let snapshotsAreUnloaded: Bool
+        let snapshotCount: Int
+        let rowCount: Int
+        let replacementPending: Bool
+
+        init(
+            path: String,
+            usage: CostUsageFileUsage,
+            baseline: PersistedFileBaseline,
+            calendar: Calendar,
+            aggregatePricing: AggregatePricingContext)
+        {
+            self.path = path
+            self.usage = usage
+            self.baseline = baseline
+            self.calendar = calendar
+            self.aggregatePricing = aggregatePricing
+
+            let sourceSnapshots = usage.codexTokenSnapshots ?? []
+            let sourceRows = usage.codexRows ?? []
+            let snapshotsAreUnloaded = !baseline.tokenSnapshotsLoaded
+            let snapshotCount = snapshotsAreUnloaded ? baseline.snapshotCount : sourceSnapshots.count
+            let rowCount = sourceRows.count
+            let replacementPending = usage.codexReplacementScanPending == true
+            self.sourceSnapshots = sourceSnapshots
+            self.sourceRows = sourceRows
+            self.snapshotsAreUnloaded = snapshotsAreUnloaded
+            self.snapshotCount = snapshotCount
+            self.rowCount = rowCount
+            self.replacementPending = replacementPending
+        }
+    }
+
+    private final class CodexFilePersistence {
+        let source: CodexFilePersistenceSource
+        let committedDetails: StoredFileDetails?
+        let file: CostUsageStoreFile
+        let canReuseRows: Bool
+        let coldStartStaging: Bool
+        let persistedEventCount: Int
+
+        init(
+            source: CodexFilePersistenceSource,
+            committedDetails: StoredFileDetails?,
+            file: CostUsageStoreFile,
+            canReuseRows: Bool,
+            coldStartStaging: Bool,
+            persistedEventCount: Int)
+        {
+            self.source = source
+            self.committedDetails = committedDetails
+            self.file = file
+            self.canReuseRows = canReuseRows
+            self.coldStartStaging = coldStartStaging
+            self.persistedEventCount = persistedEventCount
+        }
+    }
+
     private func persistFile(
         path: String,
         usage: CostUsageFileUsage,
@@ -1635,12 +1742,31 @@ extension CostUsageStore {
         calendar: Calendar,
         aggregatePricing: AggregatePricingContext)
     {
-        let sourceSnapshots = usage.codexTokenSnapshots ?? []
-        let sourceRows = usage.codexRows ?? []
-        let snapshotsAreUnloaded = !baseline.tokenSnapshotsLoaded
-        let snapshotCount = snapshotsAreUnloaded ? baseline.snapshotCount : sourceSnapshots.count
-        let rowCount = sourceRows.count
-        let replacementPending = usage.codexReplacementScanPending == true
+        let source = CodexFilePersistenceSource(
+            path: path,
+            usage: usage,
+            baseline: baseline,
+            calendar: calendar,
+            aggregatePricing: aggregatePricing)
+        if self.canSkipCodexFilePersistence(source) { return }
+        let prepared = self.prepareCodexFilePersistence(source)
+        _ = self.upsertFile(prepared.file)
+        if source.replacementPending {
+            self.persistStagedCodexFile(prepared)
+            return
+        }
+        self.persistCommittedCodexRows(prepared)
+        self.persistCommittedCodexState(prepared)
+    }
+
+    private func canSkipCodexFilePersistence(_ source: CodexFilePersistenceSource) -> Bool {
+        let usage = source.usage
+        let baseline = source.baseline
+        let aggregatePricing = source.aggregatePricing
+        let snapshotCount = source.snapshotCount
+        let rowCount = source.rowCount
+        let replacementPending = source.replacementPending
+
         if baseline.canReuseRows,
            !replacementPending,
            baseline.file != nil,
@@ -1651,8 +1777,20 @@ extension CostUsageStore {
            persistedAggregates.sorted(by: { ($0.day, $0.model) < ($1.day, $1.model) })
            == Self.fileAggregates(usage, pricing: aggregatePricing)
         {
-            return
+            return true
         }
+        return false
+    }
+
+    private func prepareCodexFilePersistence(_ source: CodexFilePersistenceSource) -> CodexFilePersistence {
+        let path = source.path
+        let usage = source.usage
+        let baseline = source.baseline
+        let snapshotsAreUnloaded = source.snapshotsAreUnloaded
+        let snapshotCount = source.snapshotCount
+        let rowCount = source.rowCount
+        let replacementPending = source.replacementPending
+
         let committedDetails = baseline.file?.scanState.detailsPayload.flatMap {
             try? JSONDecoder().decode(StoredFileDetails.self, from: $0)
         }
@@ -1683,6 +1821,8 @@ extension CostUsageStore {
             parserRevision: usage.codexParserRevision)
         details.hasExactUsageRowIndex = usage.codexNextUsageRowIndex != nil
         details.forkAccountingState = usage.codexForkAccountingState
+        details.requestLedgerState = usage.codexRequestLedgerState
+        details.requestReconciliation = usage.codexRequestReconciliation
         details.ledgerRevision = replacementPending ? committedDetails?.ledgerRevision : UUID().uuidString
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
@@ -1730,44 +1870,72 @@ extension CostUsageStore {
             updatedAtUnixMs: max(usage.mtimeUnixMs, usage.codexSession?.latestActivityUnixMs ?? 0),
             hasBufferedSubagentLines: usage.codexBufferedSubagentLines?.isEmpty == false,
             hasBufferedUnresolvedForkLines: usage.codexBufferedUnresolvedForkLines?.isEmpty == false)
-        _ = self.upsertFile(file)
+        return CodexFilePersistence(
+            source: source,
+            committedDetails: committedDetails,
+            file: file,
+            canReuseRows: canReuseRows,
+            coldStartStaging: coldStartStaging,
+            persistedEventCount: persistedEventCount)
+    }
 
-        if replacementPending {
-            // Only resumable parser state is mutable during a partial replacement. Staged
-            // lineage travels in scan_state; committed rows, snapshots, aggregates, and lineage
-            // remain untouched. A cold start
-            // may seed its snapshots and structural lineage so the staged generation survives
-            // reload.
-            if coldStartStaging {
-                let snapshots = sourceSnapshots.enumerated().compactMap { index, snapshot in
-                    Self.tokenSnapshot(path: path, eventIndex: index, snapshot: snapshot, calendar: calendar)
-                }
-                _ = self.replaceTokenSnapshots(path: path, snapshots: snapshots)
+    private func persistStagedCodexFile(_ prepared: CodexFilePersistence) {
+        let path = prepared.source.path
+        let usage = prepared.source.usage
+        let calendar = prepared.source.calendar
+        let sourceSnapshots = prepared.source.sourceSnapshots
+        let file = prepared.file
+        let coldStartStaging = prepared.coldStartStaging
+        let persistedEventCount = prepared.persistedEventCount
+
+        // Only resumable parser state is mutable during a partial replacement. Staged
+        // lineage travels in scan_state; committed rows, snapshots, aggregates, and lineage
+        // remain untouched. A cold start
+        // may seed its snapshots and structural lineage so the staged generation survives
+        // reload.
+        if coldStartStaging {
+            let snapshots = sourceSnapshots.enumerated().compactMap { index, snapshot in
+                Self.tokenSnapshot(path: path, eventIndex: index, snapshot: snapshot, calendar: calendar)
             }
-            if self.fetchForkLineage(path: path) == nil {
-                _ = self.upsertForkLineage(CostUsageStoreForkLineage(
-                    path: path,
-                    sessionID: usage.sessionId,
-                    forkedFromID: usage.forkedFromId,
-                    forkTimestamp: nil,
-                    dependencyKey: usage.forkBaselineDependencyKey,
-                    subagentState: nil,
-                    accountingState: nil))
-            }
-            self.persistBuffers(path: path, usage: usage)
-            _ = self.upsertAccumulator(CostUsageStoreAccumulator(
-                path: path,
-                eventCount: persistedEventCount,
-                nextUsageRowIndex: 0,
-                countedTotals: Self.totals(usage.lastCountedTotals),
-                rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
-                rawTotalsWatermark: Self.totals(usage.lastRawTotalsWatermark),
-                sawDivergentTotals: usage.hasDivergentTotals ?? false,
-                sawInterleavedTotals: usage.hasInterleavedTotals ?? false,
-                seenRawTotals: (usage.seenRawTotals ?? []).map(Self.totals),
-                updatedAtUnixMs: file.updatedAtUnixMs))
-            return
+            _ = self.replaceTokenSnapshots(path: path, snapshots: snapshots)
         }
+        if self.fetchForkLineage(path: path) == nil {
+            _ = self.upsertForkLineage(CostUsageStoreForkLineage(
+                path: path,
+                sessionID: usage.sessionId,
+                forkedFromID: usage.forkedFromId,
+                forkTimestamp: nil,
+                dependencyKey: usage.forkBaselineDependencyKey,
+                subagentState: nil,
+                accountingState: nil))
+        }
+        self.persistBuffers(path: path, usage: usage)
+        _ = self.upsertAccumulator(CostUsageStoreAccumulator(
+            path: path,
+            eventCount: persistedEventCount,
+            nextUsageRowIndex: 0,
+            countedTotals: Self.totals(usage.lastCountedTotals),
+            rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
+            rawTotalsWatermark: Self.totals(usage.lastRawTotalsWatermark),
+            sawDivergentTotals: usage.hasDivergentTotals ?? false,
+            sawInterleavedTotals: usage.hasInterleavedTotals ?? false,
+            seenRawTotals: (usage.seenRawTotals ?? []).map(Self.totals),
+            updatedAtUnixMs: file.updatedAtUnixMs))
+    }
+
+    private func persistCommittedCodexRows(_ prepared: CodexFilePersistence) {
+        let path = prepared.source.path
+        let usage = prepared.source.usage
+        let baseline = prepared.source.baseline
+        let calendar = prepared.source.calendar
+        let sourceSnapshots = prepared.source.sourceSnapshots
+        let sourceRows = prepared.source.sourceRows
+        let snapshotsAreUnloaded = prepared.source.snapshotsAreUnloaded
+        let snapshotCount = prepared.source.snapshotCount
+        let rowCount = prepared.source.rowCount
+        let committedDetails = prepared.committedDetails
+        let file = prepared.file
+        let canReuseRows = prepared.canReuseRows
 
         let oldParsedBytes = baseline.file?.parsedBytes ?? 0
         let newParsedBytes = file.parsedBytes ?? 0
@@ -1849,6 +2017,16 @@ extension CostUsageStore {
         case .replace:
             _ = self.replaceUsageRows(path: path, rows: rows)
         }
+    }
+
+    private func persistCommittedCodexState(_ prepared: CodexFilePersistence) {
+        let path = prepared.source.path
+        let usage = prepared.source.usage
+        let calendar = prepared.source.calendar
+        let aggregatePricing = prepared.source.aggregatePricing
+        let snapshotCount = prepared.source.snapshotCount
+        let file = prepared.file
+
         _ = self.replaceFileDayAggregates(
             path: path,
             aggregates: Self.fileAggregates(usage, pricing: aggregatePricing))

@@ -301,6 +301,8 @@ extension UsageStore {
     // cancellation, restart, and publication transitions from drifting apart.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func runCodexCostCatchUp(context: CodexCostCatchUpContext) async {
+        var previousActiveDuration: TimeInterval?
+        var completedPasses = 0
         while self.codexCostCatchUpContextIsCurrent(context) {
             var status = await self.loadCodexCostCatchUpStatus(codexHomePath: context.codexHomePath)
             self.publishCodexCostCatchUpActivity(
@@ -308,8 +310,7 @@ extension UsageStore {
                 context: context,
                 phase: status.pending ? .indexing : .complete)
             var didAdvance = false
-            var (previousActiveDuration, seenProgressKeys): (TimeInterval?, Set<String>) =
-                (nil, [status.progressKey])
+            var seenProgressKeys: Set<String> = [status.progressKey]
             var consecutiveNoProgressPasses = 0
             var pendingNoProgressRetryDelay: TimeInterval?
             while status.pending {
@@ -326,7 +327,8 @@ extension UsageStore {
 
                     let decision = self.codexCostCatchUpDecision(
                         mode: self.codexCostCatchUpMode,
-                        previousActiveDuration: previousActiveDuration)
+                        previousActiveDuration: previousActiveDuration,
+                        completedPasses: completedPasses)
                     switch decision.action {
                     case let .pause(delay, reason):
                         self.publishCodexCostCatchUpActivity(
@@ -343,8 +345,13 @@ extension UsageStore {
                             phase: .indexing)
                         let retryDelay = pendingNoProgressRetryDelay ?? 0
                         pendingNoProgressRetryDelay = nil
+                        let scheduledDelay = max(delay, retryDelay)
+                        if scheduledDelay > 0 || self.codexCostCatchUpMode == .accelerated {
+                            previousActiveDuration = nil
+                            completedPasses = 0
+                        }
                         try await self.sleepBetweenCodexCostCatchUpPasses(
-                            seconds: max(delay, retryDelay))
+                            seconds: scheduledDelay)
                     }
 
                     try Task.checkCancellation()
@@ -358,20 +365,15 @@ extension UsageStore {
                         return
                     }
 
-                    self.codexCostCatchUpPassIsRunning = true
-                    let result: CostUsageScanExecutor.TimedResult<CostUsageFetcher.CodexScanCatchUpStatus>
-                    do {
-                        defer {
-                            self.codexCostCatchUpPassIsRunning = false
-                            self.scheduleMemoryPressureRelief()
-                        }
-                        result = try await self.advanceCodexCostCatchUp(
-                            now: Date(),
-                            codexHomePath: context.codexHomePath,
-                            historyDays: context.historyDays)
-                    }
+                    let result = try await self.advanceCodexCostCatchUp(
+                        token: context.token,
+                        now: Date(),
+                        codexHomePath: context.codexHomePath,
+                        historyDays: context.historyDays,
+                        previousActiveDuration: previousActiveDuration)
                     let nextStatus = result.value
-                    previousActiveDuration = result.activeDuration
+                    previousActiveDuration = (previousActiveDuration ?? 0) + result.activeDuration
+                    completedPasses += 1
                     didAdvance = true
                     if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker,
                        nextStatus.progressKey != status.progressKey
@@ -1304,10 +1306,20 @@ extension UsageStore {
     }
 
     private func advanceCodexCostCatchUp(
+        token: UUID,
         now: Date,
         codexHomePath: String?,
-        historyDays: Int) async throws -> CostUsageScanExecutor.TimedResult<CostUsageFetcher.CodexScanCatchUpStatus>
+        historyDays: Int,
+        previousActiveDuration: TimeInterval?) async throws
+        -> CostUsageScanExecutor.TimedResult<CostUsageFetcher.CodexScanCatchUpStatus>
     {
+        self.codexCostCatchUpPassIsRunning = true
+        defer {
+            if self.codexCostCatchUpToken == token {
+                self.codexCostCatchUpPassIsRunning = false
+            }
+            self.scheduleMemoryPressureRelief()
+        }
         if let override = self._test_codexCostCatchUpAdvanceOverride {
             return try await .init(
                 value: override(now, codexHomePath, historyDays),
@@ -1317,12 +1329,14 @@ extension UsageStore {
             now: now,
             codexHomePath: codexHomePath,
             historyDays: historyDays,
+            scanDurationPerRefresh: self.codexCostCatchUpMode.scanDurationPerRefresh(after: previousActiveDuration),
             calendar: self.settings.costUsageBucketCalendar)
     }
 
     func codexCostCatchUpDecision(
         mode: CodexCostCatchUpMode,
         previousActiveDuration: TimeInterval?,
+        completedPasses: Int = 0,
         resourceState: (
             powerSource: CodexCostCatchUpPowerSource,
             lowPowerModeEnabled: Bool,
@@ -1337,7 +1351,8 @@ extension UsageStore {
             previousActiveDuration: previousActiveDuration,
             powerSource: resourceState.powerSource,
             lowPowerModeEnabled: resourceState.lowPowerModeEnabled,
-            thermalState: resourceState.thermalState))
+            thermalState: resourceState.thermalState,
+            completedPasses: completedPasses))
         guard mode == .automatic, case let .runAfter(delay) = decision.action else { return decision }
         let interval = BackgroundWorkPowerPolicy.automaticInterval(
             delay, lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled) ?? delay
@@ -1366,8 +1381,10 @@ extension UsageStore {
         }
     }
 
-    private func sleepBetweenCodexCostCatchUpPasses(seconds: TimeInterval) async throws {
-        if let override = self._test_codexCostCatchUpSleepOverride {
+    func sleepBetweenCodexCostCatchUpPasses(seconds: TimeInterval, dashboard: Bool = false) async throws {
+        if let override = dashboard
+            ? self._test_spendDashboardCodexCostCatchUpSleepOverride : self._test_codexCostCatchUpSleepOverride
+        {
             try await override(max(0, seconds))
             return
         }

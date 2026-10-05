@@ -23,7 +23,7 @@ reads app credentials; Linux requires a configured manual cookie.
    - Keychain cache: `com.steipete.codexbar.cache` (account `cookie.cursor`).
 
 2) **Browser cookie import**
-   - Cookie order from provider metadata (default: Safari → Chrome → Firefox).
+   - Cookie order follows provider metadata; the default browser catalog includes Aside, Opera, and Opera Neon with SweetCookieKit 0.5.5.
    - Domain filters: `cursor.com`, `cursor.sh`.
    - Cookie names required (any one counts):
      - `WorkosCursorSessionToken`
@@ -51,6 +51,7 @@ Manual option:
 
 ## Add and switch account
 - **Add Account** opens `https://authenticator.cursor.sh/` in a supported browser.
+- Aside, Opera, and Opera Neon are supported with SweetCookieKit 0.5.5. QuotaKit maps the selected app's bundle identifier to its cookie store; unknown or ambiguous identifiers fail closed.
 - **Switch Account** opens the same authenticator and waits for a different stable account ID when available, falling back to normalized email when IDs are unavailable.
 - When the system's HTTPS handler is a supported browser, QuotaKit opens the route there automatically. When the handler is an intermediary app, QuotaKit asks the user to choose a concrete supported browser before opening the route.
 - QuotaKit pins the original HTTPS route to that concrete browser and polls cookies only from the same application. Interactive login never falls back to another browser, a stored session, or Cursor.app; cancelling browser selection or the absence of a supported browser stops before login opens.

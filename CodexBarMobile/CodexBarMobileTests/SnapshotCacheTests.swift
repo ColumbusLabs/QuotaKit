@@ -1040,6 +1040,38 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `Grok wallet status-only snapshot is retained by ghost filtering`() throws {
+        var cache = SnapshotCache()
+        let status = "Prepaid balance: USD 14.46"
+        let provider = ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: status,
+            isError: false,
+            lastUpdated: self.t1)
+        let envelope = ProviderUsageEnvelope(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            appVersion: "0.32.4",
+            mobileVersion: "1.11.4",
+            syncTimestamp: self.t1,
+            notificationPushEnabled: true,
+            provider: provider)
+
+        cache.applyDelta(upserted: [envelope], deletedRecordNames: [])
+
+        let retained = try #require(cache.perProviderByDevice["mac-A"]?[SnapshotCache.compositeKey(for: provider)])
+        #expect(retained.statusMessage == status)
+        #expect(retained.primary == nil)
+        #expect(retained.rateWindows.isEmpty)
+        #expect(retained.budget == nil)
+    }
+
+    @Test
     func `Detail-only Atlas Cloud snapshot is retained by ghost filtering`() throws {
         var cache = SnapshotCache()
         let details = [SyncProviderDetailSection(

@@ -219,6 +219,7 @@ public enum ClaudeProviderDescriptor {
                     supportsInlineTokenCostDashboard: true,
                     showsQuotaWeekCost: true),
                 optionalDetails: ProviderOptionalDetailsPresentation(
+                    hiddenTitlesWithoutOptionalUsage: [ClaudeCloudCreditsSnapshot.detailTitle],
                     costSummaryTitles: ["Usage summary", "Cost items"])),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api, .web, .cli, .oauth],
@@ -716,7 +717,10 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             includeAccountIdentity: context.includeAccountIdentity)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return ProviderFetchResult(
-            usage: Self.snapshot(from: usage),
+            usage: Self.snapshot(
+                from: usage,
+                includeResetCredits: true,
+                includeOptionalUsage: context.includeOptionalUsage),
             credits: nil,
             dashboard: nil,
             sourceLabel: "oauth",
@@ -757,8 +761,9 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
 
     fileprivate static func snapshot(
         from usage: ClaudeUsageSnapshot,
-        includeWebResetCredits: Bool = false,
-        dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
+        includeResetCredits: Bool = false,
+        dataConfidence: UsageDataConfidence = .unknown,
+        includeOptionalUsage: Bool = true) -> UsageSnapshot
     {
         let identity = ProviderIdentitySnapshot(
             providerID: .claude,
@@ -767,14 +772,18 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             loginMethod: usage.loginMethod,
             widgetAccountOwnerID: usage.accountID)
         let primary = usage.primaryWindowKind == .spendLimit ? nil : usage.primary
+        var details = includeResetCredits ? usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [] : []
+        if includeOptionalUsage {
+            details += usage.cloudCredits?.detailSections(now: usage.updatedAt) ?? []
+        }
         return UsageSnapshot(
             primary: primary,
             secondary: usage.secondary,
             tertiary: usage.opus,
             extraRateWindows: usage.extraRateWindows.isEmpty ? nil : usage.extraRateWindows,
             providerCost: usage.providerCost,
-            details: includeWebResetCredits ? usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [] : [],
-            claudeResetCredits: includeWebResetCredits ? usage.resetCredits : nil,
+            details: details,
+            claudeResetCredits: includeResetCredits ? usage.resetCredits : nil,
             updatedAt: usage.updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)
@@ -782,10 +791,15 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
 
     static func _snapshotForTesting(
         from usage: ClaudeUsageSnapshot,
-        includeWebResetCredits: Bool = false,
-        dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
+        includeResetCredits: Bool = false,
+        dataConfidence: UsageDataConfidence = .unknown,
+        includeOptionalUsage: Bool = true) -> UsageSnapshot
     {
-        self.snapshot(from: usage, includeWebResetCredits: includeWebResetCredits, dataConfidence: dataConfidence)
+        self.snapshot(
+            from: usage,
+            includeResetCredits: includeResetCredits,
+            dataConfidence: dataConfidence,
+            includeOptionalUsage: includeOptionalUsage)
     }
 }
 
@@ -870,7 +884,10 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let usage = try await self.loadUsage(before: context.webTimeout, context: context)
         return self.makeResult(
-            usage: ClaudeOAuthFetchStrategy.snapshot(from: usage, includeWebResetCredits: true),
+            usage: ClaudeOAuthFetchStrategy.snapshot(
+                from: usage,
+                includeResetCredits: true,
+                includeOptionalUsage: context.includeOptionalUsage),
             sourceLabel: "web")
     }
 
@@ -1047,7 +1064,10 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
         return self.makeResult(
             // The PTY /usage panel exposes rendered percentages only, so CLI-sourced data carries an
             // explicit degraded-fidelity marker that the card surfaces as "via Claude CLI".
-            usage: ClaudeOAuthFetchStrategy.snapshot(from: usage, dataConfidence: .percentOnly),
+            usage: ClaudeOAuthFetchStrategy.snapshot(
+                from: usage,
+                dataConfidence: .percentOnly,
+                includeOptionalUsage: context.includeOptionalUsage),
             sourceLabel: "claude")
     }
 

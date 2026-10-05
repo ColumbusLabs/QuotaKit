@@ -18,8 +18,19 @@ struct ProviderPluginContextOptions: Sendable {
     var cookieSource: ProviderCookieSource = .auto
     var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
     var cookieSessionResolver: ProviderPluginRuntime.CookieSessionResolver?
+    var cookieSessionValidator: ProviderPluginRuntime.CookieSessionValidator?
     var cookieSessionInvalidator: ProviderPluginRuntime.CookieSessionInvalidator?
     var cookieJar: ProviderPluginCookieJar?
+
+    func acceptCookie(domain: String, id: String) throws {
+        guard self.cookieSource != .off else {
+            throw ProviderPluginError.secretAccess("browser cookies are disabled for this provider")
+        }
+        guard !id.isEmpty, let validate = self.cookieSessionValidator else {
+            throw ProviderPluginError.secretAccess("cookie validation is unavailable")
+        }
+        try validate(domain, id)
+    }
 
     func rejectCookie(domain: String, id: String) {
         if !id.isEmpty, let invalidate = self.cookieSessionInvalidator {

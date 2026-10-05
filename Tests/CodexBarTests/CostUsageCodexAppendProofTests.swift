@@ -87,7 +87,9 @@ struct CostUsageCodexAppendProofTests {
                 knownCostNanos: first.knownCostNanos,
                 unpricedTokens: first.unpricedTokens,
                 pricingModel: first.pricingModel,
-                pricingMode: "priority")
+                pricingMode: "priority",
+                responseID: first.responseID,
+                requestMirrorKeys: first.requestMirrorKeys)
             repricedUsage.codexRows = rows
             repriced.files[file.path] = repricedUsage
             #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: repriced).catchUpRequired)

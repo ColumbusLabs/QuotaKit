@@ -94,5 +94,6 @@ public enum ProviderManifest {
         PiProviderDescriptor.descriptor,
         MuseAIProviderDescriptor.descriptor,
         LithosAIProviderDescriptor.descriptor,
+        WorkBuddyProviderDescriptor.descriptor,
     ]
 }

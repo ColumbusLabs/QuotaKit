@@ -170,7 +170,7 @@ struct GrokCreditsProxyFetcherTests {
         }
         """.utf8), now: now)
 
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.windowMinutes == 10080)
     }
 
@@ -238,7 +238,7 @@ struct GrokCreditsProxyFetcherTests {
     }
 
     @Test
-    func `treats a period without usage as zero percent`() throws {
+    func `treats a period without usage as unknown`() throws {
         let snapshot = try GrokCreditsProxyFetcher.parseSnapshot(
             Data(
                 """
@@ -254,7 +254,7 @@ struct GrokCreditsProxyFetcherTests {
                 """.utf8))
         let expectedReset = try Self.date("2026-08-13T00:00:00.123Z")
 
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.resetsAt == expectedReset)
         #expect(snapshot.windowMinutes == 10080)
         #expect(snapshot.applying(subscriptionTier: "SuperGrok Heavy").windowMinutes == 10080)
@@ -281,7 +281,7 @@ struct GrokCreditsProxyFetcherTests {
         let expectedReset = try Self.date("2026-08-23T18:42:45.537749+00:00")
 
         #expect(snapshot.subscriptionTier == "SuperGrok Heavy")
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.resetsAt == expectedReset)
     }
 
@@ -331,7 +331,7 @@ struct GrokCreditsProxyFetcherTests {
                 """.utf8))
         let expectedReset = try Self.date("2026-08-13T00:00:00Z")
 
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.subscriptionTier == "SuperGrok Heavy")
         #expect(snapshot.resetsAt == expectedReset)
     }
@@ -378,7 +378,7 @@ struct GrokCreditsProxyFetcherTests {
                 """.utf8))
         let expectedReset = try Self.date("2026-08-13T00:00:00Z")
 
-        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.usedPercent == nil)
         #expect(snapshot.resetsAt == expectedReset)
     }
 

@@ -105,6 +105,12 @@ defineProvider({
   URL-matched cookie records without persistent cookie storage. It may also declare `imports`, `requiredCookies`, and
   a host-owned `headerEcho`; these cannot be enabled by user-installed plugins. `imports` defaults to
   `"app-interactive"`; `"access-gated"` lets the host browser access gate govern the import attempt.
+- During an explicit app refresh, the host may allow one bounded retry for one browser whose cookie access was blocked.
+  The retry context follows the importer across plugin engines. Scheduled refreshes remain noninteractive and never
+  gain permission to show a Keychain prompt. If cookie permission blocks available sessions and the provider then
+  reports missing or expired authentication, QuotaKit surfaces a permission error with explicit-refresh and Manual
+  source guidance; unrelated provider errors keep their original classification.
+- For `cache: "nonpersistent"`, a successfully validated refresh counts as success without a persistent cookie-cache write.
 - `fetchUsage(ctx)`: function returning a snapshot or fetch result envelope, or a promise for one.
 
 First-party plugins with the `browser-cookies` capability may call

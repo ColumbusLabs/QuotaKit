@@ -5,15 +5,17 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import json
 import os
 from pathlib import Path
 import re
 import signal
 import subprocess
 import sys
+import tempfile
 import time
-from collections.abc import Iterable
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass(frozen=True)
@@ -85,6 +87,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--list-only", action="store_true")
     parser.add_argument(
+        "--direct-workers",
+        type=int,
+        help="opt-in local macOS direct test groups (1-8 workers)",
+    )
+    parser.add_argument(
         "--keep-going",
         action="store_true",
         help="run remaining groups after failures, then exit nonzero",
@@ -94,20 +101,75 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_command(command: list[str], timeout: int | None = None) -> int:
+def terminate_process_group(
+    process_group_id: int,
+    grace_seconds: float = 10,
+    process: subprocess.Popen | None = None,
+) -> None:
+    try:
+        os.killpg(process_group_id, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+
+    try:
+        deadline = time.monotonic() + grace_seconds
+        while time.monotonic() < deadline:
+            if process is not None:
+                process.poll()
+            try:
+                os.killpg(process_group_id, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        pass
+
+    try:
+        os.killpg(process_group_id, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def run_command(
+    command: list[str],
+    timeout: int | None = None,
+    cleanup_process_group: bool = False,
+    cleanup_grace_seconds: float = 10,
+    process_started_callback: Callable[[subprocess.Popen | None], None] | None = None,
+) -> int:
     print(f"+ {' '.join(command)}", flush=True)
     process = subprocess.Popen(command, start_new_session=True)
     try:
+        if process_started_callback is not None:
+            process_started_callback(process)
         return process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         print(f"::warning::Command timed out after {timeout}s: {' '.join(command)}", flush=True)
-        os.killpg(process.pid, signal.SIGTERM)
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+        if cleanup_process_group:
+            terminate_process_group(process.pid, grace_seconds=cleanup_grace_seconds, process=process)
             process.wait()
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
         return 124
+    except KeyboardInterrupt:
+        if cleanup_process_group:
+            terminate_process_group(process.pid, grace_seconds=cleanup_grace_seconds, process=process)
+            process.wait()
+        raise
+    finally:
+        if process_started_callback is not None:
+            try:
+                process_started_callback(None)
+            except KeyboardInterrupt:
+                if cleanup_process_group:
+                    terminate_process_group(process.pid, grace_seconds=cleanup_grace_seconds, process=process)
+                    process.wait()
+                raise
 
 
 def is_missing_sparkle_runtime_failure(result: subprocess.CompletedProcess[str]) -> bool:
@@ -176,7 +238,7 @@ def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
         return sparkle_runtime_matches_source(destination, source)
 
 
-def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
+def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
     command = [*swift_command, "test", "list"]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
@@ -190,6 +252,8 @@ def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
         if result.stderr:
             print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
         result.check_returncode()
+    if inventory is not None:
+        inventory.extend(line.strip() for line in result.stdout.splitlines() if line.strip())
     selections: set[TestSelection] = set()
     unknown: list[str] = []
     for line in result.stdout.splitlines():
@@ -342,6 +406,9 @@ def main() -> int:
         shard_index=args.shard_index,
         shard_count=args.shard_count,
     )
+    if args.direct_workers is not None and not 1 <= args.direct_workers <= 8:
+        print("--direct-workers must be between 1 and 8", file=sys.stderr)
+        return 2
     if args.group_size < 1:
         print("--group-size must be positive", file=sys.stderr)
         return 2
@@ -351,9 +418,15 @@ def main() -> int:
     try:
         discovery_started = time.monotonic()
         try:
+            inventory: list[str] = []
+            discovered = (
+                swift_test_list(swift_command, inventory)
+                if args.direct_workers is not None
+                else swift_test_list(swift_command)
+            )
             suites = prioritized_suites(
                 filtered_suites_for_request(
-                    filtered_suites_for_environment(swift_test_list(swift_command)),
+                    filtered_suites_for_environment(discovered),
                     args.suite,
                 )
             )
@@ -390,6 +463,58 @@ def main() -> int:
         if not suite_groups:
             print("No test groups selected.", flush=True)
             return 0
+
+        if args.direct_workers is not None:
+            from direct_swift_test_groups import InventoryMismatch, pool_timeout, prepare_runtime
+
+            with tempfile.TemporaryDirectory(prefix="codexbar-direct-run-") as directory:
+                root = Path(directory)
+                groups = [[asdict(selection) for selection in group] for group in suite_groups]
+                try:
+                    runtime = prepare_runtime(swift_command, groups, inventory, root)
+                except InventoryMismatch as error:
+                    print(f"Direct mode refused: {error}", file=sys.stderr, flush=True)
+                    result = 2
+                    return result
+                except (ValueError, OSError, subprocess.SubprocessError) as error:
+                    print(f"Direct mode unavailable: {error} Falling back to serial SwiftPM.", flush=True)
+                else:
+                    print(
+                        f"Direct runtime verified {len(inventory)} test methods; "
+                        f"using {args.direct_workers} workers.",
+                        flush=True,
+                    )
+                    manifest = root / "manifest.json"
+                    manifest.write_text(json.dumps({
+                        "runtime": runtime,
+                        "groups": groups,
+                        "timeout": args.timeout,
+                        "workers": args.direct_workers,
+                        "retry_non_timeout_failures": args.retry_non_timeout_failures,
+                    }))
+                    execution_started = time.monotonic()
+                    result = run_command(
+                        [sys.executable, str(Path(__file__).with_name("direct_swift_test_groups.py")), str(manifest)],
+                        timeout=pool_timeout(
+                            groups,
+                            args.timeout,
+                            args.retry_non_timeout_failures,
+                            len(runtime["products"]),
+                        ),
+                        cleanup_process_group=True,
+                    )
+                    report = root / "results.json"
+                    if report.is_file():
+                        records = json.loads(report.read_text())
+                        stats.first_pass_successful_groups = sum(record["first_code"] == 0 for record in records)
+                        stats.first_pass_failed_groups = sum(record["first_code"] != 0 for record in records)
+                        stats.full_group_retries = sum(record["full_retries"] for record in records)
+                        stats.isolated_selection_retries = sum(record["isolated_retries"] for record in records)
+                        stats.timed_out_groups = sum(record["timed_out"] for record in records)
+                        stats.recovered_groups = sum(
+                            record["first_code"] != 0 and record["code"] == 0 for record in records
+                        )
+                    return result
 
         execution_started = time.monotonic()
         for group_index, group in enumerate(suite_groups, start=1):

@@ -19,6 +19,8 @@ public struct CookieHeaderCacheEntry: Codable, Equatable, Sendable {
     public let storedAt: Date
     public let sourceLabel: String
     public let authenticationFailurePolicy: CookieAuthenticationFailurePolicy?
+    /// Host-only metadata; legacy header consumers see a credential fingerprint, never this payload.
+    var pluginCookieSession: ProviderPluginCachedCookieSession?
 
     public init(
         cookieHeader: String,
@@ -49,6 +51,7 @@ private enum CookieRefreshStagedMutation: Sendable {
 private struct CookieRefreshSuppressionState: Sendable {
     let provider: UsageProvider
     var stagedMutations: [KeychainCacheStore.Key: CookieRefreshStagedMutation] = [:]
+    var validatedNonpersistentSession = false
 }
 
 private enum CookieRefreshReadResolution {
@@ -1008,6 +1011,7 @@ extension CookieHeaderCache {
             && current.storedAt == expected.storedAt
             && current.sourceLabel == expected.sourceLabel
             && current.authenticationFailurePolicy == expected.authenticationFailurePolicy
+            && current.pluginCookieSession == expected.pluginCookieSession
     }
 
     @discardableResult
@@ -1050,6 +1054,14 @@ extension CookieHeaderCache {
         }
     }
 
+    static func markNonpersistentRefreshValidated(provider: UsageProvider) {
+        self.refreshReadSuppressionLock.withLock {
+            guard let token = self.refreshReadSuppressions.first(where: { $0.value.provider == provider })?.key
+            else { return }
+            self.refreshReadSuppressions[token]?.validatedNonpersistentSession = true
+        }
+    }
+
     public static func commitRefreshReadSuppression(
         _ gate: CookieRefreshReadSuppressionGate) -> CookieRefreshCommitSummary
     {
@@ -1062,6 +1074,12 @@ extension CookieHeaderCache {
                 }
 
                 let stagedCount = state.stagedMutations.count
+                guard stagedCount > 0 else {
+                    return CookieRefreshCommitSummary(
+                        stagedCount: 0,
+                        committedCount: 0,
+                        failedCount: state.validatedNonpersistentSession ? 0 : 1)
+                }
                 guard stagedCount == 1,
                       let (key, mutation) = state.stagedMutations.first,
                       case let .store(entry) = mutation
@@ -1259,7 +1277,8 @@ extension CookieHeaderCache {
     static func observeForConditionalMutation(
         provider: UsageProvider,
         scope: Scope? = nil,
-        coordinator: ConditionalMutationCoordinator = .shared) -> ConditionalMutationObservation
+        coordinator: ConditionalMutationCoordinator = .shared,
+        preserveInvalidEntry: Bool = false) -> ConditionalMutationObservation
     {
         coordinator.lock.withLock {
             let key = self.key(for: provider, scope: scope)
@@ -1285,6 +1304,11 @@ extension CookieHeaderCache {
                             gateGeneration: gateGeneration,
                             coordinator: coordinator)
                     case .invalid:
+                        // Background validated sessions must not erase account pinning on decode failure.
+                        if preserveInvalidEntry {
+                            return .keychainTemporarilyUnavailable(
+                                legacyEntry: nil, gateGeneration: gateGeneration, coordinator: coordinator)
+                        }
                         KeychainCacheStore.clear(key: key)
                     case .missing:
                         break
@@ -1360,7 +1384,18 @@ extension CookieHeaderCache {
             return (.rejected, nil)
         }
         let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
-        return expected.coordinator.lock.withLock {
+        return self.storeIfObservationCurrentReceipt(
+            provider: provider, scope: scope, expected: expected, entry: entry)
+    }
+
+    /// Typed plugin sessions use the same conditional gates and refresh transaction as native headers.
+    static func storeIfObservationCurrentReceipt(
+        provider: UsageProvider,
+        scope: Scope? = nil,
+        expected: ConditionalMutationObservation,
+        entry: Entry) -> (result: ConditionalMutationResult, receipt: ConditionalMutationReceipt?)
+    {
+        expected.coordinator.lock.withLock {
             let key = self.key(for: provider, scope: scope)
             let gateState = expected.coordinator.gates[key] ?? ConditionalMutationGateState()
             guard gateState.activeTokens.isEmpty,
@@ -1380,7 +1415,7 @@ extension CookieHeaderCache {
                         entry: entry,
                         provider: provider,
                         scope: scope,
-                        sourceLabel: sourceLabel)
+                        sourceLabel: entry.sourceLabel)
                     {
                         let observation = ConditionalMutationObservation.authoritative(
                             entry,

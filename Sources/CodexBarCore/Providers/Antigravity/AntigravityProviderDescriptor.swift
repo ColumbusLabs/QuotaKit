@@ -104,7 +104,8 @@ public enum AntigravityProviderDescriptor {
                     resolveFallbackError: self.resolveFallbackError)),
             cli: ProviderCLIConfig(
                 name: "antigravity",
-                versionDetector: nil))
+                versionDetector: nil,
+                supportsCostCommand: true))
     }
 
     static let estimateHintKey = "antigravity_cost_estimate_hint"

@@ -2,8 +2,13 @@
 
 /* iCloud Sync */
 "+ %d more" = "+ %d więcej";
+"Add folder…" = "Dodaj folder…";
+"Additional Gemini profile homes" = "Dodatkowe foldery profili Gemini";
+"Cloud credits" = "Kredyty w chmurze";
 "Conversations (%@)" = "Rozmowy (%@)";
+"Expired" = "Wygasło";
 "Fast" = "Szybko";
+"Optional. Select each profile's .gemini folder to combine local token and cost history. The primary home is always included. Does not change sign-in or quotas." = "Opcjonalnie. Wybierz folder .gemini każdego profilu, aby połączyć lokalną historię tokenów i kosztów. Folder główny jest zawsze uwzględniany. Nie zmienia to logowania ani limitów.";
 "iCloud Sync" = "iCloud Sync";
 "Projects" = "Projekty";
 "Session %@" = "Sesja %@";
@@ -1564,6 +1569,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Niezależny czat";
+"Independent chats" = "Niezależne czaty";
+"Chat %d" = "Czat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1692,3 +1701,8 @@
 
 "With a selected or injected Google account, Auto accepts local app, agy CLI, and IDE reports only when the identity matches, then tries OAuth. Explicit Local API / agy CLI can use a different local signed-in account." = "Dla wybranego lub przekazanego konta Google tryb Auto przyjmuje raporty lokalnej aplikacji, agy CLI i IDE tylko przy zgodnej tożsamości, a potem próbuje OAuth. Jawnie wybrane Local API / agy CLI mogą używać innego lokalnie zalogowanego konta.";
 "Supported browsers: %@. Use Manual for other browsers." = "Obsługiwane przeglądarki: %@. W przypadku innych przeglądarek użyj trybu ręcznego.";
+
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Wklej nagłówek Cookie z żądania Chrome do www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Zarezerwowane";
+
+"Left" = "Pozostało";

@@ -70,7 +70,8 @@ at tokens retain automatic-window behavior. Conditional branches can use the sam
 V4 data and older-readable V3, V2, and legacy projections that omit explicit reset tokens so older app versions can
 still load supported tokens.
 
-Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
+Balance uses provider-reported amounts where available, including OpenRouter remaining credits and LithosAI prepaid
+balance. Auto %
 uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
 derive their first layout from the prior style, display mode, metric, and reset settings; those legacy keys remain

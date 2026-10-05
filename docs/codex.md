@@ -247,6 +247,17 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
     and widget cost summaries contain aggregate values only.
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
+
+Independent desktop chats appear in a separate **Independent chats** section, using saved thread titles or a
+neutral chat label instead of generated workspace folder names. Every contributing thread, including older files
+from moved threads, must have an explicit marker in the selected Codex home's desktop state. Registered project
+roots and current or legacy assignments veto stale markers; missing, malformed, or conflicting ownership keeps
+the Projects fallback. A null project ID or an unregistered CLI folder alone never establishes chat ownership.
+Project names and ownership share a bounded SQLite snapshot per database per refresh (1,024 roots and 4,096
+candidate threads); desktop state reads are capped at 8 MiB. This leaves identities, totals, caches, and dashboard
+and widget schemas unchanged. Privacy mode uses numbered chat labels and hides titles and paths through the
+existing display identity projection.
+
 - Cache:
   - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
@@ -261,6 +272,13 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Pending local-history files receive bounded turns alongside fresh sessions. Unfinished files that received a turn
   rotate behind waiting files, and the queue persists across refreshes. Rotation alone does not count as scan progress;
   byte and time limits still bound each refresh.
+- Automatic catch-up starts without assumed scan-time debt, then continues cheap discovery pages within a two-second
+  burst capped at eight passes. Each pass receives the remaining scan time, and current-day publication continues
+  through QuotaKit's validated-window and snapshot safeguards. The later duty-cycle delay uses cumulative active scan
+  time, excluding shared account/provider queue waits, with a two-second minimum when the pass cap ends a shorter
+  burst. Returning to automatic mode counts only the in-flight accelerated pass. App Low Power Mode still floors each
+  scheduled delay; physical low-power and thermal pauses, no-progress detection, cancellation, and complete-history
+  publication rules still apply.
 - Parent discovery continues within those bounds after requesting forks leave the scan roots. Once discovery confirms
   a missing parent, fully read forks and their orphaned descendants stop keeping catch-up pending. Unresolved usage
   remains buffered and unmetered; a changed dependency retries accounting when parent history returns.

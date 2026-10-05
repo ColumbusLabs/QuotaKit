@@ -45,9 +45,10 @@ An active subscription whose mint response omits `subs_usage` or returns it as `
 
 When `subs_usage` is missing, QuotaKit can read the subscription quota of one `dev.meta.ai` team that you choose, using your browser session for `dev.meta.ai` (the `llama_dev_sess` cookie). A session can see more than one team, and nothing in the responses links a team to the CLI login, so QuotaKit never picks a team for you.
 
-1. `GET https://dev.meta.ai/api/auth/me`. The session email must match the CLI login email, or QuotaKit ignores the browser session.
+1. `GET https://dev.meta.ai/api/auth/me`. A non-empty session email must match the CLI login email. When it is blank, QuotaKit can verify the session using its numeric `userId` and the membership check in step 3.
 2. `GET https://dev.meta.ai/api/portal/teams`. The selected **Browser team** must be in this list, or no quota is read.
-3. `GET https://dev.meta.ai/api/portal/teams/{team_id}/subscription-quota` for the selected team only. Its `tier` must equal the plan in the login response (`subs_tier_name`), or the quota is ignored.
+3. For a blank session email only, `GET https://dev.meta.ai/api/portal/teams/{team_id}/members` for the selected team, or the first listed team when no team is selected. The member whose `user_id` matches the session `userId` must have the CLI login email. A failed or mismatched check exposes no teams or quota. A `403` means membership is not visible to that role and does not reject the cookie; a `401` rejects the expired cookie.
+4. `GET https://dev.meta.ai/api/portal/teams/{team_id}/subscription-quota` for the selected team only. Its `tier` must equal the plan in the login response (`subs_tier_name`), or the quota is ignored.
 
 Usage is `used / limit` for the 5-hour and weekly weighted limits. An idle 5-hour window with zero reported usage, or one whose valid reset time has passed, shows 0% with no reset time. A malformed reset, or nonzero usage without a reset, withholds the browser reading rather than inventing an idle window. If the weekly reset time has passed, or a limit is zero or missing, QuotaKit shows no browser-team reading at all. The menu shows the values in a **Browser team quota (dev.meta.ai)** section with the team name, the source label becomes `oauth+web`, and the snapshot confidence is `estimated`, because the link between the team and the CLI login is your choice, not something Meta reports. The device-code token is sent only to `api.meta.ai`; `dev.meta.ai` requests carry only the browser cookie.
 
@@ -57,7 +58,7 @@ Setup, in **Settings → Providers → Muse Code**:
 2. Refresh Muse Code. When the login omits `subs_usage`, **Browser team** lists the teams the session can see, with their IDs. It starts at **Choose a team…** and never selects the first team automatically. The same list appears in the Muse menu.
 3. Choose the team whose web quota you want to display, then refresh. A saved team that is no longer visible stays marked unavailable; QuotaKit never switches to another team for you.
 
-Automatic mode tries later browser sessions when the first session is expired or belongs to another account. The fallback makes at most five web requests per refresh; Manual uses only the pasted session.
+Automatic mode tries later browser sessions when the first session is expired or belongs to another account. Sessions with a blank email are checked after email-matched sessions because membership verification costs another request. The fallback makes at most five web requests per refresh; Manual uses only the pasted session. If no session can be verified within that budget, QuotaKit keeps the login response and shows no browser-team quota.
 
 In `~/.quotakit/config.json`, the team ID is the Muse entry's `workspaceID`:
 
