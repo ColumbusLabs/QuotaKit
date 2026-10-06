@@ -172,6 +172,7 @@ enum CodexBarCLI {
         let configSignature = CommandSignature.describe(ConfigOptions())
         let configDumpSignature = CommandSignature.describe(ConfigDumpOptions())
         let configProviderToggleSignature = CommandSignature.describe(ConfigProviderToggleOptions())
+        let configSetSourceSignature = CommandSignature.describe(ConfigSetSourceOptions())
         let configSetAPIKeySignature = CommandSignature.describe(ConfigSetAPIKeyOptions())
         let cacheSignature = CommandSignature.describe(CacheOptions())
         let diagnoseSignature = CommandSignature.describe(DiagnoseOptions())
@@ -254,6 +255,11 @@ enum CodexBarCLI {
                         abstract: "Disable a provider",
                         discussion: nil,
                         signature: configProviderToggleSignature),
+                    CommandDescriptor(
+                        name: "set-source",
+                        abstract: "Store a provider data source",
+                        discussion: nil,
+                        signature: configSetSourceSignature),
                     CommandDescriptor(
                         name: "set-api-key",
                         abstract: "Store a provider API key",

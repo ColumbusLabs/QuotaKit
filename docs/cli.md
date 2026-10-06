@@ -259,10 +259,20 @@ quotakit config validate --format json --pretty
 quotakit config dump --pretty
 printf '%s' "$OPENAI_ADMIN_KEY" | quotakit config set-api-key --provider openai --stdin
 quotakit config enable --provider grok
+quotakit config set-source --provider claude --source cli
+quotakit config set-source --provider claude --source auto
 quotakit cache clear --cookies
 quotakit cache clear --cookies --provider claude
 quotakit cache clear --all --format json --pretty
 ```
+
+`config set-source` writes the provider's `source` in the resolved config file, using the same
+store as Settings. It accepts the provider names and aliases used by `config enable`, and rejects
+sources not offered by that provider's fetch plan. `--source auto` removes the override. Provider
+enablement, credentials, and other config fields are preserved. JSON output includes `provider`,
+`displayName`, `enabled`, `source`, and `configPath`; `source` reports `auto` after clearing an override.
+Invalid arguments are rejected before reading or writing the config, leaving any existing file byte-identical.
+Successful writes use the shared store's normal defaults and JSON formatting; setter output contains no credentials.
 
 ### Sample output (text)
 ```

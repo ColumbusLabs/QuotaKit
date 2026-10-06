@@ -1719,3 +1719,8 @@
 "Browser profile" = "浏览器配置文件";
 "Unavailable profile: %@" = "配置文件不可用：%@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "仅读取所选的 %@ 配置文件。绝不会自动选择账户。";
+
+/* Spend time zone */
+"Statistics time zone" = "统计时区";
+"Use Mac's current time zone" = "使用电脑当前时区";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "每日用量按固定时区统计。更改时区后，部分用量可能会归入不同的日期。";

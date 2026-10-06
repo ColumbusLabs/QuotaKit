@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Usage & Spend can pin a statistics time zone or use the Mac’s current zone, preserving saved aliases and daylight-saving rules.
+- The QuotaKit CLI can persist supported provider data sources without changing provider enablement; selecting `auto` clears the override.
+
 - Langdock personal session and weekly usage from an explicitly selected Edge profile, with session ownership checks and local-only measurements.
 - Explicit managed Codex account promotion through the QuotaKit CLI, plus metadata-only saved account usage in the local dashboard.
 - Menu bar metrics can select named Cursor and Antigravity allowances while retaining labels for unavailable readings.

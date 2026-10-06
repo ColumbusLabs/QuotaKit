@@ -1709,3 +1709,8 @@
 "Browser profile" = "Hồ sơ trình duyệt";
 "Unavailable profile: %@" = "Hồ sơ không khả dụng: %@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "Chỉ đọc hồ sơ %@ đã chọn. Tài khoản không bao giờ được chọn tự động.";
+
+/* Spend time zone */
+"Statistics time zone" = "Múi giờ thống kê";
+"Use Mac's current time zone" = "Dùng múi giờ hiện tại của Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Mức sử dụng hằng ngày được nhóm theo một múi giờ cố định. Thay đổi múi giờ có thể chuyển mức sử dụng sang ngày khác.";

@@ -1739,3 +1739,8 @@
 "Browser profile" = "瀏覽器設定檔";
 "Unavailable profile: %@" = "無法使用的設定檔：%@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "僅讀取所選的 %@ 設定檔。絕不會自動選擇帳號。";
+
+/* Spend time zone */
+"Statistics time zone" = "統計時區";
+"Use Mac's current time zone" = "使用電腦目前時區";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "每日用量按固定時區統計。更改時區後，部分用量可能會歸入不同的日期。";

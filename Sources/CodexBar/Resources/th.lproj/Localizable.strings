@@ -1712,3 +1712,8 @@
 "Browser profile" = "โปรไฟล์เบราว์เซอร์";
 "Unavailable profile: %@" = "โปรไฟล์ไม่พร้อมใช้งาน: %@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "อ่านเฉพาะโปรไฟล์ %@ ที่เลือกเท่านั้น ระบบจะไม่เลือกบัญชีโดยอัตโนมัติ";
+
+/* Spend time zone */
+"Statistics time zone" = "เขตเวลาสำหรับสถิติ";
+"Use Mac's current time zone" = "ใช้เขตเวลาปัจจุบันของ Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "การใช้งานรายวันจะจัดกลุ่มตามเขตเวลาที่กำหนดไว้ การเปลี่ยนเขตเวลาอาจย้ายการใช้งานไปอยู่ในวันอื่น";

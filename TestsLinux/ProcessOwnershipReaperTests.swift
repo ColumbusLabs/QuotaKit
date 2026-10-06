@@ -16,7 +16,20 @@ struct ProcessOwnershipReaperTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         let pidFile = root.appendingPathComponent("owned.pid")
         let readyFile = pidFile.appendingPathExtension("ready")
-        let script = "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"
+        let childReadyFile = pidFile.appendingPathExtension("child-ready")
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let timeoutRelease = DispatchSemaphore(value: 0)
+        defer { timeoutRelease.signal() }
+        let script = """
+        import os, signal, sys
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        if len(sys.argv) > 1:
+            marker = os.environ['\(ProcessOwnershipReaper.environmentKey)']
+            with open(sys.argv[1] + '.tmp', 'w') as handle: handle.write(marker)
+            os.replace(sys.argv[1] + '.tmp', sys.argv[1])
+        signal.pause()
+        """
         let unrelated = Process()
         unrelated.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
         unrelated.arguments = ["-c", script]
@@ -27,66 +40,117 @@ struct ProcessOwnershipReaperTests {
         try unrelated.run()
         defer {
             if unrelated.isRunning { kill(unrelated.processIdentifier, SIGKILL) }
+            unrelated.waitUntilExit()
             try? FileManager.default.removeItem(at: root)
         }
-
-        // The intermediate session leader exits before the probe does. Its grandchild closes
-        // stdout/stderr, changes session, and is reparented, so a process-tree scan cannot find it.
+        // The intermediate session leader exits before the probe does. The grandchild has closed
+        // stdout/stderr, a different session, and no parent relationship left for a tree scan.
         let launcher = """
-        import os, subprocess, sys, time
+        import subprocess, sys
         subprocess.run([sys.executable, '-c', '''
         import os, subprocess, sys
-        child = subprocess.Popen([sys.executable, '-c', sys.argv[1]],
+        child = subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2] + '.child-ready'],
             start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         with open(sys.argv[2], 'w') as f: f.write(str(child.pid))
         ''', sys.argv[1], sys.argv[2]], start_new_session=True)
         with open(sys.argv[2] + '.ready', 'w') as handle: handle.write('ready')
-        time.sleep(0.2)
-        if sys.argv[3] in ('timeout', 'cancellation'): time.sleep(60)
+        sys.stdin.read(1)
         if sys.argv[3] == 'failure': sys.exit(7)
         print('usage-fixture')
         """
         let task = Task {
-            try await SubprocessRunner.run(
-                binary: "/usr/bin/python3",
-                arguments: ["-c", launcher, script, pidFile.path, completion],
-                environment: [:],
-                timeout: completion == "timeout" ? 10 : 30,
-                currentDirectoryURL: root,
-                reapDescendants: true,
-                label: "owned-probe-fixture")
-        }
-        defer { task.cancel() }
-        let readyDeadline = Date().addingTimeInterval(10)
-        while !FileManager.default.fileExists(atPath: readyFile.path), Date() < readyDeadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
-        let text = try String(contentsOf: pidFile, encoding: .utf8)
-        let childPID = try #require(pid_t(text))
-        let childIdentity = TTYProcessTreeTerminator.processIdentity(for: childPID)
-        defer {
-            if let childIdentity, TTYProcessTreeTerminator.isCurrent(childIdentity) { kill(childPID, SIGKILL) }
-        }
-        if completion == "cancellation" { task.cancel() }
-        do {
-            let result = try await task.value
-            #expect(completion == "success")
-            #expect(result.stdout == "usage-fixture\n")
-        } catch is CancellationError {
-            #expect(completion == "cancellation")
-        } catch let error as SubprocessRunnerError {
-            switch error {
-            case .timedOut: #expect(completion == "timeout")
-            case .nonZeroExit: #expect(completion == "failure")
-            default: throw error
+            try await SubprocessRunner.$timeoutWillFire.withValue({ timeoutRelease.wait() }) {
+                try await SubprocessRunner.run(
+                    binary: "/usr/bin/python3",
+                    arguments: ["-c", launcher, script, pidFile.path, completion],
+                    environment: [:],
+                    timeout: completion == "timeout" ? 0 : .infinity,
+                    standardInput: input,
+                    currentDirectoryURL: root,
+                    reapDescendants: true,
+                    label: "owned-probe-fixture")
             }
         }
-        let deadline = Date().addingTimeInterval(2)
+        defer { task.cancel() }
+        let readyDeadline = Date().addingTimeInterval(60)
+        while (!FileManager.default.fileExists(atPath: readyFile.path)
+            || !FileManager.default.fileExists(atPath: childReadyFile.path)), Date() < readyDeadline
+        {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try #require(FileManager.default.fileExists(atPath: readyFile.path))
+        try #require(FileManager.default.fileExists(atPath: childReadyFile.path))
+        let text = try String(contentsOf: pidFile, encoding: .utf8)
+        let childPID = try #require(pid_t(text))
+        let childIdentity = try #require(TTYProcessTreeTerminator.processIdentity(for: childPID))
+        defer {
+            if TTYProcessTreeTerminator.isCurrent(childIdentity) { kill(childPID, SIGKILL) }
+        }
+        let marker = try String(contentsOf: childReadyFile, encoding: .utf8)
+        #expect(!marker.isEmpty)
+        // Darwin may expose a PID before its inherited environment is readable. Wait for the
+        // exact ownership evidence used by the reaper, as well as the child-installed handler.
+        while Self.ownerMarker(pid: childPID) != marker, Date() < readyDeadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let ownerReady = Self.ownerMarker(pid: childPID) == marker
+        try #require(ownerReady, "Child owner marker is not observable")
+        // The detached child must be ready before any completion path can trigger ownership cleanup.
+        // Only the timeout case arms a timer; slow scheduling cannot turn success/failure into timeout.
+        switch completion {
+        case "timeout": timeoutRelease.signal()
+        case "cancellation": task.cancel()
+        default: try input.fileHandleForWriting.write(contentsOf: Data([1]))
+        }
+        switch await BoundedTaskJoin(sourceTask: task).value(joinGrace: .seconds(60)) {
+        case let .value(result):
+            #expect(completion == "success")
+            #expect(result.stdout == "usage-fixture\n")
+        case let .failure(error) where error is CancellationError:
+            #expect(completion == "cancellation")
+        case let .failure(error as SubprocessRunnerError):
+            switch error {
+            case .timedOut: #expect(completion == "timeout")
+            case let .nonZeroExit(code, _):
+                #expect(completion == "failure")
+                #expect(code == 7)
+            default: throw error
+            }
+        case let .failure(error): throw error
+        case .timedOut: Issue.record("Probe did not finish after releasing its completion barrier")
+        }
+        let deadline = Date().addingTimeInterval(60)
         while kill(childPID, 0) == 0, Date() < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(kill(childPID, 0) == -1)
+        let sameIdentity = TTYProcessTreeTerminator.isCurrent(childIdentity)
+        let ownerObservable = Self.ownerMarker(pid: childPID) == marker
+        let state = Self.processState(pid: childPID)
+        #expect(
+            kill(childPID, 0) == -1,
+            "Child remains: same identity=\(sameIdentity), owner observable=\(ownerObservable), \(state)")
         #expect(unrelated.isRunning)
+    }
+
+    private static func ownerMarker(pid: pid_t) -> String? {
+        let names: Set<String> = [ProcessOwnershipReaper.environmentKey]
+        #if canImport(Darwin)
+        return DarwinProcessEnumerator.environment(pid: pid, names: names)?[ProcessOwnershipReaper.environmentKey]
+        #else
+        return PiProcessEnvironment.readLinuxEnvironment(pid: pid, names: names)?[ProcessOwnershipReaper.environmentKey]
+        #endif
+    }
+
+    private static func processState(pid: pid_t) -> String {
+        #if canImport(Darwin)
+        var info = proc_bsdinfo()
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, Int32(MemoryLayout<proc_bsdinfo>.size))
+            == MemoryLayout<proc_bsdinfo>.size
+        else { return "BSD state unavailable" }
+        return "BSD state=\(info.pbi_status)"
+        #else
+        return "Linux"
+        #endif
     }
 
     @Test

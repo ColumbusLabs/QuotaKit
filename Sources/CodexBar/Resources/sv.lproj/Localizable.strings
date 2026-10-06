@@ -1707,3 +1707,8 @@
 "Browser profile" = "Webbläsarprofil";
 "Unavailable profile: %@" = "Profilen är inte tillgänglig: %@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "Läs endast den valda %@-profilen. Konton väljs aldrig automatiskt.";
+
+/* Spend time zone */
+"Statistics time zone" = "Tidszon för statistik";
+"Use Mac's current time zone" = "Använd Macens aktuella tidszon";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Daglig användning grupperas i en fast tidszon. Om den ändras kan användning flyttas till en annan dag.";
