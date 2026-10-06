@@ -174,11 +174,19 @@ struct CLIConfigSourceCommandTests {
             "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS": "1",
         ]
         let result = try await SubprocessRunner.run(
-            binary: TestBuildProducts.executableURL(named: "CodexBarCLI").path,
+            binary: Self.cliExecutableURL.path,
             arguments: ["config", "set-source"] + arguments,
             environment: environment,
             timeout: 15,
             label: "synthetic config set source")
         return result.stdout
+    }
+
+    private static var cliExecutableURL: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".build/debug/CodexBarCLI")
     }
 }

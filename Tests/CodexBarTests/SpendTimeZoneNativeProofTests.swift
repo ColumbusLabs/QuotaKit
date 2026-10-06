@@ -13,8 +13,8 @@ struct SpendTimeZoneNativeProofTests {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let settings = testSettingsStore(
             suiteName: #function,
-            userDefaults: InMemoryUserDefaults(values: ["tokenCostUsageBucketTimeZone": "America/Detroit"]),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults(values: ["tokenCostUsageBucketTimeZone": "America/Detroit"]))
         for language in ["en", "zh-Hans"] {
             for width in [600.0, 360.0] {
                 try CodexBarLocalizationOverride.$appLanguage.withValue(language) {
