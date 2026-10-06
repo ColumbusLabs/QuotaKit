@@ -18,8 +18,13 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, `cli`,
 Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Settings → Providers.
 Some browser cookie imports are cached in Keychain and reused until the session is invalid. API keys, manual cookie
 headers, source selection, provider ordering, and token accounts are stored in the resolved config file.
+Set a persistent fetch source with `quotakit config set-source --provider <id> --source <mode>`; accepted modes are
+limited to each provider's fetch plan, and `auto` clears the override.
 New installs use `~/.quotakit/config.json`; see [CLI configuration](cli-configuration.md) for
 `XDG_CONFIG_HOME` and `QUOTAKIT_CONFIG` overrides and legacy path handling.
+
+Statistics time zone: Settings → Usage & Spend lets you choose a fixed reporting time zone or use the Mac’s current zone. Daily usage is grouped by that zone’s civil date; changing it can move usage to a different day, including daily data synchronized to iPhone.
+
 
 ## Usage & Spend settings
 

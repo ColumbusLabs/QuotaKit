@@ -1707,3 +1707,8 @@
 "Browser profile" = "Browserprofiel";
 "Unavailable profile: %@" = "Profiel niet beschikbaar: %@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "Lees alleen het geselecteerde %@-profiel. Accounts worden nooit automatisch geselecteerd.";
+
+/* Spend time zone */
+"Statistics time zone" = "Tijdzone voor statistieken";
+"Use Mac's current time zone" = "Huidige tijdzone van de Mac gebruiken";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Dagelijks gebruik wordt ingedeeld volgens een vaste tijdzone. Een wijziging kan gebruik naar een andere dag verschuiven.";

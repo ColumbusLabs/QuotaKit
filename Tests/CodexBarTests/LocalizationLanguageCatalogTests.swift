@@ -791,6 +791,30 @@ struct LocalizationLanguageCatalogTests {
         #expect(rendered.contains("3개 서비스"))
     }
 
+    @Test
+    func `statistics time zone controls are localized in every app language`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let keys = [
+            "Statistics time zone",
+            "Use Mac's current time zone",
+            "Daily usage uses a fixed time zone. Changing it may move usage to a different day.",
+        ]
+
+        for language in AppLanguage.allCases where language != .system {
+            let url = resourcesURL.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
+            for key in keys {
+                let value = try #require(catalog[key], "Missing \(key) in \(language.rawValue)")
+                #expect(!value.isEmpty)
+                if language != .english { #expect(value != key) }
+            }
+        }
+    }
+
     private static func withTemporaryDefaults(
         for testName: String,
         _ body: (UserDefaults, String) -> Void)
