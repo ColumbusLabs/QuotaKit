@@ -6222,6 +6222,10 @@ enum CostUsageScanner {
                 // Enrich missing fork/project fields without allowing an ancestor to replace identity.
                 guard CodexSubagentRolloutShape.sameConcreteSessionID(metadata.sessionId, self.sessionId)
                 else { return }
+                // A resumed session starts new requests and may restart its counters.
+                self.requestLedger.clearPendingMirrors()
+                self.requestLedger.lastLedgerTotal = nil
+                self.requestLedger.lastLegacyTotal = nil
                 self.isSubagentThread = self.isSubagentThread || metadata.isSubagentThread
                 if self.requestLedger.sessionID == nil {
                     self.requestLedger.sessionID = metadata.requestSessionID ?? metadata.sessionId

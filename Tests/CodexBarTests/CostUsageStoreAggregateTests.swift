@@ -129,6 +129,47 @@ struct CostUsageStoreAggregateTests {
         #expect(packed.standardUnresolvedPricingCount == 0)
     }
 
+    @Test(arguments: [false, true], ["standard", "priority"])
+    func `historically unpriced rows never contribute priced aggregate evidence`(
+        savedCost: Bool,
+        mode: String) throws
+    {
+        let day = "2026-08-01"
+        let model = "synthetic-priced-model"
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [day: [model: [100, 20, 10]]])
+        usage.codexRows = [Self.row(
+            day: day,
+            model: model,
+            eventIndex: 0,
+            input: 100,
+            cached: 20,
+            output: 10,
+            knownCostNanos: savedCost ? 123 : nil,
+            unpricedTokens: 110,
+            pricingMode: mode)]
+        let pricing = CostUsageCustomPricing(
+            entries: [model: .init(input: 1, output: 2)],
+            fingerprint: "marked-aggregate-test")
+        let aggregate = try #require(CostUsageStore.fileAggregatesForTesting(usage, customPricing: pricing).first)
+        #expect(aggregate.inputTokens == 100)
+        #expect(aggregate.cachedTokens == 20)
+        #expect(aggregate.outputTokens == 10)
+        #expect(aggregate.requestCount == 1)
+        #expect(aggregate.unpricedRequestCount == 1)
+        #expect(aggregate.standardTokens == (mode == "standard" ? 110 : 0))
+        #expect(aggregate.priorityTokens == (mode == "priority" ? 110 : 0))
+        #expect(aggregate.authoritativeCostNanos == 0)
+        #expect(aggregate.standardAuthoritativeCostNanos == 0)
+        #expect(aggregate.priorityAuthoritativeCostNanos == 0)
+        #expect(aggregate.standardResolvedCostNanos == 0)
+        #expect(aggregate.priorityResolvedCostNanos == 0)
+        #expect(aggregate.standardInputTokens + aggregate.priorityInputTokens == 0)
+        #expect(aggregate.standardCachedTokens + aggregate.priorityCachedTokens == 0)
+        #expect(aggregate.standardOutputTokens + aggregate.priorityOutputTokens == 0)
+        #expect(aggregate.standardUnresolvedPricingCount == (mode == "standard" ? 1 : 0))
+        #expect(aggregate.priorityUnresolvedPricingCount == (mode == "priority" ? 1 : 0))
+    }
+
     @Test
     func `aggregate row visits stay constant as key cardinality grows`() {
         let rowCount = 64
@@ -233,6 +274,16 @@ struct CostUsageStoreAggregateTests {
                     aggregate.priorityTokens += total
                 } else {
                     aggregate.standardTokens += total
+                }
+                // Unknown historical pricing retains request/token coverage, but none of its components
+                // may be reconstructed as a priced row in the compact report projection.
+                if (row.unpricedTokens ?? 0) > 0 {
+                    if isPriority {
+                        aggregate.priorityUnresolvedPricingCount += 1
+                    } else {
+                        aggregate.standardUnresolvedPricingCount += 1
+                    }
+                    continue
                 }
                 if let cost = row.knownCostNanos {
                     aggregate.authoritativeCostNanos += cost

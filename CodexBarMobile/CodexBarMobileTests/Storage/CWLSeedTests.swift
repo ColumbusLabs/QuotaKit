@@ -30,7 +30,7 @@ struct CWLSeedTests {
         let summary = SyncCostSummary(
             sessionCostUSD: nil, sessionTokens: nil,
             last30DaysCostUSD: nil, last30DaysTokens: nil,
-            daily: daily, costIsKnown: costIsKnown, isEstimated: false)
+            daily: daily, isEstimated: false, costIsKnown: costIsKnown)
         return (try? CloudSyncConstants.makeJSONEncoder().encode(summary)) ?? Data()
     }
 

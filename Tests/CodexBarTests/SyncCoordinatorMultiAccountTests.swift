@@ -341,15 +341,32 @@ struct SyncCoordinatorMultiAccountTests {
             provider: .clinepass,
             metadata: #require(ProviderDefaults.metadata[.clinepass]),
             enabled: true)
+        settings.addTokenAccount(provider: .clinepass, label: "Personal", token: "tok-Personal")
+        settings.addTokenAccount(
+            provider: .clinepass,
+            label: duplicateLabels ? "personal" : "Work",
+            token: duplicateLabels ? "tok-personal" : "tok-Work")
+        settings.setActiveTokenAccountIndex(0, for: .clinepass)
+
         let store = self.makeUsageStore(settings: settings)
+        let configuredAccounts = settings.tokenAccounts(for: .clinepass)
+        let selectedAccount = try #require(configuredAccounts.first)
+        let otherAccount = try #require(configuredAccounts.dropFirst().first)
         let selected = self.applyTokenAccountLabel(
-            to: self.makeTokenAccountUsageSnapshot(
-                provider: .clinepass, accountLabel: "Personal", accountEmail: nil, usedPercent: 15),
+            to: TokenAccountUsageSnapshot(
+                account: selectedAccount,
+                snapshot: self.makeUsageSnapshot(
+                    provider: .clinepass, accountEmail: nil, usedPercent: 15),
+                error: nil,
+                sourceLabel: nil),
             provider: .clinepass, store: store)
         let other = self.applyTokenAccountLabel(
-            to: self.makeTokenAccountUsageSnapshot(
-                provider: .clinepass, accountLabel: duplicateLabels ? "personal" : "Work", accountEmail: nil,
-                usedPercent: 85),
+            to: TokenAccountUsageSnapshot(
+                account: otherAccount,
+                snapshot: self.makeUsageSnapshot(
+                    provider: .clinepass, accountEmail: nil, usedPercent: 85),
+                error: nil,
+                sourceLabel: nil),
             provider: .clinepass, store: store)
         store._setSnapshotForTesting(selected.snapshot, provider: .clinepass)
         store.accountSnapshots[.clinepass] = [selected, other]

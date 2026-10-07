@@ -428,11 +428,12 @@ extension CostUsageScanner {
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
         context: CodexFileScanContext,
-        sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
-        sessionID: String?,
+        source: (pricing: [CodexSourcePricingKey: CodexPricingEvidence]?, sessionID: String?),
         pendingPricing: inout [String: CodexPricingEvidence]) -> [CodexUsageRow]
     {
         let parsed = plan.parsed
+        let sourcePricing = source.pricing
+        let sessionID = source.sessionID
         let stagedRows = (plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []).filter {
             $0.eventIndex.map { !parsed.replacedLegacyRowIndices.contains($0) } ?? true
         }
@@ -479,8 +480,7 @@ extension CostUsageScanner {
             plan: plan,
             input: input,
             context: context,
-            sourcePricing: sourcePricing,
-            sessionID: sourceSessionID,
+            source: (sourcePricing, sourceSessionID),
             pendingPricing: &pendingPricing)
         let replayedSnapshots = plan.replacementWasPending
             ? Self.mergingCodexTokenSnapshots(input.cached?.codexStagedRecoverySnapshots ?? [], parsed.tokenSnapshots)

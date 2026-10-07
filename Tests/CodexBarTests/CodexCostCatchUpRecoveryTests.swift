@@ -21,10 +21,16 @@ struct CodexCostCatchUpRecoveryTests {
             id: "fixture",
             cacheIdentity: "fixture")]
         let stillStalled = scenario != "complete"
-        let keys = switch scenario {
+        var keys = switch scenario {
         case "progress": ["advanced", "advanced", "further", "further"]
         case "cycle": ["advanced", "initial"]
         default: ["advanced", "advanced", stillStalled ? "advanced" : "complete"]
+        }
+        // The primary worker retains QuotaKit's three bounded same-key retries for
+        // concurrently appended session tails; the dashboard stops at its first terminal stall.
+        if !dashboard, scenario == "repeat" || scenario == "progress" {
+            let lastKey = try #require(keys.last)
+            keys += Array(repeating: lastKey, count: 2)
         }
         var advances = 0
         var budgets: [TimeInterval] = []
@@ -58,16 +64,16 @@ struct CodexCostCatchUpRecoveryTests {
             store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in advance() }
             store._test_codexCostCatchUpSleepOverride = { sleeps.append($0) }
             store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
-            store._test_cachedCodexTokenSnapshotLoaderOverride = { now, _, _ in
+            store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
                 guard advances >= 3, !stillStalled else { return nil }
-                return (CostUsageTokenSnapshot(
+                return CostUsageTokenSnapshot(
                     sessionTokens: 0,
                     sessionCostUSD: nil,
                     last30DaysTokens: 0,
                     last30DaysCostUSD: nil,
                     historyCoverageIsEstablished: true,
                     daily: [],
-                    updatedAt: now), now, nil)
+                    updatedAt: now)
             }
             store.startCodexCostCatchUpIfNeeded()
             await store.codexCostCatchUpTask?.value

@@ -685,7 +685,7 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
-    func `an ordinary refresh resumes only after a stalled progress key changes`() async throws {
+    func `a terminal stall requires explicit resume after the progress key changes`() async throws {
         let store = try Self.makeStore(suite: "no-progress-key-change")
         let progressKey = LockIsolated("A")
         let bStatusLoadCount = LockIsolated(0)
@@ -721,9 +721,16 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(advanceCount.value == 3)
         #expect(store.codexCostCatchUpPausedProgressKey == "A")
 
-        // A real source change releases the pause and allows the existing worker to converge.
+        // A source change cannot silently restart a terminally stalled scan.
         progressKey.setValue("B")
         store.startCodexCostCatchUpIfNeeded()
+        await Task.yield()
+        #expect(advanceCount.value == 3)
+        #expect(store.codexCostCatchUpPausedProgressKey == "A")
+        #expect(store.codexCostCatchUpActivity?.requiresExplicitResume == true)
+
+        // An explicit resume releases the pause and lets the worker converge.
+        store.startCodexCostCatchUpIfNeeded(resumePaused: true)
         await Self.waitUntil {
             store.codexCostCatchUpTask == nil && advanceCount.value == 4
         }

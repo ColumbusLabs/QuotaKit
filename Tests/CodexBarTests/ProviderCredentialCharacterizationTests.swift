@@ -222,6 +222,7 @@ struct ProviderCredentialCharacterizationTests {
             (.grok, "GROK_OAUTH_TOKEN"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
             (.hyper, "HYPER_API_KEY"),
+            (.clinepass, "CLINE_API_KEY"),
         ]
         let cookieProviders: [UsageProvider] = [
             .kimi,

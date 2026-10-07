@@ -29,7 +29,6 @@ struct CodexLongContextThresholdTests {
         "gpt-5.6-sol",
         "gpt-5.6-terra",
         "gpt-5.6-luna",
-        "gpt-daybreak-blue-latest",
         "gpt-6-astra",
         "gpt-6-sol",
         "gpt-6-luna",
@@ -57,6 +56,9 @@ struct CodexLongContextThresholdTests {
                     modelsDevCacheRoot: nil)?.thresholdTokens == 300_000)
             }
         }
+        let unknownOpenAICatalog = try Self.catalog(model: "fixture-other-model", explicitTier: false)
+        #expect(unknownOpenAICatalog.pricing(providerID: "openai", modelID: "fixture-other-model")?.pricing
+            .thresholdTokens == 200_000)
         let catalog = try Self.catalog(model: "gpt-6.1-sol", explicitTier: false, provider: "fixture-provider")
         #expect(catalog.pricing(providerID: "fixture-provider", modelID: "gpt-6.1-sol")?.pricing
             .thresholdTokens == 200_000)

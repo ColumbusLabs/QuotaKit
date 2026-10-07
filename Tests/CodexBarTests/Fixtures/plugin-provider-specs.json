@@ -1023,6 +1023,7 @@
       "workspaceOrder": null
     },
     {
+      "accountAvailability": true,
       "apiKeyDebugLabel": "",
       "availability": [
         false,
@@ -1119,6 +1120,15 @@
       "subscriptionDashboard": "",
       "toggle": "Show ClinePass usage",
       "toggles": [],
+      "tokenAccounts": {
+        "delay": "",
+        "injection": {
+          "CLINE_API_KEY": "fixture-account"
+        },
+        "placeholder": "ClinePass API key...",
+        "subtitle": "Store multiple ClinePass API keys. The selected key overrides the configured API key and the cline auth session.",
+        "title": "API keys"
+      },
       "widgetColor": [
         0.32941176470588235,
         0.5294117647058824,
