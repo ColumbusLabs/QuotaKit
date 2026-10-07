@@ -61,7 +61,7 @@ extension CostUsageStore {
         _ = self.removeLegacyCodexArtifactIfPresent()
         guard let read = self.readStampedCodexScanSnapshot(loadTokenSnapshots: loadTokenSnapshots),
               read.snapshot.metadata.timeZoneIdentifier == nil
-                || read.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+              || read.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else { return CostUsageCache() }
         let baseline = Self.codexBaseline(
             from: read.snapshot,

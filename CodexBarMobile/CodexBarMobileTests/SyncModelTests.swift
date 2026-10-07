@@ -854,7 +854,7 @@ struct SyncModelTests {
     }
 
     @Test
-    func `Cost dashboard insights aggregate ten providers`() {
+    func `Cost dashboard insights aggregate ten providers`() throws {
         var providers: [ProviderUsageSnapshot] = []
         var expectedTotal30DayCost = 0.0
         let now = Date()
@@ -863,7 +863,7 @@ struct SyncModelTests {
         for index in 0..<10 {
             let dayCost = Double(index + 1) * 0.9
             let last30DayCost = Double(index + 1) * 3.5
-            let dayDate = calendar.date(byAdding: .day, value: -index, to: now)!
+            let dayDate = try #require(calendar.date(byAdding: .day, value: -index, to: now))
             let daily = [
                 SyncDailyPoint(
                     dayKey: SyncCostSummary.iso8601DayKey(for: dayDate),

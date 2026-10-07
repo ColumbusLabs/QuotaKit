@@ -28,7 +28,6 @@ struct CostUsageBoundedProgressTests {
         #expect(budget.yieldedBeforeFileAttempt == (kind == "empty"))
     }
 
-
     private typealias Fixture = CostUsageBoundedProgressFixture
 
     @Test

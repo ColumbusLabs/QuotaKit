@@ -12,8 +12,8 @@ public enum DevPassProviderDescriptor {
         confetti: [0x2563EB, 0x93C5FD],
         noDataMessage: "DevPass cost history is not available.",
         environmentKey: "DEVPASS_API_KEY",
-        presentation: ProviderUsagePresentation(menuBarBalanceDetailLabels: ["Cycle remaining"]),
         missingCredentialMessage: { _ in "Set a DevPass API key in Settings or DEVPASS_API_KEY." },
+        presentation: ProviderUsagePresentation(menuBarBalanceDetailLabels: ["Cycle remaining"]),
         apiKeyField: .init(
             id: "devpass-api-key",
             title: "DevPass API key",

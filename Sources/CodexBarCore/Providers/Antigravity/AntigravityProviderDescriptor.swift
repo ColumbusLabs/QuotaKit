@@ -737,7 +737,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         let result: SubprocessResult
         do {
             let version = try await versionResolver.resolve {
-                Self.parseVersion(try await run(["--version"], timeout: min(timeout, 3)).stdout)
+                try await Self.parseVersion(run(["--version"], timeout: min(timeout, 3)).stdout)
             }
             // Earlier print implementations could turn unsupported slash commands into model prompts.
             guard let version, version >= (1, 1, 11)

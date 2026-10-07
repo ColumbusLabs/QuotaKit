@@ -158,7 +158,7 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `unknown zero cost keeps known tokens without claiming zero spend`() throws {
+    func `unknown zero cost keeps known tokens without claiming zero spend`() {
         let now = Date()
         let todayKey = CostDashboardInsights.todayDayKey(now: now)
         func summary(cost: Double, tokens: Int, isKnown: Bool) -> SyncCostSummary {
@@ -280,7 +280,7 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `week remains partial when history coverage is unestablished`() throws {
+    func `week remains partial when history coverage is unestablished`() {
         let now = Date()
         let todayKey = CostDashboardInsights.todayDayKey(now: now)
         let summary = SyncCostSummary(
@@ -355,7 +355,7 @@ struct CloudKitMergeTests {
     }
 
     @Test(arguments: [false, true])
-    func `CWL point without confidence inherits matching summary confidence`(summaryCostIsKnown: Bool) throws {
+    func `CWL point without confidence inherits matching summary confidence`(summaryCostIsKnown: Bool) {
         let now = Date()
         let todayKey = CostDashboardInsights.todayDayKey(now: now)
         let point = SyncDailyPoint(

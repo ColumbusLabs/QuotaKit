@@ -228,8 +228,10 @@ enum CostUsageCodexReportProjectionBuilder {
             let costs = modelBreakdowns.compactMap(\.costUSD)
             let unpricedRequests = zip(models, modelBreakdowns).reduce(into: 0) { count, pair in
                 let aggregate = pair.0.1
-                let unresolved = max(aggregate.unpricedRequestCount,
-                                     aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
+                let unresolved = max(
+                    aggregate.unpricedRequestCount,
+                    aggregate.standardUnresolvedPricingCount + aggregate
+                        .priorityUnresolvedPricingCount)
                 if unresolved > 0 {
                     count += Self.int(unresolved)
                 } else if pair.1.costUSD == nil {
@@ -326,8 +328,9 @@ enum CostUsageCodexReportProjectionBuilder {
         // Use saved monetary evidence; the omitted requests never acquire current list prices.
         let (rowTokens, rowOverflow) = aggregate.standardTokens.addingReportingOverflow(aggregate.priorityTokens)
         let (canonicalTokens, canonicalOverflow) = aggregate.inputTokens.addingReportingOverflow(aggregate.outputTokens)
-        let unpriced = max(aggregate.unpricedRequestCount,
-                           aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
+        let unpriced = max(
+            aggregate.unpricedRequestCount,
+            aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
         let hasPricedRequests = aggregate.requestCount > unpriced
         let partialIsCovered = aggregate.partialPricingIsSafe != false
             && !rowOverflow && !canonicalOverflow && rowTokens == canonicalTokens

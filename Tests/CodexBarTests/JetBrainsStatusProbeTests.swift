@@ -362,7 +362,7 @@ struct JetBrainsStatusProbeTests {
 
         let snapshot = try JetBrainsStatusProbe.parseXMLData(Data(xml.utf8), detectedIDE: nil)
 
-        #expect(snapshot.quotaInfo.used == 50_000)
+        #expect(snapshot.quotaInfo.used == 50000)
         #expect(snapshot.quotaInfo.maximum == 200_000)
         #expect(snapshot.quotaInfo.available == 150_000)
         #expect(snapshot.quotaInfo.usedPercent == 25)

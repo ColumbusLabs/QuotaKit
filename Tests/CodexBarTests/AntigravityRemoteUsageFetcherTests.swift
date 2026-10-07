@@ -60,7 +60,8 @@ extension AntigravityRemoteUsageFetcherTests {
         }
         #expect(recorder.values() == ["/v1internal:loadCodeAssist"])
         #expect(AntigravityOfflineFetchStrategy().diagnostic(
-            forPriorFailure: AntigravityRemoteFetchError.reauthenticationRequired)?.contains("Sign in to it again.") == true)
+            forPriorFailure: AntigravityRemoteFetchError.reauthenticationRequired)?
+            .contains("Sign in to it again.") == true)
     }
 
     @Test(arguments: ["stored-project", "returned-project", "current-tier", "other-reason"])

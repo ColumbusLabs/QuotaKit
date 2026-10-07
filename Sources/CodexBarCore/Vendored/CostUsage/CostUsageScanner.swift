@@ -5887,7 +5887,8 @@ enum CostUsageScanner {
                 turnID: turnID, usage: usage, total: record.threadTotal, timestamp: timestamp)
             // A verbatim copy cannot discard an original observation still awaiting its mirror.
             let pendingOriginal = self.requestLedger.pendingLedgerResponseID == responseID
-                && self.requestLedger.pendingLedgerMirrors == adjacentKeys ? self.requestLedger.pendingLedgerNearMirror : nil
+                && self.requestLedger.pendingLedgerMirrors == adjacentKeys ? self.requestLedger
+                .pendingLedgerNearMirror : nil
             let near = isReplay ? deferredMirror ?? pendingOriginal : self.nearMirror(
                 turnID: turnID,
                 usage: usage,
@@ -5910,7 +5911,8 @@ enum CostUsageScanner {
             self.requestLedger.pendingLedgerNearMirror = hasMirror ? nil : near
             // Only the original observation (including a verbatim duplicate) can donate saved legacy pricing.
             let ownsPricing = !isReplay || (self.rows.last { $0.responseID == responseID }
-                ?? self.retainedRows.values.first { $0.responseID == responseID })?.requestMirrorKeys?.first == keys.first
+                ?? self.retainedRows.values.first { $0.responseID == responseID })?.requestMirrorKeys?.first == keys
+                .first
             self.requestLedger.pendingLedgerPricingResponseID = !hasMirror && ownsPricing ? responseID : nil
             let legacyRow = mirrorIndex.flatMap { index in
                 self.rows.first(where: { $0.eventIndex == index }) ?? self.retainedRows[index]
@@ -6053,10 +6055,10 @@ enum CostUsageScanner {
                 unpricedTokens: pricing?.unpricedTokens,
                 pricingModel: pricing?.pricingModel,
                 pricingMode: pricing?.pricingMode
-                    ?? (requestLedger.priorityTurnIDs?.contains(turnID ?? "") == true ? "priority" : nil),
+                    ?? (self.requestLedger.priorityTurnIDs?.contains(turnID ?? "") == true ? "priority" : nil),
                 responseID: responseID,
                 requestMirrorKeys: mirrorKeys))
-            rowSourceEndOffsets[index] = endOffset
+            self.rowSourceEndOffsets[index] = endOffset
             return index
         }
 
@@ -6279,18 +6281,18 @@ enum CostUsageScanner {
             let total = record.total
             let last = record.last
             let mirrorTurnID = record.turnID ?? self.currentTurnID ?? self.requestLedger.activeTurnID
-            var mirror = self.observeLegacyMirror(
-                usage: last, turnID: mirrorTurnID, total: total, timestamp: record.timestamp)
+            // Keep the observed identity even when usage must wait for a verified parent baseline.
             let observationKey = self.mirrorKey(
                 turnID: mirrorTurnID, usage: last, total: total, timestamp: record.timestamp)
-            defer {
-                self.requestLedger.rememberLegacyCounter(total, when: !self.hasUnresolvedForkBaseline)
-                self.requestLedger.clearPendingMirrors(when: mirror == nil)
-            }
+            if (total != nil && self.requestLedger.legacyRowIndices[observationKey] != nil)
+                || (last == nil && self.requestLedger.mirroredResponses?[observationKey] != nil) { return }
             // A cumulative fork counter is not attributable until either the parent snapshot or
             // a trustworthy child-owned suffix establishes the inherited baseline. Publishing
             // best-effort `last` rows here can replay billions of copied-prefix tokens.
-            guard !self.hasUnresolvedForkBaseline else { return }
+            guard !self.hasUnresolvedForkBaseline else {
+                self.requestLedger.clearPendingMirrors()
+                return
+            }
             if self.forkedFromId != nil,
                self.previousTotals == nil,
                let total, let last,
@@ -6302,9 +6304,20 @@ enum CostUsageScanner {
                 // The first post-boundary total==last can be either a copied inherited
                 // snapshot or a genuinely new counter. Neither interpretation is proven
                 // by these fields, so retain the event and leave this fork incomplete.
+                self.requestLedger.clearPendingMirrors()
                 self.hasUnresolvedForkBaseline = true
                 return
             }
+            let originalResponseID = self.requestLedger.pendingLedgerNearMirror != nil
+                ? self.requestLedger.pendingLedgerResponseID : nil
+            var mirror = self.observeLegacyMirror(
+                usage: last, turnID: mirrorTurnID, total: total, timestamp: record.timestamp)
+            defer { self.requestLedger.clearPendingMirrors(when: mirror == nil) }
+            // An owned response proves a new counter origin even if its raw total was seen before.
+            let owner = mirror.flatMap { self.requestLedger.mirroredResponses?[$0.snapshot] }
+            self.requestLedger.rememberLegacyCounter(
+                total,
+                when: originalResponseID != nil && owner == originalResponseID)
             if let total, let last {
                 self.raiseInheritedBaselineIfContinuedCounter(total: total, last: last)
             }
@@ -6371,7 +6384,7 @@ enum CostUsageScanner {
                 }
                 self.tracker.latchIfBelowWatermark(adjustedTotal)
             }
-            let watermarkBaseline = tracker.watermark ?? rawTotalsBaseline
+            let watermarkBaseline = self.tracker.watermark ?? self.rawTotalsBaseline
             defer {
                 requestLedger.rememberLegacyCounter(total, when: owner == nil)
                 if let adjustedTotal {
@@ -6520,7 +6533,9 @@ enum CostUsageScanner {
                 turnID: record.turnID ?? self.currentTurnID,
                 mirrorKeys: mirrorKeys,
                 endOffset: sourceEndOffset)
-            for key in mirrorKeys ?? [] { self.requestLedger.legacyRowIndices[key] = eventIndex }
+            for key in mirrorKeys ?? [] {
+                self.requestLedger.legacyRowIndices[key] = eventIndex
+            }
             self.requestLedger.pendingLegacyMirrors = mirror?.adjacent
             self.requestLedger.pendingLegacyRowIndex = eventIndex
             self.requestLedger.pendingLegacyNearMirror = mirror?.near
@@ -6926,13 +6941,13 @@ enum CostUsageScanner {
         }
 
         func enrichSubagentMetadata(_ pendingSubagentLines: [CodexBufferedFastLine]) {
-                // Same-leaf metadata can fill lineage fields after the opening record. Collect it
-                // before replay so copied-prefix totals never run once on the wrong baseline, and
-                // so an owned-suffix filter cannot discard the only fork identifier.
-                for buffered in pendingSubagentLines {
-                    guard case let .sessionMeta(metadata) = buffered.line,
-                          CodexSubagentRolloutShape.sameConcreteSessionID(metadata.sessionId, sessionId)
-                    else { continue }
+            // Same-leaf metadata can fill lineage fields after the opening record. Collect it
+            // before replay so copied-prefix totals never run once on the wrong baseline, and
+            // so an owned-suffix filter cannot discard the only fork identifier.
+            for buffered in pendingSubagentLines {
+                guard case let .sessionMeta(metadata) = buffered.line,
+                      CodexSubagentRolloutShape.sameConcreteSessionID(metadata.sessionId, sessionId)
+                else { continue }
                 if self.forkedFromId == nil, let enrichedParentID = metadata.forkedFromId {
                     self.forkedFromId = enrichedParentID
                     self.codexSession.forkedFromId = enrichedParentID
@@ -8811,13 +8826,13 @@ enum CostUsageScanner {
         let shouldRunColdCacheLookback = cache.files.isEmpty || plan.rootsChanged
         let coldCacheLookbackStart = Self.localStartOfDay(range.scanSinceKey, calendar: options.calendar)
         let scanBudget = options.codexScanBudgetForTesting ?? CodexScanBudget(
-                maxFileBytes: options.maxCodexSessionFileBytes,
-                maxBytesPerRefresh: options.maxCodexScanBytesPerRefresh,
-                maxDuration: options.maxCodexScanDurationPerRefresh)
-            defer { options.codexScanDidYieldBeforeFileAttempt?(scanBudget.yieldedBeforeFileAttempt) }
-            var activeLookbackState = Self.codexActiveLookbackState(
-                cache: cache,
-                roots: plan.roots,
+            maxFileBytes: options.maxCodexSessionFileBytes,
+            maxBytesPerRefresh: options.maxCodexScanBytesPerRefresh,
+            maxDuration: options.maxCodexScanDurationPerRefresh)
+        defer { options.codexScanDidYieldBeforeFileAttempt?(scanBudget.yieldedBeforeFileAttempt) }
+        var activeLookbackState = Self.codexActiveLookbackState(
+            cache: cache,
+            roots: plan.roots,
             scanSinceKey: range.scanSinceKey,
             includeLegacyRecursiveScan: shouldRunColdCacheLookback)
         let activeLookbackStateWasReset = cache.codexActiveLookbackState.map {

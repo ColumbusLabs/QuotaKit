@@ -91,7 +91,7 @@ struct CostDashboardInsights {
     }
 
     var todayHasPartialCost: Bool {
-        self.providerRows.contains(where: { $0.today.isPartial })
+        self.providerRows.contains(where: \.today.isPartial)
     }
 
     var todayHasNoReportedProviders: Bool {
@@ -192,7 +192,8 @@ struct CostDashboardInsights {
                 ? (costSummary.last30DaysTokens ?? thirtyDayWindow.totalTokens)
                 : thirtyDayWindow.totalTokens
 
-            guard thirtyDayCost > 0 || today.isAvailable || thirtyDayCostIsPartial || !costSummary.daily.isEmpty else { continue }
+            guard thirtyDayCost > 0 || today.isAvailable || thirtyDayCostIsPartial || !costSummary.daily.isEmpty
+            else { continue }
 
             providerRows.append(
                 ProviderRow(

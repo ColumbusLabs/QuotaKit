@@ -5,10 +5,11 @@ import Testing
 // swiftlint:disable file_length
 // swiftlint:disable:next type_body_length
 struct CostUsageFetcherCacheSnapshotTests {
-
     #if DEBUG
     @Test(arguments: [false, true])
-    func `compact partial estimates exclude marked dollars and retain every unknown request`(rowsExceedCanonical: Bool) throws {
+    func `compact partial estimates exclude marked dollars and retain every unknown request`(
+        rowsExceedCanonical: Bool) throws
+    {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let now = try env.makeLocalNoon(year: 2026, month: 8, day: 1)

@@ -53,8 +53,7 @@ struct CostDashboardView: View {
                                 isPartial: $0.thirtyDayCostIsPartial,
                                 identityOverride: $0.id)
                         },
-                        total: self.insights.total30DayCost,
-                        totalIsPartial: self.insights.total30DayCostIsPartial)
+                        total: self.insights.total30DayCost)
                 }
 
                 if !self.insights.dailyPoints.isEmpty {
@@ -77,7 +76,8 @@ struct CostDashboardView: View {
                         title: "Codex Service Mix",
                         subtitle: self.insights.total30DayCostIsPartial
                             ? "Partial provider data"
-                            : "Breakdown from Codex Cloud dashboard data, including Codex Run and other billable services.",
+                            :
+                            "Breakdown from Codex Cloud dashboard data, including Codex Run and other billable services.",
                         accessibilityIdentifier: "cost-dashboard-section-service-mix",
                         rows: self.insights.serviceRows,
                         total: self.insights.serviceRows.reduce(0) { $0 + $1.amountUSD })
@@ -320,7 +320,7 @@ struct CostDashboardView: View {
                         .font(.caption.monospacedDigit())
                         .fontWeight(.semibold)
                         .foregroundStyle(self.theme.textPrimary)
-                    if selectedPoint.isPartial && selectedPoint.costUSD == 0 {
+                    if selectedPoint.isPartial, selectedPoint.costUSD == 0 {
                         Text(String(localized: "Partial provider data"))
                             .font(.caption2)
                             .foregroundStyle(self.theme.textMuted)
@@ -613,9 +613,9 @@ struct CostDashboardView: View {
     }
 
     private static func formatLowerBound(_ value: Double, isPartial: Bool) -> String {
-        guard isPartial else { return Self.formatUSD(value) }
+        guard isPartial else { return self.formatUSD(value) }
         guard value > 0 else { return "—" }
-        return "≥\(Self.formatUSD(value))"
+        return "≥\(self.formatUSD(value))"
     }
 
     private static func formatTokens(_ count: Int) -> String {

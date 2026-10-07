@@ -95,7 +95,7 @@ struct VertexAIUsageFetcherTests {
             var body: [String: Any] = ["timeSeries": [series]]
             if let nextToken = self.nextTokens[index] { body["nextPageToken"] = nextToken }
             let data = try JSONSerialization.data(withJSONObject: body)
-            return (data, try #require(HTTPURLResponse(
+            return try (data, #require(HTTPURLResponse(
                 url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
         }
     }

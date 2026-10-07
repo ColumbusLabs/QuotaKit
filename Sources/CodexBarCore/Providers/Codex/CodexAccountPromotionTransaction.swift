@@ -188,7 +188,7 @@ package final class CodexAccountPromotionTransaction {
             throw CodexAccountPromotionError.liveAuthChangedDuringPromotion
         }
         try self.verifyPreservedLiveAuth(
-            executionResult: executionResult,
+            executionResult: executionResult.displacedLiveDisposition,
             expectedData: expectedLiveData)
         do {
             try self.liveAuthSwapper.swapLiveAuthData(targetAuthMaterial.rawData, liveHomeURL: context.live.homeURL)

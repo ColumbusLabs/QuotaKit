@@ -83,7 +83,8 @@ struct CostUsageRequestLedgerMigrationTests {
         cache.files[file.path]?.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision
         #expect(!CostUsageStoreAccess.replace(
             cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar).catchUpRequired)
-        let updated = await CostUsageStore(cacheRoot: env.cacheRoot).readCodexReportProjection(calendar: options.calendar)
+        let updated = await CostUsageStore(cacheRoot: env.cacheRoot)
+            .readCodexReportProjection(calendar: options.calendar)
         let report = CostUsageCodexReportProjectionBuilder.buildReport(
             projection: updated, range: range, cacheRoot: env.cacheRoot)
         #expect(report.data.first?.costUSD == (includeCurrentFile ? 1.5 : 1))
@@ -262,6 +263,7 @@ struct CostUsageRequestLedgerMigrationTests {
         let result = sqlite3_exec(database, sql, nil, nil, nil)
         guard result == SQLITE_OK else { throw CostUsageStore.StoreError.sqlite(result) }
     }
+
     @Test(arguments: [
         (ledgerFirst: true, offsetMs: 400, bounded: false),
         (ledgerFirst: false, offsetMs: 400, bounded: false),

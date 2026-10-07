@@ -10,8 +10,10 @@ struct CostUsageStoreReadPerformanceTests {
         defer { fixture.remove() }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
-        let rows = [Self.row(model: "gpt-5.5", input: 10, eventIndex: 0),
-                    Self.row(model: "gpt-5.5", input: 30, eventIndex: 1)]
+        let rows = [
+            Self.row(model: "gpt-5.5", input: 10, eventIndex: 0),
+            Self.row(model: "gpt-5.5", input: 30, eventIndex: 1),
+        ]
         let path = "/sessions/streamed-full-cache.jsonl"
         var cache = Self.seededCache()
         var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 64, days: ["2026-08-01": ["gpt-5.5": [40, 0, 20]]])
@@ -28,7 +30,11 @@ struct CostUsageStoreReadPerformanceTests {
         let visits = LockedReadPerformanceValues<StreamedUsageRowVisit>()
         var hooks = CostUsageStoreTestHooks.current
         hooks.codexStreamedUsageRow = { path, rowIndex, payloadBytes, decoded in
-            visits.append(StreamedUsageRowVisit(path: path, rowIndex: rowIndex, payloadBytes: payloadBytes, decoded: decoded))
+            visits.append(StreamedUsageRowVisit(
+                path: path,
+                rowIndex: rowIndex,
+                payloadBytes: payloadBytes,
+                decoded: decoded))
         }
         #endif
         let read = {

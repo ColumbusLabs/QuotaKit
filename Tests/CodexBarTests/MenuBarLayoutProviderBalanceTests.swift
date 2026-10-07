@@ -79,7 +79,17 @@ struct MenuBarLayoutProviderBalanceTests {
             .attributedTitle.string == "25%")
     }
 
-    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao, .lithosai, .nous, .openrouter])
+    @Test(arguments: [
+        UsageProvider.mimo,
+        .hyper,
+        .atlascloud,
+        .vercel,
+        .devpass,
+        .doubao,
+        .lithosai,
+        .nous,
+        .openrouter,
+    ])
     func `absent balances never borrow unrelated spend`(provider: UsageProvider) throws {
         let snapshot = try UsageSnapshot(
             primary: nil,
