@@ -193,7 +193,8 @@ struct CodexAccountMenuDisplay: Equatable {
                 error: snapshot.error,
                 sourceLabel: snapshot.sourceLabel,
                 creditLimitUsed: snapshot.credits?.codexCreditLimit?.used,
-                creditLimit: snapshot.credits?.codexCreditLimit?.limit)
+                creditLimit: snapshot.credits?.codexCreditLimit?.limit,
+                publicationHold: snapshot.weeklyBoundaryEvidence?.holdReason)
         }
     }
 
@@ -204,5 +205,6 @@ struct CodexAccountMenuDisplay: Equatable {
         let sourceLabel: String?
         let creditLimitUsed: Double?
         let creditLimit: Double?
+        let publicationHold: CodexWeeklyBoundaryCorrection.Reason?
     }
 }

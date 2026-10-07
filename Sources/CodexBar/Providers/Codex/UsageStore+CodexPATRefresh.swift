@@ -31,6 +31,7 @@ extension UsageStore {
         let previousSourceLabel: String?
         let missingWindowBackfillSnapshot: UsageSnapshot?
         let pendingWeeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
+        var weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
         let fetchOutcome: @Sendable () async -> ProviderFetchOutcome
         let generation: UInt64
     }
@@ -91,15 +92,17 @@ extension UsageStore {
             previousSourceLabel: resolution.previousSourceLabel,
             missingWindowBackfillSnapshot: resolution.missingWindowBackfillSnapshot,
             pendingCandidate: resolution.pendingWeeklyResetCandidate,
+            weeklyBoundaryEvidence: resolution.weeklyBoundaryEvidence,
             fetchConfirmation: resolution.fetchOutcome)
         guard !Task.isCancelled,
               self.isCurrentProviderRefreshGeneration(.codex, generation: resolution.generation)
         else { return nil }
-        self.persistCodexWeeklyResetPublicationCandidate(
-            admission.pendingCandidate,
-            expectedGuard: resolution.expectedGuard,
-            previousSnapshot: resolution.previousSnapshot)
         guard let admittedOutcome = admission.outcome else {
+            self.persistCodexWeeklyResetPublicationCandidate(
+                admission.pendingCandidate,
+                expectedGuard: resolution.expectedGuard,
+                previousSnapshot: resolution.previousSnapshot,
+                weeklyBoundaryEvidence: admission.weeklyBoundaryEvidence)
             if let expectedGuard = resolution.expectedGuard {
                 self.retireCodexStateIfRefreshOwnerChanged(
                     expectedGuard: expectedGuard,
@@ -135,7 +138,8 @@ extension UsageStore {
         backfilled: UsageSnapshot,
         result: ProviderFetchResult,
         expectedGuard: CodexAccountScopedRefreshGuard?,
-        expectedOwnerKey: CodexLimitResetOwnerKey?)
+        expectedOwnerKey: CodexLimitResetOwnerKey?,
+        weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence? = nil)
     {
         self.rememberLiveSystemCodexEmailIfNeeded(scoped.accountEmail(for: .codex))
         let publishesPAT = result.strategyID == "codex.pat" || result.sourceLabel == "pat"
@@ -157,7 +161,8 @@ extension UsageStore {
             backfilled,
             sourceLabel: result.sourceLabel,
             expectedGuard: expectedGuard,
-            expectedOwnerKey: expectedOwnerKey)
+            expectedOwnerKey: expectedOwnerKey,
+            weeklyBoundaryEvidence: weeklyBoundaryEvidence)
     }
 
     private func codexPATSource(forCredentialHome path: String) -> CodexActiveSource {
@@ -179,7 +184,8 @@ extension UsageStore {
         _ snapshot: UsageSnapshot,
         sourceLabel: String,
         expectedGuard: CodexAccountScopedRefreshGuard?,
-        expectedOwnerKey: CodexLimitResetOwnerKey?)
+        expectedOwnerKey: CodexLimitResetOwnerKey?,
+        weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?)
     {
         guard let expectedGuard,
               let expectedOwnerKey
@@ -215,12 +221,16 @@ extension UsageStore {
             accountEmail: account.email,
             accountOrganization: identity?.accountOrganization,
             loginMethod: identity?.loginMethod ?? account.workspaceLabel))
+        let prior = self.codexAccountSnapshots.first { $0.id == account.id }
         let currentSnapshots = [CodexAccountUsageSnapshot(
             account: account,
             snapshot: relabeled,
             error: nil,
-            sourceLabel: sourceLabel)]
+            sourceLabel: sourceLabel,
+            credits: self.credits ?? prior?.credits,
+            weeklyBoundaryEvidence: weeklyBoundaryEvidence ?? prior?.weeklyBoundaryEvidence)]
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
+        self.consumePendingCodexBoundaryDetectorCorrections()
     }
 }

@@ -403,7 +403,8 @@ extension UsageStore {
             error: row.error,
             sourceLabel: row.sourceLabel,
             credits: self.credits,
-            weeklyResetCandidate: row.weeklyResetCandidate)
+            weeklyResetCandidate: row.weeklyResetCandidate,
+            weeklyBoundaryEvidence: row.weeklyBoundaryEvidence)
         self.codexAccountUsageSnapshotStore?.store(self.codexAccountSnapshots)
     }
 

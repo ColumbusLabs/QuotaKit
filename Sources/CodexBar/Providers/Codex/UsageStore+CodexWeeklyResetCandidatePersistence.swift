@@ -6,7 +6,8 @@ extension UsageStore {
     func persistCodexWeeklyResetPublicationCandidate(
         _ candidate: CodexWeeklyResetPublicationCandidate?,
         expectedGuard: CodexAccountScopedRefreshGuard?,
-        previousSnapshot: UsageSnapshot?) -> CodexWeeklyResetPersistenceDecision
+        previousSnapshot: UsageSnapshot?,
+        weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence? = nil) -> CodexWeeklyResetPersistenceDecision
     {
         guard let expectedGuard else { return self.recordCodexWeeklyResetPersistenceDecision(.missingExpectedGuard) }
         let currentGuard = self.freshCodexAccountScopedRefreshGuard()
@@ -34,7 +35,9 @@ extension UsageStore {
                 currentGuard,
                 Self.codexScopedRefreshGuard(for: existing.account))
             else { return self.recordCodexWeeklyResetPersistenceDecision(.existingAccountChanged) }
-            guard existing.weeklyResetCandidate != nil || candidate != nil else {
+            guard existing.weeklyResetCandidate != nil || candidate != nil
+                || existing.weeklyBoundaryEvidence != nil || weeklyBoundaryEvidence != nil
+            else {
                 return self.recordCodexWeeklyResetPersistenceDecision(.noCandidateChange)
             }
             records[index] = CodexAccountUsageSnapshot(
@@ -43,9 +46,10 @@ extension UsageStore {
                 error: existing.error,
                 sourceLabel: existing.sourceLabel,
                 credits: existing.credits,
-                weeklyResetCandidate: candidate)
+                weeklyResetCandidate: candidate,
+                weeklyBoundaryEvidence: weeklyBoundaryEvidence ?? existing.weeklyBoundaryEvidence)
         } else {
-            guard let candidate, let previousSnapshot else {
+            guard candidate != nil || weeklyBoundaryEvidence != nil, let previousSnapshot else {
                 return self.recordCodexWeeklyResetPersistenceDecision(.missingCandidateOrBaseline)
             }
             let identity = previousSnapshot.identity(for: .codex)
@@ -60,7 +64,8 @@ extension UsageStore {
                 error: self.errors[.codex],
                 sourceLabel: self.lastSourceLabels[.codex],
                 credits: self.credits,
-                weeklyResetCandidate: candidate))
+                weeklyResetCandidate: candidate,
+                weeklyBoundaryEvidence: weeklyBoundaryEvidence))
         }
         self.codexAccountSnapshots = records
         guard let store = self.codexAccountUsageSnapshotStore else {

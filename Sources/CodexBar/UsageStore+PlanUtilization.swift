@@ -5,7 +5,7 @@ import Foundation
 
 extension UsageStore {
     nonisolated static let sessionLimitResetDetectorDefaultsKey = "sessionLimitResetDetectorStates"
-    private nonisolated static let weeklyLimitResetDetectorDefaultsKey = "weeklyLimitResetDetectorStates"
+    nonisolated static let weeklyLimitResetDetectorDefaultsKey = "weeklyLimitResetDetectorStates"
     private nonisolated static let claudeOAuthAccountUuidMapDefaultsKey = "ClaudeOAuthHistoryOwnerAccountUuidMapV2"
     private nonisolated static let claudeOAuthAccountUuidMapLegacyDefaultsKey =
         "ClaudeOAuthHistoryOwnerAccountUuidMapV1"
@@ -254,6 +254,7 @@ extension UsageStore {
         shouldAdoptUnscopedHistory: Bool = true,
         codexLimitResetOwnerKey: CodexLimitResetOwnerKey? = nil,
         codexSuppressesWeeklyResetCelebration: Bool = false,
+        codexCorrectsWeeklyBoundary: Bool = false,
         sessionRestoredNotificationPending: Bool = false,
         now: Date = Date())
         async
@@ -309,6 +310,7 @@ extension UsageStore {
             capturedAt: now,
             codexLimitResetOwnerKey: codexLimitResetOwnerKey,
             codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration,
+            codexCorrectsWeeklyBoundary: codexCorrectsWeeklyBoundary,
             sessionRestoredNotificationPending: sessionRestoredNotificationPending)
         await MainActor.run {
             self.postLimitResetCelebrationsIfNeeded(

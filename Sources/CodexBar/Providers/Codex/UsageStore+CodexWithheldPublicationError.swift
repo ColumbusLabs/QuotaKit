@@ -96,6 +96,7 @@ extension UsageStore {
             error: nil,
             sourceLabel: record.sourceLabel,
             credits: record.credits,
-            weeklyResetCandidate: record.weeklyResetCandidate)
+            weeklyResetCandidate: record.weeklyResetCandidate,
+            weeklyBoundaryEvidence: record.weeklyBoundaryEvidence)
     }
 }

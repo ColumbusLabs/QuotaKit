@@ -11,17 +11,23 @@ extension UsageStore {
         let suppressesWeeklyResetCelebration: Bool
         /// A nil publication alone cannot distinguish a withheld success from a failed confirmation.
         let withheldSuccess: ProviderFetchResult?
+        let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
+        let correctsWeeklyBoundary: Bool
 
         init(
             outcome: ProviderFetchOutcome?,
             pendingCandidate: CodexWeeklyResetPublicationCandidate?,
             suppressesWeeklyResetCelebration: Bool = false,
-            withheldSuccess: ProviderFetchResult? = nil)
+            withheldSuccess: ProviderFetchResult? = nil,
+            weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence? = nil,
+            correctsWeeklyBoundary: Bool = false)
         {
             self.outcome = outcome
             self.pendingCandidate = pendingCandidate
             self.suppressesWeeklyResetCelebration = suppressesWeeklyResetCelebration
             self.withheldSuccess = withheldSuccess
+            self.weeklyBoundaryEvidence = weeklyBoundaryEvidence
+            self.correctsWeeklyBoundary = correctsWeeklyBoundary
         }
     }
 
@@ -42,7 +48,7 @@ extension UsageStore {
         let pendingCandidate: CodexWeeklyResetPublicationCandidate?
     }
 
-    nonisolated static func codexOutcomeAdmittedForPublication( // swiftlint:disable:this function_body_length
+    nonisolated static func codexOutcomeAdmittedByResetPolicy( // swiftlint:disable:this function_body_length
         initialOutcome: ProviderFetchOutcome,
         previousSnapshot: UsageSnapshot?,
         previousSourceLabel: String?,

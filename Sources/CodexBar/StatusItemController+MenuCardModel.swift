@@ -22,7 +22,8 @@ extension StatusItemController {
         planOverride: String? = nil,
         subtitleOverride: String? = nil,
         sourceLabelOverride: String? = nil,
-        creditsOverride: CreditsSnapshot? = nil) -> UsageMenuCardView.Model?
+        creditsOverride: CreditsSnapshot? = nil,
+        codexPublicationHoldOverride: String? = nil) -> UsageMenuCardView.Model?
     {
         // Provider-specific by design: Codex is the historical card fallback when no enabled provider is available.
         let target = provider ?? self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex
@@ -124,7 +125,9 @@ extension StatusItemController {
             // token-cost, and source-label fallbacks above).
             lastError: errorOverride
                 ?? codexProjection?.userFacingErrors.usage
-                ?? (surface == .liveCard ? self.store.userFacingError(for: target) : nil),
+                ?? (surface == .liveCard ? self.store.userFacingError(for: target) : nil)
+                ?? (target == .codex ? codexPublicationHoldOverride
+                    ?? (surface == .liveCard ? self.store.codexQuotaPublicationHoldMessage : nil) : nil),
             limitsAvailability: self.store.knownLimitsAvailability(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,

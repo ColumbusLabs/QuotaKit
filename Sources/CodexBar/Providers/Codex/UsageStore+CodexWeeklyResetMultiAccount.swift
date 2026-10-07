@@ -10,6 +10,8 @@ extension UsageStore {
         let pendingWeeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
         let suppressesWeeklyResetCelebration: Bool
         let withheldSuccess: ProviderFetchResult?
+        let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
+        let correctsWeeklyBoundary: Bool
     }
 
     struct CodexAccountFetchRequest {
@@ -20,6 +22,7 @@ extension UsageStore {
         let missingWindowBackfillSnapshot: UsageSnapshot?
         let limitResetOwnerKey: CodexLimitResetOwnerKey?
         let pendingWeeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
+        let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
         let descriptor: ProviderDescriptor
         let context: ProviderFetchContext
         let resetCreditsFetcher: CodexResetCreditsFetcher
@@ -27,7 +30,8 @@ extension UsageStore {
 
     static func codexSnapshotsRetainingCandidate(
         _ prior: CodexAccountUsageSnapshot?,
-        candidate: CodexWeeklyResetPublicationCandidate?) -> [CodexAccountUsageSnapshot]
+        candidate: CodexWeeklyResetPublicationCandidate?,
+        weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence? = nil) -> [CodexAccountUsageSnapshot]
     {
         guard let prior else { return [] }
         return [CodexAccountUsageSnapshot(
@@ -36,7 +40,22 @@ extension UsageStore {
             error: prior.error,
             sourceLabel: prior.sourceLabel,
             credits: prior.credits,
-            weeklyResetCandidate: candidate)]
+            weeklyResetCandidate: candidate,
+            weeklyBoundaryEvidence: weeklyBoundaryEvidence ?? prior.weeklyBoundaryEvidence)]
+    }
+
+    static func codexAccountSnapshot(
+        _ snapshot: CodexAccountUsageSnapshot,
+        admission: CodexAccountFetchResult) -> CodexAccountUsageSnapshot
+    {
+        CodexAccountUsageSnapshot(
+            account: snapshot.account,
+            snapshot: snapshot.snapshot,
+            error: snapshot.error,
+            sourceLabel: snapshot.sourceLabel,
+            credits: snapshot.credits,
+            weeklyResetCandidate: admission.pendingWeeklyResetCandidate,
+            weeklyBoundaryEvidence: admission.weeklyBoundaryEvidence ?? snapshot.weeklyBoundaryEvidence)
     }
 
     static func codexAccountSnapshots(
@@ -58,7 +77,8 @@ extension UsageStore {
                 error: snapshot.error,
                 sourceLabel: snapshot.sourceLabel,
                 credits: snapshot.credits,
-                weeklyResetCandidate: snapshot.weeklyResetCandidate)
+                weeklyResetCandidate: snapshot.weeklyResetCandidate,
+                weeklyBoundaryEvidence: snapshot.weeklyBoundaryEvidence)
         }
     }
 }

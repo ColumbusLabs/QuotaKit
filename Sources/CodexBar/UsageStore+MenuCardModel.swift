@@ -18,6 +18,7 @@ enum UsageMenuCardContext {
         var subtitle: String?
         var sourceLabel: String?
         var credits: CreditsSnapshot?
+        var codexPublicationHold: String?
     }
 
     var account: Account? {
@@ -111,7 +112,9 @@ extension UsageStore {
             isRefreshing: isSettings ? self.refreshingProviders.contains(provider.instanceID)
                 : self.shouldShowRefreshingMenuCardIndicator(for: provider),
             lastError: account?.error ?? codexProjection?.userFacingErrors.usage
-                ?? (isLive ? self.userFacingError(for: provider) : nil),
+                ?? (isLive ? self.userFacingError(for: provider) : nil)
+                ?? (provider == .codex ? account?.codexPublicationHold
+                    ?? (isLive ? self.codexQuotaPublicationHoldMessage : nil) : nil),
             limitsAvailability: self.knownLimitsAvailability(for: provider),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,

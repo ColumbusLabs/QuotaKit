@@ -13,6 +13,8 @@ extension UsageStore {
         let priorTokenAccountSnapshot: TokenAccountUsageSnapshot?
         let codexLimitResetOwnerKey: CodexLimitResetOwnerKey?
         let codexSuppressesWeeklyResetCelebration: Bool
+        var codexCorrectsWeeklyBoundary: Bool = false
+        var codexWeeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
         let claudeOAuthHistoryPersistentRefHash: String?
         let claudeOAuthActiveAccountObservation: ClaudeOAuthActiveAccountObservation
         var claudeCredentialFingerprint: String?
@@ -29,6 +31,7 @@ extension UsageStore {
         let previousSourceLabel: String?
         let missingWindowBackfillSnapshot: UsageSnapshot?
         let pendingWeeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
+        let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
     }
 
     private struct ProviderRefreshSuccessPublication {
@@ -270,6 +273,7 @@ extension UsageStore {
     }
 
     private func prepareCodexRefreshPublication() -> CodexRefreshPublicationPreparation {
+        self.consumePendingCodexBoundaryDetectorCorrections()
         let previousGuard = self.lastCodexUsagePublicationGuard
         let expectedGuard = self.freshCodexAccountScopedRefreshGuard()
         let hydrationCandidates = self.codexAccountSnapshots
@@ -328,7 +332,8 @@ extension UsageStore {
             previousSnapshot: previousSnapshot,
             previousSourceLabel: hydratedPrior?.sourceLabel ?? self.lastSourceLabels[.codex],
             missingWindowBackfillSnapshot: missingWindowBackfillSnapshot,
-            pendingWeeklyResetCandidate: hydratedPrior?.weeklyResetCandidate)
+            pendingWeeklyResetCandidate: hydratedPrior?.weeklyResetCandidate,
+            weeklyBoundaryEvidence: hydratedPrior?.weeklyBoundaryEvidence)
     }
 
     // swiftlint:disable function_body_length
@@ -433,6 +438,8 @@ extension UsageStore {
         }
         let outcome: ProviderFetchOutcome
         let codexSuppressesWeeklyResetCelebration: Bool
+        let codexCorrectsWeeklyBoundary: Bool
+        let codexWeeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
         if provider == .codex {
             if case let .success(result) = initialOutcome.result,
                !Self.isCodexPATOutcome(initialOutcome),
@@ -453,13 +460,15 @@ extension UsageStore {
                 previousSourceLabel: codexPreparation?.previousSourceLabel,
                 missingWindowBackfillSnapshot: codexMissingWindowBackfillSnapshot,
                 pendingCandidate: codexPreparation?.pendingWeeklyResetCandidate,
+                weeklyBoundaryEvidence: codexPreparation?.weeklyBoundaryEvidence,
                 fetchConfirmation: fetchOutcome)
             guard self.codexRefreshStillCurrent(generation) else { return nil }
-            self.persistCodexWeeklyResetPublicationCandidate(
-                admission.pendingCandidate,
-                expectedGuard: codexExpectedGuard,
-                previousSnapshot: previousCodexSnapshot)
             guard let admittedOutcome = admission.outcome else {
+                self.persistCodexWeeklyResetPublicationCandidate(
+                    admission.pendingCandidate,
+                    expectedGuard: codexExpectedGuard,
+                    previousSnapshot: previousCodexSnapshot,
+                    weeklyBoundaryEvidence: admission.weeklyBoundaryEvidence)
                 self.handleCodexWithheldAdmission(
                     admission, expectedGuard: codexExpectedGuard, generation: generation)
                 return nil
@@ -478,9 +487,13 @@ extension UsageStore {
             }
             outcome = admittedOutcome
             codexSuppressesWeeklyResetCelebration = admission.suppressesWeeklyResetCelebration
+            codexCorrectsWeeklyBoundary = admission.correctsWeeklyBoundary
+            codexWeeklyBoundaryEvidence = admission.weeklyBoundaryEvidence
         } else {
             outcome = initialOutcome
             codexSuppressesWeeklyResetCelebration = false
+            codexCorrectsWeeklyBoundary = false
+            codexWeeklyBoundaryEvidence = nil
         }
         let (codexPublicationGuard, publishedCodexLimitResetOwnerKey) = Self.codexPublicationRefreshOverrides(
             provider: provider,
@@ -512,6 +525,8 @@ extension UsageStore {
             priorTokenAccountSnapshot: priorTokenAccountSnapshot,
             codexLimitResetOwnerKey: publishedCodexLimitResetOwnerKey,
             codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration,
+            codexCorrectsWeeklyBoundary: codexCorrectsWeeklyBoundary,
+            codexWeeklyBoundaryEvidence: codexWeeklyBoundaryEvidence,
             claudeOAuthHistoryPersistentRefHash: claudeReconciliation.oauthHistoryPersistentRefHash,
             claudeOAuthActiveAccountObservation: claudeReconciliation.oauthActiveAccountObservation,
             claudeCredentialFingerprint: claudeReconciliation.credentialFingerprint)
@@ -787,6 +802,7 @@ extension UsageStore {
             isClaudeOAuthSample: isClaudeOAuthSample,
             codexLimitResetOwnerKey: context.codexLimitResetOwnerKey,
             codexSuppressesWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration,
+            codexCorrectsWeeklyBoundary: context.codexCorrectsWeeklyBoundary,
             sessionRestoredNotificationPending: published.sessionRestored)
         guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
         if let runtime = self.providerRuntimes[provider.instanceID] {
@@ -906,7 +922,8 @@ extension UsageStore {
                 backfilled: backfilled,
                 result: result,
                 expectedGuard: context.codexExpectedGuard,
-                expectedOwnerKey: context.codexLimitResetOwnerKey)
+                expectedOwnerKey: context.codexLimitResetOwnerKey,
+                weeklyBoundaryEvidence: context.codexWeeklyBoundaryEvidence)
         }
         self.emitUsageUpdatedHook(provider: provider, snapshot: backfilled, rateKey: warningAccounts.source)
         return (backfilled, sessionRestored)

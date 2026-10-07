@@ -97,7 +97,9 @@ extension StatusItemController {
                         accountOverride: self.accountInfo(for: account),
                         historySelectionOverride: self.store.codexPlanUtilizationHistorySelection(
                             forVisibleAccount: account),
-                        creditsOverride: accountSnapshot?.credits)
+                        creditsOverride: accountSnapshot?.credits,
+                        codexPublicationHoldOverride: UsageStore.codexQuotaPublicationHoldMessage(
+                            evidence: accountSnapshot?.weeklyBoundaryEvidence))
                 },
                 planAction: nil),
             to: menu,

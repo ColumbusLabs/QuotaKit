@@ -5,7 +5,7 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.34 — Unreleased
+## 0.32.4.34 — 2026-10-07
 
 ### Added
 
@@ -26,6 +26,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex recovers confirmed weekly reset-time corrections without announcing a reset, preserves correction evidence across restarts, rejects previously retired quota cycles, and explains withheld quota updates.
 - Codex preserves proven request pricing across cache upgrades, reconciles drifted ledger mirrors, retains session Priority settings, and shows known partial spend without inventing prices.
 - Codex catch-up keeps terminal pauses across refreshes and bounds recovery from empty passes; account promotion refuses divergent preservation destinations.
 - Claude usage probes suppress user hooks, and refreshed-credential recovery stays tied to the credential that produced it.

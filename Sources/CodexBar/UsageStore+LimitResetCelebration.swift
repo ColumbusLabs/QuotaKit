@@ -127,6 +127,7 @@ extension UsageStore {
         let capturedAt: Date
         let codexLimitResetOwnerKey: CodexLimitResetOwnerKey?
         let codexSuppressesWeeklyResetCelebration: Bool
+        let codexCorrectsWeeklyBoundary: Bool
         var sessionRestoredNotificationPending: Bool = false
     }
 
@@ -151,6 +152,7 @@ extension UsageStore {
         let previousState: LimitResetDetectorState?
         let requiresLowConfirmation: Bool
         let suppressesCodexWeeklyResetCelebration: Bool
+        let codexCorrectsWeeklyBoundary: Bool
     }
 
     private struct LimitResetDetectorTransition {
@@ -190,6 +192,7 @@ extension UsageStore {
     {
         let restored = descriptor.seriesName == .session && context.sessionRestoredNotificationPending
         guard let observation else {
+            if context.provider == .codex, context.codexCorrectsWeeklyBoundary { return }
             if restored { self.postSessionQuotaTransitionIfEnabled(.restored, provider: context.provider) }
             return
         }
@@ -226,14 +229,20 @@ extension UsageStore {
                 observation: observation,
                 previousState: previousState,
                 requiresLowConfirmation: requiresLowConfirmation,
-                suppressesCodexWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration))
+                suppressesCodexWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration,
+                codexCorrectsWeeklyBoundary: context.codexCorrectsWeeklyBoundary))
         var state = transition.state
-        let notice = self.prepareLimitResetNotification(
-            state: &state,
-            previousState: previousState,
-            observation: observation,
-            resetConfirmed: transition.shouldPost,
-            restored: restored)
+        let notice: LimitResetNotice? = if context.provider == .codex, context.codexCorrectsWeeklyBoundary {
+            // Preserve the prior notification dedup receipt exactly across metadata repair.
+            nil
+        } else {
+            self.prepareLimitResetNotification(
+                state: &state,
+                previousState: previousState,
+                observation: observation,
+                resetConfirmed: transition.shouldPost,
+                restored: restored)
+        }
         states[detectorKey] = state
         self.persistLimitResetDetectorStates(
             states,
@@ -313,6 +322,9 @@ extension UsageStore {
     private nonisolated static func limitResetDetectorTransition(
         input: LimitResetDetectorTransitionInput) -> LimitResetDetectorTransition
     {
+        if input.provider == .codex, input.codexCorrectsWeeklyBoundary {
+            return self.codexWeeklyBoundaryCorrectionTransition(input: input)
+        }
         let observation = input.observation
         let previousState = input.previousState
         let currentUsed = observation.usedPercent
@@ -453,6 +465,43 @@ extension UsageStore {
             shouldPost: shouldPost,
             claudeWeeklyRecoveryPending: claudeWeeklyRecoveryPending,
             nextRecoveryCount: nextRecoveryCount)
+    }
+
+    private nonisolated static func codexWeeklyBoundaryCorrectionTransition(
+        input: LimitResetDetectorTransitionInput) -> LimitResetDetectorTransition
+    {
+        let observation = input.observation
+        let previousState = input.previousState
+        let currentUsed = observation.usedPercent
+        let isCodexWeekly = input.seriesName == .weekly
+        let wasAboveThreshold = currentUsed > self.limitResetThreshold
+        let wasAboveCodexWeeklyCandidateThreshold = currentUsed > self.codexWeeklyResetCandidateBaselineThreshold
+        let state = LimitResetDetectorState(
+            // Keep weekly evidence intact and learn any newer usage evidence from the corrected sample.
+            // The session observation is unrelated metadata, so refresh its baseline without a reset.
+            wasAboveThreshold: isCodexWeekly
+                ? previousState?.wasAboveThreshold == true || wasAboveThreshold
+                : wasAboveThreshold,
+            wasAboveCodexWeeklyCandidateThreshold: isCodexWeekly
+                ? previousState?.wasAboveCodexWeeklyCandidateThreshold == true
+                || wasAboveCodexWeeklyCandidateThreshold
+                : false,
+            lastObservedAt: observation.observedAt,
+            sourceRawValue: observation.source?.rawValue,
+            resetBoundary: observation.resetBoundary,
+            recoveryAboveThresholdCount: nil,
+            codexEarlyWeeklyResetPending: false,
+            pendingLowConfirmation: false,
+            pendingLowObservedAt: nil,
+            lastPostedResetBoundary: previousState?.lastPostedResetBoundary,
+            notificationReceipt: previousState?.notificationReceipt,
+            lastNotifiedResetBoundary: previousState?.lastNotifiedResetBoundary,
+            planRawValue: isCodexWeekly ? self.limitResetPlanIdentifier(input.snapshot) : nil)
+        return LimitResetDetectorTransition(
+            state: state,
+            shouldPost: false,
+            claudeWeeklyRecoveryPending: false,
+            nextRecoveryCount: 0)
     }
 
     private nonisolated static func codexWeeklyResetDecision(

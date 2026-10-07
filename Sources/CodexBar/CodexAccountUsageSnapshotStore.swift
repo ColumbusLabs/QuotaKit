@@ -9,6 +9,7 @@ struct CodexAccountUsageSnapshot: Identifiable {
     let sourceLabel: String?
     let credits: CreditsSnapshot?
     let weeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
+    let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
 
     init(
         account: CodexVisibleAccount,
@@ -16,7 +17,8 @@ struct CodexAccountUsageSnapshot: Identifiable {
         error: String?,
         sourceLabel: String?,
         credits: CreditsSnapshot? = nil,
-        weeklyResetCandidate: CodexWeeklyResetPublicationCandidate? = nil)
+        weeklyResetCandidate: CodexWeeklyResetPublicationCandidate? = nil,
+        weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence? = nil)
     {
         self.id = account.id
         self.account = account
@@ -25,6 +27,7 @@ struct CodexAccountUsageSnapshot: Identifiable {
         self.sourceLabel = sourceLabel
         self.credits = credits
         self.weeklyResetCandidate = weeklyResetCandidate
+        self.weeklyBoundaryEvidence = weeklyBoundaryEvidence
     }
 }
 
@@ -120,6 +123,7 @@ struct FileCodexAccountUsageSnapshotStore: CodexAccountUsageSnapshotStoring, @un
         let sourceLabel: String?
         let credits: CreditsSnapshot?
         let weeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
+        let weeklyBoundaryEvidence: CodexWeeklyBoundaryEvidence?
     }
 
     private struct AccountIdentity: Codable, Equatable {
@@ -180,7 +184,8 @@ struct FileCodexAccountUsageSnapshotStore: CodexAccountUsageSnapshotStoring, @un
                 error: record.error,
                 sourceLabel: record.sourceLabel,
                 credits: record.credits,
-                weeklyResetCandidate: Self.relabelCandidate(record.weeklyResetCandidate, for: account))
+                weeklyResetCandidate: Self.relabelCandidate(record.weeklyResetCandidate, for: account),
+                weeklyBoundaryEvidence: record.weeklyBoundaryEvidence)
         }
     }
 
@@ -197,7 +202,8 @@ struct FileCodexAccountUsageSnapshotStore: CodexAccountUsageSnapshotStoring, @un
                     error: snapshot.error,
                     sourceLabel: snapshot.sourceLabel,
                     credits: snapshot.credits,
-                    weeklyResetCandidate: snapshot.weeklyResetCandidate)
+                    weeklyResetCandidate: snapshot.weeklyResetCandidate,
+                    weeklyBoundaryEvidence: snapshot.weeklyBoundaryEvidence)
             })
         let directory = self.fileURL.deletingLastPathComponent()
         do {

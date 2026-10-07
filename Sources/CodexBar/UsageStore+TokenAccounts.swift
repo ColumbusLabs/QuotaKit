@@ -186,6 +186,7 @@ extension UsageStore {
         let originalVisibleAccount = originalVisibleAccountID.flatMap { id in
             accounts.first { $0.id == id }
         }
+        self.consumePendingCodexBoundaryDetectorCorrections()
         let priorSnapshots = self.codexAccountSnapshots
         var snapshots: [CodexAccountUsageSnapshot] = []
         var selectedOutcome: ProviderFetchOutcome?
@@ -194,6 +195,7 @@ extension UsageStore {
         var selectedSourceLabel: String?
         var selectedLimitResetOwnerKey: CodexLimitResetOwnerKey?
         var selectedSuppressesWeeklyResetCelebration = false
+        var selectedCorrectsWeeklyBoundary = false
         var selectedWithheldSuccess = false
 
         let results = await self.fetchCodexVisibleAccountOutcomes(
@@ -217,7 +219,8 @@ extension UsageStore {
                         allowProviderAccountAuthFingerprintMismatch: false) != nil
                 snapshots += Self.codexSnapshotsRetainingCandidate(
                     authorizedSuccess ? priorSnapshot.map(Self.clearingCodexConnectivityError) : priorSnapshot,
-                    candidate: result.pendingWeeklyResetCandidate)
+                    candidate: result.pendingWeeklyResetCandidate,
+                    weeklyBoundaryEvidence: result.weeklyBoundaryEvidence)
                 if account.id == originalVisibleAccountID {
                     selectedWithheldSuccess = authorizedSuccess
                     selectedAccount = account
@@ -238,13 +241,7 @@ extension UsageStore {
             self.handleCodexCredentialOutcome(
                 outcome, account: account, snapshot: resolved.usage, projection: currentProjection)
             if let snapshot = resolved.snapshot {
-                snapshots.append(CodexAccountUsageSnapshot(
-                    account: snapshot.account,
-                    snapshot: snapshot.snapshot,
-                    error: snapshot.error,
-                    sourceLabel: snapshot.sourceLabel,
-                    credits: snapshot.credits,
-                    weeklyResetCandidate: result.pendingWeeklyResetCandidate))
+                snapshots.append(Self.codexAccountSnapshot(snapshot, admission: result))
             }
             if account.id == originalVisibleAccountID {
                 selectedOutcome = outcome
@@ -253,12 +250,14 @@ extension UsageStore {
                 selectedSourceLabel = resolved.sourceLabel
                 selectedLimitResetOwnerKey = result.limitResetOwnerKey
                 selectedSuppressesWeeklyResetCelebration = result.suppressesWeeklyResetCelebration
+                selectedCorrectsWeeklyBoundary = result.correctsWeeklyBoundary
             }
         }
 
         let currentSnapshots = Self.codexAccountSnapshots(snapshots, reconciledWith: currentProjection)
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
+        self.consumePendingCodexBoundaryDetectorCorrections()
 
         let selectionStillMatches = self.codexVisibleSelectionStillMatches(
             originalVisibleAccountID: originalVisibleAccountID,
@@ -315,6 +314,7 @@ extension UsageStore {
                     sourceLabel: selectedSourceLabel,
                     limitResetOwnerKey: selectedLimitResetOwnerKey,
                     suppressesWeeklyResetCelebration: selectedSuppressesWeeklyResetCelebration,
+                    correctsWeeklyBoundary: selectedCorrectsWeeklyBoundary,
                     generation: generation)
             }
         } else {
@@ -821,6 +821,7 @@ extension UsageStore {
                 missingWindowBackfillSnapshot: missingWindowBackfillSnapshot,
                 limitResetOwnerKey: limitResetOwnerKey,
                 pendingWeeklyResetCandidate: priorSnapshot?.weeklyResetCandidate,
+                weeklyBoundaryEvidence: priorSnapshot?.weeklyBoundaryEvidence,
                 descriptor: descriptor,
                 context: context,
                 resetCreditsFetcher: self.codexResetCreditsFetcher(workspaceAccountID: context.codexWorkspaceID))
@@ -851,6 +852,7 @@ extension UsageStore {
                             previousSourceLabel: request.previousSourceLabel,
                             missingWindowBackfillSnapshot: request.missingWindowBackfillSnapshot,
                             pendingCandidate: request.pendingWeeklyResetCandidate,
+                            weeklyBoundaryEvidence: request.weeklyBoundaryEvidence,
                             fetchConfirmation: fetchOutcome)
                         if let outcome = admitted.outcome,
                            Self.codexUsageOutcomeMatchesVisibleAccount(outcome, account: request.account)
@@ -858,13 +860,17 @@ extension UsageStore {
                             admission = CodexWeeklyResetPublicationAdmission(
                                 outcome: outcome,
                                 pendingCandidate: admitted.pendingCandidate,
-                                suppressesWeeklyResetCelebration: admitted.suppressesWeeklyResetCelebration)
+                                suppressesWeeklyResetCelebration: admitted.suppressesWeeklyResetCelebration,
+                                weeklyBoundaryEvidence: admitted.weeklyBoundaryEvidence,
+                                correctsWeeklyBoundary: admitted.correctsWeeklyBoundary)
                         } else {
                             admission = CodexWeeklyResetPublicationAdmission(
                                 outcome: nil,
                                 pendingCandidate: admitted.pendingCandidate,
                                 suppressesWeeklyResetCelebration: admitted.suppressesWeeklyResetCelebration,
-                                withheldSuccess: admitted.withheldSuccess)
+                                withheldSuccess: admitted.withheldSuccess,
+                                weeklyBoundaryEvidence: admitted.weeklyBoundaryEvidence,
+                                correctsWeeklyBoundary: admitted.correctsWeeklyBoundary)
                         }
                     } else {
                         admission = nil
@@ -876,7 +882,9 @@ extension UsageStore {
                         limitResetOwnerKey: request.limitResetOwnerKey,
                         pendingWeeklyResetCandidate: admission?.pendingCandidate,
                         suppressesWeeklyResetCelebration: admission?.suppressesWeeklyResetCelebration ?? false,
-                        withheldSuccess: admission?.withheldSuccess)
+                        withheldSuccess: admission?.withheldSuccess,
+                        weeklyBoundaryEvidence: admission?.weeklyBoundaryEvidence ?? request.weeklyBoundaryEvidence,
+                        correctsWeeklyBoundary: admission?.correctsWeeklyBoundary ?? false)
                 }
             }
 
@@ -1331,7 +1339,8 @@ extension UsageStore {
                 snapshot: enriched,
                 error: nil,
                 sourceLabel: result.sourceLabel,
-                credits: credits)
+                credits: credits,
+                weeklyBoundaryEvidence: priorSnapshot?.weeklyBoundaryEvidence)
             return ResolvedCodexAccountOutcome(
                 snapshot: snapshot,
                 usage: enriched,
@@ -1357,7 +1366,8 @@ extension UsageStore {
                     snapshot: priorUsage,
                     error: errorMessage,
                     sourceLabel: priorSnapshot.sourceLabel,
-                    credits: priorSnapshot.credits)
+                    credits: priorSnapshot.credits,
+                    weeklyBoundaryEvidence: priorSnapshot.weeklyBoundaryEvidence)
                 return ResolvedCodexAccountOutcome(
                     snapshot: snapshot,
                     usage: priorUsage,
@@ -1390,6 +1400,7 @@ extension UsageStore {
         sourceLabel: String?,
         limitResetOwnerKey: CodexLimitResetOwnerKey?,
         suppressesWeeklyResetCelebration: Bool = false,
+        correctsWeeklyBoundary: Bool = false,
         generation: UInt64? = nil) async
     {
         guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
@@ -1439,6 +1450,7 @@ extension UsageStore {
                 snapshot: snapshot,
                 codexLimitResetOwnerKey: limitResetOwnerKey,
                 codexSuppressesWeeklyResetCelebration: suppressesWeeklyResetCelebration,
+                codexCorrectsWeeklyBoundary: correctsWeeklyBoundary,
                 sessionRestoredNotificationPending: sessionRestored)
             guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
             self.emitUsageUpdatedHook(
