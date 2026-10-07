@@ -188,7 +188,10 @@ enum CostLedgerService {
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
-                costIsKnown: point.costIsKnown,
+                // A point-level flag wins because the summary can be false
+                // for a different day. Older points without their own flag
+                // inherit the summary-level unknown marker.
+                costIsKnown: point.costIsKnown ?? summary.costIsKnown,
                 isEstimated: point.isEstimated,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
@@ -650,7 +653,9 @@ enum CostLedgerService {
                     dayKey: point.dayKey,
                     costUSD: point.costUSD,
                     totalTokens: point.totalTokens,
-                    costIsKnown: point.costIsKnown,
+                    // Preserve the same point-first fallback used by live
+                    // snapshots when seeding previously synced summaries.
+                    costIsKnown: point.costIsKnown ?? summary.costIsKnown,
                     isEstimated: point.isEstimated,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,

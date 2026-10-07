@@ -1794,6 +1794,7 @@ final class SyncCoordinator {
             // rows but pricing for one or more models is not available yet.
             let costIsKnown = resolvedCost != nil
                 && (entry?.unpricedRequestCount ?? 0) == 0
+                && (entry?.incompleteRequestCount ?? 0) == 0
 
             // Day is estimated iff any of its model breakdowns is. Service
             // breakdowns never go through the fallback resolver (they come

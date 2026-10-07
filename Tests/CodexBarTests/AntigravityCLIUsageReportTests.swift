@@ -271,6 +271,52 @@ struct AntigravityCLIUsageReportTests {
     }
 
     @Test
+    func `legacy gate and print fallback share one agy version probe`() async throws {
+        let report = try Self.reportJSON()
+        let fixture = try Self.printExecutable("""
+        [ "${1:-}" = -p ] || exit 9
+        /bin/cat <<'REPORT'
+        \(report)
+        REPORT
+        """, version: "1.2.2")
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+
+        let resolver = AntigravityCLIHTTPSFetchStrategy.AgyVersionResolver()
+        let version = await AntigravityCLIHTTPSFetchStrategy.agyVersion(
+            binary: fixture.binary.path, environment: fixture.environment, resolver: resolver)
+        #expect(version?.0 == 1 && version?.1 == 2 && version?.2 == 2)
+        _ = try await AntigravityCLIHTTPSFetchStrategy.runPrintUsage(
+            binary: fixture.binary.path,
+            environment: fixture.environment,
+            directory: fixture.directory,
+            timeout: 10,
+            versionResolver: resolver)
+        let calls = try String(
+            contentsOf: fixture.directory.appendingPathComponent("version-calls"), encoding: .utf8)
+        #expect(calls.split(separator: "\n").count == 1)
+    }
+
+    @Test
+    func `failed agy version probe is replayed without a second subprocess`() async throws {
+        let fixture = try Self.printExecutable("exit 9", versionExitStatus: 9)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let resolver = AntigravityCLIHTTPSFetchStrategy.AgyVersionResolver()
+        #expect(await AntigravityCLIHTTPSFetchStrategy.agyVersion(
+            binary: fixture.binary.path, environment: fixture.environment, resolver: resolver) == nil)
+        await #expect(throws: AntigravityStatusProbeError.parseFailed("CLI usage report failed")) {
+            try await AntigravityCLIHTTPSFetchStrategy.runPrintUsage(
+                binary: fixture.binary.path,
+                environment: fixture.environment,
+                directory: fixture.directory,
+                timeout: 10,
+                versionResolver: resolver)
+        }
+        let calls = try String(
+            contentsOf: fixture.directory.appendingPathComponent("version-calls"), encoding: .utf8)
+        #expect(calls.split(separator: "\n").count == 1)
+    }
+
+    @Test
     func `oversized print output is rejected before decoding`() async throws {
         let fixture = try Self.printExecutable("/usr/bin/head -c 1100000 /dev/zero")
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -322,7 +368,10 @@ struct AntigravityCLIUsageReportTests {
         #expect(kill(pid, 0) == -1)
     }
 
-    private static func printExecutable(_ body: String, version: String? = "1.2.2") throws
+    private static func printExecutable(
+        _ body: String,
+        version: String? = "1.2.2",
+        versionExitStatus: Int = 0) throws
     -> (directory: URL, binary: URL, environment: [String: String]) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -330,7 +379,8 @@ struct AntigravityCLIUsageReportTests {
         var script = "#!/bin/sh\nset -eu\n"
         if let version {
             try version.write(to: directory.appendingPathComponent("version"), atomically: true, encoding: .utf8)
-            script += "if [ \"${1:-}\" = --version ]; then exec /bin/cat \"$HOME/version\"; fi\n"
+            script += "if [ \"${1:-}\" = --version ]; then echo x >> \"$HOME/version-calls\"; "
+                + "/bin/cat \"$HOME/version\"; exit \(versionExitStatus); fi\n"
         }
         try (script + body + "\n").write(to: binary, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: binary.path)

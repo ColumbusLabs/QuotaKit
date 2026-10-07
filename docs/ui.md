@@ -157,3 +157,9 @@ Cost-history submenus keep tall charts in an app-owned scrollable viewport. The 
 ### Menu bar metric
 
 In Icon and Percent mode, the provider's **Menu bar metric** picker offers Auto, Session, Weekly, and declared named allowances: Cursor's Grok Bot and Antigravity's Gemini weekly and Claude/GPT weekly quotas. Choices remain available before a reading arrives and persist through the existing layout override. Named allowances retain their labels, preserve a real zero, and show an en dash for missing or unknown data. Balance, reset, conditional tokens, and other providers' layouts remain independent.
+
+## Activity navigation and incomplete usage
+
+Token activity uses appearance-aware colors and a slashed outline for unavailable history. Narrow annual grids scroll with labeled earlier/recent controls; keyboard navigation reveals the active date. Calendar columns retain chronological left-to-right order within right-to-left interfaces.
+
+Usage & Spend preserves known daily request counts when another source cannot count requests, marking the subtotal with `≥`. Missing request counts do not make known token or cost totals partial. Incomplete imported model history retains known subtotals and does not produce misleading share rankings.

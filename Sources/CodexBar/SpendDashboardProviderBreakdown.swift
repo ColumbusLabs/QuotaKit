@@ -164,9 +164,11 @@ struct SpendProviderBreakdownRows: View {
     private func providerGroup(_ breakdown: SpendProviderBreakdown) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                SpendProviderIcon(provider: breakdown.provider, size: 22)
+                SpendProviderIcon(provider: breakdown.provider, style: .brand, size: 22)
                 Text(breakdown.displayName)
                     .font(.headline)
+                    .lineLimit(1)
+                    .help(breakdown.displayName)
                 Spacer()
                 Text(spendDashboardBreakdownMetricText(
                     cost: breakdown.totalCost,
@@ -180,8 +182,9 @@ struct SpendProviderBreakdownRows: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(breakdown.totalCost == nil && breakdown.totalTokens == nil ? .secondary : .primary)
                     .monospacedDigit()
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            .padding(.vertical, 7)
+            .padding(.vertical, 5)
 
             if self.showsSubscriptionChildren(breakdown) {
                 self.subsectionLabel(breakdown.subscriptions.contains { $0.sourceKind != .native }
@@ -190,8 +193,12 @@ struct SpendProviderBreakdownRows: View {
                     if index > 0 {
                         self.childDivider
                     }
-                    HStack(spacing: 9) {
-                        SpendProviderIcon(provider: row.provider, sourceKind: row.sourceKind, size: 16)
+                    HStack(spacing: 8) {
+                        SpendProviderIcon(
+                            provider: row.provider,
+                            sourceKind: row.sourceKind,
+                            style: .monochrome,
+                            size: 16)
                             .opacity(0.76)
                         Text(self.sourceName(row.displayName))
                             .lineLimit(1)
@@ -207,28 +214,35 @@ struct SpendProviderBreakdownRows: View {
                             tokensAreLowerBound: row.tokensAreLowerBound))
                             .foregroundStyle(row.totalCost == nil && row.totalTokens == nil ? .secondary : .primary)
                             .monospacedDigit()
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 34)
-                    .padding(.vertical, 6)
+                    .padding(.leading, 32)
+                    .padding(.vertical, 4)
                 }
             }
 
             if !breakdown.models.isEmpty {
-                self.subsectionLabel(L("Models"), showsPartialWarning: breakdown.hasPartialModelHistory)
+                if breakdown.models.count > 1 || self.showsSubscriptionChildren(breakdown)
+                    || breakdown.hasPartialModelHistory
+                {
+                    self.subsectionLabel(L("Models"), showsPartialWarning: breakdown.hasPartialModelHistory)
+                }
                 let models = self.expandedProviders.contains(breakdown.provider)
                     ? breakdown.models : Array(breakdown.models.prefix(spendProviderModelDisplayLimit))
                 ForEach(Array(models.enumerated()), id: \.element.id) { index, row in
                     if index > 0 {
                         self.childDivider
                     }
-                    HStack(spacing: 9) {
-                        SpendProviderIcon(provider: row.provider, size: 16)
+                    HStack(spacing: 8) {
+                        SpendProviderIcon(provider: row.provider, style: .monochrome, size: 16)
                             .opacity(0.76)
                         Text(row.modelName)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
+                            .truncationMode(.middle)
                             .help(row.modelName)
+                            .accessibilityLabel(L("Models") + ": " + row.modelName)
                         Spacer()
                         Text(spendDashboardMetricText(
                             cost: row.totalCost,
@@ -237,10 +251,12 @@ struct SpendProviderBreakdownRows: View {
                             incompleteRequestCount: row.incompleteRequestCount))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 34)
-                    .padding(.vertical, 6)
+                    .padding(.leading, 32)
+                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
                 if breakdown.modelCount > spendProviderModelDisplayLimit {
                     let isExpanded = self.expandedProviders.contains(breakdown.provider)
@@ -255,7 +271,7 @@ struct SpendProviderBreakdownRows: View {
                     }
                     .buttonStyle(.link)
                     .font(.caption)
-                    .padding(.leading, 59)
+                    .padding(.leading, 56)
                     .padding(.top, 5)
                 }
             } else if breakdown.hasPartialModelHistory {
@@ -272,30 +288,29 @@ struct SpendProviderBreakdownRows: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.leading, 59)
-                .padding(.vertical, 6)
+                .padding(.leading, 32)
+                .padding(.vertical, 4)
         }
     }
 
     private func subsectionLabel(_ title: String, showsPartialWarning: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .tracking(0.6)
+            Text(title)
+                .font(.caption2.weight(.medium))
             if showsPartialWarning {
                 Label(L("Partial model breakdown"), systemImage: "exclamationmark.triangle")
                     .font(.caption2)
             }
         }
         .foregroundStyle(.secondary)
-        .padding(.leading, 34)
-        .padding(.top, 7)
+        .padding(.leading, 32)
+        .padding(.top, 5)
         .padding(.bottom, 2)
     }
 
     private var childDivider: some View {
         Divider()
-            .padding(.leading, 59)
+            .padding(.leading, 56)
     }
 
     private func sourceName(_ name: String) -> String {

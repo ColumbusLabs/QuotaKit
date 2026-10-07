@@ -86,6 +86,7 @@ public enum OpenRouterProviderDescriptor {
                 supportsTokenCost: true,
                 noDataMessage: { "OpenRouter 30-day spend requires a management API key." }),
             presentation: ProviderUsagePresentation(
+                menuBarBalanceDetailLabels: ["Remaining"],
                 costPresenter: { snapshot in
                     var replacedRows: [String: Set<String>] = [:]
                     if snapshot.providerCost?.balance != nil {

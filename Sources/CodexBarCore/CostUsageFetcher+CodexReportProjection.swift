@@ -226,11 +226,12 @@ enum CostUsageCodexReportProjectionBuilder {
             let reasoning = modelBreakdowns.compactMap(\.reasoningTokens).reduce(0, +)
             let requestCount = modelBreakdowns.compactMap(\.requestCount).reduce(0, +)
             let costs = modelBreakdowns.compactMap(\.costUSD)
-            let allPriced = costs.count == modelBreakdowns.count
             let unpricedRequests = zip(models, modelBreakdowns).reduce(into: 0) { count, pair in
                 let aggregate = pair.0.1
-                if aggregate.unpricedRequestCount > 0 {
-                    count += Self.int(aggregate.unpricedRequestCount)
+                let unresolved = max(aggregate.unpricedRequestCount,
+                                     aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
+                if unresolved > 0 {
+                    count += Self.int(unresolved)
                 } else if pair.1.costUSD == nil {
                     count += max(0, pair.1.requestCount ?? 0)
                 }
@@ -243,11 +244,13 @@ enum CostUsageCodexReportProjectionBuilder {
                 reasoningTokens: reasoning > 0 ? reasoning : nil,
                 totalTokens: input + output,
                 requestCount: requestCount > 0 ? requestCount : nil,
-                costUSD: allPriced ? costs.reduce(0, +) : nil,
+                costUSD: costs.isEmpty ? nil : costs.reduce(0, +),
                 modelsUsed: models.map(\.0),
                 modelBreakdowns: CostUsageScanner.sortedModelBreakdowns(modelBreakdowns),
                 unpricedRequestCount: unpricedRequests > 0 ? unpricedRequests : nil,
                 unmeteredRequestCount: (unmeteredByDay[day] ?? 0) > 0 ? unmeteredByDay[day] : nil,
+                pricedRequestCount: unpricedRequests > 0 && !costs.isEmpty
+                    ? max(0, requestCount - unpricedRequests) : nil,
                 dayEvidence: (unmeteredByDay[day] ?? 0) == 0 ? dayEvidenceByKey[day] : nil))
         }
         let totalInput = entries.compactMap(\.inputTokens).reduce(0, +)
@@ -261,7 +264,7 @@ enum CostUsageCodexReportProjectionBuilder {
             cacheReadTokens: totalCached > 0 ? totalCached : nil,
             reasoningTokens: totalReasoning > 0 ? totalReasoning : nil,
             totalTokens: totalInput + totalOutput,
-            totalCostUSD: costs.count == entries.count ? costs.reduce(0, +) : nil)
+            totalCostUSD: costs.isEmpty ? nil : costs.reduce(0, +))
         var hourly: [Date: CostUsageTemporalTotals] = [:]
         var quotaSlices: [Date: CostUsageTemporalTotals] = [:]
         for aggregate in temporal where CostUsageScanner.CostUsageDayRange.isInRange(
@@ -319,8 +322,24 @@ enum CostUsageCodexReportProjectionBuilder {
             && aggregate.priorityUnresolvedPricingCount == 0
         let standardCost = pricingComplete ? standardKnown + standardResolved : nil
         let priorityCost = pricingComplete ? priorityKnown + priorityResolved : nil
-        let totalCost = pricingComplete ? (standardCost ?? 0) + (priorityCost ?? 0) : nil
-        let hasModeSplit = priorityHasEvidence
+        // A partial subtotal is trustworthy only when the persisted rows cover the canonical group.
+        // Use saved monetary evidence; the omitted requests never acquire current list prices.
+        let (rowTokens, rowOverflow) = aggregate.standardTokens.addingReportingOverflow(aggregate.priorityTokens)
+        let (canonicalTokens, canonicalOverflow) = aggregate.inputTokens.addingReportingOverflow(aggregate.outputTokens)
+        let unpriced = max(aggregate.unpricedRequestCount,
+                           aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
+        let hasPricedRequests = aggregate.requestCount > unpriced
+        let partialIsCovered = aggregate.partialPricingIsSafe != false
+            && !rowOverflow && !canonicalOverflow && rowTokens == canonicalTokens
+            && hasPricedRequests
+        let totalCost = if pricingComplete {
+            (standardCost ?? 0) + (priorityCost ?? 0)
+        } else if partialIsCovered {
+            standardKnown + standardResolved + priorityKnown + priorityResolved
+        } else {
+            nil as Double?
+        }
+        let hasModeSplit = pricingComplete && priorityHasEvidence
         return CostUsageDailyReport.ModelBreakdown(
             modelName: model,
             costUSD: totalCost,
@@ -500,7 +519,8 @@ enum CostUsageCodexReportProjectionBuilder {
 }
 
 extension CostUsageStoreDayAggregate {
-    fileprivate mutating func add(_ other: Self) {
+    mutating func add(_ other: Self) {
+        if other.partialPricingIsSafe == false { self.partialPricingIsSafe = false }
         self.inputTokens += other.inputTokens
         self.cachedTokens += other.cachedTokens
         self.outputTokens += other.outputTokens

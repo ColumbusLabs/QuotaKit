@@ -6,6 +6,7 @@ struct CostDashboardInsights {
     struct ProviderRow: Identifiable {
         let provider: ProviderUsageSnapshot
         let thirtyDayCost: Double
+        let thirtyDayCostIsPartial: Bool
         let today: SyncCostSummary.TodayTotals
         let thirtyDayTokens: Int
 
@@ -29,6 +30,7 @@ struct CostDashboardInsights {
         let date: Date
         let costUSD: Double
         let totalTokens: Int
+        let isPartial: Bool
 
         var id: String {
             self.dayKey
@@ -56,6 +58,10 @@ struct CostDashboardInsights {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayCost }
     }
 
+    var total30DayCostIsPartial: Bool {
+        self.providerRows.contains(where: \.thirtyDayCostIsPartial)
+    }
+
     /// Known current-day subtotal. `nil` means no provider has reported a
     /// current-day value; an explicit reported zero remains `0`.
     var totalTodayCost: Double? {
@@ -64,17 +70,32 @@ struct CostDashboardInsights {
         return reported.reduce(0, +)
     }
 
+    /// Today's token counts are independent of whether every request had a
+    /// usable price. Keep known usage visible when a partial zero cost is
+    /// correctly withheld from cost totals.
+    var totalTodayTokens: Int {
+        self.providerRows.compactMap(\.today.tokens).reduce(0, +)
+    }
+
     var todayReportingProviderCount: Int {
         self.providerRows.count(where: { $0.today.isAvailable })
     }
 
     var todayCoverageIsPartial: Bool {
+        self.todayProviderCoverageIsPartial || self.todayHasPartialCost
+    }
+
+    var todayProviderCoverageIsPartial: Bool {
         let reported = self.todayReportingProviderCount
         return reported > 0 && reported < self.todayProviderCount
     }
 
+    var todayHasPartialCost: Bool {
+        self.providerRows.contains(where: { $0.today.isPartial })
+    }
+
     var todayHasNoReportedProviders: Bool {
-        self.todayReportingProviderCount == 0
+        self.todayReportingProviderCount == 0 && !self.todayHasPartialCost
     }
 
     var todayIsStale: Bool {
@@ -126,7 +147,7 @@ struct CostDashboardInsights {
     init(snapshot: SyncedUsageSnapshot) {
         let now = Date()
         var providerRows: [ProviderRow] = []
-        var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
+        var dailyTotals: [String: (costUSD: Double, totalTokens: Int, isPartial: Bool)] = [:]
         var modelTotals: [String: (cost: Double, tokens: Int, hasTokens: Bool)] = [:]
         // Codex standard/fast split summed per model across the window, so the
         // Model Mix rows can show a "Std / Fast" sub-line (upstream #1070).
@@ -151,23 +172,42 @@ struct CostDashboardInsights {
                 now: now,
                 providerLastUpdated: provider.lastUpdated)
 
-            let thirtyDayCost = costSummary.last30DaysCostUSD
-                ?? costSummary.daily.reduce(0) { $0 + $1.costUSD }
-            let thirtyDayTokens = costSummary.last30DaysTokens
-                ?? costSummary.daily.reduce(0) { $0 + $1.totalTokens }
+            let thirtyDayPoints = costSummary.dailyPoints(inWindowDays: 30, asOf: now)
+            let thirtyDayWindow = costSummary.dailyTotals(windowDays: 30, asOf: now)
+            // Raw snapshots can contain a producer-configured 1–365 day
+            // aggregate. The Cost tab's headline and provider-share section
+            // are fixed at 30 days, so only reuse an aggregate when its
+            // declared horizon is compatible; otherwise project the daily
+            // points over the same trailing 30-day window as CWL.
+            let aggregateMatchesThirtyDays = costSummary.historyDays == nil || costSummary.historyDays == 30
+            let thirtyDayCost = aggregateMatchesThirtyDays
+                ? (costSummary.last30DaysCostUSD ?? (thirtyDayWindow.hasPoints ? thirtyDayWindow.costUSD : 0))
+                : thirtyDayWindow.costUSD
+            let thirtyDayCostIsPartial = thirtyDayWindow.isPartial
+                || (costSummary.historyDays.map { $0 < 30 } ?? false)
+                || costSummary.historyCoverageIsEstablished == false
+                || (aggregateMatchesThirtyDays && costSummary.costIsKnown == false)
+                || (!aggregateMatchesThirtyDays && !thirtyDayWindow.hasPoints)
+            let thirtyDayTokens = aggregateMatchesThirtyDays
+                ? (costSummary.last30DaysTokens ?? thirtyDayWindow.totalTokens)
+                : thirtyDayWindow.totalTokens
 
-            guard thirtyDayCost > 0 || today.isAvailable || !costSummary.daily.isEmpty else { continue }
+            guard thirtyDayCost > 0 || today.isAvailable || thirtyDayCostIsPartial || !costSummary.daily.isEmpty else { continue }
 
             providerRows.append(
                 ProviderRow(
                     provider: provider,
                     thirtyDayCost: thirtyDayCost,
+                    thirtyDayCostIsPartial: thirtyDayCostIsPartial,
                     today: today,
                     thirtyDayTokens: thirtyDayTokens))
 
-            for point in costSummary.daily {
-                dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
-                dailyTotals[point.dayKey, default: (0, 0)].totalTokens += point.totalTokens
+            for point in thirtyDayPoints {
+                dailyTotals[point.dayKey, default: (0, 0, false)].costUSD += point.costUSD
+                dailyTotals[point.dayKey, default: (0, 0, false)].totalTokens += point.totalTokens
+                if (point.costIsKnown ?? costSummary.costIsKnown) == false {
+                    dailyTotals[point.dayKey, default: (0, 0, false)].isPartial = true
+                }
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     var aggregate = modelTotals[breakdown.label] ?? (0, 0, false)
@@ -200,12 +240,24 @@ struct CostDashboardInsights {
         self.dailyPoints = dailyTotals.keys.compactMap { dayKey in
             guard let date = Self.dayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
-            return DailyPoint(dayKey: dayKey, date: date, costUSD: totals.costUSD, totalTokens: totals.totalTokens)
+            return DailyPoint(
+                dayKey: dayKey,
+                date: date,
+                costUSD: totals.costUSD,
+                totalTokens: totals.totalTokens,
+                isPartial: totals.isPartial)
         }
         .sorted { $0.date < $1.date }
 
-        self.modelRows = Self.modelBreakdownRows(from: modelTotals, splits: modelSplits)
-        self.serviceRows = Self.breakdownRows(from: serviceTotals, palette: .service)
+        let breakdownIsPartial = providerRows.contains(where: \.thirtyDayCostIsPartial)
+        self.modelRows = Self.modelBreakdownRows(
+            from: modelTotals,
+            splits: modelSplits,
+            isPartial: breakdownIsPartial)
+        self.serviceRows = Self.breakdownRows(
+            from: serviceTotals,
+            palette: .service,
+            isPartial: breakdownIsPartial)
         self.budgetRows = budgetRows.sorted { lhs, rhs in
             let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
             let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
@@ -259,6 +311,8 @@ struct CostDashboardInsights {
             let rollupKey = "\(provider.providerID)|\(provider.accountEmail ?? "_")"
             let rollup = aggregation.providerRollups[rollupKey]
             let todayPoint = rollup?.dailyPoints.first(where: { $0.dayKey == todayKey })
+            let todayIsPartial = (todayPoint?.costIsKnown ?? provider.costSummary?.costIsKnown) == false
+            let todayHasUsableSubtotal = todayPoint.map { !todayIsPartial || $0.costUSD > 0 } ?? false
             let contributorProofIsIncomplete = rollup?.incompleteDayEvidenceDayKeys.contains(todayKey) == true
             let totalUpdatedAt: Date? = if contributorProofIsIncomplete {
                 nil
@@ -269,7 +323,7 @@ struct CostDashboardInsights {
                     ?? provider.costSummary?.costUpdatedAt
                     ?? provider.lastUpdated
             }
-            let today = if let todayPoint {
+            let today = if let todayPoint, todayHasUsableSubtotal {
                 SyncCostSummary.TodayTotals(
                     availability: .reported,
                     source: .daily,
@@ -278,7 +332,19 @@ struct CostDashboardInsights {
                     isEstimated: todayPoint.isEstimated,
                     updatedAt: totalUpdatedAt,
                     isStale: contributorProofIsIncomplete || Self.isStale(totalUpdatedAt, at: now),
-                    lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max())
+                    lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max(),
+                    isPartial: todayIsPartial)
+            } else if let todayPoint, todayIsPartial {
+                SyncCostSummary.TodayTotals(
+                    availability: .unavailable,
+                    source: .daily,
+                    costUSD: nil,
+                    tokens: todayPoint.totalTokens,
+                    isEstimated: nil,
+                    updatedAt: totalUpdatedAt,
+                    isStale: contributorProofIsIncomplete || Self.isStale(totalUpdatedAt, at: now),
+                    lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max(),
+                    isPartial: true)
             } else {
                 provider.costSummary?.todayTotals(
                     now: now,
@@ -293,10 +359,20 @@ struct CostDashboardInsights {
                         isStale: false,
                         lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max())
             }
-            guard rollup != nil || today.isAvailable else { continue }
+            let summary = provider.costSummary
+            let thirtyDayCostIsPartial: Bool = if let rollup, !rollup.dailyPoints.isEmpty {
+                rollup.dailyPoints.contains { point in
+                    let summaryPointFlag = summary?.daily.first(where: { $0.dayKey == point.dayKey })?.costIsKnown
+                    return (point.costIsKnown ?? summaryPointFlag ?? summary?.costIsKnown) == false
+                }
+            } else {
+                summary?.costIsKnown == false
+            }
+            guard rollup != nil || today.isAvailable || today.isPartial || thirtyDayCostIsPartial else { continue }
             providerRows.append(ProviderRow(
                 provider: provider,
                 thirtyDayCost: rollup?.totalCostUSD ?? 0,
+                thirtyDayCostIsPartial: thirtyDayCostIsPartial,
                 today: today,
                 thirtyDayTokens: rollup?.totalTokens ?? 0))
         }
@@ -310,9 +386,17 @@ struct CostDashboardInsights {
 
         let dailyPoints: [DailyPoint] = aggregation.dailyPoints.compactMap { point in
             guard let date = Self.dayKeyFormatter.date(from: point.dayKey) else { return nil }
+            let hasPartialSummaryForDay = liveProviders.contains { provider in
+                guard let summary = provider.costSummary,
+                      let summaryPoint = summary.daily.first(where: { $0.dayKey == point.dayKey })
+                else { return false }
+                return (summaryPoint.costIsKnown ?? summary.costIsKnown) == false
+            }
             return DailyPoint(
                 dayKey: point.dayKey, date: date,
-                costUSD: point.costUSD, totalTokens: point.totalTokens)
+                costUSD: point.costUSD,
+                totalTokens: point.totalTokens,
+                isPartial: point.costIsKnown.map { !$0 } ?? hasPartialSummaryForDay)
         }
 
         let modelTotals = Dictionary(
@@ -337,8 +421,14 @@ struct CostDashboardInsights {
                 return lhs.thirtyDayCost > rhs.thirtyDayCost
             },
             dailyPoints: dailyPoints.sorted { $0.date < $1.date },
-            modelRows: Self.modelBreakdownRows(from: modelTotals, splits: modelSplits),
-            serviceRows: Self.breakdownRows(from: serviceTotals, palette: .service),
+            modelRows: Self.modelBreakdownRows(
+                from: modelTotals,
+                splits: modelSplits,
+                isPartial: providerRows.contains(where: \.thirtyDayCostIsPartial)),
+            serviceRows: Self.breakdownRows(
+                from: serviceTotals,
+                palette: .service,
+                isPartial: providerRows.contains(where: \.thirtyDayCostIsPartial)),
             budgetRows: budgetRows.sorted { lhs, rhs in
                 let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
                 let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
@@ -356,7 +446,8 @@ struct CostDashboardInsights {
     private static func breakdownRows(
         from totals: [String: Double],
         palette: BreakdownPalette,
-        splits: [String: (std: Double, fast: Double)] = [:]) -> [CostBreakdownRow]
+        splits: [String: (std: Double, fast: Double)] = [:],
+        isPartial: Bool = false) -> [CostBreakdownRow]
     {
         totals
             .filter { $0.value > 0 }
@@ -367,7 +458,8 @@ struct CostDashboardInsights {
                     subtitle: splits[label].flatMap {
                         CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast)
                     },
-                    color: palette.color(for: label))
+                    color: palette.color(for: label),
+                    isPartial: isPartial)
             }
             .sorted { lhs, rhs in
                 if lhs.amountUSD == rhs.amountUSD {
@@ -379,7 +471,8 @@ struct CostDashboardInsights {
 
     private static func modelBreakdownRows(
         from totals: [String: (cost: Double, tokens: Int, hasTokens: Bool)],
-        splits: [String: (std: Double, fast: Double)]) -> [CostBreakdownRow]
+        splits: [String: (std: Double, fast: Double)],
+        isPartial: Bool = false) -> [CostBreakdownRow]
     {
         totals
             .filter { $0.value.cost > 0 }
@@ -391,7 +484,8 @@ struct CostDashboardInsights {
                     subtitle: splits[label].flatMap {
                         CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast)
                     },
-                    color: BreakdownPalette.model.color(for: label))
+                    color: BreakdownPalette.model.color(for: label),
+                    isPartial: isPartial)
             }
             .sorted { lhs, rhs in
                 if lhs.amountUSD == rhs.amountUSD {
@@ -441,6 +535,7 @@ struct CostBreakdownRow: Identifiable {
     let subtitle: String?
     let color: Color
     let brandProviderID: String?
+    let isPartial: Bool
     /// Optional override for SwiftUI identity. Defaults to `label` for the
     /// existing Model Mix / Codex Service Mix sites where labels are
     /// guaranteed unique (one row per model name, one per service name).
@@ -459,6 +554,7 @@ struct CostBreakdownRow: Identifiable {
         subtitle: String?,
         color: Color,
         brandProviderID: String? = nil,
+        isPartial: Bool = false,
         identityOverride: String? = nil)
     {
         self.label = label
@@ -467,6 +563,7 @@ struct CostBreakdownRow: Identifiable {
         self.subtitle = subtitle
         self.color = color
         self.brandProviderID = brandProviderID
+        self.isPartial = isPartial
         self.identityOverride = identityOverride
     }
 

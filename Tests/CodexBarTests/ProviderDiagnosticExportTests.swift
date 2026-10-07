@@ -455,6 +455,19 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `Claude quota-less subscription notice maps to configuration`() {
+        let error = ClaudeStatusProbeError.parseFailed(ClaudeStatusProbe.subscriptionQuotaUnavailableDescription)
+        let category = ProviderDiagnosticFetchAttempt.errorCategoryLabel(error.localizedDescription)
+        let diagnostic = ProviderDiagnosticError(from: error, authConfigured: true)
+
+        #expect(category == "configuration")
+        #expect(diagnostic.category == "configuration")
+        #expect(diagnostic.safeDescription == "Configuration issue - check provider source and settings")
+        #expect(ProviderDiagnosticFetchAttempt.errorCategoryLabel(
+            error.localizedDescription.uppercased()) == "configuration")
+    }
+
+    @Test
     func `MiniMax details map from MiniMaxUsageSnapshot correctly`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let snapshot = MiniMaxUsageSnapshot(

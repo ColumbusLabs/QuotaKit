@@ -14,7 +14,8 @@ Usage limits for session and weekly windows.
 ## Features
 
 - **Plan badge**: Reads the plan tier (Free/Pro/Max) from the Cloud Usage header.
-- **Session + weekly usage**: Parses the percent-used values shown in the usage bars.
+- **Included usage**: Parses the monthly credits meter labeled `Monthly usage` on paid plans or `Free usage` on free plans.
+- **Legacy session + weekly usage**: Parses older session, hourly, and weekly meters when present.
 - **Reset timestamps**: Uses the `data-time` attribute on the “Resets in …” elements.
 - **API key auth**: Verifies direct `https://ollama.com/api` access with `OLLAMA_API_KEY` or a configured key.
 - **Browser cookie auth**: Required for Cloud Usage quota windows because Ollama does not expose those limits through
@@ -47,7 +48,8 @@ Ollama API keys currently do not expire, but they can be revoked from the key se
   QuotaKit can try the next cookie candidate and show sign-in guidance instead of a parser error.
 - Parses:
   - Plan badge under **Cloud Usage**.
-  - **Session usage** and **Weekly usage** percentages.
+  - The monthly included-credit meter for both Free and paid plans.
+  - Legacy **Session usage**, **Hourly usage**, and **Weekly usage** percentages.
   - `data-time` ISO timestamps for reset times.
 
 ## Troubleshooting

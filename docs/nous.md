@@ -61,8 +61,11 @@ Swift only resolves the existing Hermes credential and registers the provider; i
 | `subscription.plan` | Plan row (plan name only, e.g. `Ultra`) |
 | `subscription.rollover_credits` | Subscription detail row when non-zero |
 | `purchased_credits_remaining` | "Top-up credits" row in the Credits section |
-| `paid_service_access.total_usable_credits` | Credits detail row |
+| `paid_service_access.total_usable_credits` | "Total usable" balance row |
 | `user.email`, `organisation.name` | Identity (siloed to this provider) |
+
+The detail rows keep total usable credits and purchased top-up credits separate. The menu-bar balance prefers Total
+usable and falls back to Top-up credits, so neither balance is confused with the monthly quota meter.
 
 Money fields are accepted as finite JSON numbers or decimal strings. Missing amounts stay unavailable instead of
 becoming zero; a monthly meter requires both a positive grant and a reported remaining balance. A Free tier with no

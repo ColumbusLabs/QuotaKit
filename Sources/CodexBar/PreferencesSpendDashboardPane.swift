@@ -1210,6 +1210,7 @@ private struct SpendHourlyChart: View {
 struct SpendProviderIcon: View {
     let provider: UsageProvider
     var sourceKind: SpendDashboardModel.SourceKind = .native
+    var style: ProviderBrandIcon.Style = .brand
     var size: CGFloat = 20
 
     var body: some View {
@@ -1217,14 +1218,29 @@ struct SpendProviderIcon: View {
             if self.sourceKind == .openCodex {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.body.weight(.semibold))
-            } else if let icon = ProviderBrandIcon.image(for: self.provider) {
-                Image(nsImage: icon).resizable().scaledToFit()
+            } else if let icon = ProviderBrandIcon.image(for: self.provider, style: self.style) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .renderingMode(icon.isTemplate ? .template : .original)
+                    .scaledToFit()
+                    .frame(
+                        width: self.size * (icon.isTemplate ? 1 : self.brandArtworkScale),
+                        height: self.size * (icon.isTemplate ? 1 : self.brandArtworkScale))
             } else {
                 Image(systemName: "circle.dotted")
             }
         }
+        .foregroundStyle(.primary)
         .frame(width: self.size, height: self.size)
         .accessibilityHidden(true)
+    }
+
+    private var brandArtworkScale: CGFloat {
+        switch self.provider {
+        case .bedrock: 0.84
+        case .muse, .vertexai: 1.08
+        default: 1
+        }
     }
 }
 

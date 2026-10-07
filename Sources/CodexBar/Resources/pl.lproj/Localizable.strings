@@ -1509,6 +1509,8 @@
 
 "Cumulative" = "Łącznie";
 "Token activity" = "Aktywność tokenów";
+"Earlier activity" = "Starsza aktywność";
+"More recent activity" = "Nowsza aktywność";
 "View" = "Widok";
 "in the last year" = "w ciągu ostatniego roku";
 "No activity in the last 12 months" = "Brak aktywności w ciągu ostatnich 12 miesięcy";

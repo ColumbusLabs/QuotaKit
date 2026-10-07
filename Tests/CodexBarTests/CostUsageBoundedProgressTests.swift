@@ -7,6 +7,28 @@ import Testing
 @Suite(.serialized)
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
+    @Test(arguments: ["empty", "attempted", "read", "byte-limit"])
+    func `only an empty timed pass supplies recovery evidence`(kind: String) {
+        let origin = ContinuousClock.now
+        let clock = BoundedProgressCounter()
+        let budget = CostUsageScanner.CodexScanBudget(
+            maxFileBytes: 0,
+            maxBytesPerRefresh: 1,
+            maxDuration: 2,
+            now: { origin.advanced(by: .seconds(clock.value == 0 ? 0 : 3)) })
+        if kind == "attempted" { budget.fileAttempts = 1 }
+        if kind == "read" { budget.consume(workBytes: 1) }
+        if kind == "byte-limit" {
+            _ = budget.admit(workBytes: 1)
+            guard case .deferBudget = budget.admit(workBytes: 1) else { Issue.record("Expected byte deferral"); return }
+        } else {
+            clock.increment()
+            #expect(budget.shouldStopBeforeNextFile())
+        }
+        #expect(budget.yieldedBeforeFileAttempt == (kind == "empty"))
+    }
+
+
     private typealias Fixture = CostUsageBoundedProgressFixture
 
     @Test

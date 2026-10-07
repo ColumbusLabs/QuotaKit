@@ -206,8 +206,8 @@ struct OllamaUsageParserTests {
         #expect(snapshot.weeklyUsedPercent == 3.4)
     }
 
-    @Test
-    func `parses monthly dollar usage from new settings HTML`() throws {
+    @Test(arguments: ["", "<p>Free usage credits can be used with the following cloud models:</p>"])
+    func `parses monthly dollar usage from new settings HTML`(labelProse: String) throws {
         // Captured monthly-credit markup includes line breaks inside closing tags.
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let html = """
@@ -237,6 +237,7 @@ struct OllamaUsageParserTests {
                 </div>
               </div>
             </div>
+            \(labelProse)
             <div
               class="text-xs text-neutral-500 mt-1 local-time"
               data-time="2026-09-30T15:14:29Z"
@@ -266,6 +267,37 @@ struct OllamaUsageParserTests {
         #expect(usage.primary?.resetsAt == expectedReset)
         #expect(usage.secondary == nil)
         #expect(usage.identity?.loginMethod == "pro")
+    }
+
+    @Test
+    func `parses the free usage meter as the primary monthly window`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let html = """
+        <div>
+          <h2><span>Included usage</span><span>free</span></h2>
+          <p>Free usage credits can be used with the following cloud models:</p>
+          <h2 id="header-email">user@example.com</h2>
+          <div>
+            <span>Free usage</span>
+            <span>69.5% used</span>
+            <div class="local-time" data-time="2026-10-26T15:19:11Z">Resets in 2 weeks.</div>
+          </div>
+        </div>
+        """
+
+        let snapshot = try OllamaUsageParser.parse(html: html, now: now)
+        let usage = snapshot.toUsageSnapshot()
+        let expectedReset = ISO8601DateFormatter().date(from: "2026-10-26T15:19:11Z")
+
+        #expect(snapshot.planName == "free")
+        #expect(snapshot.monthlyUsedPercent == 69.5)
+        #expect(snapshot.monthlyResetsAt == expectedReset)
+        #expect(snapshot.sessionUsedPercent == nil)
+        #expect(snapshot.weeklyUsedPercent == nil)
+        #expect(usage.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
+        #expect(usage.primary?.usedPercent == 69.5)
+        #expect(usage.primary?.resetsAt == expectedReset)
+        #expect(usage.secondary == nil)
     }
 
     @Test

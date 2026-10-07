@@ -27,6 +27,8 @@ class TestSelection:
 
 @dataclass
 class RunStats:
+    execution_mode: str = "serial SwiftPM"
+    workers: int = 1
     discovered_selections: int = 0
     selected_selections: int = 0
     selected_groups: int = 0
@@ -50,6 +52,8 @@ class RunStats:
             shard = f"{self.shard_index + 1}/{self.shard_count}"
         return [
             ("Shard", shard),
+            ("Execution mode", self.execution_mode),
+            ("Workers", str(self.workers)),
             ("Group size", str(self.group_size)),
             ("Discovered selections", str(self.discovered_selections)),
             ("Selected selections", str(self.selected_selections)),
@@ -89,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--direct-workers",
         type=int,
-        help="opt-in local macOS direct test groups (1-8 workers)",
+        help="opt-in macOS direct test groups (1-8 workers; CI requires a verified runtime)",
     )
     parser.add_argument(
         "--keep-going",
@@ -464,6 +468,10 @@ def main() -> int:
             print("No test groups selected.", flush=True)
             return 0
 
+        # The same ordered manifest is printed for serial and direct execution.
+        for index, group in enumerate(suite_groups, start=1):
+            print(f"Selected group {index}: {json.dumps([selection.name for selection in group])}", flush=True)
+
         if args.direct_workers is not None:
             from direct_swift_test_groups import InventoryMismatch, pool_timeout, prepare_runtime
 
@@ -477,8 +485,14 @@ def main() -> int:
                     result = 2
                     return result
                 except (ValueError, OSError, subprocess.SubprocessError) as error:
+                    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+                        print(f"Direct mode refused on CI: {error}", file=sys.stderr, flush=True)
+                        result = 2
+                        return result
                     print(f"Direct mode unavailable: {error} Falling back to serial SwiftPM.", flush=True)
                 else:
+                    stats.execution_mode = "direct"
+                    stats.workers = args.direct_workers
                     print(
                         f"Direct runtime verified {len(inventory)} test methods; "
                         f"using {args.direct_workers} workers.",

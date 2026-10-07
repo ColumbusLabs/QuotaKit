@@ -135,6 +135,28 @@ if "shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}" not
     raise SystemExit("swift-test-macos must use the validated path gate shard indexes")
 if not re.search(r"(?m)^\s+shard-count:\s+\[4\]\s*$", job):
     raise SystemExit("swift-test-macos shard-count must be [4]")
+job_timeout = re.search(r"(?m)^    timeout-minutes: (\d+)$", job)
+test_step = re.search(r"(?ms)^      - name: Swift Test\n(.*?)(?=^      - |\Z)", job)
+if not test_step or not re.search(r"(?m)^\s+\./Scripts/test.sh$", test_step.group(1)):
+    raise SystemExit("required hosted tests must explicitly use serial SwiftPM")
+if "--direct-workers" in test_step.group(1) or "continue-on-error" in test_step.group(1):
+    raise SystemExit("required serial tests must remain gating")
+probe_step = re.search(r"(?ms)^      - name: Direct runtime smoke test.*?\n(.*?)(?=^      - |\Z)", job)
+if not probe_step or any(expected not in probe_step.group(1) for expected in [
+    "continue-on-error: true", "timeout-minutes: 5",
+    "success() && matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == ''",
+    "--direct-workers 2 --limit-groups 1",
+]):
+    raise SystemExit("direct smoke test must be bounded, nonblocking, and run on one shard")
+if "failure() || steps.direct-probe.outcome == 'failure'" not in job:
+    raise SystemExit("crash diagnostics must include nonblocking probe failures")
+if 'swift_test_diagnostics.py --since "$RUNNER_TEMP/codexbar-tests-started"' not in job:
+    raise SystemExit("crash diagnostics must use the explicit test-start timestamp")
+step_timeout = re.search(r"(?m)^        timeout-minutes: (\d+)$", test_step.group(1)) if test_step else None
+if not step_timeout or int(step_timeout.group(1)) < 60:
+    raise SystemExit("Swift Test must retain at least 60 minutes for the four serial shards")
+if not job_timeout or int(job_timeout.group(1)) < int(step_timeout.group(1)) + 15:
+    raise SystemExit("macOS job must leave at least 15 minutes outside Swift Test")
 if "CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }}" not in job:
     raise SystemExit("swift-test-macos must pass matrix.shard-index to Scripts/test.sh")
 if "CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }}" not in job:
@@ -221,20 +243,56 @@ grep -Fq '| Shard | `2/2` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
-reset_case shard-list-0
-run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 2 --list-only \
-  > "${TEMP_DIR}/shard-list-0.log"
-reset_case shard-list-1
-run_harness --group-size 4 --timeout 10 --shard-index 1 --shard-count 2 --list-only \
-  > "${TEMP_DIR}/shard-list-1.log"
-cat "${TEMP_DIR}/shard-list-0.log" "${TEMP_DIR}/shard-list-1.log" \
-  | grep -v '^Discovered ' \
-  | sort > "${TEMP_DIR}/shards-combined.log"
+reset_case shard-4-0
+run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 4 > "${TEMP_DIR}/shard-4-0.log"
+grep -Fq '| Shard | `1/4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+
+reset_case shard-4-1
+run_harness --group-size 4 --timeout 10 --shard-index 1 --shard-count 4 > "${TEMP_DIR}/shard-4-1.log"
+grep -Fq '| Shard | `2/4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+
+reset_case shard-4-2
+run_harness --group-size 4 --timeout 10 --shard-index 2 --shard-count 4 > "${TEMP_DIR}/shard-4-2.log"
+grep -Fq '| Shard | `3/4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `2` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+
+reset_case shard-4-3
+run_harness --group-size 4 --timeout 10 --shard-index 3 --shard-count 4 > "${TEMP_DIR}/shard-4-3.log"
+grep -Fq '| Shard | `4/4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `0` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `0` |' "${GITHUB_STEP_SUMMARY}"
+
 reset_case shard-list-all
 run_harness --group-size 4 --timeout 10 --list-only \
   | grep -v '^Discovered ' \
   | sort > "${TEMP_DIR}/shards-expected.log"
-diff -u "${TEMP_DIR}/shards-expected.log" "${TEMP_DIR}/shards-combined.log"
+for shard_count in 2 3 4; do
+  for ((shard_index = 0; shard_index < shard_count; shard_index++)); do
+    reset_case "shard-list-${shard_count}-${shard_index}"
+    CODEXBAR_TEST_SHARD_INDEX="$shard_index" CODEXBAR_TEST_SHARD_COUNT="$shard_count" \
+      "${ROOT_DIR}/Scripts/test.sh" --group-size 4 --timeout 10 --list-only \
+        --swift-command /bin/bash \
+        --swift-command-arg=-c \
+        --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+        --swift-command-arg=fake-swift \
+        > "${TEMP_DIR}/shard-list-${shard_count}-${shard_index}.log"
+    for workers in 2 3; do
+      run_harness --group-size 4 --timeout 10 --list-only --direct-workers "$workers" \
+        --shard-index "$shard_index" --shard-count "$shard_count" \
+        > "${TEMP_DIR}/direct-list.log"
+      diff -u "${TEMP_DIR}/shard-list-${shard_count}-${shard_index}.log" "${TEMP_DIR}/direct-list.log"
+    done
+  done
+  cat "${TEMP_DIR}"/shard-list-"${shard_count}"-?.log \
+    | grep -v '^Discovered ' \
+    | sort > "${TEMP_DIR}/shards-combined.log"
+  diff -u "${TEMP_DIR}/shards-expected.log" "${TEMP_DIR}/shards-combined.log"
+done
 
 reset_case group-timeout
 export FAKE_SWIFT_MODE=group_timeout

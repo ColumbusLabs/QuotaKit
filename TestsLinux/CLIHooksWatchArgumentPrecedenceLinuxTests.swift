@@ -18,6 +18,16 @@ struct CLIHooksWatchArgumentPrecedenceLinuxTests {
         ParsedValues(positional: [], options: options, flags: flags)
     }
 
+    @Test
+    func `group provider aliases use the full registry and deduplicate repeat selections`() throws {
+        let all = try CodexBarCLI.decodeHooksWatchProviderNames(
+            from: Self.values(options: ["provider": ["all", "codex"]])).get()
+        #expect(all == ProviderDescriptorRegistry.all.map(\.id))
+        let both = try CodexBarCLI.decodeHooksWatchProviderNames(
+            from: Self.values(options: ["provider": ["both", "claude", "codex"]])).get()
+        #expect(both == [.codex, .claude])
+    }
+
     // MARK: - Interval
 
     @Test

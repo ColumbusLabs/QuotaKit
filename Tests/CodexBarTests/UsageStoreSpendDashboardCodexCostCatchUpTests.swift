@@ -480,6 +480,51 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         store.cancelSpendDashboardCodexCostCatchUp()
     }
 
+    @Test(arguments: [false, true])
+    func `terminal pauses survive synchronization until explicit refresh`(throwsError: Bool) async throws {
+        let store = try Self.makeStore(suite: "terminal-resume-\(throwsError)")
+        defer { store.cancelSpendDashboardCodexCostCatchUp() }
+        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
+        var advanceCount = 0
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            Self.status(pending: true, key: "unchanged", processedBytes: 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount += 1
+            if throwsError, advanceCount == 1 {
+                throw NSError(domain: "SyntheticCatchUp", code: 1)
+            }
+            return Self.status(
+                pending: advanceCount == 1,
+                key: advanceCount == 1 ? "unchanged" : "complete",
+                processedBytes: advanceCount == 1 ? 25 : 100)
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .accelerated)
+        let originalTask = try #require(store.spendDashboardCodexCostCatchUpTask)
+        await originalTask.value
+        let pausedActivity = try #require(store.spendDashboardCodexCostCatchUpActivity)
+        #expect(pausedActivity.phase == .paused)
+        #expect(advanceCount == 1)
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts, preferredMode: .accelerated)
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts, preferredMode: .automatic)
+        await originalTask.value
+
+        try #require(store.spendDashboardCodexCostCatchUpTask == nil)
+        #expect(store.spendDashboardCodexCostCatchUpActivity == pausedActivity)
+        #expect(advanceCount == 1)
+        #expect(!store.spendDashboardCodexCostCatchUpRestartRequested)
+
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(advanceCount == 2)
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
+    }
+
     @Test
     func `visible synchronization upgrades an automatic worker to accelerated`() throws {
         let store = try Self.makeStore(suite: "upgrade-automatic-on-visible")

@@ -9,6 +9,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- ClinePass supports labeled API-key accounts with isolated credential selection and iPhone account sync.
+- Usage & Spend adds original provider artwork and accessible, scrollable token activity on narrow windows.
 - Usage & Spend can pin a statistics time zone or use the Mac’s current zone, preserving saved aliases and daylight-saving rules.
 - The QuotaKit CLI can persist supported provider data sources without changing provider enablement; selecting `auto` clears the override.
 
@@ -24,6 +26,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex preserves proven request pricing across cache upgrades, reconciles drifted ledger mirrors, retains session Priority settings, and shows known partial spend without inventing prices.
+- Codex catch-up keeps terminal pauses across refreshes and bounds recovery from empty passes; account promotion refuses divergent preservation destinations.
+- Claude usage probes suppress user hooks, and refreshed-credential recovery stays tied to the credential that produced it.
+- Antigravity consumer OAuth recovery and pricing, JetBrains top-up quota math, Ollama Free meters, Vertex pagination, Kimi contradictory windows, and Nous menu balances are corrected.
+- Normal quit finishes queued configuration writes without blocking the main thread.
 - Static brand icons avoid idle blink tasks; visible legacy critters retain their animation preference.
 - Antigravity empty requests omit unknown model breakdowns and preserve established model history.
 - Claude cache-write recovery retains valid credentials only for the failed-write generation and original consent; Linux supports explicit manual web cookies with existing fallback behavior.

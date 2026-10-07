@@ -59,11 +59,16 @@ extension CostUsageStore {
     func loadCodexCache(calendar: Calendar, loadTokenSnapshots: Bool = true) -> CostUsageCache {
         self.retainedCodexBaseline = nil
         _ = self.removeLegacyCodexArtifactIfPresent()
-        let snapshot = self.readSnapshot(loadTokenSnapshots: loadTokenSnapshots)
-        guard snapshot.metadata.timeZoneIdentifier == nil
-            || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+        guard let read = self.readStampedCodexScanSnapshot(loadTokenSnapshots: loadTokenSnapshots),
+              read.snapshot.metadata.timeZoneIdentifier == nil
+                || read.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else { return CostUsageCache() }
-        return Self.cache(from: snapshot, tokenSnapshotsLoaded: loadTokenSnapshots)
+        let baseline = Self.codexBaseline(
+            from: read.snapshot,
+            stamp: read.stamp,
+            usageRowsByPath: read.usageRowsByPath,
+            usageRowCountsByPath: read.usageRowCountsByPath)
+        return Self.reconciledCodexCache(baseline.decoded, persistence: baseline.persistence)
     }
 
     func loadCodexReadView(
@@ -108,7 +113,7 @@ extension CostUsageStore {
                         table: "scan_metadata") ?? .empty,
                     files: Self.readFiles(database, includeBufferedPresence: true),
                     tokenSnapshots: [],
-                    usageRows: purpose == .report ? Self.readUsageRows(database, path: nil) : [],
+                    usageRows: [],
                     fileDayAggregates: purpose == .status
                         ? [] : Self.readFileDayAggregates(database, path: nil),
                     dayAggregates: purpose == .status
@@ -126,6 +131,7 @@ extension CostUsageStore {
                         table: "lookback_state"),
                     accumulators: [])
                 snapshot.tokenSnapshotsLoaded = false
+                let usageRows = purpose == .report ? try Self.readDecodedUsageRows(database) : nil
                 #if DEBUG
                 try CostUsageStoreTestHooks.current.codexReadViewCheckpoint?(self.databaseURL)
                 #endif
@@ -136,7 +142,7 @@ extension CostUsageStore {
                         metadata: snapshot.metadata,
                         discoveryState: snapshot.discoveryState,
                         lookbackState: snapshot.lookbackState)
-                return (snapshot: snapshot, catchUpProjection: catchUpProjection)
+                return (snapshot: snapshot, usageRows: usageRows, catchUpProjection: catchUpProjection)
             }
             let snapshot = read.snapshot
             guard let after = self.currentCodexScanStamp(), before == after else {
@@ -156,8 +162,11 @@ extension CostUsageStore {
                 from: snapshot,
                 hydratingPaths: nil,
                 tokenSnapshotsLoaded: false,
-                preserveMalformedFiles: true)
-            let persistence = CodexPersistenceState(snapshot: snapshot)
+                preserveMalformedFiles: true,
+                decodedUsageRowsByPath: read.usageRows?.rowsByPath)
+            let persistence = CodexPersistenceState(
+                snapshot: snapshot,
+                usageRowCountsByPath: read.usageRows?.rowCountsByPath)
             // Detailed reports contain event rows and stay transient. Activity has enough data
             // to serve both itself and the smaller status view.
             if purpose != .report {
@@ -2352,6 +2361,16 @@ extension CostUsageStore {
                 aggregate.priorityTokens += total
             } else {
                 aggregate.standardTokens += total
+            }
+            if (row.unpricedTokens ?? 0) > 0 {
+                // Explicitly unknown historical pricing excludes this row from every priced subtotal.
+                if isPriority {
+                    aggregate.priorityUnresolvedPricingCount += 1
+                } else {
+                    aggregate.standardUnresolvedPricingCount += 1
+                }
+                values[key] = aggregate
+                continue
             }
             if let cost = row.knownCostNanos {
                 aggregate.authoritativeCostNanos += cost

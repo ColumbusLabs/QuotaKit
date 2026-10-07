@@ -117,6 +117,7 @@ extension CostUsageScanner {
         var dayReasoning = CostUsageDailyReport.OptionalCountAccumulator(0)
         var dayRequestCount = 0
         var dayUnpricedRequestCount = 0
+        var dayPricedRequestCount = 0
         var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
         var dayCost: Double = 0
         var dayCostSeen = false
@@ -140,7 +141,6 @@ extension CostUsageScanner {
                 dayReasoning.add(row.reasoning)
             }
             dayRequestCount += requestCount
-            dayUnpricedRequestCount += unpricedRequestCount
 
             let rowCost = rows.isEmpty ? nil : Self.codexRowCostBreakdown(
                 rows: rows,
@@ -157,10 +157,12 @@ extension CostUsageScanner {
                 && CheckedSum.integers(rows.map(\.input)) == input
                 && CheckedSum.integers(rows.map(\.cached)) == cached
                 && CheckedSum.integers(rows.map(\.output)) == output
-            let rowCostIsTrusted = !pricing.unresolvedRowGroups.contains(group)
+            let rowsCoverGroup = !pricing.unresolvedRowGroups.contains(group)
                 && !pricing.modeOwnershipMismatchGroups.contains(group)
                 && (authoritativeOverflowCost
-                    || totalTokens.map { rowCost?.isTrusted(canonicalTotalTokens: $0) == true } == true)
+                    || totalTokens.map { rowCost?.coversGroup(canonicalTotalTokens: $0) == true } == true)
+            let rowCostIsTrusted = rowsCoverGroup && rowCost?.hasIncompletePricing != true
+            let partialRowCost = rowsCoverGroup && !rowCostIsTrusted ? rowCost : nil
             let aggregateCost = pricing.requestPricingEvidenceGroups.contains(group)
                 || pricing.incompletePricingEvidenceGroups.contains(group)
                 || pricing.unresolvedPersistedRowGroups.contains(group)
@@ -174,9 +176,20 @@ extension CostUsageScanner {
                     modelsDevCatalog: pricing.modelsDevCatalog,
                     modelsDevCacheRoot: pricing.modelsDevCacheRoot,
                     customPricing: pricing.customPricing)
-            let cost = rowCostIsTrusted
-                ? rowCost?.totalCostUSD ?? aggregateCost
-                : aggregateCost
+            let cost = if rowCostIsTrusted {
+                rowCost?.totalCostUSD ?? aggregateCost
+            } else if let partialRowCost {
+                partialRowCost.totalCostUSD
+            } else {
+                aggregateCost
+            }
+            if let partialRowCost {
+                dayPricedRequestCount += partialRowCost.pricedRequestCount
+                dayUnpricedRequestCount += partialRowCost.unpricedRequestCount
+            } else {
+                dayUnpricedRequestCount += unpricedRequestCount
+                if cost != nil { dayPricedRequestCount += max(1, requestCount - unpricedRequestCount) }
+            }
             let hasModeSplit = rowCostIsTrusted && rowCost?.hasModeSplit == true
             breakdown.append(
                 CostUsageDailyReport.ModelBreakdown(
@@ -216,7 +229,8 @@ extension CostUsageScanner {
             unpricedRequestCount: dayUnpricedRequestCount > 0
                 ? dayUnpricedRequestCount
                 : (entryCost == nil && (dayTotal ?? 1) > 0 ? 1 : nil),
-            unmeteredRequestCount: unmetered > 0 ? unmetered : nil)
+            unmeteredRequestCount: unmetered > 0 ? unmetered : nil,
+            pricedRequestCount: dayUnpricedRequestCount > 0 && entryCost != nil ? dayPricedRequestCount : nil)
     }
 }
 

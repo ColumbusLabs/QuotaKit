@@ -71,6 +71,9 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
   - `Always allow prompts`: allows interactive prompts in both user and background flows.
+- A user-initiated OAuth load can repair Claude Keychain access when direct-read consent is enabled and the policy
+  allows prompts. Background OAuth loads remain noninteractive, including with `Always allow prompts`; that policy
+  still governs the existing delegated refresh and experimental reader paths.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
 - The experimental `/usr/bin/security` reader follows the stored policy: background reads that can prompt require
   `Always allow prompts` and an explicitly permitted QuotaKit operation. `Never prompt` blocks this reader.
@@ -89,10 +92,33 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - QuotaKit OAuth cache when available.
   - File fallback: `~/.claude/.credentials.json`.
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
-- Fresh credentials from an allowed source can replace a QuotaKit-owned OAuth cache item whose ACL rejects the
-  current build. This uses no-UI Keychain operations and does not delete Claude Code's credential item.
-- When an explicitly permitted cache write fails, automatic refresh can retain an unexpired in-memory credential beyond the normal 30-minute window only for that exact committed failed-write generation, profile, and original consent. The next refresh retries cache cleanup before persisting it. Token expiry, profile changes, unrelated invalidation, and Never prompt prevent extended reuse. This does not discover external logins or grant additional background access to Claude Code's Keychain item.
-- On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
+- When a QuotaKit-owned OAuth cache item's ACL rejects the current build, fresh credentials from an allowed source
+  can replace that cache item using no-UI deletion and creation. A locked or inconclusive Keychain is preserved;
+  failed ACL repairs back off for five minutes. This never deletes or recreates Claude Code's credential item.
+- If QuotaKit's cache is temporarily unavailable, automatic refreshes can reuse an unexpired credential already in
+  memory beyond the normal 30-minute cache window, ahead of a stale credentials file. Each refresh retries the
+  persistent cache. Token expiry, profile changes, cache invalidation, and Never prompt still prevent reuse;
+  after a rejected cache write, the next refresh first clears the stale persistent entry, then reuses and persists
+  an unexpired in-memory credential even after 30 minutes once that cleanup succeeds. Extended reuse requires
+  evidence of that exact failed write and its original consent; an unrelated invalidation cannot authorize it.
+  Rejected writes during QuotaKit-owned token refresh retain the same recovery, bound to the refreshed credential;
+  a delayed older write cannot replace a newer credential's recovery. This does not discover an external login or
+  enable additional background reads of Claude Code's Keychain item.
+- For the default CLI profile, expired cached or file credentials can adopt a fresh CLI Keychain token after file
+  fallback, even when its fingerprint was already observed during an earlier repair. Existing direct-read consent,
+  prompt policy, cooldown, one-minute freshness-check throttle, and noninteractive-read checks still apply. Custom
+  profiles are not recovered from the unscoped global item, and CLI credentials are never rewritten by this
+  synchronization. Background recovery still requires the Always allow prompts policy; the default Only on user
+  action policy requires an explicit Refresh.
+- Credential selection does not rank unrelated sources by the largest `expiresAt`: expiry establishes validity,
+  not account identity or issuance order. A valid profile file remains ahead of Keychain bootstrap. Keychain
+  candidates are ordered by modification date (creation date as fallback); freshness sync reads only that newest
+  item and never rewrites Claude Code's credentials file. An expired default-profile record can be replaced even
+  when the stored Keychain fingerprint already matches, subject to the access gates above.
+- On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no
+  `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated
+  `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude
+  OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
 - Missing-scope recovery requires a Claude Code sign-in token with `user:profile` usage access. `claude setup-token`
   creates a model-request token, not a usage-scope token. Before switching Claude Source to Web/CLI, remove any
@@ -298,6 +324,12 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 - Usage probes pass a process-only `remoteControlAtStartup: false` setting through PTY, watchdog, and direct fallback
   launches. Saved Claude settings and profiles are unchanged.
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
+- Both PTY probes and the non-PTY `/usage` fallback pass `--settings '{"remoteControlAtStartup":false,"disableAllHooks":true}'` to disable Remote Control startup and user hooks for the probe process. This process-local override leaves the user's saved settings unchanged; Claude's managed-settings policy still applies.
+- Both launches use `--strict-mcp-config` to skip the user's configured MCP servers. Saved nonessential-traffic restrictions remain in force.
+- A PTY timeout or usage-loading failure can trigger the non-PTY `/usage` fallback. Cancellation and rate limits stop the probe; a subscription-only notice from the fallback takes precedence over the original PTY failure.
+- Transient CLI timeouts and loading stalls preserve availability already established for that account, so a later
+  Auto refresh can retry CLI instead of stopping at missing OAuth credentials. They do not establish availability
+  for a previously unverified account; the existing Keychain and prompt policies still apply.
 - Probe working directory: `~/Library/Application Support/CodexBar/ClaudeProbe` with local Claude settings that disable
   deep-link URL handler registration during headless probes.
 - After transient probes exit, QuotaKit removes Claude Code `.jsonl` session artifacts for that dedicated
@@ -314,7 +346,9 @@ Compact multi-account layout proof (synthetic accounts and usage data):
   - Surfaces CLI errors (e.g. token expired) directly.
   - Some Education and organization-managed subscriptions return only a subscription notice, with no numeric
     session or weekly quota fields. QuotaKit reports those limits as unavailable, keeps local cost/token history
-    visible, and never derives quota percentages from spend or token totals.
+    visible, and never derives quota percentages from spend or token totals. Logs and diagnostics classify this as
+    a configuration or provider-source issue and recommend checking the selected source/settings, rather than
+    re-authenticating.
 
 ## Cost usage (local log scan)
 - Claude Swap account cards accept `usageFetchedAt`, source-reported `spend`, `disabled`, and

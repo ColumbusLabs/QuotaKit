@@ -5,6 +5,55 @@ import Testing
 @Suite(.serialized)
 struct CostUsageStoreReadPerformanceTests {
     @Test
+    func `full cache and transient reports stream native rows without losing their decoded ownership`() throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let rows = [Self.row(model: "gpt-5.5", input: 10, eventIndex: 0),
+                    Self.row(model: "gpt-5.5", input: 30, eventIndex: 1)]
+        let path = "/sessions/streamed-full-cache.jsonl"
+        var cache = Self.seededCache()
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 64, days: ["2026-08-01": ["gpt-5.5": [40, 0, 20]]])
+        usage.sessionId = "streamed-full-cache"
+        usage.codexRows = rows
+        cache.files[path] = usage
+        cache.days = usage.days
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        #expect(!store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01")).catchUpRequired)
+        #if DEBUG
+        let visits = LockedReadPerformanceValues<StreamedUsageRowVisit>()
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexStreamedUsageRow = { path, rowIndex, payloadBytes, decoded in
+            visits.append(StreamedUsageRowVisit(path: path, rowIndex: rowIndex, payloadBytes: payloadBytes, decoded: decoded))
+        }
+        #endif
+        let read = {
+            let full = store.syncLoadCodexCache(calendar: calendar)
+            let report = CostUsageStoreAccess.readView(cacheRoot: fixture.root, calendar: calendar, purpose: .report)
+            return (full, report)
+        }
+        #if DEBUG
+        let (full, view) = CostUsageStoreTestHooks.$current.withValue(hooks) { read() }
+        #else
+        let (full, view) = read()
+        #endif
+        #expect(full.files[path]?.codexRows == rows)
+        let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 12)))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day, calendar: calendar)
+        #expect(view.dailyReport(range: range, cacheRoot: fixture.root).summary?.totalTokens == 60)
+        #expect(view.sessions(range: range, cacheRoot: fixture.root, roots: [URL(fileURLWithPath: "/sessions")])
+            .first?.totalTokens == 60)
+        #if DEBUG
+        #expect(visits.value.map(\.rowIndex) == [0, 1, 0, 1])
+        #expect(visits.value.allSatisfy(\.decoded))
+        #endif
+    }
+
+    @Test
     func `warm activity and status reuse the stamped activity view`() throws {
         let fixture = try ReadPerformanceFixture()
         defer { fixture.remove() }

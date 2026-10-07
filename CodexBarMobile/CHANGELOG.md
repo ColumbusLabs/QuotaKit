@@ -50,6 +50,8 @@ current Columbus Labs product surface and recent release history.
   incremental CloudKit updates without restoring deleted or stale snapshots.
 - Unpriced token activity is carried as explicitly unknown instead of being
   interpreted as measured `$0.00` spend.
+- Codex cost history keeps priced subtotals visible as lower bounds while some
+  requests remain unpriced, across the dashboard, provider detail, and share cards.
 
 ## [1.11.4 (178)] — 2026-08-26 — Cost freshness and provider details
 

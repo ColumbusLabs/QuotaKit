@@ -196,12 +196,13 @@ struct CostUsageTemporalCompletenessTests {
             output: 0,
             unpricedTokens: 200)
         var cache = CostUsageCache()
-        cache.files = ["/synthetic/session.jsonl": CostUsageScanner.makeFileUsage(
+        cache.files = ["/synthetic/session.jsonl": CostUsageFileUsage(
             mtimeUnixMs: row.timestampUnixMs ?? 0,
             size: 1,
             days: [row.day: [model: [300, 0, 0]]],
             parsedBytes: 1,
             sessionId: "s",
+            codexCostCacheComplete: true,
             codexRows: [row, unknown],
             codexScanComplete: true)]
         cache.days = [row.day: [model: [300, 0, 0]]]
@@ -258,12 +259,13 @@ struct CostUsageTemporalCompletenessTests {
                 output: 1,
                 knownCostNanos: 0)
             cache.days = [range.sinceKey: [model: [Int.max, 0, 1]]]
-            cache.files = ["/synthetic/codex.jsonl": CostUsageScanner.makeFileUsage(
+            cache.files = ["/synthetic/codex.jsonl": CostUsageFileUsage(
                 mtimeUnixMs: millis,
                 size: 1,
                 days: cache.days,
                 parsedBytes: 1,
                 sessionId: "overflow",
+                codexCostCacheComplete: true,
                 codexRows: [row],
                 codexScanComplete: true)]
             // A later valid zero day must not revive an overflowed summary counter.

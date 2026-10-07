@@ -158,6 +158,63 @@ struct CodexAccountPromotionPlanningTests {
         }
     }
 
+    @Test(arguments: [nil, "acct-alpha"] as [String?])
+    func `planner rejects legacy email repair when the readable home holds a different account`(
+        liveAccountID: String?) async throws
+    {
+        let container = try CodexAccountPromotionTestContainer(
+            suiteName: "CodexAccountPromotionPlanningTests-legacy-readable-conflict")
+        defer { container.tearDown() }
+
+        let target = try container.createManagedAccount(
+            persistedEmail: "beta@example.com",
+            authAccountID: "acct-beta")
+        let divergentManaged = try container.createManagedAccount(
+            persistedEmail: "alpha@example.com",
+            authAccountID: "acct-gamma",
+            legacyRecord: true)
+        try container.persistAccounts([target, divergentManaged])
+        _ = try container.writeLiveOAuthAuthFile(email: "alpha@example.com", accountID: liveAccountID)
+
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let plan = CodexDisplacedLivePreservationPlanner().makePlan(context: context)
+
+        switch plan {
+        case let .reject(reason):
+            #expect(reason == .conflictingReadableManagedHome)
+        case .none, .importNew, .refreshExisting, .repairExisting:
+            Issue.record("Expected reject plan")
+        }
+    }
+
+    @Test
+    func `planner still repairs an email only live auth into a legacy record with a missing home`() async throws {
+        let container = try CodexAccountPromotionTestContainer(
+            suiteName: "CodexAccountPromotionPlanningTests-email-only-repair")
+        defer { container.tearDown() }
+
+        let target = try container.createManagedAccount(
+            persistedEmail: "beta@example.com",
+            authAccountID: "acct-beta")
+        let legacyManaged = try container.createManagedAccount(
+            persistedEmail: "alpha@example.com",
+            legacyRecord: true,
+            writeAuthFile: false)
+        try container.persistAccounts([target, legacyManaged])
+        _ = try container.writeLiveOAuthAuthFile(email: "alpha@example.com")
+
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let plan = CodexDisplacedLivePreservationPlanner().makePlan(context: context)
+
+        switch plan {
+        case let .repairExisting(destination, reason):
+            #expect(destination.persisted.id == legacyManaged.id)
+            #expect(reason == .persistedLegacyEmailMatch)
+        case .none, .reject, .importNew, .refreshExisting:
+            Issue.record("Expected legacy email repair plan")
+        }
+    }
+
     @Test
     func `planner imports when same email belongs to a different provider account workspace`() async throws {
         let container = try CodexAccountPromotionTestContainer(

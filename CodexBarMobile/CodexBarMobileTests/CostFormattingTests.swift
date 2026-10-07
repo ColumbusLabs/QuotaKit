@@ -235,6 +235,50 @@ struct ProviderDailySpendPresentationTests {
     }
 
     @Test
+    func `daily detail inherits summary unknown marker unless point explicitly overrides it`() {
+        let inherited = SyncDailyPoint(
+            dayKey: "2026-07-31",
+            costUSD: 1.25,
+            totalTokens: 125,
+            costIsKnown: nil)
+        let explicitKnown = SyncDailyPoint(
+            dayKey: "2026-07-31",
+            costUSD: 2,
+            totalTokens: 200,
+            costIsKnown: true)
+        let explicitUnknownZero = SyncDailyPoint(
+            dayKey: "2026-07-31",
+            costUSD: 0,
+            totalTokens: 300,
+            costIsKnown: false)
+
+        let inheritedDetail = ProviderDailySpendPresentation.detail(
+            for: inherited,
+            summaryCostIsKnown: false)
+        let knownDetail = ProviderDailySpendPresentation.detail(
+            for: explicitKnown,
+            summaryCostIsKnown: false)
+        let unknownZeroDetail = ProviderDailySpendPresentation.detail(
+            for: explicitUnknownZero,
+            summaryCostIsKnown: true)
+
+        #expect(inheritedDetail.isPartial)
+        #expect(inheritedDetail.costUSD == 1.25)
+        #expect(!knownDetail.isPartial)
+        #expect(unknownZeroDetail.isPartial)
+        #expect(unknownZeroDetail.costUSD == 0)
+        #expect(unknownZeroDetail.totalTokens == 300)
+
+        let accessible = ProviderDailySpendPresentation.accessibilityValue(
+            for: [inherited],
+            selectedDayKey: inherited.dayKey,
+            currencyCode: "USD",
+            summaryCostIsKnown: false)
+        #expect(accessible.contains("≥"))
+        #expect(accessible.contains(String(localized: "Partial provider data")))
+    }
+
+    @Test
     func `provider detail displays a verified zero-spend correction`() {
         let corrected = SyncDailyPoint(
             dayKey: "2026-07-31",

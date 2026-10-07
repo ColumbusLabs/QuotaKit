@@ -28,6 +28,10 @@ or copies the session into its config. If Cline's access token expires, the erro
 Keep Cline responsible for signing in and renewing its session. A stored Cline API key is also supported and remains
 labeled **API key**; an OAuth session is labeled **Browser**.
 
+Saved Cline API keys can also be added as labeled QuotaKit token accounts and switched from the provider pane. A
+selected account takes precedence over QuotaKit config, environment overrides, and the shared Cline session, while the
+existing `.clinepass` provider identifier remains the account-sync key.
+
 The path follows Cline's overrides, in order: `CLINE_PROVIDER_SETTINGS_PATH` (a file), `CLINE_DATA_DIR`
 (containing `settings/providers.json`), then `CLINE_DIR` (containing `data/settings/providers.json`). Otherwise it uses
 `$HOME/.cline/data/settings/providers.json`. Only the `providers.cline.settings` entry is read; the same Cline entry

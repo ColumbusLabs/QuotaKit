@@ -276,3 +276,5 @@ Preferred direction: table/list rows (like a “sessions” table):
 - Actions (Login / Diagnose / Copy debug log)
 
 This keeps the pane scannable once we have >5 providers.
+
+Detail-backed balances use `presentation.menuBarBalanceDetailLabels` in priority order. The menu bar resolves the first reported balance row without inventing a percentage window for credit-only accounts.

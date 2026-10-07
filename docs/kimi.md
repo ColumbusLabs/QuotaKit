@@ -60,14 +60,14 @@ QuotaKit calls the selected region's `/coding/v1/usages` API with the key. Set
 QuotaKit never forwards a Kimi Code CLI credential to an endpoint override or to the International host.
 Numeric legacy fields outside the integer range decode safely; unusable request counts do not create quota windows.
 
-Both the older count-based response and the newer `usages` ratio pools are supported. Ratio pools take
-precedence for the 5-hour, weekly, and monthly Total usage windows they provide. Missing windows stay
-absent; percentages retain the API's precision and do not imply request counts. The monthly Total usage
-pool is available directly from the Code API, without requiring browser authentication, and optional web
-enrichment cannot replace it. Legacy rate-limit counts remain available when no 5-hour ratio is reported.
-For mixed legacy responses with a reliable weekly count and no monthly ratio pool, a zero 5-hour or
-weekly ratio falls back to a populated count for the same duration and reset time (within two seconds).
-Nonzero ratios and monthly-pool responses keep their precedence; mismatched reset periods never borrow counts.
+Both the older count-based response and the newer `usages` ratio pools are supported. Ratio pools supply
+the 5-hour, weekly, and monthly Total usage windows they provide. When reliable legacy counts describe
+the same duration and reset time (within two seconds), the more-exhausted reading wins, even when a
+monthly pool is present or the ratio is nonzero. Equal readings retain the ratio pool's precision and
+metadata; mismatched or unknown reset periods never borrow counts. Missing windows stay absent, and
+ratio percentages do not imply request counts. The monthly Total usage pool is available directly from
+the Code API, without requiring browser authentication, and optional web enrichment cannot replace it.
+Legacy rate-limit counts remain available when no 5-hour ratio is reported.
 
 ### Method 2: Kimi Code CLI
 

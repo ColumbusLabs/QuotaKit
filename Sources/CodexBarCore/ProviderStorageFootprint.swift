@@ -462,6 +462,10 @@ public struct ProviderStorageScanner: @unchecked Sendable {
 
     private func scanDirectory(at url: URL) -> DirectoryScanResult {
         if Task.isCancelled { return DirectoryScanResult() }
+        // Preserve the traversal URL because enumerators can resolve macOS path aliases.
+        let rootPath = url.standardizedFileURL.path
+        let rootIsStandardized = url.path == rootPath
+        let pathPrefix = rootPath.hasSuffix("/") ? rootPath : "\(rootPath)/"
         let keys: Set<URLResourceKey> = [
             .isDirectoryKey,
             .isRegularFileKey,
@@ -483,7 +487,7 @@ public struct ProviderStorageScanner: @unchecked Sendable {
         }
 
         var result = DirectoryScanResult()
-        let rootPath = url.standardizedFileURL.path
+        var componentPaths: [String: String] = [:]
         for case let itemURL as URL in enumerator {
             if Task.isCancelled {
                 enumerator.skipDescendants()
@@ -502,7 +506,13 @@ public struct ProviderStorageScanner: @unchecked Sendable {
             if itemValues.isRegularFile == true {
                 let bytes = Int64(itemValues.fileSize ?? 0)
                 result.bytes += bytes
-                if bytes > 0, let componentPath = self.topLevelComponentPath(for: itemURL, rootPath: rootPath) {
+                if bytes > 0,
+                   let componentPath = self.topLevelComponentPath(
+                       for: itemURL,
+                       pathPrefix: pathPrefix,
+                       rootIsStandardized: rootIsStandardized,
+                       componentPaths: &componentPaths)
+                {
                     result.componentBytes[componentPath, default: 0] += bytes
                 }
             }
@@ -511,18 +521,27 @@ public struct ProviderStorageScanner: @unchecked Sendable {
         return result
     }
 
-    private func topLevelComponentPath(for url: URL, rootPath: String) -> String? {
-        let itemPath = url.standardizedFileURL.path
-        let pathPrefix = rootPath.hasSuffix("/") ? rootPath : "\(rootPath)/"
+    private func topLevelComponentPath(
+        for url: URL,
+        pathPrefix: String,
+        rootIsStandardized: Bool,
+        componentPaths: inout [String: String]) -> String?
+    {
+        let enumeratedPath = url.path
+        let itemPath = rootIsStandardized && enumeratedPath.hasPrefix(pathPrefix)
+            ? enumeratedPath
+            : url.standardizedFileURL.path
         guard itemPath.hasPrefix(pathPrefix) else { return nil }
         let suffix = itemPath.dropFirst(pathPrefix.count)
         let relative = suffix.drop { $0 == "/" }
         guard let first = relative.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true).first else {
             return nil
         }
-        return URL(fileURLWithPath: rootPath, isDirectory: true)
-            .appendingPathComponent(String(first))
-            .path
+        let name = String(first)
+        if let cached = componentPaths[name] { return cached }
+        let path = pathPrefix + name
+        componentPaths[name] = path
+        return path
     }
 }
 

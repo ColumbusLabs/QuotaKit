@@ -39,6 +39,7 @@ Local cost scanners preserve that scope when selecting a catalog:
 - Claude's documented Kimi Code `k3[1m]` alias may use the `kimi-for-coding/k3` rate only after exact Kimi Code lookups fail. It never borrows another provider's rate.
 - Other bare Claude-session IDs are priced only when exactly one selected first-party catalog matches. Ambiguous cross-vendor matches remain unpriced.
 - Provider-qualified Claude-session IDs stay on an approved explicit route and never fall through to another vendor.
+- Antigravity's exact recorded `gpt-oss-120b-medium` name falls back to `google-vertex` / `openai/gpt-oss-120b-maas` after existing model lookups. [Google's Vertex list price](https://cloud.google.com/vertex-ai/generative-ai/pricing) is $0.09 input and $0.36 output per million tokens (verified October 5, 2026); QuotaKit reads the rates from [models.dev's catalog entry](https://github.com/anomalyco/models.dev/blob/8ce27fe1f811a0f63100826e9a7965af0afd96d9/providers/google-vertex/models/openai/gpt-oss-120b-maas.toml). Missing cache rates use the input rate, as in the existing Claude resolver. Unknown-price refresh includes this exact entry; other effort suffixes and reseller prices are not inferred. The displayed name stays unchanged, and dollars remain public API estimates rather than Antigravity charges.
 - Vertex AI Claude logs: models.dev provider id `google-vertex-anthropic`
 - OpenCodex log entries use their recorded provider for pricing. Only legacy `openai` transport rows may take an explicit known route from the model prefix; a router's `openai/...` model namespace does not make the row OpenAI usage. A missing provider retains the legacy OpenAI fallback for unqualified model IDs, while an unknown recorded provider does not borrow OpenAI rates.
 - OpenCodex models.dev lookups are exact within the recorded provider. Cache-read and cache-write usage stays unpriced when that provider has no corresponding cache rate, and missing input/output counts stay unknown. A fresh dashboard or CLI load can refresh stale pricing and check unknown exact models; cached snapshots do not start network requests.
@@ -51,9 +52,21 @@ models.dev publishes costs as USD per 1M tokens. QuotaKit converts those to USD 
 perToken = modelsDevCost / 1_000_000
 ```
 
-When models.dev includes `cost.context_over_200k`, CodexBar parses those values as the above-200k-token pricing lane and converts them with the same per-1M-token rule.
+When models.dev includes `cost.context_over_200k`, QuotaKit converts those rates with the same per-1M-token rule.
+The legacy field name does not establish the threshold: a matching `cost.tiers` entry with `tier.type = "context"`
+supplies its explicit `tier.size`. Only the tier matching the legacy lane's rates is used; this does not add
+arbitrary multi-tier pricing. Older catalogs without that metadata use the bundled OpenAI model threshold,
+or 200,000 tokens when no provider-specific contract is known. Other providers never inherit OpenAI thresholds.
 
-The bundled GPT-6 Astra fallback uses the published Standard rates, switching the entire request to long-context rates above 272,000 input tokens. Fast mode doubles the applicable rates, including the long-context lane.
+OpenAI's [pricing table](https://developers.openai.com/api/docs/pricing) defines short context as **at most 272,000
+input tokens**, and long context as **more than 272,000**, including cached input. This applies to GPT-6 Astra,
+GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna, GPT-5.6 Sol/Terra/Luna, GPT-5.4/5.5, and their Pro variants where listed.
+The bundled table preserves that boundary for old catalogs, including the GPT-5.6 and Daybreak Blue aliases.
+For example, GPT-6.1 Sol with 210,000 input tokens (200,000 cached) and 1,000 output tokens costs **$0.050** at
+Standard rates. At 272,001 input tokens the full request uses long-context rates, not just the excess tokens.
+Catalog thresholds and bundled rates participate in the native Codex pricing fingerprint, so affected cached
+estimates are repriced. Existing native rows and scan checkpoints remain compatible; recorded authoritative costs
+and explicit custom-pricing overrides retain their existing precedence.
 
 ## Custom pricing overlay
 

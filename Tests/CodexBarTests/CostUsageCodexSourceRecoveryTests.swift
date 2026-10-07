@@ -542,21 +542,21 @@ struct CostUsageCodexSourceRecoveryTests {
         options.refreshMinIntervalSeconds = 3600
         let refreshed = Self.report(day: day, options: options, elapsed: 1)
         #expect(refreshed.summary?.totalTokens == 600_000)
-        #expect(refreshed.summary?.totalCostUSD == nil)
+        #expect(refreshed.summary?.totalCostUSD == 0.5)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         let rows = try #require(reopened.files[file.path]?.codexRows)
         #expect(rows.map(\.input) == [100_000, 200_000, 300_000])
         #expect(rows.map(\.unpricedTokens) == [100_000, nil, 300_000])
         #expect(reopened.files[file.path]?.days == canonical.files[file.path]?.days)
         #expect(reopened.codexScanCatchUpPending != true)
-        #expect(Self.cachedReport(cache: reopened, day: day).summary?.totalCostUSD == nil)
+        #expect(Self.cachedReport(cache: reopened, day: day).summary?.totalCostUSD == 0.5)
 
         let recorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = recorder
         options.refreshMinIntervalSeconds = 0
         let repeated = Self.report(day: day, options: options, elapsed: 2)
         #expect(repeated.summary?.totalTokens == 600_000)
-        #expect(repeated.summary?.totalCostUSD == nil)
+        #expect(repeated.summary?.totalCostUSD == 0.5)
         #expect(recorder.snapshot().usageRowsProcessed == 0)
         #expect(recorder.snapshot().usageRowsRepriced == 0)
         #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[file.path]?.codexRows == rows)
@@ -643,14 +643,15 @@ struct CostUsageCodexSourceRecoveryTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 9, day: 10)
-        let lines = try Self.sourceLines(inputs: [200_000, 200_000, 200_000], day: day, env: env)
+        let lines = try Self.sourceLines(
+            inputs: [200_000, 200_000, 200_000], day: day, env: env, serviceTier: "default")
         let file = try env.writeCodexSessionFile(
             day: day,
             filename: "revision-upgrade-priority.jsonl",
             contents: lines.joined(separator: "\n") + "\n")
         var options = Self.options(env: env)
         if partialBeforeUpgrade {
-            options.maxCodexSessionFileBytes = Int64((lines.prefix(4).joined(separator: "\n") + "\n").utf8.count)
+            options.maxCodexSessionFileBytes = Int64((lines.prefix(5).joined(separator: "\n") + "\n").utf8.count)
         }
         let original = Self.report(day: day, options: options)
         #expect(original.summary?.totalTokens == (partialBeforeUpgrade ? 200_000 : 600_000))
@@ -809,7 +810,8 @@ struct CostUsageCodexSourceRecoveryTests {
         inputs: [Int],
         day: Date,
         env: CostUsageTestEnvironment,
-        sessionID: String = "synthetic-recovery-session") throws -> [String]
+        sessionID: String = "synthetic-recovery-session",
+        serviceTier: String? = nil) throws -> [String]
     {
         let timestamp = env.isoString(for: day)
         var records: [[String: Any]] = [
@@ -820,6 +822,12 @@ struct CostUsageCodexSourceRecoveryTests {
                 "payload": ["type": "task_started", "turn_id": "synthetic-shared-turn"],
             ],
         ]
+        if let serviceTier {
+            records.insert([
+                "type": "event_msg", "timestamp": timestamp,
+                "payload": ["type": "thread_settings_applied", "thread_settings": ["service_tier": serviceTier]],
+            ], at: 2)
+        }
         for input in inputs {
             records.append([
                 "type": "event_msg", "timestamp": timestamp,

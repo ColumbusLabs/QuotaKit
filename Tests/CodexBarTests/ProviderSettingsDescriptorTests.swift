@@ -873,6 +873,19 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `JetBrains presentation uses its local source label`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-jetbrains-presentation")
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.jetbrains])
+        let context = fixture.presentationContext(provider: .jetbrains, metadata: metadata)
+
+        let detailLine = JetBrainsProviderImplementation()
+            .presentation(context: context)
+            .detailLine(context)
+
+        #expect(detailLine == "local")
+    }
+
+    @Test
     func `aixy and xkiro expose their API key settings`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy-xkiro")
         let aixy = PluginAPIKeyProviderImplementation(spec: AixyProviderDescriptor.spec)

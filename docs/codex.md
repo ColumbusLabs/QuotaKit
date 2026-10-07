@@ -334,3 +334,14 @@ Plan Usage shows remaining quota from recorded samples in the active reset windo
 ### Pricing aliases and historical reports
 
 Codex `gpt-reserve` telemetry falls back to GPT-5.6 Luna pricing after an exact provider-qualified catalog lookup. Known historical Sol rates use each recorded event’s timestamp. Compatible parsed rows and scan checkpoints survive the pricing migration; derived report payloads are recalculated so stale estimates do not hide the alias correction.
+
+
+## Incremental cost history and recovery
+
+QuotaKit preserves original-owned ledger pricing across compatible parser upgrades, including timestamp-shifted mirrors. A priced/unpriced key conflict cannot donate dollars to a different request. Near mirrors and deferred forks retain their progress until ownership and drift settle. Persistent session Priority settings and documented long-context thresholds participate in pricing and cache invalidation.
+
+Known request subtotals may remain visible alongside incomplete pricing. Unpriced or incomplete requests keep completeness false; rolling-window totals require complete coverage. Legacy partial aggregates require a current-parser rebuild before their subtotal is published, and retained verified partial dollars must match safe current aggregates. Raw rows, checkpoints and fully priced legacy amounts remain available.
+
+Routine reports, projects and sessions use QuotaKit's compact saved file-day aggregates together, avoiding repeated model resolution or full raw-row materialization. Remaining raw baseline/read paths stream rows and count physical persisted rows, including malformed rows, so corruption cannot manufacture completeness.
+
+Catch-up pauses persist across refreshes. Recovery distinguishes a pass yielding before an attempt from a stuck attempted scan. Completion requires authoritative coverage for the pinned history window and account/configuration context; an unavailable status cannot establish completion. Codex account promotion revalidates its destination and preserved credentials immediately before replacing the live auth file.

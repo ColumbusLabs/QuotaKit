@@ -198,19 +198,28 @@ private struct TodayCard: View {
             .padding(.bottom, 16)
 
             // Hero number
-            Text(self.data.todayIsAvailable ? formatUSD(self.data.todayCost) : "—")
+            Text(self.data.todayIsAvailable
+                ? Self.formattedCost(self.data.todayCost, isPartial: self.data.todayStatus == .partial)
+                : "—")
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 2)
 
-            if !self.data.todayIsAvailable {
+            if self.data.todayStatus == .partial {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "Partial provider data"))
+                        .font(.caption)
+                        .foregroundStyle(self.theme.secondary)
+                    if self.data.totalTokens > 0 {
+                        Text("\(formatTokens(self.data.totalTokens)) tokens")
+                            .font(.caption)
+                            .foregroundStyle(self.theme.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !self.data.todayIsAvailable {
                 Text(String(localized: "Waiting for today's Mac sync"))
-                    .font(.caption)
-                    .foregroundStyle(self.theme.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else if self.data.todayStatus == .partial {
-                Text(String(localized: "Partial provider data"))
                     .font(.caption)
                     .foregroundStyle(self.theme.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -233,10 +242,10 @@ private struct TodayCard: View {
                             .font(.subheadline)
                             .foregroundStyle(self.theme.foreground)
                         Spacer()
-                        Text(formatUSD(provider.cost))
+                        Text(Self.formattedCost(provider.cost, isPartial: provider.isPartial))
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(self.theme.secondary)
-                        Text(formatPercent(provider.share))
+                        Text(self.data.rankingsArePartial || provider.isPartial ? "—" : formatPercent(provider.share))
                             .font(.caption.bold().monospacedDigit())
                             .foregroundStyle(self.theme.foreground)
                             .frame(width: 36, alignment: .trailing)
@@ -292,6 +301,12 @@ private struct TodayCard: View {
         .frame(width: cardWidth, height: cardHeight)
         .background(self.theme.background)
     }
+
+    private static func formattedCost(_ amount: Double, isPartial: Bool) -> String {
+        guard isPartial else { return formatUSD(amount) }
+        guard amount > 0 else { return "—" }
+        return "≥\(formatUSD(amount))"
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -340,11 +355,19 @@ private struct ChartCard: View {
             .padding(.bottom, 14)
 
             // Hero number
-            Text(formatUSD(self.data.totalCost))
+            Text(Self.formattedCost(self.data.totalCost, isPartial: self.data.periodIsPartial))
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
+
+            if self.data.periodIsPartial || self.data.rankingsArePartial {
+                Text(String(localized: "Partial provider data"))
+                    .font(.caption)
+                    .foregroundStyle(self.theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 8)
+            }
 
             // Chart area — stacked bars by provider color
             VStack(spacing: 0) {
@@ -414,7 +437,9 @@ private struct ChartCard: View {
                 }
                 MetricPill(
                     title: String(localized: "Avg/Day"),
-                    value: formatUSD(self.data.avgDailyCost),
+                    value: self.data.periodIsPartial
+                        ? "—"
+                        : Self.formattedCost(self.data.avgDailyCost, isPartial: false),
                     theme: self.theme)
                     .frame(maxWidth: .infinity)
             }
@@ -429,7 +454,7 @@ private struct ChartCard: View {
                             .font(.system(size: 10))
                             .foregroundStyle(self.theme.foreground)
                             .lineLimit(1)
-                        Text(formatPercent(p.share))
+                        Text(self.data.rankingsArePartial || p.isPartial ? "—" : formatPercent(p.share))
                             .font(.system(size: 10))
                             .foregroundStyle(self.theme.secondary)
                     }
@@ -445,6 +470,12 @@ private struct ChartCard: View {
         .padding(24)
         .frame(width: cardWidth, height: cardHeight)
         .background(self.theme.background)
+    }
+
+    private static func formattedCost(_ amount: Double, isPartial: Bool) -> String {
+        guard isPartial else { return formatUSD(amount) }
+        guard amount > 0 else { return "—" }
+        return "≥\(formatUSD(amount))"
     }
 }
 

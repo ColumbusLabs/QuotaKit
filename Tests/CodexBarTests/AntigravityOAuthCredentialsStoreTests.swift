@@ -33,6 +33,37 @@ struct AntigravityOAuthCredentialsStoreTests {
         #expect(AntigravityOAuthConfig.discoverClientFromInstalledApp(applicationRoots: [root]) == client)
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func `oauth discovery prefers consumer client regardless of record order`(intel: Bool, consumerFirst: Bool) {
+        let other = AntigravityOAuthClient(
+            clientID: self.googleClientID("hub"), clientSecret: self.googleClientSecret(repeating: "a"))
+        let consumer = AntigravityOAuthClient(
+            clientID: AntigravityOAuthConfig.consumerClientID,
+            clientSecret: self.googleClientSecret(repeating: "b"))
+        let clients = consumerFirst ? [consumer, other] : [other, consumer]
+        let artifact = self.binaryFixture(clients: clients, intel: intel, reverseSecrets: true)
+
+        #expect(AntigravityOAuthConfig.parseClient(fromInstalledArtifactData: artifact) == consumer)
+    }
+
+    @Test(arguments: ["expiry_date", "expiresAt"])
+    func `credential JSON decoding retains integer millisecond expiries`(key: String) throws {
+        let data = Data("{\"\(key)\":1700000000000}".utf8)
+        let credentials = try JSONDecoder().decode(AntigravityOAuthCredentials.self, from: data)
+        #expect(credentials.expiryDateMilliseconds == 1_700_000_000_000)
+    }
+
+    @Test(arguments: [nil, "invalid", "header.e30.signature", "header.%%%!.signature"])
+    func `malformed ID token claims retain the stored account email`(idToken: String?) {
+        let credentials = AntigravityOAuthCredentials(
+            accessToken: nil,
+            refreshToken: nil,
+            expiryDate: nil,
+            idToken: idToken,
+            email: " User@example.com \n")
+        #expect(credentials.resolvedAccountEmail == "User@example.com")
+    }
+
     @Test
     func `oauth discovery keeps a lone UTF8 pair beyond the text window`() {
         let id = self.googleClientID("legacy")

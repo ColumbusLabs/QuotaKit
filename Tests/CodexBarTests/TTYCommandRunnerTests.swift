@@ -1,10 +1,20 @@
 import Foundation
 import Testing
 @testable import CodexBarCore
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 @Suite(.serialized)
 struct TTYCommandRunnerEnvTests {
     private static let harnessPTYTimeout: TimeInterval = 10
+
+    private struct FastExitIterationOutcome: Sendable {
+        let iteration: Int
+        let failureDetails: String?
+    }
 
     private final class CallbackCounter: @unchecked Sendable {
         private let lock = NSLock()
@@ -281,11 +291,152 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func `fast process exit drains buffered PTY output`() throws {
+    func `fast process exit drains buffered PTY output`() async {
+        let iterationCount = 50
+        let concurrencyLimit = 4
+
+        let outcomes = await Self.runFastExitIterations(
+            iterationCount: iterationCount,
+            concurrencyLimit: concurrencyLimit)
+        { iteration in
+            Self.runFastExitIteration(iteration)
+        }
+
+        #expect(outcomes.map(\.iteration).sorted() == Array(0..<iterationCount))
+        #expect(TTYCommandRunner._test_trackedProcessCount() == 0)
+        for outcome in outcomes.sorted(by: { $0.iteration < $1.iteration }) {
+            #expect(
+                outcome.failureDetails == nil,
+                "PTY fast-exit iteration \(outcome.iteration) failed: \(outcome.failureDetails ?? "unknown failure")")
+        }
+    }
+
+    @Test
+    func `fast exit scheduler drains all iterations after a failure`() async {
+        let iterationCount = 50
+        let outcomes = await Self.runFastExitIterations(
+            iterationCount: iterationCount,
+            concurrencyLimit: 4,
+            operation: { iteration in
+                FastExitIterationOutcome(
+                    iteration: iteration,
+                    failureDetails: iteration == 7 ? "injected missing output" : nil)
+            })
+
+        #expect(outcomes.map(\.iteration).sorted() == Array(0..<iterationCount))
+        #expect(outcomes.compactMap { $0.failureDetails == nil ? nil : $0.iteration } == [7])
+    }
+
+    @Test(arguments: [EAGAIN, ENOENT, EMFILE])
+    func `openpty failure includes the captured POSIX error`(errorCode: Int32) throws {
+        let failAllocation: @Sendable (inout Int32, inout Int32, inout winsize) -> Int32 = { _, _, _ in
+            errno = errorCode
+            return -1
+        }
+        do {
+            _ = try TTYCommandRunner.$allocatePTY.withValue(failAllocation) {
+                try TTYCommandRunner().run(binary: "/bin/echo", send: "")
+            }
+            Issue.record("Expected PTY allocation to fail")
+        } catch let TTYCommandRunner.Error.launchFailed(message) {
+            #expect(message.contains("errno \(errorCode)"))
+            #expect(message.contains(String(cString: strerror(errorCode))))
+        }
+    }
+
+    @Test
+    func `repeated PTY launches release descriptors on exit failure cancellation and timeout`() throws {
+        func terminalDescriptorCount() throws -> Int {
+            #if canImport(Darwin)
+            let directory = "/dev/fd"
+            #else
+            let directory = "/proc/self/fd"
+            #endif
+            return try FileManager.default.contentsOfDirectory(atPath: directory)
+                .compactMap(Int32.init)
+                .filter { isatty($0) == 1 }.count
+        }
+
+        let baseline = try terminalDescriptorCount()
+        let missingDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-pty-directory-\(UUID().uuidString)")
+        for _ in 0..<10 {
+            let result = try TTYCommandRunner().run(
+                binary: "/bin/echo",
+                send: "",
+                options: .init(timeout: Self.harnessPTYTimeout, extraArgs: ["released"], initialDelay: 0))
+            #expect(result.completion == .processExited(status: 0))
+            #expect(try terminalDescriptorCount() <= baseline)
+
+            #expect(throws: TTYCommandRunner.Error.self) {
+                try TTYCommandRunner().run(
+                    binary: "/bin/echo",
+                    send: "",
+                    options: .init(workingDirectory: missingDirectory, initialDelay: 0))
+            }
+            #expect(try terminalDescriptorCount() <= baseline)
+
+            #expect(throws: CancellationError.self) {
+                try TTYCommandRunner().run(
+                    binary: "/bin/cat",
+                    send: "",
+                    options: .init(initialDelay: 0, cancellationCheck: { true }))
+            }
+            #expect(try terminalDescriptorCount() <= baseline)
+
+            do {
+                _ = try TTYCommandRunner().run(
+                    binary: "/bin/cat",
+                    send: "",
+                    options: .init(timeout: 0, initialDelay: 0))
+                Issue.record("Expected the PTY command to time out")
+            } catch TTYCommandRunner.Error.timedOut {}
+            // Hard-stop cleanup owns a bounded asynchronous lease on a duplicate master descriptor.
+            let cleanupDeadline = Date().addingTimeInterval(30)
+            while try terminalDescriptorCount() > baseline, Date() < cleanupDeadline {
+                usleep(20000)
+            }
+            #expect(try terminalDescriptorCount() <= baseline)
+        }
+    }
+
+    private static func runFastExitIterations(
+        iterationCount: Int,
+        concurrencyLimit: Int,
+        operation: @escaping @Sendable (Int) -> FastExitIterationOutcome) async -> [FastExitIterationOutcome]
+    {
+        await withTaskGroup(of: FastExitIterationOutcome.self, returning: [FastExitIterationOutcome].self) { group in
+            var nextIteration = 0
+            var completed: [FastExitIterationOutcome] = []
+
+            for _ in 0..<min(iterationCount, concurrencyLimit) {
+                let iteration = nextIteration
+                nextIteration += 1
+                group.addTask {
+                    operation(iteration)
+                }
+            }
+
+            while let outcome = await group.next() {
+                completed.append(outcome)
+                if nextIteration < iterationCount {
+                    let iteration = nextIteration
+                    nextIteration += 1
+                    group.addTask {
+                        operation(iteration)
+                    }
+                }
+            }
+
+            return completed
+        }
+    }
+
+    private static func runFastExitIteration(_ iteration: Int) -> FastExitIterationOutcome {
         let expected = "pty-drain-race"
         let runner = TTYCommandRunner()
 
-        for iteration in 0..<50 {
+        do {
             let result = try runner.run(
                 binary: "/bin/echo",
                 send: "",
@@ -297,9 +448,13 @@ struct TTYCommandRunnerEnvTests {
                     settleAfterStop: 0,
                     returnOnEmptyProcessExit: true))
             let clean = result.text.replacingOccurrences(of: "\r", with: "")
-            #expect(
-                clean.contains(expected),
-                "PTY output was missing on iteration \(iteration); completion: \(result.completion)")
+            return FastExitIterationOutcome(
+                iteration: iteration,
+                failureDetails: clean.contains(expected)
+                    ? nil
+                    : "PTY output was missing; completion: \(result.completion)")
+        } catch {
+            return FastExitIterationOutcome(iteration: iteration, failureDetails: String(describing: error))
         }
     }
 

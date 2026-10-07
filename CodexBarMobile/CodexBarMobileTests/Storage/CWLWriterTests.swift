@@ -33,6 +33,68 @@ struct CWLWriterTests {
     // MARK: - T2
 
     @Test
+    func `upsertFromSnapshot resolves point cost-known before summary fallback`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let updatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+
+        func snapshot(
+            dayKey: String,
+            pointCostIsKnown: Bool?,
+            summaryCostIsKnown: Bool?) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 4,
+                    last30DaysTokens: 400,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: 1,
+                        totalTokens: 100,
+                        costIsKnown: pointCostIsKnown)],
+                    costIsKnown: summaryCostIsKnown,
+                    costUpdatedAt: updatedAt))
+        }
+
+        let cases: [(dayKey: String, pointKnown: Bool?, summaryKnown: Bool?, expectedKnown: Bool)] = [
+            ("2026-08-11", true, false, true), // another day made the summary partial
+            ("2026-08-12", false, true, false),
+            ("2026-08-13", nil, false, false), // old point inherits summary uncertainty
+            ("2026-08-14", nil, nil, true), // legacy nil remains known
+        ]
+        for item in cases {
+            try CostLedgerService.upsertFromSnapshot(
+                snapshot(
+                    dayKey: item.dayKey,
+                    pointCostIsKnown: item.pointKnown,
+                    summaryCostIsKnown: item.summaryKnown),
+                deviceID: "dev-A",
+                in: context)
+        }
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let byDay = Dictionary(uniqueKeysWithValues: rows.map { ($0.dayKey, $0) })
+        for item in cases {
+            let row = try #require(byDay[item.dayKey])
+            #expect(row.sourceRevisionKey?.contains(
+                item.expectedKnown ? "costKnown=known" : "costKnown=unknown") == true)
+        }
+    }
+
+    @Test
     func `T2: same (deviceID, providerID, dayKey) written twice → 1 row`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

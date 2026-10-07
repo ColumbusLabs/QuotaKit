@@ -119,7 +119,8 @@ struct CostUsageStoreReadView: Sendable {
 
     func catchUpStatus(
         roots: [URL],
-        rootsFingerprint: [String: Int64]) -> CostUsageFetcher.CodexScanCatchUpStatus
+        rootsFingerprint: [String: Int64],
+        requiredRange: CostUsageScanner.CostUsageDayRange? = nil) -> CostUsageFetcher.CodexScanCatchUpStatus
     {
         let projection = self.catchUpProjection ?? .empty
         guard projection.rootMtimes == rootsFingerprint else {
@@ -147,7 +148,10 @@ struct CostUsageStoreReadView: Sendable {
             totalBytes: projection.totalBytes ?? 0,
             completedFiles: projection.completedFiles ?? 0,
             totalFiles: projection.totalFiles ?? 0,
-            staleSnapshotUpdatedAt: pending ? staleSnapshotUpdatedAt : nil)
+            staleSnapshotUpdatedAt: pending ? staleSnapshotUpdatedAt : nil,
+            completionIsConfirmed: !pending && requiredRange.map {
+                self.historyCoverageIsEstablished(range: $0, rootsFingerprint: rootsFingerprint)
+            } == true)
     }
 }
 

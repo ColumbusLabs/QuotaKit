@@ -537,8 +537,16 @@ struct CostUsageScannerForkSplitTests {
         cache.files = ["/partial-pricing.jsonl": usage]
         cache.days = usage.days
         let report = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        #expect(report.data.first?.modelBreakdowns?.first?.costUSD == nil)
-        #expect(report.summary?.totalCostUSD == nil)
+        let pricedCost = try #require(CostUsagePricing.codexCostUSD(
+            model: model,
+            inputTokens: 100_000,
+            cachedInputTokens: 0,
+            outputTokens: 10))
+        // The unpriced request is neither priced at list rates nor folded into an aggregate estimate.
+        #expect(abs((report.data.first?.modelBreakdowns?.first?.costUSD ?? -1) - pricedCost) < 1e-12)
+        #expect(abs((report.summary?.totalCostUSD ?? -1) - pricedCost) < 1e-12)
+        #expect(report.data.first?.unpricedRequestCount == 1)
+        #expect(report.data.first?.pricedRequestCount == 1)
 
         let authoritativeZero = CostUsageScanner.CodexUsageRow(
             day: dayKey,
@@ -559,11 +567,6 @@ struct CostUsageScannerForkSplitTests {
         cache.files = ["/complete-pricing.jsonl": completeUsage]
         cache.days = completeUsage.days
         let complete = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        let pricedCost = try #require(CostUsagePricing.codexCostUSD(
-            model: model,
-            inputTokens: 100_000,
-            cachedInputTokens: 0,
-            outputTokens: 10))
         #expect(abs((complete.summary?.totalCostUSD ?? 0) - (pricedCost + 42)) < 1e-12)
     }
 

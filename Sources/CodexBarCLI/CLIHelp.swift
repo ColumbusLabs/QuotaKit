@@ -447,7 +447,7 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit guard --provider \(ProviderHelp.list)
+          quotakit guard --provider \(ProviderHelp.concreteList)
                         [--min-remaining <percent>] [--window session|weekly]
                         [--timeout <seconds>] [--json] [--pretty] [--fail-open]
                         [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]

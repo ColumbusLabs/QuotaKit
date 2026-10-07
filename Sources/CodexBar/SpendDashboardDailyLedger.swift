@@ -17,6 +17,31 @@ func spendDashboardLedgerCostText(_ summary: SpendDashboardModel.DailySummary, c
     return summary.hasPartialCost ? "~\(formatted)" : formatted
 }
 
+func spendDashboardLedgerTokenText(_ summary: SpendDashboardModel.DailySummary) -> String {
+    spendDashboardLedgerCountText(
+        summary.totalTokens,
+        isLowerBound: summary.hasPartialCounts,
+        format: UsageFormatter.tokenCountString)
+}
+
+func spendDashboardLedgerRequestText(_ summary: SpendDashboardModel.DailySummary) -> String {
+    // A missing source count makes only the request total a floor. Token totals keep their own flag.
+    spendDashboardLedgerCountText(
+        summary.requestCount,
+        isLowerBound: summary.hasPartialCounts || summary.requestsAreLowerBound,
+        format: codexBarLocalizedInteger)
+}
+
+func spendDashboardLedgerCountText(
+    _ count: Int?,
+    isLowerBound: Bool,
+    format: (Int) -> String) -> String
+{
+    guard let count else { return "—" }
+    let text = format(count)
+    return isLowerBound ? "≥\(text)" : text
+}
+
 private enum SpendDailyLedgerLayout {
     static let dayWidth: CGFloat = 112
     static let providerMinimumWidth: CGFloat = 96
@@ -138,9 +163,9 @@ private struct SpendDailyLedgerRow: View {
                     minWidth: SpendDailyLedgerLayout.providerMinimumWidth,
                     maxWidth: .infinity,
                     alignment: .leading)
-            Text(self.summary.totalTokens.map(UsageFormatter.tokenCountString) ?? "—")
+            Text(spendDashboardLedgerTokenText(self.summary))
                 .frame(width: SpendDailyLedgerLayout.trackedTokensWidth, alignment: .trailing)
-            Text(self.summary.requestCount.map(codexBarLocalizedInteger) ?? "—")
+            Text(spendDashboardLedgerRequestText(self.summary))
                 .frame(width: SpendDailyLedgerLayout.requestsWidth, alignment: .trailing)
             Text(spendDashboardLedgerCostText(self.summary, currencyCode: self.currencyCode))
                 .fontWeight(.medium)
@@ -187,8 +212,8 @@ private struct SpendDailyLedgerRow: View {
         let providers = self.activeProviders.isEmpty
             ? L("No usage yet")
             : self.activeProviders.map { self.sourceName($0.displayName) }.joined(separator: ", ")
-        let tokens = self.summary.totalTokens.map(UsageFormatter.tokenCountString) ?? "—"
-        let requests = self.summary.requestCount.map(codexBarLocalizedInteger) ?? "—"
+        let tokens = spendDashboardLedgerTokenText(self.summary)
+        let requests = spendDashboardLedgerRequestText(self.summary)
         let spend = spendDashboardLedgerCostText(self.summary, currencyCode: self.currencyCode)
         return "\(day), \(L("Providers")): \(providers), \(L("Tracked tokens")): \(tokens), "
             + "\(L("Requests")): \(requests), \(L("Estimated spend")): \(spend)"

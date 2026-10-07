@@ -454,11 +454,16 @@ extension CostUsageScanner {
             input: input, context: context, rows: parsed.rows, sessionID: sourceSessionID, sourcePricing: sourcePricing)
         let classifiedNewRows = Self.codexRowsWithRetainedPricing(
             ownershipRows,
-            source: (sourcePricing, parsed.rowSourceEndOffsets, plan.sourceAnchor?.indexedBytes),
+            source: (sourcePricing, parsed, plan.sourceAnchor?.indexedBytes),
             pendingPricing: &pendingPricing,
             sessionId: sourceSessionID,
             priorityTurns: context.resources.priorityTurns)
-        let replayedRows = stagedRows + classifiedNewRows
+        let recoveredStagedRows = Self.codexRowsRecoveringLedgerPricing(
+            stagedRows,
+            pricing: sourcePricing,
+            ledgerLegacyKeys: parsed.ledgerLegacyPricingKeys,
+            priorityTurns: context.resources.priorityTurns)
+        let replayedRows = recoveredStagedRows + classifiedNewRows
         let replayedSnapshots = plan.replacementWasPending
             ? Self.mergingCodexTokenSnapshots(input.cached?.codexStagedRecoverySnapshots ?? [], parsed.tokenSnapshots)
             : parsed.tokenSnapshots

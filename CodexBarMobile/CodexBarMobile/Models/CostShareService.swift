@@ -57,6 +57,11 @@ struct ShareCardData {
     }
 
     let totalCost: Double // total for the selected period
+    let periodIsPartial: Bool
+    /// Provider/model allocations can be incomplete even when the selected
+    /// period subtotal itself is exact (for example, a known week inside an
+    /// otherwise partial 30-day window).
+    let rankingsArePartial: Bool
     /// Numeric compatibility value for existing card renderers. Renderers
     /// must inspect `todayStatus` before displaying it; unavailable today
     /// data is represented by zero here only because the original share-card
@@ -72,6 +77,8 @@ struct ShareCardData {
 
     init(
         totalCost: Double,
+        periodIsPartial: Bool = false,
+        rankingsArePartial: Bool = false,
         todayCost: Double,
         todayStatus: TodayStatus = .reported,
         totalTokens: Int,
@@ -82,6 +89,8 @@ struct ShareCardData {
         dailyBars: [DailyBar])
     {
         self.totalCost = totalCost
+        self.periodIsPartial = periodIsPartial
+        self.rankingsArePartial = rankingsArePartial
         self.todayCost = todayCost
         self.todayStatus = todayStatus
         self.totalTokens = totalTokens
@@ -93,7 +102,11 @@ struct ShareCardData {
     }
 
     var todayIsAvailable: Bool {
-        self.todayStatus != .unavailable
+        switch self.todayStatus {
+        case .reported: true
+        case .partial: self.todayCost > 0
+        case .unavailable: false
+        }
     }
 
     struct ProviderRow {
@@ -101,6 +114,7 @@ struct ShareCardData {
         let cost: Double
         let share: Double // 0–1
         let color: Color
+        var isPartial = false
     }
 
     struct BreakdownRow {
@@ -127,7 +141,8 @@ struct ShareCardData {
             name: String(localized: "Others"),
             cost: othersCost,
             share: othersShare,
-            color: .gray)
+            color: .gray,
+            isPartial: self.providers.dropFirst(5).contains(where: \.isPartial))
         return top5 + [others]
     }
 }
@@ -197,6 +212,46 @@ extension ShareCardData {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
+        // Filter daily points by period before deriving completeness so the
+        // shared card can label its total and provider rows consistently.
+        let filteredDays: [CostDashboardInsights.DailyPoint]
+        switch period {
+        case .today:
+            filteredDays = []
+        case .week:
+            let weekAgo = calendar.date(byAdding: .day, value: -7, to: today)!
+            filteredDays = insights.dailyPoints.filter { $0.date >= weekAgo }
+        case .month:
+            filteredDays = insights.dailyPoints
+        }
+        let weekStart = calendar.date(byAdding: .day, value: -7, to: today)!
+        let weekStartKey = CostDashboardInsights.todayDayKey(now: weekStart)
+        let todayKey = CostDashboardInsights.todayDayKey(now: today)
+        let providerHasPartialWeekData = insights.providerRows.contains { row in
+            guard let summary = row.provider.costSummary else { return row.thirtyDayCostIsPartial }
+            // A known point proves that point's price, but cannot prove an
+            // omitted day was empty when the producer has not established
+            // full history coverage.
+            if summary.historyCoverageIsEstablished == false { return true }
+            guard row.thirtyDayCostIsPartial else { return false }
+            let weeklyPoints = summary.daily.filter {
+                $0.dayKey >= weekStartKey && $0.dayKey <= todayKey
+            }
+            guard !weeklyPoints.isEmpty else { return true }
+            return weeklyPoints.contains { ($0.costIsKnown ?? summary.costIsKnown) == false }
+        }
+        let periodIsPartial = switch period {
+        case .today: insights.todayCoverageIsPartial
+        case .week: filteredDays.contains(where: \.isPartial) || providerHasPartialWeekData
+        case .month: insights.total30DayCostIsPartial
+        }
+        let rankingsArePartial = switch period {
+        case .today, .month: periodIsPartial
+        // Provider allocations for a week are inferred from 30-day shares;
+        // they cannot be ranked while those source totals are incomplete.
+        case .week: periodIsPartial || insights.total30DayCostIsPartial
+        }
+
         // Provider rows (sorted by cost descending already)
         let providerRows: [ProviderRow] = insights.providerRows.map { row in
             let cost: Double = switch period {
@@ -209,19 +264,11 @@ extension ShareCardData {
                 name: row.provider.providerName,
                 cost: cost,
                 share: 0, // computed below
-                color: Self.providerColor(for: row.provider.providerID))
-        }
-
-        // Filter daily points by period
-        let filteredDays: [CostDashboardInsights.DailyPoint]
-        switch period {
-        case .today:
-            filteredDays = []
-        case .week:
-            let weekAgo = calendar.date(byAdding: .day, value: -7, to: today)!
-            filteredDays = insights.dailyPoints.filter { $0.date >= weekAgo }
-        case .month:
-            filteredDays = insights.dailyPoints
+                color: Self.providerColor(for: row.provider.providerID),
+                isPartial: switch period {
+                case .today: row.today.isPartial || periodIsPartial
+                case .week, .month: periodIsPartial
+                })
         }
 
         // Compute totals
@@ -230,9 +277,7 @@ extension ShareCardData {
         switch period {
         case .today:
             periodCost = insights.totalTodayCost ?? 0
-            periodTokens = insights.providerRows.reduce(0) { total, row in
-                total + (row.today.isAvailable ? (row.today.tokens ?? 0) : 0)
-            }
+            periodTokens = insights.totalTodayTokens
         case .week:
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
@@ -253,7 +298,8 @@ extension ShareCardData {
                     name: p.name,
                     cost: cost,
                     share: periodCost > 0 ? cost / periodCost : 0,
-                    color: p.color)
+                    color: p.color,
+                    isPartial: p.isPartial || periodIsPartial)
             }
         } else {
             adjustedProviders = providerRows.map { p in
@@ -261,7 +307,8 @@ extension ShareCardData {
                     name: p.name,
                     cost: p.cost,
                     share: periodCost > 0 ? p.cost / periodCost : 0,
-                    color: p.color)
+                    color: p.color,
+                    isPartial: p.isPartial)
             }
         }
 
@@ -272,6 +319,8 @@ extension ShareCardData {
         }
 
         self.totalCost = periodCost
+        self.periodIsPartial = periodIsPartial
+        self.rankingsArePartial = rankingsArePartial
         self.todayCost = insights.totalTodayCost ?? 0
         self.todayStatus = if insights.todayHasNoReportedProviders {
             .unavailable
@@ -283,10 +332,23 @@ extension ShareCardData {
         self.totalTokens = periodTokens
         self.activeDays = activeDays
         self.avgDailyCost = activeDays > 0 ? periodCost / Double(activeDays) : 0
-        self.providers = adjustedProviders.filter { $0.cost > 0 }
+        if rankingsArePartial, periodCost > 0 {
+            // Incomplete data cannot support a complete provider ranking.
+            // Keep the period subtotal visible as one neutral aggregate row.
+            self.providers = [ProviderRow(
+                name: String(localized: "Partial provider data"),
+                cost: periodCost,
+                share: 1,
+                color: .gray,
+                isPartial: periodIsPartial)]
+        } else if rankingsArePartial {
+            self.providers = []
+        } else {
+            self.providers = adjustedProviders.filter { $0.cost > 0 }
+        }
 
         // Top models (top 5 — bumped from 3 in iOS 1.9.0 for cap consistency).
-        self.topModels = insights.modelRows.prefix(5).map { row in
+        self.topModels = rankingsArePartial ? [] : insights.modelRows.prefix(5).map { row in
             let totalModel = insights.modelRows.reduce(0.0) { $0 + $1.amountUSD }
             return BreakdownRow(
                 label: row.label,

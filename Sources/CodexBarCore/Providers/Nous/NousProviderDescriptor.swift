@@ -57,6 +57,7 @@ public enum NousProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Nous Portal cost summary is not available." }),
             presentation: ProviderUsagePresentation(
+                menuBarBalanceDetailLabels: ["Total usable", "Top-up credits"],
                 planRow: ProviderPlanRowPresentation(label: "Plan")),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],

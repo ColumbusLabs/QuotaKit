@@ -103,7 +103,11 @@ extension CostUsageStore {
 
     func readCodexBaseline() -> CodexDecodedBaseline? {
         guard let read = self.readStampedCodexScanSnapshot() else { return nil }
-        return Self.codexBaseline(from: read.snapshot, stamp: read.stamp)
+        return Self.codexBaseline(
+            from: read.snapshot,
+            stamp: read.stamp,
+            usageRowsByPath: read.usageRowsByPath,
+            usageRowCountsByPath: read.usageRowCountsByPath)
     }
 
     static func codexBaseline(

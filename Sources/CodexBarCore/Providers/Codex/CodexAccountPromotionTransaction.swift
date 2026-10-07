@@ -187,6 +187,9 @@ package final class CodexAccountPromotionTransaction {
         guard try self.authMaterialReader.readAuthData(homeURL: context.live.homeURL) == expectedLiveData else {
             throw CodexAccountPromotionError.liveAuthChangedDuringPromotion
         }
+        try self.verifyPreservedLiveAuth(
+            executionResult: executionResult,
+            expectedData: expectedLiveData)
         do {
             try self.liveAuthSwapper.swapLiveAuthData(targetAuthMaterial.rawData, liveHomeURL: context.live.homeURL)
         } catch {
@@ -239,6 +242,27 @@ package final class CodexAccountPromotionTransaction {
         }
 
         return .liveSystem
+    }
+
+    /// Preservation must still be intact when the swap removes the original credentials.
+    private func verifyPreservedLiveAuth(
+        executionResult: CodexAccountPromotionResult.DisplacedLiveDisposition,
+        expectedData: Data?) throws
+    {
+        guard let expectedData else { return }
+        let preservedAccountID: UUID? = switch executionResult {
+        case let .alreadyManaged(id), let .imported(id): id
+        case .none: nil
+        }
+        guard let preservedAccountID else { return }
+        guard let preservedAccount = try self.store.loadAccounts().account(id: preservedAccountID)
+        else {
+            throw CodexAccountPromotionError.displacedLiveManagedAccountConflict
+        }
+        let preservedHomeURL = URL(fileURLWithPath: preservedAccount.managedHomePath, isDirectory: true)
+        guard (try? self.authMaterialReader.readAuthData(homeURL: preservedHomeURL)) == expectedData else {
+            throw CodexAccountPromotionError.displacedLiveManagedAccountConflict
+        }
     }
 
     private func requiredTargetAuthMaterial(from target: PreparedStoredManagedAccount) throws -> PreparedAuthMaterial {
