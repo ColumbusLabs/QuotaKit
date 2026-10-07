@@ -65,7 +65,7 @@ struct CodexCostCatchUpRecoveryTests {
             store._test_codexCostCatchUpSleepOverride = { sleeps.append($0) }
             store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
             store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
-                guard advances >= 3, !stillStalled else { return nil }
+                guard advances >= 3, !stillStalled else { throw CostUsageError.cachedSnapshotUnavailable }
                 return CostUsageTokenSnapshot(
                     sessionTokens: 0,
                     sessionCostUSD: nil,

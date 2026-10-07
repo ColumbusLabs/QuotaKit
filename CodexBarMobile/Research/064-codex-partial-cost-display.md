@@ -1,6 +1,6 @@
 # Codex partial cost display on iPhone
 
-**Status:** `awaiting CI` — implementation and regression coverage are in place; hosted iOS verification is pending.
+**Status:** `done` — implementation, independent source review and hosted iOS verification are complete.
 
 ## Goal
 
@@ -23,4 +23,4 @@ Keep Codex's priced subtotal visible while some requests have no usable price. C
 
 ## Verification
 
-Source review and `git diff --check` are permitted locally. Per the upstream integration run policy, do not run local iOS tests, builds, lint, simulators, or devices. The final reviewed head must pass the hosted iOS CI jobs before this document can be marked `done`.
+The hosted iOS job in [run 37615260450](https://github.com/ColumbusLabs/QuotaKit/actions/runs/37615260450/job/112772042724) passed on reviewed source head `96ddbb368139dab62e9bd31e65ffcc48445e4c34` using Xcode 26.3 and an iPhone simulator: 637 Swift Testing cases in 46 suites, 174 XCTest cases and 4 UI cases passed. The lint job on the same head verified all localized source keys, translations, QuotaKit branding and all 91 provider palettes. Independent GPT-6 source review cleared the certainty fallback, retained tokens, bounded windows, ledger ingestion and share calculations. Local verification was limited to source inspection and `git diff --check`; no local builds, tests or simulators, live accounts, Keychain or CloudKit operations ran.
