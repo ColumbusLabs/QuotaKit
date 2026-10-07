@@ -302,6 +302,51 @@ struct SyncCoordinatorTests {
         #expect(first.verifiedAt == verifiedAt)
     }
 
+    @Test(arguments: [false, true])
+    func `Codex partial daily subtotals sync with unknown cost confidence`(incompleteTokens: Bool) async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-partial-\(incompleteTokens)")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let now = Date()
+        let dayFormatter = ISO8601DateFormatter()
+        dayFormatter.formatOptions = [.withFullDate]
+        let dayKey = dayFormatter.string(from: now)
+        store._setSnapshotForTesting(UsageSnapshot(primary: nil, secondary: nil, updatedAt: now), provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 1.25,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: nil,
+                historyCoverageIsEstablished: true,
+                daily: [.init(
+                    date: dayKey,
+                    inputTokens: 100,
+                    outputTokens: 0,
+                    totalTokens: 100,
+                    costUSD: 1.25,
+                    modelsUsed: ["fixture-model"],
+                    modelBreakdowns: [.init(
+                        modelName: "fixture-model",
+                        costUSD: 1.25,
+                        totalTokens: 100,
+                        incompleteRequestCount: incompleteTokens ? 1 : nil)],
+                    unpricedRequestCount: incompleteTokens ? nil : 1)],
+                updatedAt: now),
+            provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        let summary = try #require(mock.lastSnapshot?.providers.first(where: { $0.providerID == "codex" })?.costSummary)
+        #expect(summary.daily.first?.costUSD == 1.25)
+        #expect(summary.daily.first?.costIsKnown == false)
+        #expect(summary.costIsKnown == false)
+    }
+
     @Test
     func `Codex verified daily spend advances in both outgoing sync payloads`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-codex-verified-day")

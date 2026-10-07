@@ -1509,6 +1509,8 @@
 
 "Cumulative" = "累计";
 "Token activity" = "Token 活动";
+"Earlier activity" = "更早记录";
+"More recent activity" = "最近记录";
 "View" = "视图";
 "in the last year" = "近一年";
 "No activity in the last 12 months" = "近 12 个月暂无活动";

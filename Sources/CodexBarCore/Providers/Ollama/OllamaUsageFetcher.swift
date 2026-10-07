@@ -865,6 +865,7 @@ public struct OllamaUsageFetcher: Sendable {
         logger("[ollama] HTML length: \(html.utf8.count) bytes")
         logger("[ollama] Contains Included usage: \(html.contains("Included usage"))")
         logger("[ollama] Contains Monthly usage: \(html.contains("Monthly usage"))")
+        logger("[ollama] Contains Free usage: \(html.contains("Free usage"))")
         logger("[ollama] Contains Cloud Usage: \(html.contains("Cloud Usage"))")
         logger("[ollama] Contains Session usage: \(html.contains("Session usage"))")
         logger("[ollama] Contains Hourly usage: \(html.contains("Hourly usage"))")

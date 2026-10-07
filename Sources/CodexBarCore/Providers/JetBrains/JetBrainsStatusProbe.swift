@@ -200,66 +200,39 @@ public struct JetBrainsStatusProbe: Sendable {
     }
 
     private static func parseQuotaInfoJSON(_ jsonString: String) throws -> JetBrainsQuotaInfo {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON encoding")
+        let json = try Self.parseJSONObject(jsonString)
+        // Monthly quota and top-up balances are distinct. Use tariffQuota only when both
+        // monthly values are valid so the used amount is never divided by a combined total.
+        let tariffQuota = (json["tariffQuota"] as? [String: Any]).flatMap { quota in
+            ["current", "maximum"].allSatisfy { key in
+                (quota[key] as? String).flatMap(Double.init)?.isFinite == true
+            } ? quota : nil
         }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON format")
-        }
-
-        let type = json["type"] as? String
-        let currentStr = json["current"] as? String
-        let maximumStr = json["maximum"] as? String
-        let untilStr = json["until"] as? String
-
-        // tariffQuota contains the actual available credits
-        let tariffQuota = json["tariffQuota"] as? [String: Any]
-        let availableStr = tariffQuota?["available"] as? String
-
-        let used = currentStr.flatMap { Double($0) } ?? 0
-        let maximum = maximumStr.flatMap { Double($0) } ?? 0
-        let available = availableStr.flatMap { Double($0) }
-        let until = untilStr.flatMap { Self.parseDate($0) }
-
-        return JetBrainsQuotaInfo(type: type, used: used, maximum: maximum, available: available, until: until)
+        let quota = tariffQuota ?? json
+        return JetBrainsQuotaInfo(
+            type: json["type"] as? String,
+            used: (quota["current"] as? String).flatMap(Double.init) ?? 0,
+            maximum: (quota["maximum"] as? String).flatMap(Double.init) ?? 0,
+            available: (tariffQuota?["available"] as? String).flatMap(Double.init),
+            until: ISO8601DateParser.parse(json["until"] as? String))
     }
 
     private static func parseRefillInfoJSON(_ jsonString: String) throws -> JetBrainsRefillInfo {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON encoding")
-        }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON format")
-        }
-
-        let type = json["type"] as? String
-        let nextStr = json["next"] as? String
-        let amountStr = json["amount"] as? String
-        let duration = json["duration"] as? String
-
-        let next = nextStr.flatMap { Self.parseDate($0) }
-        let amount = amountStr.flatMap { Double($0) }
-
+        let json = try Self.parseJSONObject(jsonString)
         let tariff = json["tariff"] as? [String: Any]
-        let tariffAmountStr = tariff?["amount"] as? String
-        let tariffDuration = tariff?["duration"] as? String
-        let finalAmount = amount ?? tariffAmountStr.flatMap { Double($0) }
-        let finalDuration = duration ?? tariffDuration
-
-        return JetBrainsRefillInfo(type: type, next: next, amount: finalAmount, duration: finalDuration)
+        return JetBrainsRefillInfo(
+            type: json["type"] as? String,
+            next: ISO8601DateParser.parse(json["next"] as? String),
+            amount: (json["amount"] as? String).flatMap(Double.init)
+                ?? (tariff?["amount"] as? String).flatMap(Double.init),
+            duration: json["duration"] as? String ?? tariff?["duration"] as? String)
     }
 
-    private static func parseDate(_ string: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: string) {
-            return date
+    private static func parseJSONObject(_ string: String) throws -> [String: Any] {
+        guard let json = try? JSONSerialization.jsonObject(with: Data(string.utf8)) as? [String: Any] else {
+            throw JetBrainsStatusProbeError.parseError("Invalid JSON format")
         }
-
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: string)
+        return json
     }
 }
 

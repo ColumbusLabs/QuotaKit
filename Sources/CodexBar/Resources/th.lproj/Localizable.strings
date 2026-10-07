@@ -1509,6 +1509,8 @@
 
 "Cumulative" = "สะสม";
 "Token activity" = "กิจกรรมโทเทน";
+"Earlier activity" = "กิจกรรมก่อนหน้า";
+"More recent activity" = "กิจกรรมล่าสุด";
 "View" = "มุมมอง";
 "in the last year" = "ในปีที่ผ่านมา";
 "No activity in the last 12 months" = "ไม่มีกิจกรรมในช่วง 12 เดือนที่ผ่านมา";

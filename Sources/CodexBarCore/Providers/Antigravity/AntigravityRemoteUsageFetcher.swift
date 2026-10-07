@@ -5,6 +5,7 @@ import FoundationNetworking
 
 public enum AntigravityRemoteFetchError: LocalizedError, Sendable, Equatable {
     case notLoggedIn
+    case reauthenticationRequired
     case permissionDenied(String)
     case apiError(String)
     case parseFailed(String)
@@ -13,6 +14,9 @@ public enum AntigravityRemoteFetchError: LocalizedError, Sendable, Equatable {
         switch self {
         case .notLoggedIn:
             "Antigravity Google auth not found. Use Antigravity login to authenticate."
+        case .reauthenticationRequired:
+            "This Antigravity account was signed in with an OAuth client that cannot read its quota."
+                + " Sign in to it again."
         case let .permissionDenied(message):
             "Antigravity remote API permission denied: \(message)"
         case let .apiError(message):
@@ -144,6 +148,10 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
             accessToken: accessToken,
             timeout: self.timeout,
             dataLoader: self.dataLoader)
+        if credentials.projectID?.trimmedNonEmpty == nil, codeAssist.rejectsClientForConsumerTier {
+            // Quota endpoints return a placeholder summary with every bucket at 100% for this client mismatch.
+            throw AntigravityRemoteFetchError.reauthenticationRequired
+        }
         let projectId = try await Self.resolveProjectID(
             accessToken: accessToken,
             storedProjectID: credentials.projectID?.trimmedNonEmpty,
@@ -688,46 +696,10 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     }
 
     private static func extractClaims(from credentials: AntigravityOAuthCredentials) -> TokenClaims {
-        let tokenClaims = Self.extractClaimsFromToken(credentials.idToken)
+        let claims = AntigravityOAuthCredentials.claims(fromIDToken: credentials.idToken)
         return TokenClaims(
-            email: tokenClaims.email ?? credentials.email?.trimmedNonEmpty,
-            hostedDomain: tokenClaims.hostedDomain)
-    }
-
-    private static func extractClaimsFromToken(_ idToken: String?) -> TokenClaims {
-        guard let idToken else {
-            return TokenClaims(email: nil, hostedDomain: nil)
-        }
-
-        let parts = idToken.components(separatedBy: ".")
-        guard parts.count >= 2 else {
-            return TokenClaims(email: nil, hostedDomain: nil)
-        }
-
-        var payload = parts[1]
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        let remainder = payload.count % 4
-        if remainder > 0 {
-            payload += String(repeating: "=", count: 4 - remainder)
-        }
-
-        guard let data = Data(base64Encoded: payload, options: .ignoreUnknownCharacters),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else {
-            return TokenClaims(email: nil, hostedDomain: nil)
-        }
-
-        return TokenClaims(
-            email: (json["email"] as? String)?.trimmedNonEmpty,
-            hostedDomain: (json["hd"] as? String)?.trimmedNonEmpty)
-    }
-}
-
-extension String {
-    fileprivate var trimmedNonEmpty: String? {
-        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+            email: (claims?["email"] as? String)?.trimmedNonEmpty ?? credentials.email?.trimmedNonEmpty,
+            hostedDomain: (claims?["hd"] as? String)?.trimmedNonEmpty)
     }
 }
 
@@ -757,10 +729,17 @@ private struct CodeAssistResponse: Decodable {
     let currentTier: TierInfo?
     let paidTier: TierInfo?
     let allowedTiers: [AllowedTier]?
+    let ineligibleTiers: [IneligibleTier]?
     let cloudaicompanionProject: ProjectReference?
 
     var projectID: String? {
         self.cloudaicompanionProject?.value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var rejectsClientForConsumerTier: Bool {
+        self.currentTier == nil && self.projectID == nil && self.ineligibleTiers?.contains {
+            $0.reasonCode == "GOOGLE_TOS_NOT_SUPPORTED_BY_CLIENT"
+        } == true
     }
 }
 
@@ -776,6 +755,10 @@ private struct TierInfo: Decodable {
 private struct AllowedTier: Decodable {
     let id: String?
     let isDefault: Bool?
+}
+
+private struct IneligibleTier: Decodable {
+    let reasonCode: String?
 }
 
 private struct OnboardResponse: Decodable {

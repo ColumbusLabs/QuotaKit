@@ -21465,6 +21465,34 @@
         }
       }
     },
+    "Codex spend keeps priced subtotals visible and marks costs partial when requests are unpriced.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex spend keeps priced subtotals visible and marks costs partial when requests are unpriced."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部のリクエストが未計価でも、Codex の価格判明分を表示し、支出を部分データとして示すようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分请求尚未计价时，Codex 支出仍会显示已知小计，并标记为部分数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分請求尚未計價時，Codex 支出仍會顯示已知小計，並標示為部分資料。"
+          }
+        }
+      }
+    },
     "Provider presentation and quota alerts now recognize ClinePass, LongCat, Qwen Cloud, and ZoomMate synced from your Mac.": {
       "localizations": {
         "en": {

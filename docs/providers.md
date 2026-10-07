@@ -115,7 +115,7 @@ complete when the available scan window covers fewer days.
 | Codebuff | API token from config/env or `codebuff login` credentials → usage API (`api`). |
 | Venice | API key from config/env → DIEM/USD balance API (`api`). |
 | Command Code | Web billing API via Command Code session cookies (`web`). |
-| [ClinePass](clinepass.md) | API key or existing Cline sign-in → 5-hour, weekly, and monthly subscription usage limits (`api`). |
+| [ClinePass](clinepass.md) | API key, labeled API-key account, or existing Cline sign-in → 5-hour, weekly, and monthly subscription usage limits (`api`). |
 | StepFun | Username/password login or manual Oasis token (`web`). |
 | AWS Bedrock | AWS credentials → Cost Explorer spend/budgets and optional CloudWatch Claude activity (`api`). |
 | Grok | `grok agent stdio` JSON-RPC `x.ai/billing` (`cli`) → grok.com billing gRPC-web via Chrome session cookies (`web`); local `~/.grok/sessions` signals as fallback. |

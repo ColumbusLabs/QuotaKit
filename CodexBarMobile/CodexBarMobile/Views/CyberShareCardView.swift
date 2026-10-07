@@ -191,16 +191,25 @@ private struct CyberCard: View {
             return "—"
         }
         let cost = self.period == .today ? self.data.todayCost : self.data.totalCost
-        return formatUSD(cost)
+        let isPartial = self.period == .today
+            ? self.data.todayStatus == .partial
+            : self.data.periodIsPartial
+        guard isPartial else { return formatUSD(cost) }
+        guard cost > 0 else { return "—" }
+        return "≥\(formatUSD(cost))"
     }
 
     private var todayStatusText: String? {
-        guard self.period == .today else { return nil }
-        return switch self.data.todayStatus {
-        case .reported: nil
-        case .partial: String(localized: "Partial provider data")
-        case .unavailable: String(localized: "Waiting for today's Mac sync")
+        if self.period == .today {
+            return switch self.data.todayStatus {
+            case .reported: nil
+            case .partial: String(localized: "Partial provider data")
+            case .unavailable: String(localized: "Waiting for today's Mac sync")
+            }
         }
+        return self.data.periodIsPartial || self.data.rankingsArePartial
+            ? String(localized: "Partial provider data")
+            : nil
     }
 
     var body: some View {
@@ -249,13 +258,15 @@ private struct CyberCard: View {
             .padding(.bottom, 22)
 
             // 4. Gauge row
-            HStack(spacing: 24) {
-                ForEach(Array(self.data.displayProviders.prefix(3).enumerated()), id: \.offset) { _, p in
-                    ArcGauge(value: p.share, label: p.name, color: p.color, size: 88, theme: self.theme)
+            if !self.data.rankingsArePartial {
+                HStack(spacing: 24) {
+                    ForEach(Array(self.data.displayProviders.prefix(3).enumerated()), id: \.offset) { _, p in
+                        ArcGauge(value: p.share, label: p.name, color: p.color, size: 88, theme: self.theme)
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 24)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 24)
 
             // 5. Provider cost row
             HStack(spacing: 0) {
@@ -264,7 +275,7 @@ private struct CyberCard: View {
                         self.theme.line.frame(width: 0.5, height: 24)
                     }
                     VStack(spacing: 2) {
-                        Text(formatUSD(p.cost))
+                        Text(Self.formattedCost(p.cost, isPartial: p.isPartial))
                             .font(.system(size: 12, weight: .bold, design: .monospaced).monospacedDigit())
                             .foregroundStyle(p.color)
                         Text(p.name)
@@ -283,6 +294,12 @@ private struct CyberCard: View {
         .padding(20)
         .frame(width: cardWidth, height: cardHeight)
         .background(self.theme.bg)
+    }
+
+    private static func formattedCost(_ amount: Double, isPartial: Bool) -> String {
+        guard isPartial else { return formatUSD(amount) }
+        guard amount > 0 else { return "—" }
+        return "≥\(formatUSD(amount))"
     }
 }
 

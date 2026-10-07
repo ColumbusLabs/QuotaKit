@@ -85,15 +85,12 @@ public struct KimiUsageSnapshot: Sendable {
         countWindowMinutes: Int?) -> RateWindow?
     {
         guard let window = pool?.window(minutes: minutes) else { return nil }
-        // Mixed legacy responses can carry zero ratio placeholders alongside populated counters.
-        // Preserve monthly ratio-pool accounts; only fall back for the same duration and reset.
-        // The observed legacy and ratio reset clocks differ by about 1.45 seconds.
-        if window.usedPercent == 0,
-           self.codeUsagePools?.monthly == nil,
-           self.weekly.flatMap(Self.usageCounts)?.isReliable == true,
-           countWindowMinutes == minutes,
+        // Contradictory readings for the same quota period should fail toward the more-used value.
+        // Legacy and ratio reset clocks can differ by about 1.45 seconds.
+        if countWindowMinutes == minutes,
            let detail,
-           let counts = Self.usageCounts(detail), counts.isReliable, counts.used > 0,
+           let counts = Self.usageCounts(detail), counts.isReliable,
+           Self.clampedPercent(Double(counts.used) / Double(counts.limit) * 100) > window.usedPercent,
            let countReset = ISO8601DateParser.parse(detail.resetTime),
            let ratioReset = window.resetsAt,
            abs(countReset.timeIntervalSince(ratioReset)) <= 2
@@ -115,7 +112,7 @@ public struct KimiUsageSnapshot: Sendable {
 
 extension KimiUsageSnapshot {
     public func toUsageSnapshot() -> UsageSnapshot {
-        // Prefer ratio pools unless matching counters identify a zero placeholder.
+        // Prefer ratio pools unless matching counters report more usage.
         let weeklyWindow = self.resolvedRatioWindow(
             self.codeUsagePools?.weekly,
             detail: self.weekly,

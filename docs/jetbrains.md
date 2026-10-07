@@ -30,7 +30,9 @@ JetBrains AI is a local-only provider. We read quota information directly from t
   - `type`: quota type (e.g., "Available")
   - `current`: tokens used
   - `maximum`: total tokens
-  - `tariffQuota.available`: remaining tokens
+  - `tariffQuota.current` and `tariffQuota.maximum`: monthly credits, selected together when both are valid
+  - `tariffQuota.available`: monthly remaining tokens, used with that monthly quota
+  - Top-level `current` and `maximum`: combined balance, used together if either monthly value is absent or invalid
   - `until`: subscription end date
 - `nextRefill` attribute (JSON):
   - `type`: refill type (e.g., "Known")
@@ -40,7 +42,8 @@ JetBrains AI is a local-only provider. We read quota information directly from t
 
 ## Parsing and mapping
 
-- Usage calculation: `tariffQuota.available / maximum * 100` for remaining percent
+- Usage calculation uses monthly usage and limit together, avoiding top-up credits in the denominator
+- Provider detail line: `local`; QuotaKit does not report a JetBrains IDE version
 - Reset date: from `nextRefill.next`, not `quotaInfo.until`
 - HTML entity decoding: `&#10;` → newline, `&quot;` → quote
 

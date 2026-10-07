@@ -26,11 +26,11 @@ struct CWLSeedTests {
         return (url, ModelContext(ModelContainerFactory.makeContainer(at: url)))
     }
 
-    private func summaryBlob(daily: [SyncDailyPoint]) -> Data {
+    private func summaryBlob(daily: [SyncDailyPoint], costIsKnown: Bool? = nil) -> Data {
         let summary = SyncCostSummary(
             sessionCostUSD: nil, sessionTokens: nil,
             last30DaysCostUSD: nil, last30DaysTokens: nil,
-            daily: daily, isEstimated: false)
+            daily: daily, isEstimated: false, costIsKnown: costIsKnown)
         return (try? CloudSyncConstants.makeJSONEncoder().encode(summary)) ?? Data()
     }
 
@@ -46,6 +46,44 @@ struct CWLSeedTests {
     }
 
     // MARK: - T10
+
+    @Test
+    func `seed resolves each point marker before the summary fallback and keeps legacy nil known`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let daily = [
+            SyncDailyPoint(dayKey: "2026-05-27", costUSD: 1, totalTokens: 100, costIsKnown: true),
+            SyncDailyPoint(dayKey: "2026-05-28", costUSD: 2, totalTokens: 200, costIsKnown: false),
+            SyncDailyPoint(dayKey: "2026-05-29", costUSD: 3, totalTokens: 300, costIsKnown: nil),
+        ]
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: now,
+            costSummaryData: self.summaryBlob(daily: daily, costIsKnown: false)))
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-B",
+            providerID: "claude",
+            providerName: "Claude",
+            accountEmail: nil,
+            lastUpdated: now,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-29", 4, 400)])))
+        try context.save()
+
+        try CostLedgerService.seedFromExistingBlobs(in: context)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let byProviderDay = Dictionary(uniqueKeysWithValues: rows.map {
+            ("\($0.providerID)|\($0.dayKey)", $0)
+        })
+        #expect(byProviderDay["codex|2026-05-27"]?.sourceRevisionKey?.contains("costKnown=known") == true)
+        #expect(byProviderDay["codex|2026-05-28"]?.sourceRevisionKey?.contains("costKnown=unknown") == true)
+        #expect(byProviderDay["codex|2026-05-29"]?.sourceRevisionKey?.contains("costKnown=unknown") == true)
+        #expect(byProviderDay["claude|2026-05-29"]?.sourceRevisionKey?.contains("costKnown=known") == true)
+    }
 
     @Test
     func `T10: seed imports daily points from ProviderSnapshotModel blobs, carrying account + device`() throws {

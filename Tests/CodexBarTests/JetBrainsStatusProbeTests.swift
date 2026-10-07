@@ -325,6 +325,50 @@ struct JetBrainsStatusProbeTests {
     }
 
     @Test
+    func `uses monthly quota consistently when top-up credits inflate the total`() throws {
+        let quotaInfo = """
+        {&quot;type&quot;:&quot;Available&quot;,&quot;current&quot;:&quot;346000&quot;,
+         &quot;maximum&quot;:&quot;6489986.397&quot;,&quot;tariffQuota&quot;:{&quot;current&quot;:&quot;346000&quot;,
+         &quot;maximum&quot;:&quot;1000000&quot;,&quot;available&quot;:&quot;654000&quot;},
+         &quot;topUpQuota&quot;:{&quot;current&quot;:&quot;0&quot;,&quot;maximum&quot;:&quot;5489986.397&quot;,
+         &quot;available&quot;:&quot;5489986.397&quot;}}
+        """
+        let xml = """
+        <application><component name="AIAssistantQuotaManager2">
+          <option name="quotaInfo" value="\(quotaInfo)" />
+        </component></application>
+        """
+
+        let snapshot = try JetBrainsStatusProbe.parseXMLData(Data(xml.utf8), detectedIDE: nil)
+
+        #expect(snapshot.quotaInfo.used == 346_000)
+        #expect(snapshot.quotaInfo.maximum == 1_000_000)
+        #expect(snapshot.quotaInfo.available == 654_000)
+        #expect(abs(snapshot.quotaInfo.usedPercent - 34.6) < 0.001)
+        #expect(abs(snapshot.quotaInfo.remainingPercent - 65.4) < 0.001)
+    }
+
+    @Test
+    func `falls back to a consistent total when a monthly value is invalid`() throws {
+        let quotaInfo = """
+        {&quot;current&quot;:&quot;50000&quot;,&quot;maximum&quot;:&quot;200000&quot;,
+         &quot;tariffQuota&quot;:{&quot;current&quot;:&quot;25000&quot;,&quot;available&quot;:&quot;75000&quot;}}
+        """
+        let xml = """
+        <application><component name="AIAssistantQuotaManager2">
+          <option name="quotaInfo" value="\(quotaInfo)" />
+        </component></application>
+        """
+
+        let snapshot = try JetBrainsStatusProbe.parseXMLData(Data(xml.utf8), detectedIDE: nil)
+
+        #expect(snapshot.quotaInfo.used == 50000)
+        #expect(snapshot.quotaInfo.maximum == 200_000)
+        #expect(snapshot.quotaInfo.available == 150_000)
+        #expect(snapshot.quotaInfo.usedPercent == 25)
+    }
+
+    @Test
     func `throws on missing quota info`() throws {
         let xml = """
         <?xml version="1.0" encoding="UTF-8"?>

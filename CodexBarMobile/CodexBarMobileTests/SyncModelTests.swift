@@ -29,6 +29,260 @@ struct SyncModelTests {
     }
 
     @Test
+    func `today totals keep partial positive subtotals and hide unknown zero`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let partial = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 2.5,
+            last30DaysTokens: 250,
+            daily: [SyncDailyPoint(
+                dayKey: todayKey,
+                costUSD: 2.5,
+                totalTokens: 250,
+                costIsKnown: false)],
+            costIsKnown: false)
+        let unknownZero = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 0,
+            last30DaysTokens: 250,
+            daily: [SyncDailyPoint(
+                dayKey: todayKey,
+                costUSD: 0,
+                totalTokens: 250,
+                costIsKnown: false)],
+            costIsKnown: false)
+
+        let partialToday = partial.todayTotals(now: now)
+        let unknownToday = unknownZero.todayTotals(now: now)
+
+        #expect(partialToday.availability == .reported)
+        #expect(partialToday.costUSD == 2.5)
+        #expect(partialToday.tokens == 250)
+        #expect(partialToday.isPartial)
+        #expect(unknownToday.availability == .unavailable)
+        #expect(unknownToday.costUSD == nil)
+        #expect(unknownToday.tokens == 250)
+        #expect(unknownToday.isPartial)
+    }
+
+    @Test
+    func `today session fallback inherits the summary unknown marker`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let positive = SyncCostSummary(
+            sessionCostUSD: 1.25,
+            sessionTokens: 100,
+            last30DaysCostUSD: 1.25,
+            last30DaysTokens: 100,
+            daily: [],
+            costIsKnown: false,
+            costUpdatedAt: now)
+        let zero = SyncCostSummary(
+            sessionCostUSD: 0,
+            sessionTokens: 100,
+            last30DaysCostUSD: 0,
+            last30DaysTokens: 100,
+            daily: [],
+            costIsKnown: false,
+            costUpdatedAt: now)
+
+        let positiveToday = positive.todayTotals(now: now)
+        let zeroToday = zero.todayTotals(now: now)
+
+        #expect(positiveToday.costUSD == 1.25)
+        #expect(positiveToday.isPartial)
+        #expect(zeroToday.availability == .unavailable)
+        #expect(zeroToday.costUSD == nil)
+        #expect(zeroToday.isPartial)
+    }
+
+    @Test
+    func `explicit known day overrides a partial aggregate summary`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 9,
+            last30DaysTokens: 900,
+            daily: [SyncDailyPoint(
+                dayKey: SyncCostSummary.iso8601DayKey(for: now),
+                costUSD: 3,
+                totalTokens: 300,
+                costIsKnown: true)],
+            costIsKnown: false)
+
+        let today = summary.todayTotals(now: now)
+
+        #expect(today.costUSD == 3)
+        #expect(!today.isPartial)
+    }
+
+    @Test
+    func `daily subtotal follows the configured horizon and ignores older partial days`() throws {
+        let calendar = Calendar.current
+        let now = Date(timeIntervalSince1970: 1_782_816_000)
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let olderDate = try #require(calendar.date(byAdding: .day, value: -31, to: now))
+        let olderKey = SyncCostSummary.iso8601DayKey(for: olderDate)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [
+                SyncDailyPoint(dayKey: olderKey, costUSD: 8, totalTokens: 800, costIsKnown: false),
+                SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true),
+            ],
+            costIsKnown: false,
+            historyDays: 365)
+
+        let thirtyDays = summary.dailyTotals(windowDays: 30, asOf: now)
+        let configured = summary.dailyTotals(asOf: now)
+
+        #expect(thirtyDays.costUSD == 2)
+        #expect(thirtyDays.totalTokens == 200)
+        #expect(!thirtyDays.isPartial)
+        #expect(configured.costUSD == 10)
+        #expect(configured.totalTokens == 1000)
+        #expect(configured.isPartial)
+    }
+
+    @Test
+    func `raw dashboard projects configured histories onto its thirty day window`() throws {
+        let now = Date()
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let olderDate = try #require(Calendar.current.date(byAdding: .day, value: -31, to: now))
+        let olderKey = SyncCostSummary.iso8601DayKey(for: olderDate)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 1000,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 2,
+                    totalTokens: 200,
+                    modelBreakdowns: [SyncCostBreakdown(label: "Current", costUSD: 2)],
+                    serviceBreakdowns: [SyncCostBreakdown(label: "Current Service", costUSD: 2)],
+                    costIsKnown: true),
+                SyncDailyPoint(
+                    dayKey: olderKey,
+                    costUSD: 8,
+                    totalTokens: 800,
+                    modelBreakdowns: [SyncCostBreakdown(label: "Older", costUSD: 8)],
+                    serviceBreakdowns: [SyncCostBreakdown(label: "Older Service", costUSD: 8)],
+                    costIsKnown: false),
+            ],
+            costIsKnown: false,
+            historyDays: 365,
+            historyCoverageIsEstablished: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "mac-a")
+
+        let insights = CostDashboardInsights(snapshot: snapshot)
+        let row = try #require(insights.providerRows.first)
+
+        #expect(row.thirtyDayCost == 2)
+        #expect(row.thirtyDayTokens == 200)
+        #expect(!row.thirtyDayCostIsPartial)
+        #expect(insights.total30DayCost == 2)
+        #expect(insights.dailyPoints.map(\.dayKey) == [todayKey])
+        #expect(insights.modelRows.map(\.label) == ["Current"])
+        #expect(insights.serviceRows.map(\.label) == ["Current Service"])
+    }
+
+    @Test
+    func `raw dashboard marks histories shorter than thirty days as partial`() throws {
+        let now = Date()
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 5,
+            last30DaysTokens: 500,
+            daily: [SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true)],
+            costIsKnown: true,
+            historyDays: 7)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "mac-a")
+
+        let insights = CostDashboardInsights(snapshot: snapshot)
+        let row = try #require(insights.providerRows.first)
+
+        #expect(row.thirtyDayCost == 2)
+        #expect(row.thirtyDayTokens == 200)
+        #expect(row.thirtyDayCostIsPartial)
+    }
+
+    @Test
+    func `raw dashboard keeps incomplete scan coverage partial despite a known day`() throws {
+        let now = Date()
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 5,
+            last30DaysTokens: 500,
+            daily: [SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true)],
+            costIsKnown: false,
+            historyDays: 365,
+            historyCoverageIsEstablished: false)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "mac-a")
+
+        let insights = CostDashboardInsights(snapshot: snapshot)
+        let row = try #require(insights.providerRows.first)
+
+        #expect(row.thirtyDayCost == 2)
+        #expect(row.thirtyDayCostIsPartial)
+    }
+
+    @Test
     func `today totals only use a session fallback when freshness is today`() {
         let now = Date(timeIntervalSince1970: 1_745_500_000)
         let summary = SyncCostSummary(
@@ -600,16 +854,19 @@ struct SyncModelTests {
     }
 
     @Test
-    func `Cost dashboard insights aggregate ten providers`() {
+    func `Cost dashboard insights aggregate ten providers`() throws {
         var providers: [ProviderUsageSnapshot] = []
         var expectedTotal30DayCost = 0.0
+        let now = Date()
+        let calendar = Calendar.current
 
         for index in 0..<10 {
             let dayCost = Double(index + 1) * 0.9
             let last30DayCost = Double(index + 1) * 3.5
+            let dayDate = try #require(calendar.date(byAdding: .day, value: -index, to: now))
             let daily = [
                 SyncDailyPoint(
-                    dayKey: "2024-01-\(String(format: "%02d", index + 1))",
+                    dayKey: SyncCostSummary.iso8601DayKey(for: dayDate),
                     costUSD: dayCost,
                     totalTokens: (index + 1) * 1500,
                     modelBreakdowns: [
@@ -642,7 +899,7 @@ struct SyncModelTests {
                     loginMethod: index.isMultiple(of: 2) ? "API" : "Plan",
                     statusMessage: nil,
                     isError: false,
-                    lastUpdated: Date(timeIntervalSince1970: 1_700_000_000 + Double(index)),
+                    lastUpdated: now,
                     costSummary: costSummary,
                     budget: budget))
             expectedTotal30DayCost += last30DayCost
@@ -650,7 +907,7 @@ struct SyncModelTests {
 
         let snapshot = SyncedUsageSnapshot(
             providers: providers,
-            syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            syncTimestamp: now,
             deviceName: "Test Mac")
         let insights = CostDashboardInsights(snapshot: snapshot)
 
@@ -665,7 +922,7 @@ struct SyncModelTests {
     @Test
     func `Cost dashboard model mix retains and derives model token totals`() {
         let daily = SyncDailyPoint(
-            dayKey: "2026-07-31",
+            dayKey: SyncCostSummary.iso8601DayKey(for: Date()),
             costUSD: 6.0,
             totalTokens: 1200,
             modelBreakdowns: [
@@ -702,6 +959,54 @@ struct SyncModelTests {
         #expect(modelTokens["Sol"] == 600)
         #expect(modelTokens["Terra"] == 300)
         #expect(insights.modelRows.first(where: { $0.label == "Luna" })?.totalTokens == nil)
+    }
+
+    @Test
+    func `Cost dashboard keeps partial aggregates and daily points marked`() throws {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 2.5,
+                sessionTokens: 250,
+                last30DaysCostUSD: 8.75,
+                last30DaysTokens: 875,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 2.5,
+                    totalTokens: 250,
+                    modelBreakdowns: [SyncCostBreakdown(
+                        label: "gpt-4o",
+                        costUSD: 2.5,
+                        totalTokens: 250)],
+                    costIsKnown: false)],
+                costIsKnown: false,
+                costUpdatedAt: now))
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Test Mac"))
+        let row = try #require(insights.providerRows.first)
+        let daily = try #require(insights.dailyPoints.first)
+
+        #expect(insights.total30DayCost == 8.75)
+        #expect(insights.total30DayCostIsPartial)
+        #expect(row.thirtyDayCostIsPartial)
+        #expect(insights.totalTodayCost == 2.5)
+        #expect(insights.todayHasPartialCost)
+        #expect(row.today.isPartial)
+        #expect(insights.modelRows.first?.isPartial == true)
+        #expect(daily.costUSD == 2.5)
+        #expect(daily.isPartial)
     }
 
     // MARK: - Future-field resilience (Build 78 · Fix C)

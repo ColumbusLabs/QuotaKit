@@ -333,6 +333,59 @@ struct SyncCoordinatorMultiAccountTests {
         #expect(mock.deletedRecordNamesAcrossCalls.last?.first?.hasSuffix("|copilot|same-login") == true)
     }
 
+    @Test(arguments: [false, true])
+    func `ClinePass label identities sync separately and reject collisions`(duplicateLabels: Bool) async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-ClinePass-\(duplicateLabels)")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .clinepass,
+            metadata: #require(ProviderDefaults.metadata[.clinepass]),
+            enabled: true)
+        settings.addTokenAccount(provider: .clinepass, label: "Personal", token: "tok-Personal")
+        settings.addTokenAccount(
+            provider: .clinepass,
+            label: duplicateLabels ? "personal" : "Work",
+            token: duplicateLabels ? "tok-personal" : "tok-Work")
+        settings.setActiveTokenAccountIndex(0, for: .clinepass)
+
+        let store = self.makeUsageStore(settings: settings)
+        let configuredAccounts = settings.tokenAccounts(for: .clinepass)
+        let selectedAccount = try #require(configuredAccounts.first)
+        let otherAccount = try #require(configuredAccounts.dropFirst().first)
+        let selected = self.applyTokenAccountLabel(
+            to: TokenAccountUsageSnapshot(
+                account: selectedAccount,
+                snapshot: self.makeUsageSnapshot(
+                    provider: .clinepass, accountEmail: nil, usedPercent: 15),
+                error: nil,
+                sourceLabel: nil),
+            provider: .clinepass, store: store)
+        let other = self.applyTokenAccountLabel(
+            to: TokenAccountUsageSnapshot(
+                account: otherAccount,
+                snapshot: self.makeUsageSnapshot(
+                    provider: .clinepass, accountEmail: nil, usedPercent: 85),
+                error: nil,
+                sourceLabel: nil),
+            provider: .clinepass, store: store)
+        store._setSnapshotForTesting(selected.snapshot, provider: .clinepass)
+        store.accountSnapshots[.clinepass] = [selected, other]
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        let snapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "clinepass" } ?? []
+        #expect(snapshots.count == (duplicateLabels ? 1 : 2))
+        #expect(snapshots.allSatisfy { $0.accountIdentities == nil })
+        if duplicateLabels {
+            #expect(snapshots.first?.primary?.usedPercent == 15)
+        } else {
+            #expect(Set(snapshots.compactMap(\.accountEmail)) == ["Personal", "Work"])
+        }
+        let encoded = try JSONEncoder().encode(snapshots)
+        let encodedString = try #require(String(bytes: encoded, encoding: .utf8))
+        #expect(!encodedString.contains("tok-"))
+    }
+
     @Test
     func `Kimi labeled accounts use label identities for multi-account sync`() async throws {
         let settings = self.makeSettingsStore(suite: "TokenMulti-Kimi-LabeledIdentity")

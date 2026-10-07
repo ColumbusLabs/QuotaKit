@@ -114,6 +114,21 @@ enum AntigravityLocalReader {
         "gemini-3.7-flash-safety-le": "gemini-3.7-flash",
     ]
 
+    /// Antigravity records this model under a provider-specific name; Google Vertex publishes its list price.
+    /// Keep the mapping exact so neighboring gpt-oss variants remain unpriced without their own entries.
+    private static let explicitCatalogEntries = [
+        "gpt-oss-120b-medium": (providerID: "google-vertex", modelID: "openai/gpt-oss-120b-maas"),
+    ]
+
+    static func pricingRefreshTargets(for model: String) -> [(providerID: String, modelID: String)] {
+        let names = [model] + [self.pricingBaseModelID(for: model)].compactMap(\.self)
+        var targets = names.flatMap { CostUsagePricing.claudeModelsDevPricingTargets(for: $0) }
+        if let entry = self.explicitCatalogEntries[model.lowercased()] {
+            targets.append(entry)
+        }
+        return targets
+    }
+
     static func checkedAdd(_ lhs: Int, _ rhs: Int) -> Int? {
         let (result, overflow) = lhs.addingReportingOverflow(rhs)
         return overflow ? nil : result
@@ -307,8 +322,8 @@ enum AntigravityLocalReader {
             estimatedRequestCount: cost == nil ? 0 : 1)
     }
 
-    /// Prices the exact recorded model ID first so an explicitly catalogued variant keeps its own
-    /// price, then falls back to the base model of a known routing variant.
+    /// Prices the exact recorded model ID first, then its known routing base, then an explicit
+    /// provider/model catalog entry for models that no first-party vendor otherwise routes.
     private static func costUSD(
         pricing: CostUsagePricing.ClaudeResolver,
         model: String,
@@ -326,8 +341,16 @@ enum AntigravityLocalReader {
                 pricingDate: date)
         }
         if let cost = resolve(model) { return cost }
-        guard let base = self.pricingBaseModelID(for: model) else { return nil }
-        return resolve(base)
+        if let base = self.pricingBaseModelID(for: model), let cost = resolve(base) { return cost }
+        guard let entry = self.explicitCatalogEntries[model.lowercased()] else { return nil }
+        return pricing.costUSD(
+            model: entry.modelID,
+            providerID: entry.providerID,
+            inputTokens: usage.newInput,
+            cacheReadInputTokens: usage.cacheRead,
+            cacheCreationInputTokens: cacheWrite,
+            outputTokens: usage.output + usage.reasoning,
+            pricingDate: date)
     }
 
     private static func checkedMergeEntry(

@@ -66,13 +66,19 @@ The default `make test` and `./Scripts/compile_and_run.sh --test` flows keep the
 For an opt-in local macOS run, use `./Scripts/test.sh --direct-workers 4` (between one and eight workers).
 SwiftPM still builds and discovers the suite; the adapter enumerates XCTest and Swift Testing with the selected
 Xcode toolchain helpers and requires an exact, duplicate-free match with `swift test list` before any group runs.
-An inventory mismatch fails closed. Unsupported toolchains, Linux, and hosted CI use the serial SwiftPM path.
+An inventory mismatch fails closed. Unsupported toolchains and Linux use the serial SwiftPM path locally.
 
 Each group runs in a fresh process with temporary `HOME`, `CFFIXED_USER_HOME`, and `CODEX_HOME` paths, while retaining
 the existing test-file isolation and Keychain suppression. Group deadlines, retry behavior, and process-group cleanup
 remain active, and output is buffered per group. A failure after direct execution starts fails the run rather than
 silently switching runtimes. This opt-in mode depends on SwiftPM's toolchain helper contract and should be
-rechecked when updating Xcode; it does not change hosted CI.
+rechecked when updating Xcode.
+
+Hosted macOS CI keeps four path-gated serial SwiftPM shards as the required test coverage. After the complete serial
+suite passes on shard zero, CI runs a five-minute, nonblocking direct smoke test for one group. The smoke test checks
+the helper runtime and exact inventory; it does not replace the required suite or establish parallel throughput.
+When a test or smoke step fails, CI prints only fresh Swift test crash reports, with credential values and local home
+identities redacted.
 
 ## Project Structure
 

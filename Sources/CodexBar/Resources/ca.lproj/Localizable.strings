@@ -1512,6 +1512,8 @@
 
 "Cumulative" = "Acumulat";
 "Token activity" = "Activitat de tokens";
+"Earlier activity" = "Activitat anterior";
+"More recent activity" = "Activitat més recent";
 "View" = "Vista";
 "in the last year" = "l'últim any";
 "No activity in the last 12 months" = "Sense activitat en els últims 12 mesos";

@@ -163,7 +163,7 @@ jobs:
     runs-on: macos-26
     # Keep QuotaKit's larger-suite budget while individual suite timeouts
     # still catch hangs inside each shard.
-    timeout-minutes: 70
+    timeout-minutes: 80
     strategy:
       fail-fast: false
       matrix:
@@ -217,6 +217,8 @@ jobs:
         # Include hosted Swift discovery/compilation; each suite still has a 120-second hang limit.
         timeout-minutes: 60
         run: |
+          touch "$RUNNER_TEMP/codexbar-tests-started"
+          echo "Hosted tests use four required serial SwiftPM shards; direct runtime validation is nonblocking."
           CODEXBAR_TEST_GROUP_SIZE=4 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \
             CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
@@ -224,6 +226,19 @@ jobs:
             CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
             ./Scripts/test.sh
+
+      - name: Direct runtime smoke test (nonblocking)
+        id: direct-probe
+        if: ${{ success() && matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == '' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          CODEXBAR_TEST_GROUP_SIZE=4 \
+            CODEXBAR_TEST_SUITE_TIMEOUT=120 \
+            CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
+            CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
+            CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
+            ./Scripts/test.sh --direct-workers 2 --limit-groups 1
 
       - name: Focused Swift Test
         if: ${{ needs.changes.outputs.macos-test-filter != '' }}
@@ -236,6 +251,14 @@ jobs:
       - name: Provider plugin engine A/B goldens
         if: ${{ matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == '' }}
         run: ./Scripts/test-plugin-engines.sh
+
+      - name: Collect crash reports on failure
+        if: ${{ failure() || steps.direct-probe.outcome == 'failure' }}
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/codexbar-tests-started" ]]; then
+            python3 Scripts/swift_test_diagnostics.py --since "$RUNNER_TEMP/codexbar-tests-started"
+          fi
 
       - name: Summarize macOS shard
         if: ${{ always() }}

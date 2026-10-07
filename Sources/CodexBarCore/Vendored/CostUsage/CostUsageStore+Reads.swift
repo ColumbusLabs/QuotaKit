@@ -330,7 +330,7 @@ extension CostUsageStore {
                 var snapshot = try Self.readSnapshot(
                     database,
                     loadTokenSnapshots: loadTokenSnapshots,
-                    loadUsageRows: loadTokenSnapshots,
+                    loadUsageRows: false,
                     storeURL: self.databaseURL)
                 var usageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]?
                 var usageRowCountsByPath: [String: Int]?
@@ -357,10 +357,10 @@ extension CostUsageStore {
                     }
                     snapshot.tokenSnapshotCounts = counts
                     snapshot.tokenSnapshotsLoaded = false
-                    let usageRows = try Self.readDecodedUsageRows(database)
-                    usageRowsByPath = usageRows.rowsByPath
-                    usageRowCountsByPath = usageRows.rowCountsByPath
                 }
+                let usageRows = try Self.readDecodedUsageRows(database)
+                usageRowsByPath = usageRows.rowsByPath
+                usageRowCountsByPath = usageRows.rowCountsByPath
                 return (snapshot, usageRowsByPath, usageRowCountsByPath)
             }
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }

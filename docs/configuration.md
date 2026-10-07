@@ -402,3 +402,5 @@ reserved commands are rejected. Reserved combinations are `cmd+r`, `cmd+,`, `cmd
 ### Static menu bar icons
 
 **Surprise me** is disabled while brand icons are selected, and static brand layouts do not run the blink timer. Your animation preference is kept for switching back to critters. If a brand image is unavailable and the legacy layout falls back to a critter, that visible critter can still animate; stored layouts remain static.
+
+App settings writes are coalesced. Normal quit finishes any pending configuration write in the background before exiting. A failed final write is logged and does not prevent quitting.

@@ -64,6 +64,12 @@ public struct CostUsageFetcher: Sendable {
         package let completedFiles: Int
         package let totalFiles: Int
         package let staleSnapshotUpdatedAt: Date?
+        package var yieldedBeforeFileAttempt: Bool
+        package let completionIsConfirmed: Bool
+
+        var historyCoverageIsEstablished: Bool {
+            !self.pending && self.progressKey != "scope-mismatch"
+        }
 
         package init(
             pending: Bool,
@@ -72,7 +78,9 @@ public struct CostUsageFetcher: Sendable {
             totalBytes: Int64 = 0,
             completedFiles: Int = 0,
             totalFiles: Int = 0,
-            staleSnapshotUpdatedAt: Date? = nil)
+            staleSnapshotUpdatedAt: Date? = nil,
+            yieldedBeforeFileAttempt: Bool = false,
+            completionIsConfirmed: Bool = false)
         {
             self.pending = pending
             self.progressKey = progressKey
@@ -81,6 +89,8 @@ public struct CostUsageFetcher: Sendable {
             self.completedFiles = max(0, completedFiles)
             self.totalFiles = max(0, totalFiles)
             self.staleSnapshotUpdatedAt = staleSnapshotUpdatedAt
+            self.yieldedBeforeFileAttempt = yieldedBeforeFileAttempt
+            self.completionIsConfirmed = completionIsConfirmed
         }
     }
 
@@ -348,7 +358,9 @@ public struct CostUsageFetcher: Sendable {
 
     package func codexScanCatchUpStatus(
         codexHomePath: String? = nil,
-        calendar: Calendar? = nil) async -> CodexScanCatchUpStatus
+        calendar: Calendar? = nil,
+        historyDays: Int? = nil,
+        now: Date = Date()) async -> CodexScanCatchUpStatus
     {
         // Provider-specific by design: Codex exposes bounded background catch-up for its incremental JSONL scanner.
         let options = Self.resolvedScannerOptions(
@@ -357,7 +369,7 @@ public struct CostUsageFetcher: Sendable {
             codexHomePath: codexHomePath)
         return await (try? CostUsageScanExecutor.run { checkCancellation in
             try checkCancellation()
-            return Self.codexScanCatchUpStatus(options: options)
+            return Self.codexScanCatchUpStatus(options: options, historyDays: historyDays, now: now)
         }) ?? CodexScanCatchUpStatus(pending: false, progressKey: "unavailable")
     }
 
@@ -383,28 +395,43 @@ public struct CostUsageFetcher: Sendable {
         let scanOptions = options
         // Provider-specific by design: this catch-up step advances only the Codex incremental scanner.
         return try await CostUsageScanExecutor.runTimed { checkCancellation in
+            var passOptions = scanOptions
+            let yieldedBeforeAttempt = CostUsageScanExecutor.LockedState(false)
+            passOptions.codexScanDidYieldBeforeFileAttempt = { value in yieldedBeforeAttempt.withLock { $0 = value } }
             _ = try CostUsageScanner.loadDailyReportCancellable(
                 provider: .codex,
                 since: since,
                 until: now,
                 now: now,
-                options: scanOptions,
+                options: passOptions,
                 checkCancellation: checkCancellation)
             try checkCancellation()
-            return Self.codexScanCatchUpStatus(options: scanOptions)
+            var status = Self.codexScanCatchUpStatus(
+                options: passOptions, historyDays: clampedHistoryDays, now: now)
+            status.yieldedBeforeFileAttempt = yieldedBeforeAttempt.withLock { $0 }
+            return status
         }
     }
 
     private static func codexScanCatchUpStatus(
-        options: CostUsageScanner.Options) -> CodexScanCatchUpStatus
+        options: CostUsageScanner.Options,
+        historyDays: Int? = nil,
+        now: Date = Date()) -> CodexScanCatchUpStatus
     {
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
+        let requiredRange = historyDays.map { days in
+            CostUsageScanner.CostUsageDayRange(
+                since: CostReportingPeriod.rolling(days: max(1, min(365, days)))
+                    .bounds(now: now, calendar: options.calendar).lowerBound,
+                until: now,
+                calendar: options.calendar)
+        }
         return CostUsageStoreAccess.readView(
             cacheRoot: options.cacheRoot,
             calendar: options.calendar,
             purpose: .status)
-            .catchUpStatus(roots: roots, rootsFingerprint: rootsFingerprint)
+            .catchUpStatus(roots: roots, rootsFingerprint: rootsFingerprint, requiredRange: requiredRange)
     }
 
     private static func codexHistoryCoverageIsEstablished(
@@ -1356,16 +1383,10 @@ public struct CostUsageFetcher: Sendable {
             for breakdown in entry.modelBreakdowns ?? [] {
                 guard breakdown.costUSD == nil else { continue }
                 if provider == .antigravity {
-                    // Antigravity prices through the Claude resolver, and its routing variants
-                    // resolve against the base vendor model, so both IDs are worth fetching.
-                    let names = [breakdown.modelName]
-                        + [AntigravityLocalReader.pricingBaseModelID(for: breakdown.modelName)].compactMap(\.self)
-                    for name in names {
-                        for target in CostUsagePricing.claudeModelsDevPricingTargets(for: name) {
-                            targets.insert(ModelsDevPricingTarget(
-                                providerID: target.providerID,
-                                modelID: target.modelID))
-                        }
+                    for target in AntigravityLocalReader.pricingRefreshTargets(for: breakdown.modelName) {
+                        targets.insert(ModelsDevPricingTarget(
+                            providerID: target.providerID,
+                            modelID: target.modelID))
                     }
                 } else if provider == .codex {
                     guard OpenCodexRouteDispatcher.countsTowardCodexSubscription(modelName: breakdown.modelName)

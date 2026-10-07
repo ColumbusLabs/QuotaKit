@@ -324,12 +324,36 @@ struct ProviderUsageView: View {
         // class-of-bug as the Subscription Utilization aggregate/detail
         // mismatch fixed in Build 77.
         let today = cost.todayTotals(providerLastUpdated: self.provider.lastUpdated)
-        let todayPart = today.costUSD.map {
-            "\(String(localized: "Today")): \(Self.formatUSD($0))"
-        } ?? "\(String(localized: "Today")): \(String(localized: "Not updated today"))"
+        let todayPart = if let amount = today.costUSD {
+            "\(String(localized: "Today")): \(today.isPartial ? "≥" : "")\(Self.formatUSD(amount))"
+        } else if today.isPartial {
+            "\(String(localized: "Today")): \(String(localized: "Partial provider data"))"
+        } else {
+            "\(String(localized: "Today")): \(String(localized: "Not updated today"))"
+        }
+        let dailyWindow = cost.dailyTotals(windowDays: cost.historyDays ?? 30)
+        let monthCost: Double? = if let aggregate = cost.last30DaysCostUSD {
+            aggregate
+        } else if dailyWindow.hasPoints {
+            dailyWindow.costUSD
+        } else {
+            nil
+        }
+        let monthIsPartial = cost.costIsKnown == false || dailyWindow.isPartial
+        let monthLabel = (cost.historyDays ?? 30) == 30
+            ? String(localized: "30d")
+            : String(localized: LocalizedStringResource("\(cost.historyDays ?? 30) Days"))
+        let monthPart = monthCost.map { amount in
+            let value = if monthIsPartial, amount == 0 {
+                String(localized: "Partial provider data")
+            } else {
+                "\(monthIsPartial ? "≥" : "")\(Self.formatUSD(amount))"
+            }
+            return "\(monthLabel): \(value)"
+        }
         let parts: [String] = [
             todayPart,
-            cost.last30DaysCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
+            monthPart,
         ].compactMap(\.self)
 
         if !parts.isEmpty {

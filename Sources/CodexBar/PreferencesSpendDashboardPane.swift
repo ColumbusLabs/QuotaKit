@@ -1210,6 +1210,7 @@ private struct SpendHourlyChart: View {
 struct SpendProviderIcon: View {
     let provider: UsageProvider
     var sourceKind: SpendDashboardModel.SourceKind = .native
+    var style: ProviderBrandIcon.Style = .brand
     var size: CGFloat = 20
 
     var body: some View {
@@ -1217,14 +1218,29 @@ struct SpendProviderIcon: View {
             if self.sourceKind == .openCodex {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.body.weight(.semibold))
-            } else if let icon = ProviderBrandIcon.image(for: self.provider) {
-                Image(nsImage: icon).resizable().scaledToFit()
+            } else if let icon = ProviderBrandIcon.image(for: self.provider, style: self.style) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .renderingMode(icon.isTemplate ? .template : .original)
+                    .scaledToFit()
+                    .frame(
+                        width: self.size * (icon.isTemplate ? 1 : self.brandArtworkScale),
+                        height: self.size * (icon.isTemplate ? 1 : self.brandArtworkScale))
             } else {
                 Image(systemName: "circle.dotted")
             }
         }
+        .foregroundStyle(.primary)
         .frame(width: self.size, height: self.size)
         .accessibilityHidden(true)
+    }
+
+    private var brandArtworkScale: CGFloat {
+        switch self.provider {
+        case .bedrock: 0.84
+        case .muse, .vertexai: 1.08
+        default: 1
+        }
     }
 }
 
@@ -1337,6 +1353,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let currencyCode: String
         let totalTokens: Int?
         let totalCost: Double?
+        let incompleteRequestCount: Int?
         let meteredCost: Double?
         let provenance: String
         let coverage: CostUsageCoverageCounts
@@ -1365,6 +1382,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let modelName: String
         let totalTokens: Int?
         let totalCost: Double?
+        let incompleteRequestCount: Int?
     }
 
     static func make(model: SpendDashboardModel, hiddenSourceIDs: [String]) -> Self {
@@ -1376,6 +1394,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
                     currencyCode: group.currencyCode,
                     totalTokens: group.totalTokens,
                     totalCost: group.totalCost,
+                    incompleteRequestCount: group.incompleteRequestCount > 0 ? group.incompleteRequestCount : nil,
                     meteredCost: group.meteredCost,
                     provenance: group.provenance.rawValue,
                     coverage: group.coverage,
@@ -1398,7 +1417,8 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
                             provider: $0.provider.rawValue,
                             modelName: $0.modelName,
                             totalTokens: $0.totalTokens,
-                            totalCost: $0.totalCost)
+                            totalCost: $0.totalCost,
+                            incompleteRequestCount: $0.incompleteRequestCount > 0 ? $0.incompleteRequestCount : nil)
                     })
             },
             hiddenSourceIDs: hiddenSourceIDs)

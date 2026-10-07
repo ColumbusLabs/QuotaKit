@@ -60,7 +60,8 @@ public enum VertexAIUsageFetcher {
 
     public static func fetchUsage(
         accessToken: String,
-        projectId: String?) async throws -> VertexAIUsageResponse
+        projectId: String?,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> VertexAIUsageResponse
     {
         guard let projectId, !projectId.isEmpty else {
             throw VertexAIFetchError.noProject
@@ -68,12 +69,14 @@ public enum VertexAIUsageFetcher {
 
         return try await Self.fetchQuotaUsage(
             accessToken: accessToken,
-            projectId: projectId)
+            projectId: projectId,
+            transport: transport)
     }
 
     private static func fetchQuotaUsage(
         accessToken: String,
-        projectId: String) async throws -> VertexAIUsageResponse
+        projectId: String,
+        transport: any ProviderHTTPTransport) async throws -> VertexAIUsageResponse
     {
         let usageFilter = """
         metric.type="serviceruntime.googleapis.com/quota/allocation/usage" \
@@ -89,11 +92,13 @@ public enum VertexAIUsageFetcher {
         let usageSeries = try await Self.fetchTimeSeries(
             accessToken: accessToken,
             projectId: projectId,
-            filter: usageFilter)
+            filter: usageFilter,
+            transport: transport)
         let limitSeries = try await Self.fetchTimeSeries(
             accessToken: accessToken,
             projectId: projectId,
-            filter: limitFilter)
+            filter: limitFilter,
+            transport: transport)
 
         return try Self.makeQuotaUsageResponse(
             usageSeries: usageSeries,
@@ -220,12 +225,14 @@ public enum VertexAIUsageFetcher {
     private static func fetchTimeSeries(
         accessToken: String,
         projectId: String,
-        filter: String) async throws -> [MonitoringTimeSeries]
+        filter: String,
+        transport: any ProviderHTTPTransport) async throws -> [MonitoringTimeSeries]
     {
         let now = Date()
         let start = now.addingTimeInterval(-Self.usageWindowSeconds)
         let formatter = ISO8601DateFormatter()
         var pageToken: String?
+        var seenPageTokens: Set<String> = []
         var allSeries: [MonitoringTimeSeries] = []
 
         repeat {
@@ -259,7 +266,7 @@ public enum VertexAIUsageFetcher {
             let response: ProviderHTTPResponse
 
             do {
-                response = try await ProviderHTTPClient.shared.response(for: request)
+                response = try await transport.response(for: request)
             } catch {
                 throw VertexAIFetchError.networkError(error)
             }
@@ -280,8 +287,14 @@ public enum VertexAIUsageFetcher {
             if let series = decoded.timeSeries {
                 allSeries.append(contentsOf: series)
             }
-            pageToken = decoded.nextPageToken?.isEmpty == false ? decoded.nextPageToken : nil
-        } while pageToken != nil
+            let nextPageToken = decoded.nextPageToken?.isEmpty == false ? decoded.nextPageToken : nil
+            // Keep this distinct page, then stop before following a repeated cursor.
+            guard let nextPageToken, seenPageTokens.insert(nextPageToken).inserted else { break }
+            guard seenPageTokens.count < 100 else {
+                throw VertexAIFetchError.invalidResponse("Monitoring page limit exceeded")
+            }
+            pageToken = nextPageToken
+        } while true
 
         return allSeries
     }

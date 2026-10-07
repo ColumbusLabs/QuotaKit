@@ -32,6 +32,7 @@ public struct CostUsageWindowSummary: Sendable, Equatable {
     public let totalCostUSD: Double?
     public let totalRequests: Int?
     public let entryCount: Int
+    public let incompleteRequestCount: Int
     public let tokenMix: CostUsageTokenMix
     public let coverage: CostUsageCoverageCounts
     public let provenance: CostProvenance
@@ -46,13 +47,15 @@ public struct CostUsageWindowSummary: Sendable, Equatable {
         tokenMix: CostUsageTokenMix = CostUsageTokenMix(),
         coverage: CostUsageCoverageCounts = CostUsageCoverageCounts(),
         provenance: CostProvenance = .unknown,
-        meteredCostUSD: Double? = nil)
+        meteredCostUSD: Double? = nil,
+        incompleteRequestCount: Int = 0)
     {
         self.days = days
         self.totalTokens = totalTokens
         self.totalCostUSD = totalCostUSD
         self.totalRequests = totalRequests
         self.entryCount = entryCount
+        self.incompleteRequestCount = max(0, incompleteRequestCount)
         self.tokenMix = tokenMix
         self.coverage = coverage
         self.provenance = provenance
@@ -383,7 +386,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
                 snapshot: self.costProvenance,
                 hasWindowCosts: !costs.isEmpty,
                 includesMetered: windowMetered != nil),
-            meteredCostUSD: windowMetered)
+            meteredCostUSD: windowMetered,
+            incompleteRequestCount: CostUsageIncompleteRequests.sum(entries.map(\.incompleteRequestCount)))
     }
 
     public func comparisonSummaries(

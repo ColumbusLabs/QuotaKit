@@ -79,7 +79,17 @@ struct MenuBarLayoutProviderBalanceTests {
             .attributedTitle.string == "25%")
     }
 
-    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao, .lithosai])
+    @Test(arguments: [
+        UsageProvider.mimo,
+        .hyper,
+        .atlascloud,
+        .vercel,
+        .devpass,
+        .doubao,
+        .lithosai,
+        .nous,
+        .openrouter,
+    ])
     func `absent balances never borrow unrelated spend`(provider: UsageProvider) throws {
         let snapshot = try UsageSnapshot(
             primary: nil,
@@ -102,6 +112,50 @@ struct MenuBarLayoutProviderBalanceTests {
             ])],
             updatedAt: self.now)
         #expect(MenuBarLayoutBalanceResolver.balance(provider: .atlascloud, snapshot: snapshot) == amount)
+    }
+
+    @Test
+    func `provider descriptors select the intended balance detail labels`() throws {
+        let cases: [(UsageProvider, String, String)] = [
+            (.openrouter, "Remaining", "$1.25"),
+            (.atlascloud, "Available balance", "$2.50"),
+            (.devpass, "Cycle remaining", "$3.75"),
+            (.vercel, "Available balance", "$5.00"),
+            (.nous, "Total usable", "900 credits"),
+        ]
+        for (provider, label, value) in cases {
+            let snapshot = try UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                details: [ProviderDetailSection(title: "Credits", rows: [.init(label: label, value: value)])],
+                updatedAt: self.now)
+            #expect(MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot) == value)
+        }
+
+        let nousTopUp = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [ProviderDetailSection(title: "Credits", rows: [.init(label: "Top-up credits", value: "80")])],
+            updatedAt: self.now)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .nous, snapshot: nousTopUp) == "80")
+    }
+
+    @Test
+    func `descriptor balance details reject snapshots from another provider`() throws {
+        let snapshot = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [ProviderDetailSection(title: "Credits", rows: [
+                .init(label: "Available balance", value: "$2.50"),
+            ])],
+            updatedAt: self.now,
+            identity: ProviderIdentitySnapshot(
+                providerID: UsageProvider.vercel.instanceID,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: nil))
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .vercel, snapshot: snapshot) == "$2.50")
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .atlascloud, snapshot: snapshot) == nil)
     }
 
     @Test(arguments: [0.0, 0.6, 42.5])

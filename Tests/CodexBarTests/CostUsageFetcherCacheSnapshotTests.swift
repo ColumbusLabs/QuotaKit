@@ -5,6 +5,77 @@ import Testing
 // swiftlint:disable file_length
 // swiftlint:disable:next type_body_length
 struct CostUsageFetcherCacheSnapshotTests {
+    #if DEBUG
+    @Test(arguments: [false, true])
+    func `compact partial estimates exclude marked dollars and retain every unknown request`(
+        rowsExceedCanonical: Bool) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let now = try env.makeLocalNoon(year: 2026, month: 8, day: 1)
+        let range = CostUsageScanner.CostUsageDayRange(since: now, until: now)
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 1_000_000_000),
+            CostUsageScanner.CodexUsageRow(
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                unpricedTokens: 10),
+            CostUsageScanner.CodexUsageRow(
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 2,
+                input: 10,
+                cached: 0,
+                output: 0,
+                pricingModel: "synthetic-unknown-model"),
+        ]
+        let packedInput = rowsExceedCanonical ? 20 : 30
+        let usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [range.sinceKey: ["gpt-5.4": [packedInput, 0, 0]]],
+            parsedBytes: 1,
+            codexRows: rows,
+            codexScanComplete: true)
+        let aggregate = try #require(CostUsageStore.fileAggregatesForTesting(usage).first)
+        #expect(aggregate.authoritativeCostNanos == 1_000_000_000)
+        #expect(aggregate.standardUnresolvedPricingCount == 2)
+        let path = env.codexSessionsRoot.appendingPathComponent("synthetic-partial.jsonl").path
+        var cache = CostUsageCache()
+        cache.files[path] = usage
+        cache.days = usage.days
+        let projection = CostUsageStoreCodexReportProjection(
+            cache: cache,
+            fileDayAggregates: [.init(path: path, aggregate: aggregate)])
+        let report = CostUsageCodexReportProjectionBuilder.build(
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
+        #expect(report.data.first?.unpricedRequestCount == 2)
+        #expect(report.data.first?.costUSD == (rowsExceedCanonical ? nil : 1))
+        #expect(report.data.first?.pricedRequestCount == (rowsExceedCanonical ? nil : 1))
+        #expect(report.data.first?.modelBreakdowns?.first?.standardCostUSD == nil)
+        #expect(report.data.first?.modelBreakdowns?.first?.priorityCostUSD == nil)
+    }
+    #endif
+
     @Test
     func `routine codex refresh uses query backed working set without a full snapshot read`() async throws {
         let env = try CostUsageTestEnvironment()
@@ -244,7 +315,12 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(compact.data.first?.requestCount == compatibility.data.first?.requestCount)
         #expect(compact.data.first?.unpricedRequestCount == compatibility.data.first?.unpricedRequestCount)
         #expect(compact.data.first?.unpricedRequestCount == 1)
-        #expect(compact.data.first?.costUSD == nil)
+        #expect(compact.data.first?.pricedRequestCount == 1)
+        #expect(compact.data.first?.costUSD == 1)
+        #expect(compact.summary?.totalCostUSD == 1)
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: compact, now: now, calendar: options.calendar)
+        #expect(snapshot.sessionCostUSD == 1)
+        #expect(snapshot.last30DaysCostUSD == nil)
     }
 
     @Test

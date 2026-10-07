@@ -43,3 +43,5 @@ read_when:
   WAL transactions are unchanged.
 
 See also: `docs/providers.md`, `docs/refresh-loop.md`, `docs/ui.md`.
+
+`TTYCommandRunner` retains the POSIX error number and description when PTY allocation fails, distinguishing descriptor exhaustion from other allocation failures.

@@ -110,6 +110,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."),
                         String(
+                            localized: "Codex spend keeps priced subtotals visible and marks costs partial when requests are unpriced."),
+                        String(
                             localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),
                     ]),
             ]),

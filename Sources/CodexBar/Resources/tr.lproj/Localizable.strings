@@ -1507,6 +1507,8 @@
 
 "Cumulative" = "Kümülatif";
 "Token activity" = "Token etkinliği";
+"Earlier activity" = "Önceki etkinlik";
+"More recent activity" = "Daha yeni etkinlik";
 "View" = "Görünüm";
 "in the last year" = "son yılda";
 "No activity in the last 12 months" = "Son 12 ayda etkinlik yok";

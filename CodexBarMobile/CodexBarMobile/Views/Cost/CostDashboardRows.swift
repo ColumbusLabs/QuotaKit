@@ -41,6 +41,7 @@ struct CostBreakdownRowView: View {
     let total: Double
     var metric: CostDashboardModelMetric = .cost
     var rank: Int?
+    var totalIsPartial = false
 
     var body: some View {
         QKSurfaceCard(elevation: .surface, accentColor: self.row.color, cornerRadius: 16) {
@@ -79,16 +80,20 @@ struct CostBreakdownRowView: View {
 
                     CostBreakdownMetricColumn(
                         amountText: self.amountText,
-                        shareText: Self.shareText(self.metricValue, total: self.total))
+                        shareText: self.metric == .cost && (self.row.isPartial || self.totalIsPartial)
+                            ? "—"
+                            : Self.shareText(self.metricValue, total: self.total))
                 }
 
-                UsageProgressBarView(
-                    progressFraction: Self.ratio(self.metricValue, total: self.total),
-                    tintColor: self.row.color,
-                    trackColor: self.theme.border,
-                    markerPercents: [],
-                    pacePercent: nil,
-                    paceColor: .clear)
+                if self.metric != .cost || (!self.row.isPartial && !self.totalIsPartial) {
+                    UsageProgressBarView(
+                        progressFraction: Self.ratio(self.metricValue, total: self.total),
+                        tintColor: self.row.color,
+                        trackColor: self.theme.border,
+                        markerPercents: [],
+                        pacePercent: nil,
+                        paceColor: .clear)
+                }
             }
             .padding(14)
         }
@@ -103,7 +108,12 @@ struct CostBreakdownRowView: View {
 
     private var amountText: String {
         switch self.metric {
-        case .cost: CostFormatting.usd(self.row.amountUSD)
+        case .cost:
+            if self.row.isPartial {
+                self.row.amountUSD > 0 ? "≥\(CostFormatting.usd(self.row.amountUSD))" : "—"
+            } else {
+                CostFormatting.usd(self.row.amountUSD)
+            }
         case .tokens: CostFormatting.tokens(self.row.totalTokens)
         }
     }
@@ -129,6 +139,8 @@ struct OthersBreakdownRowView: View {
     let amountUSD: Double
     let total: Double
     var metric: CostDashboardModelMetric = .cost
+    var isPartial = false
+    var totalIsPartial = false
 
     var body: some View {
         QKSurfaceCard(elevation: .surface, cornerRadius: 16, dashedBorder: true) {
@@ -151,20 +163,24 @@ struct OthersBreakdownRowView: View {
 
                     CostBreakdownMetricColumn(
                         amountText: self.amountText,
-                        shareText: CostBreakdownRowView.shareText(self.amountUSD, total: self.total))
+                        shareText: self.metric == .cost && (self.isPartial || self.totalIsPartial)
+                            ? "—"
+                            : CostBreakdownRowView.shareText(self.amountUSD, total: self.total))
 
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(self.theme.textMuted)
                 }
 
-                UsageProgressBarView(
-                    progressFraction: CostBreakdownRowView.ratio(self.amountUSD, total: self.total),
-                    tintColor: self.theme.textMuted.opacity(0.5),
-                    trackColor: self.theme.border,
-                    markerPercents: [],
-                    pacePercent: nil,
-                    paceColor: .clear)
+                if self.metric != .cost || (!self.isPartial && !self.totalIsPartial) {
+                    UsageProgressBarView(
+                        progressFraction: CostBreakdownRowView.ratio(self.amountUSD, total: self.total),
+                        tintColor: self.theme.textMuted.opacity(0.5),
+                        trackColor: self.theme.border,
+                        markerPercents: [],
+                        pacePercent: nil,
+                        paceColor: .clear)
+                }
             }
             .padding(14)
         }
@@ -172,7 +188,12 @@ struct OthersBreakdownRowView: View {
 
     private var amountText: String {
         switch self.metric {
-        case .cost: CostFormatting.usd(self.amountUSD)
+        case .cost:
+            if self.isPartial {
+                self.amountUSD > 0 ? "≥\(CostFormatting.usd(self.amountUSD))" : "—"
+            } else {
+                CostFormatting.usd(self.amountUSD)
+            }
         case .tokens: CostFormatting.tokens(Int(self.amountUSD))
         }
     }
@@ -187,12 +208,17 @@ struct FullBreakdownListView: View {
     let rows: [CostBreakdownRow]
     let total: Double
     var metric: CostDashboardModelMetric = .cost
+    var totalIsPartial = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 ForEach(self.rows) { row in
-                    CostBreakdownRowView(row: row, total: self.total, metric: self.metric)
+                    CostBreakdownRowView(
+                        row: row,
+                        total: self.total,
+                        metric: self.metric,
+                        totalIsPartial: self.totalIsPartial)
                 }
             }
             .padding()

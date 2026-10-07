@@ -44,6 +44,10 @@ public struct AntigravityOAuthCredentials: Codable, Sendable, Equatable {
     }
 
     static func email(fromIDToken idToken: String?) -> String? {
+        (self.claims(fromIDToken: idToken)?["email"] as? String)?.trimmedNonEmpty
+    }
+
+    static func claims(fromIDToken idToken: String?) -> [String: Any]? {
         guard let idToken else { return nil }
         let parts = idToken.components(separatedBy: ".")
         guard parts.count >= 2 else { return nil }
@@ -59,7 +63,7 @@ public struct AntigravityOAuthCredentials: Codable, Sendable, Equatable {
         else {
             return nil
         }
-        return (json["email"] as? String)?.trimmedNonEmpty
+        return json
     }
 
     public init(from decoder: Decoder) throws {
@@ -146,6 +150,9 @@ public enum AntigravityOAuthConfig {
     public static var configuredClientSecret: String? {
         ProcessInfo.processInfo.environment["ANTIGRAVITY_OAUTH_CLIENT_SECRET"]?.trimmedNonEmpty
     }
+
+    /// Consumer accounts need the same OAuth client used by Antigravity's own sign-in flow.
+    static let consumerClientID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
 
     public static let authURL = URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!
     public static let tokenURL = URL(string: "https://oauth2.googleapis.com/token")!
@@ -318,6 +325,7 @@ public enum AntigravityOAuthConfig {
 
     /// Reads adjacent ClientID/ClientSecret Go string fields, never string-pool ordering.
     private static func binaryClient(in data: Data) -> AntigravityOAuthClient? {
+        var firstClient: AntigravityOAuthClient?
         func word(_ offset: Int) -> UInt32 {
             data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: UInt32.self).littleEndian }
         }
@@ -398,11 +406,13 @@ public enum AntigravityOAuthConfig {
                           clientSecret.range(
                               of: #"^GOCSPX-[A-Za-z0-9_-]{28}$"#,
                               options: .regularExpression) != nil else { continue }
-                    return AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
+                    let client = AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
+                    if clientID == Self.consumerClientID { return client }
+                    if firstClient == nil { firstClient = client }
                 }
             }
         }
-        return nil
+        return firstClient
     }
 }
 
@@ -492,7 +502,7 @@ extension JSONEncoder {
 }
 
 extension String {
-    fileprivate var trimmedNonEmpty: String? {
+    var trimmedNonEmpty: String? {
         let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }

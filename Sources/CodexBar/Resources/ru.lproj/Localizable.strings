@@ -1507,6 +1507,8 @@
 
 "Cumulative" = "Накопительно";
 "Token activity" = "Активность токенов";
+"Earlier activity" = "Ранние записи";
+"More recent activity" = "Недавние записи";
 "View" = "Вид";
 "in the last year" = "за последний год";
 "No activity in the last 12 months" = "Нет активности за последние 12 месяцев";

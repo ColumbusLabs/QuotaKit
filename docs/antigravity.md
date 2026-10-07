@@ -79,7 +79,8 @@ empty quota card.
 
 - OAuth refresh form-encodes credential values, preserving literal plus signs and other reserved characters.
 - Login still uses Antigravity's Google OAuth client, discovered from `Antigravity.app` or overridden with `ANTIGRAVITY_OAUTH_CLIENT_ID` and `ANTIGRAVITY_OAUTH_CLIENT_SECRET`.
-- Discovery pairs the client ID and secret from the same recognized OAuth configuration record in the language server. String-pool order is not a pairing rule. Older app artifacts with one unambiguous ID and secret remain supported; ambiguous artifacts without a recognized record are rejected.
+- Discovery pairs the client ID and secret from the same recognized OAuth configuration record in the language server. It prefers the consumer sign-in client used by `agy`, then the first paired record; string-pool order is not a pairing rule. Older app artifacts with one unambiguous ID and secret remain supported; ambiguous artifacts without a recognized record are rejected.
+- An account signed in with another client can return `GOOGLE_TOS_NOT_SUPPORTED_BY_CLIENT` without an existing project or quota tier. QuotaKit stops before requesting placeholder 100% quotas and asks you to sign in to that account again. Refresh credentials stay bound to the client that created them; discovery does not migrate an existing grant.
 - If discovery fails, update or install Antigravity or set both overrides to a matching client ID and secret. The `invalid_client` alert gives that recovery path without echoing Google's response body.
 - A successful login writes the latest shared credentials to the app's compatibility credentials store and upserts a token-account entry for the Google account.
 - Each token-account entry stores serialized `AntigravityOAuthCredentials` and is injected into remote fetches through `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON`.
@@ -91,6 +92,10 @@ empty quota card.
 - Removing the last saved token account that matches `~/.codexbar/antigravity/oauth_creds.json` deletes that shared file,
   so a removed CodexBar account does not silently continue refreshing through the legacy shared cache.
 - The menu action is labeled `Add Account...`; switching between saved accounts scopes Google OAuth fetches.
+
+Antigravity records `gpt-oss-120b-medium` in local usage history. QuotaKit prices only that exact model name with the
+Google Vertex `openai/gpt-oss-120b-maas` list entry; other GPT-OSS variants stay unpriced until their own catalog
+entries are available.
 
 ## Remote OAuth data sources
 

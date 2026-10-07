@@ -28,6 +28,7 @@ read_when:
 ## Mapping
 - Matches usage + limit series by quota metric + limit name + location.
 - Reports the highest usage percent across matched series.
+- Follows distinct Monitoring page tokens, keeps the last distinct page if a cursor repeats, and caps each query at 100 pages.
 - Displayed as "Quota usage" with period "Current quota".
 
 ## Token Cost Tracking

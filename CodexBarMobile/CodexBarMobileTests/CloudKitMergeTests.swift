@@ -106,6 +106,288 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Local cost merge preserves a partial positive daily subtotal for Today`() throws {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        func summary(cost: Double, isKnown: Bool) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: 100,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: cost,
+                    totalTokens: 100,
+                    costIsKnown: isKnown)],
+                costIsKnown: isKnown,
+                costUpdatedAt: now,
+                totalCostUpdatedAt: now)
+        }
+        let complete = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: now, costSummary: summary(cost: 4, isKnown: true))
+        let partial = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: now, costSummary: summary(cost: 1.25, isKnown: false))
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [complete]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [partial]),
+        ]))
+        let mergedCost = try #require(merged.providers.first?.costSummary)
+        let todayPoint = try #require(mergedCost.daily.first(where: { $0.dayKey == todayKey }))
+        let today = mergedCost.todayTotals(now: now)
+        let insights = CostDashboardInsights(snapshot: merged)
+
+        #expect(todayPoint.costUSD == 5.25)
+        #expect(todayPoint.costIsKnown == false)
+        #expect(today.costUSD == 5.25)
+        #expect(today.isPartial)
+        #expect(insights.totalTodayCost == 5.25)
+        #expect(insights.totalTodayTokens == 200)
+        #expect(insights.todayHasPartialCost)
+
+        let share = ShareCardData(insights: insights, period: .today)
+        #expect(share.periodIsPartial)
+        #expect(share.totalCost == 5.25)
+        #expect(share.totalTokens == 200)
+        #expect(share.providers.count == 1)
+        #expect(share.providers.first?.name == String(localized: "Partial provider data"))
+        #expect(share.topModels.isEmpty)
+    }
+
+    @Test
+    func `unknown zero cost keeps known tokens without claiming zero spend`() {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        func summary(cost: Double, tokens: Int, isKnown: Bool) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: tokens,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: tokens,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: cost,
+                    totalTokens: tokens,
+                    costIsKnown: isKnown)],
+                costIsKnown: isKnown,
+                costUpdatedAt: now,
+                totalCostUpdatedAt: now)
+        }
+        let snapshot = self.makeSnapshot(deviceName: "Mac", deviceID: "uuid-a", providers: [
+            self.makeProvider(
+                id: "codex", name: "Codex", lastUpdated: now,
+                costSummary: summary(cost: 5, tokens: 500, isKnown: true)),
+            self.makeProvider(
+                id: "claude", name: "Claude", lastUpdated: now,
+                costSummary: summary(cost: 0, tokens: 300, isKnown: false)),
+        ])
+
+        let insights = CostDashboardInsights(snapshot: snapshot)
+        let share = ShareCardData(insights: insights, period: .today)
+
+        #expect(insights.totalTodayCost == 5)
+        #expect(insights.totalTodayTokens == 800)
+        #expect(insights.todayHasPartialCost)
+        #expect(share.todayStatus == .partial)
+        #expect(share.totalCost == 5)
+        #expect(share.totalTokens == 800)
+        #expect(share.providers.count == 1)
+        #expect(share.providers.first?.cost == 5)
+        #expect(share.providers.first?.isPartial == true)
+        #expect(share.topModels.isEmpty)
+    }
+
+    @Test
+    func `known week subtotal stays exact while incomplete month suppresses rankings`() throws {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let olderDate = try #require(Calendar.current.date(byAdding: .day, value: -8, to: now))
+        let olderKey = SyncCostSummary.iso8601DayKey(for: olderDate)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 1000,
+            daily: [
+                SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true),
+                SyncDailyPoint(dayKey: olderKey, costUSD: 8, totalTokens: 800, costIsKnown: false),
+            ],
+            costIsKnown: false,
+            historyDays: 30,
+            historyCoverageIsEstablished: true)
+        let provider = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: now, costSummary: summary)
+        let insights = CostDashboardInsights(snapshot: self.makeSnapshot(
+            deviceName: "Mac", deviceID: "uuid-a", providers: [provider], timestamp: now))
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 2)
+        #expect(!week.periodIsPartial)
+        #expect(week.rankingsArePartial)
+        #expect(week.providers.count == 1)
+        #expect(week.providers.first?.name == String(localized: "Partial provider data"))
+        #expect(week.providers.first?.cost == 2)
+        #expect(week.providers.first?.isPartial == false)
+        #expect(week.topModels.isEmpty)
+    }
+
+    @Test
+    func `aggregate-only partial provider keeps week subtotal marked partial`() throws {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let olderDate = try #require(Calendar.current.date(byAdding: .day, value: -8, to: now))
+        let olderKey = SyncCostSummary.iso8601DayKey(for: olderDate)
+        let complete = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 200,
+            last30DaysCostUSD: 2,
+            last30DaysTokens: 200,
+            daily: [SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true)],
+            costIsKnown: true,
+            historyDays: 30)
+        let partialWithoutWeekPoints = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 5,
+            last30DaysTokens: 500,
+            daily: [SyncDailyPoint(dayKey: olderKey, costUSD: 5, totalTokens: 500, costIsKnown: false)],
+            costIsKnown: false,
+            historyDays: 30)
+        let providers = [
+            self.makeProvider(
+                id: "codex", name: "Codex", email: "user@example.com",
+                lastUpdated: now, costSummary: complete),
+            self.makeProvider(
+                id: "claude", name: "Claude", email: "claude@example.com",
+                lastUpdated: now, costSummary: partialWithoutWeekPoints),
+        ]
+        let insights = CostDashboardInsights(snapshot: self.makeSnapshot(
+            deviceName: "Mac", deviceID: "uuid-a", providers: providers, timestamp: now))
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 2)
+        #expect(week.periodIsPartial)
+        #expect(week.rankingsArePartial)
+        #expect(week.providers.count == 1)
+        #expect(week.providers.first?.name == String(localized: "Partial provider data"))
+        #expect(week.providers.first?.cost == 2)
+    }
+
+    @Test
+    func `week remains partial when history coverage is unestablished`() {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 200,
+            last30DaysCostUSD: 2,
+            last30DaysTokens: 200,
+            daily: [SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true)],
+            costIsKnown: false,
+            historyDays: 365,
+            historyCoverageIsEstablished: false)
+        let provider = self.makeProvider(
+            id: "codex", name: "Codex", lastUpdated: now, costSummary: summary)
+        let insights = CostDashboardInsights(snapshot: self.makeSnapshot(
+            deviceName: "Mac", deviceID: "uuid-a", providers: [provider], timestamp: now))
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 2)
+        #expect(week.periodIsPartial)
+        #expect(week.rankingsArePartial)
+    }
+
+    @Test
+    func `CWL window confidence uses its daily points before an older summary marker`() throws {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let olderDate = try #require(Calendar.current.date(byAdding: .day, value: -31, to: now))
+        let olderKey = SyncCostSummary.iso8601DayKey(for: olderDate)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 1000,
+            daily: [
+                SyncDailyPoint(dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true),
+                SyncDailyPoint(dayKey: olderKey, costUSD: 8, totalTokens: 800, costIsKnown: false),
+            ],
+            costIsKnown: false,
+            historyDays: 365)
+        let provider = self.makeProvider(
+            id: "codex", name: "Codex", lastUpdated: now, costSummary: summary)
+        let point = SyncDailyPoint(
+            dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: true)
+        let rollup = CostLedgerProviderRollup(
+            providerID: "codex",
+            accountEmail: nil,
+            totalCostUSD: 2,
+            totalTokens: 200,
+            dailyPoints: [point],
+            modelBreakdowns: [],
+            incompleteDayEvidenceDayKeys: [],
+            dayEvidenceVerifiedAt: [:])
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 2,
+            totalTokens: 200,
+            activeDayCount: 1,
+            providerRollups: ["codex|_": rollup],
+            dailyPoints: [point],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: self.makeSnapshot(deviceName: "Mac", deviceID: "uuid-a", providers: [provider]))
+
+        #expect(insights.total30DayCost == 2)
+        #expect(insights.total30DayCostIsPartial == false)
+        #expect(insights.providerRows.first?.thirtyDayCostIsPartial == false)
+        #expect(insights.providerRows.first?.today.isPartial == false)
+    }
+
+    @Test(arguments: [false, true])
+    func `CWL point without confidence inherits matching summary confidence`(summaryCostIsKnown: Bool) {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        let point = SyncDailyPoint(
+            dayKey: todayKey, costUSD: 2, totalTokens: 200, costIsKnown: nil)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 2,
+            last30DaysTokens: 200,
+            daily: [point],
+            costIsKnown: summaryCostIsKnown,
+            historyDays: 30)
+        let provider = self.makeProvider(
+            id: "codex", name: "Codex", lastUpdated: now, costSummary: summary)
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 2,
+            totalTokens: 200,
+            activeDayCount: 1,
+            providerRollups: [:],
+            dailyPoints: [point],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: self.makeSnapshot(deviceName: "Mac", deviceID: "uuid-a", providers: [provider]))
+
+        #expect(insights.dailyPoints.first?.isPartial == !summaryCostIsKnown)
+    }
+
+    @Test
     func `Local legacy aggregate-only token totals remain additive across Macs`() throws {
         func summary(tokens: Int) -> SyncCostSummary {
             SyncCostSummary(

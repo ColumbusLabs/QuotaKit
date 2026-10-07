@@ -2,7 +2,7 @@
 """Opt-in macOS direct test launch using the selected SwiftPM toolchain helpers.
 
 SwiftPM remains responsible for building and discovery. Each test group retains a fresh
-process, contained descendants, deadline, and an isolated home. Hosted CI stays serial.
+process, contained descendants, deadline, and an isolated home, including on hosted CI.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import threading
 import time
 
 from ci_swift_test_by_suite import TestSelection, filter_for, run_command
+from swift_test_diagnostics import print_crash_reports, redact
 
 
 class InventoryMismatch(ValueError):
@@ -55,10 +56,29 @@ def runtime_environment(developer: Path, home: Path, sdk: Path | None = None) ->
 
 
 def checked(command: list[str], environment: dict[str, str], timeout: int = 60) -> str:
-    result = subprocess.run(command, env=environment, text=True, capture_output=True, timeout=timeout)
+    started = time.time()
+    result = subprocess.run(command, env=environment, text=True, errors="replace", capture_output=True, timeout=timeout)
     if result.returncode != 0:
-        # Do not print helper diagnostics: XCTest can include the inherited environment.
-        raise ValueError(f"Direct runtime capability probe failed (exit {result.returncode}).")
+        helper = Path(command[0]).name
+        reason = f"exit {result.returncode}"
+        if result.returncode < 0:
+            reason += f", {signal.Signals(-result.returncode).name}"
+        print(f"Direct probe {helper}: {reason}", file=sys.stderr, flush=True)
+        for label, output in [("stdout", result.stdout), ("stderr", result.stderr)]:
+            if output:
+                print(f"{label}:\n{redact(output, environment)}", file=sys.stderr, flush=True)
+        # ReportCrash can lag the child exit. CI may place reports in either home.
+        if result.returncode < 0 and (os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS")):
+            roots = [Path.home() / "Library/Logs/DiagnosticReports",
+                     Path(environment.get("HOME", str(Path.home()))) / "Library/Logs/DiagnosticReports"]
+            for attempt in range(6):
+                if print_crash_reports(roots, started, (helper,)):
+                    break
+                if attempt < 5:
+                    time.sleep(1)
+            else:
+                print("No fresh crash report for the failed probe after 5 seconds.", file=sys.stderr, flush=True)
+        raise ValueError(f"Direct runtime capability probe {helper} failed ({reason}).")
     return result.stdout
 
 
@@ -77,8 +97,8 @@ def selected_tests(inventory: list[str], selections: list[dict]) -> list[str]:
 
 
 def prepare_runtime(swift_command: list[str], groups: list[list[dict]], expected: list[str], directory: Path) -> dict:
-    if sys.platform != "darwin" or os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
-        raise ValueError("Direct test groups are an opt-in local macOS mode.")
+    if sys.platform != "darwin":
+        raise ValueError("Direct test groups require macOS.")
     if len(swift_command) != 1:
         raise ValueError("Direct launch does not support Swift command prefix arguments.")
     developer = Path(checked(["xcode-select", "-p"], os.environ.copy()).strip())
@@ -117,8 +137,10 @@ def prepare_runtime(swift_command: list[str], groups: list[list[dict]], expected
         if not binary.is_file():
             raise ValueError("Unsupported test bundle layout.")
         output = directory / f"xctest-{index}.json"
+        environment["SWIFT_TESTING_ENABLED"] = "0"
         checked([str(xctest_helper), str(bundle), str(output)], environment)
         xctests = xctest_inventory(json.loads(output.read_text()))
+        environment["SWIFT_TESTING_ENABLED"] = "1"
         swift_tests = checked([str(testing_helper), "--test-bundle-path", str(binary),
                                "--list-tests", "--testing-library", "swift-testing"], environment).splitlines()
         all_names.extend(xctests + swift_tests)

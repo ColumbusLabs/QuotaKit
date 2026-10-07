@@ -95,6 +95,8 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
     var priorityResolvedCostNanos: Int64 = 0
     var standardUnresolvedPricingCount: Int64 = 0
     var priorityUnresolvedPricingCount: Int64 = 0
+    /// Read-time provenance only; SQL aggregates retain their original values during adoption.
+    var partialPricingIsSafe: Bool?
 
     static func zero(day: String, model: String) -> Self {
         Self(

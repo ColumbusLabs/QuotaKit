@@ -2301,6 +2301,7 @@ extension CostUsageStoreTests {
     }
 
     @Test(arguments: [
+        "3f70d97998be5ff8",
         "af117122edc4c286",
         "755dfa55c816c503",
         "c52728bbaeedeb90",
@@ -2317,6 +2318,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "3f70d97998be5ff8",
             "af117122edc4c286",
             "755dfa55c816c503",
             "c52728bbaeedeb90",
@@ -2411,8 +2413,9 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        if predecessorHash == "005a869f36400f7e" {
-            // Only the derived report is invalidated; every parsed row and resume cursor survives.
+        if predecessorHash == "3f70d97998be5ff8" || predecessorHash == "005a869f36400f7e" {
+            // Revision 9's mirror correction and the alias-pricing correction invalidate only
+            // the derived report; every parsed row, pricing aggregate, and resume cursor survives.
             before.metadata.previousReportPayload = nil
         }
 

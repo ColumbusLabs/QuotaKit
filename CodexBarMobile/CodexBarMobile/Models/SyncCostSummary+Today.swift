@@ -99,6 +99,13 @@ enum LocalCostEvidenceRevision {
 /// same number. Reported as the same class of bug as the Subscription
 /// Utilization aggregate/detail mismatch fixed in Build 77.
 extension SyncCostSummary {
+    struct DailyWindowTotals {
+        let costUSD: Double
+        let totalTokens: Int
+        let isPartial: Bool
+        let hasPoints: Bool
+    }
+
     /// Stable revision vector for mobile cache and ledger identity. New Mac
     /// producers publish each contributing source independently. Legacy
     /// summaries fall back to the aggregate timestamps.
@@ -169,6 +176,10 @@ extension SyncCostSummary {
         /// deliberately separate from availability: an old positive value
         /// remains useful and must not be rendered as zero.
         let isStale: Bool
+        /// True when `costUSD` is only the priced portion of today's usage.
+        /// Cost availability is independent from `tokens`: an unpriced zero
+        /// stays unavailable without discarding the day's known token count.
+        let isPartial: Bool
         /// The newest day present in the summary, useful when today's point
         /// is unavailable and the UI needs to explain what is missing.
         let lastReportedDayKey: String?
@@ -185,7 +196,8 @@ extension SyncCostSummary {
             isEstimated: Bool?,
             updatedAt: Date?,
             isStale: Bool,
-            lastReportedDayKey: String?)
+            lastReportedDayKey: String?,
+            isPartial: Bool = false)
         {
             self.availability = availability
             self.source = source
@@ -195,6 +207,7 @@ extension SyncCostSummary {
             self.updatedAt = updatedAt
             self.isStale = isStale
             self.lastReportedDayKey = lastReportedDayKey
+            self.isPartial = isPartial
         }
     }
 
@@ -214,6 +227,11 @@ extension SyncCostSummary {
             ?? providerLastUpdated
         let lastReportedDayKey = self.daily.map(\.dayKey).max()
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
+            // A point-level flag is more specific than the summary fallback.
+            // If an older point omitted its marker, the summary flag still
+            // prevents a known subtotal from being presented as complete.
+            let isPartial = (todayPoint.costIsKnown ?? self.costIsKnown) == false
+            let hasUsableSubtotal = !isPartial || todayPoint.costUSD > 0
             // Per-day verification is the freshness clock for a verified
             // local contribution. Provider quota refreshes do not refresh
             // this spend value.
@@ -231,15 +249,16 @@ extension SyncCostSummary {
                     ?? (requiresVerifiedDays ? nil : effectiveUpdatedAt)
             }
             return TodayTotals(
-                availability: .reported,
+                availability: hasUsableSubtotal ? .reported : .unavailable,
                 source: .daily,
-                costUSD: todayPoint.costUSD,
+                costUSD: hasUsableSubtotal ? todayPoint.costUSD : nil,
                 tokens: todayPoint.totalTokens,
                 isEstimated: todayPoint.isEstimated,
                 updatedAt: dayUpdatedAt,
                 isStale: requiresVerifiedDays && dayUpdatedAt == nil
                     || Self.isStale(dayUpdatedAt, at: now),
-                lastReportedDayKey: lastReportedDayKey)
+                lastReportedDayKey: lastReportedDayKey,
+                isPartial: isPartial)
         }
 
         // `sessionCostUSD` is not a day total by itself. Without an explicit
@@ -249,15 +268,19 @@ extension SyncCostSummary {
            let effectiveUpdatedAt,
            Calendar.current.isDate(effectiveUpdatedAt, inSameDayAs: now)
         {
+            let isPartial = self.costIsKnown == false
+            let sessionCost = self.sessionCostUSD
+            let hasUsableSubtotal = !isPartial || (sessionCost ?? 0) > 0
             return TodayTotals(
-                availability: .reported,
+                availability: hasUsableSubtotal ? .reported : .unavailable,
                 source: .session,
-                costUSD: self.sessionCostUSD,
+                costUSD: hasUsableSubtotal ? sessionCost : nil,
                 tokens: self.sessionTokens,
                 isEstimated: nil,
                 updatedAt: effectiveUpdatedAt,
                 isStale: Self.isStale(effectiveUpdatedAt, at: now),
-                lastReportedDayKey: lastReportedDayKey)
+                lastReportedDayKey: lastReportedDayKey,
+                isPartial: isPartial)
         }
 
         return TodayTotals(
@@ -269,6 +292,36 @@ extension SyncCostSummary {
             updatedAt: effectiveUpdatedAt,
             isStale: false,
             lastReportedDayKey: lastReportedDayKey)
+    }
+
+    /// Totals daily points over the same inclusive, producer-local calendar
+    /// window requested by the Mac. Legacy summaries without `historyDays`
+    /// use the 30-day default. A bounded window prevents a long retained
+    /// history from being mislabeled as a smaller range when the aggregate
+    /// field is absent.
+    func dailyTotals(windowDays: Int? = nil, asOf now: Date = Date()) -> DailyWindowTotals {
+        let points = self.dailyPoints(inWindowDays: windowDays ?? self.historyDays ?? 30, asOf: now)
+        return DailyWindowTotals(
+            costUSD: points.reduce(0) { $0 + $1.costUSD },
+            totalTokens: points.reduce(0) { $0 + $1.totalTokens },
+            isPartial: points.isEmpty
+                ? self.costIsKnown == false
+                : points.contains { ($0.costIsKnown ?? self.costIsKnown) == false },
+            hasPoints: !points.isEmpty)
+    }
+
+    /// Selects an inclusive trailing window of producer-local calendar days.
+    /// Day keys are compared lexicographically only after using the same
+    /// `yyyy-MM-dd` formatter as Today resolution.
+    func dailyPoints(inWindowDays windowDays: Int, asOf now: Date = Date()) -> [SyncDailyPoint] {
+        let days = max(1, min(windowDays, 365))
+        let calendar = Calendar.current
+        let end = calendar.startOfDay(for: now)
+        let start = calendar.date(byAdding: .day, value: -(days - 1), to: end) ?? end
+        let formatter = Self.iso8601DayKeyFormatter()
+        let sinceKey = formatter.string(from: start)
+        let untilKey = formatter.string(from: end)
+        return self.daily.filter { sinceKey <= $0.dayKey && $0.dayKey <= untilKey }
     }
 
     private static func isStale(_ updatedAt: Date?, at now: Date) -> Bool {

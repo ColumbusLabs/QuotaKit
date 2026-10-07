@@ -458,7 +458,7 @@ struct ConfigSetAPIKeyOptions: CommanderParsable {
     @Flag(name: .long("pretty"), help: "Pretty-print JSON output")
     var pretty: Bool = false
 
-    @Option(name: .long("provider"), help: ProviderHelp.optionHelp)
+    @Option(name: .long("provider"), help: ProviderHelp.concreteOptionHelp)
     var provider: String?
 
     @Option(name: .long("api-key"), help: "API key to store")
@@ -505,7 +505,7 @@ struct ConfigProviderToggleOptions: CommanderParsable {
     @Flag(name: .long("pretty"), help: "Pretty-print JSON output")
     var pretty: Bool = false
 
-    @Option(name: .long("provider"), help: ProviderHelp.optionHelp)
+    @Option(name: .long("provider"), help: ProviderHelp.concreteOptionHelp)
     var provider: String?
 }
 

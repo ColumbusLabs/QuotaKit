@@ -312,6 +312,7 @@ final class UsageStore {
         Int) async throws -> CostUsageFetcher.CodexScanCatchUpStatus)?
     @ObservationIgnored var _test_codexCostCatchUpSleepOverride: (@MainActor (
         TimeInterval) async throws -> Void)?
+    @ObservationIgnored var _test_codexCostCatchUpBudgetObserver: (@MainActor (TimeInterval) -> Void)?
     @ObservationIgnored var _test_codexCostCatchUpActiveDuration: TimeInterval = 0
     @ObservationIgnored var _test_codexCostCatchUpResourceStateOverride: (@MainActor () -> (
         powerSource: CodexCostCatchUpPowerSource,
@@ -405,6 +406,9 @@ final class UsageStore {
     @ObservationIgnored var spendDashboardCodexCostCatchUpStopRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpPassIsRunning = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpRestartRequested = false
+    @ObservationIgnored var spendDashboardCodexCostCatchUpPausedContext: SpendDashboardCodexCostCatchUpContext?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpCompletionProbeTask: Task<Void, Never>?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpCompletionProbeToken: UUID?
     @ObservationIgnored var spendDashboardCodexCostCatchUpPausedScopeSignature: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpPausedProgressKey: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpProgressProbeTask: Task<Void, Never>?

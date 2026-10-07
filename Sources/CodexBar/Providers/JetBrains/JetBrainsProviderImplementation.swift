@@ -6,6 +6,11 @@ struct JetBrainsProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .jetbrains
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation(detailLine: { _ in "local" })
+    }
+
+    @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
         _ = context
         return .jetbrains(context.settings.jetbrainsSettingsSnapshot())

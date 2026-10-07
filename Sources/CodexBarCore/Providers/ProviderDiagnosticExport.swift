@@ -331,7 +331,9 @@ public struct ProviderDiagnosticFetchAttempt: Codable, Sendable {
 
     public static func errorCategoryLabel(_ description: String?) -> String {
         guard let desc = description?.lowercased() else { return "unknown" }
-        if desc.contains("endpoint override") {
+        // Claude's quota-less subscription notice includes "token history", which would otherwise
+        // match the authentication heuristic below.
+        if desc.contains("endpoint override") || ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(desc) {
             return "configuration"
         }
         if desc.contains("network") || desc.contains("timeout") || desc.contains("connection") {

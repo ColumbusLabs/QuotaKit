@@ -122,7 +122,7 @@ struct ProviderDetailView: View {
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
-                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil,
+                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil || !cost.daily.isEmpty,
                    self.isCostDetailUnlocked
                 {
                     self.costSummarySection(cost)
@@ -140,7 +140,10 @@ struct ProviderDetailView: View {
 
                 // Daily chart
                 if let cost = self.provider.costSummary, !cost.daily.isEmpty, self.isCostDetailUnlocked {
-                    self.dailyChartSection(cost.daily, currencyCode: cost.currencyCode)
+                    self.dailyChartSection(
+                        cost.daily,
+                        currencyCode: cost.currencyCode,
+                        summaryCostIsKnown: cost.costIsKnown)
                 }
 
                 if self.hasLockedDetailContent {
@@ -340,6 +343,30 @@ struct ProviderDetailView: View {
         // are resolved through one `todayTotals()` call so they can't
         // straddle midnight with mismatched day keys.
         let today = cost.todayTotals(providerLastUpdated: self.provider.lastUpdated)
+        let dailyWindow = cost.dailyTotals(windowDays: cost.historyDays ?? 30)
+        let monthCost: Double? = if let aggregate = cost.last30DaysCostUSD {
+            aggregate
+        } else if dailyWindow.hasPoints {
+            dailyWindow.costUSD
+        } else {
+            nil
+        }
+        let monthTokens: Int? = if let aggregate = cost.last30DaysTokens {
+            aggregate
+        } else if dailyWindow.hasPoints {
+            dailyWindow.totalTokens
+        } else {
+            nil
+        }
+        let monthIsPartial = cost.costIsKnown == false || dailyWindow.isPartial
+        let todaySubtitle: String? = if today.isPartial {
+            [
+                String(localized: "Partial provider data"),
+                today.tokens.map(Self.formatTokens),
+            ].compactMap(\.self).joined(separator: " · ")
+        } else {
+            today.tokens.map(Self.formatTokens)
+        }
         return VStack(alignment: .leading, spacing: 8) {
             Text("Cost & Usage")
                 .font(.headline)
@@ -349,28 +376,43 @@ struct ProviderDetailView: View {
                 if let todayCost = today.costUSD {
                     CostMetricCard(
                         title: "Today",
-                        value: CostFormatting.cost(todayCost, currencyCode: cost.currencyCode),
-                        subtitle: today.tokens.map { Self.formatTokens($0) },
+                        value: Self.formatPartialCost(
+                            todayCost,
+                            isPartial: today.isPartial,
+                            currencyCode: cost.currencyCode),
+                        subtitle: todaySubtitle,
                         tintColor: self.providerColor,
                         isEstimated: today.isEstimated == true)
                 } else {
                     CostMetricCard(
                         title: "Today",
                         value: "—",
-                        subtitle: String(localized: "Not updated today"),
+                        subtitle: today.isPartial
+                            ? String(localized: "Partial provider data")
+                            : String(localized: "Not updated today"),
                         tintColor: self.providerColor)
                 }
-                if let monthCost = cost.last30DaysCostUSD {
+                if let monthCost {
                     CostMetricCard(
                         // Reflect the Mac's configurable 1–365 day window (gap F)
                         // instead of a hardcoded "30 Days"; nil/30 → "30 Days".
                         title: cost.historyDays.flatMap {
                             $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
                         } ?? "30 Days",
-                        value: CostFormatting.cost(monthCost, currencyCode: cost.currencyCode),
-                        subtitle: Self.costSubtitle(
-                            tokens: cost.last30DaysTokens,
-                            requests: cost.last30DaysRequests),
+                        value: monthIsPartial && monthCost <= 0
+                            ? "—"
+                            : Self.formatPartialCost(
+                                monthCost,
+                                isPartial: monthIsPartial,
+                                currencyCode: cost.currencyCode),
+                        subtitle: monthIsPartial
+                            ? [
+                                String(localized: "Partial provider data"),
+                                monthTokens.map(Self.formatTokens),
+                            ].compactMap(\.self).joined(separator: " · ")
+                            : Self.costSubtitle(
+                                tokens: cost.last30DaysTokens,
+                                requests: cost.last30DaysRequests),
                         tintColor: self.providerColor,
                         isEstimated: cost.isEstimated == true)
                 }
@@ -387,7 +429,11 @@ struct ProviderDetailView: View {
 
     // MARK: - Daily Chart
 
-    private func dailyChartSection(_ daily: [SyncDailyPoint], currencyCode: String?) -> some View {
+    private func dailyChartSection(
+        _ daily: [SyncDailyPoint],
+        currencyCode: String?,
+        summaryCostIsKnown: Bool?) -> some View
+    {
         // Precompute axis values once per section build. `daily` is stable across
         // `selectedDate` hover changes, so pulling this out of the `.chartYAxis`
         // closure eliminates redundant axis recomputation on every chart re-render.
@@ -411,39 +457,48 @@ struct ProviderDetailView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("provider-daily-spend-title")
 
+            if daily.contains(where: { ($0.costIsKnown ?? summaryCostIsKnown) == false }) {
+                Text(String(localized: "Partial provider data"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Chart(daily, id: \.dayKey) { point in
-                switch self.chartStyle {
-                case .bars:
-                    BarMark(
-                        x: .value(String(localized: "Date"), point.dayKey),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(self.providerColor.gradient)
-                        .cornerRadius(3)
-                case .line:
-                    AreaMark(
-                        x: .value(String(localized: "Date"), point.dayKey),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(self.providerColor.opacity(0.16))
-                        .interpolationMethod(.catmullRom)
+                let isPartial = (point.costIsKnown ?? summaryCostIsKnown) == false
+                if !isPartial || point.costUSD > 0 {
+                    switch self.chartStyle {
+                    case .bars:
+                        BarMark(
+                            x: .value(String(localized: "Date"), point.dayKey),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(self.providerColor.gradient)
+                            .cornerRadius(3)
+                    case .line:
+                        AreaMark(
+                            x: .value(String(localized: "Date"), point.dayKey),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(self.providerColor.opacity(0.16))
+                            .interpolationMethod(.catmullRom)
 
-                    LineMark(
-                        x: .value(String(localized: "Date"), point.dayKey),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(self.providerColor)
-                        .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.catmullRom)
-                }
+                        LineMark(
+                            x: .value(String(localized: "Date"), point.dayKey),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(self.providerColor)
+                            .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                            .interpolationMethod(.catmullRom)
+                    }
 
-                if selectedDayKey == point.dayKey {
-                    RuleMark(x: .value(String(localized: "Selected Date"), point.dayKey))
-                        .foregroundStyle(self.providerColor.opacity(0.3))
-                        .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
+                    if selectedDayKey == point.dayKey {
+                        RuleMark(x: .value(String(localized: "Selected Date"), point.dayKey))
+                            .foregroundStyle(self.providerColor.opacity(0.3))
+                            .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
 
-                    PointMark(
-                        x: .value(String(localized: "Selected Date"), point.dayKey),
-                        y: .value(String(localized: "Selected Cost"), point.costUSD))
-                        .foregroundStyle(self.providerColor)
-                        .symbolSize(80)
+                        PointMark(
+                            x: .value(String(localized: "Selected Date"), point.dayKey),
+                            y: .value(String(localized: "Selected Cost"), point.costUSD))
+                            .foregroundStyle(self.providerColor)
+                            .symbolSize(80)
+                    }
                 }
             }
             .chartXSelection(value: self.$selectedDate)
@@ -454,7 +509,8 @@ struct ProviderDetailView: View {
                     ProviderDailySpendPresentation.accessibilityValue(
                         for: daily,
                         selectedDayKey: selectedDayKey,
-                        currencyCode: currencyCode)))
+                        currencyCode: currencyCode,
+                        summaryCostIsKnown: summaryCostIsKnown)))
             .accessibilityAdjustableAction { direction in
                 self.adjustDailySelection(direction, in: daily)
             }
@@ -499,10 +555,14 @@ struct ProviderDetailView: View {
                let point = daily.first(where: { $0.dayKey == selectedDayKey })
             {
                 ProviderDailySpendDetailCard(
-                    detail: ProviderDailySpendPresentation.detail(for: point),
+                    detail: ProviderDailySpendPresentation.detail(
+                        for: point,
+                        summaryCostIsKnown: summaryCostIsKnown),
                     currencyCode: currencyCode,
                     tintColor: self.providerColor,
-                    viewportRowCount: ProviderDailySpendPresentation.detailViewportRowCount(in: daily),
+                    viewportRowCount: ProviderDailySpendPresentation.detailViewportRowCount(
+                        in: daily,
+                        summaryCostIsKnown: summaryCostIsKnown),
                     onAdjustSelection: { direction in
                         self.adjustDailySelection(direction, in: daily)
                     })
@@ -572,6 +632,12 @@ struct ProviderDetailView: View {
 
     static func formatTokens(_ count: Int) -> String {
         CostFormatting.tokens(count)
+    }
+
+    static func formatPartialCost(_ value: Double, isPartial: Bool, currencyCode: String?) -> String {
+        guard isPartial else { return CostFormatting.cost(value, currencyCode: currencyCode) }
+        guard value > 0 else { return "—" }
+        return "≥\(CostFormatting.cost(value, currencyCode: currencyCode))"
     }
 
     /// Cost-card subtitle combining the token count with an optional request
@@ -647,6 +713,7 @@ struct ProviderDailySpendDetail: Equatable {
     let costUSD: Double
     let totalTokens: Int
     let isEstimated: Bool
+    let isPartial: Bool
     let models: [ProviderDailySpendModelRow]
     let splitSubtitle: String?
 }
@@ -739,7 +806,10 @@ enum ProviderDailySpendPresentation {
         self.orderedDayKeys(in: daily).last
     }
 
-    static func detail(for point: SyncDailyPoint) -> ProviderDailySpendDetail {
+    static func detail(
+        for point: SyncDailyPoint,
+        summaryCostIsKnown: Bool? = nil) -> ProviderDailySpendDetail
+    {
         var byLabel: [String: Aggregate] = [:]
         for breakdown in point.modelBreakdowns {
             let label = breakdown.label.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -775,6 +845,7 @@ enum ProviderDailySpendPresentation {
             costUSD: point.costUSD,
             totalTokens: point.totalTokens,
             isEstimated: point.isEstimated == true || models.contains(where: \.isEstimated),
+            isPartial: (point.costIsKnown ?? summaryCostIsKnown) == false,
             models: models,
             splitSubtitle: CodexCostSplit.subtitle(summing: point.modelBreakdowns))
     }
@@ -786,8 +857,13 @@ enum ProviderDailySpendPresentation {
     /// Matches the Mac chart's stable detail viewport: reserve rows for the
     /// largest model mix in the loaded range so scrubbing between days does
     /// not make the card jump in height.
-    static func detailViewportRowCount(in daily: [SyncDailyPoint]) -> Int {
-        let largestModelMix = daily.map { self.detail(for: $0).models.count }.max() ?? 0
+    static func detailViewportRowCount(
+        in daily: [SyncDailyPoint],
+        summaryCostIsKnown: Bool? = nil) -> Int
+    {
+        let largestModelMix = daily.map {
+            self.detail(for: $0, summaryCostIsKnown: summaryCostIsKnown).models.count
+        }.max() ?? 0
         return self.detailViewportRowCount(for: largestModelMix)
     }
 
@@ -798,25 +874,33 @@ enum ProviderDailySpendPresentation {
     static func accessibilityValue(
         for daily: [SyncDailyPoint],
         selectedDayKey: String?,
-        currencyCode: String?) -> String
+        currencyCode: String?,
+        summaryCostIsKnown: Bool? = nil) -> String
     {
         guard let selectedDayKey,
               let point = daily.first(where: { $0.dayKey == selectedDayKey })
         else {
             return String(localized: "No cost history data")
         }
-        return self.accessibilityValue(for: self.detail(for: point), currencyCode: currencyCode)
+        return self.accessibilityValue(
+            for: self.detail(for: point, summaryCostIsKnown: summaryCostIsKnown),
+            currencyCode: currencyCode)
     }
 
     static func accessibilityValue(
         for detail: ProviderDailySpendDetail,
         currencyCode: String?) -> String
     {
-        var parts = [
-            detail.dayKey,
-            CostFormatting.cost(detail.costUSD, currencyCode: currencyCode),
-            CostFormatting.tokens(detail.totalTokens),
-        ]
+        var parts = [detail.dayKey]
+        if detail.isPartial, detail.costUSD == 0 {
+            parts.append(String(localized: "Partial provider data"))
+        } else if detail.isPartial {
+            parts.append("≥\(CostFormatting.cost(detail.costUSD, currencyCode: currencyCode))")
+            parts.append(String(localized: "Partial provider data"))
+        } else {
+            parts.append(CostFormatting.cost(detail.costUSD, currencyCode: currencyCode))
+        }
+        parts.append(CostFormatting.tokens(detail.totalTokens))
         if detail.isEstimated {
             parts.append(String(localized: "Estimated"))
         }
@@ -865,6 +949,13 @@ private struct ProviderDailySpendDetailCard: View {
 
     private static let rowHeight: CGFloat = 50
 
+    private var costValue: String {
+        ProviderDetailView.formatPartialCost(
+            self.detail.costUSD,
+            isPartial: self.detail.isPartial,
+            currencyCode: self.currencyCode)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -876,11 +967,16 @@ private struct ProviderDailySpendDetailCard: View {
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     }
+                    if self.detail.isPartial {
+                        Text(String(localized: "Partial provider data"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(CostFormatting.cost(self.detail.costUSD, currencyCode: self.currencyCode))
+                    Text(self.costValue)
                         .font(.headline.monospacedDigit())
                         .fontWeight(.semibold)
                     Text(CostFormatting.tokens(self.detail.totalTokens))

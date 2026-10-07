@@ -33,7 +33,9 @@ struct CostDashboardView: View {
                 if !self.insights.providerRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",
-                        subtitle: "30-day spend contribution across synced providers.",
+                        subtitle: self.insights.total30DayCostIsPartial
+                            ? "Partial provider data"
+                            : "30-day spend contribution across synced providers.",
                         accessibilityIdentifier: "cost-dashboard-section-provider-share",
                         rows: self.insights.providerRows.map {
                             // `identityOverride: $0.id` carries the
@@ -48,6 +50,7 @@ struct CostDashboardView: View {
                                 subtitle: self.providerSubtitle(for: $0),
                                 color: providerTint(for: $0.provider),
                                 brandProviderID: $0.provider.providerID,
+                                isPartial: $0.thirtyDayCostIsPartial,
                                 identityOverride: $0.id)
                         },
                         total: self.insights.total30DayCost)
@@ -71,7 +74,10 @@ struct CostDashboardView: View {
                 if !self.insights.serviceRows.isEmpty {
                     self.contributionSection(
                         title: "Codex Service Mix",
-                        subtitle: "Breakdown from Codex Cloud dashboard data, including Codex Run and other billable services.",
+                        subtitle: self.insights.total30DayCostIsPartial
+                            ? "Partial provider data"
+                            :
+                            "Breakdown from Codex Cloud dashboard data, including Codex Run and other billable services.",
                         accessibilityIdentifier: "cost-dashboard-section-service-mix",
                         rows: self.insights.serviceRows,
                         total: self.insights.serviceRows.reduce(0) { $0 + $1.amountUSD })
@@ -109,13 +115,19 @@ struct CostDashboardView: View {
                 .padding(.top, 4)
 
             CostHeroStrip(
-                total30DayCost: Self.formatUSD(self.insights.total30DayCost),
+                total30DayCost: Self.formatLowerBound(
+                    self.insights.total30DayCost,
+                    isPartial: self.insights.total30DayCostIsPartial),
                 tokenSubtitle: self.insights.total30DayTokens > 0
                     ? Self.formatTokens(self.insights.total30DayTokens)
                     : String(localized: "No token data"),
-                todayValue: self.insights.totalTodayCost.map(Self.formatUSD) ?? "—",
+                todayValue: self.insights.totalTodayCost.map {
+                    Self.formatLowerBound($0, isPartial: self.insights.todayHasPartialCost)
+                } ?? "—",
                 todaySubtitle: self.providersActiveSubtitle,
-                topDriverValue: Self.formatUSD(self.insights.topProvider?.thirtyDayCost ?? 0),
+                topDriverValue: self.insights.total30DayCostIsPartial ? "—" : self.insights.topProvider.map {
+                    Self.formatLowerBound($0.thirtyDayCost, isPartial: $0.thirtyDayCostIsPartial)
+                } ?? "—",
                 topDriverSubtitle: self.topDriverSubtitle ?? String(localized: "No data"),
                 activeDaysValue: "\(self.insights.activeDayCount)",
                 activeDaysSubtitle: self.activeDaySubtitle ?? String(localized: "No active days"))
@@ -208,42 +220,44 @@ struct CostDashboardView: View {
             .accessibilityIdentifier("cost-dashboard-daily-spend-title")
 
             Chart(self.insights.dailyPoints) { point in
-                switch self.chartStyle {
-                case .bars:
-                    BarMark(
-                        x: .value(String(localized: "Date"), point.date),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(self.theme.spendWarm.gradient)
-                        .cornerRadius(4)
-                case .line:
-                    AreaMark(
-                        x: .value(String(localized: "Date"), point.date),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [self.theme.spendWarm.opacity(0.35), self.theme.spendWarm.opacity(0.02)],
-                                startPoint: .top,
-                                endPoint: .bottom))
-                        .interpolationMethod(.catmullRom)
+                if !point.isPartial || point.costUSD > 0 {
+                    switch self.chartStyle {
+                    case .bars:
+                        BarMark(
+                            x: .value(String(localized: "Date"), point.date),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(self.theme.spendWarm.gradient)
+                            .cornerRadius(4)
+                    case .line:
+                        AreaMark(
+                            x: .value(String(localized: "Date"), point.date),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [self.theme.spendWarm.opacity(0.35), self.theme.spendWarm.opacity(0.02)],
+                                    startPoint: .top,
+                                    endPoint: .bottom))
+                            .interpolationMethod(.catmullRom)
 
-                    LineMark(
-                        x: .value(String(localized: "Date"), point.date),
-                        y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(self.theme.spendWarm)
-                        .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.catmullRom)
-                }
+                        LineMark(
+                            x: .value(String(localized: "Date"), point.date),
+                            y: .value(String(localized: "Cost"), point.costUSD))
+                            .foregroundStyle(self.theme.spendWarm)
+                            .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                            .interpolationMethod(.catmullRom)
+                    }
 
-                if let selectedPoint = self.selectedPoint, selectedPoint.id == point.id {
-                    RuleMark(x: .value(String(localized: "Selected Date"), selectedPoint.date))
-                        .foregroundStyle(self.theme.spendWarm.opacity(0.35))
-                        .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
+                    if let selectedPoint = self.selectedPoint, selectedPoint.id == point.id {
+                        RuleMark(x: .value(String(localized: "Selected Date"), selectedPoint.date))
+                            .foregroundStyle(self.theme.spendWarm.opacity(0.35))
+                            .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
 
-                    PointMark(
-                        x: .value(String(localized: "Selected Date"), selectedPoint.date),
-                        y: .value(String(localized: "Selected Cost"), selectedPoint.costUSD))
-                        .foregroundStyle(self.theme.spendWarm)
-                        .symbolSize(80)
+                        PointMark(
+                            x: .value(String(localized: "Selected Date"), selectedPoint.date),
+                            y: .value(String(localized: "Selected Cost"), selectedPoint.costUSD))
+                            .foregroundStyle(self.theme.spendWarm)
+                            .symbolSize(80)
+                    }
                 }
             }
             .chartXSelection(value: self.$selectedDay)
@@ -302,10 +316,15 @@ struct CostDashboardView: View {
                         .font(.caption)
                         .foregroundStyle(self.theme.textMuted)
                     Spacer()
-                    Text(Self.formatUSD(selectedPoint.costUSD))
+                    Text(Self.formatLowerBound(selectedPoint.costUSD, isPartial: selectedPoint.isPartial))
                         .font(.caption.monospacedDigit())
                         .fontWeight(.semibold)
                         .foregroundStyle(self.theme.textPrimary)
+                    if selectedPoint.isPartial, selectedPoint.costUSD == 0 {
+                        Text(String(localized: "Partial provider data"))
+                            .font(.caption2)
+                            .foregroundStyle(self.theme.textMuted)
+                    }
                     if selectedPoint.totalTokens > 0 {
                         Text("· \(Self.formatTokens(selectedPoint.totalTokens))")
                             .font(.caption)
@@ -315,10 +334,12 @@ struct CostDashboardView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(self.theme.surfaceElevated, in: Capsule())
+            } else if self.insights.dailyPoints.contains(where: \.isPartial) {
+                Label(String(localized: "Partial provider data"), systemImage: "exclamationmark.circle.fill")
             } else {
                 HStack(spacing: 12) {
                     Label(
-                        "\(String(localized: "Peak")) \(Self.formatUSD(self.insights.highestDay?.costUSD ?? 0))",
+                        "\(String(localized: "Peak")) \(self.insights.highestDay.map { Self.formatLowerBound($0.costUSD, isPartial: $0.isPartial) } ?? Self.formatUSD(0))",
                         systemImage: "arrow.up.right.circle.fill")
                     Label(
                         self.insights.highestDay.map { Self.shortDate($0.date) } ?? String(localized: "No data"),
@@ -364,7 +385,9 @@ struct CostDashboardView: View {
             self.contributionSection(
                 title: "Model Mix",
                 subtitle: metric == .cost
-                    ? "Top cost drivers across providers that expose model-level billing."
+                    ? (self.insights.total30DayCostIsPartial
+                        ? "Partial provider data"
+                        : "Top cost drivers across providers that expose model-level billing.")
                     : nil,
                 accessibilityIdentifier: "cost-dashboard-section-model-mix",
                 rows: rows,
@@ -412,6 +435,7 @@ struct CostDashboardView: View {
         let usesOthers = rows.count >= cap + 1
         let visible: [CostBreakdownRow] = usesOthers ? Array(rows.prefix(cap)) : rows
         let tail: [CostBreakdownRow] = usesOthers ? Array(rows.dropFirst(cap)) : []
+        let totalIsPartial = metric == .cost && self.insights.total30DayCostIsPartial
         let tailAmount = tail.reduce(0) { partial, row in
             partial + (metric == .cost ? row.amountUSD : Double(row.totalTokens ?? 0))
         }
@@ -427,7 +451,12 @@ struct CostDashboardView: View {
 
             VStack(spacing: 12) {
                 ForEach(Array(visible.enumerated()), id: \.element.id) { index, row in
-                    CostBreakdownRowView(row: row, total: total, metric: metric, rank: index + 1)
+                    CostBreakdownRowView(
+                        row: row,
+                        total: total,
+                        metric: metric,
+                        rank: totalIsPartial ? nil : index + 1,
+                        totalIsPartial: totalIsPartial)
                 }
                 if usesOthers {
                     NavigationLink {
@@ -435,13 +464,16 @@ struct CostDashboardView: View {
                             title: title,
                             rows: rows,
                             total: total,
-                            metric: metric)
+                            metric: metric,
+                            totalIsPartial: totalIsPartial)
                     } label: {
                         OthersBreakdownRowView(
                             count: tail.count,
                             amountUSD: tailAmount,
                             total: total,
-                            metric: metric)
+                            metric: metric,
+                            isPartial: metric == .cost && tail.contains(where: \.isPartial),
+                            totalIsPartial: totalIsPartial)
                     }
                     .buttonStyle(.plain)
                 }
@@ -489,12 +521,14 @@ struct CostDashboardView: View {
     }
 
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
-        let today = if !row.today.isAvailable {
+        let today = if row.today.isPartial && !row.today.isAvailable {
+            String(localized: "Partial provider data")
+        } else if !row.today.isAvailable {
             String(localized: "Not updated today")
         } else if let cost = row.today.costUSD, cost == 0 {
             String(localized: "No spend today")
         } else if let cost = row.today.costUSD {
-            "\(String(localized: "Today")) \(Self.formatUSD(cost))"
+            "\(String(localized: "Today")) \(Self.formatLowerBound(cost, isPartial: row.today.isPartial))"
         } else {
             String(localized: "Not updated today")
         }
@@ -507,25 +541,39 @@ struct CostDashboardView: View {
 
     private var topDriverSubtitle: String? {
         guard let topProvider = self.insights.topProvider else { return nil }
+        if self.insights.total30DayCostIsPartial {
+            return String(localized: "Partial provider data")
+        }
         return "\(topProvider.provider.providerName) · \(Self.formatShare(topProvider.thirtyDayCost, total: self.insights.total30DayCost))"
     }
 
     private var activeDaySubtitle: String? {
         guard self.insights.activeDayCount > 0 else { return nil }
+        guard !self.insights.total30DayCostIsPartial else {
+            return String(localized: "Partial provider data")
+        }
         let average = self.insights.total30DayCost / Double(self.insights.activeDayCount)
         return "\(String(localized: "Avg")) \(Self.formatUSD(average)) \(String(localized: "per active day"))"
     }
 
     private var providersActiveSubtitle: String {
+        if self.insights.todayHasPartialCost, self.insights.todayReportingProviderCount == 0 {
+            return String(localized: "Partial provider data")
+        }
+
         if self.insights.todayHasNoReportedProviders {
             return String(localized: "Waiting for today's Mac sync")
         }
 
-        if self.insights.todayCoverageIsPartial {
+        if self.insights.todayProviderCoverageIsPartial {
             return String(
                 format: String(localized: "%d of %d providers updated"),
                 self.insights.todayReportingProviderCount,
                 self.insights.todayProviderCount)
+        }
+
+        if self.insights.todayHasPartialCost {
+            return String(localized: "Partial provider data")
         }
 
         if self.insights.todayIsStale {
@@ -562,6 +610,12 @@ struct CostDashboardView: View {
 
     private static func formatUSD(_ value: Double) -> String {
         CostFormatting.usd(value)
+    }
+
+    private static func formatLowerBound(_ value: Double, isPartial: Bool) -> String {
+        guard isPartial else { return self.formatUSD(value) }
+        guard value > 0 else { return "—" }
+        return "≥\(self.formatUSD(value))"
     }
 
     private static func formatTokens(_ count: Int) -> String {
