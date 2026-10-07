@@ -424,6 +424,34 @@ extension CostUsageScanner {
                 cached.codexRows ?? [], ledger: cached.codexRequestLedgerState))
     }
 
+    private static func codexRescanReplayRows(
+        plan: CodexRescanPlan,
+        input: CodexFileScanInput,
+        context: CodexFileScanContext,
+        sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
+        sessionID: String?,
+        pendingPricing: inout [String: CodexPricingEvidence]) -> [CodexUsageRow]
+    {
+        let parsed = plan.parsed
+        let stagedRows = (plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []).filter {
+            $0.eventIndex.map { !parsed.replacedLegacyRowIndices.contains($0) } ?? true
+        }
+        let ownershipRows = Self.codexRescanRowsRetainingRequestOwnership(
+            input: input, context: context, rows: parsed.rows, sessionID: sessionID, sourcePricing: sourcePricing)
+        let classifiedNewRows = Self.codexRowsWithRetainedPricing(
+            ownershipRows,
+            source: (sourcePricing, parsed, plan.sourceAnchor?.indexedBytes),
+            pendingPricing: &pendingPricing,
+            sessionId: sessionID,
+            priorityTurns: context.resources.priorityTurns)
+        let recoveredStagedRows = Self.codexRowsRecoveringLedgerPricing(
+            stagedRows,
+            pricing: sourcePricing,
+            ledgerLegacyKeys: parsed.ledgerLegacyPricingKeys,
+            priorityTurns: context.resources.priorityTurns)
+        return recoveredStagedRows + classifiedNewRows
+    }
+
     private static func materializeCodexRescan(
         plan: CodexRescanPlan,
         input: CodexFileScanInput,
@@ -439,9 +467,6 @@ extension CostUsageScanner {
             context.resources.projectPathResolver.canonicalProjectPath(for: $0)
         } ?? input.cached?.canonicalProjectPath ?? context.resources.projectPathResolver
             .canonicalProjectPath(for: projectPath)
-        let stagedRows = (plan.replacementWasPending ? input.cached?.codexStagedRecoveryRows ?? [] : []).filter {
-            $0.eventIndex.map { !parsed.replacedLegacyRowIndices.contains($0) } ?? true
-        }
         let sourceSessionID = parsed.sessionId ?? input.cached?.sessionId
         let sourcePricing = input.cached?.sessionId != nil && parsed.sessionId != nil
             && parsed.sessionId != input.cached?.sessionId ? [:] : plan.sourcePricing
@@ -450,20 +475,13 @@ extension CostUsageScanner {
             metadata: input.metadata,
             sessionId: sourceSessionID,
             preserveCachedRows: sourcePricing == nil && !plan.parserRevisionNeedsReplacement)
-        let ownershipRows = Self.codexRescanRowsRetainingRequestOwnership(
-            input: input, context: context, rows: parsed.rows, sessionID: sourceSessionID, sourcePricing: sourcePricing)
-        let classifiedNewRows = Self.codexRowsWithRetainedPricing(
-            ownershipRows,
-            source: (sourcePricing, parsed, plan.sourceAnchor?.indexedBytes),
-            pendingPricing: &pendingPricing,
-            sessionId: sourceSessionID,
-            priorityTurns: context.resources.priorityTurns)
-        let recoveredStagedRows = Self.codexRowsRecoveringLedgerPricing(
-            stagedRows,
-            pricing: sourcePricing,
-            ledgerLegacyKeys: parsed.ledgerLegacyPricingKeys,
-            priorityTurns: context.resources.priorityTurns)
-        let replayedRows = recoveredStagedRows + classifiedNewRows
+        let replayedRows = Self.codexRescanReplayRows(
+            plan: plan,
+            input: input,
+            context: context,
+            sourcePricing: sourcePricing,
+            sessionID: sourceSessionID,
+            pendingPricing: &pendingPricing)
         let replayedSnapshots = plan.replacementWasPending
             ? Self.mergingCodexTokenSnapshots(input.cached?.codexStagedRecoverySnapshots ?? [], parsed.tokenSnapshots)
             : parsed.tokenSnapshots

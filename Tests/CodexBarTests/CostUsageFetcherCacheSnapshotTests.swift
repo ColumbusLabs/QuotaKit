@@ -16,19 +16,42 @@ struct CostUsageFetcherCacheSnapshotTests {
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now)
         let rows = [
             CostUsageScanner.CodexUsageRow(
-                day: range.sinceKey, model: "gpt-5.4", turnID: nil, eventIndex: 0,
-                input: 10, cached: 0, output: 0, knownCostNanos: 1_000_000_000),
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 1_000_000_000),
             CostUsageScanner.CodexUsageRow(
-                day: range.sinceKey, model: "gpt-5.4", turnID: nil, eventIndex: 1,
-                input: 10, cached: 0, output: 0, knownCostNanos: 2_000_000_000, unpricedTokens: 10),
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                unpricedTokens: 10),
             CostUsageScanner.CodexUsageRow(
-                day: range.sinceKey, model: "gpt-5.4", turnID: nil, eventIndex: 2,
-                input: 10, cached: 0, output: 0, pricingModel: "synthetic-unknown-model"),
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 2,
+                input: 10,
+                cached: 0,
+                output: 0,
+                pricingModel: "synthetic-unknown-model"),
         ]
         let packedInput = rowsExceedCanonical ? 20 : 30
         let usage = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 1, days: [range.sinceKey: ["gpt-5.4": [packedInput, 0, 0]]],
-            parsedBytes: 1, codexRows: rows, codexScanComplete: true)
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [range.sinceKey: ["gpt-5.4": [packedInput, 0, 0]]],
+            parsedBytes: 1,
+            codexRows: rows,
+            codexScanComplete: true)
         let aggregate = try #require(CostUsageStore.fileAggregatesForTesting(usage).first)
         #expect(aggregate.authoritativeCostNanos == 1_000_000_000)
         #expect(aggregate.standardUnresolvedPricingCount == 2)
@@ -40,8 +63,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             cache: cache,
             fileDayAggregates: [.init(path: path, aggregate: aggregate)])
         let report = CostUsageCodexReportProjectionBuilder.build(
-            projection: projection, roots: [env.codexSessionsRoot], range: range,
-            cacheRoot: env.cacheRoot, includeBreakdowns: false).report
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
         #expect(report.data.first?.unpricedRequestCount == 2)
         #expect(report.data.first?.costUSD == (rowsExceedCanonical ? nil : 1))
         #expect(report.data.first?.pricedRequestCount == (rowsExceedCanonical ? nil : 1))

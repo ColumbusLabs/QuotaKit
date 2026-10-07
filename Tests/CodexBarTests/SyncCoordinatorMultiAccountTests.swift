@@ -365,7 +365,8 @@ struct SyncCoordinatorMultiAccountTests {
             #expect(Set(snapshots.compactMap(\.accountEmail)) == ["Personal", "Work"])
         }
         let encoded = try JSONEncoder().encode(snapshots)
-        #expect(!String(decoding: encoded, as: UTF8.self).contains("tok-"))
+        let encodedString = try #require(String(bytes: encoded, encoding: .utf8))
+        #expect(!encodedString.contains("tok-"))
     }
 
     @Test

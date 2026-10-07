@@ -51,6 +51,15 @@ struct OpenCodexIncompleteUsageTests {
         let payload = CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil)
         let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any])
         #expect(json["incompleteRequestCount"] as? Int == 1)
+        #expect((json["totals"] as? [String: Any])?["incompleteRequestCount"] as? Int == 1)
+        let dailyJSON = try #require((json["daily"] as? [[String: Any]])?.first)
+        #expect(dailyJSON["incompleteRequestCount"] as? Int == 1)
+        let modelJSON = try #require(dailyJSON["modelBreakdowns"] as? [[String: Any]])
+        #expect(modelJSON.first { $0["modelName"] as? String == pendingModel }?["incompleteRequestCount"] as? Int == 1)
+        let importedPayload = CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot)
+        let importedJSON = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(importedPayload)) as? [String: Any])
+        #expect(importedJSON["incompleteRequestCount"] as? Int == 1)
     }
 
     @Test(arguments: [OpenCodexUsageStatus.reported, .estimated, .unreported, .unsupported])
@@ -75,6 +84,26 @@ struct OpenCodexIncompleteUsageTests {
         #expect(snapshot.daily.first?.incompleteRequestCount == 0)
         #expect(snapshot.daily.first?.totalTokens == usage.resolvedTotalTokens)
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.incompleteRequestCount == nil)
+    }
+
+    @Test
+    func `complete imports omit incomplete counts from CLI exports`() throws {
+        let snapshot = Self.snapshot(entries: [
+            Self.entry(id: "known", model: "fixture-priced", usage: .init(inputTokens: 100, outputTokens: 20)),
+        ])
+        #expect(snapshot.summary(forLastDays: 7, calendar: Self.calendar).incompleteRequestCount == 0)
+        for payload in [
+            CodexBarCLI.makeCostPayload(provider: .codex, snapshot: snapshot, error: nil),
+            CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot),
+        ] {
+            let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any])
+            #expect(json["incompleteRequestCount"] == nil)
+            #expect((json["totals"] as? [String: Any])?["incompleteRequestCount"] == nil)
+            let dailyJSON = try #require((json["daily"] as? [[String: Any]])?.first)
+            #expect(dailyJSON["incompleteRequestCount"] == nil)
+            let modelJSON = try #require((dailyJSON["modelBreakdowns"] as? [[String: Any]])?.first)
+            #expect(modelJSON["incompleteRequestCount"] == nil)
+        }
     }
 
     @Test

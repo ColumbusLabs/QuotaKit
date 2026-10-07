@@ -1353,6 +1353,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let currencyCode: String
         let totalTokens: Int?
         let totalCost: Double?
+        let incompleteRequestCount: Int?
         let meteredCost: Double?
         let provenance: String
         let coverage: CostUsageCoverageCounts
@@ -1381,6 +1382,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
         let modelName: String
         let totalTokens: Int?
         let totalCost: Double?
+        let incompleteRequestCount: Int?
     }
 
     static func make(model: SpendDashboardModel, hiddenSourceIDs: [String]) -> Self {
@@ -1392,6 +1394,7 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
                     currencyCode: group.currencyCode,
                     totalTokens: group.totalTokens,
                     totalCost: group.totalCost,
+                    incompleteRequestCount: group.incompleteRequestCount > 0 ? group.incompleteRequestCount : nil,
                     meteredCost: group.meteredCost,
                     provenance: group.provenance.rawValue,
                     coverage: group.coverage,
@@ -1414,7 +1417,8 @@ struct SpendDashboardExportPayload: Encodable, Sendable {
                             provider: $0.provider.rawValue,
                             modelName: $0.modelName,
                             totalTokens: $0.totalTokens,
-                            totalCost: $0.totalCost)
+                            totalCost: $0.totalCost,
+                            incompleteRequestCount: $0.incompleteRequestCount > 0 ? $0.incompleteRequestCount : nil)
                     })
             },
             hiddenSourceIDs: hiddenSourceIDs)

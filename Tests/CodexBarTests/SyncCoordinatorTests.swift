@@ -324,10 +324,16 @@ struct SyncCoordinatorTests {
                 last30DaysCostUSD: nil,
                 historyCoverageIsEstablished: true,
                 daily: [.init(
-                    date: dayKey, inputTokens: 100, outputTokens: 0, totalTokens: 100, costUSD: 1.25,
+                    date: dayKey,
+                    inputTokens: 100,
+                    outputTokens: 0,
+                    totalTokens: 100,
+                    costUSD: 1.25,
                     modelsUsed: ["fixture-model"],
                     modelBreakdowns: [.init(
-                        modelName: "fixture-model", costUSD: 1.25, totalTokens: 100,
+                        modelName: "fixture-model",
+                        costUSD: 1.25,
+                        totalTokens: 100,
                         incompleteRequestCount: incompleteTokens ? 1 : nil)],
                     unpricedRequestCount: incompleteTokens ? nil : 1)],
                 updatedAt: now),

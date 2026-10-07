@@ -277,8 +277,9 @@ struct CodexAccountPromotionExecutionTests {
             #expect(try container.loadAccounts().account(id: destination.id)?.authFingerprint == destination
                 .authFingerprint)
         } else {
-            #expect(try executor
-                .execute(plan: plan, context: context) == .alreadyManaged(managedAccountID: destination.id))
+            let executionResult = try executor.execute(plan: plan, context: context)
+            #expect(executionResult.displacedLiveDisposition == .alreadyManaged(
+                managedAccountID: destination.id))
             #expect(try Data(contentsOf: authURL) == liveData)
         }
         #expect(try container.liveAuthData() == liveData)

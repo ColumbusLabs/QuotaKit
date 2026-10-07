@@ -196,8 +196,8 @@ struct SettingsConfigTerminationTests {
         } else {
             settings = testSettingsStore(
                 suiteName: "SettingsConfigTerminationTests",
-                userDefaults: InMemoryUserDefaults(),
-                config: testConfigWithAllProvidersDisabled())
+                config: testConfigWithAllProvidersDisabled(),
+                userDefaults: InMemoryUserDefaults())
         }
         settings._test_configPersistenceUsesDebounce = true
         defer { try? FileManager.default.removeItem(at: settings.configStore.fileURL.deletingLastPathComponent()) }

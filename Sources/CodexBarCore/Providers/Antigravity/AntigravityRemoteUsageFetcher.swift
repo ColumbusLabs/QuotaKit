@@ -15,7 +15,8 @@ public enum AntigravityRemoteFetchError: LocalizedError, Sendable, Equatable {
         case .notLoggedIn:
             "Antigravity Google auth not found. Use Antigravity login to authenticate."
         case .reauthenticationRequired:
-            "This Antigravity account was signed in with an OAuth client that cannot read its quota. Sign in to it again."
+            "This Antigravity account was signed in with an OAuth client that cannot read its quota."
+                + " Sign in to it again."
         case let .permissionDenied(message):
             "Antigravity remote API permission denied: \(message)"
         case let .apiError(message):

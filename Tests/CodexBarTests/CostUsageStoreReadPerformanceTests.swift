@@ -55,7 +55,8 @@ struct CostUsageStoreReadPerformanceTests {
             .first?.totalTokens == 60)
         #if DEBUG
         #expect(visits.value.map(\.rowIndex) == [0, 1, 0, 1])
-        #expect(visits.value.allSatisfy(\.decoded))
+        let allVisitsDecoded = visits.value.allSatisfy { visit in visit.decoded }
+        #expect(allVisitsDecoded)
         #endif
     }
 

@@ -260,15 +260,18 @@ extension ShareCardData {
             case .week, .month:
                 row.thirtyDayCost // we'll recalculate for 7d below
             }
+            let isPartial: Bool = switch period {
+            case .today:
+                row.today.isPartial || periodIsPartial
+            case .week, .month:
+                periodIsPartial
+            }
             return ProviderRow(
                 name: row.provider.providerName,
                 cost: cost,
                 share: 0, // computed below
                 color: Self.providerColor(for: row.provider.providerID),
-                isPartial: switch period {
-                case .today: row.today.isPartial || periodIsPartial
-                case .week, .month: periodIsPartial
-                })
+                isPartial: isPartial)
         }
 
         // Compute totals

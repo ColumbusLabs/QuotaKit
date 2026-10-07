@@ -22,11 +22,24 @@ struct CostUsageRequestLedgerMigrationTests {
         let file = try env.writeCodexSessionFile(day: now, filename: "legacy-partial.jsonl", contents: "{}\n")
         let rows = [
             CostUsageScanner.CodexUsageRow(
-                day: range.sinceKey, model: "gpt-5.4", turnID: nil, eventIndex: 0,
-                input: 10, cached: 0, output: 0, knownCostNanos: 1_000_000_000),
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 1_000_000_000),
             CostUsageScanner.CodexUsageRow(
-                day: range.sinceKey, model: "gpt-5.4", turnID: nil, eventIndex: 1,
-                input: 10, cached: 0, output: 0, knownCostNanos: 2_000_000_000, unpricedTokens: 10),
+                day: range.sinceKey,
+                model: "gpt-5.4",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                unpricedTokens: 10),
         ]
         var cache = CostUsageCache()
         cache.lastScanUnixMs = Int64(now.timeIntervalSince1970 * 1000)
@@ -36,16 +49,25 @@ struct CostUsageRequestLedgerMigrationTests {
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         cache.days = [range.sinceKey: ["gpt-5.4": [20, 0, 0]]]
         cache.files[file.path] = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 3, days: cache.days, parsedBytes: 3,
-            codexRows: rows, codexScanComplete: true, codexParserRevision: 8)
+            mtimeUnixMs: 1,
+            size: 3,
+            days: cache.days,
+            parsedBytes: 3,
+            codexRows: rows,
+            codexScanComplete: true,
+            codexParserRevision: 8)
         if includeCurrentFile {
             let currentFile = try env.writeCodexSessionFile(
                 day: now, filename: "current-partial.jsonl", contents: "{}\n")
             var currentRows = rows
             currentRows[0].knownCostNanos = 500_000_000
             cache.files[currentFile.path] = CostUsageScanner.makeFileUsage(
-                mtimeUnixMs: 1, size: 3, days: cache.days, parsedBytes: 3,
-                codexRows: currentRows, codexScanComplete: true,
+                mtimeUnixMs: 1,
+                size: 3,
+                days: cache.days,
+                parsedBytes: 3,
+                codexRows: currentRows,
+                codexScanComplete: true,
                 codexParserRevision: CostUsageFileUsage.currentCodexParserRevision)
             cache.days[range.sinceKey] = ["gpt-5.4": [40, 0, 0]]
         }

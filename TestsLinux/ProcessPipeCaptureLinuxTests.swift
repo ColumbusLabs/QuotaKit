@@ -9,6 +9,11 @@ import Testing
 @Suite(.serialized)
 struct ProcessPipeCaptureLinuxTests {
     private static let emfileChildEnvironmentKey = "CODEXBAR_PROCESS_PIPE_EMFILE_CHILD"
+    fileprivate static let descriptorSetupFailureChildEnvironmentKey =
+        "CODEXBAR_PROCESS_PIPE_DESCRIPTOR_SETUP_FAILURE_CHILD"
+    fileprivate static let descriptorSetupFailureMarkerEnvironmentKey =
+        "CODEXBAR_PROCESS_PIPE_DESCRIPTOR_SETUP_FAILURE_MARKER"
+    fileprivate static let descriptorSetupFailureMarkerContents = "descriptor-setup-failure-ran"
 
     @Test
     func `blocked onData callback does not block capture close`() throws {
@@ -163,6 +168,58 @@ struct ProcessPipeCaptureLinuxTests {
 
     @Test
     func `Linux descriptor setup failure closes the read end immediately`() throws {
+        let markerURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("process-pipe-descriptor-setup-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: markerURL) }
+
+        let process = Process()
+        let testExecutable = try FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe")
+        process.executableURL = URL(fileURLWithPath: testExecutable)
+        process.arguments = [
+            "--filter",
+            "ProcessPipeCaptureLinuxDescriptorSetupFailureChildTests",
+            "--testing-library",
+            "swift-testing",
+        ]
+        var environment = ProcessInfo.processInfo.environment
+        environment[Self.descriptorSetupFailureChildEnvironmentKey] = "1"
+        environment[Self.descriptorSetupFailureMarkerEnvironmentKey] = markerURL.path
+        process.environment = environment
+
+        let processExited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in processExited.signal() }
+        try process.run()
+
+        let waitResult = processExited.wait(timeout: .now() + 60)
+        if waitResult == .timedOut {
+            if process.isRunning {
+                process.terminate()
+            }
+            let stoppedAfterTermination = processExited.wait(timeout: .now() + 5) == .success
+            if !stoppedAfterTermination, process.isRunning {
+                #expect(Glibc.kill(process.processIdentifier, SIGKILL) == 0)
+            }
+            #expect(
+                stoppedAfterTermination || processExited.wait(timeout: .now() + 5) == .success,
+                "Descriptor setup child did not stop after termination")
+        }
+        try #require(waitResult == .success, "Descriptor setup child did not finish within 60 seconds")
+        #expect(process.terminationReason == .exit)
+        #expect(process.terminationStatus == 0)
+
+        let markerContents = try #require(
+            try? String(contentsOf: markerURL, encoding: .utf8),
+            "Descriptor setup child filter did not run its scenario")
+        #expect(markerContents == Self.descriptorSetupFailureMarkerContents)
+    }
+
+    fileprivate static func runDescriptorSetupFailureChildScenario() throws {
+        let environment = ProcessInfo.processInfo.environment
+        try #require(environment[Self.descriptorSetupFailureChildEnvironmentKey] == "1")
+        let markerPath = try #require(environment[Self.descriptorSetupFailureMarkerEnvironmentKey])
+        try Data(Self.descriptorSetupFailureMarkerContents.utf8)
+            .write(to: URL(fileURLWithPath: markerPath), options: .atomic)
+
         let pipe = Pipe()
         defer { try? pipe.fileHandleForWriting.close() }
         let capture = ProcessPipeCapture(pipe: pipe)
@@ -279,6 +336,21 @@ struct ProcessPipeCaptureLinuxTests {
             operation()
         }
         try #require(finished.wait(timeout: .now() + 60) == .success, "Capture operation did not complete")
+    }
+}
+
+@Suite(.serialized)
+struct ProcessPipeCaptureLinuxDescriptorSetupFailureChildTests {
+    @Test
+    func `runs descriptor setup failure child scenario`() throws {
+        guard ProcessInfo.processInfo.environment[
+            ProcessPipeCaptureLinuxTests.descriptorSetupFailureChildEnvironmentKey,
+        ] == "1"
+        else {
+            return
+        }
+
+        try ProcessPipeCaptureLinuxTests.runDescriptorSetupFailureChildScenario()
     }
 }
 

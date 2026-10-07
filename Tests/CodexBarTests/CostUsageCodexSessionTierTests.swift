@@ -125,7 +125,7 @@ struct CostUsageCodexSessionTierTests {
         let stored = CostUsageStore(cacheRoot: env.cacheRoot)
         let before = try #require(await stored.fetchFile(path: file.path))
         #expect(before.parsedBytes == before.size)
-        await stored.closeConnectionForTesting()
+        await stored.reopenCodexScanConnection()
         #expect(await stored.fetchFile(path: file.path) == before)
         let checkpoint = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         let tierState = try #require(checkpoint.files[file.path]?.codexRequestLedgerState)

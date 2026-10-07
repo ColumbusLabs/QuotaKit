@@ -680,6 +680,8 @@ extension CodexBarCLI {
             provenance: summary?.provenance.rawValue,
             coverage: summary?.coverage,
             error: error.map { Self.makeErrorPayload($0) },
+            incompleteRequestCount: snapshot
+                .map { CostUsageIncompleteRequests.sum($0.daily.map(\.incompleteRequestCount)) },
             reportingPeriod: snapshot.map { ($0.reportingPeriod ?? .rolling(days: $0.historyDays)).rawValue },
             historyLabel: snapshot?.periodLabel)
     }
@@ -708,6 +710,7 @@ extension CodexBarCLI {
             provenance: CostProvenance.listPriceEstimate.rawValue,
             coverage: summary.coverage,
             error: nil,
+            incompleteRequestCount: CostUsageIncompleteRequests.sum(snapshot.daily.map(\.incompleteRequestCount)),
             reportingPeriod: (snapshot.reportingPeriod ?? .rolling(days: snapshot.historyDays)).rawValue,
             historyLabel: snapshot.periodLabel)
     }
@@ -761,7 +764,8 @@ extension CodexBarCLI {
             totalTokens: entry.totalTokens,
             costUSD: entry.costUSD,
             modelsUsed: entry.modelsUsed,
-            modelBreakdowns: entry.modelBreakdowns?.map(self.costModelBreakdownPayload(from:)))
+            modelBreakdowns: entry.modelBreakdowns?.map(self.costModelBreakdownPayload(from:)),
+            incompleteRequestCount: entry.incompleteRequestCount)
     }
 
     private static func costModelBreakdownPayload(
@@ -770,7 +774,8 @@ extension CodexBarCLI {
         CostModelBreakdownPayload(
             modelName: breakdown.modelName,
             costUSD: breakdown.costUSD,
-            totalTokens: breakdown.totalTokens)
+            totalTokens: breakdown.totalTokens,
+            incompleteRequestCount: breakdown.incompleteRequestCount)
     }
 
     private static func costTotals(_ snapshot: CostUsageTokenSnapshot, calendar: Calendar) -> CostTotalsPayload? {
@@ -855,7 +860,8 @@ extension CodexBarCLI {
             totalTokens: (sawTokens && !overflowTokens) ? totalTokens : snapshot.last30DaysTokens,
             totalCostUSD: sawCost ? totalCost : snapshot.last30DaysCostUSD,
             provenance: summary.provenance.rawValue,
-            coverage: coverage.counts)
+            coverage: coverage.counts,
+            incompleteRequestCount: CostUsageIncompleteRequests.sum(entries.map(\.incompleteRequestCount)))
     }
 
     static func decodeCostReportingPeriod(
@@ -1033,6 +1039,7 @@ struct CostPayload: Encodable, Sendable {
     let provenance: String?
     let coverage: CostUsageCoverageCounts?
     let error: ProviderErrorPayload?
+    let incompleteRequestCount: Int?
 
     init(
         provider: String,
@@ -1052,6 +1059,7 @@ struct CostPayload: Encodable, Sendable {
         provenance: String? = nil,
         coverage: CostUsageCoverageCounts? = nil,
         error: ProviderErrorPayload?,
+        incompleteRequestCount: Int? = nil,
         reportingPeriod: String? = nil,
         historyLabel: String? = nil)
     {
@@ -1074,6 +1082,7 @@ struct CostPayload: Encodable, Sendable {
         self.provenance = provenance
         self.coverage = coverage
         self.error = error
+        self.incompleteRequestCount = incompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
     }
 }
 
@@ -1099,8 +1108,11 @@ struct CostDailyEntryPayload: Encodable, Sendable {
         case totalTokens
         case costUSD = "totalCost"
         case modelsUsed
+        case incompleteRequestCount
         case modelBreakdowns
     }
+
+    let incompleteRequestCount: Int?
 
     init(
         date: String,
@@ -1112,8 +1124,10 @@ struct CostDailyEntryPayload: Encodable, Sendable {
         totalTokens: Int?,
         costUSD: Double?,
         modelsUsed: [String]?,
-        modelBreakdowns: [CostModelBreakdownPayload]?)
+        modelBreakdowns: [CostModelBreakdownPayload]?,
+        incompleteRequestCount: Int? = nil)
     {
+        self.incompleteRequestCount = incompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
         self.date = date
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
@@ -1132,10 +1146,20 @@ struct CostModelBreakdownPayload: Encodable, Sendable {
     let costUSD: Double?
     let totalTokens: Int?
 
+    let incompleteRequestCount: Int?
+
     private enum CodingKeys: String, CodingKey {
         case modelName
         case costUSD = "cost"
         case totalTokens
+        case incompleteRequestCount
+    }
+
+    init(modelName: String, costUSD: Double?, totalTokens: Int?, incompleteRequestCount: Int? = nil) {
+        self.modelName = modelName
+        self.costUSD = costUSD
+        self.totalTokens = totalTokens
+        self.incompleteRequestCount = incompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
     }
 }
 
@@ -1215,8 +1239,11 @@ struct CostTotalsPayload: Encodable, Sendable {
         case totalTokens
         case totalCostUSD = "totalCost"
         case provenance
+        case incompleteRequestCount
         case coverage
     }
+
+    let incompleteRequestCount: Int?
 
     init(
         totalInputTokens: Int?,
@@ -1227,8 +1254,10 @@ struct CostTotalsPayload: Encodable, Sendable {
         totalTokens: Int?,
         totalCostUSD: Double?,
         provenance: String? = nil,
-        coverage: CostUsageCoverageCounts? = nil)
+        coverage: CostUsageCoverageCounts? = nil,
+        incompleteRequestCount: Int? = nil)
     {
+        self.incompleteRequestCount = incompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
         self.totalInputTokens = totalInputTokens
         self.totalOutputTokens = totalOutputTokens
         self.cacheReadTokens = cacheReadTokens
