@@ -13,11 +13,11 @@ public enum XAPIProviderDescriptor {
         confetti: [0x71767B, 0xD6D9DB],
         noDataMessage: "X API cost history is not available in QuotaKit.",
         menuBarMetrics: .automaticOnly,
-        history: .unavailable,
         presentation: ProviderUsagePresentation(
             costPresenter: { _ in
                 ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)
             }),
+        history: .unavailable,
         webSource: .init(
             settingsSection: .init(XAPIProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),
             browserCookieOrder: BrowserCookieImportSupport.chromeOnly(

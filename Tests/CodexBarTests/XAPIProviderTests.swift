@@ -8,7 +8,7 @@ import Testing
 @Suite(.serialized)
 struct XAPIProviderTests {
     @Test
-    func `descriptor registers a balance-only cookie provider for safe iPhone export`() throws {
+    func `descriptor registers a balance-only cookie provider for safe iPhone export`() {
         let descriptor = XAPIProviderDescriptor.descriptor
 
         #expect(descriptor.id == .xapi)

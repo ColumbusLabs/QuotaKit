@@ -165,7 +165,7 @@ struct CLIServeAccountsTests {
     }
 
     @Test
-    func `identity mode changes labels but leaves opaque ids stable`() throws {
+    func `identity mode changes labels but leaves opaque ids stable`() {
         let tokenID = UUID()
         let config = CodexBarConfig(providers: [
             ProviderConfig(

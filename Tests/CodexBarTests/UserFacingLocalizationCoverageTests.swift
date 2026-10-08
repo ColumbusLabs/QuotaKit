@@ -196,5 +196,4 @@ struct UserFacingLocalizationCoverageTests {
                 == "2 hours of usage data across 2 services")
         }
     }
-
 }

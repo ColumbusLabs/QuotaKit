@@ -369,7 +369,8 @@ struct NotionUsageFetcherTests {
             rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status")))
 
         await #expect(throws: NotionUsageError.apiError(
-            "Workspace discovery is too large. Set Workspace ID to a valid workspace UUID in Notion AI settings.")) {
+            "Workspace discovery is too large. Set Workspace ID to a valid workspace UUID in Notion AI settings."))
+        {
             try await Self.fetchUsage(transport: transport, preferredSpaceID: "not-a-uuid")
         }
     }
