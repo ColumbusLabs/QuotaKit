@@ -10,9 +10,7 @@ extension UsageStore {
         let projection = self.settings.codexVisibleAccountProjection
         let accounts = projection.visibleAccounts
         guard accounts.count > 1 else { return nil }
-        let labels = CodexAccountSwitcherLabeling.labels(
-            for: accounts, hidePersonalInfo: self.settings.hidePersonalInfo)
-        let ordinals = CodexAccountSwitcherLabeling.ordinals(for: accounts)
+        let ordinals = CodexProviderImplementation.systemAccountPrivacyOrdinals(for: accounts)
         let records = Self.codexAccountSnapshots(self.codexAccountSnapshots, reconciledWith: projection)
         let rows = accounts.map { account in
             let matches = records.filter { $0.id == account.id }
@@ -31,7 +29,7 @@ extension UsageStore {
                 snapshot: record?.snapshot,
                 error: error,
                 info: AccountInfo(email: account.email, plan: nil),
-                privacyOrdinal: ordinals[account.id].flatMap { PersonalInfoRedactor.AccountOrdinal($0) },
+                privacyOrdinal: ordinals[account.id],
                 sourceLabel: sourceLabel,
                 credits: record?.credits))))
             if ownsLiveUsage {
@@ -41,7 +39,10 @@ extension UsageStore {
             }
             return ProviderAccountUsageOverview.Row(
                 id: account.id,
-                title: labels[account.id] ?? account.menuDisplayName,
+                title: PersonalInfoRedactor.redactAccountLabel(
+                    account.menuDisplayName,
+                    isEnabled: self.settings.hidePersonalInfo,
+                    ordinal: ordinals[account.id]),
                 isFollowed: isFollowed,
                 isSystem: account.id == projection.liveVisibleAccountID,
                 model: model.applyingUsageItemVisibility(hiddenItemIDs: self.settings.hiddenUsageItemIDs(for: .codex)),

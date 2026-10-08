@@ -335,7 +335,7 @@ struct CodexProviderImplementation: ProviderImplementation {
         return submenuItems
     }
 
-    private static func systemAccountPrivacyOrdinals(
+    static func systemAccountPrivacyOrdinals(
         for accounts: [CodexVisibleAccount]) -> [String: PersonalInfoRedactor.AccountOrdinal]
     {
         let ordered = accounts.sorted { lhs, rhs in

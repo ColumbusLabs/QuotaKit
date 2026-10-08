@@ -131,12 +131,6 @@ struct CLIServeRouterTests {
     func `routes web UI health usage cost and dashboard endpoints`() throws {
         #expect(try CLIServeRouter.route(method: "GET", path: "/", queryItems: [:]) == .webUI)
         #expect(try CLIServeRouter.route(method: "GET", path: "/health", queryItems: [:]) == .health)
-        #expect(try CLIServeRouter.route(method: "GET", path: "/accounts", queryItems: [:]) == .accounts(id: nil))
-        #expect(
-            try CLIServeRouter.route(
-                method: "GET",
-                path: "/accounts/token-account:claude:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-                queryItems: [:]) == .accounts(id: "token-account:claude:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
         #expect(try CLIServeRouter.route(method: "GET", path: "/usage", queryItems: [:]) == .usage(provider: nil))
         #expect(
             try CLIServeRouter.route(
@@ -209,20 +203,6 @@ struct CLIServeRouterTests {
             #expect(error == .notFound)
         } catch {
             Issue.record("Unexpected error: \(error)")
-        }
-    }
-
-    @Test
-    func `account lookup rejects empty and nested ids`() {
-        for path in ["/accounts/", "/accounts/one/two"] {
-            do {
-                _ = try CLIServeRouter.route(method: "GET", path: path, queryItems: [:])
-                Issue.record("Expected notFound for \(path)")
-            } catch let error as CLIServeRouteError {
-                #expect(error == .notFound)
-            } catch {
-                Issue.record("Unexpected error for \(path): \(error)")
-            }
         }
     }
 

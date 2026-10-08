@@ -54,7 +54,9 @@ extension CodexAccountScopedRefreshTests {
 
     @Test
     func `overview privacy labels stay distinct across same email workspaces`() async throws {
-        try await self.withSelectedAccountRetentionFixture(sameEmail: true) { store, _, _ in
+        try await self.withSelectedAccountRetentionFixture(sameEmail: true) { store, _, accounts in
+            let publicOverview = try #require(store.codexAccountUsageOverview(onRefresh: { _ in }))
+            #expect(publicOverview.rows.map(\.title) == accounts.map(\.menuDisplayName))
             store.settings.hidePersonalInfo = true
             store.codexAccountSnapshots = store.codexAccountSnapshots.map { record in
                 CodexAccountUsageSnapshot(
@@ -67,6 +69,7 @@ extension CodexAccountScopedRefreshTests {
             let overview = try #require(store.codexAccountUsageOverview(onRefresh: { _ in }))
             #expect(Set(overview.rows.map(\.title)).count == 2)
             #expect(overview.rows.allSatisfy { !$0.title.contains("@") && !$0.model.email.contains("@") })
+            #expect(overview.rows.allSatisfy { !$0.title.contains("Workspace") && !$0.title.contains("shared") })
             #expect(overview.rows.allSatisfy { $0.error?.contains("@") == false })
             #expect(overview.rows.allSatisfy { $0.sourceLabel?.contains("@") == false })
         }
