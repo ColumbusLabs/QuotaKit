@@ -140,7 +140,7 @@ extension CostUsageScanner {
             (value as? Bool) ?? (value as? NSNumber)?.boolValue ?? false
         }
 
-        let rowStrings = CostUsageRowStringPool()
+        let rowStrings = ClaudeRowStringPool()
         let pathRole = Self.claudePathRole(fileURL: fileURL)
         var keyedRows: [ClaudeRowKey: ClaudeUsageRow] = [:]
         var unkeyedRows: [ClaudeUsageRow] = []

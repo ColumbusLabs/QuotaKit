@@ -542,7 +542,7 @@ enum CostUsageScanner {
         let day: String
         let model: String
         let rawModel: String?
-        var turnID: String?
+        let turnID: String?
         let eventIndex: Int?
         let timestampUnixMs: Int64?
         let input: Int

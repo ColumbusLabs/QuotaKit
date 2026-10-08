@@ -557,7 +557,7 @@ enum CostUsageClaudeCacheIO {
         CostUsageScanner.recordClaudeScanWork(.cacheDecode)
         #endif
         let decoder = JSONDecoder()
-        decoder.userInfo[CostUsageRowStringPool.key] = CostUsageRowStringPool()
+        decoder.userInfo[ClaudeRowStringPool.key] = ClaudeRowStringPool()
         guard let artifact = try? decoder.decode(CostUsageClaudeCacheArtifact.self, from: data) else {
             return CostUsageClaudeCacheArtifact()
         }

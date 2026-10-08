@@ -1047,9 +1047,9 @@ extension CostUsageStore {
                 row.payload.count,
                 decoded != nil)
             #endif
-            if var decoded {
-                decoded.turnID = decoded.turnID.map(rowStrings.intern)
-                rowsByPath[row.path, default: []].append(decoded)
+            if let decoded {
+                rowsByPath[row.path, default: []].append(CostUsageScanner.CodexUsageRow(
+                    sharingTurnIDFrom: decoded, pool: rowStrings))
             }
         }
         return (rowsByPath, rowCountsByPath)

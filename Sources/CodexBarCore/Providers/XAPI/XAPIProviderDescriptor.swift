@@ -12,8 +12,8 @@ public enum XAPIProviderDescriptor {
         color: ProviderColor(hex: 0x71767B),
         confetti: [0x71767B, 0xD6D9DB],
         noDataMessage: "X API cost history is not available in QuotaKit.",
-        history: .unavailable,
         menuBarMetrics: .automaticOnly,
+        history: .unavailable,
         presentation: ProviderUsagePresentation(
             costPresenter: { _ in
                 ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)

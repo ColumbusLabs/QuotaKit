@@ -218,7 +218,6 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
-        "1718c75982e86913", // Row-string sharing preserves QuotaKit rows, checkpoints, and lineage.
         "3f70d97998be5ff8", // QuotaKit revision 8 rows/checkpoints survive revision 9 owned-mirror reparsing.
         "af117122edc4c286", // QuotaKit revision 7 history survives bounded request-ledger reparsing.
         "755dfa55c816c503", // QuotaKit 0.32.4.32; day-proof scheduling preserves parsed rows and existing evidence.

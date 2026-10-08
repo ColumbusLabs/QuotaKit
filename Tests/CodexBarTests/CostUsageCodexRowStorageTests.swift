@@ -8,6 +8,32 @@ struct CostUsageCodexRowStorageTests {
         case report, scan, cache, snapshot
     }
 
+    @Test
+    func `storage interning preserves decoded values without scanner normalization`() throws {
+        let row = CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5",
+            turnID: "synthetic-turn-storage-copy",
+            eventIndex: 1,
+            input: 2,
+            cached: 3,
+            output: 4,
+            reasoning: 1,
+            knownCostNanos: 5,
+            unpricedTokens: 6)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        var fields = try #require(JSONSerialization.jsonObject(with: encoder.encode(row)) as? [String: Any])
+        // The decoder preserves this value; routing through the scanner initializer would clamp it.
+        fields["reasoning"] = 99
+        let decoded = try JSONDecoder().decode(
+            CostUsageScanner.CodexUsageRow.self,
+            from: JSONSerialization.data(withJSONObject: fields))
+        let shared = CostUsageScanner.CodexUsageRow(sharingTurnIDFrom: decoded, pool: CostUsageRowStringPool())
+        #expect(shared.reasoning == 99)
+        #expect(try encoder.encode(shared) == encoder.encode(decoded))
+    }
+
     @Test(arguments: ReadMode.allCases)
     func `retained Codex rows share identical turn strings without changing their bytes`(mode: ReadMode) async throws {
         let fixture = try CostUsageTestEnvironment()
