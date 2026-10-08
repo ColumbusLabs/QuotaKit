@@ -28,7 +28,8 @@ struct ServeOptions: CommanderParsable {
 
     @Option(
         name: .long("dashboard-token"),
-        help: "Bearer token for /dashboard/v1/snapshot (prefer QUOTAKIT_DASHBOARD_TOKEN)")
+        help: "Bearer token for /dashboard/v1/snapshot and non-loopback account data "
+            + "(prefer QUOTAKIT_DASHBOARD_TOKEN)")
     var dashboardBearer: String?
 
     @Flag(
@@ -38,8 +39,8 @@ struct ServeOptions: CommanderParsable {
 
     @Option(
         name: .long("identity"),
-        help: "Dashboard snapshot identity detail: redacted (default) or full. "
-            + "Full exposes real account emails to every authorized dashboard client; "
+        help: "Account identity detail: redacted (default) or full. "
+            + "Full exposes real account emails to every authorized client; "
             + "use it only on trusted, private networks.")
     var identity: String?
 }
@@ -48,6 +49,7 @@ enum CLIServeRoute: Equatable {
     case webUI
     case providerIcon(name: String)
     case health
+    case accounts(id: String?)
     case usage(provider: String?)
     case cost(provider: String?)
     case dashboardSnapshot(provider: String?, detail: String?)
@@ -76,6 +78,12 @@ enum CLIServeRouter {
             return .providerIcon(name: String(path.dropFirst("/icons/".count).dropLast(".svg".count)))
         case "/health":
             return .health
+        case "/accounts":
+            return .accounts(id: nil)
+        case let path where path.hasPrefix("/accounts/"):
+            let id = String(path.dropFirst("/accounts/".count))
+            guard !id.isEmpty, !id.contains("/") else { throw CLIServeRouteError.notFound }
+            return .accounts(id: id)
         case "/usage":
             return .usage(provider: normalizedProvider)
         case "/cost":
@@ -125,11 +133,10 @@ struct ServeRuntime {
     let requestTimeout: TimeInterval
     let healthVersion: String?
     let dashboardAuth: CLIServeDashboardAuth
-    /// Identity detail for dashboard snapshots. Defaults to `.redacted`; the
-    /// `--identity full` startup option exposes real emails to every authorized
-    /// dashboard client.
+    /// Identity detail for account discovery and dashboard snapshots. Defaults
+    /// to `.redacted`; `--identity full` exposes real emails to authorized clients.
     let dashboardIdentityMode: DashboardIdentityMode
-    /// True for non-loopback binds: every data route (`/usage`, `/cost`,
+    /// True for non-loopback binds: every data route (`/accounts`, `/usage`, `/cost`,
     /// `/dashboard/v1/snapshot`) then requires the bearer token, so account data
     /// is never exposed to the network unauthenticated. `/` and `/health` stay open.
     /// Resolved once at startup from the bind host.
@@ -754,7 +761,7 @@ extension CodexBarCLI {
                 if !CLIServeSecurity.isLoopbackHost(bindHost) {
                     Self.writeStderr(
                         "Warning: plain HTTP on a non-loopback host; the bearer token gating "
-                            + "/usage, /cost, and /dashboard/v1/snapshot crosses the network "
+                            + "/accounts, /usage, /cost, and /dashboard/v1/snapshot crosses the network "
                             + "in cleartext on every request.\n")
                 }
             }
@@ -880,10 +887,10 @@ extension CodexBarCLI {
                 queryItems: request.queryItems)
         } catch CLIServeRouteError.methodNotAllowed {
             let response = Self.serveError(status: .methodNotAllowed, message: "method not allowed")
-            return request.path.hasPrefix("/dashboard/v1/") ? Self.addingNoStore(response) : response
+            return Self.serveRouteNeedsNoStore(request.path) ? Self.addingNoStore(response) : response
         } catch {
             let response = Self.serveError(status: .notFound, message: "not found")
-            return request.path.hasPrefix("/dashboard/v1/") ? Self.addingNoStore(response) : response
+            return Self.serveRouteNeedsNoStore(request.path) ? Self.addingNoStore(response) : response
         }
 
         switch route {
@@ -894,6 +901,8 @@ extension CodexBarCLI {
                 ?? Self.serveError(status: .notFound, message: "not found")
         case .health:
             return Self.serveHealthResponse(version: runtime.healthVersion)
+        case let .accounts(id):
+            return Self.serveAccountsRoute(request, id: id, runtime: runtime)
         case let .usage(provider):
             // On non-loopback binds every data route requires the bearer token,
             // checked before any cache access so unauthenticated requests can
@@ -1641,7 +1650,11 @@ extension CodexBarCLI {
         self.serveJSON(ServeHealthPayload(status: "ok", version: version))
     }
 
-    /// The data routes (`/usage`, `/cost`, `/dashboard/v1/snapshot`) carry account
+    private static func serveRouteNeedsNoStore(_ path: String) -> Bool {
+        path == "/accounts" || path.hasPrefix("/accounts/") || path.hasPrefix("/dashboard/v1/")
+    }
+
+    /// The data routes (`/accounts`, `/usage`, `/cost`, `/dashboard/v1/snapshot`) carry account
     /// data; keep every response on them out of shared HTTP caches. Idempotent:
     /// responses that already declare a Cache-Control policy (e.g. 401s) pass
     /// through unchanged.
@@ -1657,8 +1670,8 @@ extension CodexBarCLI {
             usageCacheKeys: response.usageCacheKeys)
     }
 
-    /// 401 for the dashboard routes: advertises the bearer scheme and keeps the
-    /// response out of caches, matching the snapshot responses it guards.
+    /// 401 for authenticated data routes: advertises the bearer scheme and keeps
+    /// the response out of caches, matching the responses it guards.
     static func serveUnauthorizedResponse() -> CLILocalHTTPResponse {
         self.serveJSON(
             ServeErrorPayload(error: "unauthorized"),
@@ -1669,7 +1682,7 @@ extension CodexBarCLI {
             ])
     }
 
-    private static func serveJSON(
+    static func serveJSON(
         _ payload: some Encodable,
         status: CLIHTTPStatus = .ok,
         extraHeaders: [(String, String)] = [],
@@ -1683,7 +1696,7 @@ extension CodexBarCLI {
             usageCacheKeys: usageCacheKeys)
     }
 
-    private static func serveError(status: CLIHTTPStatus, message: String) -> CLILocalHTTPResponse {
+    static func serveError(status: CLIHTTPStatus, message: String) -> CLILocalHTTPResponse {
         self.serveJSON(ServeErrorPayload(error: message), status: status)
     }
 }

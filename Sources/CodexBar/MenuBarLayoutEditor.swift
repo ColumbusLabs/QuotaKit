@@ -917,6 +917,8 @@ struct MenuBarLayoutChipFlowLayout: Layout {
 
 @MainActor
 struct MenuBarLayoutPreview: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     let layout: MenuBarLayout
     let provider: UsageProvider?
     @Bindable var settings: SettingsStore
@@ -937,14 +939,16 @@ struct MenuBarLayoutPreview: View {
             icon: icon,
             options: MenuBarLayoutRenderOptions(
                 size: self.settings.menuBarLayoutSize,
-                highContrast: self.settings.menuBarHighContrastOnInactiveDisplays,
+                highContrast: self.settings.menuBarHighContrastOnInactiveDisplays
+                    || (self.settings.menuBarColorByProvider && self.colorSchemeContrast == .increased),
                 showUsed: self.settings.usageBarsShowUsed,
                 conditionals: self.settings.menuBarLayoutConditionals,
-                appearanceName: "preview",
+                appearanceName: self.colorScheme == .dark ? "darkAqua" : "aqua",
                 isDebugApp: false,
                 now: minute,
                 verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment,
-                colorPace: self.settings.menuBarColorPace))
+                colorPace: self.settings.menuBarColorPace,
+                colorByProvider: self.settings.menuBarColorByProvider))
         MenuBarLayoutPreviewText(rendered: rendered)
     }
 

@@ -87,6 +87,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case aiand
     case zoommate
     case xai
+    case xapi
     case notion
     case ibmbob
     case gitkraken

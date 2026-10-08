@@ -137,7 +137,18 @@ enum ProviderDetailSectionDispatcher {
         guard provider.providerID == "claude", let details = provider.providerDetails else {
             return provider.providerDetails
         }
-        return details.map { section in
+        return details.compactMap { section in
+            if section.title == "Subscription" {
+                let rows = section.rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                    guard ["Plan expires", "Renews"].contains(row.label),
+                          let value = Self.subscriptionDateDisplay(row.value) else { return nil }
+                    let label = row.label == "Plan expires" ? String(localized: "Plan expires")
+                        : String(localized: "elevenlabs_renews_label", defaultValue: "Renews")
+                    return .init(label: label, value: value)
+                }
+                return rows.isEmpty ? nil : SyncProviderDetailSection(
+                    title: String(localized: "Subscription"), rows: rows)
+            }
             guard section.title == "Cloud credits" else { return section }
             return SyncProviderDetailSection(title: String(localized: "Cloud credits"), rows: section.rows.map { row in
                 guard row.label == "Cloud credits" else { return row }
@@ -152,6 +163,24 @@ enum ProviderDetailSectionDispatcher {
                     secondaryValue: row.secondaryValue)
             })
         }
+    }
+
+    static func subscriptionDateDisplay(
+        _ raw: String,
+        locale: Locale = .current,
+        timeZone: TimeZone = .current) -> String?
+    {
+        let dateOnly = raw.count == 10
+        let parser = ISO8601DateFormatter()
+        parser.timeZone = TimeZone(secondsFromGMT: 0)
+        parser.formatOptions = dateOnly ? [.withFullDate] : [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: raw) else { return nil }
+        if dateOnly, parser.string(from: date) != raw { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = dateOnly ? TimeZone(secondsFromGMT: 0) : timeZone
+        formatter.setLocalizedDateFormatFromTemplate("MMM d, yyyy")
+        return formatter.string(from: date)
     }
 
     private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {

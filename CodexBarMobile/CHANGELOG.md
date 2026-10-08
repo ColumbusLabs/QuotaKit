@@ -9,6 +9,10 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- X API prepaid balances sync from Mac with branded status and purchase/free-credit details, without inventing a quota budget or quota alerts.
+
+- Verified Claude subscription renewal and expiration dates now sync from Mac to iPhone; calendar-only dates preserve their original day.
+
 - WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts.
 - Claude promotional cloud-session credits sync separately from quotas and prepaid usage; cached credits show expired after their expiration.
 

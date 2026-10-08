@@ -43,7 +43,7 @@ struct CostUsageClaudeRowStorageTests {
 
     @Test
     func `concurrent pool callers share exact spellings`() async throws {
-        let pool = ClaudeRowStringPool()
+        let pool = CostUsageRowStringPool()
         let sessions = self.sessions
         let strings = await withTaskGroup(of: [String].self) { group in
             for _ in 0..<8 {

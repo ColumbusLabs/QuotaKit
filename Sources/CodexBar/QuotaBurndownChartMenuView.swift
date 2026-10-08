@@ -32,11 +32,12 @@ struct QuotaBurndownChartMenuView: View {
                   latest.capturedAt <= referenceDate,
                   reset > referenceDate
             else { return nil }
-            let window = RateWindow(
-                usedPercent: latest.usedPercent,
-                windowMinutes: history.windowMinutes,
-                resetsAt: reset,
-                resetDescription: nil)
+            let window = ProviderDescriptorRegistry.descriptor(for: provider).pace.resolvedResetWindowForPace(
+                RateWindow(
+                    usedPercent: latest.usedPercent,
+                    windowMinutes: history.windowMinutes,
+                    resetsAt: reset,
+                    resetDescription: nil))
             guard let model = QuotaBurndownModel(history: history, window: window, now: latest.capturedAt)
             else { return nil }
             return Series(
@@ -167,6 +168,10 @@ struct QuotaBurndownChartMenuView: View {
 
     var _seriesLastKnownMessagesForTesting: [String: String] {
         Dictionary(uniqueKeysWithValues: self.series.map { ($0.id, $0.lastKnownUsageMessage) })
+    }
+
+    var _seriesStartsForTesting: [String: Date] {
+        Dictionary(uniqueKeysWithValues: self.series.map { ($0.id, $0.model.start) })
     }
 
     var _seriesRemainingForTesting: [String: Double] {

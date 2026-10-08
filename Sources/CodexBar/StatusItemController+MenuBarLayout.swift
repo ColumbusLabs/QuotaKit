@@ -121,6 +121,21 @@ extension StatusItemController {
         return wasCached
     }
 
+    private func isStatusItemHighlighted(for provider: UsageProvider, button: NSButton?) -> Bool {
+        // Tracking sessions start before openMenus is populated and end before AppKit clears its highlight.
+        if let menu = self.shouldMergeIcons ? self.mergedMenu : self.providerMenus[provider.instanceID] {
+            return self.menuSession.menuInteractionGeneration(for: ObjectIdentifier(menu)) != nil
+        }
+        return button?.isHighlighted == true
+    }
+
+    func providerTintColor(for provider: UsageProvider, button: NSButton) -> NSColor? {
+        guard self.settings.menuBarColorByProvider else { return nil }
+        return MenuBarLayoutRenderer.effectiveProviderTintColor(
+            for: provider,
+            options: self.menuBarLayoutRenderOptions(for: provider, button: button, now: Date()))
+    }
+
     private func renderStackedProviderRow(provider: UsageProvider, now: Date) -> MenuBarLayoutRenderedTitle? {
         let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         let warningFlash = self.quotaWarningFlashActive(provider: provider)
@@ -151,19 +166,23 @@ extension StatusItemController {
         forceStackedStyle: Bool = false)
         -> MenuBarLayoutRenderOptions
     {
-        let appearanceName = button?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])?.rawValue ?? "default"
+        let appearanceName = (button?.effectiveAppearance ?? NSApp.effectiveAppearance).name.rawValue
         return MenuBarLayoutRenderOptions(
             size: self.settings.menuBarLayoutSize,
-            highContrast: self.shouldUseHighContrastStatusItemContent,
+            highContrast: self.shouldUseHighContrastStatusItemContent
+                || (self.settings.menuBarColorByProvider && (self.settings.menuBarHighContrastOnInactiveDisplays
+                        || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)),
             showUsed: self.settings.usageBarsShowUsed,
             conditionals: self.settings.menuBarLayoutConditionals,
             appearanceName: appearanceName,
             isDebugApp: Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier),
             isStale: self.store.isStale(provider: provider),
+            isHighlighted: self.isStatusItemHighlighted(for: provider, button: button),
             now: now,
             verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment,
             forceStackedStyle: forceStackedStyle,
-            colorPace: self.settings.menuBarColorPace)
+            colorPace: self.settings.menuBarColorPace,
+            colorByProvider: self.settings.menuBarColorByProvider)
     }
 
     func menuBarLayoutRenderData(
@@ -407,5 +426,16 @@ extension StatusItemController {
         // AppKit exposes no content-inset API on NSStatusBarButton. Explicit item length is the actual
         // status-item padding mechanism: tight removes most edge space; regular keeps the native breathing room.
         return rendered.statusItemWidth(gap: gap)
+    }
+
+    @objc func refreshStatusItemContentForColorMode() {
+        guard self.settings.menuBarColorByProvider, !self.hasPreparedForAppShutdown else { return }
+        if self.shouldMergeIcons {
+            _ = self.applyIcon(phase: nil, bypassMergedMenuTrackingDeferral: true)
+        } else {
+            for provider in self.store.enabledFirstPartyProvidersForDisplay() {
+                _ = self.applyIcon(for: provider, phase: nil)
+            }
+        }
     }
 }

@@ -1380,6 +1380,7 @@ extension KiroStatusProbeTests {
 
         #expect(usage.primary?.usedPercent == 25.0)
         #expect(usage.primary?.resetsAt == resetDate)
+        #expect(usage.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
         #expect(usage.secondary?.usedPercent == 25.0) // 5/20 * 100
         #expect(usage.loginMethod(for: .kiro) == nil)
         #expect(usage.accountOrganization(for: .kiro) == nil)
@@ -1403,6 +1404,7 @@ extension KiroStatusProbeTests {
         let usage = snapshot.toUsageSnapshot()
 
         #expect(usage.primary?.usedPercent == 20.0)
+        #expect(usage.primary?.windowMinutes == nil)
         #expect(usage.secondary == nil)
     }
 

@@ -316,6 +316,11 @@ extension SettingsStore {
         set { self.setDefault(\.menuBarColorPace, newValue, key: "menuBarColorPace") }
     }
 
+    var menuBarColorByProvider: Bool {
+        get { self.defaultsState.menuBarColorByProvider }
+        set { self.setDefault(\.menuBarColorByProvider, newValue, key: "menuBarColorByProvider") }
+    }
+
     var menuBarHighContrastOnInactiveDisplays: Bool {
         get { self.defaultsState.menuBarHighContrastOnInactiveDisplays }
         set { self.setDefault(
@@ -663,8 +668,19 @@ extension SettingsStore {
     }
 
     var menuBarShowsHighestUsage: Bool {
-        get { self.defaultsState.menuBarShowsHighestUsage }
-        set { self.setDefault(\.menuBarShowsHighestUsage, newValue, key: "menuBarShowsHighestUsage") }
+        get { self.unifiedIconSource == .highestUsage }
+        set { self.unifiedIconSource = newValue ? .highestUsage : .currentSelection }
+    }
+
+    var unifiedIconSource: UnifiedIconSource {
+        get {
+            self.defaultsState.unifiedIconSourceRaw.flatMap(UnifiedIconSource.init(rawValue:))
+                ?? (self.defaultsState.menuBarShowsHighestUsage ? .highestUsage : .currentSelection)
+        }
+        set {
+            self.setDefault(\.unifiedIconSourceRaw, newValue.rawValue, key: "unifiedIconSource")
+            self.setDefault(\.menuBarShowsHighestUsage, newValue == .highestUsage, key: "menuBarShowsHighestUsage")
+        }
     }
 
     var claudeOAuthKeychainPromptMode: ClaudeOAuthKeychainPromptMode {

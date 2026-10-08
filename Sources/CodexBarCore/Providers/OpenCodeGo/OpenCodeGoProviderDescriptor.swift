@@ -101,6 +101,14 @@ public enum OpenCodeGoProviderDescriptor {
                         : .generic
                     return ProviderCostPresentation(menuCardStyle: style)
                 },
+                switcherUsesAutomaticMenuBarWindow: true,
+                menuBarWindowResolver: { context in
+                    guard context.metric == .automatic else { return .unhandled }
+                    return .resolved(ProviderUsagePresentation.mostConstrained(
+                        context.snapshot.primary,
+                        context.snapshot.secondary,
+                        context.snapshot.tertiary))
+                },
                 planUtilizationSeriesResolver: { snapshot in
                     var series: Set<ProviderPlanUtilizationSeries> = []
                     if snapshot.primary != nil {

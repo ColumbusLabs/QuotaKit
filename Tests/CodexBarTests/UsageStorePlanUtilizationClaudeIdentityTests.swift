@@ -273,7 +273,8 @@ struct UsageStorePlanUtilizationClaudeIdentityTests {
         let ownerA = self.oauthOwnerIdentifier("a")
         let ownerB = self.oauthOwnerIdentifier("b")
         let keyA = try #require(
-            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: ownerA))
+            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
+                historyOwnerIdentifier: UsageStore._activeClaudeAccountIdentityForTesting("uuid-A")))
         let keyB = try #require(
             UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: ownerB))
         let hourStart = Date(timeIntervalSince1970: 1_700_000_000)
@@ -371,9 +372,11 @@ struct UsageStorePlanUtilizationClaudeIdentityTests {
         let ownerA = self.oauthOwnerIdentifier("a")
         let ownerB = self.oauthOwnerIdentifier("b")
         let keyA = try #require(
-            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: ownerA))
+            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
+                historyOwnerIdentifier: UsageStore._activeClaudeAccountIdentityForTesting("uuid-A")))
         let keyB = try #require(
-            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: ownerB))
+            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
+                historyOwnerIdentifier: UsageStore._activeClaudeAccountIdentityForTesting("uuid-B")))
         let hourStart = Date(timeIntervalSince1970: 1_700_000_000)
 
         // 1) First run after upgrading: the map is empty. A background poll serves owner_A while
@@ -690,11 +693,9 @@ struct UsageStorePlanUtilizationClaudeIdentityTests {
         let originalOwner = self.oauthOwnerIdentifier("c")
         let replacementOwner = self.oauthOwnerIdentifier("d")
         let originalKey = try #require(UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
-            historyOwnerIdentifier: originalOwner,
-            persistentRefHash: "same-row-ref"))
+            historyOwnerIdentifier: originalOwner))
         let replacementKey = try #require(UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
-            historyOwnerIdentifier: replacementOwner,
-            persistentRefHash: "same-row-ref"))
+            historyOwnerIdentifier: replacementOwner))
 
         await store.recordPlanUtilizationHistorySample(
             provider: .claude,

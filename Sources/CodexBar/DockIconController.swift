@@ -3,6 +3,7 @@ import CodexBarCore
 
 struct DockIconWindowDescriptor: Equatable, Sendable {
     let identifier: String?
+    let frameAutosaveName: String
     let title: String
     let classNames: [String]
     let width: Double
@@ -13,12 +14,14 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
     let isKnownSettingsWindow: Bool
 
     var isSettingsWindow: Bool {
-        if self.isKnownSettingsWindow {
-            return true
-        }
-        guard let identifier else { return false }
-        return identifier == SettingsWindowIdentity.identifier
-            || identifier.contains("com_apple_SwiftUI_Settings")
+        self.isKnownSettingsWindow || self.identifier == SettingsWindowIdentity.identifier
+    }
+
+    var isPlaceholderSettingsWindow: Bool {
+        PlaceholderSettingsWindowDecision.shouldClose(
+            identifier: self.identifier,
+            frameAutosaveName: self.frameAutosaveName,
+            isKnownSettingsWindow: self.isKnownSettingsWindow)
     }
 
     var isSparkleWindow: Bool {
@@ -28,6 +31,7 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
     }
 
     var isRealWindow: Bool {
+        guard !self.isPlaceholderSettingsWindow else { return false }
         guard self.isVisible, !self.isMiniaturized, self.canBecomeKey else { return false }
         guard !self.isTinyWindow, !self.isStatusBarWindow else { return false }
         return true
@@ -56,6 +60,7 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
         return Self(
             identifier: window.identifier?.rawValue,
+            frameAutosaveName: window.frameAutosaveName,
             title: window.title,
             classNames: classNames,
             width: window.frame.width,
@@ -75,7 +80,7 @@ enum DockIconPolicyDecision {
     }
 
     static func shouldPromoteForPresentedWindow(_ window: DockIconWindowDescriptor) -> Bool {
-        window.isVisible && (window.isSettingsWindow || window.isSparkleWindow)
+        window.isVisible && !window.isPlaceholderSettingsWindow && (window.isSettingsWindow || window.isSparkleWindow)
     }
 
     /// Windows that became eligible for Dock promotion since the last evaluation.

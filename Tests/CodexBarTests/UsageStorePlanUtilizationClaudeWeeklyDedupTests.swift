@@ -219,7 +219,7 @@ extension UsageStorePlanUtilizationTests {
             #"{"claude:legacy":{"wasAboveThreshold":true,"lastObservedAt":0}}"#.utf8)
         defaults.set(data, forKey: "legacyWeeklyResetStates")
 
-        let states = UsageStore.loadLimitResetDetectorStates(
+        let states: [String: UsageStore.LimitResetDetectorState] = UsageStore.loadPlanUtilizationStates(
             from: defaults,
             defaultsKey: "legacyWeeklyResetStates",
             logName: "weekly")

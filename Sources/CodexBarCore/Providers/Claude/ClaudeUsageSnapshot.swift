@@ -27,6 +27,7 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let accountOrganization: String?
     /// Verified principal and organization from the credential that produced this usage.
     public let accountID: String?
+    public internal(set) var subscriptionMetadata: ClaudeSubscriptionMetadata?
     public let loginMethod: String?
     public let rawText: String?
     /// Present only when the credential used for this OAuth fetch matches the current Claude Keychain item.

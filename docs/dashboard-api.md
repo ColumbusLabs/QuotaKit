@@ -17,7 +17,7 @@ Authorization: Bearer YOUR_TOKEN
 
 The route is gated by a static bearer token and **fails closed**: without a configured token every request answers `401`. The token is only ever read from the `Authorization` header — a query-string parameter named `token` is never accepted. Every response on the dashboard route — including all `401`s and error responses — carries `Cache-Control: no-store`.
 
-On the default loopback bind, `/usage` and `/cost` are unchanged and unauthenticated. On a **non-loopback** bind the same token gates **all data routes**: `/usage`, `/cost`, and `/dashboard/v1/snapshot` each require `Authorization: Bearer YOUR_TOKEN`, so account data never leaves the machine unauthenticated. `/` and `/health` are always open; neither response contains account data.
+On the default loopback bind, `/accounts`, `/usage`, and `/cost` are unauthenticated. On a **non-loopback** bind the same token gates **all data routes**: `/accounts`, `/accounts/<id>`, `/usage`, `/cost`, and `/dashboard/v1/snapshot` each require `Authorization: Bearer YOUR_TOKEN`, so account data never leaves the machine unauthenticated. `/` and `/health` are always open; neither response contains account data.
 
 ## Built-in web UI
 
@@ -84,8 +84,8 @@ networks, and remember that `--output` publishes snapshots with mode `0644`.
 Transport is **plain HTTP**. There is no TLS in `quotakit serve`, which means:
 
 - The bearer token crosses the network **in cleartext on every request**. Anyone who can observe the path (same Wi-Fi, ARP spoofing, a compromised switch, your ISP on a routed path) can capture the token and replay it until the server restarts with a new one.
-- The response bodies — plan labels, usage percentages, cost figures, and full account emails by default — cross the network in cleartext too. On non-loopback binds, use `--identity redacted` to hide email local parts unless clients need full identity.
-- Because non-loopback binds gate `/usage`, `/cost`, and `/dashboard/v1/snapshot` behind the same token, a passive observer sees your account data but an active client without the token gets `401` on every data route. Only the account-free static UI at `/` and `/health` are unauthenticated off-loopback.
+- The response bodies — account labels, plan labels, usage percentages, and cost figures — cross the network in cleartext too. Identity is redacted by default; `--identity full` exposes account emails to every authorized client.
+- Because non-loopback binds gate `/accounts`, `/accounts/<id>`, `/usage`, `/cost`, and `/dashboard/v1/snapshot` behind the same token, a passive observer sees your account data but an active client without the token gets `401` on every data route. Only the account-free static UI at `/` and `/health` are unauthenticated off-loopback.
 
 Deployments, from safest to least safe:
 
@@ -126,6 +126,45 @@ Content-Type: application/json; charset=utf-8
 
 {"error":"unauthorized"}
 ```
+
+## Account discovery
+
+`GET /accounts` returns metadata-only account discovery. `GET /accounts/<id>` returns one matching entry. The
+inventory includes saved provider token accounts and QuotaKit-managed Codex accounts, including entries for disabled
+providers. It does not enumerate the system Codex login, discover provider or profile homes, or contact external
+account services.
+
+```json
+{
+  "schemaVersion": 1,
+  "accounts": [
+    {
+      "id": "codex-managed:<opaque-id>",
+      "provider": "codex",
+      "source": "codex-managed",
+      "label": "Account <opaque-id>",
+      "active": true,
+      "identity": { "accountEmail": "redacted@example.com" }
+    }
+  ]
+}
+```
+
+`source` is `codex-managed` or `token-account`. Token-account IDs include the provider so identical stored UUIDs in
+different provider configs remain distinct. Managed Codex IDs are scoped by source. All IDs are stable opaque lookup
+keys; clients must not parse their format and should URL-encode them in request paths. `active` reflects the saved
+selection for that source and provider, not credential validity, enablement, or the system Codex account.
+
+The existing `--identity redacted|full` setting applies, and `serve` remains redacted by default. Redacted discovery
+replaces arbitrary account labels with generic `Account <id>` labels and hides email local parts while retaining the
+domain. Full identity includes the configured label and managed-account email. Identity mode does not change IDs.
+
+Account discovery reads the resolved QuotaKit config (or an existing legacy config in place) and saved managed-account
+metadata only. It does not collect or refresh usage, read managed credential files, access Keychain, migrate config or
+account metadata, or change account selection. Responses include no tokens, cookies, credential fingerprints,
+provider-internal IDs, or private managed home paths. Unreadable config or account metadata returns a generic `500`
+rather than an incomplete list. Unknown IDs return `404` with `{"error":"account not found"}`. Every response,
+including lookup, method, and error responses, carries `Cache-Control: no-store`.
 
 ## Serve semantics
 

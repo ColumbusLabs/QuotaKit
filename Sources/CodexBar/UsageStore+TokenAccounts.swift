@@ -167,13 +167,17 @@ private struct CodexManagedVisibleAccountRuntimeState {
 }
 
 extension UsageStore {
-    func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
+    func refreshCodexVisibleAccountsForMenu(
+        generation: UInt64? = nil,
+        requestedAccountIDs: Set<String>? = nil) async
+    {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(
-            projection.visibleAccounts,
+            projection.visibleAccounts.filter { requestedAccountIDs?.contains($0.id) ?? true },
             snapshots: self.codexAccountSnapshots,
             activeVisibleAccountID: projection.activeVisibleAccountID)
-        guard accounts.count > 1 else {
+        guard requestedAccountIDs != nil ? !accounts.isEmpty : accounts.count > 1 else {
+            if requestedAccountIDs != nil { return }
             self.codexAccountSnapshots = []
             return
         }
@@ -183,9 +187,7 @@ extension UsageStore {
         let originalSelectionSource = originalVisibleAccountID.flatMap {
             projection.source(forVisibleAccountID: $0)
         }
-        let originalVisibleAccount = originalVisibleAccountID.flatMap { id in
-            accounts.first { $0.id == id }
-        }
+        let originalVisibleAccount = projection.visibleAccounts.first { $0.id == originalVisibleAccountID }
         self.consumePendingCodexBoundaryDetectorCorrections()
         let priorSnapshots = self.codexAccountSnapshots
         var snapshots: [CodexAccountUsageSnapshot] = []
@@ -254,10 +256,16 @@ extension UsageStore {
             }
         }
 
-        let currentSnapshots = Self.codexAccountSnapshots(snapshots, reconciledWith: currentProjection)
+        let fetchedIDs = Set(accounts.map(\.id))
+        let retained = Self.codexAccountSnapshots(priorSnapshots, reconciledWith: projection)
+            .filter { !fetchedIDs.contains($0.id) }
+        let currentSnapshots = Self.codexAccountSnapshots(retained + snapshots, reconciledWith: currentProjection)
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
         self.consumePendingCodexBoundaryDetectorCorrections()
+
+        // A view-only refresh of a sibling owns its row, not the globally followed presentation.
+        if requestedAccountIDs != nil, !accounts.contains(where: \.isActive) { return }
 
         let selectionStillMatches = self.codexVisibleSelectionStillMatches(
             originalVisibleAccountID: originalVisibleAccountID,

@@ -199,7 +199,8 @@ extension UsageStore {
               currentOwnerKey == expectedOwnerKey
         else { return }
 
-        let visibleAccounts = self.freshCodexVisibleAccountsForSnapshotHydration()
+        let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
+        let visibleAccounts = projection.visibleAccounts
         let activeMatches = visibleAccounts.filter {
             $0.isActive &&
                 $0.selectionSource == currentGuard.source &&
@@ -215,20 +216,18 @@ extension UsageStore {
                   visibleAccounts: visibleAccounts) == currentOwnerKey
         else { return }
 
-        let identity = snapshot.identity(for: .codex)
-        let relabeled = snapshot.withIdentity(ProviderIdentitySnapshot(
-            providerID: .codex,
-            accountEmail: account.email,
-            accountOrganization: identity?.accountOrganization,
-            loginMethod: identity?.loginMethod ?? account.workspaceLabel))
+        let relabeled = Self.codexVisibleAccountSnapshotRelabeledForCurrentProjection(snapshot, account: account)
         let prior = self.codexAccountSnapshots.first { $0.id == account.id }
-        let currentSnapshots = [CodexAccountUsageSnapshot(
+        var currentSnapshots = Self.codexAccountSnapshots(
+            self.codexAccountSnapshots,
+            reconciledWith: projection).filter { $0.id != account.id }
+        currentSnapshots.append(CodexAccountUsageSnapshot(
             account: account,
             snapshot: relabeled,
             error: nil,
             sourceLabel: sourceLabel,
             credits: self.credits ?? prior?.credits,
-            weeklyBoundaryEvidence: weeklyBoundaryEvidence ?? prior?.weeklyBoundaryEvidence)]
+            weeklyBoundaryEvidence: weeklyBoundaryEvidence ?? prior?.weeklyBoundaryEvidence))
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
         self.consumePendingCodexBoundaryDetectorCorrections()

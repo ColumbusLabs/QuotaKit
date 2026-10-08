@@ -1351,7 +1351,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         self.dayCount(in: self.commonCoverageInterval(summaries: summaries), calendar: calendar)
     }
 
-    private static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {
+    static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {
         guard let interval,
               let first = calendar.ordinality(of: .day, in: .era, for: interval.lowerBound),
               let last = calendar.ordinality(of: .day, in: .era, for: interval.upperBound)
@@ -1410,7 +1410,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         return value
     }
 
-    private static func safeCostSum(_ values: [Double]) -> Double? {
+    static func safeCostSum(_ values: [Double]) -> Double? {
         guard !values.isEmpty else { return nil }
         var result = 0.0
         for value in values {

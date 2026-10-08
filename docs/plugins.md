@@ -126,6 +126,10 @@ session and URL-matched records used for `Cookie`; scripts never receive the coo
 expired, or path-mismatched cookies fail closed, and scripts cannot set or replace the echo header. Same-origin HTTPS
 redirects reselect both cookie headers for the redirected URL. Other origins and ports cannot carry the echo.
 
+[X API](xapi.md) uses this host-owned `ct0` echo for account discovery and developer-console credits. Its script receives
+neither cookie values nor permission to request another origin; its synced result contains the prepaid balance and
+safe provider detail rows, without quota history or a rate window.
+
 Authentication forms:
 
 ```js

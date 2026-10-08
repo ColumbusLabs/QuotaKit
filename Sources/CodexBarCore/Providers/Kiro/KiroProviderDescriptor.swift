@@ -37,6 +37,7 @@ public enum KiroProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kiro cost summary is not supported." }),
+            pace: .calendarMonthResetWindow,
             presentation: ProviderUsagePresentation(menuCard: ProviderMenuCardPresentation(
                 primaryDetailKind: .kiroCredits)),
             fetchPlan: ProviderFetchPlan(

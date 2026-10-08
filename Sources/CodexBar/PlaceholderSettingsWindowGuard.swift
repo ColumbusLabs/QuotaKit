@@ -81,6 +81,7 @@ final class PlaceholderSettingsWindowGuard {
             defer { self.closingWindows.remove(identity) }
             // Record before closing: close can synchronously trigger another window notification.
             self.closedWindows.add(window)
+            window.isRestorable = false
             self.closeWindow(window)
             closedCount += 1
         }

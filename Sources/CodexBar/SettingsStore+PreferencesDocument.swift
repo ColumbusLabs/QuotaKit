@@ -11,6 +11,8 @@ extension SettingsStore {
         try document.set("mergeIconStackedTopProvider", self.mergeIconStackedTopProviderRaw)
         try document.set("mergeIconStackedBottomProvider", self.mergeIconStackedBottomProviderRaw)
         try document.set("switcherShowsIcons", self.switcherShowsIcons)
+        try document.set("menuBarColorByProvider", self.menuBarColorByProvider)
+        try document.set("unifiedIconSource", self.unifiedIconSource.rawValue)
         try document.set("mergedOverviewLayout", self.mergedOverviewLayout.rawValue)
         if self.userDefaults.object(forKey: "mergedOverviewSelectedProviders") != nil {
             let active = self.orderedProviders().filter { self.providerEnablement[$0] ?? false }
@@ -46,6 +48,12 @@ extension SettingsStore {
                 as: String?.self).flatMap(\.self)
         }
         if let value: Bool = try document.value("switcherShowsIcons") { self.switcherShowsIcons = value }
+        if let value: Bool = try document.value("menuBarColorByProvider") { self.menuBarColorByProvider = value }
+        if let value: String = try document.value("unifiedIconSource"),
+           let source = UnifiedIconSource(rawValue: value)
+        {
+            self.unifiedIconSource = source
+        }
         if let value: String = try document.value("mergedOverviewLayout"),
            let layout = MergedOverviewLayout(rawValue: value)
         {

@@ -911,21 +911,40 @@ final class SyncCoordinator {
         if provider == .claude {
             guard let snapshot else { return nil }
             let details = snapshot.details
-            guard let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })
+            var sections: [SyncProviderDetailSection] = []
+            if let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })
                 .flatMap(\.rows).first(where: { $0.id == ClaudeCloudCreditsSnapshot.detailRowID }),
                 let status = ClaudeCloudCreditsSnapshot.detailStatus(in: details, now: Date())
-            else { return [] } // Explicitly clear an older synced balance when a successful snapshot omits it.
-            let value: String = switch status {
-            case .available: row.value
-            case .expired: "Expired"
-            case .unavailable: "Unavailable"
+            {
+                let value: String = switch status {
+                case .available: row.value
+                case .expired: "Expired"
+                case .unavailable: "Unavailable"
+                }
+                sections.append(SyncProviderDetailSection(
+                    title: ClaudeCloudCreditsSnapshot.detailTitle,
+                    rows: [.init(
+                        label: ClaudeCloudCreditsSnapshot.detailTitle,
+                        value: value,
+                        secondaryValue: row.secondaryValue)]))
             }
-            return [SyncProviderDetailSection(
-                title: ClaudeCloudCreditsSnapshot.detailTitle,
-                rows: [.init(
-                    label: ClaudeCloudCreditsSnapshot.detailTitle,
-                    value: value,
-                    secondaryValue: row.secondaryValue)])]
+            // Use the existing detail wire/storage contract. Calendar dates stay UTC civil dates;
+            // timestamp values retain their instant. Successful missing metadata clears old rows.
+            let billingDate = snapshot.subscriptionExpiresAt ?? snapshot.subscriptionRenewsAt
+            let isExpiration = snapshot.subscriptionExpiresAt != nil
+            if let billingDate {
+                let dateOnly = isExpiration
+                    ? snapshot.subscriptionExpiresAtIsDateOnly : snapshot.subscriptionRenewsAtIsDateOnly
+                let formatter = ISO8601DateFormatter()
+                formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                formatter.formatOptions = dateOnly ? [.withFullDate] : [.withInternetDateTime, .withFractionalSeconds]
+                sections.append(SyncProviderDetailSection(
+                    title: "Subscription",
+                    rows: [.init(
+                        label: isExpiration ? "Plan expires" : "Renews",
+                        value: formatter.string(from: billingDate))]))
+            }
+            return sections
         }
         // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
         if provider == .muse {
@@ -959,6 +978,7 @@ final class SyncCoordinator {
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
             .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot, .lithosai,
+            .xapi,
         ]
         guard supported.contains(provider),
               let details = snapshot?.details,
@@ -2021,7 +2041,7 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

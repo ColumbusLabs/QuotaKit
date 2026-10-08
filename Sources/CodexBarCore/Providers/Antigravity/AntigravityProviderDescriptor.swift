@@ -105,7 +105,8 @@ public enum AntigravityProviderDescriptor {
             cli: ProviderCLIConfig(
                 name: "antigravity",
                 versionDetector: nil,
-                supportsCostCommand: true))
+                supportsCostCommand: true),
+            nativeAppBundleIdentifiers: ["com.google.antigravity"])
     }
 
     static let estimateHintKey = "antigravity_cost_estimate_hint"

@@ -1034,6 +1034,7 @@ extension CostUsageStore {
         rowCountsByPath: [String: Int])
     {
         let decoder = JSONDecoder()
+        let rowStrings = CostUsageRowStringPool()
         var rowsByPath: [String: [CostUsageScanner.CodexUsageRow]] = [:]
         var rowCountsByPath: [String: Int] = [:]
         try self.forEachUsageRow(database, path: nil) { row in
@@ -1046,7 +1047,8 @@ extension CostUsageStore {
                 row.payload.count,
                 decoded != nil)
             #endif
-            if let decoded {
+            if var decoded {
+                decoded.turnID = decoded.turnID.map(rowStrings.intern)
                 rowsByPath[row.path, default: []].append(decoded)
             }
         }

@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 91 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 92 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -131,6 +131,7 @@ complete when the available scan window covers fewer days.
 | Neuralwatt | API key from config/env → `/v1/quota` subscription kWh usage and prepaid balance (`api`). |
 | ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
 | xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
+| [X API](xapi.md) | Chrome or manual console.x.com cookies → purchased and free prepaid USD credits (`web`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 | v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
 | Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |

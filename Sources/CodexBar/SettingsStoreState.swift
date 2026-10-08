@@ -36,6 +36,7 @@ struct SettingsDefaultsState {
     var menuBarShowsBrandIconWithPercent: Bool
     var menuBarHidesCritters: Bool
     var menuBarColorPace: Bool
+    var menuBarColorByProvider: Bool
     var menuBarHighContrastOnInactiveDisplays: Bool
     var menuBarDisplayModeRaw: String?
     var menuBarShowsResetTimeWhenExhausted: Bool
@@ -69,6 +70,7 @@ struct SettingsDefaultsState {
     var confettiOnSessionLimitResetsEnabled: Bool
     var confettiOnWeeklyLimitResetsEnabled: Bool
     var menuBarShowsHighestUsage: Bool
+    var unifiedIconSourceRaw: String?
     var claudeOAuthKeychainPromptModeRaw: String?
     var claudeOAuthKeychainReadStrategyRaw: String?
     var claudeOAuthDirectKeychainReadAllowed: Bool

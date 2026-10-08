@@ -8,6 +8,8 @@ read_when:
 
 # Notion AI Provider
 
+Automatic Notion cookies can come from Microsoft Edge profiles as well as Chrome. If workspace discovery exceeds the plugin response cap, configure the Business or Enterprise Workspace ID explicitly. The plugin can then query that workspace without loading the oversized workspace list, while retaining session authority checks.
+
 The Notion AI provider tracks the **Rolling** (6-hour) and **Monthly** (billing period) usage allowance
 windows that Notion shows in **Settings → Notion AI → Usage**.
 

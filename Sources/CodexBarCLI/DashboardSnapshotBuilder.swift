@@ -324,7 +324,7 @@ enum DashboardSnapshotBuilder {
         return DashboardIdentityPayload(accountEmail: email, plan: plan)
     }
 
-    private static func dashboardEmail(_ email: String?, mode: DashboardIdentityMode) -> String? {
+    static func dashboardEmail(_ email: String?, mode: DashboardIdentityMode) -> String? {
         guard let email = email?.trimmingCharacters(in: .whitespacesAndNewlines),
               !email.isEmpty
         else {

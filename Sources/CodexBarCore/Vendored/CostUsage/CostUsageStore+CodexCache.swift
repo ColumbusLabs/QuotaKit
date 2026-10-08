@@ -1035,6 +1035,7 @@ extension CostUsageStore {
         makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
     {
         let decoder = makeDecoder()
+        let rowStrings = CostUsageRowStringPool()
         var cache = CostUsageCache()
         cache.files.reserveCapacity(snapshot.files.count)
         let metadata = snapshot.metadata
@@ -1076,7 +1077,10 @@ extension CostUsageStore {
         let rowsByPath = decodedUsageRowsByPath ?? Dictionary(grouping: snapshot.usageRows, by: \.path)
             .mapValues { rows in
                 rows.compactMap {
-                    try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
+                    guard var row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
+                    else { return nil }
+                    row.turnID = row.turnID.map(rowStrings.intern)
+                    return row
                 }
             }
         let aggregatesByPath = Dictionary(grouping: snapshot.fileDayAggregates, by: \.path)

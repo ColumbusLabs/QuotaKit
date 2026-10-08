@@ -10,6 +10,7 @@ struct PlaceholderSettingsWindowGuardTests {
         let placeholder = self.makeWindow(
             identifier: "com_apple_SwiftUI_Settings_window",
             frameAutosaveName: "com_apple_SwiftUI_Settings_window")
+        placeholder.isRestorable = true
         var closed: [NSWindow] = []
         let guardian = PlaceholderSettingsWindowGuard(
             windows: { [placeholder] },
@@ -19,6 +20,7 @@ struct PlaceholderSettingsWindowGuardTests {
         #expect(guardian.sweep() == 1)
         #expect(closed.count == 1)
         #expect(closed.first === placeholder)
+        #expect(!placeholder.isRestorable)
     }
 
     @Test

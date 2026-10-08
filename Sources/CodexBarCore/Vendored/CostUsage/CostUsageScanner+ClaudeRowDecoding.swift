@@ -1,13 +1,15 @@
 import Foundation
 
 /// One cache decode or transcript scan owns each pool.
-final class ClaudeRowStringPool: @unchecked Sendable {
-    static let key = CodingUserInfoKey(rawValue: "claudeRowStringPool")!
+final class CostUsageRowStringPool: @unchecked Sendable {
+    static let key = CodingUserInfoKey(rawValue: "costUsageRowStringPool")!
     private let lock = NSLock()
     private var strings: [Data: String] = [:]
 
     func intern(_ value: String) -> String {
-        self.lock.withLock {
+        // Small strings store their bytes inline; pooling them only grows the temporary index.
+        guard value.utf8.count > 15 else { return value }
+        return self.lock.withLock {
             // String equality folds NFC/NFD spellings; artifact bytes must remain exact.
             let key = Data(value.utf8)
             if let existing = self.strings[key] { return existing }
@@ -22,7 +24,7 @@ final class ClaudeRowStringPool: @unchecked Sendable {
 extension CostUsageScanner.ClaudeUsageRow {
     init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        let pool = decoder.userInfo[ClaudeRowStringPool.key] as? ClaudeRowStringPool
+        let pool = decoder.userInfo[CostUsageRowStringPool.key] as? CostUsageRowStringPool
         self.dayKey = try values.decode(String.self, forKey: .dayKey)
         let model = try values.decode(String.self, forKey: .model)
         self.model = pool?.intern(model) ?? model

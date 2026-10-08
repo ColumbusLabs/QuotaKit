@@ -7,6 +7,23 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.35 — Unreleased
 
+### Added
+
+- X API tracks purchased and free prepaid credits separately from xAI and Grok quotas.
+- Codex settings show all saved accounts with isolated usage snapshots and bounded refreshes; local dashboard APIs can discover saved accounts without exporting credentials or fetching usage.
+- Claude shows verified subscription renewal or paid-access expiration dates on Mac, in CLI JSON, and on iPhone.
+- Kiro monthly credits support pace and recorded Plan Usage history.
+- Menu bar icons can follow the frontmost enabled provider app or use optional provider accent colors.
+- Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
+
+### Fixed
+
+- Codex refreshes retain sibling account snapshots, ignore commented endpoint overrides, and share repeated turn-ID storage without changing ledger contents.
+- Claude Plan Usage history survives verified OAuth token rotation while conflicting ownership stays quarantined; Enterprise spend remains visible when quota windows are unavailable.
+- JetBrains uses bounded, installation-scoped quota logs when fresher XML is unavailable; Notion supports Edge profiles and explicit recovery for oversized workspace discovery.
+- Qwen Cloud recognizes Team Token Plan seat subscriptions; OpenCode Go selects the most constrained quota for automatic menu metrics.
+- The empty Settings placeholder avoids unwanted Dock promotion on macOS 27.
+
 ## 0.32.4.34 — 2026-10-07
 
 ### Added

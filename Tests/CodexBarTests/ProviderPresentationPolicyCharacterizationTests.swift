@@ -20,7 +20,7 @@ struct ProviderPresentationPolicyCharacterizationTests {
                     == !optOut.contains(provider),
                 "Unexpected exhaustion priority for \(provider.rawValue)")
             #expect(ProviderDescriptorRegistry.descriptor(for: provider).presentation.switcherUsesAutomaticMenuBarWindow
-                == (provider == .warp))
+                == [.warp, .opencodego].contains(provider))
         }
     }
 

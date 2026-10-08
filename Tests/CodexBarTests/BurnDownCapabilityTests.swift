@@ -24,7 +24,7 @@ struct BurnDownCapabilityTests {
         for provider in UsageProvider.allCases {
             let widgetExportAllowed = ProviderDescriptorRegistry.descriptor(for: provider)
                 .snapshotExport.allowsWidgets
-            let expected = widgetExportAllowed ? [provider] : []
+            let expected = widgetExportAllowed && provider != .xapi ? [provider] : []
             for minutes in [90, 300, 1440, 10080, 43200] {
                 let snapshot = Self.snapshot(provider: provider, primary: Self.window(minutes: minutes))
                 #expect(BurnProviderOptions.choices(in: snapshot).compactMap(\.provider) == expected)
@@ -36,6 +36,13 @@ struct BurnDownCapabilityTests {
         let disabled = WidgetSnapshot(entries: enabled.entries, enabledProviders: [], generatedAt: enabled.generatedAt)
         #expect(BurnProviderOptions.choices(in: disabled).isEmpty)
         #expect(BurnProviderOptions.choices(in: WidgetPreviewData.emptySnapshot()).isEmpty)
+    }
+
+    @Test
+    func `X API balance never enables a quota burndown even with a fabricated quota lane`() {
+        let snapshot = Self.snapshot(provider: .xapi, primary: Self.window(minutes: 43200))
+        #expect(BurnDownState(snapshot: snapshot, provider: .xapi, selection: .primary) == nil)
+        #expect(BurnProviderOptions.choices(in: snapshot).isEmpty)
     }
 
     @Test

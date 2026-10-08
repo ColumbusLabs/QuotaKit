@@ -5,6 +5,7 @@ public enum NotionUsageError: LocalizedError, Sendable, Equatable {
     case cookieImportDeferred
     case invalidCredentials
     case noWorkspace
+    case responseTooLarge(endpoint: String)
     case allowanceNotApplicable(workspace: String?)
     case apiError(String)
     case parseFailed(String)
@@ -19,6 +20,8 @@ public enum NotionUsageError: LocalizedError, Sendable, Equatable {
             "Notion session cookie is invalid or expired."
         case .noWorkspace:
             "No Notion workspace found for this account."
+        case let .responseTooLarge(endpoint):
+            "Notion \(endpoint) response exceeded the supported size limit."
         case let .allowanceNotApplicable(workspace):
             if let workspace {
                 "Notion AI usage allowance is not tracked for \"\(workspace)\". " +

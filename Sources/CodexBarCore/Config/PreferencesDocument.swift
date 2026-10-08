@@ -24,6 +24,7 @@ public struct PreferencesDocument: Codable, Sendable {
         "usageBarsShowUsed", "resetTimesShowAbsolute", "costUsageEnabled", "costComparisonPeriodsEnabled",
         "hidePersonalInfo", "randomBlinkEnabled", "confettiOnSessionLimitResetsEnabled",
         "confettiOnWeeklyLimitResetsEnabled", "limitResetNotificationsEnabled", "menuBarShowsHighestUsage",
+        "menuBarColorByProvider",
         "showOptionalCreditsAndExtraUsage",
         "providerChangelogLinksEnabled", "providersSortedAlphabetically", "refreshAllProvidersOnMenuOpen",
         "mergeIcons", "mergeIconsStacked", "switcherShowsIcons",
@@ -42,6 +43,7 @@ public struct PreferencesDocument: Codable, Sendable {
         "costSummaryDisplayStyle": ["inlineSummary", "costSubmenu", "both"],
         "workdayTickAppearance": ["hidden", "subtle", "highContrast"],
         "mergedOverviewLayout": ["detailed", "compact"],
+        "unifiedIconSource": ["currentSelection", "highestUsage", "frontmostApp"],
     ]
     private static let thresholdKeys = Set([
         "quotaWarningThresholds", "quotaWarningSessionThresholds", "quotaWarningWeeklyThresholds",
@@ -83,8 +85,19 @@ public struct PreferencesDocument: Codable, Sendable {
 
     public func merging(_ incoming: Self) -> Self {
         var result = self
-        result.preferences.merge(incoming.preferences) { _, new in new }
+        result.preferences.merge(incoming.importingPreferences) { _, new in new }
         return result
+    }
+
+    private var importingPreferences: [String: ProviderConfigExtensionValue] {
+        var values = self.preferences
+        // Older exports must still replace a newer icon-source choice, including queued CLI imports.
+        if values["unifiedIconSource"] == nil,
+           case let .bool(highest)? = values["menuBarShowsHighestUsage"]
+        {
+            values["unifiedIconSource"] = .string(highest ? "highestUsage" : "currentSelection")
+        }
+        return values
     }
 
     public init(defaults: UserDefaults) throws {
@@ -104,8 +117,10 @@ public struct PreferencesDocument: Codable, Sendable {
         var values = try JSONDecoder().decode(
             [String: ProviderConfigExtensionValue].self, from: JSONEncoder().encode(current))
         // Optional fields omitted by the encoder still belong to the sync projection.
-        let keys = Set(values.keys).union(["weeklyProgressWorkDays", "paceVisible", "workdayTickAppearance"])
-        values.merge(self.preferences.filter { keys.contains($0.key) }) { _, new in new }
+        let keys = Set(values.keys).union([
+            "weeklyProgressWorkDays", "paceVisible", "workdayTickAppearance", "unifiedIconSource",
+        ])
+        values.merge(self.importingPreferences.filter { keys.contains($0.key) }) { _, new in new }
         return try JSONDecoder().decode(SyncedPreferences.self, from: JSONEncoder().encode(values))
     }
 

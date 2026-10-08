@@ -244,15 +244,19 @@ extension CodexBarCLI {
           Transport is plain HTTP: the token crosses the network in cleartext on every
           request. A non-loopback --host therefore requires both a dashboard token and
           --allow-plain-http, which records that you accept that trade-off. On a
-          non-loopback host the token also gates /usage and /cost (account data);
+          non-loopback host the token also gates /accounts, /usage, and /cost (account data);
           / and /health are always open. Use a TLS-terminating reverse proxy for anything
           beyond a trusted network segment.
-          Snapshot identity is redacted by default. --identity full exposes real account
-          emails and should be used only on trusted, private networks.
+          Identity in account discovery and snapshots is redacted by default. --identity full exposes real
+          account emails and should be used only on trusted, private networks.
+          Account discovery reads configured token-account labels and saved managed Codex metadata only;
+          it does not fetch usage or access managed credential files. IDs are stable opaque lookup keys.
 
         Endpoints:
           GET /                    Built-in web dashboard
           GET /health
+          GET /accounts            Discover saved provider token and managed Codex accounts
+          GET /accounts/<id>       Fetch one account by opaque ID
           GET /usage
           GET /usage?provider=claude
           GET /usage?provider=all
@@ -266,6 +270,7 @@ extension CodexBarCLI {
           QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve
           QUOTAKIT_DASHBOARD_TOKEN=... quotakit serve --host 0.0.0.0 --allow-plain-http
           curl http://127.0.0.1:8080/usage?provider=all
+          curl http://127.0.0.1:8080/accounts
           curl -H "Authorization: Bearer $QUOTAKIT_DASHBOARD_TOKEN" \\
             http://127.0.0.1:8080/dashboard/v1/snapshot
         """

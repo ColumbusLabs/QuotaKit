@@ -9,6 +9,8 @@ read_when:
 
 # Claude provider
 
+Optional subscription renewal and paid-access expiration dates use an existing manual or cached Claude web session. OAuth enrichment verifies the OAuth account and organization against that cookie session before and after billing. Billing has a separate two-second total budget after quota succeeds; unavailable dates or changed authority preserve successful quota without delayed writes. Cookie source Off disables enrichment. It performs no cookie discovery, credential repair, sign-in, or new Keychain access. Calendar-only dates remain calendar-only; expiration takes precedence over renewal.
+
 Claude Web distinguishes Cloudflare challenges from expired sessions. The menu directs a
 challenged account to Claude provider settings for an OAuth source or network change while
 keeping cached cookies and the last successful usage. A successful CLI quota read can offer
@@ -410,3 +412,9 @@ predictive warnings keep their own source keys.
 ### Manual web cookies on Linux
 
 Linux supports an explicitly configured manual `sessionKey` cookie using the same web API path as macOS; automatic browser import remains unavailable. Auto mode can use a valid manual cookie before CLI fallback. Authentication rejection or a Cloudflare challenge follows the existing Auto fallback policy; cancellation stops without launching Claude Code. Explicit Web does not fall back, and explicit OAuth remains the passive polling choice. A manual cookie does not bypass challenges or refresh OAuth credentials.
+
+## Account-scoped history and unavailable quotas
+
+OAuth Plan Usage history binds to a stable account/profile identity after two stable credential observations corroborate it. Verified token rotations retain that history. Unbound or conflicting fragments remain separate; a previously merged ambiguous fragment is preserved but hidden, and new samples start a fresh scope. The quarantine survives empty responses and restarts. Explicit OAuth tokens without account evidence remain credential-scoped.
+
+Compact Overview retains Enterprise extra-spend details when quota bars are unavailable. Auto stops at the first successful source and does not import billing caps from a different session. Select Web API for browser-only billing details. An insights-only CLI fallback retains the original PTY failure rather than claiming the subscription lacks quotas.

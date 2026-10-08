@@ -8,6 +8,8 @@ read_when:
 
 # JetBrains AI provider
 
+QuotaKit can use a fresher quota record from the selected IDE's `idea.log` when its XML is stale, or use the log when no quota XML exists. Reads are limited to a 4 MiB tail and the same detected installation. Unsupported newest records do not resurrect older quota; nonstandard custom configuration locations remain XML-only. Missing, unreadable, or older logs preserve usable XML.
+
 JetBrains AI is a local-only provider. We read quota information directly from the IDE's configuration files.
 
 ## Data sources + fallback order

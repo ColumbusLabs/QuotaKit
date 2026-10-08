@@ -233,7 +233,8 @@ public enum ClaudeProviderDescriptor {
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api, .web, .cli, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
-            cli: self.cli)
+            cli: self.cli,
+            nativeAppBundleIdentifiers: ["com.anthropic.claudefordesktop"])
     }
 
     private static func menuBarWindow(
@@ -725,7 +726,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             webOrganizationID: context.settings?.claude?.organizationID,
             webExtrasTimeout: context.webTimeout,
             includePrepaidBalance: includePrepaidBalance,
-            includeAccountIdentity: context.includeAccountIdentity)
+            includeAccountIdentity: context.includeAccountIdentity,
+            includeSubscriptionMetadata: webEnrichmentAccess.isAvailable)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return ProviderFetchResult(
             usage: Self.snapshot(
@@ -787,7 +789,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         if includeOptionalUsage {
             details += usage.cloudCredits?.detailSections(now: usage.updatedAt) ?? []
         }
-        return UsageSnapshot(
+        let snapshot = UsageSnapshot(
             primary: primary,
             secondary: usage.secondary,
             tertiary: usage.opus,
@@ -798,6 +800,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             updatedAt: usage.updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)
+        return usage.subscriptionMetadata?.applying(to: snapshot) ?? snapshot
     }
 
     static func _snapshotForTesting(
@@ -894,11 +897,20 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let usage = try await self.loadUsage(before: context.webTimeout, context: context)
+        var snapshot = ClaudeOAuthFetchStrategy.snapshot(
+            from: usage,
+            includeResetCredits: true,
+            includeOptionalUsage: context.includeOptionalUsage)
+        let access = ClaudeProviderDescriptor.webEnrichmentAccess(context: context)
+        if access.isAvailable, let cookie = access.manualCookieHeader,
+           case let .available(metadata) = await ClaudeSubscriptionMetadataFetcher.fetch(
+               cookieHeader: cookie, expectedOwnerID: usage.accountID)
+        {
+            snapshot = metadata.applying(to: snapshot)
+        }
+        try Task.checkCancellation()
         return self.makeResult(
-            usage: ClaudeOAuthFetchStrategy.snapshot(
-                from: usage,
-                includeResetCredits: true,
-                includeOptionalUsage: context.includeOptionalUsage),
+            usage: snapshot,
             sourceLabel: "web")
     }
 
@@ -976,7 +988,8 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
                 manualCookieHeader: Self.manualCookieHeader(from: context),
                 webOrganizationID: context.settings?.claude?.organizationID,
                 includePrepaidBalance: context.includeOptionalUsage,
-                includeAccountIdentity: context.includeAccountIdentity)
+                // Billing uses the owner already present in the authenticated web response.
+                includeAccountIdentity: true)
             return try await fetcher.loadLatestUsage(model: "sonnet")
         }
         let race = BoundedTaskJoin(sourceTask: sourceTask)
