@@ -229,6 +229,8 @@ struct ProviderRegistryTests {
             [.abacus, .commandcode],
             // Meta Muse and Muse Code intentionally share the Muse blue brand color.
             [.muse, .museai],
+            // X API and LithosAI retain their upstream neutral gray accents.
+            [.xapi, .lithosai],
         ]
 
         for leftIndex in descriptors.indices {

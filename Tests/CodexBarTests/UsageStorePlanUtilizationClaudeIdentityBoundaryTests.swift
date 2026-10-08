@@ -69,7 +69,7 @@ struct UsageStorePlanUtilizationClaudeIdentityBoundaryTests {
             now: start.addingTimeInterval(2 * 60 * 60))
 
         let key = try #require(
-            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: owner))
+            UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(historyOwnerIdentifier: accountIdentity))
         let buckets = try #require(store.planUtilizationHistory[.claude])
         #expect(findSeries(buckets.accounts[key] ?? [], name: .session, windowMinutes: 300)?
             .entries.map(\.usedPercent) == [30, 50])

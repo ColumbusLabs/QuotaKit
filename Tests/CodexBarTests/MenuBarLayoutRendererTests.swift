@@ -1711,7 +1711,7 @@ struct MenuBarLayoutRendererTests {
                 threshold: threshold))
     }
 
-    private func data(
+    func data(
         automaticUsedPercent: Double = 50,
         provider: UsageProvider = .codex,
         laneLabels: MenuBarLayoutLaneLabels? = nil,
@@ -1725,7 +1725,7 @@ struct MenuBarLayoutRendererTests {
     {
         MenuBarLayoutRenderData(
             iconKey: "codex",
-            providerName: "Codex",
+            providerName: ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName,
             accountLabel: accountLabel,
             laneLabels: laneLabels ?? MenuBarLayoutLaneLabels(provider: provider, snapshot: nil),
             primary: MenuBarLayoutRenderWindow(RateWindow(

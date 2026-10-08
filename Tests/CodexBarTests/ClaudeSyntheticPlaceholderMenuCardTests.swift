@@ -78,6 +78,68 @@ struct ClaudeSyntheticPlaceholderMenuCardTests {
     }
 
     @MainActor
+    @Test(arguments: [false, true])
+    func `compact overview preserves enterprise spend without quota windows`(showOptional: Bool) throws {
+        let model = Self.enterpriseModel(showOptional: showOptional)
+        let row = OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact)
+        #expect(model.metrics.isEmpty)
+        #expect(model.placeholder == "Limits not available")
+        #expect(model.hasUsageContent)
+        #expect(row.usesFullCard)
+        #expect((model.providerCost != nil) == showOptional)
+        if showOptional {
+            let cost = try #require(model.providerCost)
+            #expect(cost.title == "Extra usage")
+            #expect(cost.spendLine == "Monthly cap: $9.95 / $150.00")
+        }
+        #expect(!OverviewMenuCardRowView(model: model, storageText: nil, width: 340).usesFullCard)
+    }
+
+    @MainActor
+    @Test
+    func `compact overview keeps measured weekly usage in its compact section`() {
+        let model = Self.model(snapshot: UsageSnapshot(
+            primary: Self.syntheticSession,
+            secondary: RateWindow(
+                usedPercent: 42,
+                windowMinutes: 10080,
+                resetsAt: Self.now.addingTimeInterval(3600),
+                resetDescription: nil),
+            updatedAt: Self.now))
+        let row = OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact)
+
+        #expect(model.metrics.map(\.id) == ["secondary"])
+        #expect(!row.usesFullCard)
+    }
+
+    @MainActor
+    @Test
+    func `render synthetic enterprise overview proof`() throws {
+        guard let directory = ProcessInfo.processInfo.environment["CODEXBAR_CLAUDE_PRESENTATION_PROOF_DIR"] else {
+            return
+        }
+        let hosting = NSHostingView(rootView: OverviewMenuCardRowView(
+            model: Self.enterpriseModel(showOptional: true), storageText: nil, width: 340, layout: .compact)
+            .padding(16)
+            .frame(width: 372)
+            .environment(\.locale, Locale(identifier: "en"))
+            .background(Color(nsColor: .windowBackgroundColor))
+            .preferredColorScheme(.light))
+        hosting.appearance = NSAppearance(named: .aqua)
+        let png = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
+        try png.write(to: URL(fileURLWithPath: directory).appendingPathComponent("enterprise-overview.png"))
+    }
+
+    private static func enterpriseModel(showOptional: Bool) -> UsageMenuCardView.Model {
+        self.model(snapshot: UsageSnapshot(
+            primary: self.syntheticSession,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 9.95, limit: 150, currencyCode: "USD", period: "Monthly cap", updatedAt: self.now),
+            updatedAt: self.now), showOptional: showOptional)
+    }
+
+    @MainActor
     @Test
     func `render synthetic unavailable quota proof`() throws {
         guard let directory = ProcessInfo.processInfo.environment["CODEXBAR_CLAUDE_PRESENTATION_PROOF_DIR"] else {
@@ -105,7 +167,7 @@ struct ClaudeSyntheticPlaceholderMenuCardTests {
             isSyntheticPlaceholder: true)
     }
 
-    private static func model(snapshot: UsageSnapshot) -> UsageMenuCardView.Model {
+    private static func model(snapshot: UsageSnapshot, showOptional: Bool = true) -> UsageMenuCardView.Model {
         UsageMenuCardView.Model.make(.init(
             provider: .claude,
             metadata: ProviderDescriptorRegistry.descriptor(for: .claude).metadata,
@@ -123,7 +185,7 @@ struct ClaudeSyntheticPlaceholderMenuCardTests {
             usageBarsShowUsed: false,
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
-            showOptionalCreditsAndExtraUsage: true,
+            showOptionalCreditsAndExtraUsage: showOptional,
             hidePersonalInfo: true,
             now: self.now))
     }

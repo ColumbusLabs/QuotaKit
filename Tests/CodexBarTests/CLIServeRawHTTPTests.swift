@@ -356,6 +356,106 @@ struct CLIServeRawHTTPTests {
     }
 
     @Test
+    func `account discovery lists saved token accounts and supports opaque id lookup`() async throws {
+        let accountID = try #require(UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(
+                id: .claude,
+                enabled: false,
+                tokenAccounts: ProviderTokenAccountData(
+                    version: 1,
+                    accounts: [ProviderTokenAccount(
+                        id: accountID,
+                        label: "Private user@example.com",
+                        token: "synthetic-secret",
+                        addedAt: 1,
+                        lastUsed: 2)],
+                    activeIndex: 0)),
+        ])
+        let providerWorkRequested = LockIsolated(false)
+        let operations = CLIServeOperationCoordinator<UsageCommandOutput>(now: {
+            providerWorkRequested.setValue(true)
+            return ContinuousClock.now + .seconds(120)
+        })
+        let accountIDPath = "/accounts/token-account:claude:\(accountID.uuidString.lowercased())"
+
+        try await Self.withServeRuntime(
+            token: nil, config: config, providerOperations: operations, body: { port in
+                let list = try await Self.rawExchange(
+                    port: port,
+                    request: "GET /accounts HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+                let item = try await Self.rawExchange(
+                    port: port,
+                    request: "GET \(accountIDPath) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+
+                #expect(list.statusLine == "HTTP/1.1 200 OK")
+                #expect(list.headerValue("Cache-Control") == "no-store")
+                let listObject = try #require(JSONSerialization
+                    .jsonObject(with: Data(list.body.utf8)) as? [String: Any])
+                let accounts = try #require(listObject["accounts"] as? [[String: Any]])
+                #expect(accounts.count == 1)
+                #expect(accounts[0]["id"] as? String == String(accountIDPath.dropFirst("/accounts/".count)))
+                #expect(accounts[0]["provider"] as? String == "claude")
+                #expect(accounts[0]["label"] as? String == "Account \(accountID.uuidString.lowercased())")
+                #expect(item.statusLine == "HTTP/1.1 200 OK")
+                #expect(item.headerValue("Cache-Control") == "no-store")
+                let itemObject = try #require(JSONSerialization
+                    .jsonObject(with: Data(item.body.utf8)) as? [String: Any])
+                #expect(itemObject["id"] as? String == String(accountIDPath.dropFirst("/accounts/".count)))
+                #expect(!list.body.contains("Private user@example.com"))
+                #expect(!list.body.contains("synthetic-secret"))
+                #expect(providerWorkRequested.value == false)
+            })
+    }
+
+    @Test
+    func `account discovery is bearer gated before config reads on non loopback binds`() async throws {
+        try await Self.withServeRuntime(
+            token: "secret", bindHost: "0.0.0.0", rawConfigJSON: "{not json", body: { port in
+                for path in ["/accounts", "/accounts/unknown"] {
+                    let denied = try await Self.rawExchange(
+                        port: port,
+                        request: "GET \(path) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+                    #expect(denied.statusLine == "HTTP/1.1 401 Unauthorized")
+                    #expect(denied.headerValue("WWW-Authenticate") == "Bearer")
+                    #expect(denied.headerValue("Cache-Control") == "no-store")
+
+                    let allowed = try await Self.rawExchange(
+                        port: port,
+                        request: "GET \(path) HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                            + "Authorization: Bearer secret\r\n\r\n")
+                    #expect(allowed.statusLine == "HTTP/1.1 500 Internal Server Error")
+                    #expect(allowed.headerValue("Cache-Control") == "no-store")
+                    #expect(allowed.body == #"{"error":"could not load accounts"}"#)
+                    #expect(!allowed.body.contains("not json"))
+                }
+            })
+    }
+
+    @Test
+    func `account route errors remain no store`() async throws {
+        try await Self.withServeRuntime(token: nil, body: { port in
+            let method = try await Self.rawExchange(
+                port: port,
+                request: "POST /accounts HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n")
+            let missingID = try await Self.rawExchange(
+                port: port,
+                request: "GET /accounts/ HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            let unknownID = try await Self.rawExchange(
+                port: port,
+                request: "GET /accounts/unknown HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+
+            #expect(method.statusLine == "HTTP/1.1 405 Method Not Allowed")
+            #expect(method.headerValue("Cache-Control") == "no-store")
+            #expect(missingID.statusLine == "HTTP/1.1 404 Not Found")
+            #expect(missingID.headerValue("Cache-Control") == "no-store")
+            #expect(unknownID.statusLine == "HTTP/1.1 404 Not Found")
+            #expect(unknownID.headerValue("Cache-Control") == "no-store")
+            #expect(unknownID.body == #"{"error":"account not found"}"#)
+        })
+    }
+
+    @Test
     func `non-loopback binds gate usage and cost behind the token`() async throws {
         try await Self.withServeRuntime(token: "secret", bindHost: "0.0.0.0", body: { port in
             let usageDenied = try await Self.rawExchange(

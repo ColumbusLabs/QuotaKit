@@ -9,28 +9,24 @@ read_when:
 
 # Codex provider
 
-Codex has three automatic usage data paths (OAuth API, web dashboard, CLI RPC) plus a manual CLI PTY diagnostic parser and a local cost-usage scanner.
-The OAuth API is the default app source when credentials are available; web access is optional for dashboard extras.
+Codex reads account usage through PAT, OAuth, CLI RPC, or an explicitly selected web source. Local token/cost history is scanned separately; the CLI PTY parser is a manual diagnostic tool.
 
 ## Data sources + fallback order
 
-### App default selection (debug menu disabled)
-1) OAuth API (auth.json credentials).
-2) CLI RPC through `codex app-server`.
-3) If OpenAI web extras are enabled and a matching OpenAI web session is available (Automatic or Manual cookies),
-   dashboard extras load as a separate follow-up refresh and the source label becomes `primary + openai-web`.
+### Auto selection
+1) PAT, when configured and available.
+2) OAuth API from the selected account's credentials.
+3) CLI RPC through `codex app-server`, unless a managed workspace is selected.
 
-Usage source picker:
-- Preferences → Providers → Codex → Usage source (Auto/OAuth/CLI).
+Unavailable strategies are skipped. Authentication failures can allow fallback; network, server, and decode failures keep their original error. A managed workspace excludes CLI fallback because it cannot carry the selected workspace header. External OAuth credentials remain read-only and fail closed when stale.
 
-### CLI default selection (`--source auto`)
-1) OpenAI web dashboard (when available).
-2) Codex CLI RPC through `codex app-server`.
+Optional matching OpenAI web extras load separately in the app. The web dashboard is not an Auto fallback; the CLI can select it explicitly with `--source web`.
 
 ### OAuth API (preferred for the app)
 - Reads OAuth tokens from `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`).
-- Refreshes access tokens when `last_refresh` is older than 8 days.
+- Native credential recovery remains owned by the Codex CLI. Managed accounts retain their selected workspace and staged preservation safeguards; external OAuth credentials are never rewritten.
 - Calls `GET https://chatgpt.com/backend-api/wham/usage` (default) with `Authorization: Bearer <token>`.
+- `chatgpt_base_url` in the selected Codex home’s `config.toml` overrides the endpoint. Whole-line and indented comments are ignored; trailing inline comments remain supported. A commented override cannot shadow a later active setting.
 - The app reads reset-credit inventory once per refresh with a best-effort
   `GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits` using the same account-scoped OAuth context;
   the CLI requests it only when optional credits are included.

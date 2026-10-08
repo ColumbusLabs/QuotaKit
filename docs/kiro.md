@@ -9,6 +9,8 @@ read_when:
 
 # Kiro provider
 
+Monthly plan credits support pace and recorded Plan Usage history. Bonus and overage credits remain separate from the monthly allowance. The menu bar follows the global pace display mode; missing or ambiguous plan metrics do not invent a quota or pace. Recorded history is captured by the existing account-scoped history store and does not infer earlier usage.
+
 Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAuth flow—authentication is handled by AWS Builder ID through the CLI.
 
 ## Data sources

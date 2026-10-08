@@ -8,6 +8,8 @@ read_when:
 # UI & icon
 
 ## Settings
+- Usage & Spend charts group longer periods by week or month, drill into days and hours, and isolate individual sources. The amount inspector uses the reporting calendar and labels totals as recorded spend; measured zero, unavailable, and incomplete amounts remain distinct.
+- Codex settings show saved accounts with separate quota snapshots. Viewing or refreshing an account does not switch the active account; local usage remains tied to the current Codex profile.
 - Usage & Spend keeps Refresh beside the title and places the period picker on its own bounded row so narrow preference panes retain readable controls.
 - Hooks fields expose distinct threshold, executable, and argument accessibility labels.
 - Agent session menus can hide unreachable hosts; the option defaults off.
@@ -17,6 +19,9 @@ read_when:
 - Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
 
 ## Menu bar
+- Combined icon source can follow the current selection, highest usage, or frontmost enabled provider app. Focus monitoring runs only for collapsed merged icons, uses application notifications, and never changes the saved selection or reads terminal tabs.
+- Optional Color by provider uses provider accents without rewriting layouts. Pace colors remain independent. Open menus, stale readings, Increase Contrast, inactive-display contrast, and insufficient accent contrast use monochrome rendering.
+- The empty Settings placeholder never promotes the app to a Dock application. Real settings and update dialogs retain temporary Dock behavior; macOS may refuse demotion after those dialogs close.
 - Overview offers Share Usage Snapshot when its Usage & Spend summary has shareable data. The local preview uses the same spend sources, hidden-source choices, calendar, and currency as that summary; Copy Image exports PNG and TIFF without uploading anything.
 - Shared snapshots name the last included reporting day in the dashboard's timezone, use a singular caption for one subscription, and keep recognized public model families behind one gateway namespace. A partial model history is labeled as partial.
 - LSUIElement app: no Dock icon; status item uses custom NSImage.

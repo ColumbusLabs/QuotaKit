@@ -49,9 +49,9 @@ extension StatusItemController {
             return true
         }
 
-        // Provider-specific by design: burndown uses recorded Codex and Claude reset-scoped plan windows.
+        // Provider-specific by design: burndown uses recorded Codex, Claude, and Kiro reset-scoped plan windows.
         // Keep the existing utilization history chart available below it.
-        if provider == .codex || provider == .claude {
+        if provider == .codex || provider == .claude || provider == .kiro {
             let burndownView = QuotaBurndownChartMenuView(
                 provider: provider,
                 histories: histories,

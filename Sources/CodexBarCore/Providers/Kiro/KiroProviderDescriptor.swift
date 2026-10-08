@@ -19,6 +19,7 @@ public enum KiroProviderDescriptor {
                 cliName: "kiro",
                 defaultEnabled: false,
                 widgetSelectable: false,
+                burnDownWidgetSelectable: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Kiro debug log not yet implemented",
@@ -37,6 +38,7 @@ public enum KiroProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kiro cost summary is not supported." }),
+            pace: .calendarMonthResetWindow,
             presentation: ProviderUsagePresentation(menuCard: ProviderMenuCardPresentation(
                 primaryDetailKind: .kiroCredits)),
             fetchPlan: ProviderFetchPlan(

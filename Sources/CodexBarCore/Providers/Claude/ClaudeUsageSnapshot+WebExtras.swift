@@ -3,7 +3,7 @@ extension ClaudeUsageSnapshot {
         extraRateWindows: [NamedRateWindow],
         providerCost: ProviderCostSnapshot?) -> ClaudeUsageSnapshot
     {
-        ClaudeUsageSnapshot(
+        var snapshot = ClaudeUsageSnapshot(
             primary: self.primary,
             primaryWindowKind: self.primaryWindowKind,
             secondary: self.secondary,
@@ -24,5 +24,7 @@ extension ClaudeUsageSnapshot {
             oauthKeychainCredentialAbsent: self.oauthKeychainCredentialAbsent,
             oauthKeychainCredentialUnavailable: self.oauthKeychainCredentialUnavailable,
             accountID: self.accountID)
+        snapshot.subscriptionMetadata = self.subscriptionMetadata
+        return snapshot
     }
 }

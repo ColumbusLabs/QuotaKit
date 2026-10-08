@@ -75,6 +75,7 @@ enum BurnProviderChoice: String, AppEnum {
     case aiand
     case zoommate
     case xai
+    case xapi
     case notion
     case ibmbob
     case nous
@@ -171,6 +172,7 @@ enum BurnProviderChoice: String, AppEnum {
         .aiand: DisplayRepresentation(title: "ai&"),
         .zoommate: DisplayRepresentation(title: "ZoomMate"),
         .xai: DisplayRepresentation(title: "xAI"),
+        .xapi: DisplayRepresentation(title: "X API"),
         .notion: DisplayRepresentation(title: "Notion AI"),
         .ibmbob: DisplayRepresentation(title: "IBM Bob"),
         .nous: DisplayRepresentation(title: "Nous Portal"),
@@ -309,7 +311,11 @@ struct BurnDownState {
         selection: BurnWindowChoice,
         now: Date = Date())
     {
-        guard ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets,
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        // Remaining balances cannot authorize a quota lane, including fabricated or stale snapshots.
+        guard descriptor.metadata.burnDownWidgetSelectable,
+              !descriptor.metadata.balanceOnly,
+              descriptor.snapshotExport.allowsWidgets,
               let entry = snapshot.entries.first(where: { $0.provider == provider.instanceID })
         else { return nil }
         self.entry = entry

@@ -1,5 +1,7 @@
 # Cost reporting periods
 
+Spend charts use the same reporting calendar for grouped bars, scoped day/hour inspection, day navigation, and source isolation. Recorded zero sources remain selectable; absent coverage is unavailable rather than a fabricated zero. Totals and chart selections preserve the selected reporting dates across daylight-saving boundaries.
+
 The menu's **History window** supports rolling days, **Month to date**, and **Available year**. Usage & Spend uses the same period model and keeps its own range selection. Existing saved day counts retain their rolling windows; the dashboard's former 365-day selection migrates to Available year.
 
 Month to date starts at midnight on the first day of the current month and includes today. It uses the pinned cost-bucketing time zone from Settings, falling back to the current local zone. Calendar arithmetic handles leap years and 23/25-hour daylight-saving days. A bounded, time-zone-keyed Gregorian day memo avoids rebuilding the same day key for every event while retaining those boundaries. Each operation resolves its window again, and cache identities include the selection, dates, and time zone.

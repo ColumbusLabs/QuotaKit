@@ -204,6 +204,7 @@ enum ProviderColorPalette {
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),
+            (["xapi"], RawColor(red: 113 / 255, green: 118 / 255, blue: 123 / 255)),
             (["devin"], RawColor(red: 49 / 255, green: 124 / 255, blue: 255 / 255)),
         ]
 

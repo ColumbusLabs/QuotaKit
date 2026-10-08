@@ -55,15 +55,30 @@ struct ProvidersPane: View {
     var body: some View {
         let unfilteredModel = self.unfilteredMenuCardModel(for: self.provider)
         let hiddenUsageItemIDs = self.settings.hiddenUsageItemIDs(for: self.provider)
+        // Provider-specific by design: only Codex has managed OAuth account snapshots for this shared settings view.
+        let overview = self.provider == .codex ? self.store.codexAccountUsageOverview { accountIDs in
+            Task { @MainActor in
+                await ProviderSettingsRefreshInteraction.perform {
+                    await self.store.refreshCodexAccountsForSettings(accountIDs)
+                }
+            }
+        } : nil
+        let usageItems = ((overview?.usageItems ?? []) + unfilteredModel.usageItemDescriptors(
+            includingHidden: self.settings.hiddenUsageItemIDs(for: self.provider),
+            hidePersonalInfo: self.settings.hidePersonalInfo))
+            .reduce(into: [ProviderUsageItemDescriptor]()) { items, item in
+                if !items.contains(where: { $0.id == item.id }) { items.append(item) }
+            }
         ProviderDetailView(
             provider: self.provider,
             store: self.store,
             isEnabled: self.binding(for: self.provider),
-            subtitle: self.providerSubtitle(self.provider),
-            model: unfilteredModel.applyingUsageItemVisibility(hiddenItemIDs: hiddenUsageItemIDs),
-            usageItems: unfilteredModel.usageItemDescriptors(
-                includingHidden: hiddenUsageItemIDs,
-                hidePersonalInfo: self.settings.hidePersonalInfo),
+            subtitle: overview.map { L("%@ accounts", String($0.rows.count)) }
+                ?? self.providerSubtitle(self.provider),
+            model: unfilteredModel.applyingUsageItemVisibility(
+                hiddenItemIDs: self.settings.hiddenUsageItemIDs(for: self.provider)),
+            accountUsageOverview: overview,
+            usageItems: usageItems,
             openAIWebDiagnostic: self.openAIWebDiagnostic(for: self.provider),
             settingsPickers: self.extraSettingsPickers(for: self.provider),
             settingsToggles: self.extraSettingsToggles(for: self.provider),

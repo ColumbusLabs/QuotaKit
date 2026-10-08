@@ -127,6 +127,7 @@ struct MenuBarLayoutRenderExtra: Hashable {
 struct MenuBarLayoutRenderOptions: Hashable {
     let size: MenuBarLayoutSize
     let colorPace: Bool
+    let colorByProvider: Bool
     let highContrast: Bool
     let showUsed: Bool
     let conditionals: [MenuBarLayoutConditional]
@@ -135,6 +136,8 @@ struct MenuBarLayoutRenderOptions: Hashable {
     /// Whether the provider's latest refresh failed; when true the shown snapshot is stale
     /// and rendered dimmer until a background refresh succeeds again.
     let isStale: Bool
+    /// Whether the status item is currently highlighted (e.g. tracking an open menu).
+    let isHighlighted: Bool
     /// Exact display clock. The cache keys on the resulting reset strings, so animation ticks that keep
     /// the same visible countdown still reuse the cached title.
     let now: Date
@@ -154,19 +157,23 @@ struct MenuBarLayoutRenderOptions: Hashable {
         appearanceName: String,
         isDebugApp: Bool,
         isStale: Bool = false,
+        isHighlighted: Bool = false,
         now: Date,
         verticalAdjustment: Int = 0,
         forceStackedStyle: Bool = false,
-        colorPace: Bool = false)
+        colorPace: Bool = false,
+        colorByProvider: Bool = false)
     {
         self.size = size
         self.colorPace = colorPace
+        self.colorByProvider = colorByProvider
         self.highContrast = highContrast
         self.showUsed = showUsed
         self.conditionals = conditionals
         self.appearanceName = appearanceName
         self.isDebugApp = isDebugApp
         self.isStale = isStale
+        self.isHighlighted = isHighlighted
         self.now = now
         self.verticalAdjustment = verticalAdjustment
         self.forceStackedStyle = forceStackedStyle
@@ -178,14 +185,17 @@ struct MenuBarLayoutRenderKey: Hashable {
     let data: MenuBarLayoutRenderData
     let size: MenuBarLayoutSize
     let colorPace: Bool
+    let colorByProvider: Bool
     let highContrast: Bool
     let showUsed: Bool
     let conditionals: [MenuBarLayoutConditional]
     let appearanceName: String
     let isDebugApp: Bool
     let isStale: Bool
+    let isHighlighted: Bool
     let verticalAdjustment: Int
     let forceStackedStyle: Bool
+    let providerAccentColor: String?
     let resetText: [MenuBarLayoutResetText]
     /// Truth value per conditional id. Predicates can read the clock (time to reset), so two renders
     /// with identical data and reset text can still need different branches; keying on the outcomes
@@ -312,19 +322,25 @@ final class MenuBarLayoutRenderer {
         let outcomes = Dictionary(
             options.conditionals.map { ($0.id, $0.evaluatesTrue(data: data, now: options.now)) },
             uniquingKeysWith: { first, _ in first })
+        let accentColor = options.colorByProvider
+            ? data.provider.map { ProviderAccentPalette.color(for: $0).hexString }
+            : nil
         let key = MenuBarLayoutRenderKey(
             layout: layout,
             data: data,
             size: options.size,
             colorPace: options.colorPace,
+            colorByProvider: options.colorByProvider,
             highContrast: options.highContrast,
             showUsed: options.showUsed,
             conditionals: options.conditionals,
             appearanceName: options.appearanceName,
             isDebugApp: options.isDebugApp,
             isStale: options.isStale,
+            isHighlighted: options.isHighlighted,
             verticalAdjustment: options.verticalAdjustment,
             forceStackedStyle: options.forceStackedStyle,
+            providerAccentColor: accentColor,
             resetText: resetText,
             conditionalOutcomes: outcomes)
         return self.cache.value(for: key) {
@@ -420,13 +436,17 @@ final class MenuBarLayoutRenderer {
 
         let isStacked = options.forceStackedStyle || renderedLines.count == 2
         let font = NSFont.systemFont(ofSize: Self.fontSize(size: options.size, isStacked: isStacked))
-        let foregroundColor = if options.highContrast {
+        let providerTintColor = data.provider.flatMap { Self.effectiveProviderTintColor(for: $0, options: options) }
+        let foregroundColor = if let providerTintColor {
+            providerTintColor
+        } else if options.highContrast {
             NSColor.labelColor
         } else if options.isStale {
             NSColor.secondaryLabelColor
         } else {
             NSColor.controlTextColor
         }
+        let isTintActive = providerTintColor != nil
         let paragraphStyle = NSMutableParagraphStyle()
         if isStacked {
             paragraphStyle.minimumLineHeight = 9.5
@@ -449,7 +469,7 @@ final class MenuBarLayoutRenderer {
         // must keep their icon inline to preserve which row owns it. High-contrast layouts also
         // keep icon + text together, while single-line layouts surface the icon for native dimming.
         // With a missing icon the token still renders its placeholder inside the title.
-        let leadingIcon: NSImage? = if options.highContrast || isStacked {
+        let leadingIcon: NSImage? = if options.highContrast || isStacked || isTintActive {
             nil
         } else if renderedLines.first?.first == .icon, icon != nil {
             icon.map { Self.offsetLeadingIcon($0, adjustment: options.verticalAdjustment) }
@@ -482,7 +502,8 @@ final class MenuBarLayoutRenderer {
                         foregroundColor: foregroundColor,
                         iconHeight: Self.iconHeight(size: options.size, isStacked: isStacked),
                         attributes: attributes),
-                    options: options)
+                    options: options,
+                    providerTintColor: providerTintColor)
                 result.append(renderedItem.value)
                 if let accessibilityText = renderedItem.accessibilityText {
                     accessibilityParts.append(accessibilityText)
@@ -507,7 +528,7 @@ final class MenuBarLayoutRenderer {
             attributedTitle: result,
             accessibilityLabel: accessibilityLabel,
             leadingIcon: leadingIcon,
-            statusImage: !options.highContrast && !options.isStale && !isStacked
+            statusImage: !options.highContrast && !options.isStale && !isStacked && !isTintActive
                 && !renderedLines.joined().contains(.icon)
                 ? Self.statusImage(title: result, foregroundColor: foregroundColor)
                 : nil)
@@ -628,14 +649,16 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData,
         icon: NSImage?,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions)
+        options: MenuBarLayoutRenderOptions,
+        providerTintColor: NSColor? = nil)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         if let rendered = self.renderProviderTextItem(
             item,
             data: data,
             showUsed: options.showUsed,
-            attributes: style.attributes)
+            attributes: style.attributes,
+            providerTintColor: providerTintColor)
         {
             return rendered
         }
@@ -649,7 +672,11 @@ final class MenuBarLayoutRenderer {
                     attributes: style.attributes)
             }
             let attachment = NSTextAttachment()
-            attachment.image = Self.attachmentImage(icon, tint: style.foregroundColor)
+            let tintColor = providerTintColor ?? style.foregroundColor
+            attachment.image = Self.attachmentImage(
+                icon,
+                tint: tintColor,
+                isMonochrome: providerTintColor == nil)
             let height = style.iconHeight
             let width = icon.size.height > 0 ? icon.size.width * height / icon.size.height : height
             attachment.bounds = NSRect(
@@ -661,10 +688,17 @@ final class MenuBarLayoutRenderer {
             value.addAttributes(style.attributes, range: NSRange(location: 0, length: value.length))
             return (value, Self.iconAccessibilityText(data: data))
         case let .percent(window):
-            return self.renderPercent(window, data: data, style: style, options: options)
+            return self.renderPercent(
+                window,
+                data: data,
+                style: style,
+                options: options,
+                providerTintColor: providerTintColor)
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
             var attributes = style.attributes
+            attributes[.foregroundColor] = options.highContrast ? NSColor.labelColor
+                : options.isStale ? NSColor.secondaryLabelColor : NSColor.controlTextColor
             if options.colorPace, !options.highContrast,
                let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0
             {
@@ -754,7 +788,8 @@ final class MenuBarLayoutRenderer {
         _ window: PercentWindow,
         data: MenuBarLayoutRenderData,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions)
+        options: MenuBarLayoutRenderOptions,
+        providerTintColor: NSColor? = nil)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         let rateWindow = Self.window(window, data: data)
@@ -782,7 +817,11 @@ final class MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", accessibilityPrefix, resolvedValue.text)
             : L("%@ unavailable", accessibilityPrefix)
-        return self.textToken(display, accessibilityText: accessibility, attributes: style.attributes)
+        var attributes = style.attributes
+        if let providerTintColor {
+            attributes[.foregroundColor] = providerTintColor
+        }
+        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
     }
 
     private static func windowAccessibilityLabel(_ window: PercentWindow, data: MenuBarLayoutRenderData) -> String {
@@ -802,30 +841,39 @@ final class MenuBarLayoutRenderer {
         _ item: MenuBarLayoutToken,
         data: MenuBarLayoutRenderData,
         showUsed: Bool,
-        attributes: [NSAttributedString.Key: Any])
+        attributes: [NSAttributedString.Key: Any],
+        providerTintColor: NSColor? = nil)
         -> (value: NSAttributedString, accessibilityText: String?)?
     {
         switch item {
         case .providerName:
-            self.optionalTextToken(
+            return self.optionalTextToken(
                 data.providerName,
                 unavailableLabel: L("Provider name unavailable"),
                 attributes: attributes)
         case .accountLabel:
-            self.optionalTextToken(
+            return self.optionalTextToken(
                 data.accountLabel,
                 unavailableLabel: L("Account unavailable"),
                 attributes: attributes)
         case let .lanePercent(lane):
-            self.lanePercentToken(
+            var tokenAttributes = attributes
+            if let providerTintColor {
+                tokenAttributes[.foregroundColor] = providerTintColor
+            }
+            return self.lanePercentToken(
                 lane,
                 data: data,
                 showUsed: showUsed,
-                attributes: attributes)
+                attributes: tokenAttributes)
         case let .extraPercent(id):
-            self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: attributes)
+            var tokenAttributes = attributes
+            if let providerTintColor {
+                tokenAttributes[.foregroundColor] = providerTintColor
+            }
+            return self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: tokenAttributes)
         default:
-            nil
+            return nil
         }
     }
 
@@ -930,20 +978,53 @@ final class MenuBarLayoutRenderer {
         return offsetImage
     }
 
-    private static func attachmentImage(_ image: NSImage, tint: NSColor) -> NSImage {
+    static func attachmentImage(_ image: NSImage, tint: NSColor, isMonochrome: Bool = true) -> NSImage {
         guard image.isTemplate else { return image }
 
         // NSTextAttachment draws an NSImage directly instead of through an image cell, so AppKit does not
-        // apply template tinting here. Keep a template image for status-item semantics while drawing its mask
-        // with the same dynamic foreground color as the surrounding title.
+        // apply template tinting here. Keep a template image for monochrome status-item semantics while drawing its
+        // mask with the dynamic foreground color. Provider-colored marks retain their tint by remaining non-template.
         let tintedImage = NSImage(size: image.size, flipped: false) { rect in
             image.draw(in: rect)
             tint.setFill()
             rect.fill(using: .sourceAtop)
             return true
         }
-        tintedImage.isTemplate = true
+        tintedImage.isTemplate = isMonochrome
         return tintedImage
+    }
+
+    /// Provider color is decoration; native monochrome owns stale, selected and accessible states.
+    static func effectiveProviderTintColor(
+        for provider: UsageProvider,
+        options: MenuBarLayoutRenderOptions) -> NSColor?
+    {
+        guard options.colorByProvider, !options.isHighlighted, !options.isStale, !options.highContrast,
+              !options.appearanceName.localizedCaseInsensitiveContains("accessibility")
+        else { return nil }
+        let accent = ProviderAccentPalette.color(for: provider)
+        guard self.meetsAppearanceContrast(accent: accent, appearanceName: options.appearanceName) else { return nil }
+        return NSColor(srgbRed: accent.red, green: accent.green, blue: accent.blue, alpha: 1)
+    }
+
+    static func meetsAppearanceContrast(accent: ProviderColor, appearanceName: String) -> Bool {
+        let isDark = appearanceName.localizedCaseInsensitiveContains("dark")
+        guard isDark || appearanceName.localizedCaseInsensitiveContains("aqua")
+            || appearanceName.localizedCaseInsensitiveContains("light") else { return false }
+        // Conservative reference backgrounds allow more translucency than pure black or white.
+        let gray = isDark ? 0.25 : 0.85
+        let background = self.relativeLuminance(of: ProviderColor(red: gray, green: gray, blue: gray))
+        let luminance = self.relativeLuminance(of: accent)
+        return isDark ? (luminance + 0.05) / (background + 0.05) >= 2
+            : (background + 0.05) / (luminance + 0.05) >= 2
+    }
+
+    static func relativeLuminance(of color: ProviderColor) -> Double {
+        func linear(_ value: Double) -> Double {
+            let clamped = min(1, max(0, value))
+            return clamped <= 0.04045 ? clamped / 12.92 : pow((clamped + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
     }
 
     private static func resetToken(

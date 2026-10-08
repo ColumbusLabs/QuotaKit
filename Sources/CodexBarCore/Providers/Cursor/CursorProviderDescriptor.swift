@@ -109,7 +109,8 @@ public enum CursorProviderDescriptor {
                     #else
                     false
                     #endif
-                }))
+                }),
+            nativeAppBundleIdentifiers: ["com.todesktop.230313mzl4w4u92"])
     }
 
     private static var supportsCostCommand: Bool {

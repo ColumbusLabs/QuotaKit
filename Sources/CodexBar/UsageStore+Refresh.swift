@@ -146,7 +146,8 @@ extension UsageStore {
     func refreshProvider(
         _ provider: UsageProvider,
         allowDisabled: Bool = false,
-        coalesceIfRefreshing: Bool = false) async
+        coalesceIfRefreshing: Bool = false,
+        codexAccountIDs: Set<String>? = nil) async
     {
         // Codex source reconciliation can persist a settings correction. Perform it before
         // capturing the publication revision so the request cannot invalidate itself.
@@ -201,7 +202,8 @@ extension UsageStore {
                     await self.refreshProviderTracked(
                         provider,
                         allowDisabled: allowDisabled,
-                        generation: request.generation)
+                        generation: request.generation,
+                        codexAccountIDs: codexAccountIDs)
                 }
             }
             let publishedNewSnapshot = didStartRefresh &&
@@ -247,7 +249,8 @@ extension UsageStore {
     private func refreshProviderTracked(
         _ provider: UsageProvider,
         allowDisabled: Bool,
-        generation: UInt64) async
+        generation: UInt64,
+        codexAccountIDs: Set<String>?) async
     {
         if self.providerRefreshCoordinator.beginActivity(for: provider.instanceID) {
             self.refreshingProviders.insert(provider.instanceID)
@@ -265,7 +268,8 @@ extension UsageStore {
                 provider,
                 allowDisabled: allowDisabled,
                 generation: generation,
-                retryMode: retryMode)
+                retryMode: retryMode,
+                codexAccountIDs: codexAccountIDs)
             if retryMode == nil {
                 break
             }
@@ -343,7 +347,8 @@ extension UsageStore {
         _ provider: UsageProvider,
         allowDisabled: Bool,
         generation: UInt64,
-        retryMode: ProviderRefreshRetryMode?) async -> ProviderRefreshRetryMode?
+        retryMode: ProviderRefreshRetryMode?,
+        codexAccountIDs: Set<String>?) async -> ProviderRefreshRetryMode?
     {
         guard let spec = await self.providerRefreshSpec(provider) else { return nil }
         guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return nil }
@@ -357,8 +362,10 @@ extension UsageStore {
             return nil
         }
 
-        if provider == .codex, self.shouldFetchAllCodexVisibleAccounts() {
-            await self.refreshCodexVisibleAccountsForMenu(generation: generation)
+        if provider == .codex, codexAccountIDs != nil || self.shouldFetchAllCodexVisibleAccounts() {
+            guard !self.shouldUseAmbientCodexPATForUsage() else { return nil }
+            await self.refreshCodexVisibleAccountsForMenu(
+                generation: generation, requestedAccountIDs: codexAccountIDs)
             return nil
         } else if provider == .codex {
             self.reconcileCodexWidgetAccountSnapshots()

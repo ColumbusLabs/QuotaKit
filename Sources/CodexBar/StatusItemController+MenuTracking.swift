@@ -9,11 +9,13 @@ extension StatusItemController {
         let menuID = ObjectIdentifier(menu)
         let generation = self.menuSession.beginTrackingSession(menuID)
         (menu as? StatusItemMenu)?.menuInteractionGeneration = generation
+        self.refreshStatusItemContentForColorMode()
     }
 
     func endMenuTrackingSession(for menu: NSMenu) {
         (menu as? StatusItemMenu)?.menuInteractionGeneration = nil
         self.menuSession.endTrackingSession(ObjectIdentifier(menu))
+        self.refreshStatusItemContentForColorMode()
     }
 
     private func rootMenu(for menu: NSMenu) -> NSMenu {

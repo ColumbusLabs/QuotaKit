@@ -35,6 +35,10 @@ extension SyncCoordinator {
             let amount = String(format: "%.2f", providerCost.used)
             return "Prepaid balance: \(providerCost.currencyCode) \(amount)"
         }
+        if provider == .xapi, let balance = providerCost?.balance {
+            let amount = String(format: "%.2f", balance)
+            return "Prepaid credits: USD \(amount)"
+        }
         if provider == .grok,
            let providerCost,
            providerCost.currencyCode == "USD",
@@ -67,6 +71,7 @@ extension SyncCoordinator {
               provider != .aiand,
               provider != .fireworks,
               provider != .lithosai,
+              provider != .xapi,
               provider != .xai
         else {
             return nil

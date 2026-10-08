@@ -1,5 +1,9 @@
 import Foundation
 
+#if os(macOS)
+import SweetCookieKit
+#endif
+
 public enum NotionProviderDescriptor {
     /// Notion reports the rolling allowance as a `6h` window — session-shaped, but wider than the
     /// 5-hour ceiling the shared session-pace paths assume. Windows longer than this are not rolling
@@ -7,6 +11,14 @@ public enum NotionProviderDescriptor {
     public static let rollingWindowMaxMinutes = 6 * 60
 
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+
+    private static var browserCookieOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome, .edge]
+        #else
+        nil
+        #endif
+    }
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -42,8 +54,7 @@ public enum NotionProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 sharePlanLabels: ["free": "Free", "plus": "Plus", "business": "Business", "enterprise": "Enterprise"],
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                    reason: "Avoid probing unrelated browser stores"),
+                browserCookieOrder: self.browserCookieOrder,
                 dashboardURL: "https://app.notion.com/",
                 statusPageURL: nil,
                 statusLinkURL: "https://status.notion.so/"),

@@ -97,7 +97,7 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
-    func `menu bar display text keeps open code subscription percentage`() {
+    func `menu bar display text prefers the most constrained open code subscription quota to zen balance`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-opencodego-subscription",
             provider: .opencodego)
@@ -119,7 +119,7 @@ struct StatusItemBalanceDisplayTests {
 
         let displayText = controller.menuBarDisplayText(for: .opencodego, snapshot: snapshot)
 
-        #expect(displayText == "12%")
+        #expect(displayText == "34%")
     }
 
     @Test
@@ -861,7 +861,7 @@ struct StatusItemBalanceDisplayTests {
         #expect(StatusItemController.statusItemAccessibilityTitle(isDebugApp: false) == "QuotaKit")
     }
 
-    private func makeSettings(suiteName: String, provider: UsageProvider) -> SettingsStore {
+    func makeSettings(suiteName: String, provider: UsageProvider) -> SettingsStore {
         let settings = testSettingsStore(suiteName: suiteName)
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -877,7 +877,7 @@ struct StatusItemBalanceDisplayTests {
         return settings
     }
 
-    private func makeStoreAndController(settings: SettingsStore) -> (UsageStore, StatusItemController) {
+    func makeStoreAndController(settings: SettingsStore) -> (UsageStore, StatusItemController) {
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         let controller = StatusItemController(

@@ -73,6 +73,7 @@ public enum ProviderManifest {
         AiAndProviderDescriptor.descriptor,
         ZoomMateProviderDescriptor.descriptor,
         XAIProviderDescriptor.descriptor,
+        XAPIProviderDescriptor.descriptor,
         NotionProviderDescriptor.descriptor,
         IBMBobProviderDescriptor.descriptor,
         GitKrakenProviderDescriptor.descriptor,

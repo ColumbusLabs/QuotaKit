@@ -7,6 +7,8 @@ read_when:
 
 # OpenCode provider
 
+OpenCode Go's automatic menu-bar metric and merged switcher select the least remaining reported five-hour, weekly, or monthly quota, including its reset metadata. Explicit window selections retain their behavior. The separate Zen prepaid balance is never ranked as a subscription quota.
+
 ## Data sources
 - Browser cookies from `opencode.ai`. The legacy `auth` cookie serves the older workspace pages and the
   `__Host-console_session` cookie authenticates Console requests. Both pass through the cookie filter, and a

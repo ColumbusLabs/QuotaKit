@@ -244,7 +244,7 @@ extension UsageStore {
                 restored: restored)
         }
         states[detectorKey] = state
-        self.persistLimitResetDetectorStates(
+        self.persistPlanUtilizationStates(
             states,
             defaultsKey: descriptor.defaultsKey,
             logName: descriptor.resetKind)

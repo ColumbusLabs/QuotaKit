@@ -85,6 +85,7 @@ enum ProviderBrandAsset {
         "windsurf",
         "workbuddy",
         "xai",
+        "xapi",
         "zai",
         "zed",
         "zenmux",

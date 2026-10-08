@@ -56,5 +56,10 @@ public enum QwenCloudCookieImport {
         let names = Set(cookies.map(\.name))
         return !names.isDisjoint(with: self.authTicketCookies)
     }
+
+    static func isAuthenticatedSession(records: [BrowserCookieRecord], now: Date = Date()) -> Bool {
+        let names = Set(records.filter { $0.expires.map { $0 > now } ?? true }.map(\.name))
+        return !names.isDisjoint(with: self.authTicketCookies)
+    }
 }
 #endif

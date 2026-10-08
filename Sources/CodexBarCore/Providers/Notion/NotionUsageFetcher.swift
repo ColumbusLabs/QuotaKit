@@ -140,6 +140,7 @@ public enum NotionCookieImporter {
 public struct NotionUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.provider(.notion))
     static let sessionCookieName = "token_v2"
+    static let workspaceDiscoveryResponseLimit = ProviderPluginRuntime.maximumResponseBytes
     private static let baseURL = URL(string: "https://app.notion.com")!
     private static let refererURL = URL(string: "https://app.notion.com/")!
     /// Browser fingerprint defaults are only fallbacks; full cURL captures override these forwarded headers.
@@ -393,7 +394,21 @@ public struct NotionUsageFetcher: Sendable {
             throw NotionUsageError.noSessionCookie
         }
 
-        let account = try await self.fetchAccount(context: context, timeout: timeout, transport: transport)
+        let account: NotionAccount
+        do {
+            account = try await self.fetchAccount(context: context, timeout: timeout, transport: transport)
+        } catch NotionUsageError.responseTooLarge(endpoint: "getSpaces") {
+            guard let spaceID = Self.validatedSpaceID(preferredSpaceID) else {
+                throw NotionUsageError.apiError(
+                    "Workspace discovery is too large. "
+                        + "Set Workspace ID to a valid workspace UUID in Notion AI settings.")
+            }
+            account = NotionAccount(
+                userID: nil,
+                email: nil,
+                name: nil,
+                workspaces: [NotionWorkspace(id: spaceID, name: nil, planType: nil, subscriptionTier: nil)])
+        }
         guard let workspace = account.resolveWorkspace(preferredID: preferredSpaceID) else {
             throw NotionUsageError.noWorkspace
         }
@@ -462,7 +477,22 @@ public struct NotionUsageFetcher: Sendable {
             }
             throw NotionUsageError.apiError("HTTP \(response.statusCode) from \(endpoint)")
         }
+        if endpoint == "getSpaces", response.data.count > Self.workspaceDiscoveryResponseLimit {
+            throw NotionUsageError.responseTooLarge(endpoint: endpoint)
+        }
         return response.data
+    }
+
+    private static func validatedSpaceID(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let compact = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "")
+            .lowercased()
+        guard compact.count == 32, compact.allSatisfy(\.isHexDigit) else { return nil }
+        let characters = Array(compact)
+        return [0..<8, 8..<12, 12..<16, 16..<20, 20..<32]
+            .map { String(characters[$0]) }
+            .joined(separator: "-")
     }
 
     static func requestContext(from raw: String?) -> RequestContext? {

@@ -6,6 +6,32 @@ import SQLite3
 import CSQLite3
 #endif
 
+/// Storage-only reuse keeps Claude parsing and cache artifacts unchanged.
+typealias CostUsageRowStringPool = ClaudeRowStringPool
+
+extension CostUsageScanner.CodexUsageRow {
+    /// Copy decoded values directly: the scanner initializer normalizes reasoning tokens,
+    /// while a storage-only allocation change must preserve every persisted value exactly.
+    init(sharingTurnIDFrom row: Self, pool: CostUsageRowStringPool) {
+        self.day = row.day
+        self.model = row.model
+        self.rawModel = row.rawModel
+        self.turnID = row.turnID.map(pool.intern)
+        self.eventIndex = row.eventIndex
+        self.timestampUnixMs = row.timestampUnixMs
+        self.input = row.input
+        self.cached = row.cached
+        self.output = row.output
+        self.reasoning = row.reasoning
+        self.responseID = row.responseID
+        self.requestMirrorKeys = row.requestMirrorKeys
+        self.knownCostNanos = row.knownCostNanos
+        self.unpricedTokens = row.unpricedTokens
+        self.pricingModel = row.pricingModel
+        self.pricingMode = row.pricingMode
+    }
+}
+
 // The full-cache compatibility path and the candidate-scoped catch-up path intentionally share
 // one persistence vocabulary so their on-disk semantics cannot drift.
 // swiftlint:disable file_length
@@ -1035,6 +1061,7 @@ extension CostUsageStore {
         makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
     {
         let decoder = makeDecoder()
+        let rowStrings = CostUsageRowStringPool()
         var cache = CostUsageCache()
         cache.files.reserveCapacity(snapshot.files.count)
         let metadata = snapshot.metadata
@@ -1076,7 +1103,9 @@ extension CostUsageStore {
         let rowsByPath = decodedUsageRowsByPath ?? Dictionary(grouping: snapshot.usageRows, by: \.path)
             .mapValues { rows in
                 rows.compactMap {
-                    try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
+                    guard let row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
+                    else { return nil }
+                    return CostUsageScanner.CodexUsageRow(sharingTurnIDFrom: row, pool: rowStrings)
                 }
             }
         let aggregatesByPath = Dictionary(grouping: snapshot.fileDayAggregates, by: \.path)

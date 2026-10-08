@@ -219,9 +219,9 @@ struct NotionUsageFetcherTests {
     }
 
     @Test
-    func `defaults automatic imports to Chrome only`() {
+    func `automatic import supports Chrome and Edge without probing other browsers`() {
         #if os(macOS)
-        #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder == [.chrome])
+        #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder == [.chrome, .edge])
         #else
         #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder == nil)
         #endif
@@ -340,6 +340,39 @@ struct NotionUsageFetcherTests {
         #expect(snapshot.workspace?.id == Self.businessSpaceID)
         #expect(snapshot.account?.email == "person@example.com")
         #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 42.5)
+    }
+
+    @Test
+    func `large workspace discovery recovers through a configured UUID`() async throws {
+        let transport = try StubTransport(
+            spaces: StubResponse(
+                statusCode: 200,
+                body: Data(repeating: 0, count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)),
+            rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status")))
+
+        let snapshot = try await Self.fetchUsage(
+            transport: transport,
+            preferredSpaceID: Self.businessSpaceID.replacingOccurrences(of: "-", with: ""))
+
+        #expect(snapshot.workspace?.id == Self.businessSpaceID)
+        #expect(snapshot.workspace?.subscriptionTier == nil)
+        #expect(snapshot.account == nil || snapshot.account?.userID == nil)
+        #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 42.5)
+    }
+
+    @Test
+    func `large workspace discovery requires a valid configured UUID`() async throws {
+        let transport = try StubTransport(
+            spaces: StubResponse(
+                statusCode: 200,
+                body: Data(repeating: 0, count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)),
+            rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status")))
+
+        await #expect(throws: NotionUsageError.apiError(
+            "Workspace discovery is too large. Set Workspace ID to a valid workspace UUID in Notion AI settings."))
+        {
+            try await Self.fetchUsage(transport: transport, preferredSpaceID: "not-a-uuid")
+        }
     }
 
     /// Midnight UTC on the given day, so a cycle length is exactly a whole number of days.

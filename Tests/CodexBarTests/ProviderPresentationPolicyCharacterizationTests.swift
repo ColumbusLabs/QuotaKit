@@ -20,7 +20,7 @@ struct ProviderPresentationPolicyCharacterizationTests {
                     == !optOut.contains(provider),
                 "Unexpected exhaustion priority for \(provider.rawValue)")
             #expect(ProviderDescriptorRegistry.descriptor(for: provider).presentation.switcherUsesAutomaticMenuBarWindow
-                == (provider == .warp))
+                == [.warp, .opencodego].contains(provider))
         }
     }
 
@@ -259,7 +259,7 @@ struct ProviderPresentationPolicyCharacterizationTests {
     }
 
     @Test
-    func `widget row caps and burn down global cap providers are pinned`() throws {
+    func `widget row caps and burn down global cap providers are pinned`() {
         let antigravityRows = [
             WidgetSnapshot.WidgetUsageRowSnapshot(
                 id: "antigravity-quota-summary-gemini-session",
@@ -278,23 +278,37 @@ struct ProviderPresentationPolicyCharacterizationTests {
             #expect(WidgetUsageRow.mediumWidgetRowLimit(for: entry) == medium)
         }
 
-        for provider in UsageProvider.allCases
-            where ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable &&
-            ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets
-        {
-            let entry = self.widgetEntry(
-                provider: provider,
-                primary: RateWindow(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
-                secondary: RateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil))
-            let state = try #require(BurnDownState(
-                snapshot: WidgetSnapshot(
-                    entries: [entry],
-                    enabledProviders: [provider.instanceID],
-                    generatedAt: self.now),
-                provider: provider,
-                selection: .session,
-                now: self.now))
-            #expect(state.secondaryGloballyCapsPrimary == [.codex, .claude].contains(provider))
+        var globallyCappedProviders: Set<UsageProvider> = []
+        for provider in UsageProvider.allCases {
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            let expectedEligibility = descriptor.metadata.burnDownWidgetSelectable &&
+                !descriptor.metadata.balanceOnly && descriptor.snapshotExport.allowsWidgets
+            let state = self.makeBurnDownState(for: provider)
+            #expect(
+                (state != nil) == expectedEligibility,
+                "Unexpected burn-down eligibility for \(provider.rawValue)")
+            guard let state else { continue }
+            #expect(state.window(for: .session) != nil)
+            #expect(state.window(for: .weekly) != nil)
+            if state.secondaryGloballyCapsPrimary {
+                globallyCappedProviders.insert(provider)
+            }
+        }
+        #expect(globallyCappedProviders == [.codex, .claude])
+
+        let kiro = ProviderDescriptorRegistry.descriptor(for: .kiro)
+        #expect(!kiro.metadata.widgetSelectable)
+        #expect(kiro.metadata.burnDownWidgetSelectable)
+        #expect(!kiro.metadata.balanceOnly)
+        #expect(kiro.snapshotExport.allowsWidgets)
+        #expect(self.makeBurnDownState(for: .kiro) != nil)
+
+        for provider in [UsageProvider.deepseek, .xapi] {
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            #expect(descriptor.metadata.balanceOnly)
+            #expect(descriptor.metadata.burnDownWidgetSelectable)
+            #expect(descriptor.snapshotExport.allowsWidgets)
+            #expect(self.makeBurnDownState(for: provider) == nil)
         }
     }
 
@@ -334,5 +348,25 @@ struct ProviderPresentationPolicyCharacterizationTests {
             codeReviewRemainingPercent: nil,
             tokenUsage: nil,
             dailyUsage: [])
+    }
+
+    private func makeBurnDownState(for provider: UsageProvider) -> BurnDownState? {
+        let entry = self.widgetEntry(
+            provider: provider,
+            primary: RateWindow(
+                usedPercent: 10,
+                windowMinutes: 300,
+                resetsAt: self.now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 20,
+                windowMinutes: 10080,
+                resetsAt: self.now.addingTimeInterval(7 * 24 * 3600),
+                resetDescription: nil))
+        let snapshot = WidgetSnapshot(
+            entries: [entry],
+            enabledProviders: [provider.instanceID],
+            generatedAt: self.now)
+        return BurnDownState(snapshot: snapshot, provider: provider, selection: .session, now: self.now)
     }
 }

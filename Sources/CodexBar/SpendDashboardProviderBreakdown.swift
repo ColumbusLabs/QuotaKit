@@ -164,7 +164,7 @@ struct SpendProviderBreakdownRows: View {
     private func providerGroup(_ breakdown: SpendProviderBreakdown) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                SpendProviderIcon(provider: breakdown.provider, style: .brand, size: 22)
+                SpendProviderIcon(provider: breakdown.provider)
                 Text(breakdown.displayName)
                     .font(.headline)
                     .lineLimit(1)
@@ -193,12 +193,11 @@ struct SpendProviderBreakdownRows: View {
                     if index > 0 {
                         self.childDivider
                     }
-                    HStack(spacing: 8) {
+                    HStack(spacing: 9) {
                         SpendProviderIcon(
                             provider: row.provider,
                             sourceKind: row.sourceKind,
-                            style: .monochrome,
-                            size: 16)
+                            style: .monochrome)
                             .opacity(0.76)
                         Text(self.sourceName(row.displayName))
                             .lineLimit(1)
@@ -217,7 +216,7 @@ struct SpendProviderBreakdownRows: View {
                             .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 32)
+                    .padding(.leading, 61)
                     .padding(.vertical, 4)
                 }
             }
@@ -234,8 +233,8 @@ struct SpendProviderBreakdownRows: View {
                     if index > 0 {
                         self.childDivider
                     }
-                    HStack(spacing: 8) {
-                        SpendProviderIcon(provider: row.provider, style: .monochrome, size: 16)
+                    HStack(spacing: 9) {
+                        SpendProviderIcon(provider: row.provider, style: .monochrome)
                             .opacity(0.76)
                         Text(row.modelName)
                             .foregroundStyle(.primary)
@@ -254,7 +253,7 @@ struct SpendProviderBreakdownRows: View {
                             .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 32)
+                    .padding(.leading, 61)
                     .padding(.vertical, 4)
                     .accessibilityElement(children: .combine)
                 }
@@ -271,7 +270,7 @@ struct SpendProviderBreakdownRows: View {
                     }
                     .buttonStyle(.link)
                     .font(.caption)
-                    .padding(.leading, 56)
+                    .padding(.leading, 61)
                     .padding(.top, 5)
                 }
             } else if breakdown.hasPartialModelHistory {
@@ -288,7 +287,7 @@ struct SpendProviderBreakdownRows: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.leading, 32)
+                .padding(.leading, 61)
                 .padding(.vertical, 4)
         }
     }
@@ -303,14 +302,14 @@ struct SpendProviderBreakdownRows: View {
             }
         }
         .foregroundStyle(.secondary)
-        .padding(.leading, 32)
+        .padding(.leading, 61)
         .padding(.top, 5)
         .padding(.bottom, 2)
     }
 
     private var childDivider: some View {
         Divider()
-            .padding(.leading, 56)
+            .padding(.leading, 61)
     }
 
     private func sourceName(_ name: String) -> String {
