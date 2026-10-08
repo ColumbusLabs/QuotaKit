@@ -84,6 +84,7 @@ struct ClaudeSyntheticPlaceholderMenuCardTests {
         let row = OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact)
         #expect(model.metrics.isEmpty)
         #expect(model.placeholder == "Limits not available")
+        #expect(model.hasUsageContent)
         #expect(row.usesFullCard)
         #expect((model.providerCost != nil) == showOptional)
         if showOptional {
@@ -92,6 +93,23 @@ struct ClaudeSyntheticPlaceholderMenuCardTests {
             #expect(cost.spendLine == "Monthly cap: $9.95 / $150.00")
         }
         #expect(!OverviewMenuCardRowView(model: model, storageText: nil, width: 340).usesFullCard)
+    }
+
+    @MainActor
+    @Test
+    func `compact overview keeps measured weekly usage in its compact section`() {
+        let model = Self.model(snapshot: UsageSnapshot(
+            primary: Self.syntheticSession,
+            secondary: RateWindow(
+                usedPercent: 42,
+                windowMinutes: 10080,
+                resetsAt: Self.now.addingTimeInterval(3600),
+                resetDescription: nil),
+            updatedAt: Self.now))
+        let row = OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact)
+
+        #expect(model.metrics.map(\.id) == ["secondary"])
+        #expect(!row.usesFullCard)
     }
 
     @MainActor

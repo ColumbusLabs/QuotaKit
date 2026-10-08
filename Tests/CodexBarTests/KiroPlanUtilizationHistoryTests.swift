@@ -147,7 +147,9 @@ struct KiroPlanUtilizationHistoryTests {
         let suite = "KiroHistory-\(UUID().uuidString)"
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
         let settings = testSettingsStore(
-            suiteName: suite, userDefaults: InMemoryUserDefaults(), config: testConfigWithAllProvidersDisabled())
+            suiteName: suite,
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.historicalTrackingEnabled = false
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),

@@ -344,7 +344,7 @@ struct NotionUsageFetcherTests {
 
     @Test
     func `large workspace discovery recovers through a configured UUID`() async throws {
-        let transport = StubTransport(
+        let transport = try StubTransport(
             spaces: StubResponse(
                 statusCode: 200,
                 body: Data(repeating: 0, count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)),
@@ -362,7 +362,7 @@ struct NotionUsageFetcherTests {
 
     @Test
     func `large workspace discovery requires a valid configured UUID`() async throws {
-        let transport = StubTransport(
+        let transport = try StubTransport(
             spaces: StubResponse(
                 statusCode: 200,
                 body: Data(repeating: 0, count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)),

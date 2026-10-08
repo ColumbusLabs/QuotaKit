@@ -1711,7 +1711,7 @@ struct MenuBarLayoutRendererTests {
                 threshold: threshold))
     }
 
-    private func data(
+    func data(
         automaticUsedPercent: Double = 50,
         provider: UsageProvider = .codex,
         laneLabels: MenuBarLayoutLaneLabels? = nil,

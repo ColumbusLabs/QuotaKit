@@ -20,7 +20,7 @@ struct MergedIconSettingsLabelTests {
             .environment(\.accessibilityEnabled, true))
         hosting.frame = CGRect(origin: .zero, size: hosting.fittingSize)
         hosting.layoutSubtreeIfNeeded()
-        let text = MenuLayoutScreenshotRenderTests.accessibilityText(hosting)
+        let text = Self.accessibilityText(in: hosting)
         #expect(text.contains("Synthetic title"))
         #expect(text.contains("Synthetic explanation"))
     }
@@ -66,7 +66,9 @@ struct MergedIconSettingsLabelTests {
                             .disabled(!merged)
                         Divider()
                         MenuBarLayoutDisplayOptions(
-                            size: .constant(.small), gap: .constant(.tight), verticalAdjustment: .constant(0))
+                            size: .constant(.small),
+                            gap: .constant(.tight),
+                            verticalAdjustment: .constant(0))
                     }
                     .toggleStyle(.switch)
                     .padding(24)
@@ -78,11 +80,11 @@ struct MergedIconSettingsLabelTests {
                     hosting.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                     hosting.frame = CGRect(origin: .zero, size: hosting.fittingSize)
                     hosting.layoutSubtreeIfNeeded()
-                    let text = MenuLayoutScreenshotRenderTests.accessibilityText(hosting)
+                    let text = Self.accessibilityText(in: hosting)
                     for key in [
                         "merge_icons_title", "merged_icon_style_title", "switcher_rows_title",
                         "merged_icon_source_title", "merged_icon_source_frontmost_app", "overview_tab_providers_title",
-                        "menu_bar_layout_size", "menu_bar_layout_gap",
+                        "menu_bar_layout_size", "menu_bar_layout_gap", "menu_bar_layout_vertical_adjustment",
                     ] {
                         #expect(text.contains(L(key)), "Missing accessible label: \(key) in \(mode)")
                     }
@@ -120,5 +122,32 @@ struct MergedIconSettingsLabelTests {
             }
         }
         return contrast
+    }
+
+    private static func accessibilityText(in root: NSObject) -> String {
+        var strings: [String] = []
+
+        func visit(_ element: Any) {
+            guard let object = element as? NSObject else { return }
+            for name in ["accessibilityLabel", "accessibilityValue", "accessibilityTitle", "accessibilityDescription"] {
+                let selector = NSSelectorFromString(name)
+                guard object.responds(to: selector),
+                      let value = object.perform(selector)?.takeUnretainedValue() as? String,
+                      !value.isEmpty
+                else { continue }
+                strings.append(value)
+            }
+
+            let childrenSelector = NSSelectorFromString("accessibilityChildren")
+            guard object.responds(to: childrenSelector),
+                  let children = object.perform(childrenSelector)?.takeUnretainedValue() as? [Any]
+            else { return }
+            for child in NSAccessibility.unignoredChildren(from: children) {
+                visit(child)
+            }
+        }
+
+        visit(root)
+        return strings.joined(separator: " ")
     }
 }

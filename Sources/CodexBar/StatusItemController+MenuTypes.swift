@@ -44,7 +44,7 @@ struct OverviewMenuCardRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if self.layout == .compact, !self.hasUsageBlock {
+            if self.usesFullCard {
                 UsageMenuCardView(model: self.model, width: self.width)
             } else {
                 UsageMenuCardHeaderSectionView(
@@ -84,6 +84,10 @@ struct OverviewMenuCardRowView: View {
 
     private var hasUsageBlock: Bool {
         self.model.hasUsageContent
+    }
+
+    var usesFullCard: Bool {
+        self.layout == .compact && self.model.metrics.isEmpty
     }
 }
 

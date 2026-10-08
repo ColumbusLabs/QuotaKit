@@ -514,8 +514,8 @@ struct MenuBarProviderColorTests {
             isHighlighted: isHighlighted,
             now: self.now,
             verticalAdjustment: 0,
+            forceStackedStyle: false,
             colorPace: colorPace,
-            colorByProvider: colorByProvider,
-            forceStackedStyle: false)
+            colorByProvider: colorByProvider)
     }
 }
