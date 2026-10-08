@@ -111,12 +111,28 @@ struct KiroPlanUtilizationHistoryTests {
 
     @Test
     func `kiro widget keeps credits and bonus rows with the monthly reset`() async throws {
-        let store = Self.makeStore()
         let snapshot = Self.snapshot()
+
+        let disabledStore = Self.makeStore()
+        disabledStore._setSnapshotForTesting(snapshot, provider: .kiro)
+        var disabledSave: WidgetSnapshot?
+        disabledStore._test_widgetSnapshotSaveOverride = { disabledSave = $0 }
+        defer { disabledStore._test_widgetSnapshotSaveOverride = nil }
+        disabledStore.persistWidgetSnapshot(reason: "kiro-monthly-disabled-test")
+        await disabledStore.widgetSnapshotPersistTask?.value
+        let disabledSnapshot = try #require(disabledSave)
+        #expect(!disabledSnapshot.entries.contains { $0.provider == .kiro })
+
+        let store = Self.makeStore(enabledProviders: [.kiro])
         store._setSnapshotForTesting(snapshot, provider: .kiro)
         var saved: WidgetSnapshot?
         store._test_widgetSnapshotSaveOverride = { saved = $0 }
         defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        let metadata = ProviderDescriptorRegistry.descriptor(for: .kiro).metadata
+        #expect(!metadata.widgetSelectable)
+        #expect(metadata.burnDownWidgetSelectable)
+
         store.persistWidgetSnapshot(reason: "kiro-monthly-test")
         await store.widgetSnapshotPersistTask?.value
         let entry = try #require(saved?.entries.first { $0.provider == .kiro })
@@ -124,6 +140,24 @@ struct KiroPlanUtilizationHistoryTests {
         #expect(entry.usageRows?.compactMap(\.percentLeft) == [40, 75])
         #expect(entry.primary == snapshot.primary)
         #expect(entry.secondary?.windowMinutes == nil)
+    }
+
+    @Test
+    func `kiro burn-down widget omits missing and synthetic quota windows`() async throws {
+        let resetless = try await Self.persistedWidgetSnapshot(for: Self.snapshot(reset: nil))
+        #expect(!resetless.entries.contains { $0.provider == .kiro })
+
+        let actual = Self.snapshot()
+        let synthetic = actual.with(
+            primary: RateWindow(
+                usedPercent: 60,
+                windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
+                resetsAt: Self.reset,
+                resetDescription: nil,
+                isSyntheticPlaceholder: true),
+            secondary: actual.secondary)
+        let fabricated = try await Self.persistedWidgetSnapshot(for: synthetic)
+        #expect(!fabricated.entries.contains { $0.provider == .kiro })
     }
 
     static let now = Date(timeIntervalSince1970: 1_792_022_400)
@@ -143,13 +177,14 @@ struct KiroPlanUtilizationHistoryTests {
             updatedAt: self.now).toUsageSnapshot()
     }
 
-    static func makeStore() -> UsageStore {
+    static func makeStore(enabledProviders: Set<UsageProvider> = []) -> UsageStore {
         let suite = "KiroHistory-\(UUID().uuidString)"
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(suite)
         let settings = testSettingsStore(
             suiteName: suite,
             config: testConfigWithAllProvidersDisabled(),
             userDefaults: InMemoryUserDefaults())
+        enableTestProviders(enabledProviders, settings: settings)
         settings.historicalTrackingEnabled = false
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -162,5 +197,15 @@ struct KiroPlanUtilizationHistoryTests {
         store._cancelPlanUtilizationHistoryLoadForTesting()
         store.planUtilizationHistory = [:]
         return store
+    }
+
+    private static func persistedWidgetSnapshot(for snapshot: UsageSnapshot) async throws -> WidgetSnapshot {
+        let store = Self.makeStore(enabledProviders: [.kiro])
+        store._setSnapshotForTesting(snapshot, provider: .kiro)
+        var saved: WidgetSnapshot?
+        store._test_widgetSnapshotSaveOverride = { saved = $0 }
+        store.persistWidgetSnapshot(reason: "kiro-burndown-eligibility-test")
+        await store.widgetSnapshotPersistTask?.value
+        return try #require(saved)
     }
 }

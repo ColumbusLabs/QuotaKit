@@ -27,10 +27,12 @@ public enum AliyunOneConsoleCookieImporter {
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
         public let sourceLabel: String
+        public let records: [BrowserCookieRecord]?
 
-        public init(cookies: [HTTPCookie], sourceLabel: String) {
+        public init(cookies: [HTTPCookie], sourceLabel: String, records: [BrowserCookieRecord]? = nil) {
             self.cookies = cookies
             self.sourceLabel = sourceLabel
+            self.records = records
         }
 
         public var cookieHeader: String {
@@ -104,7 +106,7 @@ public enum AliyunOneConsoleCookieImporter {
                     let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                     if isAuthenticatedSession(httpCookies) {
                         log("Found \(httpCookies.count) \(sessionLabel) cookies in \(source.label)")
-                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label, records: source.records)
                     }
                     log(
                         "Skipping \(source.label): missing auth cookies" +

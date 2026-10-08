@@ -14,6 +14,7 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         let value: String
         let expires: Date?
         let isSecure: Bool
+        let hostOnly: Bool
     }
 
     enum ImportError: LocalizedError {
@@ -47,11 +48,26 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         logger?("Trying \(browser.displayName) Chromium fallback")
         let keys = try self.derivedKeys(for: browser)
         for store in stores {
-            let cookies = try self.loadCookies(from: store, domains: domains, keys: keys)
+            let records = try self.loadCookies(from: store, domains: domains, keys: keys)
+            let cookies = records.compactMap(self.makeCookie)
             guard !cookies.isEmpty else { continue }
             if isAuthenticatedSession(cookies) {
                 logger?("Found \(cookies.count) \(sessionLabel) cookies via \(store.label) fallback")
-                return AliyunOneConsoleCookieImporter.SessionInfo(cookies: cookies, sourceLabel: store.label)
+                let browserRecords = records.map { record in
+                    BrowserCookieRecord(
+                        domain: record.domain,
+                        name: record.name,
+                        path: record.path,
+                        value: record.value,
+                        expires: record.expires,
+                        isSecure: record.isSecure,
+                        isHTTPOnly: false,
+                        scope: record.hostOnly ? .hostOnly : .domain)
+                }
+                return AliyunOneConsoleCookieImporter.SessionInfo(
+                    cookies: cookies,
+                    sourceLabel: store.label,
+                    records: browserRecords)
             }
         }
         return nil
@@ -60,15 +76,14 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
     private static func loadCookies(
         from store: BrowserCookieStore,
         domains: [String],
-        keys: [Data]) throws -> [HTTPCookie]
+        keys: [Data]) throws -> [ChromiumCookieRecord]
     {
         guard let sourceDB = store.databaseURL else { return [] }
-        let records = try self.readCookiesFromLockedDB(
+        return try self.readCookiesFromLockedDB(
             sourceDB: sourceDB,
             domains: domains,
             keys: keys,
             label: store.label)
-        return records.compactMap(self.makeCookie)
     }
 
     private static func readCookiesFromLockedDB(
@@ -138,7 +153,8 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
                 path: path,
                 value: value,
                 expires: self.chromiumExpiry(sqlite3_column_int64(stmt, 3)),
-                isSecure: sqlite3_column_int(stmt, 4) != 0))
+                isSecure: sqlite3_column_int(stmt, 4) != 0,
+                hostOnly: !hostKey.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(".")))
         }
 
         return records.filter { record in

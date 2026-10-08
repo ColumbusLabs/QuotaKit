@@ -5,7 +5,7 @@ defineProvider({
   settings: [],
   capabilities: ["browser-cookies", "http-status"],
   cookieDomains: ["home.qwencloud.com"],
-  cookiePolicy: { selection: "request-url", cache: "nonpersistent" },
+  cookiePolicy: { selection: "request-url", cache: "nonpersistent", imports: "access-gated" },
   async fetchUsage(ctx) {
     const base = "https://home.qwencloud.com";
     const fail = (field: string): never => {

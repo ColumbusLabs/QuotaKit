@@ -260,6 +260,7 @@ struct SettingsStoreAdditionalTests {
             .nous: [.automatic, .primary],
             .museai: [.automatic, .primary],
             .lithosai: [.automatic],
+            .xapi: [.automatic],
             .workbuddy: [.automatic, .primary],
         ]
 

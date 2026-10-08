@@ -166,6 +166,7 @@ public struct ProviderMetadata: Sendable {
     public let cliName: String
     public let defaultEnabled: Bool
     public let widgetSelectable: Bool
+    public let burnDownWidgetSelectable: Bool
     public let isPrimaryProvider: Bool
     public let usesAccountFallback: Bool
     public let sharePlanLabels: [String: String]
@@ -201,6 +202,7 @@ public struct ProviderMetadata: Sendable {
         cliName: String,
         defaultEnabled: Bool,
         widgetSelectable: Bool = true,
+        burnDownWidgetSelectable: Bool = true,
         isPrimaryProvider: Bool = false,
         usesAccountFallback: Bool = false,
         sharePlanLabels: [String: String] = [:],
@@ -230,6 +232,7 @@ public struct ProviderMetadata: Sendable {
         self.cliName = cliName
         self.defaultEnabled = defaultEnabled
         self.widgetSelectable = widgetSelectable
+        self.burnDownWidgetSelectable = burnDownWidgetSelectable
         self.isPrimaryProvider = isPrimaryProvider
         self.usesAccountFallback = usesAccountFallback
         self.sharePlanLabels = sharePlanLabels

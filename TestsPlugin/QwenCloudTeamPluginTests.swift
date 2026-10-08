@@ -24,10 +24,9 @@ struct QwenCloudTeamPluginTests {
     {
         let runtime = try BundledPluginTestSupport.runtime(
             "qwencloud-team", engine: engine, transport: Self.transport(summary: Self.summary))
-        let usage = try await runtime.fetchUsage(now: Self.now, cookieResolver: { provider, domain in
-            #expect(provider == .qwencloud)
+        let usage = try await runtime.fetchUsage(now: Self.now, cookieSessionResolver: { domain, _ in
             #expect(domain == "home.qwencloud.com")
-            return "session=synthetic"
+            return Self.session()
         })
         #expect(try abs(#require(usage.primary?.usedPercent) - 74.50424308016) < 0.00000001)
         #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_790_251_200))
@@ -37,6 +36,118 @@ struct QwenCloudTeamPluginTests {
         #expect(usage.identity?.loginMethod == "Standard Team")
         #expect(usage.details.first?.rows.first?.value == "18,626.06 / 25,000 credits used")
         #expect(usage.details.first?.rows.last?.value == "1 / 1")
+    }
+
+    @Test
+    func `Team background broker preserves imported cookie host and path scope`() async throws {
+        let records = [
+            ProviderPluginCookieRecord(
+                name: "session",
+                value: "synthetic",
+                domain: "home.qwencloud.com",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil),
+            ProviderPluginCookieRecord(
+                name: "tool",
+                value: "tool-only",
+                domain: "home.qwencloud.com",
+                hostOnly: true,
+                path: "/tool",
+                secure: true,
+                expires: nil),
+            ProviderPluginCookieRecord(
+                name: "wrong",
+                value: "wrong-host",
+                domain: "evil.example",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil),
+        ]
+        let expected = Self.transport(summary: Self.summary)
+        let transport = ProviderHTTPTransportHandler { request in
+            let url = try #require(request.url)
+            let cookie = request.value(forHTTPHeaderField: "Cookie") ?? ""
+            if url.path == "/tool/user/info.json" {
+                #expect(cookie.contains("session=synthetic"))
+                #expect(cookie.contains("tool=tool-only"))
+                #expect(!cookie.contains("wrong=wrong-host"))
+            } else {
+                #expect(cookie == "session=synthetic")
+            }
+            var normalizedRequest = request
+            normalizedRequest.setValue("session=synthetic", forHTTPHeaderField: "Cookie")
+            return try await expected.data(for: normalizedRequest)
+        }
+        let strategy = QwenCloudTeamFetchStrategy(
+            transport: transport,
+            now: Self.now,
+            cookieRecordImporter: { _, domain in
+                #expect(domain == "home.qwencloud.com")
+                return [(records, "Synthetic")]
+            })
+        let context = Self.context(runtime: .app, cookieSource: .auto)
+        let result = try await ProviderInteractionContext.$current.withValue(.background) {
+            try await strategy.fetch(context)
+        }
+        #expect(result.usage.identity?.loginMethod == "Standard Team")
+    }
+
+    #if os(macOS) && DEBUG
+    @Test
+    func `denied browser access prevents Team network requests`() async {
+        let requests = CookieAttempts()
+        let strategy = QwenCloudTeamFetchStrategy(
+            transport: ProviderHTTPTransportHandler { request in
+                requests.append(true)
+                let url = try #require(request.url)
+                return try (Data(), #require(HTTPURLResponse(
+                    url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+            },
+            now: Self.now)
+        let context = Self.context(runtime: .app, cookieSource: .auto)
+        let task = BrowserCookieAccessGate.withShouldAttemptOverrideForTesting(false) {
+            Task {
+                try await ProviderInteractionContext.$current.withValue(.background) {
+                    try await strategy.fetch(context)
+                }
+            }
+        }
+        do {
+            _ = try await task.value
+            Issue.record("A denied browser session must not fetch Team usage")
+        } catch {
+            #expect(requests.values.isEmpty)
+        }
+    }
+    #endif
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `cookie sessions from another origin never reach the Team transport`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let fixture = Self.transport(summary: Self.summary)
+        let runtime = try BundledPluginTestSupport.runtime("qwencloud-team", engine: engine, transport: fixture)
+        let records = [ProviderPluginCookieRecord(
+            name: "session",
+            value: "synthetic",
+            domain: "home.qwencloud.com",
+            hostOnly: true,
+            path: "/",
+            secure: true,
+            expires: nil)]
+        let error = await #expect(throws: ProviderPluginError.self) {
+            try await runtime.fetchUsage(cookieSessionResolver: { _, _ in
+                ProviderPluginCookieSession(
+                    header: "",
+                    source: "Synthetic",
+                    origin: "https://evil.example",
+                    records: records)
+            })
+        }
+        #expect(error == .secretAccess("cookie session origin does not match its domain"))
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -73,7 +184,7 @@ struct QwenCloudTeamPluginTests {
     func `absent billing selector follows the console default scope`(engine: ProviderPluginEngineKind) async throws {
         let runtime = try BundledPluginTestSupport.runtime(
             "qwencloud-team", engine: engine, transport: Self.transport(summary: Self.summary, selector: nil))
-        let usage = try await runtime.fetchUsage(now: Self.now, cookieResolver: { _, _ in "session=synthetic" })
+        let usage = try await runtime.fetchUsage(now: Self.now, cookieSessionResolver: { _, _ in Self.session() })
         #expect(usage.identity?.loginMethod == "Standard Team")
     }
 
@@ -138,12 +249,9 @@ struct QwenCloudTeamPluginTests {
                 return try await fresh.data(for: request)
             },
             now: Self.now,
-            cookieResolver: { _, allowCached in
+            cookieSessionResolver: { _, allowCached in
                 attempts.append(allowCached)
-                return .init(
-                    apiCookieHeader: "api=unused",
-                    dashboardCookieHeader:
-                    allowCached ? "session=fixture-stale-cookie" : "session=synthetic")
+                return Self.session(header: allowCached ? "session=fixture-stale-cookie" : "session=synthetic")
             })
         // Calling the injected strategy directly avoids availability's real browser-cache lookup.
         let result = try await strategy.fetch(Self.context(cookieSource: .auto))
@@ -167,27 +275,25 @@ struct QwenCloudTeamPluginTests {
                     #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
             })
         let error = await #expect(throws: ProviderFetchClassifiedError.self) {
-            try await runtime.fetchUsage(cookieResolver: { _, _ in "session=synthetic" })
+            try await runtime.fetchUsage(cookieSessionResolver: { _, _ in Self.session() })
         }
         #expect(error?.kind == .authenticationExpired)
     }
 
     @Test
     func `rejected manual cookies never trigger automatic recovery`() async {
-        let attempts = CookieAttempts()
+        let requests = CookieAttempts()
         let strategy = QwenCloudTeamFetchStrategy(
             transport: ProviderHTTPTransportHandler { request in
+                requests.append(true)
                 let url = try #require(request.url)
                 return try (Data(), #require(HTTPURLResponse(
                     url: url, statusCode: 401, httpVersion: nil, headerFields: nil)))
-            }, cookieResolver: { _, cached in
-                attempts.append(cached)
-                return .init(singleHeader: "session=fixture-stale-cookie")!
             })
         await #expect(throws: ProviderFetchClassifiedError.self) {
             try await strategy.fetch(Self.context())
         }
-        #expect(attempts.values == [true])
+        #expect(requests.values == [true])
     }
 
     @Test(arguments: [false, true])
@@ -270,10 +376,11 @@ struct QwenCloudTeamPluginTests {
     private static func context(
         environment: [String: String] = [:],
         source: ProviderSourceMode = .web,
+        runtime: ProviderRuntime = .cli,
         cookieSource: ProviderCookieSource = .manual) -> ProviderFetchContext
     {
         ProviderFetchContext(
-            runtime: .cli,
+            runtime: runtime,
             sourceMode: source,
             includeCredits: false,
             webTimeout: 30,
@@ -286,12 +393,30 @@ struct QwenCloudTeamPluginTests {
             browserDetection: BrowserDetection())
     }
 
+    private static func session(header: String = "session=synthetic") -> ProviderPluginCookieSession {
+        let records = CookieHeaderNormalizer.pairs(from: header).map { pair in
+            ProviderPluginCookieRecord(
+                name: pair.name,
+                value: pair.value,
+                domain: "home.qwencloud.com",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil)
+        }
+        return ProviderPluginCookieSession(
+            header: "",
+            source: "Synthetic",
+            origin: "https://home.qwencloud.com",
+            records: records)
+    }
+
     private static func fetch(
         _ summary: String, engine: ProviderPluginEngineKind, now: Date = Self.now) async throws -> UsageSnapshot
     {
         try await BundledPluginTestSupport.runtime(
             "qwencloud-team", engine: engine, transport: self.transport(summary: summary))
-            .fetchUsage(now: now, cookieResolver: { _, _ in "session=synthetic" })
+            .fetchUsage(now: now, cookieSessionResolver: { _, _ in Self.session() })
     }
 
     private static func transport(

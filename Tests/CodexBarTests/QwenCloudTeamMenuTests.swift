@@ -32,7 +32,21 @@ struct QwenCloudTeamMenuTests {
                     Data(body.utf8),
                     #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
             })
-        let usage = try await runtime.fetchUsage(now: now, cookieResolver: { _, _ in "session=synthetic" })
+        let records = [ProviderPluginCookieRecord(
+            name: "session",
+            value: "synthetic",
+            domain: "home.qwencloud.com",
+            hostOnly: true,
+            path: "/",
+            secure: true,
+            expires: nil)]
+        let usage = try await runtime.fetchUsage(now: now, cookieSessionResolver: { _, _ in
+            ProviderPluginCookieSession(
+                header: "",
+                source: "Synthetic",
+                origin: "https://home.qwencloud.com",
+                records: records)
+        })
         let model = UsageMenuCardView.Model.make(.init(
             provider: .qwencloud,
             metadata: QwenCloudProviderDescriptor.descriptor.metadata,

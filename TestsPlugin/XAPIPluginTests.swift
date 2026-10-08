@@ -124,10 +124,29 @@ struct XAPIPluginTests {
         func nextSession() -> ProviderPluginCookieSession? {
             guard !self.suppliedSession else { return nil }
             self.suppliedSession = true
+            let records = [
+                ProviderPluginCookieRecord(
+                    name: "auth_token",
+                    value: "synthetic-session",
+                    domain: "console.x.com",
+                    hostOnly: true,
+                    path: "/",
+                    secure: true,
+                    expires: nil),
+                ProviderPluginCookieRecord(
+                    name: "ct0",
+                    value: "synthetic-csrf",
+                    domain: "console.x.com",
+                    hostOnly: true,
+                    path: "/",
+                    secure: true,
+                    expires: nil),
+            ]
             return .init(
-                header: "auth_token=synthetic-session; ct0=synthetic-csrf",
+                header: "",
                 source: "Synthetic",
-                origin: "https://console.x.com")
+                origin: "https://console.x.com",
+                records: records)
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {

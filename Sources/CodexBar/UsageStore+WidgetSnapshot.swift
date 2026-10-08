@@ -13,7 +13,8 @@ private enum WidgetSnapshotLoadTestOverrides {
 
 extension UsageStore {
     static func supportsWidgetUsage(_ provider: UsageProvider) -> Bool {
-        ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable
+        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+        return metadata.widgetSelectable || (metadata.burnDownWidgetSelectable && !metadata.balanceOnly)
     }
 
     static func reloadWidgetTimelines() {
@@ -425,14 +426,20 @@ extension UsageStore {
             return ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets
         }
         let entries = UsageProvider.allCases.compactMap { provider -> WidgetSnapshot.ProviderEntry? in
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            let metadata = descriptor.metadata
+            let burnDownOnly = !metadata.widgetSelectable && metadata.burnDownWidgetSelectable
             guard enabledProviders.contains(provider.instanceID),
-                  ProviderDescriptorRegistry.descriptor(for: provider).metadata.widgetSelectable
+                  metadata.widgetSelectable || (metadata.burnDownWidgetSelectable && !metadata.balanceOnly)
             else { return nil }
             if let entry = self.makeWidgetEntry(
                 for: provider,
                 now: now,
                 previousEntry: previousSnapshot?.entries.first { $0.provider == provider.instanceID })
-            { return entry }
+            {
+                guard !burnDownOnly || Self.hasGenuineBurnDownWindow(in: entry) else { return nil }
+                return entry
+            }
             // Claude retention requires its owner-aware path. Other providers require this process's queue.
             // Account invalidation removes old queued entries synchronously, even before a later successful fetch.
             guard provider != .claude,
@@ -442,7 +449,9 @@ extension UsageStore {
                       .first(where: { $0.provider == provider.instanceID }),
                       entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage
             else { return nil }
-            return self.preservedWidgetEntryForCurrentMetric(entry)
+            let preservedEntry = self.preservedWidgetEntryForCurrentMetric(entry)
+            guard !burnDownOnly || Self.hasGenuineBurnDownWindow(in: preservedEntry) else { return nil }
+            return preservedEntry
         }
         return WidgetSnapshot(
             entries: entries,
@@ -450,6 +459,14 @@ extension UsageStore {
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             generatedAt: generatedAt)
+    }
+
+    private static func hasGenuineBurnDownWindow(in entry: WidgetSnapshot.ProviderEntry) -> Bool {
+        [entry.primary, entry.secondary, entry.tertiary].contains { window in
+            guard let window else { return false }
+            return window.usedPercent.isFinite && !window.isSyntheticPlaceholder &&
+                (window.windowMinutes ?? 0) > 0 && window.resetsAt?.timeIntervalSince1970.isFinite == true
+        }
     }
 
     private func makeWidgetEntry(

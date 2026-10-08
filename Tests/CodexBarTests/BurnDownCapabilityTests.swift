@@ -22,9 +22,10 @@ struct BurnDownCapabilityTests {
     @Test
     func `provider eligibility is based on data for every catalog entry`() {
         for provider in UsageProvider.allCases {
-            let widgetExportAllowed = ProviderDescriptorRegistry.descriptor(for: provider)
-                .snapshotExport.allowsWidgets
-            let expected = widgetExportAllowed && provider != .xapi ? [provider] : []
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            let eligible = descriptor.snapshotExport.allowsWidgets
+                && descriptor.metadata.burnDownWidgetSelectable && !descriptor.metadata.balanceOnly
+            let expected = eligible ? [provider] : []
             for minutes in [90, 300, 1440, 10080, 43200] {
                 let snapshot = Self.snapshot(provider: provider, primary: Self.window(minutes: minutes))
                 #expect(BurnProviderOptions.choices(in: snapshot).compactMap(\.provider) == expected)

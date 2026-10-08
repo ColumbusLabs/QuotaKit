@@ -311,9 +311,11 @@ struct BurnDownState {
         selection: BurnWindowChoice,
         now: Date = Date())
     {
-        // X API exposes a balance only, not a quota window; reject fabricated or stale quota lanes.
-        guard provider != .xapi,
-              ProviderDescriptorRegistry.descriptor(for: provider).snapshotExport.allowsWidgets,
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        // Remaining balances cannot authorize a quota lane, including fabricated or stale snapshots.
+        guard descriptor.metadata.burnDownWidgetSelectable,
+              !descriptor.metadata.balanceOnly,
+              descriptor.snapshotExport.allowsWidgets,
               let entry = snapshot.entries.first(where: { $0.provider == provider.instanceID })
         else { return nil }
         self.entry = entry
