@@ -128,8 +128,14 @@ struct QwenCloudTeamPluginTests {
     func `cookie sessions from another origin never reach the Team transport`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let fixture = Self.transport(summary: Self.summary)
-        let runtime = try BundledPluginTestSupport.runtime("qwencloud-team", engine: engine, transport: fixture)
+        let requests = CookieAttempts()
+        let runtime = try BundledPluginTestSupport.runtime(
+            "qwencloud-team",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { _ in
+                requests.append(true)
+                throw URLError(.badURL)
+            })
         let records = [ProviderPluginCookieRecord(
             name: "session",
             value: "synthetic",
@@ -147,7 +153,15 @@ struct QwenCloudTeamPluginTests {
                     records: records)
             })
         }
-        #expect(error == .secretAccess("cookie session origin does not match its domain"))
+        let rejectedAtEngineBoundary = error.map { thrown in
+            if case let .script(message) = thrown {
+                return message.contains("Provider plugin secret access denied:")
+                    && message.contains("cookie session origin does not match its domain")
+            }
+            return false
+        } ?? false
+        #expect(rejectedAtEngineBoundary)
+        #expect(requests.values.isEmpty)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
