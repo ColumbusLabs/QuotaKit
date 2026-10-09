@@ -364,84 +364,6 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
-    func `bedrock monitoring guidance resolves from every Mac locale resource`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
-        let costDisclosure = "AWS charges $0.01 per Cost Explorer request against the primary billing view. "
-            + "A refresh can make multiple requests, and CloudWatch activity can add charges. "
-            + "The displayed monthly budget does not cap AWS billing."
-        let keys = [
-            "Monitoring adds AWS charges",
-            costDisclosure,
-            "AWS Cost Explorer pricing",
-            "Reduce monitoring requests",
-            "In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. "
-                + "These controls apply to all providers. Manual still allows startup and explicit refreshes. "
-                + "Disable AWS Bedrock to stop its app refreshes.",
-        ]
-        let locales = AppLanguage.allCases
-            .filter { $0 != .system }
-            .map(\.rawValue)
-        let expectedRequestPrice: [String: String] = [
-            "ar": "0.01 USD",
-            "ca": "0,01 $",
-            "de": "0,01 USD",
-            "en": "$0.01",
-            "es": "$0,01",
-            "fa": "0.01 دلار",
-            "fr": "0,01 $",
-            "gl": "0,01 USD",
-            "id": "$0,01",
-            "it": "$ 0,01",
-            "ja": "0.01 ドル",
-            "ko": "$0.01",
-            "nl": "$ 0,01",
-            "pl": "0,01 USD",
-            "pt-BR": "US$ 0,01",
-            "ru": "0,01 доллара США",
-            "sv": "0,01 USD",
-            "th": "0.01 ดอลลาร์",
-            "tr": "0,01 ABD doları",
-            "uk": "0,01 дол. США",
-            "vi": "0,01 USD",
-            "zh-Hans": "0.01 美元",
-            "zh-Hant": "0.01 美元",
-        ]
-        let catalogs = try FileManager.default.contentsOfDirectory(
-            at: resourcesURL,
-            includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "lproj" }
-
-        #expect(catalogs.count == 23)
-        #expect(locales.count == catalogs.count)
-        #expect(Set(expectedRequestPrice.keys) == Set(locales))
-
-        for locale in locales {
-            let stringsURL = resourcesURL.appendingPathComponent("\(locale).lproj/Localizable.strings")
-            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
-            for key in keys {
-                let resourceValue = try #require(catalog[key], "Missing \(locale) localization for: \(key)")
-                let resolvedValue = L(key, language: locale)
-
-                #expect(resolvedValue == resourceValue, "Lookup mismatch for \(locale): \(key)")
-                #expect(!resolvedValue.isEmpty, "Empty localization for \(locale): \(key)")
-                if locale == AppLanguage.english.rawValue {
-                    #expect(resolvedValue == key)
-                } else {
-                    #expect(resolvedValue != key, "English fallback for \(locale): \(key)")
-                }
-                if key == costDisclosure {
-                    let expectedPrice = try #require(expectedRequestPrice[locale])
-                    #expect(resolvedValue.contains(expectedPrice), "Missing localized AWS request price for \(locale)")
-                }
-            }
-        }
-    }
-
-    @Test
     func `partial spend copy exists in every app catalog`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -930,5 +852,85 @@ struct LocalizationLanguageCatalogTests {
         defaults.removePersistentDomain(forName: suiteName)
         defer { defaults.removePersistentDomain(forName: suiteName) }
         body(defaults, suiteName)
+    }
+}
+
+extension LocalizationLanguageCatalogTests {
+    @Test
+    func `bedrock monitoring guidance resolves from every Mac locale resource`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let costDisclosure = "AWS charges $0.01 per Cost Explorer request against the primary billing view. "
+            + "A refresh can make multiple requests, and CloudWatch activity can add charges. "
+            + "The displayed monthly budget does not cap AWS billing."
+        let keys = [
+            "Monitoring adds AWS charges",
+            costDisclosure,
+            "AWS Cost Explorer pricing",
+            "Reduce monitoring requests",
+            "In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. "
+                + "These controls apply to all providers. Manual still allows startup and explicit refreshes. "
+                + "Disable AWS Bedrock to stop its app refreshes.",
+        ]
+        let locales = AppLanguage.allCases
+            .filter { $0 != .system }
+            .map(\.rawValue)
+        let expectedRequestPrice: [String: String] = [
+            "ar": "0.01 USD",
+            "ca": "0,01 $",
+            "de": "0,01 USD",
+            "en": "$0.01",
+            "es": "$0,01",
+            "fa": "0.01 دلار",
+            "fr": "0,01 $",
+            "gl": "0,01 USD",
+            "id": "$0,01",
+            "it": "$ 0,01",
+            "ja": "0.01 ドル",
+            "ko": "$0.01",
+            "nl": "$ 0,01",
+            "pl": "0,01 USD",
+            "pt-BR": "US$ 0,01",
+            "ru": "0,01 доллара США",
+            "sv": "0,01 USD",
+            "th": "0.01 ดอลลาร์",
+            "tr": "0,01 ABD doları",
+            "uk": "0,01 дол. США",
+            "vi": "0,01 USD",
+            "zh-Hans": "0.01 美元",
+            "zh-Hant": "0.01 美元",
+        ]
+        let catalogs = try FileManager.default.contentsOfDirectory(
+            at: resourcesURL,
+            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+
+        #expect(catalogs.count == 23)
+        #expect(locales.count == catalogs.count)
+        #expect(Set(expectedRequestPrice.keys) == Set(locales))
+
+        for locale in locales {
+            let stringsURL = resourcesURL.appendingPathComponent("\(locale).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
+            for key in keys {
+                let resourceValue = try #require(catalog[key], "Missing \(locale) localization for: \(key)")
+                let resolvedValue = L(key, language: locale)
+
+                #expect(resolvedValue == resourceValue, "Lookup mismatch for \(locale): \(key)")
+                #expect(!resolvedValue.isEmpty, "Empty localization for \(locale): \(key)")
+                if locale == AppLanguage.english.rawValue {
+                    #expect(resolvedValue == key)
+                } else {
+                    #expect(resolvedValue != key, "English fallback for \(locale): \(key)")
+                }
+                if key == costDisclosure {
+                    let expectedPrice = try #require(expectedRequestPrice[locale])
+                    #expect(resolvedValue.contains(expectedPrice), "Missing localized AWS request price for \(locale)")
+                }
+            }
+        }
     }
 }
