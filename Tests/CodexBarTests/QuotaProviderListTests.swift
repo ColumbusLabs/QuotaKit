@@ -206,9 +206,8 @@ struct QuotaProviderListTests {
                 == "Quota-workbuddy-warningZone")
     }
 
-
     @Test
-    func `Tavily, Cosmic AI, and Aerostack append stable quota notification zones`() throws {
+    func `Tavily, Cosmic AI, and Aerostack append stable quota notification zones`() {
         let providers = QuotaProviderList.providers.suffix(3)
         #expect(providers.map(\.id) == ["tavily", "cosmic", "aerostack"])
         #expect(providers.map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])

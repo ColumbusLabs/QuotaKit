@@ -34,13 +34,13 @@ contrast non-regression review, not an accessibility certification.
 
 ## New provider accents
 
-The provider catalog additions from upstream commits `fca039015` and `81438267f` carry their descriptor accents into the iOS raw palette. `Scripts/audit_provider_palette.py` checks Mac/mobile parity. QuotaKit adapts two otherwise colliding colors to preserve the mobile palette's existing distinct-provider contract: TinyApi's upstream `#F97316` exactly matches Xiaomi MiMo, and Aerostack's `#6366F1` is nearly indistinguishable from OpenRouter's `#6467F2`. Their provider logos remain unchanged.
+The provider catalog additions from upstream commits `fca039015` and `81438267f` carry their descriptor accents into the iOS raw palette. `Scripts/audit_provider_palette.py` checks Mac/mobile parity. QuotaKit adapts colliding colors to preserve the mobile palette's existing distinct-provider contract: TinyApi's upstream `#F97316` matches Xiaomi MiMo, so the selected `#F28C54` separates it from existing orange brands; Linkup's near-black accent converges with Ollama gray in dark mode; Aerostack's `#6366F1` is nearly indistinguishable from OpenRouter's `#6467F2`. Provider logos remain unchanged.
 
 | Provider | Upstream descriptor accent | QuotaKit accent | Source |
 | --- | --- | --- | --- |
 | Tavily | `#78B0A1` | `#78B0A1` | [Tavily usage docs](https://docs.tavily.com/documentation/api-reference/endpoint/usage) |
-| Linkup | `#202020` | `#202020` | [Linkup docs](https://docs.linkup.so/pages/documentation/platform/pricing) |
-| TinyApi | `#F97316` | `#E4572E` | [TinyApi dashboard](https://tinyapi.rest/dashboard); adjusted to distinguish it from Xiaomi MiMo |
+| Linkup | `#202020` | `#4A4A4A` | [Linkup docs](https://docs.linkup.so/pages/documentation/platform/pricing); adjusted to remain distinct from Ollama in dark mode |
+| TinyApi | `#F97316` | `#F28C54` | [TinyApi dashboard](https://tinyapi.rest/dashboard); adjusted to distinguish it from Xiaomi MiMo, NeuralWatt, and ai& |
 | Exa | `#0143D9` | `#0143D9` | [Exa API docs](https://exa.ai/docs/reference/team-management/get-api-key-usage) |
 | Cosmic AI | `#29ABE2` | `#29ABE2` | [Cosmic CLI docs](https://www.cosmicjs.com/docs/cli) |
 | Aerostack | `#6366F1` | `#4F46E5` | [Aerostack billing docs](https://docs.aerostack.dev/billing/); adjusted to distinguish it from OpenRouter |

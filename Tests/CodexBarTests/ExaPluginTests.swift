@@ -111,7 +111,8 @@ struct ExaPluginTests {
         let descriptor = ExaProviderDescriptor.descriptor
         let credentials = try #require(descriptor.credentials)
         #expect(!descriptor.metadata.defaultEnabled)
-        #expect(!descriptor.metadata.burnDownWidgetSelectable)
+        #expect(!descriptor.snapshotExport.allowsWidgets)
+        #expect(descriptor.snapshotExport.allowsIPhoneSync)
         #expect(descriptor.menuBarMetrics == .automaticOnly)
         #expect(descriptor.history == .unavailable)
         #expect(credentials.resolveToken(environment: ["EXA_SERVICE_KEY": "fixture-key"])?.token == "fixture-key")

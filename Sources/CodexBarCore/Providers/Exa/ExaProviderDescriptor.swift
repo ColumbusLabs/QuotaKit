@@ -12,7 +12,7 @@ public enum ExaProviderDescriptor {
         confetti: [0x0143D9, 0x8CAFFF],
         noDataMessage: "No cost history data.",
         history: .unavailable,
-        burnDownWidgetSelectable: false,
+        snapshotExport: ProviderSnapshotExportPolicy(allowsWidgets: false),
         environmentKey: "EXA_SERVICE_KEY",
         missingCredentialMessage: { _ in
             "Set an Exa Team Management service key and API key ID in Settings or EXA_SERVICE_KEY and EXA_API_KEY_ID."

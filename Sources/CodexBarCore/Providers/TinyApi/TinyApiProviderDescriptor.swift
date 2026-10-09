@@ -9,11 +9,10 @@ public enum TinyApiProviderDescriptor {
         weeklyLabel: "Credits",
         balanceOnly: true,
         dashboardURL: "https://tinyapi.rest/dashboard",
-        color: .init(hex: 0xE4572E),
+        color: .init(hex: 0xF28C54),
         confetti: [0xE4572E, 0xFBBF24],
         noDataMessage: "No cost history data.",
         history: .unavailable,
-        burnDownWidgetSelectable: false,
         menuBarMetrics: .automaticOnly,
         presentation: ProviderUsagePresentation(
             menuBarBalanceDetailLabels: ["Available credits"]),

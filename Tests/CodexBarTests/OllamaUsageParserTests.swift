@@ -395,7 +395,7 @@ struct OllamaUsageParserTests {
     }
 
     @Test
-    func `current credit wallet produces details without inventing a quota window`() throws {
+    func `current credit wallet produces details without inventing a quota window`() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let html = """
         <section>

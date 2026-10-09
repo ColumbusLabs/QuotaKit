@@ -430,7 +430,8 @@ struct SyncCoordinatorProviderDetailsTests {
         for fixture in Self.billingFixtures {
             let snapshot = UsageSnapshot(
                 primary: nil, secondary: nil, details: fixture.details, updatedAt: Date())
-            #expect(SyncCoordinator.mapProviderDetails(provider: fixture.provider, snapshot: snapshot) == fixture.expected)
+            #expect(SyncCoordinator.mapProviderDetails(provider: fixture.provider, snapshot: snapshot) == fixture
+                .expected)
             #expect(SyncCoordinator.mapProviderDetails(provider: fixture.provider, snapshot: nil) == nil)
             #expect(SyncCoordinator.mapProviderDetails(
                 provider: fixture.provider,
@@ -518,10 +519,12 @@ struct SyncCoordinatorProviderDetailsTests {
         settings.iCloudSyncEnabled = true
         settings.accountWidgetsEnabled = false
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]), browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+            fetcher: UsageFetcher(environment: [:]), browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
         for fixture in Self.billingFixtures {
             try settings.setProviderEnabled(
-                provider: fixture.provider, metadata: #require(ProviderDefaults.metadata[fixture.provider]), enabled: true)
+                provider: fixture.provider, metadata: #require(ProviderDefaults.metadata[fixture.provider]),
+                enabled: true)
             store._setSnapshotForTesting(UsageSnapshot(
                 primary: nil, secondary: nil, details: fixture.details, updatedAt: Date()), provider: fixture.provider)
         }
@@ -553,7 +556,7 @@ struct SyncCoordinatorProviderDetailsTests {
             UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .linkup)
         await coordinator.pushCurrentSnapshot()
         #expect(pusher.lastSnapshot?.providers.first { $0.providerID == "linkup" }?.providerDetails == [])
-        #expect(pusher.deletedRecordNamesAcrossCalls.flatMap { $0 }.contains { $0.contains("|linkup|") })
+        #expect(pusher.deletedRecordNamesAcrossCalls.flatMap(\.self).contains { $0.contains("|linkup|") })
 
         // A provider that still reports real quota retains that quota and explicitly clears wallet rows.
         store._setSnapshotForTesting(UsageSnapshot(

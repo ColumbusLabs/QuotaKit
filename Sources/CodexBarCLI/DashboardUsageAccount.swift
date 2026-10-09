@@ -28,8 +28,8 @@ struct DashboardUsageAccount: Sendable {
             "profile:\(CodexHomeScope.normalizedHomePath(path) ?? path)"
         }
         let digest = SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
-        let id: String = if case .managedAccount = account.selectionSource,
-                             let storedID = account.storedAccountID
+        let id = if case .managedAccount = account.selectionSource,
+                    let storedID = account.storedAccountID
         {
             "codex-managed:\(storedID.uuidString.lowercased())"
         } else if case .liveSystem = account.selectionSource,

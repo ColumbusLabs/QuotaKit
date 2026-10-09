@@ -143,7 +143,8 @@ struct CodexBarAccountUsageWidgetView: View {
         if self.entry.accountID == nil {
             self.notice(
                 title: W("Choose an account"),
-                message: W("Enable account widgets in QuotaKit → Settings → Menu → Widgets. Then edit this widget to choose an account."))
+                message: W(
+                    "Enable account widgets in QuotaKit → Settings → Menu → Widgets. Then edit this widget to choose an account."))
         } else if let usage = self.entry.usageEntry.snapshot.entries.first(where: {
             $0.provider == self.entry.usageEntry.provider.instanceID
         }) {

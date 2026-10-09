@@ -1407,7 +1407,7 @@ extension CodexBarCLI {
         operations: CLIServeOperationCoordinator<UsageCommandOutput>,
         fetch: @Sendable @escaping (UsageProvider) async -> UsageCommandOutput) async -> UsageCommandOutput
     {
-        await Self.serveCollectUsageOutputs(
+        await self.serveCollectUsageOutputs(
             providers: providers,
             configFingerprint: configFingerprint,
             deadline: deadline,

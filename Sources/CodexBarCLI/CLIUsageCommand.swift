@@ -292,7 +292,8 @@ extension CodexBarCLI {
         status: ProviderStatusPayload?,
         tokenContext: TokenAccountCLIContext,
         command: UsageCommandContext,
-        publishPartial: CLIServeOperationCoordinator<UsageCommandOutput>.PublishPartial? = nil) async -> UsageCommandOutput
+        publishPartial: CLIServeOperationCoordinator<UsageCommandOutput>
+            .PublishPartial? = nil) async -> UsageCommandOutput
     {
         // Provider-specific by design: Codex can enumerate reconciled live, managed, and profile-home accounts.
         if provider == .codex, command.includeAllCodexAccounts {

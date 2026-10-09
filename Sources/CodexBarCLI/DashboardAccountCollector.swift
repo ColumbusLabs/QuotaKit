@@ -22,7 +22,7 @@ extension CodexBarCLI {
     {
         guard allAccounts else { return false }
         // Provider-specific by design: Claude Swap supplies dashboard account rows when enabled.
-        if provider == .claude, Self.dashboardClaudeSwapIsEligible(config: config) { return false }
+        if provider == .claude, dashboardClaudeSwapIsEligible(config: config) { return false }
         return TokenAccountSupportCatalog.support(for: provider) != nil
             && config.providerConfig(for: provider.instanceID)?.tokenAccounts?.accounts.isEmpty == false
     }
@@ -30,7 +30,8 @@ extension CodexBarCLI {
     static func serveUsageOutput(
         selection: ProviderSelection,
         context: ServeUsageContext,
-        fetchUsage: @escaping ServeUsageFetcher = CodexBarCLI.fetchServeProviderUsage) async throws -> UsageCommandOutput
+        fetchUsage: @escaping ServeUsageFetcher = CodexBarCLI
+            .fetchServeProviderUsage) async throws -> UsageCommandOutput
     {
         let tokenContext = try TokenAccountCLIContext(
             selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),

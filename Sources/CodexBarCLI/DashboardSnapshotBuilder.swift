@@ -223,7 +223,8 @@ enum DashboardSnapshotBuilder {
                 cost: cost,
                 error: error,
                 generatedAt: generatedAt),
-            accounts: accountCollection != nil ? accounts : (collectedAccounts?.isEmpty == false ? collectedAccounts : nil),
+            accounts: accountCollection != nil ? accounts :
+                (collectedAccounts?.isEmpty == false ? collectedAccounts : nil),
             accountsError: accountsError)
     }
 

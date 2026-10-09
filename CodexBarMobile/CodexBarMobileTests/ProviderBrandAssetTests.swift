@@ -1,5 +1,5 @@
-import Foundation
 import CodexBarSync
+import Foundation
 import Testing
 @testable import CodexBarMobile
 
@@ -70,8 +70,11 @@ struct ProviderBrandAssetTests {
     @Test
     func `Pi uses the same official adaptive mark on Mac and iPhone`() throws {
         var root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        for _ in 0..<12 where !FileManager.default.fileExists(atPath: root.appending(path: "Package.swift").path) {
-            root.deleteLastPathComponent()
+        let repositoryMarker = "Sources/CodexBar/Resources/ProviderIcon-pi.svg"
+        while !FileManager.default.fileExists(atPath: root.appending(path: repositoryMarker).path) {
+            let parent = root.deletingLastPathComponent()
+            guard parent != root else { throw CocoaError(.fileNoSuchFile) }
+            root = parent
         }
         let paths = [
             "Sources/CodexBar/Resources/ProviderIcon-pi.svg",

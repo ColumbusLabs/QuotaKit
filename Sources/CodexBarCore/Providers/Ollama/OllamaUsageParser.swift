@@ -88,10 +88,10 @@ enum OllamaUsageParser {
         guard let walletRegex = try? NSRegularExpression(
             pattern: walletPattern,
             options: [.caseInsensitive, .dotMatchesLineSeparators]),
-              let walletMatch = walletRegex.firstMatch(
-                  in: page,
-                  range: NSRange(page.startIndex..<page.endIndex, in: page)),
-              let walletRange = Range(walletMatch.range(at: 2), in: page)
+            let walletMatch = walletRegex.firstMatch(
+                in: page,
+                range: NSRange(page.startIndex..<page.endIndex, in: page)),
+            let walletRange = Range(walletMatch.range(at: 2), in: page)
         else {
             return nil
         }

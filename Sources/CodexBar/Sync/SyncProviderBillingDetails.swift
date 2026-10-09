@@ -43,28 +43,30 @@ enum SyncProviderBillingDetails {
     private static func rules(for provider: UsageProvider) -> [SectionRule]? {
         switch provider {
         case .tavily:
-            return ["Account plan", "API key", "Pay as you go"].map {
-                SectionRule(title: $0, rows: [("Used", .creditCount), ("Limit", .creditLimit), ("Remaining", .creditCount)])
+            ["Account plan", "API key", "Pay as you go"].map {
+                SectionRule(
+                    title: $0,
+                    rows: [("Used", .creditCount), ("Limit", .creditLimit), ("Remaining", .creditCount)])
             }
         case .exa:
-            return [.init(title: "API key this month (UTC)", rows: [("Spend", .dollars(allowNegative: false))])]
+            [.init(title: "API key this month (UTC)", rows: [("Spend", .dollars(allowNegative: false))])]
         case .linkup:
-            return [.init(title: "Account balance", rows: [("Credit balance", .dollars(allowNegative: true))])]
+            [.init(title: "Account balance", rows: [("Credit balance", .dollars(allowNegative: true))])]
         case .tinyapi:
-            return [.init(title: "Credits", rows: [("Available credits", .credits)])]
+            [.init(title: "Credits", rows: [("Available credits", .credits)])]
         case .cosmic:
-            return ["Input tokens", "Output tokens"].map {
+            ["Input tokens", "Output tokens"].map {
                 SectionRule(title: $0, rows: [
                     ("Used", .count), ("Allowance", .allowance), ("Remaining", .count), ("Above allowance", .count),
                 ])
             }
         case .aerostack:
-            return [.init(title: "Monthly AI tokens", rows: [
+            [.init(title: "Monthly AI tokens", rows: [
                 ("Tokens used", .count), ("Allowance", .count), ("Remaining", .count),
                 ("Above allowance", .count), ("Period", .month),
             ])]
         case .sailresearch:
-            return [.init(title: "Organization billing", rows: [
+            [.init(title: "Organization billing", rows: [
                 ("Credit balance", .balance), ("Last hour spend", .dollars(allowNegative: false)),
                 ("Last 6 hours spend", .dollars(allowNegative: false)),
                 ("Last 24 hours spend", .dollars(allowNegative: false)),
@@ -73,20 +75,20 @@ enum SyncProviderBillingDetails {
                 ("Billing-period spend", .dollars(allowNegative: false)),
             ])]
         case .sofya:
-            return [.init(title: "Account credits", rows: [
+            [.init(title: "Account credits", rows: [
                 ("Available credits", .number), ("Plan credits", .number), ("Purchased credits", .number),
                 ("Monthly reset", .resetDate),
             ])]
         case .ollama:
             // Refill prose stays local; only complete wallet amounts are exported.
-            return [.init(title: "Credits", rows: [
+            [.init(title: "Credits", rows: [
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
         case .jetbrains:
-            return [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
+            [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         default:
-            return nil
+            nil
         }
     }
 

@@ -63,7 +63,6 @@ public enum OllamaProviderDescriptor {
                     return minutes <= 300
                 }),
             presentation: ProviderUsagePresentation(
-                menuBarBalanceDetailLabels: ["Credit balance"],
                 rateWindowLabeler: { metadata, snapshot, _ in
                     ProviderRateWindowLabels(
                         primary: Self.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel,
@@ -82,6 +81,7 @@ public enum OllamaProviderDescriptor {
                     }
                     return series
                 },
+                menuBarBalanceDetailLabels: ["Credit balance"],
                 menuCard: ProviderMenuCardPresentation(
                     usageNotesResolver: { context in
                         guard context.snapshot?.identity?.loginMethod == "API key" else { return .unhandled }

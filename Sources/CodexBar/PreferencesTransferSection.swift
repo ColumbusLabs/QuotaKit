@@ -19,7 +19,7 @@ struct PreferencesTransferSection: View {
             Text(L("Portable preferences"))
         } footer: {
             Text(L("Save display and notification preferences for your dotfiles. " +
-                "Accounts, credentials, login, local paths and consent stay on this Mac."))
+                    "Accounts, credentials, login, local paths and consent stay on this Mac."))
         }
         .alert(L("Preferences could not be transferred"), isPresented: Binding(
             get: { self.failure != nil }, set: { if !$0 { self.failure = nil } }))
@@ -61,8 +61,8 @@ struct ProviderSwitcherShortcutEditor: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(L("Provider Switcher Shortcuts")).font(.headline)
             Text(L("These shortcuts work while the provider switcher menu is open. " +
-                "Use ctrl, alt, shift and cmd with a letter, digit, left or right; " +
-                "use none to disable an action."))
+                    "Use ctrl, alt, shift and cmd with a letter, digit, left or right; " +
+                    "use none to disable an action."))
                 .font(.callout).foregroundStyle(.secondary)
             Form {
                 ForEach(ProviderSwitcherShortcuts.actions, id: \.self) { action in
@@ -71,11 +71,15 @@ struct ProviderSwitcherShortcutEditor: View {
                         set: { self.shortcuts[action] = $0 }))
                 }
             }
-            Text(L("Examples: alt+cmd+2, shift+right. Refresh (cmd+r), Settings (cmd+,) and Quit (cmd+q) are reserved."))
+            Text(
+                L("Examples: alt+cmd+2, shift+right. Refresh (cmd+r), Settings (cmd+,) and Quit (cmd+q) are reserved."))
                 .font(.caption).foregroundStyle(.secondary)
-            if let failure { Text(failure).foregroundStyle(.red).accessibilityLabel(L("Error: %@", String(describing: failure))) }
+            if let failure { Text(failure).foregroundStyle(.red).accessibilityLabel(L(
+                "Error: %@",
+                String(describing: failure))) }
             HStack {
-                Button(L("Restore Defaults")) { self.shortcuts = ProviderSwitcherShortcuts.defaults; self.failure = nil }
+                Button(L("Restore Defaults")) { self.shortcuts = ProviderSwitcherShortcuts.defaults; self.failure = nil
+                }
                 Spacer()
                 Button(L("Cancel")) { self.dismiss() }.keyboardShortcut(.cancelAction)
                 Button(L("Save")) {

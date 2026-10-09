@@ -10,7 +10,7 @@ public enum LinkupProviderDescriptor {
         toggleTitle: "Show Linkup balance",
         balanceOnly: true,
         dashboardURL: "https://app.linkup.so/organization/billing",
-        color: .init(hex: 0x202020),
+        color: .init(hex: 0x4A4A4A),
         confetti: [0x202020, 0x8C8C8C],
         noDataMessage: "No cost history data.",
         environmentKey: "LINKUP_API_KEY",
