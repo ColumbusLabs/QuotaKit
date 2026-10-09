@@ -9,7 +9,7 @@ private struct NewProviderSpecExpectation {
     let displayName: String
     let balanceOnly: Bool
     let allowsBurnDown: Bool
-    let sourceModes: Set<FetchSourceMode>
+    let sourceModes: Set<ProviderSourceMode>
 }
 
 @MainActor

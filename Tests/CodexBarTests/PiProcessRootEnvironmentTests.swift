@@ -25,7 +25,8 @@ struct PiProcessRootEnvironmentTests {
                 records.setValue(records.value + [metadata ?? [:]])
             })
 
-        #expect(roots.allSatisfy(\.resolutionIsComplete))
+        let allRootsAreComplete = roots.allSatisfy(\.resolutionIsComplete)
+        #expect(allRootsAreComplete)
         #expect(records.value == (unreadable ? [["skippedContexts": "2"]] : []))
     }
 
