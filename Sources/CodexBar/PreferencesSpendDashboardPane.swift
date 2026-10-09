@@ -964,7 +964,7 @@ struct SpendProviderIcon: View {
     }
 }
 
-private struct SpendSessionPanel: View {
+struct SpendSessionPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
     let hidePersonalInfo: Bool
     @State private var showsAllRows = false
@@ -984,26 +984,38 @@ private struct SpendSessionPanel: View {
                         if row.rank > 1 {
                             Divider()
                         }
-                        HStack(spacing: 10) {
-                            Text(spendDashboardRankText(row.rank))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.tertiary)
-                                .frame(width: 26, alignment: .leading)
-                            SpendProviderIcon(provider: row.provider, sourceKind: .native)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(identity.name).lineLimit(1).help(identity.name)
-                                Text(subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Text(spendDashboardRankText(row.rank))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 26, alignment: .leading)
+                                SpendProviderIcon(provider: row.provider, sourceKind: .native)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(identity.name).fontWeight(.medium).lineLimit(1).help(identity.name)
+                                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                                        .lineLimit(1).help(subtitle)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(spendDashboardMetricText(
+                                    cost: row.totalCost, tokens: row.totalTokens,
+                                    currencyCode: self.group.currencyCode))
+                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            Spacer()
-                            Text(spendDashboardMetricText(
-                                cost: row.totalCost,
-                                tokens: row.totalTokens,
-                                currencyCode: self.group.currencyCode))
-                                .monospacedDigit()
+                            if let performance = row.turnPerformance {
+                                SpendSessionPerformanceView(summary: performance)
+                            }
+                            if let source = row.toolActivitySource {
+                                SpendSessionToolActivityView(
+                                    source: source,
+                                    lastActivity: row.lastActivity,
+                                    range: spendToolActivityRange(group: self.group),
+                                    timeZone: self.group.timeZone,
+                                    hidePersonalInfo: self.hidePersonalInfo)
+                            }
                         }
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 12)
                     }
                     SpendPanelExpandButton(
                         rowCount: self.group.sessions.count,

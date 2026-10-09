@@ -197,6 +197,7 @@ public enum SubprocessRunner {
             stderrPipe.fileHandleForWriting.closeFile()
             throw SubprocessRunnerError.launchFailed(error.localizedDescription)
         }
+        defer { ProcessExitRelease.afterExit(process) }
         stdoutCapture.start()
         stderrCapture.start()
 

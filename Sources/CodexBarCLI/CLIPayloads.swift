@@ -20,6 +20,9 @@ struct ProviderPayload: Encodable {
     let diagnostic: String?
     let error: ProviderErrorPayload?
     let pace: ProviderPacePayload?
+    /// Dashboard-only account association; excluded from the public usage JSON contract.
+    var dashboardAccount: DashboardUsageAccount?
+    var dashboardAccountsIncomplete = false
 
     private enum CodingKeys: String, CodingKey {
         case provider
@@ -100,6 +103,8 @@ struct ProviderPayload: Encodable {
         self.diagnostic = diagnostic
         self.error = error
         self.pace = pace
+        self.dashboardAccount = nil
+        self.dashboardAccountsIncomplete = false
     }
 
     private static func makeRateWindowLabels(

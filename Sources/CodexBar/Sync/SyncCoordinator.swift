@@ -974,6 +974,9 @@ final class SyncCoordinator {
             }
             return safeRows.isEmpty ? [] : [SyncProviderDetailSection(title: "Credits", rows: safeRows)]
         }
+        if let billingDetails = SyncProviderBillingDetails.map(provider: provider, snapshot: snapshot) {
+            return billingDetails
+        }
         // These providers expose useful rows that have no dedicated iPhone payload. In particular,
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
@@ -2041,7 +2044,10 @@ final class SyncCoordinator {
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi:
+             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
+             // New provider cost and credit surfaces are provider-native or balance-only. They do not
+             // use the local Codex/Claude model-price fallback.
+             .aerostack, .cosmic, .exa, .linkup, .sailresearch, .sofya, .tavily, .tinyapi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

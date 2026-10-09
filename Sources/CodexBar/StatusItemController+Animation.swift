@@ -1340,9 +1340,14 @@ extension StatusItemController {
             return fallback
         }
 
-        let credits = snapshot.detailRow(label: "Overage usage")?.value
-            .replacingOccurrences(of: " credits", with: " over")
-        let cost = snapshot.detailRow(label: "Overage cost").map { "\($0.value) over" }
+        let creditsValue = snapshot.detailRow(label: "Overage usage").map { row in
+            let suffix = " credits"
+            return row.value.hasSuffix(suffix)
+                ? String(row.value.dropLast(suffix.count)) : row.value
+        }
+        let credits = creditsValue.map { L("%@ over", $0) }
+        let costValue = snapshot.detailRow(label: "Overage cost")?.value
+        let cost = costValue.map { L("%@ over", $0) }
 
         switch format {
         case .credits:
@@ -1350,9 +1355,7 @@ extension StatusItemController {
         case .cost:
             return cost ?? credits ?? fallback
         case .creditsAndCost:
-            if let credits, let cost {
-                let creditsValue = credits.replacingOccurrences(of: " over", with: "")
-                let costValue = cost.replacingOccurrences(of: " over", with: "")
+            if let creditsValue, let costValue {
                 return "\(creditsValue) · \(costValue)"
             }
             return credits ?? cost ?? fallback

@@ -10,6 +10,7 @@ public struct OllamaUsageSnapshot: Sendable {
     public let sessionResetsAt: Date?
     public let weeklyResetsAt: Date?
     public let sessionWindowMinutes: Int?
+    public let details: [ProviderDetailSection]
     public let updatedAt: Date
 
     public init(
@@ -22,6 +23,7 @@ public struct OllamaUsageSnapshot: Sendable {
         sessionResetsAt: Date?,
         weeklyResetsAt: Date?,
         sessionWindowMinutes: Int? = nil,
+        details: [ProviderDetailSection] = [],
         updatedAt: Date)
     {
         self.planName = planName
@@ -33,6 +35,7 @@ public struct OllamaUsageSnapshot: Sendable {
         self.sessionResetsAt = sessionResetsAt
         self.weeklyResetsAt = weeklyResetsAt
         self.sessionWindowMinutes = sessionWindowMinutes
+        self.details = details
         self.updatedAt = updatedAt
     }
 }
@@ -62,6 +65,7 @@ extension OllamaUsageSnapshot {
             secondary: weeklyWindow,
             tertiary: nil,
             providerCost: nil,
+            details: self.details,
             updatedAt: self.updatedAt,
             identity: identity)
     }

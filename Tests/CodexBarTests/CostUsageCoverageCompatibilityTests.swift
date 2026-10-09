@@ -25,7 +25,7 @@ struct CostUsageCoverageCompatibilityTests {
         }
     }
 
-    @Test(arguments: ["3d2771687ba0133f", "cfd84d13ad7d4cfa"])
+    @Test(arguments: ["1718c75982e86913", "3d2771687ba0133f", "cfd84d13ad7d4cfa"])
     func `reviewed predecessors retain actual previous report payloads without rebuilding`(hash: String) async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

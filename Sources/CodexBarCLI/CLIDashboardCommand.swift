@@ -55,12 +55,13 @@ struct DashboardSnapshotProducer: Sendable {
     var collectAccounts: @Sendable (CodexBarConfig, UsageProvider) async -> DashboardAccountsInput? = { _, _ in nil }
     var weeklyWorkDays: @Sendable () -> Int? = { nil }
     var usageBarsShowUsed: @Sendable () -> Bool = { false }
+    var allAccounts = false
 
     func collect(
         config: CodexBarConfig,
         refreshInterval: TimeInterval,
         codexBarVersion: String?,
-        identityMode: DashboardIdentityMode = .redacted,
+        identityMode: DashboardIdentityMode? = nil,
         providers requestedProviders: [UsageProvider]? = nil) async throws -> DashboardSnapshotResult
     {
         let selection = requestedProviders.map(ProviderSelection.custom) ?? CodexBarCLI.providerSelection(
@@ -88,15 +89,17 @@ struct DashboardSnapshotProducer: Sendable {
             usagePayloads: usageOutput.payload,
             costPayloads: costPayloads,
             config: config,
-            identityMode: identityMode,
+            identityMode: identityMode ?? (self.allAccounts ? .none : .redacted),
             generatedAt: generatedAt,
             refreshInterval: refreshInterval,
             codexBarVersion: codexBarVersion,
             accountCollections: accountCollections,
-            usageBarsShowUsed: self.usageBarsShowUsed())
+            usageBarsShowUsed: self.usageBarsShowUsed(),
+            allAccounts: self.allAccounts)
         return DashboardSnapshotResult(
             payload: payload,
-            usageCacheKeys: usageOutput.payload.map(\.cacheAccountKey))
+            usageCacheKeys: DashboardSnapshotBuilder.selectedPayloads(
+                usageOutput.payload, allAccounts: self.allAccounts).map(\.cacheAccountKey))
     }
 
     static func live(context: DashboardSnapshotContext) -> Self {
@@ -140,7 +143,9 @@ struct DashboardSnapshotProducer: Sendable {
             now: { Date() },
             collectAccounts: { config, provider in
                 // Provider-specific by design: Codex projects saved metadata; Claude uses its opt-in adapter.
-                if provider == .codex { return DashboardManagedCodexAccounts.collect(config: config) }
+                if provider == .codex {
+                    return DashboardManagedCodexAccounts.collect(config: config)
+                }
                 guard provider == .claude, CodexBarCLI.dashboardClaudeSwapIsEligible(config: config) else { return nil }
                 let path = config.providerConfig(for: .claude)?.sanitizedClaudeSwapExecutablePath ?? ""
                 let timeout = min(
@@ -169,7 +174,8 @@ struct DashboardSnapshotProducer: Sendable {
                 }
             },
             weeklyWorkDays: { CodexBarCLI.weeklyProgressWorkDaysFromDefaults() },
-            usageBarsShowUsed: { CodexBarCLI.usageBarsShowUsedFromDefaults() })
+            usageBarsShowUsed: { CodexBarCLI.usageBarsShowUsedFromDefaults() },
+            allAccounts: context.usage.includeAllAccounts)
     }
 }
 
@@ -375,17 +381,17 @@ extension CodexBarCLI {
         values.options["identity"]?.last != nil
     }
 
-    /// Identity detail for one dashboard snapshot request. An explicit `--identity` wins,
-    /// so a scripted client keeps the mode it asked for. Without the flag the app's
-    /// "Hide personal information" toggle decides, which keeps the serve dashboard in step
-    /// with the menu UI.
+    /// Identity detail for one dashboard snapshot request. Expanded snapshots default to none;
+    /// selected-account snapshots retain the existing app privacy preference.
     static func resolveDashboardIdentityMode(
         configured: DashboardIdentityMode?,
-        hidesPersonalInfo: Bool) -> DashboardIdentityMode
+        hidesPersonalInfo: Bool,
+        allAccounts: Bool = false) -> DashboardIdentityMode
     {
         if let configured {
             return configured
         }
+        if allAccounts { return .none }
         return hidesPersonalInfo ? .redacted : .full
     }
 

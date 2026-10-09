@@ -469,9 +469,13 @@ struct OllamaUsageFetcherRetryMappingTests {
             let data: Data
             switch request.url {
             case validationURL:
+                #expect(request.httpMethod == "POST")
+                #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
                 statusCode = 400
                 data = Data(#"{"error":"query is required"}"#.utf8)
             case tagsURL:
+                #expect(request.httpMethod == "GET")
+                #expect(request.httpBody == nil)
                 statusCode = 200
                 data = Data(#"{"models":[{}]}"#.utf8)
             default:
@@ -479,6 +483,8 @@ struct OllamaUsageFetcherRetryMappingTests {
                 statusCode = 500
                 data = Data()
             }
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "QuotaKit/1.0")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer ollama-test")
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: statusCode,
@@ -494,6 +500,38 @@ struct OllamaUsageFetcherRetryMappingTests {
             transport: transport)
 
         #expect(snapshot.modelCount == 1)
+    }
+
+    @Test
+    func `model catalog rejects bad request even when validation accepts it`() async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            #expect(request.url == validationURL || request.url == tagsURL)
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 400,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (Data(#"{"error":"bad request"}"#.utf8), response)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "ollama-test",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+            Issue.record("Expected the model-catalog HTTP 400 to fail")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected a catalog network error, got \(error)")
+                return
+            }
+            #expect(message == "HTTP 400")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
+        }
     }
 
     @Test(arguments: [401, 403])

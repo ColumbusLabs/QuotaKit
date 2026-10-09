@@ -262,6 +262,12 @@ struct SettingsStoreAdditionalTests {
             .lithosai: [.automatic],
             .xapi: [.automatic],
             .workbuddy: [.automatic, .primary],
+            .exa: [.automatic],
+            .linkup: [.automatic],
+            .tinyapi: [.automatic],
+            .aerostack: [.automatic, .primary],
+            .sailresearch: [.automatic],
+            .sofya: [.automatic],
         ]
 
         for provider in UsageProvider.allCases {

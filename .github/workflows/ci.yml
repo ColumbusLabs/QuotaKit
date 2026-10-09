@@ -31,6 +31,8 @@ jobs:
       macos-tests: ${{ steps.macos-tests.outputs.macos-tests }}
       macos-tests-deferred: ${{ steps.macos-tests.outputs.macos-tests-deferred }}
       macos-tests-reason: ${{ steps.macos-tests.outputs.macos-tests-reason }}
+      linux-cli-build: ${{ steps.macos-tests.outputs.linux-cli-build }}
+      linux-cli-build-reason: ${{ steps.macos-tests.outputs.linux-cli-build-reason }}
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
       macos-test-filter: ${{ steps.macos-tests.outputs.macos-test-filter }}
       macos-shard-indexes: ${{ steps.macos-tests.outputs.macos-shard-indexes }}
@@ -398,7 +400,19 @@ jobs:
           swift --version
           swift build --build-tests
 
+      - name: Build Mac widget extension resource wiring
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project WidgetExtension/CodexBarWidgetExtension.xcodeproj \
+            -scheme CodexBarWidgetExtension \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/QuotaKitWidgetDerivedData" \
+            CODE_SIGNING_ALLOWED=NO
+
   build-linux-cli:
+    needs: changes
+    if: ${{ needs.changes.outputs.linux-cli-build == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -469,6 +483,8 @@ jobs:
           swift test --filter CodexBarLinuxTests
           bin_dir="$(swift build --product CodexBarCLI --show-bin-path)"
           timeout 20 "$bin_dir/CodexBarCLI" --help >/dev/null
+          timeout 240 python3 Scripts/test_dashboard_private_accounts.py "$bin_dir/CodexBarCLI"
+          timeout 240 python3 Scripts/test_linux_serve_rpc_pipes.py "$bin_dir/CodexBarCLI"
 
   lint-build-test:
     runs-on: ubuntu-24.04
@@ -495,7 +511,8 @@ jobs:
             "${{ needs.changes.outputs.ios-tests }}" \
             "${{ needs.ios-test.result }}" \
             "${{ needs.build-linux-cli.result }}" \
-            "${{ needs.swift-build-macos-compatibility.result }}"
+            "${{ needs.swift-build-macos-compatibility.result }}" \
+            "${{ needs.changes.outputs.linux-cli-build }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -512,6 +529,7 @@ jobs:
           IOS_TESTS_REASON: ${{ needs.changes.outputs.ios-tests-reason }}
           IOS_RESULT: ${{ needs.ios-test.result }}
           LINUX_RESULT: ${{ needs.build-linux-cli.result }}
+          LINUX_CLI_BUILD: ${{ needs.changes.outputs.linux-cli-build }}
           MACOS_COMPATIBILITY_RESULT: ${{ needs.swift-build-macos-compatibility.result }}
         run: |
           set -euo pipefail
@@ -531,6 +549,7 @@ jobs:
             printf '| macOS focused suites | `%s` |\n' "${MACOS_TEST_FILTER:-<full suite or skipped>}"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
             printf '| Xcode 26.3 compatibility build result | `%s` |\n' "$MACOS_COMPATIBILITY_RESULT"
+            printf '| Linux CLI builds required | `%s` |\n' "${LINUX_CLI_BUILD:-<unset>}"
             printf '| build-linux-cli matrix result | `%s` |\n' "$LINUX_RESULT"
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| iOS gate reason | %s |\n' "$ios_reason"

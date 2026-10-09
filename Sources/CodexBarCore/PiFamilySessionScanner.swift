@@ -412,7 +412,8 @@ struct PiFamilySessionScanner: Sendable {
     static func costSessionRoots(
         environment: [String: String],
         baseDirectories: [URL]? = nil,
-        processContexts: [PiSessionProcessContext] = []) -> [CostSessionRoot]
+        processContexts: [PiSessionProcessContext] = [],
+        logger: CodexBarLogger = CodexBarLog.logger(LogCategories.tokenCost)) -> [CostSessionRoot]
     {
         var configuredCWDs = baseDirectories ?? []
         if !processContexts.isEmpty {
@@ -437,6 +438,7 @@ struct PiFamilySessionScanner: Sendable {
         let dialects: [AgentSession.Dialect] = [.pi, .omp]
         var output: [CostSessionRoot] = []
         var outputIndexByPath: [String: Int] = [:]
+        var skippedContexts = 0
 
         func appendCostRoot(_ root: CostSessionRoot) {
             let canonical = OMPSessionRootResolver.canonicalURL(root.url)
@@ -475,8 +477,18 @@ struct PiFamilySessionScanner: Sendable {
                     arguments: context.arguments,
                     piSelectorEnvironment: context.selectorEnvironment)
                 guard AgentPSOutputParser.piDialect(for: process) == dialect else { continue }
+                let hasExplicitProcessSelection = Self.hasExplicitProcessRootSelection(
+                    dialect: dialect,
+                    processContexts: [context])
                 guard let processEnvironment = Self.processSelectorEnvironment(for: process) else {
-                    rootResolutionIsComplete = false
+                    // An unreadable optional process must not hide default history. An
+                    // explicit command-line root is different: its unreadable environment
+                    // can still affect how that selected source should be interpreted.
+                    if hasExplicitProcessSelection {
+                        rootResolutionIsComplete = false
+                    } else {
+                        skippedContexts += 1
+                    }
                     continue
                 }
                 guard let contextCWD = Self.processWorkingDirectory(
@@ -573,6 +585,11 @@ struct PiFamilySessionScanner: Sendable {
                     missingIsKnownEmpty: false,
                     resolutionIsComplete: false))
             }
+        }
+        if skippedContexts > 0 {
+            logger.warning(
+                "Pi cost discovery skipped process contexts with unreadable environments",
+                metadata: ["skippedContexts": String(skippedContexts)])
         }
         return output
     }

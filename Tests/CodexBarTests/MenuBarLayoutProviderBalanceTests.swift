@@ -122,6 +122,8 @@ struct MenuBarLayoutProviderBalanceTests {
             (.devpass, "Cycle remaining", "$3.75"),
             (.vercel, "Available balance", "$5.00"),
             (.nous, "Total usable", "900 credits"),
+            (.ollama, "Credit balance", "$18.25"),
+            (.jetbrains, "Remaining", "54.90 credits"),
         ]
         for (provider, label, value) in cases {
             let snapshot = try UsageSnapshot(

@@ -135,6 +135,16 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Neuralwatt](docs/neuralwatt.md) — API key for subscription kWh usage and prepaid credit balance.
 - [ZenMux](docs/zenmux.md) — Management API key for rolling five-hour and seven-day quota windows plus PAYG balance.
 - [xAI](docs/xai.md) — Management API key + team ID for prepaid credit balance and daily platform spend.
+- [X API](docs/xapi.md) — Console session for separate purchased and free prepaid API credits.
+- [Tavily](docs/tavily.md) — Account-plan, API-key quota, and pay-as-you-go credit usage.
+- [Linkup](docs/linkup.md) — Prepaid USD credit balance without inferred quota.
+- [TinyApi](docs/tinyapi.md) — Browser session for available console credits.
+- [Exa](docs/exa.md) — Selected API-key month-to-date spend.
+- [Cosmic AI](docs/cosmic.md) — Project-scoped input and output token usage.
+- [Aerostack](docs/aerostack.md) — Account-reported monthly AI-token usage.
+- [Sail Research](docs/sailresearch.md) — Organization balance and reported spend.
+- [Sofya](docs/sofya.md) — Separate account, plan, and purchased credit balances.
+
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Linux desktop integration

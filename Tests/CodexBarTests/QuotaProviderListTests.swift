@@ -26,7 +26,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Provider list has expected count (73 with WorkBuddy)`() {
+    func `Provider list has expected count (76 after Tavily, Cosmic AI, and Aerostack)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -40,12 +40,12 @@ struct QuotaProviderListTests {
         // 60 after Notion AI, 61 after IBM Bob, 62 after GitKraken AI,
         // 63 after v0 billing, 64 after Hugging Face ZeroGPU quota,
         // 72 after Nous and Muse, then 71 after Crof retirement and 72
-        // after appending MuseAI. WorkBuddy is the 73rd appended quota provider.
+        // after appending MuseAI. WorkBuddy was the 73rd; Tavily, Cosmic AI, and Aerostack add three quota providers.
         // Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 73)
+        #expect(QuotaProviderList.providers.count == 76)
     }
 
     @Test
@@ -106,6 +106,7 @@ struct QuotaProviderListTests {
         #expect(Array(ids.dropFirst(Self.providerIDsBeforeV0.count)) == [
             "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
             "xkiro", "raycast", "helmcode", "nous", "muse", "museai", "workbuddy",
+            "tavily", "cosmic", "aerostack",
         ])
     }
 
@@ -137,7 +138,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 73 × 3 = 219 (depleted + restored + warning)`() {
+    func `iOS subscription count is 76 × 3 = 228 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -150,14 +151,14 @@ struct QuotaProviderListTests {
         // 162 after adding ClinePass and LongCat, 165 after Neuralwatt,
         // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate,
         // reaching 216 after MuseAI was appended after the Crof retirement,
-        // then 219 after appending WorkBuddy.
+        // then 219 after appending WorkBuddy and 228 after Tavily, Cosmic AI, and Aerostack.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 219)
+        #expect(subscriptionCount == 228)
     }
 
     @Test
@@ -190,8 +191,8 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `WorkBuddy is appended with stable quota notification zone identifiers`() throws {
-        let workBuddy = try #require(QuotaProviderList.providers.last)
+    func `WorkBuddy retains stable quota notification zone identifiers`() throws {
+        let workBuddy = try #require(QuotaProviderList.providers.first { $0.id == "workbuddy" })
         #expect(workBuddy.id == "workbuddy")
         #expect(workBuddy.displayName == "WorkBuddy")
         #expect(
@@ -203,6 +204,20 @@ struct QuotaProviderListTests {
         #expect(
             QuotaProviderList.quotaZoneName(providerID: workBuddy.id, state: "warning")
                 == "Quota-workbuddy-warningZone")
+    }
+
+
+    @Test
+    func `Tavily, Cosmic AI, and Aerostack append stable quota notification zones`() throws {
+        let providers = QuotaProviderList.providers.suffix(3)
+        #expect(providers.map(\.id) == ["tavily", "cosmic", "aerostack"])
+        #expect(providers.map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])
+        for provider in providers {
+            for state in ["depleted", "restored", "warning"] {
+                #expect(QuotaProviderList.quotaZoneName(providerID: provider.id, state: state)
+                    == "Quota-\(provider.id)-\(state)Zone")
+            }
+        }
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

@@ -739,6 +739,30 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
+    func `zh Hans Kiro overage values localize singles and keep combined values raw`() {
+        let settings = self.makeSettings(
+            suiteName: "StatusItemBalanceDisplayTests-kiro-overage-zh-Hans",
+            provider: .kiro)
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+        let snapshot = Self.exhaustedKiroSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .kiro)
+        store._setErrorForTesting(nil, provider: .kiro)
+
+        CodexBarLocalizationOverride.$appLanguage.withValue("zh-Hans") {
+            settings.kiroMenuBarDisplayMode = .overageCreditsWhenExhausted
+            #expect(controller.menuBarDisplayText(for: .kiro, snapshot: snapshot) == "超出 40.29")
+
+            settings.kiroMenuBarDisplayMode = .overageCostWhenExhausted
+            #expect(controller.menuBarDisplayText(for: .kiro, snapshot: snapshot) == "超出 $1.61")
+
+            settings.kiroMenuBarDisplayMode = .overageCreditsAndCostWhenExhausted
+            #expect(controller.menuBarDisplayText(for: .kiro, snapshot: snapshot) == "40.29 · $1.61")
+        }
+    }
+
+    @Test
     func `kiro menu bar overage mode keeps credits left before exhaustion`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-kiro-overage-not-exhausted",

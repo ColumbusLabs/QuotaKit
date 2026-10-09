@@ -32,6 +32,21 @@ contrast non-regression review, not an accessibility certification.
 | Sub2API | `#2DC6D8` | `#14B8A6` | [Sub2API Tailwind config](https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/frontend/tailwind.config.js) | light 2.06 → 2.49:1; dark 6.39:1 |
 | Venice | `#3399FF` | `#3C8FDD` | [Venice CSS](https://cdn.venice.ai/_next/static/immutable/chunks/1z9-rwfn_gg4b.css) | light 2.94 → 3.41:1; dark 4.67:1 |
 
+## New provider accents
+
+The provider catalog additions from upstream commits `fca039015` and `81438267f` carry their descriptor accents into the iOS raw palette. `Scripts/audit_provider_palette.py` checks Mac/mobile parity. QuotaKit adapts two otherwise colliding colors to preserve the mobile palette's existing distinct-provider contract: TinyApi's upstream `#F97316` exactly matches Xiaomi MiMo, and Aerostack's `#6366F1` is nearly indistinguishable from OpenRouter's `#6467F2`. Their provider logos remain unchanged.
+
+| Provider | Upstream descriptor accent | QuotaKit accent | Source |
+| --- | --- | --- | --- |
+| Tavily | `#78B0A1` | `#78B0A1` | [Tavily usage docs](https://docs.tavily.com/documentation/api-reference/endpoint/usage) |
+| Linkup | `#202020` | `#202020` | [Linkup docs](https://docs.linkup.so/pages/documentation/platform/pricing) |
+| TinyApi | `#F97316` | `#E4572E` | [TinyApi dashboard](https://tinyapi.rest/dashboard); adjusted to distinguish it from Xiaomi MiMo |
+| Exa | `#0143D9` | `#0143D9` | [Exa API docs](https://exa.ai/docs/reference/team-management/get-api-key-usage) |
+| Cosmic AI | `#29ABE2` | `#29ABE2` | [Cosmic CLI docs](https://www.cosmicjs.com/docs/cli) |
+| Aerostack | `#6366F1` | `#4F46E5` | [Aerostack billing docs](https://docs.aerostack.dev/billing/); adjusted to distinguish it from OpenRouter |
+| Sail Research | `#2C4681` | `#2C4681` | [Sail Research website](https://www.sailresearch.com/) |
+| Sofya | `#B0B820` | `#B0B820` | [Sofya website](https://sofya.co/) |
+
 ## Preserved color roles
 
 `ProviderDescriptor.branding.color` remains the Mac app accent. Mac widgets now

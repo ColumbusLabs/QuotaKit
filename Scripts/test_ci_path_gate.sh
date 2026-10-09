@@ -15,14 +15,22 @@ workflow = pathlib.Path(sys.argv[1]).read_text()
 lint_job = re.search(r"(?ms)^  lint:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
 if lint_job is None or "runs-on: macos-26" not in lint_job.group("body"):
     raise SystemExit("lint job must run on macos-26")
-if not re.search(r"(?m)^  build-linux-cli:", workflow):
+linux_job = re.search(r"(?ms)^  build-linux-cli:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if linux_job is None:
     raise SystemExit("Linux CLI matrix is required")
+for required in ("needs: changes", "if: ${{ needs.changes.outputs.linux-cli-build == 'true' }}"):
+    if required not in linux_job.group("body"):
+        raise SystemExit(f"Linux CLI build is missing {required!r}")
+if 'linux-cli-build: ${{ steps.macos-tests.outputs.linux-cli-build }}' not in workflow:
+    raise SystemExit("changes must expose the Linux CLI path gate")
 aggregate = re.search(r"(?ms)^  lint-build-test:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
 if aggregate is None:
     raise SystemExit("missing aggregate CI gate")
 body = aggregate.group("body")
 if "      - build-linux-cli\n" not in body or '"${{ needs.build-linux-cli.result }}"' not in body:
     raise SystemExit("aggregate CI gate must require Linux CLI matrix result")
+if '"${{ needs.changes.outputs.linux-cli-build }}"' not in body:
+    raise SystemExit("aggregate verifier must receive the Linux CLI requirement")
 compatibility = re.search(r"(?ms)^  swift-build-macos-compatibility:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
 if compatibility is None:
     raise SystemExit("missing Xcode 26.3 compatibility build")
@@ -55,6 +63,13 @@ assert_gate() {
   actual="$(sed -n 's/^macos-tests=//p' "$output_file")"
   if [[ "$actual" != "$expected" ]]; then
     printf '%s: expected macos-tests=%s, got %s\n' "$name" "$expected" "${actual:-<empty>}" >&2
+    exit 1
+  fi
+
+  local linux_required
+  linux_required="$(sed -n 's/^linux-cli-build=//p' "$output_file")"
+  if [[ "$linux_required" != "$expected" ]]; then
+    printf '%s: expected linux-cli-build=%s, got %s\n' "$name" "$expected" "$linux_required" >&2
     exit 1
   fi
 
@@ -94,6 +109,11 @@ assert_gate true agents-contract $'M\tAGENTS.md'
 assert_gate true rename-to-agents-contract $'R100\tdocs/old.md\tAGENTS.md'
 assert_gate true rename-from-agents-contract $'R100\tAGENTS.md\tdocs/new.md'
 assert_gate true source $'M\tSources/CodexBar/App.swift'
+assert_gate true source-markdown $'M\tSources/CodexBarCore/Resources/prompt.md'
+assert_gate true test-markdown $'M\tTests/Fixtures/README.md'
+assert_gate true shared-markdown $'M\tShared/README.md'
+assert_gate true mobile-markdown $'M\tCodexBarMobile/README.md'
+assert_gate true workflow-markdown $'M\t.github/workflows/README.md'
 
 assert_macos_selection() {
   local expected_filter="$1"
@@ -172,6 +192,11 @@ if [[ "$(sed -n 's/^macos-tests=//p' "$draft_output")" != true ]] \
   || [[ "$(sed -n 's/^macos-tests-deferred=//p' "$draft_output")" != true ]]
 then
   printf 'draft source: expected macOS tests to remain required while deferred\n' >&2
+  exit 1
+fi
+
+if [[ "$(sed -n 's/^linux-cli-build=//p' "$draft_output")" != true ]]; then
+  printf 'draft source: Linux CLI builds must remain required.\n' >&2
   exit 1
 fi
 
@@ -288,10 +313,10 @@ if [[ -s "$ios_unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success false true success success success >/dev/null
-"$verify" success success false skipped false false skipped success skipped >/dev/null
-"$verify" success success true success false false skipped success success >/dev/null
-"$verify" success success false skipped false true success success skipped >/dev/null
+"$verify" success success true success false true success success success true >/dev/null
+"$verify" success success false skipped false false skipped skipped skipped false >/dev/null
+"$verify" success success true success false false skipped success success true >/dev/null
+"$verify" success success false skipped false true success success skipped true >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -300,28 +325,41 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped false true success success success
-assert_verify_fails success success true skipped true true success success success
-assert_verify_fails success success false skipped true true success success skipped
-assert_verify_fails success success true success true true success success success
-assert_verify_fails success success false success false true success success skipped
-assert_verify_fails success success "" skipped false true success success skipped
-assert_verify_fails failure success true success false true success success success
-assert_verify_fails success failure true success false true success success success
-assert_verify_fails success success true success false true skipped success success
-assert_verify_fails success success true success false false success success success
-assert_verify_fails success success true success false "" skipped success success
+assert_verify_fails success success true skipped false true success success success true
+assert_verify_fails success success true skipped true true success success success true
+assert_verify_fails success success false skipped true true success success skipped true
+assert_verify_fails success success true success true true success success success true
+assert_verify_fails success success false success false true success success skipped true
+assert_verify_fails success success "" skipped false true success success skipped true
+assert_verify_fails failure success true success false true success success success true
+assert_verify_fails success failure true success false true success success success true
+assert_verify_fails success success true success false true skipped success success true
+assert_verify_fails success success true success false false success success success true
+assert_verify_fails success success true success false "" skipped success success true
 
 for compatibility_result in failure cancelled skipped "" unknown; do
-  assert_verify_fails success success true success false true success success "$compatibility_result"
+  assert_verify_fails success success true success false true success success "$compatibility_result" true
 done
 for compatibility_result in success failure cancelled "" unknown; do
-  assert_verify_fails success success false skipped false false skipped success "$compatibility_result"
+  assert_verify_fails success success false skipped false false skipped success "$compatibility_result" true
 done
 
 for linux_result in failure cancelled skipped "" unknown; do
-  assert_verify_fails success success true success false true success "$linux_result" success
+  assert_verify_fails success success true success false true success "$linux_result" success true
 done
-assert_verify_fails success success true success false true success success
+assert_verify_fails success success true success false true success success success
+
+for linux_required in true false; do
+  for linux_result in success failure cancelled skipped '' unknown; do
+    case "${linux_required}:${linux_result}" in
+      true:success|false:skipped)
+        "$verify" success success false skipped false false skipped "$linux_result" skipped "$linux_required" >/dev/null
+        ;;
+      *)
+        assert_verify_fails success success false skipped false false skipped "$linux_result" skipped "$linux_required"
+        ;;
+    esac
+  done
+done
 
 printf 'CI path gate tests passed.\n'

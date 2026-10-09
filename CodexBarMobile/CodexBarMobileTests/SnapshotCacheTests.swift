@@ -1071,15 +1071,18 @@ struct SnapshotCacheTests {
         #expect(retained.budget == nil)
     }
 
-    @Test
-    func `Detail-only Atlas Cloud snapshot is retained by ghost filtering`() throws {
+    @Test(arguments: [
+        "atlascloud", "tavily", "exa", "linkup", "tinyapi", "cosmic", "aerostack", "sailresearch", "sofya",
+        "ollama", "jetbrains",
+    ])
+    func `Detail-only billing snapshots survive ingestion and reach generic details`(providerID: String) throws {
         var cache = SnapshotCache()
         let details = [SyncProviderDetailSection(
             title: "Account balance",
             rows: [.init(label: "Available balance", value: "$95.50")])]
         let provider = ProviderUsageSnapshot(
-            providerID: "atlascloud",
-            providerName: "Atlas Cloud",
+            providerID: providerID,
+            providerName: providerID,
             primary: nil,
             secondary: nil,
             accountEmail: nil,
@@ -1096,8 +1099,15 @@ struct SnapshotCacheTests {
 
         cache.replaceFromFullFetch(perProviderSnapshots: [snapshot], legacySnapshots: [])
 
-        let retained = try #require(cache.perProviderByDevice["mac-A"]?["atlascloud|_"])
+        let retained = try #require(cache.perProviderByDevice["mac-A"]?[SnapshotCache.compositeKey(for: provider)])
         #expect(retained.providerDetails == details)
+        #expect(retained.primary == nil)
+        #expect(retained.rateWindows.isEmpty)
+        #expect(retained.budget == nil)
+        #expect(retained.costSummary == nil)
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: retained) == details)
+        let roundTrip = try JSONDecoder().decode(ProviderUsageSnapshot.self, from: JSONEncoder().encode(retained))
+        #expect(roundTrip.providerDetails == details)
     }
 
     // MARK: - Codex review P1 — preserve on transient fetch error

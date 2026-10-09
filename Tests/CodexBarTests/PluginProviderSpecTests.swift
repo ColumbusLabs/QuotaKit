@@ -219,6 +219,30 @@ struct PluginProviderSpecTests {
     }
 
     @Test
+    func `new provider specs preserve quota and source semantics`() {
+        let expected: [(UsageProvider, String, Bool, Bool, Set<FetchSourceMode>)] = [
+            (.tavily, "Tavily", false, true, [.auto, .api]),
+            (.linkup, "Linkup", true, true, [.auto, .api]),
+            (.tinyapi, "TinyApi", true, false, [.auto, .web]),
+            (.exa, "Exa", false, false, [.auto, .api]),
+            (.cosmic, "Cosmic AI", false, true, [.auto, .api]),
+            (.aerostack, "Aerostack", false, true, [.auto, .api]),
+            (.sailresearch, "Sail Research", true, true, [.auto, .api]),
+            (.sofya, "Sofya", true, true, [.auto, .api]),
+        ]
+        for (provider, displayName, balanceOnly, widgetSelectable, sourceModes) in expected {
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            #expect(descriptor.metadata.displayName == displayName)
+            #expect(descriptor.metadata.balanceOnly == balanceOnly)
+            #expect(descriptor.metadata.widgetSelectable == widgetSelectable)
+            #expect(!descriptor.metadata.defaultEnabled)
+            #expect(descriptor.fetchPlan.sourceModes == sourceModes)
+            #expect(descriptor.branding.iconResourceName == "ProviderIcon-\(provider.rawValue)")
+            #expect(ProviderCatalog.implementation(for: provider) != nil)
+        }
+    }
+
+    @Test
     func `custom budgets and settings destinations stay explicit`() {
         #expect(AtlasCloudProviderDescriptor.descriptor.menuBarMetrics == .automaticOnly)
         #expect(VercelProviderDescriptor.descriptor.menuBarMetrics == .automaticOnly)

@@ -40,14 +40,17 @@ enum DashboardSnapshotBuilder {
         refreshInterval: TimeInterval,
         codexBarVersion: String?,
         accountCollections: [UsageProvider: DashboardAccountsInput] = [:],
-        usageBarsShowUsed: Bool = false) -> DashboardSnapshotPayload
+        usageBarsShowUsed: Bool = false,
+        allAccounts: Bool = false) -> DashboardSnapshotPayload
     {
         var costByProvider: [String: CostPayload] = [:]
         for cost in costPayloads {
             costByProvider[cost.provider] = cost
         }
         var attachedProviders: Set<UsageProvider> = []
-        let providers = usagePayloads.enumerated().map { index, payload in
+        let grouped = Dictionary(grouping: usagePayloads, by: \.provider)
+        let selectedPayloads = self.selectedPayloads(usagePayloads, allAccounts: allAccounts)
+        let providers = selectedPayloads.enumerated().map { index, payload in
             var rowAccounts: DashboardAccountsInput?
             if let provider = UsageProvider(rawValue: payload.provider), attachedProviders.insert(provider).inserted {
                 rowAccounts = accountCollections[provider]
@@ -62,7 +65,12 @@ enum DashboardSnapshotBuilder {
                 presentation: presentation,
                 identityMode: identityMode,
                 generatedAt: generatedAt,
-                accountCollection: rowAccounts)
+                accountCollection: rowAccounts,
+                accountCollectionIncomplete: allAccounts && self.accountCollectionIncomplete(
+                    provider: payload.provider,
+                    payloads: grouped[payload.provider] ?? [],
+                    config: config),
+                accountPayloads: allAccounts ? grouped[payload.provider] : nil)
         }
 
         let refreshSeconds = self.dashboardRefreshSeconds(refreshInterval)
@@ -128,13 +136,27 @@ enum DashboardSnapshotBuilder {
         presentation: ProviderPresentation,
         identityMode: DashboardIdentityMode,
         generatedAt: Date,
-        accountCollection: DashboardAccountsInput?) -> DashboardProviderPayload
+        accountCollection: DashboardAccountsInput?,
+        accountCollectionIncomplete: Bool,
+        accountPayloads: [ProviderPayload]?) -> DashboardProviderPayload
     {
         let provider = UsageProvider(rawValue: payload.provider)
         let descriptor = provider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
         let metadata = descriptor?.metadata
 
-        let error = payload.error ?? cost?.error
+        let error = (payload.error ?? cost?.error).map {
+            ProviderErrorPayload(
+                code: $0.code,
+                message: accountPayloads != nil && identityMode != .full ? "Account usage unavailable" : $0.message,
+                kind: $0.kind)
+        }
+        let collectedAccounts = accountPayloads?.enumerated().compactMap { index, accountPayload in
+            self.makeUsageAccount(accountPayload, identityMode: identityMode, number: index + 1)
+        }
+        var collectedByID: [String: DashboardAccountPayload] = [:]
+        for account in collectedAccounts ?? [] where collectedByID[account.id] == nil {
+            collectedByID[account.id] = account
+        }
         let providerAccounts = accountCollection?.accounts?.filter { $0.provider == provider }
         // Provider-specific by design: Claude Swap hides one account row unless its display option is enabled.
         let projectedAccounts: [ProviderAccountUsageSnapshot]? = if provider == .claude,
@@ -149,15 +171,36 @@ enum DashboardSnapshotBuilder {
         } else {
             providerAccounts
         }
-        let accounts = accountCollection?.adapterError == nil
-            ? projectedAccounts?.map { account in
-                self.makeAccount(
+        var accounts = accountCollection?.adapterError == nil
+            ? projectedAccounts?.enumerated().map { index, account in
+                let saved = self.makeAccount(
                     account,
                     identityMode: identityMode,
                     weeklyWorkDays: accountCollection?.weeklyWorkDays,
-                    generatedAt: generatedAt)
+                    generatedAt: generatedAt,
+                    privateLabel: accountPayloads != nil && identityMode != .full ? "Account \(index + 1)" : nil)
+                guard provider == .codex, let current = collectedByID[saved.id] else { return saved }
+                return self.preferCurrentUsage(current, over: saved)
             }
             : nil
+        // Provider-specific by design: saved managed Codex snapshots remain authoritative for
+        // matching accounts; all-account RPC output adds previously unseen profile/live accounts.
+        if provider == .codex, let accountPayloads {
+            var knownIDs = Set(accounts?.map(\.id) ?? [])
+            let additional = (collectedAccounts ?? []).compactMap { account -> DashboardAccountPayload? in
+                guard knownIDs.insert(account.id).inserted else { return nil }
+                guard identityMode != .full else { return account }
+                return self.relabel(account, as: "Account \(knownIDs.count)")
+            }
+            accounts = (accounts ?? []) + additional
+        }
+        let accountsError: String? = if let adapterError = accountCollection?.adapterError {
+            accountPayloads != nil && identityMode != .full ? "Account list unavailable" : adapterError
+        } else if accountCollectionIncomplete {
+            "Account list incomplete"
+        } else {
+            nil
+        }
         return DashboardProviderPayload(
             id: presentation.id,
             name: presentation.name,
@@ -180,8 +223,90 @@ enum DashboardSnapshotBuilder {
                 cost: cost,
                 error: error,
                 generatedAt: generatedAt),
-            accounts: accounts,
-            accountsError: accountCollection?.adapterError)
+            accounts: accountCollection != nil ? accounts : (collectedAccounts?.isEmpty == false ? collectedAccounts : nil),
+            accountsError: accountsError)
+    }
+
+    private static func accountCollectionIncomplete(
+        provider: String,
+        payloads: [ProviderPayload],
+        config: CodexBarConfig) -> Bool
+    {
+        if payloads.contains(where: \.dashboardAccountsIncomplete) { return true }
+        guard let provider = UsageProvider(rawValue: provider),
+              TokenAccountSupportCatalog.support(for: provider) != nil,
+              let accounts = config.providerConfig(for: provider.instanceID)?.tokenAccounts?.accounts
+        else { return false }
+        let collectedIDs = Set(payloads.compactMap { $0.dashboardAccount?.id })
+        return accounts.contains { !collectedIDs.contains(DashboardUsageAccount.token($0, active: false).id) }
+    }
+
+    /// Preserve provider order while choosing the active account for each expanded top-level row.
+    static func selectedPayloads(_ payloads: [ProviderPayload], allAccounts: Bool) -> [ProviderPayload] {
+        guard allAccounts else { return payloads }
+        let groups = Dictionary(grouping: payloads, by: \.provider)
+        var seen = Set<String>()
+        return payloads.compactMap { payload in
+            guard seen.insert(payload.provider).inserted else { return nil }
+            return groups[payload.provider]?.first(where: { $0.dashboardAccount?.active == true }) ?? payload
+        }
+    }
+
+    private static func makeUsageAccount(
+        _ payload: ProviderPayload,
+        identityMode: DashboardIdentityMode,
+        number: Int) -> DashboardAccountPayload?
+    {
+        guard let account = payload.dashboardAccount else { return nil }
+        let provider = UsageProvider(rawValue: payload.provider)
+        let metadata = provider.map { ProviderDescriptorRegistry.descriptor(for: $0).metadata }
+        return DashboardAccountPayload(
+            id: account.id,
+            label: identityMode == .full ? (account.label.isEmpty ? "Account" : account.label) : "Account \(number)",
+            active: account.active,
+            identity: self.makeIdentity(provider: provider, usage: payload.usage, mode: identityMode),
+            windows: self.makeWindows(provider: provider, metadata: metadata, usage: payload.usage),
+            pace: payload.pace,
+            error: payload.error.map { identityMode == .full ? $0.message : "Account usage unavailable" },
+            updatedAt: payload.usage?.updatedAt)
+    }
+
+    private static func relabel(_ account: DashboardAccountPayload, as label: String) -> DashboardAccountPayload {
+        DashboardAccountPayload(
+            id: account.id,
+            label: label,
+            active: account.active,
+            identity: account.identity,
+            windows: account.windows,
+            pace: account.pace,
+            error: account.error,
+            updatedAt: account.updatedAt)
+    }
+
+    private static func preferCurrentUsage(
+        _ current: DashboardAccountPayload,
+        over saved: DashboardAccountPayload) -> DashboardAccountPayload
+    {
+        guard current.error == nil, current.updatedAt != nil else {
+            return DashboardAccountPayload(
+                id: saved.id,
+                label: saved.label,
+                active: current.active,
+                identity: saved.identity,
+                windows: saved.windows,
+                pace: saved.pace,
+                error: saved.error,
+                updatedAt: saved.updatedAt)
+        }
+        return DashboardAccountPayload(
+            id: saved.id,
+            label: saved.label,
+            active: current.active,
+            identity: current.identity ?? saved.identity,
+            windows: current.windows,
+            pace: current.pace ?? saved.pace,
+            error: nil,
+            updatedAt: current.updatedAt)
     }
 
     private static func providerPresentation(
@@ -211,7 +336,8 @@ enum DashboardSnapshotBuilder {
         _ account: ProviderAccountUsageSnapshot,
         identityMode: DashboardIdentityMode,
         weeklyWorkDays: Int?,
-        generatedAt: Date) -> DashboardAccountPayload
+        generatedAt: Date,
+        privateLabel: String? = nil) -> DashboardAccountPayload
     {
         // Provider-specific by design: identity stays the source email. Aliases and organization labels can
         // contain personal or workspace-identifying text, so redacted output retains only the redacted mailbox.
@@ -239,7 +365,7 @@ enum DashboardSnapshotBuilder {
         let metadata = ProviderDescriptorRegistry.descriptor(for: account.provider).metadata
         return DashboardAccountPayload(
             id: "\(account.id.source):\(account.id.opaqueID)",
-            label: label,
+            label: privateLabel ?? label,
             active: account.isActive,
             identity: identity,
             windows: self.makeWindows(provider: account.provider, metadata: metadata, usage: account.snapshot),
@@ -250,7 +376,7 @@ enum DashboardSnapshotBuilder {
                     weeklyWorkDays: weeklyWorkDays,
                     now: generatedAt)
             },
-            error: account.error,
+            error: account.error.map { privateLabel != nil ? "Account usage unavailable" : $0 },
             updatedAt: account.snapshot?.updatedAt)
     }
 

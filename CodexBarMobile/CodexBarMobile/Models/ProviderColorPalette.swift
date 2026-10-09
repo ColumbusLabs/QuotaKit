@@ -206,6 +206,14 @@ enum ProviderColorPalette {
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),
             (["xapi"], RawColor(red: 113 / 255, green: 118 / 255, blue: 123 / 255)),
             (["devin"], RawColor(red: 49 / 255, green: 124 / 255, blue: 255 / 255)),
+            (["tavily"], RawColor(red: 120 / 255, green: 176 / 255, blue: 161 / 255)),
+            (["linkup"], RawColor(red: 32 / 255, green: 32 / 255, blue: 32 / 255)),
+            (["tinyapi"], RawColor(red: 228 / 255, green: 87 / 255, blue: 46 / 255)),
+            (["exa"], RawColor(red: 1 / 255, green: 67 / 255, blue: 217 / 255)),
+            (["cosmic"], RawColor(red: 41 / 255, green: 171 / 255, blue: 226 / 255)),
+            (["aerostack"], RawColor(red: 79 / 255, green: 70 / 255, blue: 229 / 255)),
+            (["sailresearch"], RawColor(red: 44 / 255, green: 70 / 255, blue: 129 / 255)),
+            (["sofya"], RawColor(red: 176 / 255, green: 184 / 255, blue: 32 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

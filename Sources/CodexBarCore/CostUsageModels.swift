@@ -114,67 +114,6 @@ public struct CostUsageQuotaWeek: Sendable, Equatable {
     }
 }
 
-/// An estimated local Codex conversation total derived from one session log.
-/// This is intentionally distinct from account-level billing or quota data.
-public struct CostUsageSessionBreakdown: Sendable, Equatable, Identifiable {
-    public let sessionID: String
-    public let lastActivity: Date
-    public let inputTokens: Int?
-    public let cachedInputTokens: Int?
-    public let outputTokens: Int?
-    public let reasoningTokens: Int?
-    public let totalTokens: Int?
-    public let requestCount: Int?
-    public let costUSD: Double?
-    public let modelBreakdowns: [CostUsageDailyReport.ModelBreakdown]
-    public let projectPath: String?
-    public internal(set) var projectName: String?
-    public private(set) var title: String?
-    /// Original rollout working directory, retained for relative Codex SQLite-home lookup.
-    var workingDirectory: String?
-
-    public var id: String {
-        self.sessionID
-    }
-
-    public init(
-        sessionID: String,
-        lastActivity: Date,
-        inputTokens: Int?,
-        cachedInputTokens: Int?,
-        outputTokens: Int?,
-        reasoningTokens: Int? = nil,
-        totalTokens: Int?,
-        requestCount: Int?,
-        costUSD: Double?,
-        modelBreakdowns: [CostUsageDailyReport.ModelBreakdown],
-        projectPath: String? = nil,
-        projectName: String? = nil,
-        title: String? = nil)
-    {
-        self.sessionID = sessionID
-        self.lastActivity = lastActivity
-        self.inputTokens = inputTokens
-        self.cachedInputTokens = cachedInputTokens
-        self.outputTokens = outputTokens
-        self.reasoningTokens = reasoningTokens
-        self.totalTokens = totalTokens
-        self.requestCount = requestCount
-        self.costUSD = costUSD
-        self.modelBreakdowns = modelBreakdowns
-        self.projectPath = projectPath
-        self.projectName = projectName
-        self.title = title
-        self.workingDirectory = nil
-    }
-
-    public func withTitle(_ title: String?) -> CostUsageSessionBreakdown {
-        var copy = self
-        copy.title = title
-        return copy
-    }
-}
-
 /// An hour-aligned bucket used by spend charts and legacy quota history.
 public struct CostUsageHourlyEntry: Sendable, Equatable {
     public let hour: Date

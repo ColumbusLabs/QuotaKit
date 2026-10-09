@@ -50,6 +50,10 @@ classify_path() {
       require_macos_tests "$path" "changes contributor or runtime configuration contracts"
       full_suite_required=true
       ;;
+    Sources/*.md|Tests/*.md|TestsLinux/*.md|Shared/*.md|CodexBarMobile/*.md|WidgetExtension/*.md|.github/workflows/*.md)
+      require_macos_tests "$path" "changes source, tests, or workflows"
+      full_suite_required=true
+      ;;
     *.md)
       ;;
     docs/*.tsv)
@@ -119,6 +123,9 @@ if [[ "$path_count" -eq 0 ]]; then
   full_suite_required=true
 fi
 
+linux_cli_build="$macos_tests"
+linux_cli_build_reason="${macos_tests_reason:-docs/site-only changes covered by portable checks}"
+
 macos_test_filter=""
 macos_shard_indexes='[0,1,2,3]'
 if [[ "$settings_appearance_changed" == true ]] && ! grep -Eq \
@@ -167,6 +174,8 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'macos-tests=%s\n' "$macos_tests" >> "$GITHUB_OUTPUT"
   printf 'macos-tests-deferred=%s\n' "$macos_tests_deferred" >> "$GITHUB_OUTPUT"
   printf 'macos-tests-reason=%s\n' "$summary_reason" >> "$GITHUB_OUTPUT"
+  printf 'linux-cli-build=%s\n' "$linux_cli_build" >> "$GITHUB_OUTPUT"
+  printf 'linux-cli-build-reason=%s\n' "$linux_cli_build_reason" >> "$GITHUB_OUTPUT"
   printf 'changed-path-count=%s\n' "$path_count" >> "$GITHUB_OUTPUT"
   printf 'macos-test-filter=%s\n' "$macos_test_filter" >> "$GITHUB_OUTPUT"
   printf 'macos-shard-indexes=%s\n' "$macos_shard_indexes" >> "$GITHUB_OUTPUT"

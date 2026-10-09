@@ -79,6 +79,20 @@ emails in a one-shot snapshot, and `quotakit serve --identity full` includes the
 client. Full identity is an explicit trusted-surface option: use it only for private output paths or trusted private
 networks, and remember that `--output` publishes snapshots with mode `0644`.
 
+`quotakit serve --all-accounts` expands dashboard snapshots to visible Codex profiles and configured token accounts.
+The option affects `/dashboard/v1/snapshot` only; `/usage` keeps its existing Codex enumeration and `/cost` is
+unchanged. Expanded snapshots default to no identity, neutral numbered labels, and generic account/provider errors,
+independently of the ordinary redacted default. Explicit `--identity redacted` retains masked email domains and plan
+labels while keeping labels and errors generic. `--identity full` opts into account labels, identities, and error
+details. Account IDs remain correlation handles and do not promise anonymity.
+
+Each provider still appears once. Its top-level usage and identity describe the selected account, falling back to the
+first discovered account only when no active account is identified. Per-account rows keep their own usage and errors.
+Completed accounts survive a sibling timing out; unfinished rows do not borrow cached usage. Unreadable Codex
+inventory or configured token accounts missing from the response produces `accountsError: "Account list incomplete"`.
+An enabled Claude Swap adapter remains authoritative, including empty results and adapter failures, and is not
+duplicated with token-account collection.
+
 ## Threat model — read before binding beyond loopback
 
 Transport is **plain HTTP**. There is no TLS in `quotakit serve`, which means:

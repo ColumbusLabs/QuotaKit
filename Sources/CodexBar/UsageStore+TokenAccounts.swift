@@ -365,6 +365,12 @@ extension UsageStore {
         // Auth files can change while account fetches are in flight, so account refreshes bypass the
         // short-lived reconciliation cache used for normal menu rendering and stale-result guards.
         self.settings.invalidateCodexAccountReconciliationSnapshotCache()
+        return self.codexVisibleAccountProjectionWithCurrentManagedAuth(requireLiveManagedAuthFor: accountIDs)
+    }
+
+    func codexVisibleAccountProjectionWithCurrentManagedAuth(
+        requireLiveManagedAuthFor accountIDs: Set<UUID> = []) -> CodexVisibleAccountProjection
+    {
         let snapshot = self.settings.codexAccountReconciliationSnapshot
         return Self.codexVisibleAccountProjectionWithFreshManagedAuthFingerprints(
             CodexVisibleAccountProjection.make(from: snapshot),

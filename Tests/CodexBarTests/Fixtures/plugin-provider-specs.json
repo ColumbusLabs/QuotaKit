@@ -91,7 +91,15 @@
     "museai",
     "lithosai",
     "workbuddy",
-    "langdock"
+    "langdock",
+    "tavily",
+    "linkup",
+    "tinyapi",
+    "exa",
+    "cosmic",
+    "aerostack",
+    "sailresearch",
+    "sofya"
   ],
   "order": [
     "codex",
@@ -185,7 +193,15 @@
     "museai",
     "lithosai",
     "workbuddy",
-    "langdock"
+    "langdock",
+    "tavily",
+    "linkup",
+    "tinyapi",
+    "exa",
+    "cosmic",
+    "aerostack",
+    "sailresearch",
+    "sofya"
   ],
   "providers": [
     {

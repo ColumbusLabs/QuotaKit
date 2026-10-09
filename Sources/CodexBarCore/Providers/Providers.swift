@@ -111,6 +111,15 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case lithosai
     case workbuddy
     case langdock
+    // Search, research, and coding providers from the upstream catalog.
+    case tavily
+    case linkup
+    case tinyapi
+    case exa
+    case cosmic
+    case aerostack
+    case sailresearch
+    case sofya
 }
 
 // swiftformat:enable sortDeclarations

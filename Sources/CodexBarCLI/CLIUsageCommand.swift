@@ -291,24 +291,31 @@ extension CodexBarCLI {
         provider: UsageProvider,
         status: ProviderStatusPayload?,
         tokenContext: TokenAccountCLIContext,
-        command: UsageCommandContext) async -> UsageCommandOutput
+        command: UsageCommandContext,
+        publishPartial: CLIServeOperationCoordinator<UsageCommandOutput>.PublishPartial? = nil) async -> UsageCommandOutput
     {
         // Provider-specific by design: Codex can enumerate reconciled live, managed, and profile-home accounts.
         if provider == .codex, command.includeAllCodexAccounts {
-            var output = UsageCommandOutput()
-            let accounts = tokenContext.visibleCodexAccounts().visibleAccounts
+            let projection = tokenContext.visibleCodexAccounts()
+            let accounts = projection.visibleAccounts
             let selections: [CodexVisibleAccount?] = accounts.isEmpty ? [nil] : accounts.map { Optional($0) }
-            for visibleAccount in selections {
-                let result = await Self.fetchUsageOutput(
+            return await Self.collectAccountUsage(
+                provider: provider,
+                accounts: selections.map { account in
+                    account.map(DashboardUsageAccount.codex)
+                        ?? (publishPartial == nil ? nil : .singleAccount(for: provider))
+                },
+                inventoryIncomplete: projection.hasUnreadableAddedAccountStore,
+                publishPartial: publishPartial)
+            { index in
+                await Self.fetchUsageOutput(
                     provider: provider,
                     account: nil,
-                    codexVisibleAccount: visibleAccount,
+                    codexVisibleAccount: selections[index],
                     status: status,
                     tokenContext: tokenContext,
                     command: command)
-                output.merge(result)
             }
-            return output
         }
 
         let accounts: [ProviderTokenAccount]
@@ -325,26 +332,26 @@ extension CodexBarCLI {
         }
 
         let selections = Self.accountSelections(from: accounts)
-        var output = UsageCommandOutput()
-        let accountRefreshDelay = TokenAccountSupportCatalog
-            .support(for: provider)?.minimumDelayBetweenAccountRefreshes
-        for (index, account) in selections.enumerated() {
-            if index > 0, let accountRefreshDelay {
-                do {
-                    try await Task.sleep(for: accountRefreshDelay)
-                } catch {
-                    return output
-                }
-            }
-            let result = await Self.fetchUsageOutput(
+        let tokenData = tokenContext.accountsByProvider[provider]
+        let activeID = tokenData.flatMap { data in
+            data.accounts.isEmpty ? nil : data.accounts[data.clampedActiveIndex()].id
+        }
+        return await Self.collectAccountUsage(
+            provider: provider,
+            accounts: selections.map { account in
+                account.map { DashboardUsageAccount.token($0, active: $0.id == activeID) }
+                    ?? (publishPartial == nil ? nil : .singleAccount(for: provider))
+            },
+            minimumDelay: TokenAccountSupportCatalog.support(for: provider)?.minimumDelayBetweenAccountRefreshes,
+            publishPartial: publishPartial)
+        { index in
+            await Self.fetchUsageOutput(
                 provider: provider,
-                account: account,
+                account: selections[index],
                 status: status,
                 tokenContext: tokenContext,
                 command: command)
-            output.merge(result)
         }
-        return output
     }
 
     private static func accountSelections(from accounts: [ProviderTokenAccount]) -> [ProviderTokenAccount?] {

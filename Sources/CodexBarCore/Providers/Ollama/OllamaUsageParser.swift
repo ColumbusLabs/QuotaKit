@@ -17,6 +17,25 @@ enum OllamaUsageParser {
         case failure(ParseFailure)
     }
 
+    private struct CreditPage {
+        let planName: String?
+        let balance: String?
+        let monthlyCreditsUsed: String?
+        let refillMessage: String?
+
+        var detailSection: ProviderDetailSection? {
+            let rows = [
+                self.balance.map { ProviderDetailSection.makeRow(label: "Credit balance", value: $0) },
+                self.monthlyCreditsUsed.map {
+                    ProviderDetailSection.makeRow(label: "Monthly credits used", value: $0)
+                },
+                self.refillMessage.map { ProviderDetailSection.makeRow(label: "Next refill", value: $0) },
+            ].compactMap(\.self)
+            guard !rows.isEmpty else { return nil }
+            return ProviderDetailSection.makeSection(title: "Credits", rows: rows)
+        }
+    }
+
     static func parse(html: String, now: Date = Date()) throws -> OllamaUsageSnapshot {
         switch self.parseClassified(html: html, now: now) {
         case let .success(snapshot):
@@ -34,8 +53,9 @@ enum OllamaUsageParser {
         let monthly = self.parseUsageBlock(labels: self.monthlyUsageLabels, html: html)
         let session = self.parseUsageBlock(labels: Self.legacyPrimaryUsageLabels, html: html)
         let weekly = self.parseUsageBlock(label: "Weekly usage", html: html)
+        let creditPage = self.parseCreditPage(html)
 
-        if monthly == nil, session == nil, weekly == nil {
+        if monthly == nil, session == nil, weekly == nil, creditPage == nil {
             if self.looksSignedOut(html) {
                 return .failure(.notLoggedIn)
             }
@@ -43,7 +63,7 @@ enum OllamaUsageParser {
         }
 
         return .success(OllamaUsageSnapshot(
-            planName: plan,
+            planName: creditPage?.planName ?? plan,
             accountEmail: email,
             monthlyUsedPercent: monthly?.usedPercent,
             monthlyResetsAt: monthly?.resetsAt,
@@ -52,7 +72,58 @@ enum OllamaUsageParser {
             sessionResetsAt: session?.resetsAt,
             weeklyResetsAt: weekly?.resetsAt,
             sessionWindowMinutes: session?.windowMinutes,
+            details: creditPage?.detailSection.map { [$0] } ?? [],
             updatedAt: now))
+    }
+
+    /// Current Ollama settings can report a wallet without any quota windows. Keep its
+    /// complete displayed values as details and never derive a quota percentage from them.
+    private static func parseCreditPage(_ html: String) -> CreditPage? {
+        var page = html
+        for pattern in [#"(?is)<script\b[^>]*>.*?</script\s*>"#, #"(?is)<style\b[^>]*>.*?</style\s*>"#] {
+            page = page.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+        }
+        page = page.replacingOccurrences(of: "&nbsp;", with: " ")
+        let walletPattern = #"<h[1-6][^>]*>\s*Usage credits(?:\s*<span[^>]*>\s*([^<]*)\s*</span\s*>)?\s*</h[1-6]\s*>(.*?)(?=</section\s*>|<h[1-6]\b|$)"#
+        guard let walletRegex = try? NSRegularExpression(
+            pattern: walletPattern,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]),
+              let walletMatch = walletRegex.firstMatch(
+                  in: page,
+                  range: NSRange(page.startIndex..<page.endIndex, in: page)),
+              let walletRange = Range(walletMatch.range(at: 2), in: page)
+        else {
+            return nil
+        }
+
+        let wallet = String(page[walletRange])
+
+        let money = #"\$(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?"#
+        let fields = [
+            (
+                "Credit balance",
+                #"^\s*(?:<div[^>]*>\s*)*<span[^>]*>\s*(\#(money))\s*</span\s*>"#),
+            (
+                "Monthly credits used",
+                #"<span[^>]*>\s*Monthly credits used\s*</span\s*>\s*<span[^>]*>\s*(\#(money))\s*</span\s*>"#),
+            (
+                "Next refill",
+                #"<p[^>]*>\s*Refills\s+(to\s+\#(money)\s+in\s+[^<]{1,160}?)\s*</p\s*>"#),
+        ]
+        let rows = fields.compactMap { label, pattern in
+            self.firstCapture(in: wallet, pattern: pattern, options: [.caseInsensitive])
+                .map { ProviderDetailSection.makeRow(label: label, value: $0) }
+        }
+        guard rows.contains(where: { $0.label != "Next refill" }) else { return nil }
+
+        let planName = Range(walletMatch.range(at: 1), in: page).map { String(page[$0]) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.replacingOccurrences(of: "&amp;", with: "&") }
+        return CreditPage(
+            planName: planName?.isEmpty == false ? planName : nil,
+            balance: rows.first { $0.label == "Credit balance" }?.value,
+            monthlyCreditsUsed: rows.first { $0.label == "Monthly credits used" }?.value,
+            refillMessage: rows.first { $0.label == "Next refill" }?.value)
     }
 
     private struct UsageBlock {

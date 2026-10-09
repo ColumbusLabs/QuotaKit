@@ -83,6 +83,42 @@ struct CodexBarConfigMigratorTests {
     }
 
     @Test
+    func `disabled Keychain reads leave legacy migration pending for a later retry`() throws {
+        let suite = "CodexBarConfigMigratorTests-keychain-disabled-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let secrets = CountingLegacySecretStore()
+        let accountStore = CountingTokenAccountStore()
+        let stores = Self.legacyStores(secrets: secrets, accountStore: accountStore)
+        let configStore = testConfigStore(suiteName: suite)
+
+        _ = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore,
+            userDefaults: defaults,
+            keychainAccessDisabled: true,
+            stores: stores)
+
+        let disabledReadCount = secrets.loadCount
+        #expect(disabledReadCount > 0)
+        #expect(secrets.clearAttempts == 0)
+        #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == false)
+
+        try secrets.storeToken("legacy-token")
+        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore,
+            userDefaults: defaults,
+            keychainAccessDisabled: false,
+            stores: stores)
+
+        #expect(secrets.loadCount > disabledReadCount)
+        #expect(migrated.providerConfig(for: .zai)?.apiKey == "legacy-token")
+        #expect(secrets.clearAttempts > 0)
+        #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey))
+    }
+
+    @Test
     func `legacy migration completion waits for successful cleanup`() throws {
         let suite = "CodexBarConfigMigratorTests-cleanup-failure-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))

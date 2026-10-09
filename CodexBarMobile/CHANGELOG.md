@@ -14,6 +14,7 @@ current Columbus Labs product surface and recent release history.
 - Verified Claude subscription renewal and expiration dates now sync from Mac to iPhone; calendar-only dates preserve their original day.
 
 - WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts.
+- Tavily, Cosmic AI, and Aerostack quota windows; Linkup, TinyApi, Exa, Sail Research, and Sofya provider details; and Ollama wallet details and JetBrains top-up details now sync from QuotaKit Mac to iPhone.
 - Claude promotional cloud-session credits sync separately from quotas and prepaid usage; cached credits show expired after their expiration.
 
 - Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone.

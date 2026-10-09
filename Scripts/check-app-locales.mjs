@@ -3,6 +3,12 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  hasPrintfArguments,
+  pluralCatalogErrors,
+  printfSignature,
+  protectedLiteralErrors,
+} from "./localization-formats.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const resources = path.join(repoRoot, "Sources/CodexBar/Resources");
@@ -25,24 +31,8 @@ function readCatalog(locale) {
   return JSON.parse(output);
 }
 
-function tokenSignature(value) {
-  // Exclude explicit `%%`, which does not consume an argument.
-  const withoutEscapedPercents = value.replace(/%%/g, "");
-  const printfRaw = withoutEscapedPercents.match(/%(?:\d+\$)?(?:\.\d+)?(?:@|d|f)/g) ?? [];
-
-  const printf = {};
-  let implicitIndex = 1;
-  for (const token of printfRaw) {
-    const match = token.match(/%(\d+)\$.*?([@df])/);
-    if (match) {
-      printf[Number.parseInt(match[1], 10)] = match[2];
-    } else {
-      printf[implicitIndex] = token.at(-1);
-      implicitIndex += 1;
-    }
-  }
-
-  return { printf, swift: swiftInterpolationTokens(value).sort() };
+function tokenSignature(value, formatted = hasPrintfArguments(value)) {
+  return { printf: formatted ? printfSignature(value) : {}, swift: swiftInterpolationTokens(value).sort() };
 }
 
 function formatKeyList(keys, limit = 12) {
@@ -107,6 +97,33 @@ if (isTest) {
 
 let hasErrors = false;
 let checkedCount = 0;
+
+const pluralFile = path.join(resources, "en.lproj/Localizable.stringsdict");
+const englishPlurals = JSON.parse(
+  execFileSync("plutil", ["-convert", "json", "-o", "-", pluralFile], { encoding: "utf8" }),
+);
+const pluralKeys = Object.keys(englishPlurals);
+for (const directory of fs.readdirSync(resources).filter((name) => name.endsWith(".lproj") && name !== "Base.lproj")) {
+  const file = path.join(resources, directory, "Localizable.stringsdict");
+  if (!fs.existsSync(file)) {
+    console.error(`[${directory}] Missing plural dictionary`);
+    hasErrors = true;
+    continue;
+  }
+  const catalog = JSON.parse(execFileSync("plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" }));
+  for (const error of pluralCatalogErrors(catalog, englishPlurals)) {
+    console.error(`[${directory}] ${error}`);
+    hasErrors = true;
+  }
+}
+for (const key of englishKeys) {
+  try {
+    tokenSignature(english[key], hasPrintfArguments(key) || hasPrintfArguments(english[key]));
+  } catch (error) {
+    console.error(`[en] Invalid format for ${JSON.stringify(key)}: ${error.message}`);
+    hasErrors = true;
+  }
+}
 
 for (const completeLocale of completeLocales) {
   const dirPath = path.join(resources, `${completeLocale}.lproj`);
@@ -173,12 +190,22 @@ for (const directory of fs.readdirSync(resources).filter((name) => name.endsWith
     }
 
     // 3. Format placeholder mismatch
-    const tEn = tokenSignature(english[key]);
-    const tLoc = tokenSignature(catalog[key]);
-    if (JSON.stringify(tEn) !== JSON.stringify(tLoc)) {
-      console.error(`\x1b[31m[${locale}] Error: Token mismatch for key "${key}"\x1b[0m`);
-      console.error(`  en: ${english[key]}  Tokens: ${JSON.stringify(tEn)}`);
-      console.error(`  ${locale}: ${catalog[key]}  Tokens: ${JSON.stringify(tLoc)}`);
+    for (const error of protectedLiteralErrors(key, catalog[key], english[key])) {
+      console.error(`[${locale}] ${error}`);
+      hasErrors = true;
+    }
+    try {
+      const formatted = hasPrintfArguments(key) || hasPrintfArguments(english[key]);
+      const tEn = tokenSignature(english[key], formatted);
+      const tLoc = tokenSignature(catalog[key], formatted);
+      if (JSON.stringify(tEn) !== JSON.stringify(tLoc)) {
+        console.error(`\x1b[31m[${locale}] Error: Token mismatch for key "${key}"\x1b[0m`);
+        console.error(`  en: ${english[key]}  Tokens: ${JSON.stringify(tEn)}`);
+        console.error(`  ${locale}: ${catalog[key]}  Tokens: ${JSON.stringify(tLoc)}`);
+        hasErrors = true;
+      }
+    } catch (error) {
+      console.error(`[${locale}] Invalid format for ${JSON.stringify(key)}: ${error.message}`);
       hasErrors = true;
     }
   }

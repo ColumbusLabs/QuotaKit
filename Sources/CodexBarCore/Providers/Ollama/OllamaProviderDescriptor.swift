@@ -63,6 +63,7 @@ public enum OllamaProviderDescriptor {
                     return minutes <= 300
                 }),
             presentation: ProviderUsagePresentation(
+                menuBarBalanceDetailLabels: ["Credit balance"],
                 rateWindowLabeler: { metadata, snapshot, _ in
                     ProviderRateWindowLabels(
                         primary: Self.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel,

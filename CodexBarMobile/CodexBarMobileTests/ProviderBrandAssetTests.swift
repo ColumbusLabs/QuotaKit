@@ -1,3 +1,4 @@
+import Foundation
 import CodexBarSync
 import Testing
 @testable import CodexBarMobile
@@ -38,6 +39,14 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "llmman") == "ProviderIcon-llmman")
         #expect(ProviderBrandAsset.assetName(for: "lithosai") == "ProviderIcon-lithosai")
         #expect(ProviderBrandAsset.assetName(for: "workbuddy") == "ProviderIcon-workbuddy")
+        #expect(ProviderBrandAsset.assetName(for: "tavily") == "ProviderIcon-tavily")
+        #expect(ProviderBrandAsset.assetName(for: "linkup") == "ProviderIcon-linkup")
+        #expect(ProviderBrandAsset.assetName(for: "tinyapi") == "ProviderIcon-tinyapi")
+        #expect(ProviderBrandAsset.assetName(for: "exa") == "ProviderIcon-exa")
+        #expect(ProviderBrandAsset.assetName(for: "cosmic") == "ProviderIcon-cosmic")
+        #expect(ProviderBrandAsset.assetName(for: "aerostack") == "ProviderIcon-aerostack")
+        #expect(ProviderBrandAsset.assetName(for: "sailresearch") == "ProviderIcon-sailresearch")
+        #expect(ProviderBrandAsset.assetName(for: "sofya") == "ProviderIcon-sofya")
     }
 
     @Test
@@ -56,6 +65,26 @@ struct ProviderBrandAssetTests {
                 ProviderBrandAsset.assetName(for: provider.id) != nil,
                 "\(provider.id) should map to a provider brand asset")
         }
+    }
+
+    @Test
+    func `Pi uses the same official adaptive mark on Mac and iPhone`() throws {
+        var root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        for _ in 0..<12 where !FileManager.default.fileExists(atPath: root.appending(path: "Package.swift").path) {
+            root.deleteLastPathComponent()
+        }
+        let paths = [
+            "Sources/CodexBar/Resources/ProviderIcon-pi.svg",
+            "docs/logos/pi.svg",
+            "CodexBarMobile/CodexBarMobile/ProviderIcons.xcassets/ProviderIcon-pi.imageset/ProviderIcon-pi.svg",
+        ]
+        let marks = try paths.map { path in
+            try String(contentsOf: root.appending(path: path), encoding: .utf8)
+        }
+        #expect(marks.dropFirst().allSatisfy { $0 == marks[0] })
+        #expect(marks[0].contains("viewBox=\"0 0 560 560\""))
+        #expect(marks[0].contains("fill=\"currentColor\""))
+        #expect(marks[0].components(separatedBy: "<path").count == 4)
     }
 
     @Test
