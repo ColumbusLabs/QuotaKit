@@ -12,10 +12,10 @@ public enum TinyApiProviderDescriptor {
         color: .init(hex: 0xF28C54),
         confetti: [0xE4572E, 0xFBBF24],
         noDataMessage: "No cost history data.",
-        history: .unavailable,
         menuBarMetrics: .automaticOnly,
         presentation: ProviderUsagePresentation(
             menuBarBalanceDetailLabels: ["Available credits"]),
+        history: .unavailable,
         webSource: .init(
             settingsSection: .init(TinyApiProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),
             browserCookieOrder: BrowserCookieImportSupport.chromeOnly(

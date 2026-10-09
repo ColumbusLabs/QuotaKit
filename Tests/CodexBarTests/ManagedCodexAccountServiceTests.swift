@@ -712,7 +712,9 @@ struct ManagedCodexAccountServiceTests {
             #expect(error.userFacingMessage.contains("OAuth callback used the wrong browser profile"))
         }
     }
+}
 
+extension ManagedCodexAccountServiceTests {
     @Test
     func `remove deletes managed home under managed root`() async throws {
         let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -70,6 +70,7 @@ public enum OllamaProviderDescriptor {
                         tertiary: metadata.opusLabel ?? "Sonnet",
                         showsTertiary: metadata.supportsOpus)
                 },
+                menuBarBalanceDetailLabels: ["Credit balance"],
                 // Retain saved history, but chart only currently reported quota periods.
                 planUtilizationSeriesResolver: { snapshot in
                     guard snapshot.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes else {
@@ -81,7 +82,6 @@ public enum OllamaProviderDescriptor {
                     }
                     return series
                 },
-                menuBarBalanceDetailLabels: ["Credit balance"],
                 menuCard: ProviderMenuCardPresentation(
                     usageNotesResolver: { context in
                         guard context.snapshot?.identity?.loginMethod == "API key" else { return .unhandled }

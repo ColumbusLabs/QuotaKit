@@ -4,6 +4,14 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
+private struct NewProviderSpecExpectation {
+    let provider: UsageProvider
+    let displayName: String
+    let balanceOnly: Bool
+    let allowsBurnDown: Bool
+    let sourceModes: Set<FetchSourceMode>
+}
+
 @MainActor
 struct PluginProviderSpecTests {
     private static let providers: [UsageProvider] = [
@@ -220,25 +228,69 @@ struct PluginProviderSpecTests {
 
     @Test
     func `new provider specs preserve quota and source semantics`() {
-        let expected: [(UsageProvider, String, Bool, Bool, Set<FetchSourceMode>)] = [
-            (.tavily, "Tavily", false, true, [.auto, .api]),
-            (.linkup, "Linkup", true, true, [.auto, .api]),
-            (.tinyapi, "TinyApi", true, false, [.auto, .web]),
-            (.exa, "Exa", false, false, [.auto, .api]),
-            (.cosmic, "Cosmic AI", false, true, [.auto, .api]),
-            (.aerostack, "Aerostack", false, true, [.auto, .api]),
-            (.sailresearch, "Sail Research", true, true, [.auto, .api]),
-            (.sofya, "Sofya", true, true, [.auto, .api]),
+        let expected = [
+            NewProviderSpecExpectation(
+                provider: .tavily,
+                displayName: "Tavily",
+                balanceOnly: false,
+                allowsBurnDown: true,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .linkup,
+                displayName: "Linkup",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .tinyapi,
+                displayName: "TinyApi",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .web]),
+            NewProviderSpecExpectation(
+                provider: .exa,
+                displayName: "Exa",
+                balanceOnly: false,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .cosmic,
+                displayName: "Cosmic AI",
+                balanceOnly: false,
+                allowsBurnDown: true,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .aerostack,
+                displayName: "Aerostack",
+                balanceOnly: false,
+                allowsBurnDown: true,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .sailresearch,
+                displayName: "Sail Research",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .sofya,
+                displayName: "Sofya",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
         ]
-        for (provider, displayName, balanceOnly, widgetSelectable, sourceModes) in expected {
-            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-            #expect(descriptor.metadata.displayName == displayName)
-            #expect(descriptor.metadata.balanceOnly == balanceOnly)
-            #expect(descriptor.metadata.widgetSelectable == widgetSelectable)
+        for expectation in expected {
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: expectation.provider)
+            #expect(descriptor.metadata.displayName == expectation.displayName)
+            #expect(descriptor.metadata.balanceOnly == expectation.balanceOnly)
+            #expect(!descriptor.metadata.widgetSelectable)
+            #expect(descriptor.snapshotExport.allowsWidgets == (expectation.provider != .exa))
+            let allowsBurnDown = descriptor.snapshotExport.allowsWidgets &&
+                descriptor.metadata.burnDownWidgetSelectable && !descriptor.metadata.balanceOnly
+            #expect(allowsBurnDown == expectation.allowsBurnDown)
             #expect(!descriptor.metadata.defaultEnabled)
-            #expect(descriptor.fetchPlan.sourceModes == sourceModes)
-            #expect(descriptor.branding.iconResourceName == "ProviderIcon-\(provider.rawValue)")
-            #expect(ProviderCatalog.implementation(for: provider) != nil)
+            #expect(descriptor.fetchPlan.sourceModes == expectation.sourceModes)
+            #expect(descriptor.branding.iconResourceName == "ProviderIcon-\(expectation.provider.rawValue)")
+            #expect(ProviderCatalog.implementation(for: expectation.provider) != nil)
         }
     }
 

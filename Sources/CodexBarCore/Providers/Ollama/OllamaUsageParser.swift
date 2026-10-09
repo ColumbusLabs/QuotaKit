@@ -84,7 +84,10 @@ enum OllamaUsageParser {
             page = page.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
         }
         page = page.replacingOccurrences(of: "&nbsp;", with: " ")
-        let walletPattern = #"<h[1-6][^>]*>\s*Usage credits(?:\s*<span[^>]*>\s*([^<]*)\s*</span\s*>)?\s*</h[1-6]\s*>(.*?)(?=</section\s*>|<h[1-6]\b|$)"#
+        let walletPattern = [
+            #"<h[1-6][^>]*>\s*Usage credits(?:\s*<span[^>]*>\s*([^<]*)\s*</span\s*>)?\s*</h[1-6]\s*>"#,
+            #"(.*?)(?=</section\s*>|<h[1-6]\b|$)"#,
+        ].joined()
         guard let walletRegex = try? NSRegularExpression(
             pattern: walletPattern,
             options: [.caseInsensitive, .dotMatchesLineSeparators]),

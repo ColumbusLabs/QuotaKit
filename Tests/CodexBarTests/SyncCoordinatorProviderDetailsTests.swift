@@ -481,11 +481,15 @@ struct SyncCoordinatorProviderDetailsTests {
             .makeRow(label: "Monthly credits used", value: "-$4.50"),
             .makeRow(label: "Next refill", value: "to $30 in 3 weeks."),
         ]
-        let snapshot = UsageSnapshot(primary: nil, secondary: nil, details: [
-            .makeSection(title: "Credits", rows: rows),
-            .makeSection(title: "Credits", rows: [.makeRow(label: "Credit balance", value: "$3.00")]),
-            .makeSection(title: "Unrelated wallet", rows: [.makeRow(label: "Credit balance", value: "$99.00")]),
-        ], updatedAt: Date())
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [
+                .makeSection(title: "Credits", rows: rows),
+                .makeSection(title: "Credits", rows: [.makeRow(label: "Credit balance", value: "$3.00")]),
+                .makeSection(title: "Unrelated wallet", rows: [.makeRow(label: "Credit balance", value: "$99.00")]),
+            ],
+            updatedAt: Date())
         #expect(SyncCoordinator.mapProviderDetails(provider: .ollama, snapshot: snapshot) == [
             .init(title: "Credits", rows: [.init(label: "Credit balance", value: "$1.00")]),
         ])
@@ -501,10 +505,12 @@ struct SyncCoordinatorProviderDetailsTests {
             (.linkup, "Account balance", "Credit balance", "$1.00 owed fixture-private"),
         ]
         for (provider, title, label, value) in malformed {
-            #expect(SyncCoordinator.mapProviderDetails(provider: provider, snapshot: UsageSnapshot(
-                primary: nil, secondary: nil,
+            let snapshot = UsageSnapshot(
+                primary: nil,
+                secondary: nil,
                 details: [.makeSection(title: title, rows: [.makeRow(label: label, value: value)])],
-                updatedAt: Date())) == [])
+                updatedAt: Date())
+            #expect(SyncCoordinator.mapProviderDetails(provider: provider, snapshot: snapshot) == [])
         }
     }
 
@@ -514,19 +520,28 @@ struct SyncCoordinatorProviderDetailsTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = SettingsStore(
-            userDefaults: defaults, configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(), syntheticTokenStore: NoopSyntheticTokenStore())
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.iCloudSyncEnabled = true
         settings.accountWidgetsEnabled = false
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]), browserDetection: BrowserDetection(cacheTTL: 0),
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
         for fixture in Self.billingFixtures {
             try settings.setProviderEnabled(
-                provider: fixture.provider, metadata: #require(ProviderDefaults.metadata[fixture.provider]),
+                provider: fixture.provider,
+                metadata: #require(ProviderDefaults.metadata[fixture.provider]),
                 enabled: true)
-            store._setSnapshotForTesting(UsageSnapshot(
-                primary: nil, secondary: nil, details: fixture.details, updatedAt: Date()), provider: fixture.provider)
+            store._setSnapshotForTesting(
+                UsageSnapshot(
+                    primary: nil,
+                    secondary: nil,
+                    details: fixture.details,
+                    updatedAt: Date()),
+                provider: fixture.provider)
         }
         let pusher = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
@@ -548,7 +563,8 @@ struct SyncCoordinatorProviderDetailsTests {
             let persisted = try JSONEncoder().encode(envelope)
             let restored = try JSONDecoder().decode(ProviderUsageEnvelope.self, from: persisted)
             #expect(restored.provider.providerDetails == fixture.expected)
-            #expect(!String(decoding: persisted, as: UTF8.self).contains("fixture-private"))
+            let wire = try #require(String(bytes: persisted, encoding: .utf8))
+            #expect(!wire.contains("fixture-private"))
         }
         // A successful empty detail-only result replaces the legacy payload with [] and deletes
         // its old per-provider record through the existing ghost cleanup path.
@@ -559,9 +575,12 @@ struct SyncCoordinatorProviderDetailsTests {
         #expect(pusher.deletedRecordNamesAcrossCalls.flatMap(\.self).contains { $0.contains("|linkup|") })
 
         // A provider that still reports real quota retains that quota and explicitly clears wallet rows.
-        store._setSnapshotForTesting(UsageSnapshot(
-            primary: RateWindow(usedPercent: 20, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
-            secondary: nil, updatedAt: Date()), provider: .ollama)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date()),
+            provider: .ollama)
         await coordinator.pushCurrentSnapshot()
         let cleared = try #require(pusher.lastPerProviderEnvelopes.first { $0.provider.providerID == "ollama" })
         #expect(cleared.provider.providerDetails == [])

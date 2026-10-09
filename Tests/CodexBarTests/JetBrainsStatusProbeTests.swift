@@ -448,8 +448,13 @@ struct JetBrainsStatusProbeTests {
     func `top-up balance needs an explicit valid available value`() throws {
         let quotaInfo = """
         {&quot;type&quot;:&quot;Available&quot;,
-         &quot;tariffQuota&quot;:{&quot;current&quot;:&quot;250000&quot;,&quot;maximum&quot;:&quot;1000000&quot;,&quot;available&quot;:&quot;750000&quot;},
-         &quot;topUpQuota&quot;:{&quot;current&quot;:&quot;1000&quot;,&quot;maximum&quot;:&quot;100000&quot;}}
+         &quot;tariffQuota&quot;:{
+           &quot;current&quot;:&quot;250000&quot;,
+           &quot;maximum&quot;:&quot;1000000&quot;,
+           &quot;available&quot;:&quot;750000&quot;},
+         &quot;topUpQuota&quot;:{
+           &quot;current&quot;:&quot;1000&quot;,
+           &quot;maximum&quot;:&quot;100000&quot;}}
         """
         let xml = """
         <application><component name="AIAssistantQuotaManager2">

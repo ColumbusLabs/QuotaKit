@@ -13,26 +13,6 @@ private let ollamaUsageHTML = """
 
 @Suite(.serialized)
 struct OllamaUsageFetcherRetryMappingTests {
-    private func makeContext(
-        sourceMode: ProviderSourceMode,
-        env: [String: String] = [:],
-        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
-    {
-        let browserDetection = BrowserDetection(cacheTTL: 0)
-        return ProviderFetchContext(
-            runtime: .cli,
-            sourceMode: sourceMode,
-            includeCredits: false,
-            webTimeout: 1,
-            webDebugDumpHTML: false,
-            verbose: false,
-            env: env,
-            settings: settings,
-            fetcher: UsageFetcher(),
-            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
-            browserDetection: browserDetection)
-    }
-
     @Test
     func `api key reader trims configured environment key`() {
         let token = OllamaAPISettingsReader.apiKey(environment: ["OLLAMA_API_KEY": " 'ollama-test' "])
@@ -919,44 +899,6 @@ struct OllamaUsageFetcherRetryMappingTests {
         }
         #expect(recorder.count == 1)
     }
-
-    private func makeCookieFetcher(
-        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
-        -> OllamaUsageFetcher
-    {
-        OllamaUsageFetcher(
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            makeURLSession: { delegate in
-                let config = URLSessionConfiguration.ephemeral
-                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
-                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-            },
-            finishURLSession: finishURLSession)
-    }
-
-    private static func makeResponse(
-        url: URL,
-        body: String,
-        statusCode: Int) -> (HTTPURLResponse, Data)
-    {
-        let response = HTTPURLResponse(
-            url: url,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "text/html"])!
-        return (response, Data(body.utf8))
-    }
-
-    private static func makeSnapshot(sessionUsedPercent: Double) -> OllamaUsageSnapshot {
-        OllamaUsageSnapshot(
-            planName: nil,
-            accountEmail: nil,
-            sessionUsedPercent: sessionUsedPercent,
-            weeklyUsedPercent: nil,
-            sessionResetsAt: nil,
-            weeklyResetsAt: nil,
-            updatedAt: Date(timeIntervalSince1970: 200))
-    }
 }
 
 extension OllamaUsageFetcherRetryMappingTests {
@@ -1029,6 +971,64 @@ extension OllamaUsageFetcherRetryMappingTests {
         #expect(dump.contains("Session: 1.2%"))
         #expect(!dump.contains("stale-fixture"))
         #expect(!dump.contains("valid-fixture"))
+    }
+
+    private func makeContext(
+        sourceMode: ProviderSourceMode,
+        env: [String: String] = [:],
+        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
+    {
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: sourceMode,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: env,
+            settings: settings,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
+    }
+
+    private func makeCookieFetcher(
+        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
+        -> OllamaUsageFetcher
+    {
+        OllamaUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            makeURLSession: { delegate in
+                let config = URLSessionConfiguration.ephemeral
+                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
+                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+            },
+            finishURLSession: finishURLSession)
+    }
+
+    private static func makeResponse(
+        url: URL,
+        body: String,
+        statusCode: Int) -> (HTTPURLResponse, Data)
+    {
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "text/html"])!
+        return (response, Data(body.utf8))
+    }
+
+    private static func makeSnapshot(sessionUsedPercent: Double) -> OllamaUsageSnapshot {
+        OllamaUsageSnapshot(
+            planName: nil,
+            accountEmail: nil,
+            sessionUsedPercent: sessionUsedPercent,
+            weeklyUsedPercent: nil,
+            sessionResetsAt: nil,
+            weeklyResetsAt: nil,
+            updatedAt: Date(timeIntervalSince1970: 200))
     }
 }
 

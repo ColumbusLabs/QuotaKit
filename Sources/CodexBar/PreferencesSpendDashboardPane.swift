@@ -998,7 +998,8 @@ struct SpendSessionPanel: View {
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 Text(spendDashboardMetricText(
-                                    cost: row.totalCost, tokens: row.totalTokens,
+                                    cost: row.totalCost,
+                                    tokens: row.totalTokens,
                                     currencyCode: self.group.currencyCode))
                                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                                     .fixedSize(horizontal: false, vertical: true)
