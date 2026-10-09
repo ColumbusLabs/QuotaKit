@@ -75,7 +75,7 @@ final class SearchProviderScreenshotRenderTests: XCTestCase {
                         XCTAssertEqual(hosting.frame.width, 380)
                         XCTAssertFalse(png.isEmpty)
                         try png.write(to: directory.appendingPathComponent("\(stem).png"))
-                        let accessibility = MenuLayoutScreenshotRenderTests.accessibilityText(hosting)
+                        let accessibility = Self.accessibilityText(hosting)
                         try accessibility.write(
                             to: directory.appendingPathComponent("\(stem)-accessibility.txt"),
                             atomically: true,
@@ -89,6 +89,30 @@ final class SearchProviderScreenshotRenderTests: XCTestCase {
                 }
             }
         }
+    }
+
+    private static func accessibilityText(_ element: Any, depth: Int = 0) -> String {
+        guard depth < 30, let accessible = element as? NSObject else { return "" }
+        // SwiftUI nodes implement these public selectors without adopting the full NSAccessibility protocol.
+        let fields = [
+            #selector(NSAccessibilityProtocol.accessibilityRole),
+            #selector(NSAccessibilityProtocol.accessibilityLabel),
+            #selector(NSAccessibilityProtocol.accessibilityValue),
+            #selector(NSAccessibilityProtocol.accessibilityValueDescription),
+            #selector(NSAccessibilityProtocol.accessibilityHelp),
+        ].compactMap { selector in
+            self.accessibilityProperty(accessible, selector: selector).map { String(describing: $0) }
+        }.joined(separator: " | ")
+        let children = self.accessibilityProperty(
+            accessible, selector: #selector(NSAccessibilityProtocol.accessibilityChildren)) as? [Any] ?? []
+        return ([fields] + children.map {
+            self.accessibilityText($0, depth: depth + 1)
+        }).joined(separator: "\n")
+    }
+
+    private static func accessibilityProperty(_ element: NSObject, selector: Selector) -> Any? {
+        guard element.responds(to: selector) else { return nil }
+        return element.perform(selector)?.takeUnretainedValue()
     }
 
     private static func balanceSnapshot(
