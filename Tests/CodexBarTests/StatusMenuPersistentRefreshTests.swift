@@ -229,11 +229,16 @@ struct StatusMenuPersistentRefreshTests {
         settings.mergeIcons = false
 
         let controller = self.makeController(settings: settings, updater: UpdateReadyUpdater())
-        let menu = controller.makeMenu(for: .codex)
-        controller.menuWillOpen(menu)
+        let language = "zh-Hans"
+        let menu = CodexBarLocalizationOverride.$appLanguage.withValue(language) {
+            let menu = controller.makeMenu(for: .codex)
+            controller.menuWillOpen(menu)
+            return menu
+        }
 
-        let updateItem = try #require(menu.items.first { $0.title == "Update ready, restart now?" })
-        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        let updateItem = try #require(menu.items
+            .first { $0.title == L("Update ready, restart now?", language: language) })
+        let refreshItem = try #require(menu.items.first { $0.title == L("Refresh", language: language) })
         #expect(MenuDescriptor.MenuAction.installUpdate.systemImageName == "arrow.down.circle")
         #expect(MenuDescriptor.MenuAction.dashboard.systemImageName == "chart.xyaxis.line")
         #expect(updateItem.image != nil)
@@ -247,12 +252,13 @@ struct StatusMenuPersistentRefreshTests {
         #expect(updateItem.action != nil)
         #expect(updateItem.target === controller)
 
-        for (title, key) in [
-            ("Update ready, restart now?", ""),
-            ("Settings...", ","),
-            ("About QuotaKit", ""),
-            ("Quit", "q"),
-        ] {
+        let nativeActions = [
+            (L("Update ready, restart now?", language: language), ""),
+            (L("Settings...", language: language), ","),
+            (L("About QuotaKit", language: language), ""),
+            (L("Quit", language: language), "q"),
+        ]
+        for (title, key) in nativeActions {
             let item = try #require(menu.items.first { $0.title == title })
             #expect(item.view == nil)
             #expect(item.action != nil)

@@ -529,7 +529,14 @@ struct SyncCoordinatorProviderDetailsTests {
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            // These providers require configured keys before enabledProviders admits them.
+            // Fixture credentials exercise that gate without fetching any real account data.
+            environmentBase: [
+                "COSMIC_TOKEN": "fixture-cosmic-token",
+                "COSMIC_PROJECT_ID": "fixture-cosmic-project",
+                "AEROSTACK_TOKEN": "fixture-aerostack-token",
+            ])
         for fixture in Self.billingFixtures {
             try settings.setProviderEnabled(
                 provider: fixture.provider,
@@ -543,13 +550,23 @@ struct SyncCoordinatorProviderDetailsTests {
                     updatedAt: Date()),
                 provider: fixture.provider)
         }
+        let eligibleProviders = Set(store.enabledProviders())
+        for fixture in Self.billingFixtures {
+            #expect(
+                eligibleProviders.contains(fixture.provider.instanceID),
+                "Billing fixture must be eligible for sync: \(fixture.provider.rawValue)")
+        }
         let pusher = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
         await coordinator.pushCurrentSnapshot()
+        let expectedProviderIDs = Set(Self.billingFixtures.map(\.provider.rawValue))
+        let persistedProviderIDs = Set(pusher.lastPerProviderEnvelopes.map(\.provider.providerID))
+        #expect(expectedProviderIDs.isSubset(of: persistedProviderIDs))
         for fixture in Self.billingFixtures {
-            let envelope = try #require(pusher.lastPerProviderEnvelopes.first {
+            let candidate = pusher.lastPerProviderEnvelopes.first {
                 $0.provider.providerID == fixture.provider.rawValue
-            })
+            }
+            let envelope = try #require(candidate, "Missing billing envelope for \(fixture.provider.rawValue)")
             let provider = envelope.provider
             #expect(provider.providerDetails == fixture.expected)
             #expect(provider.rateWindows.isEmpty)

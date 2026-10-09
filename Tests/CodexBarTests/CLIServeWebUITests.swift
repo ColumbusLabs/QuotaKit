@@ -118,7 +118,9 @@ struct CLIServeWebUITests {
         function node(tag, className, text) {
           return {
             tagName: tag, className, text, children: [], style: {setProperty() {}},
-            classList: {add() {}}, append(...items) { this.children.push(...items); }
+            classList: {add() {}},
+            get childElementCount() { return this.children.length; },
+            append(...items) { this.children.push(...items); }
           };
         }
         function providerGlyph() { return node("span", "provider-icon"); }

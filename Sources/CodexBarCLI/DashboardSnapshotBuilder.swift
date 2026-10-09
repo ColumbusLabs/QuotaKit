@@ -171,6 +171,8 @@ enum DashboardSnapshotBuilder {
         } else {
             providerAccounts
         }
+        // Provider-specific by design: saved managed Codex snapshots remain authoritative for matching accounts;
+        // all-account RPC output adds only previously unseen profile and live accounts.
         var accounts = accountCollection?.adapterError == nil
             ? projectedAccounts?.enumerated().map { index, account in
                 let saved = self.makeAccount(
@@ -183,8 +185,6 @@ enum DashboardSnapshotBuilder {
                 return self.preferCurrentUsage(current, over: saved)
             }
             : nil
-        // Provider-specific by design: saved managed Codex snapshots remain authoritative for
-        // matching accounts; all-account RPC output adds previously unseen profile/live accounts.
         if provider == .codex, let accountPayloads {
             var knownIDs = Set(accounts?.map(\.id) ?? [])
             let additional = (collectedAccounts ?? []).compactMap { account -> DashboardAccountPayload? in

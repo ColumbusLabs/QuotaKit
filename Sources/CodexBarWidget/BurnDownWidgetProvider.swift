@@ -191,8 +191,8 @@ enum BurnProviderChoice: String, AppEnum {
         .raycast: DisplayRepresentation(title: "Raycast"),
         .pi: DisplayRepresentation(title: "Pi"),
         .v0: DisplayRepresentation(title: "v0"),
-        .typesafe: DisplayRepresentation(title: "TypeSafe"),
         // Provider-specific by design: AppIntents requires literal catalog titles; snapshot data gates eligibility.
+        .typesafe: DisplayRepresentation(title: "TypeSafe"),
         .hyper: DisplayRepresentation(title: "Charm Hyper"),
         .gitkraken: DisplayRepresentation(title: "GitKraken AI"),
         .devpass: DisplayRepresentation(title: "DevPass"),

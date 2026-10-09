@@ -182,6 +182,7 @@ struct ProviderRegistryTests {
             (.abacus, "#814EE8", "#814EE8"),
             (.amp, "#F34E3F", "#F34E3F"),
             (.augment, "#1AA049", "#1AA049"),
+            (.aerostack, "#7B6CDB", "#7B6CDB"),
             (.bedrock, "#01A88D", "#01A88D"),
             (.clinepass, "#5487C8", "#5487C8"),
             (.codebuff, "#00FF95", "#00FF95"),

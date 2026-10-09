@@ -2045,8 +2045,8 @@ final class SyncCoordinator {
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
              .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
-             // New provider cost and credit surfaces are provider-native or balance-only. They do not
-             // use the local Codex/Claude model-price fallback.
+             // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
+             // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .linkup, .sailresearch, .sofya, .tavily, .tinyapi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).

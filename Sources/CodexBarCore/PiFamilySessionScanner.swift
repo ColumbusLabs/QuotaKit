@@ -722,6 +722,8 @@ struct PiFamilySessionScanner: Sendable {
         {
             return self.isCWDIndependentPath(selector, environment: environment)
         }
+        // Provider-specific by design: PI_CODING_AGENT_DIR selects the Pi home;
+        // OMP profiles use a separate selector contract.
         if AgentPSOutputParser.piDialect(for: process) == .pi,
            let selector = environment["PI_CODING_AGENT_DIR"],
            !selector.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

@@ -41,6 +41,8 @@ enum SyncProviderBillingDetails {
     }
 
     private static func rules(for provider: UsageProvider) -> [SectionRule]? {
+        // Provider-specific by design: the mobile wire has no general billing schema;
+        // each provider maps only explicit safe rows.
         switch provider {
         case .tavily:
             ["Account plan", "API key", "Pay as you go"].map {
@@ -85,6 +87,7 @@ enum SyncProviderBillingDetails {
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
+        // Provider-specific by design: JetBrains exposes only the remaining top-up credit value on this typed wire.
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         default:

@@ -1557,7 +1557,7 @@
 "Enter every endpoint setting to review the exact network origins." = "Inserisci tutte le impostazioni degli endpoint per verificare le origini di rete esatte.";
 "Approve" = "Approva";
 "Install" = "Installa";
-"API URL" = "API URL";
+"API URL" = "URL dell'API";
 "Optional. Defaults to the hosted OpenRouter API." = "Opzionale. Il valore predefinito è OpenRouter API ospitato.";
 "5-hour usage" = "Utilizzo di 5 ore";
 "7-day usage" = "Utilizzo di 7 giorni";
@@ -1960,13 +1960,13 @@
 "For agent and orb usage" = "Per l'utilizzo dell'agente e della sfera";
 "Fuel Pack" = "Pacchetto carburante";
 "Gateway" = "Porta";
-"Gateway URL" = "Gateway URL";
+"Gateway URL" = "URL del gateway";
 "Gemini CLI login is no longer supported" = "L'accesso Gemini CLI non è più supportato";
 "Gemini CLI migration" = "Migrazione Gemini CLI";
 "Gemini Models" = "Modelli Gemini";
 "Generated locally by QuotaKit · Data through %@" = "Generato localmente da QuotaKit · Dati al %@";
 "GitHub accounts" = "Conti GitHub";
-"GitHub cookies" = "GitHub cookies";
+"GitHub cookies" = "Cookie di GitHub";
 "GitHub does not publish this value. Enter it to show a usage bar. Applies to the selected GitHub account." = "GitHub non pubblica questo valore. Inseriscilo per mostrare una barra di utilizzo. Si applica all'account GitHub selezionato.";
 "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "L'accesso a GitHub è riuscito, ma QuotaKit non è riuscito a verificare a quale account appartiene. Per favore riprova.";
 "GitKraken access token" = "GitKraken accedere a token";
@@ -2370,7 +2370,7 @@
 "X API cost history is not available." = "La cronologia dei costi di X API non è disponibile.";
 "You can close this window and return to QuotaKit." = "È possibile chiudere questa finestra e tornare a QuotaKit.";
 "You can close this window and try again." = "Puoi chiudere questa finestra e riprovare.";
-"Zed cookie" = "Zed cookie";
+"Zed cookie" = "Cookie di Zed";
 "Zed cost summary is not supported." = "Il riepilogo dei costi Zed non è supportato.";
 "ZenMux cost history is not exposed by the Management API." = "Lo storico dei costi ZenMux non è esposto dal Management API.";
 "ZenMux management key…" = "Chiave di gestione ZenMux…";
