@@ -267,7 +267,7 @@ package struct PreparedPromotionContextBuilder {
         }
     }
 
-    package static func runtimeAccount(from rawData: Data) throws -> CodexAuthBackedAccount {
+    package nonisolated static func runtimeAccount(from rawData: Data) throws -> CodexAuthBackedAccount {
         guard let json = try JSONSerialization.jsonObject(with: rawData) as? [String: Any] else {
             throw CodexOAuthCredentialsError.decodeFailed("Invalid JSON")
         }
@@ -280,7 +280,7 @@ package struct PreparedPromotionContextBuilder {
         let authDict = payload?["https://api.openai.com/auth"] as? [String: Any]
         let profileDict = payload?["https://api.openai.com/profile"] as? [String: Any]
 
-        let email = Self.normalizeEmail(
+        let email = CodexIdentityResolver.normalizeEmail(
             (payload?["email"] as? String) ?? (profileDict?["email"] as? String))
         let plan = Self.normalizedField(
             (authDict?["chatgpt_plan_type"] as? String) ?? (payload?["chatgpt_plan_type"] as? String))
@@ -297,7 +297,7 @@ package struct PreparedPromotionContextBuilder {
         return CodexAuthBackedAccount(identity: identity, email: email, plan: plan)
     }
 
-    private static func normalizedField(_ value: String?) -> String? {
+    private nonisolated static func normalizedField(_ value: String?) -> String? {
         guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
             return nil
         }
@@ -308,7 +308,7 @@ package struct PreparedPromotionContextBuilder {
         CodexIdentityResolver.normalizeEmail(email)
     }
 
-    private static func normalizedIdentity(_ identity: CodexIdentity, email: String?) -> CodexIdentity {
+    private nonisolated static func normalizedIdentity(_ identity: CodexIdentity, email: String?) -> CodexIdentity {
         guard let email else { return identity }
         return CodexIdentityMatcher.normalized(identity, fallbackEmail: email)
     }
@@ -340,7 +340,7 @@ package struct PreparedPromotionContextBuilder {
         return accessToken != nil && refreshToken != nil
     }
 
-    private static func nonEmptyString(
+    private nonisolated static func nonEmptyString(
         in dictionary: [String: Any],
         snakeCaseKey: String,
         camelCaseKey: String)

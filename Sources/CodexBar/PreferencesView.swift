@@ -151,6 +151,7 @@ struct PreferencesView: View {
             idealHeight: SettingsPane.windowHeight,
             maxHeight: .infinity)
         .id(self.settings.appLanguage)
+        .codexBarLocalized()
         .background {
             SettingsWindowAppearanceBridge(colorScheme: self.colorScheme, windowTitle: self.selection.pane.title)
                 .allowsHitTesting(false)

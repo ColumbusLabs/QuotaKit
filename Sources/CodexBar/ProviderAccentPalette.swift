@@ -8,7 +8,7 @@ import Foundation
 /// Some of those helpers are `nonisolated`, so a lock guards the map instead of an actor.
 ///
 /// `SettingsStore` refreshes the palette whenever the config changes, from any origin: a settings
-/// edit, an external edit to `~/.codexbar/config.json`, or an inbound iCloud sync.
+/// edit, an external edit to `~/.quotakit/config.json`, or an inbound iCloud sync.
 enum ProviderAccentPalette {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var overrides: [ProviderInstanceID: ProviderColor] = [:]

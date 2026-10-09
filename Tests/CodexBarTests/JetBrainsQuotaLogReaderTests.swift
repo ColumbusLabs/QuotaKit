@@ -98,11 +98,27 @@ struct JetBrainsQuotaLogReaderTests {
         #expect(entry.quotaInfo.maximum == 1_000_000)
         #expect(entry.quotaInfo.available == 653_504.706)
         #expect(abs(entry.quotaInfo.remainingPercent - 65.3504706) < 0.0001)
+        #expect(entry.quotaInfo.topUp?.maximum == 5_489_986.397)
+        #expect(entry.quotaInfo.topUp?.available == 5_489_986.397)
         #expect(entry.quotaInfo.until == ISO8601DateParser.parse("2028-09-22T21:00:00Z"))
         #expect(entry.refillInfo?.type == "Known")
         #expect(entry.refillInfo?.next == ISO8601DateParser.parse("2026-10-11T17:00:30.231Z"))
         #expect(entry.refillInfo?.amount == 1_000_000)
         #expect(entry.refillInfo?.duration == "30d")
+    }
+
+    @Test
+    func `quota log without a top-up group keeps monthly data and no extra balance`() throws {
+        let line =
+            "2026-10-05 15:27:49,811 [   8326]   INFO - #c.i.m.l.c.q.QuotaManager2Impl - New quota state is: "
+                + "Available(current=250000, maximum=1000000, until=2028-09-22T21:00:00Z, "
+                + "tariffQuota=QuotaDetails(current=250000, maximum=1000000, available=750000))"
+
+        let entry = try #require(JetBrainsQuotaLogReader.latestEntry(inLogContent: line))
+
+        #expect(entry.quotaInfo.used == 250_000)
+        #expect(entry.quotaInfo.available == 750_000)
+        #expect(entry.quotaInfo.topUp == nil)
     }
 
     @Test

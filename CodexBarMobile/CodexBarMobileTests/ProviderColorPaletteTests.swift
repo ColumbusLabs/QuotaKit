@@ -97,6 +97,14 @@ struct ProviderColorPaletteTests {
             ("pi", 124 / 255, 58 / 255, 237 / 255),
             ("huggingface", 1, 210 / 255, 30 / 255),
             ("replicate", 160 / 255, 160 / 255, 160 / 255),
+            ("tavily", 120 / 255, 176 / 255, 161 / 255),
+            ("linkup", 74 / 255, 74 / 255, 74 / 255),
+            ("tinyapi", 242 / 255, 140 / 255, 84 / 255),
+            ("exa", 1 / 255, 67 / 255, 217 / 255),
+            ("cosmic", 41 / 255, 171 / 255, 226 / 255),
+            ("aerostack", 123 / 255, 108 / 255, 219 / 255),
+            ("sailresearch", 44 / 255, 70 / 255, 129 / 255),
+            ("sofya", 176 / 255, 184 / 255, 32 / 255),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -160,6 +168,14 @@ struct ProviderColorPaletteTests {
             ("xAI", "xai"),
             ("GitKraken AI", "gitkraken"),
             ("Hugging Face", "huggingface"),
+            ("Tavily", "tavily"),
+            ("Linkup", "linkup"),
+            ("TinyApi", "tinyapi"),
+            ("Exa", "exa"),
+            ("Cosmic AI", "cosmic"),
+            ("Aerostack", "aerostack"),
+            ("Sail Research", "sailresearch"),
+            ("Sofya", "sofya"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -216,12 +232,14 @@ private let knownDistinctProviders = [
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "lithosai", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
     "zenmux", "zoommate", "xai", "replicate", "hyper", "bifrost", "devpass", "workbuddy",
+    "tavily", "linkup", "tinyapi", "exa", "cosmic", "aerostack", "sailresearch", "sofya",
 ]
 
 /// These pairs retain their providers' published brand colors. The mobile palette mirrors
 /// the Mac descriptors; a small channel distance here is intentional, not an alias collision.
 private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["opencodego", "bifrost"]: 0.04,
+    ["linkup", "grok"]: 0.03,
     ["moonshot", "devpass"]: 0.04,
     ["manus", "synthetic"]: 0.04,
     ["t3chat", "groq"]: 0.015,

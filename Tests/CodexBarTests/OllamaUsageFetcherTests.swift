@@ -649,17 +649,23 @@ struct OllamaUsageFetcherTests {
                 sourceLabel: "Safari Profile"),
         ]
 
+        var fallbackWasLoaded = false
         do {
-            _ = try OllamaCookieImporter.selectSessionInfosWithFallback(
-                preferredCandidates: preferred,
+            _ = try OllamaCookieImporter.importSessions(
+                preferredSources: [.chrome],
                 allowFallbackBrowsers: false,
-                loadFallbackCandidates: { fallback })
+                loadFallbackSources: { _ in
+                    fallbackWasLoaded = true
+                    return [.safari]
+                },
+                loadSessions: { browser, _ in browser == .chrome ? preferred : fallback })
             Issue.record("Expected OllamaUsageError.noSessionCookie")
         } catch OllamaUsageError.noSessionCookie {
             // expected
         } catch {
             Issue.record("Expected OllamaUsageError.noSessionCookie, got \(error)")
         }
+        #expect(!fallbackWasLoaded)
     }
 
     @Test
@@ -675,10 +681,11 @@ struct OllamaUsageFetcherTests {
                 sourceLabel: "Safari Profile"),
         ]
 
-        let selected = try OllamaCookieImporter.selectSessionInfosWithFallback(
-            preferredCandidates: preferred,
+        let selected = try OllamaCookieImporter.importSessions(
+            preferredSources: [.chrome],
             allowFallbackBrowsers: true,
-            loadFallbackCandidates: { fallback })
+            loadFallbackSources: { _ in [.safari] },
+            loadSessions: { browser, _ in browser == .chrome ? preferred : fallback })
         #expect(selected.first?.sourceLabel == "Safari Profile")
     }
 
@@ -690,10 +697,11 @@ struct OllamaUsageFetcherTests {
                 sourceLabel: "Comet Profile"),
         ]
 
-        let selected = try OllamaCookieImporter.selectSessionInfosWithFallback(
-            preferredCandidates: [],
+        let selected = try OllamaCookieImporter.importSessions(
+            preferredSources: [.chrome],
             allowFallbackBrowsers: true,
-            loadFallbackCandidates: { fallback })
+            loadFallbackSources: { _ in [.comet] },
+            loadSessions: { browser, _ in browser == .comet ? fallback : [] })
         #expect(selected.first?.sourceLabel == "Comet Profile")
     }
 

@@ -17,10 +17,16 @@ names. Public product copy should say QuotaKit.
 
 ## CI aggregate contract
 
-The `lint-build-test` check requires successful lint, eligible macOS tests, eligible iOS simulator tests, and
-both x86_64 and ARM64 entries of `build-linux-cli`. The Linux job builds `CodexBarCLI`, runs portable
-`CodexBarLinuxTests`, and checks the CLI help path. Linux failures, cancellations, and skipped matrix results
-fail the aggregate gate; only the existing macOS and iOS path gates can skip their own tests.
+The `lint-build-test` check requires successful lint, applicable macOS test shards and Xcode compatibility,
+applicable iOS simulator tests, and both x86_64 and ARM64 entries of `build-linux-cli` when required. Mac and
+Linux share the conservative docs/site path gate: source, tests, shared/mobile contracts, widgets, workflows,
+and embedded Markdown resources require verification. Linux has no draft deferral. The Linux job builds
+`CodexBarCLI`, runs portable `CodexBarLinuxTests`, checks CLI help, and runs synthetic private-account and
+RPC-pipe proofs. Only `required=true / result=success` or `required=false / result=skipped` passes the aggregate;
+failures, cancellations, missing or unknown values, and unexpected skips or executions fail it. Required Mac
+tests deferred on a draft leave the aggregate incomplete. The Xcode compatibility job also builds the unsigned
+Mac widget extension to verify its packaged locale resources. `Scripts/test_ci_path_gate.sh` covers the path
+and result combinations, including workflow dependencies and verifier arguments.
 
 Portable lint also compares every package identity, revision, and version in the root and widget workspace
 `Package.resolved` files with an offline, read-only check and synthetic regression tests. Pin order and

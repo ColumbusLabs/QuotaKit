@@ -228,7 +228,7 @@ extension CodexBarCLI {
           quotakit serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                          [--request-timeout <seconds>]
                          [--dashboard-token <token>] [--allow-plain-http]
-                         [--identity <redacted|full>]
+                         [--identity <redacted|full>] [--all-accounts]
                          [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                          [-v|--verbose]
 
@@ -247,10 +247,13 @@ extension CodexBarCLI {
           non-loopback host the token also gates /accounts, /usage, and /cost (account data);
           / and /health are always open. Use a TLS-terminating reverse proxy for anything
           beyond a trusted network segment.
-          Identity in account discovery and snapshots is redacted by default. --identity full exposes real
-          account emails and should be used only on trusted, private networks.
+          Identity in account discovery and ordinary snapshots is redacted by default. --all-accounts adds visible
+          Codex profiles and configured token accounts to dashboard snapshots only, with neutral labels and no
+          identity by default. --identity full exposes real account emails and should be used only on trusted,
+          private networks; --identity redacted keeps masked identities in expanded snapshots.
           Account discovery reads configured token-account labels and saved managed Codex metadata only;
           it does not fetch usage or access managed credential files. IDs are stable opaque lookup keys.
+          /usage retains its existing Codex enumeration.
 
         Endpoints:
           GET /                    Built-in web dashboard
@@ -267,6 +270,7 @@ extension CodexBarCLI {
         Examples:
           quotakit serve
           quotakit serve --port 8080 --refresh-interval 60 --request-timeout 30
+          quotakit serve --all-accounts
           QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve
           QUOTAKIT_DASHBOARD_TOKEN=... quotakit serve --host 0.0.0.0 --allow-plain-http
           curl http://127.0.0.1:8080/usage?provider=all

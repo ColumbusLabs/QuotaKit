@@ -95,6 +95,14 @@ extension ProviderInstanceID {
     public static let lithosai = UsageProvider.lithosai.instanceID
     public static let workbuddy = UsageProvider.workbuddy.instanceID
     public static let langdock = UsageProvider.langdock.instanceID
+    public static let tavily = UsageProvider.tavily.instanceID
+    public static let linkup = UsageProvider.linkup.instanceID
+    public static let tinyapi = UsageProvider.tinyapi.instanceID
+    public static let exa = UsageProvider.exa.instanceID
+    public static let cosmic = UsageProvider.cosmic.instanceID
+    public static let aerostack = UsageProvider.aerostack.instanceID
+    public static let sailresearch = UsageProvider.sailresearch.instanceID
+    public static let sofya = UsageProvider.sofya.instanceID
 }
 
 // swiftformat:enable sortDeclarations

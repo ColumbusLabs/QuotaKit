@@ -9,6 +9,8 @@ read_when:
 # Widgets
 
 ## Snapshot pipeline
+- Quota headlines include the localized quota name, percentage, and used/left label. Reset text moves below the headline when a translation does not fit on one line.
+- On macOS 15+, snapshot ages and reset references use live SwiftUI date text with minute precision. WidgetKit advances those labels without extra timeline reloads; reset references reach “now” at expiration and identify elapsed resets afterward. macOS 14 keeps native relative-date text.
 - `WidgetSnapshotStore` writes compact JSON snapshots to the app-group container.
 - Widgets read the snapshot and render usage/credits/history states.
 - Usage and Switcher tiles emphasize the most constrained general quota, preserve other allowances as detail rows, and show full provider names. Code-review and model-specific allowances do not replace a provider's general quota headline. Providers without quota bars keep credits or local-cost information useful.

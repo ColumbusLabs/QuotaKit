@@ -40,9 +40,10 @@ package enum RPCChildProcessTeardown {
     /// Closes the child's stdin first (codex app-server and grok agent stdio exit on EOF),
     /// then escalates SIGTERM -> bounded wait -> SIGKILL across the child's process tree via
     /// `SubprocessRunner.terminateProcess`, so children that ignore SIGTERM cannot leak
-    /// (#2789). Foundation reaps the child once it exits, so no explicit waitpid is needed here.
+    /// (#2789). Release the Process after exit so swift-corelibs-foundation closes its output pipes.
     package static func terminate(process: Process, stdin: RPCChildProcessInput) {
         stdin.close()
         SubprocessRunner.terminateProcess(process, processGroup: nil)
+        ProcessExitRelease.afterExit(process)
     }
 }

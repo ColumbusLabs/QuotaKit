@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 92 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 100 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -145,6 +145,14 @@ complete when the available scan window covers fewer days.
 | llmman | Local daemon memory, loaded models, and stored models from a configured private-network endpoint (`api`). |
 | [Muse (muse.ai)](museai.md) | Chrome or manually supplied muse.ai session cookie → weekly quota percentage, plan, and remaining tokens (`web`). |
 | [LithosAI](lithosai.md) | Chrome or manual console cookies → active-organization prepaid balance and optional UTC spend (`web`). |
+| [Tavily](tavily.md) | API key → account-plan, selected-key quota, and pay-as-you-go credits (`api`). |
+| [Linkup](linkup.md) | API key → prepaid USD credit balance; no quota denominator (`api`). |
+| [TinyApi](tinyapi.md) | Chrome or manual session cookie → available console credits (`web`). |
+| [Exa](exa.md) | Team Management service key + selected key ID → current-month spend (`api`). |
+| [Cosmic AI](cosmic.md) | Personal Access Token + project ID → input/output token allowances (`api`). |
+| [Aerostack](aerostack.md) | Account JWT → monthly AI-token allowance (`api`). |
+| [Sail Research](sailresearch.md) | API key → organization credit balance and reported spend (`api`). |
+| [Sofya](sofya.md) | API key → account credit pools and provider-reported reset (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -725,3 +733,48 @@ See also: `docs/provider.md` for architecture notes.
 ## Langdock personal usage
 
 [Langdock](langdock.md) reads included session and weekly limits from an explicitly selected Microsoft Edge profile on Mac. This session-bound data remains local: quota history, iPhone sync, fleet CloudKit export, and widgets are unavailable.
+
+## Tavily
+- API key from QuotaKit config or `TAVILY_API_KEY`.
+- Shows account-plan usage and the selected API key's usage as separate provider-reported quota windows; optional pay-as-you-go totals remain separate.
+- No reset countdown is inferred because the endpoint does not provide a reset timestamp or timezone.
+- Details: `docs/tavily.md`.
+
+## Linkup
+- API key from QuotaKit config or `LINKUP_API_KEY`.
+- Shows the reported prepaid USD credit balance without inventing a monthly allowance, spend, or reset.
+- Balance-only; no quota alerts are registered.
+- Details: `docs/linkup.md`.
+
+## TinyApi
+- Automatic mode imports Chrome session cookies; Manual mode accepts a console Cookie header.
+- Shows the reported available credits only; the API does not split recurring and purchased credits or expose reset timing.
+- Balance-only; widgets and history are unavailable.
+- Details: `docs/tinyapi.md`.
+
+## Exa
+- Team Management service key plus an explicit API key ID from Settings, `EXA_SERVICE_KEY`, and `EXA_API_KEY_ID`.
+- Shows current-month spend for that selected key; does not infer team balance or quota.
+- Details: `docs/exa.md`.
+
+## Cosmic AI
+- Personal Access Token and project ID from Settings, or `COSMIC_TOKEN` and `COSMIC_PROJECT_ID`.
+- Shows project-scoped input and output token usage against the allowances returned by Cosmic; bucket keys are unsupported and reset timing is not inferred.
+- Details: `docs/cosmic.md`.
+
+## Aerostack
+- Account JWT from Settings or `AEROSTACK_TOKEN`; the token is not refreshed automatically.
+- Shows account-reported monthly AI token use and allowance without deriving reset time from the period label.
+- Details: `docs/aerostack.md`.
+
+## Sail Research
+- API key from Settings or `SAIL_API_KEY`.
+- Shows the organization credit balance and combined reported spend. The API does not provide a quota denominator or reset timestamp.
+- Balance-only; no quota alerts are registered.
+- Details: `docs/sailresearch.md`.
+
+## Sofya
+- API key from Settings or `SOFYA_API_KEY`.
+- Shows account-wide, plan, and purchased credit pools separately; only the provider-reported eligible credit reset is shown, with no inferred percentage.
+- Balance-only; no quota alerts are registered.
+- Details: `docs/sofya.md`.

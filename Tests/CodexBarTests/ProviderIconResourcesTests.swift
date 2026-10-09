@@ -90,6 +90,19 @@ struct ProviderIconResourcesTests {
         #expect(!svg.contains("<text"))
         #expect(!svg.contains("<circle"))
         #expect(svg.contains("fill=\"currentColor\""))
+        #expect(svg.contains("viewBox=\"0 0 560 560\""))
+        for path in [
+            "M420 280H280V140H0V0H420V280Z",
+            "M560 560H420V280H560V560Z",
+            "M140 560H0V140H140V280H280V420H140V560Z",
+        ] {
+            #expect(svg.contains("d=\"\(path)\""))
+        }
+        let canonical = try String(contentsOf: root.appending(path: "docs/logos/pi.svg"), encoding: .utf8)
+        #expect(svg == canonical)
+        let cli = try String(
+            contentsOf: root.appending(path: "Sources/CodexBarCLI/CLIServeProviderIcons.swift"), encoding: .utf8)
+        #expect(cli.contains("\"ProviderIcon-pi\": \"\(Data(svg.utf8).base64EncodedString())\""))
 
         ProviderBrandIcon.resetCacheForTesting()
         defer { ProviderBrandIcon.resetCacheForTesting() }

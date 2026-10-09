@@ -41,6 +41,7 @@ extension CostUsageScanner {
                 sinceKey: range.scanSinceKey,
                 untilKey: range.scanUntilKey,
                 calendar: range.calendar)
+                || !Self.codexTurnPerformanceSamples(usage: usage, range: range).isEmpty
             else {
                 continue
             }
@@ -66,7 +67,9 @@ extension CostUsageScanner {
                 modelsDevCatalog: resolvedModelsDevCatalog,
                 priorityTurns: priorityTurns,
                 pricingResolver: pricingResolver)
-            guard !report.data.isEmpty else { return nil }
+            let performanceSamples = Self.codexTurnPerformanceSamples(usage: file.usage, range: range)
+            // Timing belongs to the completion day even when billed usage precedes midnight.
+            guard !report.data.isEmpty || !performanceSamples.isEmpty else { return nil }
 
             let summary = report.summary
             let requestCounts = report.data.compactMap(\.requestCount)
@@ -85,7 +88,10 @@ extension CostUsageScanner {
                 modelBreakdowns: Self.codexProjectModelBreakdowns(from: report.data) ?? [],
                 projectPath: projectPath,
                 projectName: projectPath.map { Self.codexProjectName(path: $0) },
-                title: file.usage.codexSession?.title)
+                title: file.usage.codexSession?.title,
+                turnPerformanceSamples: performanceSamples,
+                toolActivitySource: SessionToolActivitySource(
+                    fileURL: URL(fileURLWithPath: file.path), sessionID: sessionID))
             session.workingDirectory = file.usage.projectPath
             return session
         }

@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Tavily, Exa, Linkup, TinyApi, Cosmic AI, Aerostack, Sail Research, and Sofya track API usage, quota, or prepaid balances using their supported account sources. Their billing details sync to iPhone; quota alerts apply only to reported quota windows.
+- Native Codex spend sessions show completion-day turn performance, model comparisons, and bounded tool activity details without changing historical accounting.
+- The local dashboard serves saved accounts privately by default and reports incomplete account inventories.
 - X API tracks purchased and free prepaid credits separately from xAI and Grok quotas.
 - Codex settings show all saved accounts with isolated usage snapshots and bounded refreshes; local dashboard APIs can discover saved accounts without exporting credentials or fetching usage.
 - Claude shows verified subscription renewal or paid-access expiration dates on Mac, in CLI JSON, and on iPhone.
@@ -18,6 +21,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Managed Codex credential reads validate the home and native login owner; account removal retains homes referenced by other saved records, and rotated credentials retain correctly attributed refresh errors.
+- App and widget localization covers supported languages, preserves locale-aware formats, and keeps quota reset dates live.
+- Token activity heatmaps avoid redundant work; tool inspection preserves spend caches and explicit tool failures.
+- Ollama reads current wallet credits; JetBrains shows separate top-up credits; Pi skips unreadable process contexts.
+- Repeated CLI RPC refreshes release exited children and output pipes on Linux.
 - Codex refreshes retain sibling account snapshots, ignore commented endpoint overrides, and share repeated turn-ID storage without changing ledger contents.
 - Claude Plan Usage history survives verified OAuth token rotation while conflicting ownership stays quarantined; Enterprise spend remains visible when quota windows are unavailable.
 - JetBrains uses bounded, installation-scoped quota logs when fresher XML is unavailable; Notion supports Edge profiles and explicit recovery for oversized workspace discovery.

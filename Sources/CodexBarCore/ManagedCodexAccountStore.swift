@@ -11,13 +11,20 @@ public protocol ManagedCodexAccountStoring: Sendable {
     func ensureFileExists() throws -> URL
 }
 
+/// Read-only registry access for callers that must not hydrate credential files or persist migrations.
+public protocol ManagedCodexAccountMetadataLoading: Sendable {
+    func loadAccountMetadata() throws -> ManagedCodexAccountSet
+}
+
 extension ManagedCodexAccountStoring {
     public var lockURL: URL? {
         nil
     }
 }
 
-public struct FileManagedCodexAccountStore: ManagedCodexAccountStoring, @unchecked Sendable {
+public struct FileManagedCodexAccountStore: ManagedCodexAccountStoring, ManagedCodexAccountMetadataLoading,
+    @unchecked Sendable
+{
     public static let currentVersion = 3
 
     private let fileURL: URL

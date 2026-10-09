@@ -412,7 +412,8 @@ struct PiFamilySessionScanner: Sendable {
     static func costSessionRoots(
         environment: [String: String],
         baseDirectories: [URL]? = nil,
-        processContexts: [PiSessionProcessContext] = []) -> [CostSessionRoot]
+        processContexts: [PiSessionProcessContext] = [],
+        logger: CodexBarLogger = CodexBarLog.logger(LogCategories.tokenCost)) -> [CostSessionRoot]
     {
         var configuredCWDs = baseDirectories ?? []
         if !processContexts.isEmpty {
@@ -437,6 +438,7 @@ struct PiFamilySessionScanner: Sendable {
         let dialects: [AgentSession.Dialect] = [.pi, .omp]
         var output: [CostSessionRoot] = []
         var outputIndexByPath: [String: Int] = [:]
+        var skippedContexts = 0
 
         func appendCostRoot(_ root: CostSessionRoot) {
             let canonical = OMPSessionRootResolver.canonicalURL(root.url)
@@ -464,66 +466,13 @@ struct PiFamilySessionScanner: Sendable {
         }
 
         for dialect in dialects {
-            var roots: [SessionRoot] = []
-            var rootResolutionIsComplete = true
-            for context in processContexts {
-                let process = AgentProcessRecord(
-                    pid: 0,
-                    ppid: 0,
-                    startedAt: nil,
-                    command: context.command,
-                    arguments: context.arguments,
-                    piSelectorEnvironment: context.selectorEnvironment)
-                guard AgentPSOutputParser.piDialect(for: process) == dialect else { continue }
-                guard let processEnvironment = Self.processSelectorEnvironment(for: process) else {
-                    rootResolutionIsComplete = false
-                    continue
-                }
-                guard let contextCWD = Self.processWorkingDirectory(
-                    context, process: process, environment: processEnvironment)
-                else {
-                    rootResolutionIsComplete = false
-                    continue
-                }
-                let resolution: (roots: [SessionRoot], isComplete: Bool)
-                switch dialect {
-                // Provider-specific by design: this branch resolves the Pi dialect's session roots.
-                case .pi:
-                    let result = Self.piSessionRootResolution(
-                        process: process,
-                        cwd: contextCWD,
-                        environment: processEnvironment,
-                        preserveSettingsRoot: context.workingDirectory != nil)
-                    resolution = (result.roots, result.isComplete)
-                case .omp:
-                    let result = Self.ompSessionRootResolution(
-                        process: process,
-                        cwd: contextCWD,
-                        environment: processEnvironment,
-                        suppressProfileDiscovery: hasExplicitProcessProfile)
-                    resolution = (result.roots, result.profileDiscoveryIsComplete)
-                }
-                // A process-selected root is safe to retain after exit because the
-                // selector is explicit. Roots reached only through the process's
-                // working directory or inherited environment must be re-resolved on
-                // the next scan, otherwise a stale project can remain attributed.
-                let processRootIsRetained = Self.hasExplicitProcessRootSelection(
-                    dialect: dialect,
-                    processContexts: [context])
-                roots.append(contentsOf: resolution.roots.map { root in
-                    SessionRoot(
-                        url: root.url,
-                        layout: root.layout,
-                        missingIsKnownEmpty: root.missingIsKnownEmpty,
-                        preserveAfterProcessExit: root.preserveAfterProcessExit || processRootIsRetained,
-                        retentionKey: root.retentionKey ?? Self.processRetentionKey(
-                            dialect: dialect,
-                            process: process,
-                            cwd: contextCWD,
-                            environment: processEnvironment))
-                })
-                rootResolutionIsComplete = rootResolutionIsComplete && resolution.isComplete
-            }
+            let processResolution = Self.processSessionRootResolution(
+                dialect: dialect,
+                processContexts: processContexts,
+                hasExplicitProcessProfile: hasExplicitProcessProfile)
+            var roots = processResolution.roots
+            var rootResolutionIsComplete = processResolution.isComplete
+            skippedContexts += processResolution.skippedContexts
             for cwdURL in uniqueCWDs {
                 switch dialect {
                 // Provider-specific by design: this branch resolves the Pi dialect's session roots.
@@ -574,7 +523,91 @@ struct PiFamilySessionScanner: Sendable {
                     resolutionIsComplete: false))
             }
         }
+        if skippedContexts > 0 {
+            logger.warning(
+                "Pi cost discovery skipped process contexts with unreadable environments",
+                metadata: ["skippedContexts": String(skippedContexts)])
+        }
         return output
+    }
+
+    private static func processSessionRootResolution(
+        dialect: AgentSession.Dialect,
+        processContexts: [PiSessionProcessContext],
+        hasExplicitProcessProfile: Bool) -> (roots: [SessionRoot], isComplete: Bool, skippedContexts: Int)
+    {
+        var roots: [SessionRoot] = []
+        var rootResolutionIsComplete = true
+        var skippedContexts = 0
+        for context in processContexts {
+            let process = AgentProcessRecord(
+                pid: 0,
+                ppid: 0,
+                startedAt: nil,
+                command: context.command,
+                arguments: context.arguments,
+                piSelectorEnvironment: context.selectorEnvironment)
+            guard AgentPSOutputParser.piDialect(for: process) == dialect else { continue }
+            let hasExplicitProcessSelection = Self.hasExplicitProcessRootSelection(
+                dialect: dialect,
+                processContexts: [context])
+            guard let processEnvironment = Self.processSelectorEnvironment(for: process) else {
+                // An unreadable optional process must not hide default history. An
+                // explicit command-line root is different: its unreadable environment
+                // can still affect how that selected source should be interpreted.
+                if hasExplicitProcessSelection {
+                    rootResolutionIsComplete = false
+                } else {
+                    skippedContexts += 1
+                }
+                continue
+            }
+            guard let contextCWD = Self.processWorkingDirectory(
+                context, process: process, environment: processEnvironment)
+            else {
+                rootResolutionIsComplete = false
+                continue
+            }
+            let resolution: (roots: [SessionRoot], isComplete: Bool)
+            switch dialect {
+            // Provider-specific by design: this branch resolves the Pi dialect's session roots.
+            case .pi:
+                let result = Self.piSessionRootResolution(
+                    process: process,
+                    cwd: contextCWD,
+                    environment: processEnvironment,
+                    preserveSettingsRoot: context.workingDirectory != nil)
+                resolution = (result.roots, result.isComplete)
+            case .omp:
+                let result = Self.ompSessionRootResolution(
+                    process: process,
+                    cwd: contextCWD,
+                    environment: processEnvironment,
+                    suppressProfileDiscovery: hasExplicitProcessProfile)
+                resolution = (result.roots, result.profileDiscoveryIsComplete)
+            }
+            // A process-selected root is safe to retain after exit because the
+            // selector is explicit. Roots reached only through the process's
+            // working directory or inherited environment must be re-resolved on
+            // the next scan, otherwise a stale project can remain attributed.
+            let processRootIsRetained = Self.hasExplicitProcessRootSelection(
+                dialect: dialect,
+                processContexts: [context])
+            roots.append(contentsOf: resolution.roots.map { root in
+                SessionRoot(
+                    url: root.url,
+                    layout: root.layout,
+                    missingIsKnownEmpty: root.missingIsKnownEmpty,
+                    preserveAfterProcessExit: root.preserveAfterProcessExit || processRootIsRetained,
+                    retentionKey: root.retentionKey ?? Self.processRetentionKey(
+                        dialect: dialect,
+                        process: process,
+                        cwd: contextCWD,
+                        environment: processEnvironment))
+            })
+            rootResolutionIsComplete = rootResolutionIsComplete && resolution.isComplete
+        }
+        return (roots, rootResolutionIsComplete, skippedContexts)
     }
 
     private static func hasExplicitProcessProfile(in contexts: [PiSessionProcessContext]) -> Bool {
@@ -689,6 +722,8 @@ struct PiFamilySessionScanner: Sendable {
         {
             return self.isCWDIndependentPath(selector, environment: environment)
         }
+        // Provider-specific by design: PI_CODING_AGENT_DIR selects the Pi home;
+        // OMP profiles use a separate selector contract.
         if AgentPSOutputParser.piDialect(for: process) == .pi,
            let selector = environment["PI_CODING_AGENT_DIR"],
            !selector.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

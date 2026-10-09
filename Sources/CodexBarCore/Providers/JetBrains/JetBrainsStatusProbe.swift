@@ -9,14 +9,23 @@ public struct JetBrainsQuotaInfo: Sendable, Equatable {
     public let maximum: Double
     public let available: Double
     public let until: Date?
+    public let topUp: JetBrainsTopUpQuota?
 
-    public init(type: String?, used: Double, maximum: Double, available: Double?, until: Date?) {
+    public init(
+        type: String?,
+        used: Double,
+        maximum: Double,
+        available: Double?,
+        until: Date?,
+        topUp: JetBrainsTopUpQuota? = nil)
+    {
         self.type = type
         self.used = used
         self.maximum = maximum
         // Use available if provided, otherwise calculate from maximum - used
         self.available = available ?? max(0, maximum - used)
         self.until = until
+        self.topUp = topUp
     }
 
     /// Percentage of quota that has been used (0-100)
@@ -29,6 +38,29 @@ public struct JetBrainsQuotaInfo: Sendable, Equatable {
     public var remainingPercent: Double {
         guard self.maximum > 0 else { return 100 }
         return min(100, max(0, (self.available / self.maximum) * 100))
+    }
+}
+
+public struct JetBrainsTopUpQuota: Sendable, Equatable {
+    /// JetBrains stores one displayed credit as 100,000 quota units.
+    public static let unitsPerCredit: Double = 100_000
+
+    public let maximum: Double
+    public let available: Double
+
+    /// Only finite, nonnegative balances with a positive maximum describe purchased credits.
+    public init?(maximum: Double?, available: Double?) {
+        guard let maximum, maximum.isFinite, maximum > 0,
+              let available, available.isFinite, available >= 0
+        else {
+            return nil
+        }
+        self.maximum = maximum
+        self.available = min(available, maximum)
+    }
+
+    public var availableCredits: Double {
+        self.available / Self.unitsPerCredit
     }
 }
 
@@ -73,10 +105,20 @@ public struct JetBrainsStatusSnapshot: Sendable {
             accountOrganization: self.detectedIDE?.displayName,
             loginMethod: self.quotaInfo.type)
 
+        // Purchased top-up credits are a balance, not another quota window.
+        let details = self.quotaInfo.topUp.map { topUp in
+            [ProviderDetailSection.makeSection(title: "Top-up credits", rows: [
+                ProviderDetailSection.makeRow(
+                    label: "Remaining",
+                    value: String(format: "%.2f credits", topUp.availableCredits)),
+            ])]
+        } ?? []
+
         return UsageSnapshot(
             primary: primary,
             secondary: nil,
             tertiary: nil,
+            details: details,
             updatedAt: Date(),
             identity: identity)
     }
@@ -273,12 +315,17 @@ public struct JetBrainsStatusProbe: Sendable {
             } ? quota : nil
         }
         let quota = tariffQuota ?? json
+        let topUpQuota = json["topUpQuota"] as? [String: Any]
+        let topUpValue = { (key: String) in (topUpQuota?[key] as? String).flatMap(Double.init) }
         return JetBrainsQuotaInfo(
             type: json["type"] as? String,
             used: (quota["current"] as? String).flatMap(Double.init) ?? 0,
             maximum: (quota["maximum"] as? String).flatMap(Double.init) ?? 0,
             available: (tariffQuota?["available"] as? String).flatMap(Double.init),
-            until: ISO8601DateParser.parse(json["until"] as? String))
+            until: ISO8601DateParser.parse(json["until"] as? String),
+            topUp: JetBrainsTopUpQuota(
+                maximum: topUpValue("maximum"),
+                available: topUpValue("available")))
     }
 
     private static func parseRefillInfoJSON(_ jsonString: String) throws -> JetBrainsRefillInfo {

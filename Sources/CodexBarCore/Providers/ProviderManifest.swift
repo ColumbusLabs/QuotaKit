@@ -97,5 +97,13 @@ public enum ProviderManifest {
         LithosAIProviderDescriptor.descriptor,
         WorkBuddyProviderDescriptor.descriptor,
         LangdockProviderDescriptor.descriptor,
+        TavilyProviderDescriptor.descriptor,
+        LinkupProviderDescriptor.descriptor,
+        TinyApiProviderDescriptor.descriptor,
+        ExaProviderDescriptor.descriptor,
+        CosmicProviderDescriptor.descriptor,
+        AerostackProviderDescriptor.descriptor,
+        SailResearchProviderDescriptor.descriptor,
+        SofyaProviderDescriptor.descriptor,
     ]
 }

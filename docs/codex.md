@@ -64,6 +64,26 @@ use the affected row's **Reauthenticate** action or ordinary `codex login` scope
 and intended workspace. A future CLI renewal command needs staged login and identity/workspace
 validation before committing; `promote` is not a renewal workaround. See [CLI details](cli.md#managed-codex-accounts-macos).
 
+### In-process managed credential access (macOS)
+
+`ManagedCodexAccountCredentialResolver` accepts a managed-account UUID, a metadata-only account store, and
+the managed-home root. It reads the selected native OAuth credential and returns an access-only value only
+when the native ID token's owner email and auth file's default workspace agree with that account. It checks
+the registry binding and original home again before returning the credential. For legacy records without an
+explicit workspace selection, the native default workspace is required; workspace membership alone is not
+enough evidence.
+
+Resolution is fresh-only and read-only: it does not choose another account, start Codex or login, refresh
+credentials, cache tokens, or write the auth file or account registry. By default, the token must remain valid
+for more than 90 seconds, combining a 60-second authority minimum with 30 seconds of clock skew. A caller may
+request a larger minimum, up to one day; unknown or insufficient expiry returns a typed renewal result. The
+bearer is exposed only through `withAccessToken`, and diagnostic descriptions are redacted.
+
+This core API has no CLI, HTTP, or IPC credential-export endpoint. Identity checks establish local claim
+consistency; they do not verify JWT signatures or prove that an upstream service will accept the token.
+Filesystem checks observe the home before returning but are not atomic against hostile same-user changes, and
+the API does not claim secure-memory zeroization.
+
 ### Advanced profile-home accounts
 - Managed Codex accounts remain the default multi-account path.
 - Advanced users can add existing Codex homes to `~/.quotakit/config.json` with

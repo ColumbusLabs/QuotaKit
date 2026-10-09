@@ -24,6 +24,7 @@ MOBILE_ALIAS_TARGETS = {
     "11labs": "elevenlabs",
     "ai&": "aiand",
     "abacusai": "abacus",
+    "cosmicai": "cosmic",
     "ampcode": "amp",
     "anthropic": "claude",
     "bailian": "alibaba",

@@ -393,4 +393,96 @@ struct OllamaUsageParserTests {
         #expect(usage.primary?.windowMinutes == 5 * 60)
         #expect(usage.secondary == nil)
     }
+
+    @Test
+    func `current credit wallet produces details without inventing a quota window`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let html = """
+        <section>
+          <div>
+            <h2>Usage credits<span>pro</span></h2>
+            <span>$18.25</span>
+            <p>Refills to $30 in 3 weeks.</p>
+          </div>
+          <div>
+            <span>Monthly credits used</span>
+            <span>$4.50</span>
+          </div>
+        </section>
+        """
+
+        let result = OllamaUsageParser.parseClassified(html: html, now: now)
+        guard case let .success(snapshot) = result else {
+            Issue.record("Expected the credit wallet to be usable without a quota window")
+            return
+        }
+
+        let usage = snapshot.toUsageSnapshot()
+        #expect(snapshot.updatedAt == now)
+        #expect(usage.primary == nil)
+        #expect(usage.secondary == nil)
+        #expect(usage.identity?.loginMethod == "pro")
+        #expect(usage.details.map(\.title) == ["Credits"])
+        #expect(usage.details.flatMap(\.rows).map(\.label) == [
+            "Credit balance", "Monthly credits used", "Next refill",
+        ])
+        #expect(usage.detailRow(label: "Credit balance")?.value == "$18.25")
+        #expect(usage.detailRow(label: "Monthly credits used")?.value == "$4.50")
+        #expect(usage.detailRow(label: "Next refill")?.value == "to $30 in 3 weeks.")
+    }
+
+    @Test
+    func `credit wallet parsing stays within its section and keeps reported quota windows`() throws {
+        let html = """
+        <section>
+          <h2>Usage credits<span>pro</span></h2>
+          <span>$18.25</span>
+          <span>Monthly credits used</span><span>$4.50</span>
+        </section>
+        <section>
+          <h2>Billing</h2><span>$99.00</span><p>Refills to $200 in 9 weeks.</p>
+        </section>
+        <div><span>Monthly usage</span><span>25% used</span></div>
+        """
+
+        let snapshot = try OllamaUsageParser.parse(html: html)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(snapshot.monthlyUsedPercent == 25)
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.detailRow(label: "Credit balance")?.value == "$18.25")
+        #expect(usage.detailRow(label: "Monthly credits used")?.value == "$4.50")
+        #expect(usage.detailRow(label: "Next refill") == nil)
+        #expect(usage.details.flatMap(\.rows).allSatisfy { $0.value != "$99.00" })
+    }
+
+    @Test
+    func `credit wallet ignores script and style markup and preserves fractional amounts`() throws {
+        let html = """
+        <script><h2>Usage credits<span>fake</span></h2><span>$999.00</span></script>
+        <style>.fake::after { content: "<h2>Usage credits</h2><span>$888.00</span>"; }</style>
+        <section>
+          <h2>Usage credits<span>pro</span></h2>
+          <span>$0.0003</span>
+          <span>Monthly credits used</span><span>$0.00125</span>
+        </section>
+        """
+
+        let snapshot = try OllamaUsageParser.parse(html: html)
+
+        #expect(snapshot.toUsageSnapshot().detailRow(label: "Credit balance")?.value == "$0.0003")
+        #expect(snapshot.toUsageSnapshot().detailRow(label: "Monthly credits used")?.value == "$0.00125")
+    }
+
+    @Test
+    func `credit wallet headings found only in script do not classify a page as usage`() {
+        let html = #"<script><h2>Usage credits<span>pro</span></h2><span>$18.25</span></script>"#
+
+        switch OllamaUsageParser.parseClassified(html: html) {
+        case .success:
+            Issue.record("Script text must not create a wallet snapshot")
+        case let .failure(failure):
+            #expect(failure == .missingUsageData)
+        }
+    }
 }

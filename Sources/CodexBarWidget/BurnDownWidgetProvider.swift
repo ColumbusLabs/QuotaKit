@@ -97,6 +97,14 @@ enum BurnProviderChoice: String, AppEnum {
     case museai
     case lithosai
     case workbuddy
+    case tavily
+    case linkup
+    case tinyapi
+    case exa
+    case cosmic
+    case aerostack
+    case sailresearch
+    case sofya
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -183,8 +191,8 @@ enum BurnProviderChoice: String, AppEnum {
         .raycast: DisplayRepresentation(title: "Raycast"),
         .pi: DisplayRepresentation(title: "Pi"),
         .v0: DisplayRepresentation(title: "v0"),
-        .typesafe: DisplayRepresentation(title: "TypeSafe"),
         // Provider-specific by design: AppIntents requires literal catalog titles; snapshot data gates eligibility.
+        .typesafe: DisplayRepresentation(title: "TypeSafe"),
         .hyper: DisplayRepresentation(title: "Charm Hyper"),
         .gitkraken: DisplayRepresentation(title: "GitKraken AI"),
         .devpass: DisplayRepresentation(title: "DevPass"),
@@ -196,6 +204,14 @@ enum BurnProviderChoice: String, AppEnum {
         .lithosai: DisplayRepresentation(title: "LithosAI"),
         .workbuddy: DisplayRepresentation(title: "WorkBuddy"),
         .langdock: DisplayRepresentation(title: "Langdock"),
+        .tavily: DisplayRepresentation(title: "Tavily"),
+        .linkup: DisplayRepresentation(title: "Linkup"),
+        .tinyapi: DisplayRepresentation(title: "TinyApi"),
+        .exa: DisplayRepresentation(title: "Exa"),
+        .cosmic: DisplayRepresentation(title: "Cosmic AI"),
+        .aerostack: DisplayRepresentation(title: "Aerostack"),
+        .sailresearch: DisplayRepresentation(title: "Sail Research"),
+        .sofya: DisplayRepresentation(title: "Sofya"),
     ]
 
     var provider: UsageProvider? {
@@ -351,13 +367,14 @@ struct BurnDownState {
     func title(for selection: BurnWindowChoice) -> String {
         let metadata = self.entry.provider.firstPartyProvider.flatMap { ProviderDefaults.metadata[$0] }
         switch selection {
-        case .session: return "Session"
-        case .weekly: return "Weekly"
+        case .session: return W("Session")
+        case .weekly: return W("Weekly")
         case .primary, .secondary, .tertiary:
-            return self.entry.usageRows?.first { $0.id == selection.rawValue }?.title
+            let title = self.entry.usageRows?.first { $0.id == selection.rawValue }?.title
                 ?? (selection == .primary ? metadata?.sessionLabel
                     : selection == .secondary ? metadata?.weeklyLabel : metadata?.opusLabel)
                 ?? "Usage"
+            return W(title)
         }
     }
 

@@ -102,15 +102,64 @@ struct CLIServeWebUITests {
         let html = self.html
         // Multi-account providers render one card per account inside a titled
         // vertical group; account labels retain the producer's disambiguation.
-        #expect(html.contains("function renderAccountCard(provider, account)"))
+        #expect(html.contains("function renderAccountCard(provider, account, selected = false)"))
         #expect(html.contains("account.label || account.identity?.accountEmail || \"Account\""))
         #expect(html.contains("provider.accountsError"))
         #expect(html.contains("group-title"))
     }
 
+    @Test(arguments: [false, true], [0, 9876])
+    func `expanded Codex credits stay on the selected account only`(selected: Bool, remaining: Int) throws {
+        let start = try #require(self.html.range(of: "function renderAccountCard("))
+        let end = try #require(self.html.range(of: "function appendCostSummary("))
+        let renderer = String(self.html[start.lowerBound..<end.lowerBound])
+        let context = try #require(JSContext())
+        context.evaluateScript(#"""
+        function node(tag, className, text) {
+          return {
+            tagName: tag, className, text, children: [], style: {setProperty() {}},
+            classList: {add() {}},
+            get childElementCount() { return this.children.length; },
+            append(...items) { this.children.push(...items); }
+          };
+        }
+        function providerGlyph() { return node("span", "provider-icon"); }
+        function accentColor(value) { return value; }
+        function visibleWindows(windows) { return windows || []; }
+        function worstWindowLevel() { return null; }
+        function pill(level, label) { return node("span", "pill", label); }
+        function amount(value) { return String(value); }
+        function metric(label, value) { return node("div", "metric", `${label} ${value}`); }
+        function relativeTime() { return "now"; }
+        function recordedText(root) {
+          return [root.text, ...root.children.flatMap(recordedText)].filter(Boolean);
+        }
+        """#)
+        context.evaluateScript(renderer)
+        context.evaluateScript(#"""
+        const remaining = \#(remaining);
+        const selected = \#(selected);
+        const codex = renderAccountCard(
+          {id: "codex", credits: {remaining, unit: "credits"}, display: {}},
+          {label: "Account 1", active: false, windows: []},
+          selected);
+        const claude = renderAccountCard(
+          {id: "claude", credits: {remaining, unit: "credits"}, display: {}},
+          {label: "Account 1", active: false, windows: []},
+          true);
+        """#)
+        #expect(context.exception == nil)
+        let text = try #require(context.evaluateScript("recordedText(codex)")?.toArray() as? [String])
+        #expect(text.contains(where: { $0.contains("Remaining") }) == selected)
+        #expect(text.contains(where: { $0.contains("\(remaining) credits") }) == selected)
+        let otherProvider = try #require(context.evaluateScript("recordedText(claude)")?.toArray() as? [String])
+        #expect(!otherProvider.contains(where: { $0.contains("Remaining") }))
+        #expect(!otherProvider.contains(where: { $0.contains("\(remaining) credits") }))
+    }
+
     @Test
     func `account cards preserve projected labels before falling back to email`() throws {
-        let start = try #require(self.html.range(of: "function renderAccountCard(provider, account)"))
+        let start = try #require(self.html.range(of: "function renderAccountCard("))
         let end = try #require(self.html.range(of: "function renderProvider(provider)"))
         let renderer = String(self.html[start.lowerBound..<end.lowerBound])
         let context = try #require(JSContext())

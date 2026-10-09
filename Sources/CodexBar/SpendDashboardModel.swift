@@ -344,6 +344,8 @@ struct SpendDashboardModel: Equatable, Sendable {
         let totalTokens: Int?
         let totalCost: Double?
         let modelName: String?
+        var turnPerformance: CostUsageTurnPerformanceSummary?
+        var toolActivitySource: SessionToolActivitySource?
     }
 
     struct HourlyPoint: Identifiable, Equatable, Sendable {
@@ -657,7 +659,11 @@ struct SpendDashboardModel: Equatable, Sendable {
             coverageAccumulator: coverage,
             provenance: provenance,
             meteredCost: hasMeteredCostAmount ? metered : nil,
-            sessions: Self.sessionRows(summaries: summaries, bounds: bounds, calendar: calendar),
+            sessions: Self.sessionRows(
+                summaries: summaries,
+                bounds: bounds,
+                calendar: calendar,
+                selectedDay: selectedDay),
             overflowModelCount: overflowCount,
             selectedDay: selectedDay,
             hourlyPoints: hourlyPoints,
@@ -1472,12 +1478,20 @@ struct SpendDashboardModel: Equatable, Sendable {
     static func sessionRows(
         summaries: [InputSummary],
         bounds: ClosedRange<Date>,
-        calendar: Calendar) -> [SessionRow]
+        calendar: Calendar,
+        selectedDay: Date? = nil) -> [SessionRow]
     {
         let rows = summaries.flatMap { summary -> [SessionRow] in
             summary.input.snapshot.sessions.compactMap { session -> SessionRow? in
                 let day = calendar.startOfDay(for: session.lastActivity)
-                guard bounds.contains(day) else { return nil }
+                // Provider-specific by design: only the native Codex ledger has validated turn timing.
+                let performanceSamples = summary.input.provider == .codex && summary.input.sourceKind == .native
+                    ? session.turnPerformanceSamples.filter {
+                        let completionDay = calendar.startOfDay(for: $0.completedAt)
+                        return bounds.contains(completionDay) &&
+                            (selectedDay == nil || completionDay == selectedDay)
+                    } : []
+                guard bounds.contains(day) || !performanceSamples.isEmpty else { return nil }
                 let modelName = session.modelBreakdowns.max {
                     ($0.totalTokens ?? 0) < ($1.totalTokens ?? 0)
                 }?.modelName
@@ -1493,7 +1507,11 @@ struct SpendDashboardModel: Equatable, Sendable {
                     lastActivity: session.lastActivity,
                     totalTokens: session.totalTokens,
                     totalCost: session.costUSD.map { $0 * summary.costMultiplier },
-                    modelName: modelName)
+                    modelName: modelName,
+                    turnPerformance: CostUsageTurnPerformanceSummary(samples: performanceSamples),
+                    // Provider-specific by design: Only native Codex logs supply owned item_completed tool records.
+                    toolActivitySource: summary.input.provider == .codex && summary.input.sourceKind == .native
+                        ? session.toolActivitySource : nil)
             }
         }
         .sorted(by: Self.sessionOrder)

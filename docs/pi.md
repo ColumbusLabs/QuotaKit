@@ -21,6 +21,8 @@ Default session roots include `~/.pi/agent/sessions` and the supported OMP agent
 
 Running Pi/OMP processes also contribute their environment, profile, `--session-dir`, and project settings. Relative paths resolve against that process's working directory. A missing working directory cannot turn an unresolved relative selector into a successful empty scan. Retained roots from explicit command-line or settings selectors survive process exit; settings are revalidated before reuse. Removing a setting from an accessible project drops its former root, while an inaccessible project or broken settings symlink preserves the previous scoped report and its original age.
 
+If a live process has an unreadable environment and no explicit command-line root/profile selector, QuotaKit skips that optional process during cost-root discovery and logs one summary count without exposing arguments, paths, or environment values. Default and readable process roots still contribute history on the first and later scans. Explicit selections that remain unresolved keep the history incomplete; an absolute `--session-dir` remains usable without a process environment or working directory.
+
 Assistant turns are bucketed by their own timestamp in the selected cost time zone. Matching entry IDs within the same session count once across overlapping roots. Distinct turns remain separate. The scanner retains per-message prices and token classes rather than repricing a daily aggregate.
 
 ## Count each source once

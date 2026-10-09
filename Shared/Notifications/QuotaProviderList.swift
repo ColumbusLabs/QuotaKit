@@ -159,6 +159,11 @@ public enum QuotaProviderList {
         // Append-only: MuseAI (muse.ai) quota pushes preserve every existing zone name.
         Provider(id: "museai", displayName: "Muse (muse.ai)"),
         Provider(id: "workbuddy", displayName: "WorkBuddy"),
+        // Tavily, Cosmic AI, and Aerostack expose quota windows. Balance/spend-only
+        // additions do not receive transition zones. Keep all new IDs append-only.
+        Provider(id: "tavily", displayName: "Tavily"),
+        Provider(id: "cosmic", displayName: "Cosmic AI"),
+        Provider(id: "aerostack", displayName: "Aerostack"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

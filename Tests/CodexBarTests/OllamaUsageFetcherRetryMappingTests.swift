@@ -13,26 +13,6 @@ private let ollamaUsageHTML = """
 
 @Suite(.serialized)
 struct OllamaUsageFetcherRetryMappingTests {
-    private func makeContext(
-        sourceMode: ProviderSourceMode,
-        env: [String: String] = [:],
-        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
-    {
-        let browserDetection = BrowserDetection(cacheTTL: 0)
-        return ProviderFetchContext(
-            runtime: .cli,
-            sourceMode: sourceMode,
-            includeCredits: false,
-            webTimeout: 1,
-            webDebugDumpHTML: false,
-            verbose: false,
-            env: env,
-            settings: settings,
-            fetcher: UsageFetcher(),
-            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
-            browserDetection: browserDetection)
-    }
-
     @Test
     func `api key reader trims configured environment key`() {
         let token = OllamaAPISettingsReader.apiKey(environment: ["OLLAMA_API_KEY": " 'ollama-test' "])
@@ -469,9 +449,13 @@ struct OllamaUsageFetcherRetryMappingTests {
             let data: Data
             switch request.url {
             case validationURL:
+                #expect(request.httpMethod == "POST")
+                #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
                 statusCode = 400
                 data = Data(#"{"error":"query is required"}"#.utf8)
             case tagsURL:
+                #expect(request.httpMethod == "GET")
+                #expect(request.httpBody == nil)
                 statusCode = 200
                 data = Data(#"{"models":[{}]}"#.utf8)
             default:
@@ -479,6 +463,8 @@ struct OllamaUsageFetcherRetryMappingTests {
                 statusCode = 500
                 data = Data()
             }
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "QuotaKit/1.0")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer ollama-test")
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: statusCode,
@@ -494,6 +480,38 @@ struct OllamaUsageFetcherRetryMappingTests {
             transport: transport)
 
         #expect(snapshot.modelCount == 1)
+    }
+
+    @Test
+    func `model catalog rejects bad request even when validation accepts it`() async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            #expect(request.url == validationURL || request.url == tagsURL)
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 400,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (Data(#"{"error":"bad request"}"#.utf8), response)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "ollama-test",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+            Issue.record("Expected the model-catalog HTTP 400 to fail")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected a catalog network error, got \(error)")
+                return
+            }
+            #expect(message == "HTTP 400")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
+        }
     }
 
     @Test(arguments: [401, 403])
@@ -881,44 +899,6 @@ struct OllamaUsageFetcherRetryMappingTests {
         }
         #expect(recorder.count == 1)
     }
-
-    private func makeCookieFetcher(
-        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
-        -> OllamaUsageFetcher
-    {
-        OllamaUsageFetcher(
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            makeURLSession: { delegate in
-                let config = URLSessionConfiguration.ephemeral
-                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
-                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-            },
-            finishURLSession: finishURLSession)
-    }
-
-    private static func makeResponse(
-        url: URL,
-        body: String,
-        statusCode: Int) -> (HTTPURLResponse, Data)
-    {
-        let response = HTTPURLResponse(
-            url: url,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "text/html"])!
-        return (response, Data(body.utf8))
-    }
-
-    private static func makeSnapshot(sessionUsedPercent: Double) -> OllamaUsageSnapshot {
-        OllamaUsageSnapshot(
-            planName: nil,
-            accountEmail: nil,
-            sessionUsedPercent: sessionUsedPercent,
-            weeklyUsedPercent: nil,
-            sessionResetsAt: nil,
-            weeklyResetsAt: nil,
-            updatedAt: Date(timeIntervalSince1970: 200))
-    }
 }
 
 extension OllamaUsageFetcherRetryMappingTests {
@@ -991,6 +971,64 @@ extension OllamaUsageFetcherRetryMappingTests {
         #expect(dump.contains("Session: 1.2%"))
         #expect(!dump.contains("stale-fixture"))
         #expect(!dump.contains("valid-fixture"))
+    }
+
+    private func makeContext(
+        sourceMode: ProviderSourceMode,
+        env: [String: String] = [:],
+        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
+    {
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: sourceMode,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: env,
+            settings: settings,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
+    }
+
+    private func makeCookieFetcher(
+        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
+        -> OllamaUsageFetcher
+    {
+        OllamaUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            makeURLSession: { delegate in
+                let config = URLSessionConfiguration.ephemeral
+                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
+                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+            },
+            finishURLSession: finishURLSession)
+    }
+
+    private static func makeResponse(
+        url: URL,
+        body: String,
+        statusCode: Int) -> (HTTPURLResponse, Data)
+    {
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "text/html"])!
+        return (response, Data(body.utf8))
+    }
+
+    private static func makeSnapshot(sessionUsedPercent: Double) -> OllamaUsageSnapshot {
+        OllamaUsageSnapshot(
+            planName: nil,
+            accountEmail: nil,
+            sessionUsedPercent: sessionUsedPercent,
+            weeklyUsedPercent: nil,
+            sessionResetsAt: nil,
+            weeklyResetsAt: nil,
+            updatedAt: Date(timeIntervalSince1970: 200))
     }
 }
 

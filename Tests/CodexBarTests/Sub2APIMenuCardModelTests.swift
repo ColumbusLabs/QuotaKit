@@ -151,7 +151,7 @@ struct Sub2APIMenuCardModelTests {
                 now: now))
         }
 
-        #expect(model.metrics.map(\.title) == ["每日配额", "每周", "每月"])
+        #expect(model.metrics.map(\.title) == ["每日配额", "每周额度", "每月额度"])
         let usage = try #require(model.providerDetails.first)
         #expect(usage.title == "用量")
         #expect(usage.rows.map(\.label) == ["今日", "总计"])

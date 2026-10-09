@@ -98,5 +98,13 @@ enum ProviderImplementationManifest {
         { PluginCookieProviderImplementation(spec: LithosAIProviderDescriptor.spec) },
         { PluginCookieProviderImplementation(spec: WorkBuddyProviderDescriptor.spec) },
         { PluginCookieProviderImplementation(spec: LangdockProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: TavilyProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: LinkupProviderDescriptor.spec) },
+        { PluginCookieProviderImplementation(spec: TinyApiProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: ExaProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: CosmicProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: AerostackProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: SailResearchProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: SofyaProviderDescriptor.spec) },
     ]
 }

@@ -37,6 +37,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "WorkBuddy credit quotas now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."),
                         String(
+                            localized: "Quota windows for Tavily, Cosmic AI, and Aerostack; provider details for Linkup, TinyApi, Exa, Sail Research, and Sofya; and Ollama wallet details and JetBrains top-up details now sync from QuotaKit Mac to iPhone."),
+                        String(
                             localized: "Crof is retired from active quota alerts; existing synced records remain readable."),
                         String(
                             localized: "The app now uses refreshed provider accent colors; widget colors stay the same."),

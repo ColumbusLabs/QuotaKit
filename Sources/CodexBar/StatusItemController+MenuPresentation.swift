@@ -882,13 +882,14 @@ struct MenuCardSectionContainerView<Content: View>: View {
             }
             .overlay(alignment: self.submenuIndicatorAlignment) {
                 if self.showsSubmenuIndicator {
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(MenuHighlightStyle.secondary(self.highlightState.isHighlighted))
                         .padding(.top, self.submenuIndicatorTopPadding)
                         .padding(.trailing, 10)
                 }
             }
+            .codexBarLocalized()
     }
 }
 

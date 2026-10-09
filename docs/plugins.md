@@ -49,6 +49,11 @@ credential discovery and cookie/session handling outside this API-key-only build
 
 ## Minimal plugin
 
+[Cosmic AI](cosmic.md), [Aerostack](aerostack.md), [Sail Research](sailresearch.md), and [Sofya](sofya.md) use the
+shared API-key provider spec and fixed-origin GET requests in both plugin engines. Cosmic also declares its Project ID
+through the spec's workspace field. Their scripts preserve provider account scope, distinct credit pools, and reported
+periods; missing quotas and reset dates remain unavailable.
+
 ```js
 defineProvider({
   id: "acme-usage",
@@ -397,3 +402,11 @@ Providers without stable account identity can set `history: .unavailable` and `b
 on the spec. Langdock uses these capabilities and does not backfill missing reset dates from prior sessions.
 Providers with both widget capabilities disabled are omitted from widget files. Selected-profile usage is never
 exported to iPhone sync, fleet CloudKit account snapshots, or widgets: its ownership can only be verified on the importing device.
+
+## Search and research credit providers
+
+[Tavily](tavily.md) reads account-plan, API-key, and pay-as-you-go credits through its public usage API;
+[Linkup](linkup.md) reports its prepaid USD balance. Both use API keys and the shared `PluginProviderSpec`.
+[Exa](exa.md) reports selected-key monthly spend through Team Management with a support-enabled service key and API key ID.
+[TinyApi](tinyapi.md) reads aggregate available credits through its website session and QuotaKit's shared cookie host.
+These providers omit undocumented reset dates, credit-bucket splits, and live request-rate headroom.

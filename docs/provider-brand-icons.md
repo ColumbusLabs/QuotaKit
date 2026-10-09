@@ -13,6 +13,9 @@ Artwork adopted from the reviewed steipete/CodexBar source range retains its doc
 | Muse / Meta | [Meta developer artwork](https://dev.meta.ai/logo/meta-logo-with-text.svg), symbol retained without wordmark |
 | Bedrock | [AWS architecture icons](https://aws.amazon.com/architecture/icons/), padded square view box |
 | Vertex AI | [Google Cloud icons](https://cloud.google.com/icons), original vector artwork |
+| Pi | [Official Pi favicon](https://pi.dev/favicon.svg), verified 2026-10-08 | Preserved the three block paths and `560×560` viewBox; use `currentColor` for adaptive template rendering across Mac, iPhone, and the CLI dashboard. |
+
+The colored Pi website logo is not bundled because its redistribution terms were not established. The monochrome official favicon is used consistently by QuotaKit's Mac, iPhone, and embedded CLI dashboard.
 
 The retained assets are provider marks, not QuotaKit application icons. Source tests check cache separation and decoded colored pixels, and synthetic rendering fixtures cover light/dark and narrow layouts. Upstream packaged screenshots are historical evidence and are not QuotaKit runtime qualification.
 

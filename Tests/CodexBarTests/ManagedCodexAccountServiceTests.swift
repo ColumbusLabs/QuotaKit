@@ -712,7 +712,9 @@ struct ManagedCodexAccountServiceTests {
             #expect(error.userFacingMessage.contains("OAuth callback used the wrong browser profile"))
         }
     }
+}
 
+extension ManagedCodexAccountServiceTests {
     @Test
     func `remove deletes managed home under managed root`() async throws {
         let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -852,6 +854,48 @@ struct ManagedCodexAccountServiceTests {
 
         #expect(store.snapshot.accounts.isEmpty)
         #expect(FileManager.default.fileExists(atPath: outsideRoot.path))
+    }
+
+    @Test
+    func `remove keeps a managed home still referenced by a remaining record`() async throws {
+        let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let sharedHome = root.appendingPathComponent("accounts/shared", isDirectory: true)
+        try FileManager.default.createDirectory(at: sharedHome, withIntermediateDirectories: true)
+        let sharedAuthData = Data("shared-auth".utf8)
+        try sharedAuthData.write(to: sharedHome.appendingPathComponent("auth.json"))
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let removed = ManagedCodexAccount(
+            id: UUID(),
+            email: "removed@example.com",
+            managedHomePath: sharedHome.path,
+            createdAt: 1,
+            updatedAt: 1,
+            lastAuthenticatedAt: 1)
+        let sibling = ManagedCodexAccount(
+            id: UUID(),
+            email: "sibling@example.com",
+            providerAccountID: "account-sibling",
+            managedHomePath: sharedHome.path,
+            createdAt: 2,
+            updatedAt: 2,
+            lastAuthenticatedAt: 2)
+        let store = InMemoryManagedCodexAccountStore(
+            accounts: ManagedCodexAccountSet(version: 1, accounts: [removed, sibling]))
+        let service = ManagedCodexAccountService(
+            store: store,
+            homeFactory: TestManagedCodexHomeFactory(root: root),
+            loginRunner: StubManagedCodexLoginRunner.success,
+            identityReader: StubManagedCodexIdentityReader.emails([]),
+            workspaceResolver: StubManagedCodexWorkspaceResolver())
+
+        try await service.removeManagedAccount(id: removed.id)
+
+        #expect(store.snapshot.accounts.count == 1)
+        #expect(store.snapshot.accounts.first?.id == sibling.id)
+        #expect(store.snapshot.accounts.first?.managedHomePath == sharedHome.path)
+        #expect(FileManager.default.fileExists(atPath: sharedHome.path))
+        #expect(try Data(contentsOf: sharedHome.appendingPathComponent("auth.json")) == sharedAuthData)
     }
 }
 

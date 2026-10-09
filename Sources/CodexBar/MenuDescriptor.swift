@@ -671,7 +671,7 @@ struct MenuDescriptor {
         } else if canCheckForUpdates {
             entries.append(.action(L("Check for Updates…"), .checkForUpdates))
         }
-        let aboutLabel = L("About CodexBar") + (versionText.isEmpty ? "" : " (v\(versionText))")
+        let aboutLabel = L("About QuotaKit") + (versionText.isEmpty ? "" : " (v\(versionText))")
         entries.append(contentsOf: [
             .action(L("Refresh"), .refresh),
             .action(L("Settings..."), .settings),

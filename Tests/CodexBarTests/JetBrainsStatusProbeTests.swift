@@ -433,6 +433,41 @@ struct JetBrainsStatusProbeTests {
         #expect(snapshot.quotaInfo.available == 654_000)
         #expect(abs(snapshot.quotaInfo.usedPercent - 34.6) < 0.001)
         #expect(abs(snapshot.quotaInfo.remainingPercent - 65.4) < 0.001)
+        #expect(snapshot.quotaInfo.topUp?.maximum == 5_489_986.397)
+        #expect(snapshot.quotaInfo.topUp?.available == 5_489_986.397)
+        #expect(abs((snapshot.quotaInfo.topUp?.availableCredits ?? 0) - 54.89986397) < 0.0001)
+
+        let usage = try snapshot.toUsageSnapshot()
+        #expect(usage.primary?.usedPercent == snapshot.quotaInfo.usedPercent)
+        #expect(usage.secondary == nil)
+        #expect(usage.details.map(\.title) == ["Top-up credits"])
+        #expect(usage.detailRow(label: "Remaining")?.value == "54.90 credits")
+    }
+
+    @Test
+    func `top-up balance needs an explicit valid available value`() throws {
+        let quotaInfo = """
+        {&quot;type&quot;:&quot;Available&quot;,
+         &quot;tariffQuota&quot;:{
+           &quot;current&quot;:&quot;250000&quot;,
+           &quot;maximum&quot;:&quot;1000000&quot;,
+           &quot;available&quot;:&quot;750000&quot;},
+         &quot;topUpQuota&quot;:{
+           &quot;current&quot;:&quot;1000&quot;,
+           &quot;maximum&quot;:&quot;100000&quot;}}
+        """
+        let xml = """
+        <application><component name="AIAssistantQuotaManager2">
+          <option name="quotaInfo" value="\(quotaInfo)" />
+        </component></application>
+        """
+
+        let snapshot = try JetBrainsStatusProbe.parseXMLData(Data(xml.utf8), detectedIDE: nil)
+
+        #expect(snapshot.quotaInfo.maximum == 1_000_000)
+        #expect(snapshot.quotaInfo.usedPercent == 25)
+        #expect(snapshot.quotaInfo.topUp == nil)
+        #expect(try snapshot.toUsageSnapshot().details.isEmpty)
     }
 
     @Test
