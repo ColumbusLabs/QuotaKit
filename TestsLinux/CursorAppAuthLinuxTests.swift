@@ -103,7 +103,9 @@ struct CursorAppAuthLinuxTests {
 
         let snapshot = try await probe.fetch(allowCachedSessions: false).toUsageSnapshot()
 
-        #expect(snapshot.primary?.usedPercent == 30)
+        #expect(snapshot.cursorRateWindowLayout == .autoAPI)
+        #expect(snapshot.primary?.usedPercent == 10)
+        #expect(snapshot.secondary?.usedPercent == 20)
         #expect(try Data(contentsOf: auth) == before)
     }
 

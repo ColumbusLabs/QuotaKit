@@ -25,6 +25,29 @@ struct TokenSnapshotPublication: Sendable, Equatable {
 }
 
 extension UsageStore {
+    /// Energy/WidgetKit floor for expensive local-history scans and their additional snapshot publications.
+    /// Faster provider refreshes still update quota/status normally, but reuse token-cost history within this TTL.
+    static let minimumTokenFetchTTL: TimeInterval = 15 * 60
+
+    var tokenFetchTTL: TimeInterval? {
+        Self.tokenFetchTTL(
+            for: self.settings.refreshFrequency,
+            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
+    }
+
+    static func tokenFetchTTL(
+        for frequency: RefreshFrequency,
+        lowPowerModeEnabled: Bool = false) -> TimeInterval?
+    {
+        let interval = frequency.usesAdaptivePolicy
+            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
+            : frequency.seconds
+        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
+        return BackgroundWorkPowerPolicy.automaticInterval(
+            widgetSafeInterval,
+            lowPowerModeEnabled: lowPowerModeEnabled)
+    }
+
     enum TokenSnapshotError: LocalizedError {
         case historyUnavailable
 

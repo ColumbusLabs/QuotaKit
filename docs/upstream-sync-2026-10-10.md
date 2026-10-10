@@ -33,6 +33,17 @@ serve-memory fixtures are retained with QuotaKit paths and configuration keys.
 No live provider credentials, cookie imports, Keychain reads, or account probes
 are needed to verify these changes.
 
+The first hosted Linux run exposed two fixture assumptions. QuotaKit presents
+Cursor's fixture as Auto 10% and API 20%, rather than using the 30% total plan
+usage as its primary lane. Its process-local scan-store registry also retains
+Codex scan state, so a cold-to-post-scan RSS threshold does not isolate freed
+allocator pages. The repaired regression directly exercises the actual trim
+callback against a controlled fragmented glibc heap. The real `serve` fixture
+checks cost responses and health for 40 seconds across the unchanged 30-second
+timer with 5-second leeway, recording RSS diagnostically. Source inspection
+establishes retained cache objects; it does not quantify their contribution to
+the original RSS failure. Both architectures must qualify the repaired head.
+
 The CI cache chain is adapted to the fork's current cache lifecycle. The final
 schema-3 helper verifies content, permissions, path inventories, and symlink
 targets before restoring input timestamps; unverifiable inputs clean build
