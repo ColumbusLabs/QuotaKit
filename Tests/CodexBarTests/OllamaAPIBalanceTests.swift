@@ -42,11 +42,18 @@ struct OllamaAPIBalanceTests {
     func `API and cookie snapshots share monthly and credit presentation`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let html = OllamaCreditWalletTests.wallet
-            .replacingOccurrences(of: "$4.50", with: "$7.50") + """
-            <div><span>Monthly usage</span><span>$7.50 of $60 used</span>
-            <div data-time="2026-10-30T15:14:29Z">Resets in 4 weeks.</div></div>
-            """
+        let html = """
+        <section>
+          <h2>Usage credits<span>pro</span></h2>
+          <span>$18.25</span>
+          <p>Refills to $30 in 3 weeks.</p>
+          <span>Monthly credits used</span><span>$7.50</span>
+        </section>
+        <div>
+          <span>Monthly usage</span><span>12.5% used</span>
+          <div data-time="2026-10-30T15:14:29Z">Resets in 4 weeks.</div>
+        </div>
+        """
         let web = try OllamaUsageParser.parse(html: html).toUsageSnapshot()
         let api = try await Self.fetch(engine: engine)
         #expect(api.primary == web.primary)

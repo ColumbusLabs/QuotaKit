@@ -230,10 +230,10 @@ struct MenuBarPaceSignTests {
     private func fixture(reservePositive: Bool) -> (SettingsStore, UsageStore) {
         let settings = testSettingsStore(
             suiteName: "pace-sign",
-            userDefaults: InMemoryUserDefaults(values: ["menuBarPaceReservePositive": reservePositive]),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults(values: ["menuBarPaceReservePositive": reservePositive]))
         settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
+        settings.refreshFrequency = RefreshFrequency.manual
         return (settings, UsageStore(
             fetcher: UsageFetcher(), browserDetection: BrowserDetection(cacheTTL: 0), settings: settings))
     }
