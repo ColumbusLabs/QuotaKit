@@ -18,6 +18,10 @@ struct LocalizationLanguageCatalogTests {
             #expect(phrase.components(separatedBy: "%@").count == 2)
             #expect(phrase.count(where: { $0 == "%" }) == 1)
             if url.lastPathComponent != "en.lproj" { #expect(phrase != key) }
+
+            let browserKey = "Browser"
+            let browserLabel = try #require(catalog[browserKey], "Missing phrase in \(url.lastPathComponent)")
+            #expect(!browserLabel.isEmpty)
         }
     }
 
@@ -36,6 +40,26 @@ struct LocalizationLanguageCatalogTests {
             let phrase = try #require(catalog[key], "Missing phrase in \(url.lastPathComponent)")
             #expect(!phrase.isEmpty)
             if url.lastPathComponent != "en.lproj" { #expect(phrase != key) }
+        }
+    }
+
+    @Test
+    func `pace sign controls are translated in every catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+        #expect(catalogs.count == AppLanguage.allCases.count - 1)
+        let keys = ["Pace sign", "Ahead of pace is +", "Reserve is +"]
+        for url in catalogs {
+            let catalog = try #require(NSDictionary(contentsOf: url.appendingPathComponent("Localizable.strings"))
+                as? [String: String])
+            for key in keys {
+                let phrase = try #require(catalog[key], "Missing \(key) in \(url.lastPathComponent)")
+                #expect(!phrase.isEmpty)
+                if url.lastPathComponent != "en.lproj" { #expect(phrase != key) }
+            }
         }
     }
 

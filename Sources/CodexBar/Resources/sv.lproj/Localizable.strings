@@ -2522,3 +2522,6 @@
 "~%@ tracked tokens (partial)" = "~%@ Registrerade token (DELVIS)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "Tecken för förbrukningstakt";
+"Ahead of pace is +" = "Över förbrukningstakten är +";
+"Reserve is +" = "Reserv är +";

@@ -42,35 +42,53 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         cookieClient: BrowserCookieClient = BrowserCookieClient(),
         logger: ((String) -> Void)? = nil) throws -> AliyunOneConsoleCookieImporter.SessionInfo?
     {
+        // Discover eligible stores first: this is metadata-only and also enforces QuotaKit's default-home
+        // suppression. The fallback reads SQLite cookie payloads directly, so it must claim the same gated
+        // read as BrowserCookieClient.codexBarRecords before deriving Safe Storage keys or opening a database.
         let stores = try cookieClient.codexBarStores(for: browser).filter { $0.databaseURL != nil }
         guard !stores.isEmpty else { return nil }
+        guard BrowserCookieAccessGate.shouldAttempt(browser) else { return nil }
+        guard BrowserCookieAccessGate.claimExplicitRetryCookieReadIfNeeded(for: browser) else { return nil }
 
         logger?("Trying \(browser.displayName) Chromium fallback")
-        let keys = try self.derivedKeys(for: browser)
-        for store in stores {
-            let records = try self.loadCookies(from: store, domains: domains, keys: keys)
-            let cookies = records.compactMap(self.makeCookie)
-            guard !cookies.isEmpty else { continue }
-            if isAuthenticatedSession(cookies) {
-                logger?("Found \(cookies.count) \(sessionLabel) cookies via \(store.label) fallback")
-                let browserRecords = records.map { record in
-                    BrowserCookieRecord(
-                        domain: record.domain,
-                        name: record.name,
-                        path: record.path,
-                        value: record.value,
-                        expires: record.expires,
-                        isSecure: record.isSecure,
-                        isHTTPOnly: false,
-                        scope: record.hostOnly ? .hostOnly : .domain)
-                }
-                return AliyunOneConsoleCookieImporter.SessionInfo(
-                    cookies: cookies,
-                    sourceLabel: store.label,
-                    records: browserRecords)
+        do {
+            let keys = try BrowserCookieAccessGate.withRecordReadInteractionPolicy {
+                try self.derivedKeys(for: browser)
             }
+            for store in stores {
+                let records = try BrowserCookieAccessGate.withRecordReadInteractionPolicy {
+                    try self.loadCookies(from: store, domains: domains, keys: keys)
+                }
+                let cookies = records.compactMap(self.makeCookie)
+                guard !cookies.isEmpty else { continue }
+                if isAuthenticatedSession(cookies) {
+                    logger?("Found \(cookies.count) \(sessionLabel) cookies via \(store.label) fallback")
+                    let browserRecords = records.map { record in
+                        BrowserCookieRecord(
+                            domain: record.domain,
+                            name: record.name,
+                            path: record.path,
+                            value: record.value,
+                            expires: record.expires,
+                            isSecure: record.isSecure,
+                            isHTTPOnly: false,
+                            scope: record.hostOnly ? .hostOnly : .domain)
+                    }
+                    BrowserCookieAccessGate.recordAllowed(for: browser)
+                    return AliyunOneConsoleCookieImporter.SessionInfo(
+                        cookies: cookies,
+                        sourceLabel: store.label,
+                        records: browserRecords)
+                }
+            }
+            return nil
+        } catch let error as ImportError {
+            if case .keychainDenied = error { BrowserCookieAccessGate.recordDenied(for: browser) }
+            throw error
+        } catch {
+            BrowserCookieAccessGate.recordIfNeeded(error)
+            throw error
         }
-        return nil
     }
 
     private static func loadCookies(

@@ -127,6 +127,7 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   - Provider config is reloaded for each usage/cost request; cache entries are keyed by the loaded config so provider toggles and source changes do not require restarting `serve`.
   - Transient refresh failures fall back to the last good response for up to ten refresh intervals (minimum five minutes) so polling clients do not flicker between data and errors; disabled when `--refresh-interval 0`.
   - After a cached response expires, `serve` returns the last-good response immediately while rebuilding it in the background; `--refresh-interval 0` keeps every request blocking.
+  - On glibc Linux, `serve` periodically returns freed heap pages to the operating system. Allocator arena settings remain controlled by the environment; macOS and musl keep their normal allocator behavior.
   - The default loopback bind rejects non-loopback `Host` headers; a configured non-loopback `--host` additionally accepts its own name. No CORS, TLS, or daemon mode.
   - Endpoints: `GET /` (web UI), `GET /health`, `GET /usage`, `GET /usage?provider=<id|both|all>`, `GET /cost`, `GET /cost?provider=<id|both|all>`, `GET /dashboard/v1/snapshot` (plus `provider=<id>` and `detail=<full|shell>`).
   - `GET /dashboard/v1/snapshot` requires `Authorization: Bearer YOUR_TOKEN`; responses (and all `401`s) carry `Cache-Control: no-store`. The token is never accepted via query string. See `docs/dashboard-api.md` for the payload contract.
@@ -137,6 +138,10 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   - `--cookies --provider <id>` removes browser-cookie cache entries for that provider, including managed Codex account scopes.
   - `--cost` removes local cost-usage scan caches.
   - `--all` clears both cookies and cost caches. `--provider` is cookie-only and cannot be combined with `--cost` or `--all`.
+- `quotakit cookie refresh --provider <id>` validates and refreshes a provider's browser session; `--all` targets every
+  browser-cookie provider. Selected-profile providers use the saved browser and profile selection. Chromium cookie
+  decryption may show a Keychain prompt only when `--allow-keychain-prompt` acknowledges it; Safari profile refresh
+  does not require that acknowledgment. See [Langdock](langdock.md) for browser-profile setup.
 - `quotakit plugins` lists installed user-provider plugins and their approval/runtime state. Plugin manifests can describe settings, detail rows, and charts; see `docs/plugins.md` for install paths, permissions, and the JavaScript/TypeScript sandbox.
 - `--provider <id|both|all>` (default: enabled providers in config; falls back to defaults when missing).
   - Provider IDs live in the config file (see `docs/configuration.md`).
@@ -167,7 +172,7 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
     - OpenCode Go auto: local SQLite cost history on macOS with API usage-window enrichment when
       `OPENCODE_API_KEY` is configured, plus legacy manual-cookie web fallback.
     - Kilo auto: app.kilo.ai API first, then CLI auth fallback (`~/.local/share/kilo/auth.json`) on missing/unauthorized API credentials.
-    - Linux: automatic browser import is unavailable. Cursor `auto`/`cli` can read the signed-in app token, including Cursor and Grok Bot usage; explicit Cursor `web` requires a manual cookie. Other local sources and configured manual-cookie paths remain available where documented.
+    - Linux: automatic browser import is unavailable. Cursor `auto`/`cli` can read local Cursor.app or `cursor-agent login` credentials, including Cursor and Grok Bot usage; explicit Cursor `web` requires a manual cookie. Other local sources and configured manual-cookie paths remain available where documented.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`, `--json-only`.
   - `--json-output`: JSONL logs on stderr (machine-readable).
   - `--json-only`: suppress non-JSON output; errors become JSON payloads.

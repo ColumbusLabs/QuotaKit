@@ -72,7 +72,13 @@ struct LangdockUsageTests {
         #expect(registration.cookieSettings(from: snapshot)?.selectedBrowserProfile?
             .profileID == "/synthetic/Edge/Profile 1")
         #expect(!LangdockProviderDescriptor.descriptor.metadata.defaultEnabled)
-        #expect(LangdockProviderDescriptor.descriptor.settingsSection.selectedProfileBrowser == "edge")
+        #expect(LangdockProviderDescriptor.descriptor.metadata.browserCookieOrder == nil)
+        #expect(LangdockProviderDescriptor.descriptor.settingsSection.selectedProfileBrowser == nil)
+        #expect(LangdockProviderDescriptor.descriptor.settingsSection.selectedProfileBrowsers
+            == ["edge", "chrome", "safari"])
+        #expect(CodexBarCLI.cookieRefreshBrowserOrder(
+            descriptor: LangdockProviderDescriptor.descriptor,
+            config: nil).map(\.rawValue) == ["edge"])
         var disabled = config
         disabled.cookieSource = .off
         let disabledContribution = try #require(registration.credentialContribution(

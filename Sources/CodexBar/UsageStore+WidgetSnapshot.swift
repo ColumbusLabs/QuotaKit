@@ -142,6 +142,7 @@ extension UsageStore {
                     snapshotToPersist = WidgetSnapshot(
                         entries: latestSnapshot.enabledProviders.compactMap { freshEntries[$0] ?? retainedEntries[$0] },
                         accounts: latestSnapshot.accounts,
+                        accountOverflowCounts: latestSnapshot.accountOverflowCounts,
                         enabledProviders: latestSnapshot.enabledProviders,
                         usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
                         generatedAt: filteredSnapshot.generatedAt)
@@ -380,6 +381,9 @@ extension UsageStore {
                 snapshotToPersist = WidgetSnapshot(
                     entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
                     accounts: queuedSnapshot.accounts.filter { $0.provider != provider.instanceID },
+                    accountOverflowCounts: queuedSnapshot.accountOverflowCounts.filter {
+                        $0.key != provider.rawValue
+                    },
                     enabledProviders: queuedSnapshot.enabledProviders,
                     usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
                     generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
@@ -456,6 +460,7 @@ extension UsageStore {
         return WidgetSnapshot(
             entries: entries,
             accounts: self.makeWidgetAccountEntries(now: now),
+            accountOverflowCounts: self.widgetAccountOverflowCounts(),
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             generatedAt: generatedAt)

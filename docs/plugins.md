@@ -47,6 +47,11 @@ the provider's availability and detail-line policies explicitly. Providers with 
 can share the descriptor builder while retaining their app implementation, as GitKraken and DeepInfra do. Keep native
 credential discovery and cookie/session handling outside this API-key-only building block.
 
+Ollama's API-key strategy runs the bundled `ollama-api.ts` plugin on both engines. A fixed-origin bearer GET reads the
+included allowance, reset, and purchased balance into the existing Monthly and Credits presentation; cookie import
+and HTML parsing remain native. The public legacy catalog fetcher remains available for `CodexBarCore` API
+compatibility but is no longer used by provider refreshes.
+
 ## Minimal plugin
 
 [Cosmic AI](cosmic.md), [Aerostack](aerostack.md), [Sail Research](sailresearch.md), and [Sofya](sofya.md) use the
@@ -387,8 +392,16 @@ capabilities and does not change network approval.
 A bundled plugin can declare `cookiePolicy.store: "selected-profile"` with `selection: "request-url"`,
 `cache: "nonpersistent"`, `imports: "access-gated"`, a nonempty `requiredCookies` list, and a `sessionURL` on
 its single declared request host. Its `PluginProviderSpec.WebSource` registers a settings section with
-`selectedProfileBrowser`; the shared **Browser profile** picker persists the explicit `browserProfileID`.
-There is no default profile, Manual header path, other-profile fallback, or cookie-cache read/write.
+`selectedProfileBrowsers`; the shared **Browser** and **Browser profile** pickers persist `browserID` and the
+explicit `browserProfileID`. When `browserID` is absent, the first registered browser preserves legacy
+configurations without selecting a profile. Unsupported browser IDs fail closed. Changing the browser clears the
+profile selection, previous measurements, and pending fetches. Safari requires a concrete cookie file; its
+browser-wide placeholder is rejected. There is no default profile, Manual header path, other-profile fallback, or
+cookie-cache read/write.
+
+The single-browser `selectedProfileBrowser` initializer and property remain supported for source compatibility
+with the previously shipped public `CodexBarCore` API. New registrations use `selectedProfileBrowsers`; the legacy
+property returns `nil` for registrations that support multiple browsers.
 
 The host fingerprints the selected browser/profile and the applicable required cookies before fetching. After
 success, failure, or cancellation it reads that same profile again under the background no-interaction gate.

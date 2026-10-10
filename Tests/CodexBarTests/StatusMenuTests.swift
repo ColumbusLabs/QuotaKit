@@ -5,7 +5,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 struct StatusMenuTests {
     func disableMenuCardsForTesting() {
         StatusItemController.menuCardRenderingEnabled = false

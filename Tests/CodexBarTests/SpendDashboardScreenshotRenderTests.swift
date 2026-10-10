@@ -163,7 +163,8 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
         let selectedGroup = try XCTUnwrap(selected.groups.first)
         XCTAssertFalse(hourlyGroup.hourlyPoints.isEmpty)
         XCTAssertEqual(Set(hourlyGroup.hourlyPoints.map(\.sourceID)), [SpendDashboardModel.openCodexSourceID])
-        XCTAssertEqual(selectedGroup.hourlyChartDomain?.lowerBound, selectedDay)
+        let selectedChart = SpendTrendChartModel(group: selectedGroup, section: .hourly, day: selectedDay)
+        XCTAssertEqual(selectedChart.domain.lowerBound, selectedDay)
 
         let renders: [(String, AnyView)] = [
             ("usage-spend-30d", AnyView(Self.chrome(selectedDays: 30, group: thirtyGroup))),

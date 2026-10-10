@@ -94,6 +94,10 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - QuotaKit OAuth cache when available.
   - File fallback: `~/.claude/.credentials.json`.
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
+- If Claude Code is signed in again but QuotaKit still reports missing credentials, an eligible Refresh can detect a
+  newer default-profile Keychain credential timestamp and show re-grant guidance. That metadata-only, no-UI check
+  still requires the existing direct-read consent and interaction policy; it never reads the token payload. Custom
+  profiles use their own credentials file and are not associated with Claude Code's unscoped Keychain item.
 - When a QuotaKit-owned OAuth cache item's ACL rejects the current build, fresh credentials from an allowed source
   can replace that cache item using no-UI deletion and creation. A locked or inconclusive Keychain is preserved;
   failed ACL repairs back off for five minutes. This never deletes or recreates Claude Code's credential item.
@@ -323,6 +327,7 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
+- The PTY and replay screen share a 160-column, 200-row viewport so tall inline `/usage` panels retain session, weekly, and model-specific quotas alongside session statistics and usage insights. Erased content remains discarded.
 - Usage probes pass a process-only `remoteControlAtStartup: false` setting through PTY, watchdog, and direct fallback
   launches. Saved Claude settings and profiles are unchanged.
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.

@@ -675,6 +675,7 @@ extension SettingsStore {
             menuBarShowsBrandIconWithPercent: menuBarShowsBrandIconWithPercent,
             menuBarHidesCritters: menuBarHidesCritters,
             menuBarColorPace: userDefaults.bool(forKey: "menuBarColorPace"),
+            menuBarPaceReservePositive: userDefaults.bool(forKey: "menuBarPaceReservePositive"),
             menuBarColorByProvider: userDefaults.bool(forKey: "menuBarColorByProvider"),
             menuBarHighContrastOnInactiveDisplays: menuBarHighContrastOnInactiveDisplays,
             menuBarDisplayModeRaw: menuBarDisplayModeRaw,

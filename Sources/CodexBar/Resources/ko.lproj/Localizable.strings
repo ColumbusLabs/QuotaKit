@@ -2491,3 +2491,6 @@
 "~%@ tracked tokens (partial)" = "~%@ 기록된 토큰 (부분)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "사용 속도 부호";
+"Ahead of pace is +" = "기준 속도 초과는 +";
+"Reserve is +" = "여유분은 +";

@@ -2,6 +2,7 @@
 import CSQLite3
 import Foundation
 import FoundationNetworking
+import Glibc
 import Testing
 @testable import CodexBarCore
 
@@ -69,6 +70,207 @@ struct CursorAppAuthLinuxTests {
                 "XDG_CONFIG_HOME": "/custom/config",
             ])
         #expect(path == "/custom/config/Cursor/User/globalStorage/state.vscdb")
+    }
+
+    @Test(arguments: ["/custom/config", "", "relative/config", "~/custom"])
+    func `cursor-agent auth path follows the app database config home`(configHome: String) {
+        #expect(CursorAgentAuthStore.resolveDefaultPath(home: "/home/test", environment: [:]) ==
+            "/home/test/.config/cursor/auth.json")
+        let base = configHome.hasPrefix("/") ? configHome : "/home/test/.config"
+        #expect(CursorAgentAuthStore.resolveDefaultPath(
+            home: "/home/test",
+            environment: ["XDG_CONFIG_HOME": configHome]) == "\(base)/cursor/auth.json")
+    }
+
+    @Test
+    func `cursor-agent login can authenticate without Cursor.app and keeps its file unchanged`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let token = try Self.makeToken()
+        let auth = directory.appendingPathComponent("auth.json")
+        let data = Data(#"{"accessToken":"\#(token)","refreshToken":"fixture"}"#.utf8)
+        try data.write(to: auth)
+        let before = try Data(contentsOf: auth)
+        let appDB = directory.appendingPathComponent("missing.vscdb")
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: Self.transport(token: token),
+            appAuthStores: [
+                CursorAppAuthStore(dbPath: appDB.path),
+                CursorAgentAuthStore(path: auth.path),
+            ])
+
+        let snapshot = try await probe.fetch(allowCachedSessions: false).toUsageSnapshot()
+
+        #expect(snapshot.cursorRateWindowLayout == .autoAPI)
+        #expect(snapshot.primary?.usedPercent == 10)
+        #expect(snapshot.secondary?.usedPercent == 20)
+        #expect(try Data(contentsOf: auth) == before)
+    }
+
+    @Test(arguments: [
+        #"{"refreshToken":"refresh"}"#,
+        "{}",
+        #"{"accessToken":null}"#,
+        #"{"accessToken":42}"#,
+        #"{"accessToken":""}"#,
+        #"{"accessToken":"  "}"#,
+    ])
+    func `cursor-agent auth without an access token is no session`(json: String) throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let auth = directory.appendingPathComponent("auth.json")
+        try Data(json.utf8).write(to: auth)
+        #expect(try CursorAgentAuthStore(path: auth.path).loadSession() == nil)
+        #expect(try CursorAgentAuthStore(path: directory.appendingPathComponent("missing.json").path)
+            .loadSession() == nil)
+    }
+
+    @Test
+    func `rejected Cursor.app auth falls through to cursor-agent`() async throws {
+        let app = try CursorAppAuthSession(accessToken: Self.makeToken())
+        let agent = try CursorAppAuthSession(accessToken: Self.makeToken(userID: "agent-user"))
+        let acceptedTransport = Self.transport(token: agent.accessToken, userID: "agent-user")
+        let transport = ProviderHTTPTransportHandler { request in
+            if try request.value(forHTTPHeaderField: "Cookie") == app.cookieHeader() {
+                let url = try #require(request.url)
+                let response = try #require(HTTPURLResponse(
+                    url: url, statusCode: 401, httpVersion: nil, headerFields: nil))
+                return (Data("{}".utf8), response)
+            }
+            return try await acceptedTransport.data(for: request)
+        }
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: transport,
+            appAuthStores: [StubAppAuth(session: app), StubAppAuth(session: agent)])
+
+        let snapshot = try await probe.fetch(allowCachedSessions: false)
+
+        #expect(snapshot.planPercentUsed == 30)
+    }
+
+    @Test(arguments: ["server", "parse", "cancel", "transport", "transport-cancel"])
+    func `local login fallback preserves non-authentication failures`(failure: String) async throws {
+        let app = try CursorAppAuthSession(accessToken: Self.makeToken())
+        let agent = try CursorAppAuthSession(accessToken: Self.makeToken(userID: "agent-user"))
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            appAuthStores: [StubAppAuth(session: app), StubAppAuth(session: agent)])
+        do {
+            let _: String = try await probe.resolveSession(allowCachedSessions: false) { header, _ in
+                #expect(try header == app.cookieHeader())
+                switch failure {
+                case "server": throw CursorStatusProbeError.networkError("HTTP 503")
+                case "parse": throw CursorStatusProbeError.parseFailed("fixture")
+                case "cancel": throw CancellationError()
+                case "transport-cancel": throw URLError(.cancelled)
+                default: throw URLError(.timedOut)
+                }
+            }
+            Issue.record("Expected the original failure")
+        } catch {
+            switch failure {
+            case "server":
+                guard case .networkError("HTTP 503") = error as? CursorStatusProbeError else {
+                    Issue.record("Expected server failure")
+                    return
+                }
+            case "parse":
+                guard case .parseFailed("fixture") = error as? CursorStatusProbeError else {
+                    Issue.record("Expected parse failure")
+                    return
+                }
+            case "cancel":
+                #expect(error is CancellationError)
+            case "transport-cancel":
+                #expect((error as NSError).domain == NSURLErrorDomain)
+                #expect((error as NSError).code == URLError.cancelled.rawValue)
+            default:
+                #expect((error as NSError).domain == NSURLErrorDomain)
+                #expect((error as NSError).code == URLError.timedOut.rawValue)
+            }
+        }
+    }
+
+    @Test(arguments: ["{", "[]", "null"])
+    func `malformed cursor-agent files report a fixed diagnostic`(json: String) throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let auth = directory.appendingPathComponent("auth.json")
+        try Data(json.utf8).write(to: auth)
+        let error = #expect(throws: CursorStatusProbeError.self) {
+            try CursorAgentAuthStore(path: auth.path).loadSession()
+        }
+        guard case .parseFailed("cursor-agent auth file is not a JSON object")? = error else {
+            Issue.record("Expected fixed parse diagnostic")
+            return
+        }
+    }
+
+    @Test
+    func `cursor-agent auth follows symlinks and preserves private file permissions`() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let auth = directory.appendingPathComponent("auth.json")
+        let link = directory.appendingPathComponent("linked.json")
+        let token = try Self.makeToken()
+        let data = try JSONSerialization.data(withJSONObject: ["accessToken": " \(token)\n"])
+        try data.write(to: auth)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: auth.path)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: auth)
+
+        #expect(try CursorAgentAuthStore(path: auth.path).loadSession()?.accessToken == token)
+        #expect(try CursorAgentAuthStore(path: link.path).loadSession()?.accessToken == token)
+        #expect(try Data(contentsOf: auth) == data)
+        #expect(try FileManager.default.attributesOfItem(atPath: auth.path)[.posixPermissions] as? Int == 0o600)
+        #expect(try FileManager.default.destinationOfSymbolicLink(atPath: link.path) == auth.path)
+    }
+
+    @Test(arguments: [false, true])
+    func `failed local auth reads do not hide a usable session`(agentFails: Bool) async throws {
+        let session = try CursorAppAuthSession(accessToken: Self.makeToken())
+        let valid = StubAppAuth(session: session)
+        let stores: [any CursorAppAuthSessionProviding] = agentFails
+            ? [valid, FailingAppAuth()] : [FailingAppAuth(), valid]
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0), appAuthStores: stores)
+        let header = try await probe.resolveSession(allowCachedSessions: false) { header, identity in
+            #expect(identity == session.identity)
+            return header
+        }
+        #expect(try header == session.cookieHeader())
+    }
+
+    @Test(arguments: ["expired", "invalid", "missing-expiration"])
+    func `cursor-agent tokens use desktop validity checks`(kind: String) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let auth = directory.appendingPathComponent("auth.json")
+        let token: String = switch kind {
+        case "expired": try Self.makeToken(expiresAt: 1)
+        case "missing-expiration": "e30.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.fixture"
+        default: "not-a-jwt"
+        }
+        try JSONSerialization.data(withJSONObject: ["accessToken": token]).write(to: auth)
+        let store = CursorAgentAuthStore(path: auth.path)
+        let session = try #require(try store.loadSession())
+        #expect(!session.isUsable)
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0), appAuthStores: [store])
+        let error = await #expect(throws: CursorStatusProbeError.self) {
+            try await probe.resolveSession(allowCachedSessions: false) { header, _ in
+                Issue.record("Unusable credentials must not be sent")
+                return header
+            }
+        }
+        guard case .noSessionCookie? = error else {
+            Issue.record("Expected missing-session diagnostic")
+            return
+        }
     }
 
     @Test
@@ -253,9 +455,13 @@ struct CursorAppAuthLinuxTests {
         }
     }
 
-    private static func transport(token: String, botStatus: Int = 200) -> ProviderHTTPTransportHandler {
+    private static func transport(
+        token: String,
+        botStatus: Int = 200,
+        userID: String = "test-user") -> ProviderHTTPTransportHandler
+    {
         ProviderHTTPTransportHandler { request in
-            #expect(request.value(forHTTPHeaderField: "Cookie") == "WorkosCursorSessionToken=test-user%3A%3A\(token)")
+            #expect(request.value(forHTTPHeaderField: "Cookie") == "WorkosCursorSessionToken=\(userID)%3A%3A\(token)")
             let url = try #require(request.url)
             let body: String
             var status = 200
@@ -277,6 +483,8 @@ struct CursorAppAuthLinuxTests {
             case "/api/auth/me":
                 body = "{}"
             case "/api/usage":
+                #expect(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+                    .first(where: { $0.name == "user" })?.value == userID)
                 status = 404
                 body = "{}"
             default:
@@ -292,8 +500,8 @@ struct CursorAppAuthLinuxTests {
         }
     }
 
-    private static func makeToken(expiresAt: Double = 4_102_444_800) throws -> String {
-        let data = try JSONSerialization.data(withJSONObject: ["sub": "auth0|test-user", "exp": expiresAt])
+    private static func makeToken(expiresAt: Double = 4_102_444_800, userID: String = "test-user") throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: ["sub": "auth0|\(userID)", "exp": expiresAt])
         let payload = data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
@@ -329,6 +537,12 @@ struct CursorAppAuthLinuxTests {
 private struct StubAppAuth: CursorAppAuthSessionProviding {
     let session: CursorAppAuthSession?
     func loadSession() throws -> CursorAppAuthSession? { self.session }
+}
+
+private struct FailingAppAuth: CursorAppAuthSessionProviding {
+    func loadSession() throws -> CursorAppAuthSession? {
+        throw CursorStatusProbeError.parseFailed("synthetic unreadable store")
+    }
 }
 
 private struct UnexpectedAppAuth: CursorAppAuthSessionProviding {

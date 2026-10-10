@@ -2527,3 +2527,6 @@
 "~%@ tracked tokens (partial)" = "~%@ โทเค็นที่บันทึกไว้ (บางส่วน)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "เครื่องหมายอัตราการใช้งาน";
+"Ahead of pace is +" = "ใช้เร็วกว่าที่ควรเป็นคือ +";
+"Reserve is +" = "โควตาสำรองคือ +";

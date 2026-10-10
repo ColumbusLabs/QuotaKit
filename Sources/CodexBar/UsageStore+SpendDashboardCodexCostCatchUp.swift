@@ -94,6 +94,7 @@ extension UsageStore {
                 mode: mode,
                 requestedHistoryDays: self.spendDashboardCodexHistoryDays,
                 resumePaused: false)
+            self.checkCodexCostCatchUpCompletionAfterRefresh()
         } else {
             self.reconcilePrimaryWorkerAfterSharedDashboardScopeChange()
         }
@@ -104,6 +105,7 @@ extension UsageStore {
                 accounts: independentAccounts,
                 mode: mode,
                 resumePaused: false)
+            self.checkSpendDashboardCodexCostCatchUpCompletion(accounts: independentAccounts)
         }
     }
 
@@ -273,6 +275,8 @@ extension UsageStore {
         self.spendDashboardCodexCostCatchUpCompletionProbeTask?.cancel()
         self.spendDashboardCodexCostCatchUpCompletionProbeTask = nil
         self.spendDashboardCodexCostCatchUpCompletionProbeToken = nil
+        self.spendDashboardCodexCostCatchUpWaitingContext = nil
+        self.spendDashboardCodexCostCatchUpCompletionProbeRevision &+= 1
         self.spendDashboardCodexCostCatchUpPausedContext = nil
         if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
             self.stopCodexCostCatchUp()
@@ -328,6 +332,7 @@ extension UsageStore {
         self.spendDashboardCodexCostCatchUpCompletionProbeTask?.cancel()
         self.spendDashboardCodexCostCatchUpCompletionProbeTask = nil
         self.spendDashboardCodexCostCatchUpCompletionProbeToken = nil
+        self.spendDashboardCodexCostCatchUpWaitingContext = nil
         self.spendDashboardCodexCostCatchUpTask?.cancel()
         self.spendDashboardCodexCostCatchUpProgressProbeTask?.cancel()
         if hadWorker {
@@ -342,6 +347,7 @@ extension UsageStore {
         self.spendDashboardCodexCostCatchUpPausedScopeSignature = nil
         self.spendDashboardCodexCostCatchUpPausedProgressKey = nil
         self.spendDashboardCodexCostCatchUpPausedContext = nil
+        self.spendDashboardCodexCostCatchUpWaitingContext = nil
         self.spendDashboardCodexCostCatchUpProgressProbeTask = nil
         self.spendDashboardCodexCostCatchUpActivity = nil
     }
@@ -407,7 +413,9 @@ extension UsageStore {
                         context: context,
                         phase: .paused,
                         pauseReason: reason)
-                    try await self.sleepBetweenCodexCostCatchUpPasses(seconds: delay, dashboard: true)
+                    try await self.sleepBetweenSpendDashboardCodexCostCatchUpPasses(
+                        seconds: delay,
+                        context: context)
                     continue
                 case let .runAfter(delay):
                     self.publishSpendDashboardCodexCostCatchUpActivity(
@@ -418,7 +426,9 @@ extension UsageStore {
                         previousActiveDuration = nil
                         completedPasses = 0
                     }
-                    try await self.sleepBetweenCodexCostCatchUpPasses(seconds: delay, dashboard: true)
+                    try await self.sleepBetweenSpendDashboardCodexCostCatchUpPasses(
+                        seconds: delay,
+                        context: context)
                 }
 
                 try Task.checkCancellation()
@@ -521,16 +531,25 @@ extension UsageStore {
             && context.accounts.allSatisfy(SpendDashboardSource.codexAuthFingerprintMatches)
     }
 
+    private func checkSpendDashboardCodexCostCatchUpCompletion(accounts: [CodexSpendScanRequest]) {
+        guard let context = self.spendDashboardCodexCostCatchUpWaitingContext
+            ?? self.spendDashboardCodexCostCatchUpPausedContext,
+            accounts.map(\.cacheIdentity) == context.accounts.map(\.cacheIdentity)
+        else { return }
+        self.checkSpendDashboardCodexCostCatchUpCompletion(accounts: accounts, context: context)
+    }
+
     private func checkSpendDashboardCodexCostCatchUpCompletion(
         accounts: [CodexSpendScanRequest],
         context: SpendDashboardCodexCostCatchUpContext)
     {
-        guard self.spendDashboardCodexCostCatchUpCompletionProbeTask == nil,
-              self.spendDashboardCodexCostCatchUpActivity?.pauseReason == .noProgress,
-              self.spendDashboardCodexCostCatchUpTask == nil,
+        guard self.canCheckSpendDashboardCodexCostCompletion,
               accounts.map(\.cacheIdentity) == context.accounts.map(\.cacheIdentity),
-              self.spendDashboardCodexCostCatchUpConfigurationIsCurrent(context)
+              self.spendDashboardCodexCostCatchUpCompletionContextIsCurrent(context)
         else { return }
+
+        self.spendDashboardCodexCostCatchUpCompletionProbeRevision &+= 1
+        guard self.spendDashboardCodexCostCatchUpCompletionProbeTask == nil else { return }
 
         let probeToken = UUID()
         self.spendDashboardCodexCostCatchUpCompletionProbeToken = probeToken
@@ -543,29 +562,85 @@ extension UsageStore {
                 }
             }
 
-            let statuses = await self.loadSpendDashboardCodexCostCatchUpStatuses(
-                accounts,
-                historyDays: context.historyDays)
-            guard !Task.isCancelled,
-                  self.spendDashboardCodexCostCatchUpCompletionProbeToken == probeToken,
-                  self.spendDashboardCodexCostCatchUpPausedContext?.token == context.token,
-                  self.spendDashboardCodexCostCatchUpTask == nil,
-                  !self.spendDashboardCodexCostCatchUpStopRequested,
-                  self.spendDashboardCodexCostCatchUpActivity?.pauseReason == .noProgress,
-                  self.spendDashboardCodexCostCatchUpConfigurationIsCurrent(context),
-                  accounts.allSatisfy({ account in
-                      let status = statuses[account.cacheIdentity]
-                      return status?.pending == false && status?.completionIsConfirmed == true
-                  })
-            else { return }
+            while !Task.isCancelled {
+                let revision = self.spendDashboardCodexCostCatchUpCompletionProbeRevision
+                let statuses = await self.loadSpendDashboardCodexCostCatchUpStatuses(
+                    accounts,
+                    historyDays: context.historyDays)
+                guard !Task.isCancelled,
+                      self.spendDashboardCodexCostCatchUpCompletionProbeToken == probeToken,
+                      self.canCheckSpendDashboardCodexCostCompletion,
+                      self.spendDashboardCodexCostCatchUpCompletionContextIsCurrent(context)
+                else { return }
+                if self.spendDashboardCodexCostCatchUpCompletionProbeRevision != revision { continue }
+                guard accounts.allSatisfy({ account in
+                    let status = statuses[account.cacheIdentity]
+                    return status?.pending == false && status?.completionIsConfirmed == true
+                }) else { return }
 
-            self.spendDashboardCodexCostCatchUpActivity?.phase = .complete
-            self.spendDashboardCodexCostCatchUpActivity?.pauseReason = nil
-            self.spendDashboardCodexCostCatchUpPausedScopeSignature = nil
-            self.spendDashboardCodexCostCatchUpPausedProgressKey = nil
-            self.spendDashboardCodexCostCatchUpPausedContext = nil
-            self.spendDashboardCodexCostCatchUpRevision &+= 1
+                if self.spendDashboardCodexCostCatchUpTask != nil {
+                    self.publishSpendDashboardCodexCostCatchUpActivity(
+                        statuses: statuses,
+                        context: context,
+                        phase: .complete)
+                    self.spendDashboardCodexCostCatchUpTask?.cancel()
+                    self.spendDashboardCodexCostCatchUpTask = nil
+                    self.spendDashboardCodexCostCatchUpToken = nil
+                    self.spendDashboardCodexCostCatchUpScopeSignature = nil
+                    self.spendDashboardCodexCostCatchUpWaitingContext = nil
+                    self.scheduleMemoryPressureRelief()
+                } else {
+                    self.spendDashboardCodexCostCatchUpActivity?.phase = .complete
+                    self.spendDashboardCodexCostCatchUpActivity?.pauseReason = nil
+                }
+                self.spendDashboardCodexCostCatchUpPausedScopeSignature = nil
+                self.spendDashboardCodexCostCatchUpPausedProgressKey = nil
+                self.spendDashboardCodexCostCatchUpPausedContext = nil
+                self.spendDashboardCodexCostCatchUpRevision &+= 1
+                return
+            }
         }
+    }
+
+    private var canCheckSpendDashboardCodexCostCompletion: Bool {
+        !self.spendDashboardCodexCostCatchUpStopRequested
+            && !self.spendDashboardCodexCostCatchUpRestartRequested
+            && !self.spendDashboardCodexCostCatchUpPassIsRunning
+            && ((self.spendDashboardCodexCostCatchUpTask != nil
+                    && self.spendDashboardCodexCostCatchUpWaitingContext != nil
+                    && self.spendDashboardCodexCostCatchUpMode == .automatic)
+                || (self.spendDashboardCodexCostCatchUpTask == nil
+                    && self.spendDashboardCodexCostCatchUpActivity?.pauseReason == .noProgress))
+    }
+
+    private func spendDashboardCodexCostCatchUpCompletionContextIsCurrent(
+        _ context: SpendDashboardCodexCostCatchUpContext) -> Bool
+    {
+        let isWaiting = self.spendDashboardCodexCostCatchUpTask != nil
+            && self.spendDashboardCodexCostCatchUpWaitingContext?.token == context.token
+        let isPaused = self.spendDashboardCodexCostCatchUpTask == nil
+            && self.spendDashboardCodexCostCatchUpPausedContext?.token == context.token
+            && self.spendDashboardCodexCostCatchUpActivity?.pauseReason == .noProgress
+        return (isWaiting || isPaused)
+            && self.spendDashboardCodexCostCatchUpConfigurationIsCurrent(context)
+    }
+
+    private func sleepBetweenSpendDashboardCodexCostCatchUpPasses(
+        seconds: TimeInterval,
+        context: SpendDashboardCodexCostCatchUpContext) async throws
+    {
+        if seconds > 0 {
+            self.spendDashboardCodexCostCatchUpWaitingContext = context
+        }
+        defer {
+            if self.spendDashboardCodexCostCatchUpWaitingContext?.token == context.token {
+                self.spendDashboardCodexCostCatchUpWaitingContext = nil
+                self.spendDashboardCodexCostCatchUpCompletionProbeTask?.cancel()
+                self.spendDashboardCodexCostCatchUpCompletionProbeTask = nil
+                self.spendDashboardCodexCostCatchUpCompletionProbeToken = nil
+            }
+        }
+        try await self.sleepBetweenCodexCostCatchUpPasses(seconds: seconds, dashboard: true)
     }
 
     private func loadSpendDashboardCodexCostCatchUpStatuses(

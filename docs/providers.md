@@ -77,7 +77,7 @@ complete when the available scan window covers fewer days.
 | Helmcode | Chrome or manual tenant cookies → Cloud/NaN model quotas and eligible premium tiers (`web`). |
 | TypeSafe | Chrome or manual console session → billing spend and credit balance (`web`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
-| Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
+| Cursor | Web API via cookies → legacy stored session → Cursor.app or cursor-agent local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
 | [OpenCode Go](opencodego.md) | Unscoped Auto: local SQLite cost history with API overlay (`local+api`) → usage API (`api`) → web dashboard (`web`). Scoped Auto (selected account/manual cookie/workspace): web → local → API. Explicit API/Web: selected source only. |
 | Alibaba Coding Plan | Console RPC via web cookies (auto/manual) with API key fallback (`web`, `api`). |
@@ -256,7 +256,7 @@ complete when the available scan window covers fewer days.
 
 ## Cursor
 - Web API via browser cookies (`cursor.com` + `cursor.sh`).
-- Fallbacks: a legacy stored session, then Cursor.app local auth.
+- Fallbacks: a legacy stored session, then Cursor.app or cursor-agent local auth on Linux.
 - Add Account and Switch Account open Cursor's authenticator in a supported browser; Switch Account prefers stable account IDs and falls back to normalized email when IDs are unavailable. QuotaKit uses the supported system HTTPS handler when possible and otherwise asks the user to choose an eligible supported browser.
 - Grok Bot included or trial usage appears as a named extra bar from `POST /api/dashboard/get-sand-usage-status` (same session). Paid 7-day allowances show weekly pace on that bar.
 - Status: Statuspage.io (Cursor).

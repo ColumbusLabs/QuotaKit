@@ -102,6 +102,12 @@ public enum ClaudeOAuthKeychainPromptPreference {
             fallback: .standard))
     }
 
+    #if DEBUG
+    static var applicationUserDefaultsOverrideForTesting: UserDefaults? {
+        self.taskApplicationUserDefaultsOverride?.value ?? self.taskImplicitApplicationUserDefaultsOverride?.value
+    }
+    #endif
+
     static func resolveUserDefaults(
         domain: String,
         bundleIdentifier: String?,

@@ -413,13 +413,13 @@ public enum BrowserCookieAccessGate {
 }
 
 extension BrowserCookieClient {
+    /// Discover store metadata without reading credentials; record reads enforce the browser access gate.
     public func codexBarStores(for browser: Browser) throws -> [BrowserCookieStore] {
         guard BrowserCookieAccessGate.cookieStoreAccessDecision(
             homeDirectories: self.configuration.homeDirectories) == .allowed
         else {
             throw BrowserCookieStoreAccessSuppressedError()
         }
-        guard BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
         return self.stores(for: browser)
     }
 

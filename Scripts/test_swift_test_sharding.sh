@@ -137,24 +137,23 @@ if not re.search(r"(?m)^\s+shard-count:\s+\[4\]\s*$", job):
     raise SystemExit("swift-test-macos shard-count must be [4]")
 job_timeout = re.search(r"(?m)^    timeout-minutes: (\d+)$", job)
 test_step = re.search(r"(?ms)^      - name: Swift Test\n(.*?)(?=^      - |\Z)", job)
-if not test_step or not re.search(r"(?m)^\s+\./Scripts/test.sh$", test_step.group(1)):
-    raise SystemExit("required hosted tests must explicitly use serial SwiftPM")
-if "--direct-workers" in test_step.group(1) or "continue-on-error" in test_step.group(1):
-    raise SystemExit("required serial tests must remain gating")
-probe_step = re.search(r"(?ms)^      - name: Direct runtime smoke test.*?\n(.*?)(?=^      - |\Z)", job)
-if not probe_step or any(expected not in probe_step.group(1) for expected in [
-    "continue-on-error: true", "timeout-minutes: 5",
-    "success() && matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == ''",
-    "--direct-workers 2 --limit-groups 1",
+if not test_step or not re.search(r"(?m)^\s+\./Scripts/test.sh --direct-workers 2$", test_step.group(1)):
+    raise SystemExit("required hosted tests must use two direct workers per shard")
+if "continue-on-error" in test_step.group(1) or "--limit-groups" in test_step.group(1):
+    raise SystemExit("required full-inventory tests must remain gating and unlimited")
+if any(value not in test_step.group(1) for value in [
+    "CODEXBAR_TEST_GROUP_SIZE=4", "CODEXBAR_TEST_SUITE_TIMEOUT=120",
+    "CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0",
 ]):
-    raise SystemExit("direct smoke test must be bounded, nonblocking, and run on one shard")
-if "failure() || steps.direct-probe.outcome == 'failure'" not in job:
-    raise SystemExit("crash diagnostics must include nonblocking probe failures")
+    raise SystemExit("required tests must retain group size, deadlines and failure policy")
+diagnostics = re.search(r"(?ms)^      - name: Collect crash reports on failure\n(.*?)(?=^      - |\Z)", job)
+if not diagnostics or "if: ${{ failure() }}" not in diagnostics.group(1):
+    raise SystemExit("crash diagnostics must include all required test failures")
 if 'swift_test_diagnostics.py --since "$RUNNER_TEMP/codexbar-tests-started"' not in job:
     raise SystemExit("crash diagnostics must use the explicit test-start timestamp")
 step_timeout = re.search(r"(?m)^        timeout-minutes: (\d+)$", test_step.group(1)) if test_step else None
 if not step_timeout or int(step_timeout.group(1)) < 60:
-    raise SystemExit("Swift Test must retain at least 60 minutes for the four serial shards")
+    raise SystemExit("Swift Test must retain at least 60 minutes for the four required shards")
 if not job_timeout or int(job_timeout.group(1)) < int(step_timeout.group(1)) + 15:
     raise SystemExit("macOS job must leave at least 15 minutes outside Swift Test")
 if "CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }}" not in job:

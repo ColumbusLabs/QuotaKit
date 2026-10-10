@@ -1,9 +1,9 @@
 ---
-summary: "Langdock personal included-usage limits from a selected Microsoft Edge profile."
+summary: "Langdock personal included-usage limits from a selected Edge, Chrome, or Safari profile."
 provider_id: langdock
 provider_name: Langdock
-provider_source: Selected Microsoft Edge profile → personal included session and weekly limits (`web`, macOS).
-plugin_scope: Host-owned selected Edge profile, live session revalidation, and personal tRPC limits on both engines; no quota history or widgets.
+provider_source: Selected Edge, Chrome, or Safari profile → personal included session and weekly limits (`web`, macOS).
+plugin_scope: Host-owned selected browser profile, live session revalidation, and personal tRPC limits on both engines; no quota history or widgets.
 read_when:
   - Setting up Langdock in QuotaKit
   - Debugging Langdock profile or cookie access
@@ -12,28 +12,31 @@ read_when:
 # Langdock
 
 QuotaKit reads the personal included-usage limits shown on Langdock's account Usage page. This
-provider is disabled by default and supports macOS Edge profiles only.
+provider is disabled by default and supports macOS Edge, Chrome, and Safari profiles.
 
-1. Sign in to Langdock in the Edge profile you want to monitor.
-2. In QuotaKit's Langdock provider settings, choose the signed-in profile under **Browser profile**.
+1. Sign in to Langdock in the Edge, Chrome, or Safari profile you want to monitor.
+2. In QuotaKit's Langdock provider settings, choose the browser and signed-in profile.
    QuotaKit never chooses the first available profile automatically.
 3. Enable Langdock, then refresh. The CLI equivalent is
    `quotakit usage --provider langdock --source web`.
 
-QuotaKit selects that one profile and reads its applicable `langdock.com` and `app.langdock.com`
-cookies. Decrypted session values stay in memory and are not cached by QuotaKit. The existing
-SweetCookieKit importer uses temporary copies of the browser cookie database while reading it;
-this provider does not introduce another credential store. It does not switch to another Edge account if the selected profile is missing
-or its session expires. macOS must allow the running QuotaKit bundle to read the Edge profile and
-the Edge Safe Storage Keychain item. Browser access errors are shown in QuotaKit; no administrator
-rights or access to the Langdock macOS app are required.
+QuotaKit reads only that profile's applicable `langdock.com` and `app.langdock.com` cookies.
+Decrypted session values stay in memory and are not cached by QuotaKit. The existing SweetCookieKit
+importer uses temporary copies of Chromium cookie databases while reading them; Safari cookies are
+read from the selected concrete cookie file. This provider does not introduce another credential
+store or switch to another profile if the selection is missing or its session expires. Chromium
+decryption follows QuotaKit's existing Keychain access gates. Safari does not require a Keychain
+prompt acknowledgement; macOS Full Disk Access may be needed to read Safari's cookie file.
 
-If usage disappears after a restart, verify the saved **Browser profile** selection against the profile
-path shown by `edge://version` in the same Edge window as Langdock. A message that Edge cookie
-access is blocked calls for a manual Langdock refresh and a check of QuotaKit's Keychain access
-setting. If QuotaKit reports that it cannot read the profile, check **Privacy & Security → Files &
-Folders → QuotaKit → Microsoft Edge** for the exact app bundle being run. Development builds must use the matching signing identity before accessing existing Keychain items. A missing cookie store remains a separate
-profile or browser-data problem; QuotaKit does not try another profile.
+If usage disappears after a restart, verify the saved browser and **Browser profile** selections in
+QuotaKit; for Edge or Chrome, compare the selected profile with the path shown by `edge://version`
+or `chrome://version`. An Edge or Chrome cookie-access error calls for a manual
+Langdock refresh and a check of QuotaKit's Keychain access setting. If QuotaKit reports that it
+cannot read a Chromium profile, check **Privacy & Security → Files & Folders** for the exact app
+bundle being run. Development builds must use the matching signing identity before accessing
+existing Keychain items. If Safari access is denied, grant Full Disk Access to that QuotaKit bundle.
+A missing cookie store remains a separate profile or browser-data problem; QuotaKit does not try
+another profile.
 
 Langdock reports a five-hour session percentage and a seven-day weekly percentage. A disabled
 session limit hides the session bar. Missing reset dates remain unknown. If Langdock returns a
@@ -49,7 +52,7 @@ session fingerprint prevents a response from an earlier login from being publish
 session change. It is excluded from serialized snapshots and logs. A transient request failure can
 retain the last measurement only when the current session still matches; its original age and an
 error remain visible. A session change or an unverifiable session clears the old measurement.
-Changes in Edge are detected on the next refresh; this provider does not monitor browser logins continuously.
+Changes in the selected browser are detected on the next refresh; this provider does not monitor browser logins continuously.
 
 QuotaKit uses its configured refresh interval. A manual refresh requests another server measurement;
 the Langdock page and QuotaKit can differ while one is displaying an earlier measurement. The separate

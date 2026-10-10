@@ -248,6 +248,10 @@ check_llms_index() {
   node "${ROOT_DIR}/Scripts/generate-llms.mjs" --check
 }
 
+check_ci_build_cache() {
+  python3 "${ROOT_DIR}/Scripts/test_ci_swiftpm_cache.py"
+}
+
 run_portable_checks() {
   check_package_resolved
   check_codex_parser_hash
@@ -262,6 +266,7 @@ run_portable_checks() {
   check_ios_testflight_release_lane
   check_release_feed_url
   check_ci_path_gate
+  check_ci_build_cache
   check_repository_size
   check_shell_scripts
   check_documentation_links

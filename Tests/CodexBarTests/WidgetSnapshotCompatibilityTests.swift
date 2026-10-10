@@ -62,6 +62,7 @@ struct WidgetSnapshotCompatibilityTests {
                 .init(id: "claude/token:work", provider: .claude, label: "Work", usage: accountUsage),
                 .init(id: "claude/token:unavailable", provider: .claude, label: "Personal", usage: nil),
             ],
+            accountOverflowCounts: ["claude": 3],
             enabledProviders: old.enabledProviders,
             usageBarsShowUsed: old.usageBarsShowUsed,
             generatedAt: old.generatedAt)
@@ -79,6 +80,7 @@ struct WidgetSnapshotCompatibilityTests {
 
         let rewritten = try self.decoder().decode(WidgetSnapshot.self, from: encoder.encode(legacy))
         #expect(rewritten.accounts.isEmpty)
+        #expect(rewritten.accountOverflowCounts.isEmpty)
         #expect(rewritten.entries.first?.primary?.remainingPercent == 20)
         #expect(!rewritten.selectingAccount("claude/token:work", for: .claude).entries.contains {
             $0.provider == .claude

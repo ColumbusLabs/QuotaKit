@@ -81,14 +81,7 @@ public enum OllamaProviderDescriptor {
                         series.insert(.weekly)
                     }
                     return series
-                },
-                menuCard: ProviderMenuCardPresentation(
-                    usageNotesResolver: { context in
-                        guard context.snapshot?.identity?.loginMethod == "API key" else { return .unhandled }
-                        return .localized([
-                            "API key verified. Cloud quotas need browser cookies. Sign in to Ollama.",
-                        ])
-                    })),
+                }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
@@ -96,6 +89,12 @@ public enum OllamaProviderDescriptor {
                 name: "ollama",
                 versionDetector: nil,
                 browserSupportExemption: { sourceMode, environment, settings in
+                    let hasManualCookie = settings?.ollama?.cookieSource == .manual
+                        && !(settings?.ollama?.manualCookieHeader?
+                            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+                    if hasManualCookie {
+                        return sourceMode == .auto || sourceMode == .web
+                    }
                     guard sourceMode == .auto else { return false }
                     let hasEnvironmentToken = environment.map {
                         ProviderTokenResolver.token(for: .ollama, environment: $0) != nil
@@ -110,22 +109,41 @@ public enum OllamaProviderDescriptor {
         return "Monthly"
     }
 
+    static func apiStrategy(
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "ollama.api",
+            provider: .ollama,
+            bundledPlugin: "ollama-api",
+            secretKey: "OLLAMA_API_KEY",
+            sourceLabel: "api",
+            transport: transport,
+            validateContext: { context in
+                guard ProviderTokenResolver.token(for: .ollama, environment: context.env) != nil else {
+                    throw OllamaUsageError.missingAPIKey
+                }
+            },
+            resolveSecret: { ProviderTokenResolver.token(for: .ollama, environment: $0) },
+            isEnabled: { _ in true })
+    }
+
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
         switch context.sourceMode {
         case .web:
             return [OllamaStatusFetchStrategy()]
         case .api:
-            return [OllamaAPIFetchStrategy()]
+            return [self.apiStrategy()]
         case .cli, .oauth:
             return []
         case .auto:
             break
         }
         if context.settings?.ollama?.cookieSource == .off {
-            return [OllamaAPIFetchStrategy()]
+            return [self.apiStrategy()]
         }
         if ProviderTokenResolver.token(for: .ollama, environment: context.env) != nil {
-            return [OllamaStatusFetchStrategy(), OllamaAPIFetchStrategy()]
+            return [OllamaStatusFetchStrategy(), self.apiStrategy()]
         }
         return [OllamaStatusFetchStrategy()]
     }
@@ -283,32 +301,5 @@ struct OllamaStatusFetchStrategy: ProviderFetchStrategy {
         default:
             false
         }
-    }
-}
-
-struct OllamaAPIFetchStrategy: ProviderFetchStrategy {
-    let id: String = "ollama.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        Self.resolveToken(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = Self.resolveToken(environment: context.env) else {
-            throw OllamaUsageError.missingAPIKey
-        }
-        let snapshot = try await OllamaAPIUsageFetcher.fetchUsage(apiKey: apiKey)
-        return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        context.sourceMode == .auto
-    }
-
-    private static func resolveToken(environment: [String: String]) -> String? {
-        ProviderTokenResolver.token(for: .ollama, environment: environment)
     }
 }

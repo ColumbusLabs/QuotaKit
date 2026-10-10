@@ -80,10 +80,14 @@ remain active, and output is buffered per group. A failure after direct executio
 silently switching runtimes. This opt-in mode depends on SwiftPM's toolchain helper contract and should be
 rechecked when updating Xcode.
 
-Hosted macOS CI keeps four path-gated serial SwiftPM shards as the required test coverage. After the complete serial
-suite passes on shard zero, CI runs a five-minute, nonblocking direct smoke test for one group. The smoke test checks
-the helper runtime and exact inventory; it does not replace the required suite or establish parallel throughput.
-When a test or smoke step fails, CI prints only fresh Swift test crash reports, with credential values and local home
+Hosted macOS CI runs four path-gated shards with two direct workers per shard. The union covers the complete
+SwiftPM-discovered inventory; each direct launch requires an exact, duplicate-free inventory match. The existing
+120-second group deadlines, strict timeout isolation, zero ordinary failure retries and keep-going policy remain.
+Focused path selections still use SwiftPM directly. No separate nonblocking smoke substitutes for required coverage.
+Verified cache inputs bind content hashes, permissions and symlinks to the selected toolchain and SDK. QuotaKit
+includes its Shared target paths; mismatched metadata or changed resource graphs clean compiled products while
+retaining dependency checkouts. Existing dependency cache keys and storage limits remain in use.
+When a required test step fails, CI prints only fresh Swift test crash reports, with credential values and local home
 identities redacted.
 
 ## Project Structure

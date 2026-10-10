@@ -65,6 +65,44 @@ struct AlibabaCodingPlanCookieImporterTests {
     }
 
     @Test
+    func `chromium fallback keeps metadata discovery separate from a denied payload read`() throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookiesDirectory = home
+            .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network")
+        try FileManager.default.createDirectory(at: cookiesDirectory, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: cookiesDirectory.appendingPathComponent("Cookies").path,
+            contents: Data())
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        let client = BrowserCookieClient(configuration: .init(homeDirectories: [home]))
+        #expect(try client.codexBarStores(for: .chrome).count == 1)
+
+        let keychainProbeCount = OSAllocatedUnfairLock(initialState: 0)
+        let result = try BrowserCookieAccessGate.withShouldAttemptOverrideForTesting(false) {
+            try KeychainAccessGate.withTaskOverrideForTesting(true) {
+                try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    keychainProbeCount.withLock { $0 += 1 }
+                    return .allowed
+                } operation: {
+                    try AliyunOneConsoleChromiumCookieFallbackImporter.importSession(
+                        browser: .chrome,
+                        domains: ["example.com"],
+                        isAuthenticatedSession: { _ in false },
+                        sessionLabel: "Test",
+                        cookieClient: client)
+                }
+            }
+        }
+
+        #expect(result.map { _ in false } ?? true)
+        #expect(keychainProbeCount.withLock { $0 } == 0)
+    }
+
+    @Test
     func `domain matching requires exact or label bounded suffix`() {
         #expect(AlibabaCodingPlanCookieImporter.matchesCookieDomain("console.aliyun.com"))
         #expect(AlibabaCodingPlanCookieImporter.matchesCookieDomain(".modelstudio.console.alibabacloud.com"))

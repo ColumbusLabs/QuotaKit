@@ -400,6 +400,10 @@ final class UsageStore {
     @ObservationIgnored var codexCostCatchUpPausedScopeSignature: String?
     @ObservationIgnored var codexCostCatchUpPausedProgressKey: String?
     @ObservationIgnored var codexCostCatchUpProgressProbeTask: Task<Void, Never>?
+    @ObservationIgnored var codexCostCatchUpIsWaiting = false
+    @ObservationIgnored var codexCostCatchUpCompletionCheckTask: Task<Void, Never>?
+    @ObservationIgnored var codexCostCatchUpCompletionCheckToken: UUID?
+    @ObservationIgnored var codexCostCatchUpCompletionCheckRevision: UInt64 = 0
     @ObservationIgnored var spendDashboardCodexCostCatchUpTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpToken: UUID?
     @ObservationIgnored var spendDashboardCodexCostCatchUpScopeSignature: String?
@@ -408,8 +412,10 @@ final class UsageStore {
     @ObservationIgnored var spendDashboardCodexCostCatchUpPassIsRunning = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpRestartRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpPausedContext: SpendDashboardCodexCostCatchUpContext?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpWaitingContext: SpendDashboardCodexCostCatchUpContext?
     @ObservationIgnored var spendDashboardCodexCostCatchUpCompletionProbeTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpCompletionProbeToken: UUID?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpCompletionProbeRevision: UInt64 = 0
     @ObservationIgnored var spendDashboardCodexCostCatchUpPausedScopeSignature: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpPausedProgressKey: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpProgressProbeTask: Task<Void, Never>?
@@ -504,29 +510,6 @@ final class UsageStore {
     @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let providerAvailabilityCacheTTL: TimeInterval = 1
     @ObservationIgnored let accountInfoCacheTTL: TimeInterval = 30
-    /// Energy/WidgetKit floor for expensive local-history scans and their additional snapshot publications.
-    /// Faster provider refreshes still update quota/status normally, but reuse token-cost history within this TTL.
-    static let minimumTokenFetchTTL: TimeInterval = 15 * 60
-
-    var tokenFetchTTL: TimeInterval? {
-        Self.tokenFetchTTL(
-            for: self.settings.refreshFrequency,
-            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
-    }
-
-    static func tokenFetchTTL(
-        for frequency: RefreshFrequency,
-        lowPowerModeEnabled: Bool = false) -> TimeInterval?
-    {
-        let interval = frequency.usesAdaptivePolicy
-            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
-            : frequency.seconds
-        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
-        return BackgroundWorkPowerPolicy.automaticInterval(
-            widgetSafeInterval,
-            lowPowerModeEnabled: lowPowerModeEnabled)
-    }
-
     @ObservationIgnored let tokenFetchTimeout: TimeInterval = 10 * 60
     @ObservationIgnored let startupBehavior: StartupBehavior
     @ObservationIgnored let planUtilizationPersistenceCoordinator: PlanUtilizationHistoryPersistenceCoordinator

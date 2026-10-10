@@ -2526,3 +2526,6 @@
 "~%@ tracked tokens (partial)" = "~%@ Zarejestrowane tokeny (CZĘŚCIOWE)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "Znak tempa zużycia";
+"Ahead of pace is +" = "Powyżej tempa to +";
+"Reserve is +" = "Rezerwa to +";

@@ -281,7 +281,7 @@ def run_pool(manifest_path: Path) -> int:
                 timed_out |= code == 124
                 if code != 0:
                     break
-        if code != 0:
+        if code != 0 and not manifest.get("keep_going", False):
             stopped.set()
         return {"code": code, "first_code": first_code, "full_retries": full_retries,
                 "isolated_retries": isolated_retries, "timed_out": timed_out}

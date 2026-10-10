@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- A Mac Accounts widget compares saved-account quotas, orders the most constrained accounts first, and reports additional accounts without exposing their identities.
+- Langdock can use an explicitly selected Chrome, Safari, or Edge profile; selected-profile refreshes retain the existing consent and ownership checks.
+- Menu bar pace labels can use either sign convention through a persisted preference.
 - Tavily, Exa, Linkup, TinyApi, Cosmic AI, Aerostack, Sail Research, and Sofya track API usage, quota, or prepaid balances using their supported account sources. Their billing details sync to iPhone; quota alerts apply only to reported quota windows.
 - Native Codex spend sessions show completion-day turn performance, model comparisons, and bounded tool activity details without changing historical accounting.
 - The local dashboard serves saved accounts privately by default and reports incomplete account inventories.
@@ -21,6 +24,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex history catch-up clears completed work during sleep and retains refreshes that arrive during completion checks; hourly spend navigation reuses dates only when needed.
+- Claude handles taller CLI usage panels and shows Refresh guidance after an external login; unchanged history blocks avoid unnecessary artifact writes.
+- Ollama API keys report monthly credit allowances and purchased balances; Linux Cursor can use a read-only cursor-agent login fallback.
+- Linux serve returns freed heap pages while idle, and process cleanup avoids leaking empty procfs read buffers.
 - Managed Codex credential reads validate the home and native login owner; account removal retains homes referenced by other saved records, and rotated credentials retain correctly attributed refresh errors.
 - App and widget localization covers supported languages, preserves locale-aware formats, and keeps quota reset dates live.
 - Token activity heatmaps avoid redundant work; tool inspection preserves spend caches and explicit tool failures.
