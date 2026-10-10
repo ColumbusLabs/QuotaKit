@@ -159,7 +159,7 @@ extension ProviderConfig {
 }
 
 extension ProviderSettingsSectionRegistration {
-    var selectedProfileCookieOrder: BrowserCookieImportOrder? {
+    public var selectedProfileCookieOrder: BrowserCookieImportOrder? {
         #if os(macOS)
         self.selectedProfileBrowsers.map { $0.compactMap(Browser.init(rawValue:)) }
         #else

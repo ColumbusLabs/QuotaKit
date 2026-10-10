@@ -117,6 +117,7 @@ def terminate_process_group(
 
     try:
         deadline = time.monotonic() + grace_seconds
+        denied_probe_reported = False
         while time.monotonic() < deadline:
             if process is not None:
                 process.poll()
@@ -124,6 +125,16 @@ def terminate_process_group(
                 os.killpg(process_group_id, 0)
             except ProcessLookupError:
                 return
+            except PermissionError:
+                # A denied liveness probe does not establish that descendants exited.
+                # Finish the bounded grace period and still attempt SIGKILL below.
+                if not denied_probe_reported:
+                    print(
+                        f"::warning::Cannot probe test process group {process_group_id}; "
+                        "continuing bounded cleanup.",
+                        flush=True,
+                    )
+                    denied_probe_reported = True
             time.sleep(0.05)
     except KeyboardInterrupt:
         pass

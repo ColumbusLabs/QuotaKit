@@ -31,7 +31,10 @@ struct CLICookieRefreshTests {
         #expect(targets.count > 2)
         #expect(targets.contains(where: { $0.id == .claude }))
         #expect(targets.contains(where: { $0.id == .opencode }))
-        #expect(targets.allSatisfy { $0.metadata.browserCookieOrder != nil })
+        #expect(targets.contains(where: { $0.id == .langdock }))
+        #expect(targets.allSatisfy {
+            $0.metadata.browserCookieOrder != nil || $0.settingsSection.selectedProfileBrowsers != nil
+        })
         #expect(targets.allSatisfy { $0.fetchPlan.sourceModes.contains(.web) })
     }
 
@@ -107,6 +110,15 @@ struct CLICookieRefreshTests {
         #expect(CodexBarCLI.cookieRefreshBrowserOrder(
             descriptor: ProviderDescriptorRegistry.descriptor(for: .langdock),
             config: CodexBarConfig(providers: [provider])).isEmpty)
+    }
+
+    @Test
+    func `dynamic profile browser registration supplies the default refresh order`() {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .langdock)
+
+        #expect(descriptor.metadata.browserCookieOrder == nil)
+        #expect(CodexBarCLI.cookieRefreshBrowserOrder(descriptor: descriptor, config: nil).map(\.rawValue)
+            == ["edge"])
     }
 
     @Test

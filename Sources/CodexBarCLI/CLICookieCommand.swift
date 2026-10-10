@@ -78,7 +78,9 @@ extension CodexBarCLI {
         descriptors: [ProviderDescriptor] = ProviderDescriptorRegistry.all) throws -> [ProviderDescriptor]
     {
         let supported = descriptors.filter { descriptor in
-            descriptor.metadata.browserCookieOrder != nil && descriptor.fetchPlan.sourceModes.contains(.web)
+            descriptor.fetchPlan.sourceModes.contains(.web) &&
+                (descriptor.metadata.browserCookieOrder != nil ||
+                    descriptor.settingsSection.selectedProfileBrowsers != nil)
         }
         if refreshAll {
             guard !supported.isEmpty else { throw CookieRefreshCommandError.noSupportedProviders }
@@ -141,8 +143,10 @@ extension CodexBarCLI {
         descriptor: ProviderDescriptor,
         config: CodexBarConfig?) -> BrowserCookieImportOrder
     {
-        let browsers = descriptor.metadata.browserCookieOrder ?? []
-        guard let selectedBrowsers = descriptor.settingsSection.selectedProfileBrowsers else { return browsers }
+        let selectedProfileBrowsers = descriptor.settingsSection.selectedProfileBrowsers
+        let browsers = descriptor.settingsSection.selectedProfileCookieOrder
+            ?? descriptor.metadata.browserCookieOrder ?? []
+        guard let selectedBrowsers = selectedProfileBrowsers else { return browsers }
         guard let profile = ProviderBrowserProfile.selected(
             in: config?.providerConfig(for: descriptor.id.instanceID), browsers: selectedBrowsers)
         else { return [] }

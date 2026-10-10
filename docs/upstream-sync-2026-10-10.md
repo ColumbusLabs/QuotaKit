@@ -75,6 +75,19 @@ must establish full compatibility, with helper failures and unrecovered timeouts
 remaining gating. This adopts direct execution while preserving the fork's
 suite-size and path-gate architecture rather than borrowing upstream test proof.
 
+Langdock's profile registration also supplies CLI refresh capabilities and the
+selected browser order. Static metadata no longer defines its browser support;
+Chrome and Edge still require explicit prompt acknowledgement, Safari remains
+prompt-free, and invalid selections fail closed. Regression fixtures cover
+refresh discovery, selected/default browser order, and wrapped permission hints.
+
+Direct-worker cleanup treats a denied signal-zero process-group probe as
+inconclusive, retains the existing bounded grace and actual termination signals,
+and preserves timeout exit 124 for isolated recovery. A real termination-signal
+denial still fails the job. Synthetic regressions cover timeout accounting,
+isolated recovery, zero assertion retries, and keep-going without weakening the
+120-second deadline or inventory gates.
+
 Ollama plugin JavaScript was generated from the upstream TypeScript with the
 repository-bundled Sucrase 3.35.1; its generated diff was reviewed. Ordinary integration does not change
 build numbers, upstream release version metadata, appcast entries, release

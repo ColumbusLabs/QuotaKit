@@ -277,6 +277,61 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
         self.assertEqual(process.wait.call_args_list[1].kwargs, {"timeout": 10})
         self.assertEqual(process.wait.call_args_list[2].kwargs, {})
 
+    def test_denied_cleanup_probe_preserves_timeout_and_isolated_recovery(self):
+        group = [{"name": "ExampleTests", "suite_name": "ExampleTests", "filter_pattern": r"^ExampleTests/"}]
+        runtime = {"developer": "/synthetic/Developer", "xctest": "synthetic-xctest",
+                   "products": [{"bundle": "synthetic-bundle", "xctest": ["ExampleTests/testOne"], "swift": []}]}
+        process = SimpleNamespace(
+            pid=4321,
+            poll=Mock(return_value=-signal.SIGTERM),
+            wait=Mock(side_effect=[subprocess.TimeoutExpired(["synthetic-xctest"], 8), 0]),
+        )
+        sent_signals = []
+        output = io.StringIO()
+
+        def killpg(process_group_id, sig):
+            sent_signals.append((process_group_id, sig))
+            if sig == 0:
+                raise PermissionError("synthetic denied group probe")
+
+        with patch.dict(os.environ), patch("sys.stdout", output), \
+                patch("ci_swift_test_by_suite.subprocess.Popen", return_value=process), \
+                patch("ci_swift_test_by_suite.os.killpg", side_effect=killpg), \
+                patch("ci_swift_test_by_suite.time.monotonic", side_effect=[10, 12, 20, 20, 25]), \
+                patch("ci_swift_test_by_suite.time.sleep"):
+            code = run_worker({"runtime": runtime, "groups": [group], "timeout": 10}, 0)
+
+        self.assertEqual(code, 124)
+        self.assertEqual(sent_signals, [(4321, signal.SIGTERM), (4321, 0), (4321, signal.SIGKILL)])
+        self.assertEqual(process.wait.call_count, 2)
+        self.assertEqual(process.wait.call_args_list[0].kwargs, {"timeout": 8})
+        self.assertIn("continuing bounded cleanup", output.getvalue())
+        # The recovered timeout must remain visible while an ordinary assertion failure
+        # receives no retry and keep-going still executes the last queued group.
+        result, records, calls = self.run_mock_pool(
+            [code, 0, 0, 42, 0], group_size=2, retry=False, group_count=3, keep_going=True)
+        self.assertEqual(result, 42)
+        self.assertEqual(calls, 5)
+        self.assertEqual(len(records), 3)
+        self.assertEqual(sorted(record["first_code"] for record in records), [0, 42, 124])
+        self.assertEqual(sum(record["timed_out"] for record in records), 1)
+        self.assertEqual(sum(record["isolated_retries"] for record in records), 2)
+        self.assertTrue(all(record["full_retries"] == 0 for record in records))
+
+    def test_actual_cleanup_signal_permission_error_remains_failure(self):
+        for denied_signal in [signal.SIGTERM, signal.SIGKILL]:
+            with self.subTest(denied_signal=denied_signal):
+                process = SimpleNamespace(pid=4321, poll=Mock(return_value=0))
+
+                def killpg(_process_group_id, sig):
+                    if sig == denied_signal:
+                        raise PermissionError("synthetic denied cleanup signal")
+
+                with patch("ci_swift_test_by_suite.os.killpg", side_effect=killpg), \
+                        patch("ci_swift_test_by_suite.time.monotonic", side_effect=[0, 5]):
+                    with self.assertRaises(PermissionError):
+                        runner.terminate_process_group(4321, grace_seconds=5, process=process)
+
     def probe_runtime(
         self, swift_command, expected, *, different_toolchain=False, duplicate_actual=False, environment=None
     ):
