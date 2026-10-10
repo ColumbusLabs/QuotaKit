@@ -20,7 +20,8 @@ struct CLIServeHeapTrimmerTests {
         }
 
         for _ in 0..<256 {
-            let block = try #require(Glibc.malloc(blockSize))
+            let allocation = Glibc.malloc(blockSize)
+            let block = try #require(allocation)
             _ = Glibc.memset(block, 0xA5, blockSize)
             blocks.append(block)
         }
