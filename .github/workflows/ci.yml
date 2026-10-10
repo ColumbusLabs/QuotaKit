@@ -195,6 +195,10 @@ jobs:
           [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.* ]]
           /usr/bin/xcodebuild -version
 
+      - name: Identify SwiftPM build context
+        id: build-context
+        run: python3 Scripts/ci_swiftpm_cache.py context --lane macos26-arm64
+
       - name: Restore SwiftPM build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -208,6 +212,14 @@ jobs:
           restore-keys: |
             swiftpm-macos26-arm64-
 
+      - name: Verify cached build inputs
+        env:
+          BUILD_CONTEXT: ${{ steps.build-context.outputs.context }}
+        run: |
+          set -euo pipefail
+          python3 Scripts/ci_swiftpm_cache.py restore --context "$BUILD_CONTEXT" --clean-fallback
+          python3 Scripts/ci_swiftpm_cache.py snapshot --context "$BUILD_CONTEXT"
+
       - name: Swift toolchain version
         run: |
           set -euo pipefail
@@ -220,27 +232,14 @@ jobs:
         timeout-minutes: 60
         run: |
           touch "$RUNNER_TEMP/codexbar-tests-started"
-          echo "Hosted tests use four required serial SwiftPM shards; direct runtime validation is nonblocking."
+          echo "Hosted tests cover the full inventory across four required shards with two direct workers each."
           CODEXBAR_TEST_GROUP_SIZE=4 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \
             CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
             CODEXBAR_TEST_KEEP_GOING=1 \
             CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
-            ./Scripts/test.sh
-
-      - name: Direct runtime smoke test (nonblocking)
-        id: direct-probe
-        if: ${{ success() && matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == '' }}
-        continue-on-error: true
-        timeout-minutes: 5
-        run: |
-          CODEXBAR_TEST_GROUP_SIZE=4 \
-            CODEXBAR_TEST_SUITE_TIMEOUT=120 \
-            CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
-            CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
-            CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
-            ./Scripts/test.sh --direct-workers 2 --limit-groups 1
+            ./Scripts/test.sh --direct-workers 2
 
       - name: Focused Swift Test
         if: ${{ needs.changes.outputs.macos-test-filter != '' }}
@@ -255,7 +254,7 @@ jobs:
         run: ./Scripts/test-plugin-engines.sh
 
       - name: Collect crash reports on failure
-        if: ${{ failure() || steps.direct-probe.outcome == 'failure' }}
+        if: ${{ failure() }}
         shell: bash
         run: |
           if [[ -f "$RUNNER_TEMP/codexbar-tests-started" ]]; then
@@ -384,6 +383,10 @@ jobs:
           [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.3* ]]
           /usr/bin/xcodebuild -version
 
+      - name: Identify SwiftPM build context
+        id: build-context
+        run: python3 Scripts/ci_swiftpm_cache.py context --lane macos15-arm64
+
       - name: Restore Xcode 26.3 compatibility build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -393,6 +396,14 @@ jobs:
           key: swiftpm-macos15-xcode26.3-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
             swiftpm-macos15-xcode26.3-
+
+      - name: Verify cached build inputs
+        env:
+          BUILD_CONTEXT: ${{ steps.build-context.outputs.context }}
+        run: |
+          set -euo pipefail
+          python3 Scripts/ci_swiftpm_cache.py restore --context "$BUILD_CONTEXT" --clean-fallback
+          python3 Scripts/ci_swiftpm_cache.py snapshot --context "$BUILD_CONTEXT"
 
       - name: Build tests with Xcode 26.3
         run: |
@@ -485,6 +496,7 @@ jobs:
           timeout 20 "$bin_dir/CodexBarCLI" --help >/dev/null
           timeout 240 python3 Scripts/test_dashboard_private_accounts.py "$bin_dir/CodexBarCLI"
           timeout 240 python3 Scripts/test_linux_serve_rpc_pipes.py "$bin_dir/CodexBarCLI"
+          timeout 240 python3 Scripts/test_linux_procfs_reads.py
 
   lint-build-test:
     runs-on: ubuntu-24.04

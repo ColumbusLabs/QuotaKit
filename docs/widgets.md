@@ -40,6 +40,7 @@ read_when:
 - **QuotaKit Switcher** (`CodexBarSwitcherWidget`): static provider switcher widget, small/medium/large.
 - **QuotaKit Usage** (`CodexBarUsageWidget`): configurable provider usage widget, small/medium/large.
 - **QuotaKit Account Usage** (`CodexBarAccountUsageWidget`): pins one verified saved account, small/medium/large.
+- **QuotaKit Accounts** (`CodexBarAccountsWidget`): quota overview for one provider, medium/large.
 - **QuotaKit History** (`CodexBarHistoryWidget`): configurable usage-history chart, medium/large.
 - **QuotaKit Metric** (`CodexBarCompactWidget`): compact credits/today-cost/30-day-cost widget, small only.
 - **QuotaKit Burn Down** (`CodexBarBurnDownWidget`): configurable quota burn-down chart, medium only.
@@ -55,6 +56,11 @@ widget and choose its **Provider** and **Account**. For example, two Account Usa
 accounts while a third widget displays Codex. The existing Usage widget sizes, bars and reset countdowns are reused.
 An Account Usage widget without an account shows setup instructions; it never follows the current account implicitly.
 Regular **QuotaKit Usage** widgets continue following their configured provider as before.
+
+The **QuotaKit Accounts** widget uses the same opt-in and provider setting to show the most constrained verified
+accounts first. Medium shows up to four rows and large shows up to eight; unavailable accounts sort last. A `+N more`
+row combines accounts omitted by the display limit with anonymous counts beyond the six-account snapshot cap. The
+overview shows quota windows only and does not include account-specific spend or cost history.
 
 The opt-in keeps saved token accounts and visible Codex accounts refreshing independently of the menu's segmented
 or stacked layout, using the existing six-account refresh bound. Claude-swap continues to own its own polling;
@@ -84,10 +90,10 @@ uses a new `CodexBarAccountUsageWidget` kind and a separate `AccountUsageSelecti
 persisted configurations of existing widgets. The new intent has no default account. Enabling background account
 refresh is a separate opt-in, off by default.
 
-The Mac app-group widget JSON format is additive: older snapshots omit `accounts`, and the new reader accepts
+The Mac app-group widget JSON format is additive: older snapshots omit `accounts` and `accountOverflowCounts`, and the new reader accepts
 them. The iPhone widget snapshot and CloudKit account payloads use separate schemas and are unchanged. Older readers ignore those fields in new snapshots. A rollback can rewrite the provider snapshot without
 account data; a feature widget reading that rewritten snapshot shows unavailable rather than another account’s quota.
-The old app does not provide the new Account Usage widget kind; rollback support applies to the existing provider widgets.
+The old app does not provide either new account widget kind; rollback support applies to the existing provider widgets.
 `WidgetSnapshotCompatibilityTests` covers fixed legacy wire data and an older reader/writer, while
 `WidgetAccountCompatibilityTests` covers account removal, replacement, identity changes, and refresh failures.
 

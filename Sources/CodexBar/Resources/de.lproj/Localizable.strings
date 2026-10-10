@@ -2523,3 +2523,6 @@
 "~%@ tracked tokens (partial)" = "~%@ erfasste Token (teilweise)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "Vorzeichen des Nutzungstempos";
+"Ahead of pace is +" = "Über dem Solltempo ist +";
+"Reserve is +" = "Reserve ist +";

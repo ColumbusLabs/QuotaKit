@@ -288,6 +288,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 if case .notFound = error {
                     throw error
                 }
+                if case .credentialsChanged = error {
+                    throw error
+                }
                 throw ClaudeUsageError.oauthFailed(error.localizedDescription)
             } catch let error as ClaudeOAuthFetchError {
                 if case .rateLimited = error {
@@ -1522,6 +1525,8 @@ extension ClaudeUsageFetcher {
             "missingAccessToken"
         case .notFound:
             "notFound"
+        case .credentialsChanged:
+            "credentialsChanged"
         case .keychainAccessRevoked:
             "keychainAccessRevoked"
         case let .keychainError(status):

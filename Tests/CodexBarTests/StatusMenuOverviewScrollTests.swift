@@ -5,6 +5,19 @@ import Testing
 @testable import CodexBar
 
 @MainActor
+private final class DeferredOverviewScrollView: NSScrollView {
+    var pendingDocumentHeight: CGFloat?
+
+    override func layout() {
+        super.layout()
+        if let height = self.pendingDocumentHeight, let documentView {
+            self.pendingDocumentHeight = nil
+            documentView.setFrameSize(NSSize(width: documentView.frame.width, height: height))
+        }
+    }
+}
+
+@MainActor
 struct StatusMenuOverviewScrollTests {
     private func makeController(suiteName: String) -> StatusItemController {
         _ = NSApplication.shared
@@ -39,6 +52,24 @@ struct StatusMenuOverviewScrollTests {
         return menu
     }
 
+    private func attachMenuViewport(
+        to menu: NSMenu,
+        verticalOverflow: Bool = false,
+        viewport: NSScrollView? = nil) -> NSScrollView
+    {
+        let scrollView = viewport ?? NSScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        let clipSize = scrollView.contentView.bounds.size
+        let documentView = NSView(frame: NSRect(
+            origin: .zero,
+            size: NSSize(width: clipSize.width, height: clipSize.height + (verticalOverflow ? 400 : 0))))
+        scrollView.documentView = documentView
+
+        let hostedItemView = NSView(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+        menu.items[0].view = hostedItemView
+        documentView.addSubview(hostedItemView)
+        return scrollView
+    }
+
     private func makeScrollEvent(deltaY: Double, precise: Bool) -> NSEvent? {
         guard let cgEvent = CGEvent(
             scrollWheelEvent2Source: nil,
@@ -68,6 +99,60 @@ struct StatusMenuOverviewScrollTests {
         let scrollDown = try #require(self.makeScrollEvent(deltaY: -1, precise: false))
         #expect(controller.handleOverviewScrollWheel(scrollDown, menu: menu))
         #expect(steps == [.down])
+    }
+
+    @Test
+    func `coarse wheel passes through when the overview viewport overflows`() throws {
+        let controller = self.makeController(suiteName: "OverviewScroll-Overflow")
+        defer { controller.releaseStatusItemsForTesting() }
+        let menu = self.makeOverviewMenu()
+        let scrollView = self.attachMenuViewport(to: menu, verticalOverflow: true)
+
+        var steps: [OverviewScrollStep] = []
+        controller.overviewScrollNavigationHandlerForTesting = { steps.append($0) }
+        controller.overviewScrollAccumulatedDelta = -0.5
+
+        let wheelNotch = try #require(self.makeScrollEvent(deltaY: -1, precise: false))
+        #expect(!controller.handleOverviewScrollWheel(wheelNotch, menu: menu))
+        #expect(steps.isEmpty)
+        #expect(controller.overviewScrollAccumulatedDelta == 0)
+        #expect(StatusItemController.attachedMenuScrollView(in: menu) === scrollView)
+    }
+
+    @Test
+    func `pending viewport layout settles before coarse wheel routing`() throws {
+        let controller = self.makeController(suiteName: "OverviewScroll-PendingLayout")
+        defer { controller.releaseStatusItemsForTesting() }
+        let menu = self.makeOverviewMenu()
+        let viewport = DeferredOverviewScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        let scrollView = self.attachMenuViewport(to: menu, viewport: viewport)
+        viewport.pendingDocumentHeight = 500
+        viewport.needsLayout = true
+
+        var steps: [OverviewScrollStep] = []
+        controller.overviewScrollNavigationHandlerForTesting = { steps.append($0) }
+        let wheelNotch = try #require(self.makeScrollEvent(deltaY: -1, precise: false))
+        #expect(!controller.handleOverviewScrollWheel(wheelNotch, menu: menu))
+        #expect(steps.isEmpty)
+        #expect(scrollView.documentView?.frame.height == 500)
+    }
+
+    @Test
+    func `precise input bypasses pending viewport layout`() throws {
+        let controller = self.makeController(suiteName: "OverviewScroll-PreciseLayout")
+        defer { controller.releaseStatusItemsForTesting() }
+        let menu = self.makeOverviewMenu()
+        let viewport = DeferredOverviewScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        let scrollView = self.attachMenuViewport(to: menu, viewport: viewport)
+        viewport.pendingDocumentHeight = 500
+        viewport.needsLayout = true
+        controller.overviewScrollAccumulatedDelta = -0.5
+
+        let trackpad = try #require(self.makeScrollEvent(deltaY: -1, precise: true))
+        #expect(!controller.handleOverviewScrollWheel(trackpad, menu: menu))
+        #expect(viewport.pendingDocumentHeight == 500)
+        #expect(controller.overviewScrollAccumulatedDelta == 0)
+        #expect(StatusItemController.attachedMenuScrollView(in: menu) === scrollView)
     }
 
     @Test

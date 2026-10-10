@@ -1583,12 +1583,83 @@ public enum ClaudeOAuthCredentialsStore {
         clearInvalidCache: Bool = true) throws -> ClaudeOAuthCredentialRecord
     {
         let context = self.currentCollaboratorContext()
-        return try Repository(context: context).loadRecord(
-            environment: environment,
-            allowKeychainPrompt: allowKeychainPrompt,
-            respectKeychainPromptCooldown: respectKeychainPromptCooldown,
-            allowClaudeKeychainRepairWithoutPrompt: allowClaudeKeychainRepairWithoutPrompt,
-            clearInvalidCache: clearInvalidCache)
+        let defaults = self.loginFailureDefaults
+        let failureKey = "ClaudeOAuthLastCredentialFailure." + self
+            .credentialsProfileIdentifier(environment: environment)
+        do {
+            let record = try Repository(context: context).loadRecord(
+                environment: environment,
+                allowKeychainPrompt: allowKeychainPrompt,
+                respectKeychainPromptCooldown: respectKeychainPromptCooldown,
+                allowClaudeKeychainRepairWithoutPrompt: allowClaudeKeychainRepairWithoutPrompt,
+                clearInvalidCache: clearInvalidCache)
+            if defaults?.object(forKey: failureKey) != nil { defaults?.removeObject(forKey: failureKey) }
+            return record
+        } catch ClaudeOAuthCredentialsError.notFound {
+            let now = Date()
+            if let failedAt = defaults?.object(forKey: failureKey) as? Date {
+                if let changedAt = self.latestCredentialModificationDate(environment: environment),
+                   changedAt > failedAt, changedAt <= now
+                {
+                    throw ClaudeOAuthCredentialsError.credentialsChanged(changedAt)
+                }
+            } else {
+                defaults?.set(now, forKey: failureKey)
+            }
+            throw ClaudeOAuthCredentialsError.notFound
+        }
+    }
+
+    private static var loginFailureDefaults: UserDefaults? {
+        #if DEBUG
+        if KeychainTestSafety.shouldIsolateUserStateUnderTests() {
+            return ClaudeOAuthKeychainPromptPreference.applicationUserDefaultsOverrideForTesting
+        }
+        #endif
+        return ClaudeOAuthKeychainPromptPreference.applicationUserDefaults
+    }
+
+    static func latestCredentialModificationDate(environment: [String: String]) -> Date? {
+        let file = self.credentialsFileURL(environment: environment)
+        let fileDate = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
+        #if os(macOS)
+        let defaultFile = ClaudeConfigPaths.homeDirectory(environment: environment)
+            .appendingPathComponent(".claude/.credentials.json")
+        guard file.standardizedFileURL == defaultFile.standardizedFileURL else { return fileDate }
+        let promptMode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode, allowKeychainPrompt: false) else {
+            return fileDate
+        }
+        if self.isPromptPolicyApplicable,
+           ProviderInteractionContext.current == .background,
+           !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt()
+        {
+            return fileDate
+        }
+
+        // Metadata can indicate a newer external login, but reading the credential payload still requires
+        // the existing consent and interaction gates above. Always disable Keychain UI for this query.
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: self.claudeKeychainService,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+        ]
+        KeychainNoUIQuery.apply(to: &query)
+        let (status, result, durationMs) = ClaudeOAuthKeychainQueryTiming.copyMatching(query)
+        _ = ClaudeOAuthKeychainQueryTiming.backoffIfSlowNoUIQuery(
+            durationMs,
+            self.claudeKeychainService,
+            self.log)
+        if status == errSecUserCanceled || status == errSecAuthFailed || status == errSecNoAccessForItem {
+            ClaudeOAuthKeychainAccessGate.recordDenied()
+        }
+        guard status == errSecSuccess, let rows = result as? [[String: Any]] else { return fileDate }
+        let dates = rows.compactMap { $0[kSecAttrModificationDate as String] as? Date } + [fileDate].compactMap(\.self)
+        return dates.max()
+        #else
+        return fileDate
+        #endif
     }
 
     #if DEBUG
@@ -1633,12 +1704,11 @@ public enum ClaudeOAuthCredentialsStore {
         clearInvalidCache: Bool = true) async throws -> ClaudeOAuthCredentialRecord
     {
         let context = self.currentCollaboratorContext()
-        let repository = Repository(context: context)
         let refresher = Refresher(
             context: context,
             profileIdentifier: self.credentialsProfileIdentifier(environment: environment),
             environment: environment)
-        let record = try repository.loadRecord(
+        let record = try self.loadRecord(
             environment: environment,
             allowKeychainPrompt: allowKeychainPrompt,
             respectKeychainPromptCooldown: respectKeychainPromptCooldown,

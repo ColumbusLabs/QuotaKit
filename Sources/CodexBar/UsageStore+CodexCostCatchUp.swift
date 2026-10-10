@@ -81,6 +81,7 @@ private struct CodexCostVerifiedDayWindows {
 extension UsageStore {
     func startCodexCostCatchUpIfNeeded(afterRefreshing provider: UsageProvider) {
         guard provider == .codex else { return }
+        defer { self.checkCodexCostCatchUpCompletionAfterRefresh() }
         if self.codexCostCatchUpStopRequested || self.codexCostCatchUpActivity?.requiresExplicitResume == true {
             guard ProviderInteractionContext.current == .userInitiated,
                   self.codexCostCatchUpTask == nil else { return }
@@ -235,6 +236,7 @@ extension UsageStore {
     func cancelCodexCostCatchUp() {
         let hadWorker = self.codexCostCatchUpTask != nil
         self.codexCostCatchUpTask?.cancel()
+        self.cancelCodexCostCatchUpCompletionCheck()
         self.codexCostCatchUpProgressProbeTask?.cancel()
         if hadWorker {
             self.scheduleMemoryPressureRelief()
@@ -263,7 +265,9 @@ extension UsageStore {
     func stopCodexCostCatchUp() {
         guard self.codexCostCatchUpTask != nil
             || self.codexCostCatchUpProgressProbeTask != nil
+            || self.codexCostCatchUpCompletionCheckTask != nil
         else { return }
+        self.cancelCodexCostCatchUpCompletionCheck()
         guard self.codexCostCatchUpTask != nil else {
             self.codexCostCatchUpProgressProbeTask?.cancel()
             self.codexCostCatchUpProgressProbeTask = nil
@@ -352,7 +356,9 @@ extension UsageStore {
                             context: context,
                             phase: .paused,
                             pauseReason: reason)
-                        try await self.sleepBetweenCodexCostCatchUpPasses(seconds: delay)
+                        try await self.sleepBetweenCodexCostCatchUpPasses(
+                            seconds: delay,
+                            context: context)
                         continue
                     case let .runAfter(delay):
                         self.publishCodexCostCatchUpActivity(
@@ -367,7 +373,8 @@ extension UsageStore {
                             completedPasses = 0
                         }
                         try await self.sleepBetweenCodexCostCatchUpPasses(
-                            seconds: scheduledDelay)
+                            seconds: scheduledDelay,
+                            context: context)
                     }
 
                     try Task.checkCancellation()
@@ -1414,6 +1421,163 @@ extension UsageStore {
         if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
             self.spendDashboardCodexCostCatchUpActivity = activity
         }
+    }
+
+    private func sleepBetweenCodexCostCatchUpPasses(
+        seconds: TimeInterval,
+        context: CodexCostCatchUpContext) async throws
+    {
+        if seconds > 0 {
+            self.codexCostCatchUpIsWaiting = true
+        }
+        defer {
+            if self.codexCostCatchUpToken == context.token {
+                self.cancelCodexCostCatchUpCompletionCheck()
+            }
+        }
+        try await self.sleepBetweenCodexCostCatchUpPasses(seconds: seconds)
+    }
+
+    private var canCheckCodexCostCatchUpCompletion: Bool {
+        !self.codexCostCatchUpStopRequested
+            && !self.codexCostCatchUpRestartRequested
+            && !self.codexCostCatchUpPassIsRunning
+            && ((self.codexCostCatchUpIsWaiting
+                    && self.codexCostCatchUpTask != nil
+                    && self.codexCostCatchUpMode == .automatic)
+                || (self.codexCostCatchUpTask == nil
+                    && self.codexCostCatchUpActivity?.pauseReason == .noProgress))
+    }
+
+    func checkCodexCostCatchUpCompletionAfterRefresh() {
+        guard self.canCheckCodexCostCatchUpCompletion,
+              let context = self.codexCostCatchUpCompletionContext()
+        else { return }
+
+        self.codexCostCatchUpCompletionCheckRevision &+= 1
+        guard self.codexCostCatchUpCompletionCheckTask == nil else { return }
+
+        let checkToken = UUID()
+        self.codexCostCatchUpCompletionCheckToken = checkToken
+        self.codexCostCatchUpCompletionCheckTask = Task(priority: .background) { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.codexCostCatchUpCompletionCheckToken == checkToken {
+                    self.codexCostCatchUpCompletionCheckTask = nil
+                    self.codexCostCatchUpCompletionCheckToken = nil
+                }
+            }
+
+            while !Task.isCancelled {
+                let revision = self.codexCostCatchUpCompletionCheckRevision
+                let status = await self.loadCodexCostCatchUpStatus(
+                    codexHomePath: context.codexHomePath,
+                    historyDays: context.historyDays)
+                guard !Task.isCancelled,
+                      self.codexCostCatchUpCompletionCheckToken == checkToken,
+                      self.canCheckCodexCostCatchUpCompletion,
+                      self.codexCostCatchUpCompletionContextIsCurrent(context)
+                else { return }
+                if self.codexCostCatchUpCompletionCheckRevision != revision { continue }
+                guard !status.pending, status.completionIsConfirmed else { return }
+
+                let hadWorker = self.codexCostCatchUpTask != nil
+                if hadWorker {
+                    self.publishCodexCostCatchUpActivity(
+                        status: status,
+                        context: context,
+                        phase: .complete)
+                } else {
+                    let activity = CodexCostCatchUpActivity(
+                        phase: .complete,
+                        mode: self.codexCostCatchUpMode,
+                        processedBytes: status.processedBytes,
+                        totalBytes: status.totalBytes,
+                        completedFiles: status.completedFiles,
+                        totalFiles: status.totalFiles,
+                        pauseReason: nil,
+                        staleSnapshotUpdatedAt: status.staleSnapshotUpdatedAt)
+                    self.codexCostCatchUpActivity = activity
+                    if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
+                        self.spendDashboardCodexCostCatchUpActivity = activity
+                    }
+                }
+                self.codexCostCatchUpPausedScopeSignature = nil
+                self.codexCostCatchUpPausedProgressKey = nil
+                if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
+                    self.spendDashboardCodexCostCatchUpRevision &+= 1
+                }
+                if hadWorker {
+                    self.cancelCodexCostCatchUpWorkerAfterConfirmedCompletion(context: context)
+                } else {
+                    self.codexCostCatchUpIsWaiting = false
+                }
+                return
+            }
+        }
+    }
+
+    private func codexCostCatchUpCompletionContext() -> CodexCostCatchUpContext? {
+        guard self.codexCostCatchUpHistoryDays > 0 else { return nil }
+        let scope = self.tokenCostScope(for: .codex)
+        let scopeSignature = self.tokenSnapshotScopeSignature(for: .codex)
+        let providerConfigRevision = self.settings.providerConfigRevision(for: .codex)
+        let token = self.codexCostCatchUpToken ?? UUID()
+        return CodexCostCatchUpContext(
+            token: token,
+            codexHomePath: scope.codexHomePath,
+            historyDays: self.codexCostCatchUpHistoryDays,
+            scopeSignature: scopeSignature,
+            pauseScopeSignature: "\(scopeSignature)\u{0}providerConfig=\(providerConfigRevision)",
+            providerConfigRevision: providerConfigRevision,
+            costUsageSettingsRevision: self.settings.costUsageSettingsRevision,
+            includePiSessions: self.shouldIncludePiSessionsInTokenSnapshot(for: .codex),
+            piHistoryScopeGeneration: self.piHistoryScopeGeneration,
+            workerTokenSnapshotPublicationRevision: nil)
+    }
+
+    private func codexCostCatchUpCompletionContextIsCurrent(_ context: CodexCostCatchUpContext) -> Bool {
+        let hasWorker = self.codexCostCatchUpTask != nil
+        let scope = self.tokenCostScope(for: .codex)
+        return self.codexCostCatchUpScopeSignature == (hasWorker ? context.scopeSignature : nil)
+            && (!hasWorker || self.codexCostCatchUpToken == context.token)
+            && (!hasWorker || self.codexCostCatchUpTask != nil)
+            && (!hasWorker || self.codexCostCatchUpHistoryDays == context.historyDays)
+            && (!hasWorker || self.codexCostCatchUpActivity?.phase == .indexing
+                || self.codexCostCatchUpActivity?.phase == .paused
+                || self.codexCostCatchUpActivity?.phase == .complete)
+            && (!hasWorker || self.codexCostCatchUpMode == .automatic)
+            && self.settings.providerConfigRevision(for: .codex) == context.providerConfigRevision
+            && self.settings.costUsageSettingsRevision == context.costUsageSettingsRevision
+            && self.settings.costUsageHistoryDays <= context.historyDays
+            && self.effectiveCodexCostCatchUpHistoryDays(requestedHistoryDays: nil) <= context.historyDays
+            && self.settings.isCostUsageEffectivelyEnabled(for: .codex)
+            && self.isEnabled(.codex)
+            && scope.codexHomePath == context.codexHomePath
+            && self.shouldIncludePiSessionsInTokenSnapshot(for: .codex) == context.includePiSessions
+            && self.piHistoryScopeGeneration == context.piHistoryScopeGeneration
+            && self.tokenSnapshotScopeSignature(for: .codex) == context.scopeSignature
+            && (hasWorker || self.codexCostCatchUpPausedScopeSignature == context.pauseScopeSignature)
+    }
+
+    private func cancelCodexCostCatchUpWorkerAfterConfirmedCompletion(context: CodexCostCatchUpContext) {
+        guard self.codexCostCatchUpCompletionContextIsCurrent(context) else { return }
+        let hadWorker = self.codexCostCatchUpTask != nil
+        self.codexCostCatchUpTask?.cancel()
+        if hadWorker {
+            self.scheduleMemoryPressureRelief()
+        }
+        self.codexCostCatchUpTask = nil
+        self.codexCostCatchUpToken = nil
+        self.codexCostCatchUpScopeSignature = nil
+        self.codexCostCatchUpIsWaiting = false
+    }
+
+    private func cancelCodexCostCatchUpCompletionCheck() {
+        self.codexCostCatchUpIsWaiting = false
+        self.codexCostCatchUpCompletionCheckTask?.cancel()
+        self.codexCostCatchUpCompletionCheckTask = nil
+        self.codexCostCatchUpCompletionCheckToken = nil
     }
 
     func sleepBetweenCodexCostCatchUpPasses(seconds: TimeInterval, dashboard: Bool = false) async throws {

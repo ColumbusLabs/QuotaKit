@@ -400,7 +400,7 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                     serial_groups.append([runner.asdict(selection) for selection in group])
                     return 0
                 args = ["test.sh", "--group-size", "2", "--shard-index", str(shard_index),
-                        "--shard-count", str(shard_count), "--no-retry-non-timeout-failures"]
+                        "--shard-count", str(shard_count), "--no-retry-non-timeout-failures", "--keep-going"]
                 with patch.object(runner, "swift_test_list", return_value=selections), \
                         patch.object(runner, "append_github_summary"), patch("sys.stdout", io.StringIO()), \
                         patch.object(runner.sys, "argv", args), \
@@ -413,6 +413,7 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                             self.assertEqual(manifest["groups"], serial_groups)
                             self.assertEqual(manifest["workers"], workers)
                             self.assertFalse(manifest["retry_non_timeout_failures"])
+                            self.assertTrue(manifest["keep_going"])
                             return 0
                         with patch.dict(os.environ, {"CI": "true"}), \
                                 patch.object(runner, "swift_test_list", return_value=selections), \
@@ -425,13 +426,14 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                         self.assertEqual(prepare.call_args.args[1], serial_groups)
                         serial.assert_not_called()
 
-    def run_mock_pool(self, codes, group_size=1, retry=True, group_count=1, output=b""):
+    def run_mock_pool(self, codes, group_size=1, retry=True, group_count=1, output=b"", keep_going=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest = root / "manifest.json"
             manifest.write_text(json.dumps({"groups": [[{"name": str(index)} for index in range(group_size)]
                                                       for _ in range(group_count)],
-                "timeout": 180, "workers": 1, "retry_non_timeout_failures": retry, "runtime": {"products": [{}]}}))
+                "timeout": 180, "workers": 1, "retry_non_timeout_failures": retry,
+                "keep_going": keep_going, "runtime": {"products": [{}]}}))
             codes = iter(codes)
             def run(command, **kwargs):
                 kwargs["stdout"].buffer.write(output)
@@ -452,6 +454,17 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                 self.assertEqual(result, 42)
                 self.assertEqual(calls, attempts)
                 self.assertEqual(len(records), 1)
+
+    def test_pool_keep_going_runs_every_queued_group_without_hiding_failure(self):
+        for code in [42, 124]:
+            with self.subTest(code=code):
+                result, records, calls = self.run_mock_pool(
+                    [code, 0, 0], retry=False, group_count=3, keep_going=True)
+                self.assertEqual(result, code)
+                self.assertEqual(calls, 3)
+                self.assertEqual(len(records), 3)
+                self.assertEqual(sum(record["code"] != 0 for record in records), 1)
+                self.assertTrue(all(record["full_retries"] == 0 for record in records))
 
     def test_pool_preserves_singleton_timeout_and_arbitrary_failure_codes(self):
         for code in [124, 42]:

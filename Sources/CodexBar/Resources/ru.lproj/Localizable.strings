@@ -2524,3 +2524,6 @@
 "~%@ tracked tokens (partial)" = "~%@ Учтённые токены (ЧАСТИЧНЫЙ)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "Знак темпа расхода";
+"Ahead of pace is +" = "Опережение темпа — +";
+"Reserve is +" = "Запас — +";

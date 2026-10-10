@@ -277,28 +277,15 @@ actor CLIServeResponseCache {
         let accountID: String
     }
 
-    private struct LastGoodUsageItem {
+    private struct LastGoodItem {
         let recordedAt: Date
         let data: Data
-    }
-
-    private struct UsageMergeResult {
-        let response: CLILocalHTTPResponse
-    }
-
-    private struct LastGoodCostItem {
-        let recordedAt: Date
-        let data: Data
-    }
-
-    private struct CostMergeResult {
-        let response: CLILocalHTTPResponse
     }
 
     private var entries: [String: Entry] = [:]
     private var lastGood: [String: LastGoodEntry] = [:]
-    private var lastGoodUsageItems: [String: [UsageItemKey: LastGoodUsageItem]] = [:]
-    private var lastGoodCostItems: [String: [String: LastGoodCostItem]] = [:]
+    private var lastGoodUsageItems: [String: [UsageItemKey: LastGoodItem]] = [:]
+    private var lastGoodCostItems: [String: [String: LastGoodItem]] = [:]
     private var lastGoodCostOrder: [String: [String]] = [:]
 
     private func pruneExpiredEntries(now: Date) {
@@ -321,14 +308,9 @@ actor CLIServeResponseCache {
         self.lastGoodCostOrder = self.lastGoodCostOrder.filter { self.lastGoodCostItems[$0.key] != nil }
     }
 
-    private func response(for key: String) -> CLILocalHTTPResponse? {
-        guard let entry = self.entries[key] else { return nil }
-        return entry.response
-    }
-
     func cachedResponse(for key: String, now: Date) -> CLILocalHTTPResponse? {
         self.pruneExpiredEntries(now: now)
-        return self.response(for: key)
+        return self.entries[key]?.response
     }
 
     /// Returns a recently expired whole response for stale-while-revalidate.
@@ -360,7 +342,6 @@ actor CLIServeResponseCache {
         now: Date,
         shouldCache: Bool) -> CLILocalHTTPResponse
     {
-        let delivered: CLILocalHTTPResponse
         let staleResponse = self.staleResponse(for: key, staleTTL: policy.staleTTL, now: now)
         let usageMerge = self.mergeLastGoodUsageItems(
             into: response,
@@ -375,17 +356,13 @@ actor CLIServeResponseCache {
             now: now,
             replaceCachedItems: shouldCache)
         if shouldCache {
-            self.store(response, for: key, ttl: policy.ttl, now: now)
+            if policy.ttl > 0, response.status == .ok {
+                self.entries[key] = Entry(expiresAt: now.addingTimeInterval(policy.ttl), response: response)
+            }
             self.lastGood[key] = LastGoodEntry(recordedAt: now, response: response)
-            delivered = response
-        } else if let usageMerge {
-            delivered = usageMerge.response
-        } else if let costMerge {
-            delivered = costMerge.response
-        } else {
-            delivered = staleResponse ?? response
+            return response
         }
-        return delivered
+        return usageMerge ?? costMerge ?? staleResponse ?? response
     }
 
     private func staleResponse(
@@ -417,7 +394,7 @@ actor CLIServeResponseCache {
         for key: String,
         staleTTL: TimeInterval,
         now: Date,
-        replaceCachedItems: Bool) -> UsageMergeResult?
+        replaceCachedItems: Bool) -> CLILocalHTTPResponse?
     {
         guard key.hasPrefix("usage:"),
               response.status == .ok,
@@ -466,7 +443,7 @@ actor CLIServeResponseCache {
                 }
             } else {
                 if let data = try? JSONSerialization.data(withJSONObject: item, options: [.sortedKeys]) {
-                    cachedItems[itemKey] = LastGoodUsageItem(recordedAt: now, data: data)
+                    cachedItems[itemKey] = LastGoodItem(recordedAt: now, data: data)
                 }
             }
         }
@@ -475,14 +452,13 @@ actor CLIServeResponseCache {
         guard replacedError,
               let body = try? JSONSerialization.data(withJSONObject: items, options: [.sortedKeys])
         else {
-            return UsageMergeResult(response: response)
+            return response
         }
-        return UsageMergeResult(
-            response: CLILocalHTTPResponse(
-                status: response.status,
-                body: body,
-                contentType: response.contentType,
-                usageCacheKeys: response.usageCacheKeys))
+        return CLILocalHTTPResponse(
+            status: response.status,
+            body: body,
+            contentType: response.contentType,
+            usageCacheKeys: response.usageCacheKeys)
     }
 
     private static func usageItemKey(_ item: [String: Any], accountID: String?) -> UsageItemKey? {
@@ -511,7 +487,7 @@ actor CLIServeResponseCache {
         for key: String,
         staleTTL: TimeInterval,
         now: Date,
-        replaceCachedItems: Bool) -> CostMergeResult?
+        replaceCachedItems: Bool) -> CLILocalHTTPResponse?
     {
         guard key.hasPrefix("cost:"),
               response.status == .ok,
@@ -526,7 +502,7 @@ actor CLIServeResponseCache {
             return provider
         }
         guard providers.count == items.count, Set(providers).count == providers.count else {
-            return CostMergeResult(response: response)
+            return response
         }
 
         var cachedItems = replaceCachedItems ? [:] : self.lastGoodCostItems[key] ?? [:]
@@ -542,20 +518,20 @@ actor CLIServeResponseCache {
                     items[index] = cachedItem
                 }
             } else if let data = try? JSONSerialization.data(withJSONObject: items[index], options: [.sortedKeys]) {
-                cachedItems[provider] = LastGoodCostItem(recordedAt: now, data: data)
+                cachedItems[provider] = LastGoodItem(recordedAt: now, data: data)
             }
         }
         self.lastGoodCostItems[key] = cachedItems
         self.lastGoodCostOrder[key] = providers
 
         guard let body = try? JSONSerialization.data(withJSONObject: items, options: [.sortedKeys]) else {
-            return CostMergeResult(response: response)
+            return response
         }
-        return CostMergeResult(response: CLILocalHTTPResponse(
+        return CLILocalHTTPResponse(
             status: response.status,
             body: body,
             contentType: response.contentType,
-            usageCacheKeys: response.usageCacheKeys))
+            usageCacheKeys: response.usageCacheKeys)
     }
 
     private func staleCostResponse(
@@ -582,11 +558,6 @@ actor CLIServeResponseCache {
             return nil
         }
         return CLILocalHTTPResponse(status: .ok, body: body)
-    }
-
-    private func store(_ response: CLILocalHTTPResponse, for key: String, ttl: TimeInterval, now: Date) {
-        guard ttl > 0, response.status == .ok else { return }
-        self.entries[key] = Entry(expiresAt: now.addingTimeInterval(ttl), response: response)
     }
 
     func cachedEntryCount() -> Int {
@@ -738,6 +709,9 @@ extension CodexBarCLI {
                 output: output,
                 kind: .args)
         }
+
+        let heapTrimmer = CLIServeHeapTrimmer.start()
+        defer { heapTrimmer?.cancel() }
 
         // Resolve the running build version once, at startup, before an in-place
         // app/tarball update can replace the on-disk binary. Resolving it lazily

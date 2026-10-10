@@ -60,7 +60,7 @@ struct ClaudeCLIScreenTests {
 
     @Test
     func `plain reports are not clipped or wrapped to PTY geometry`() throws {
-        let padding = String(repeating: "report detail\n", count: 55)
+        let padding = String(repeating: "report detail\n", count: ClaudeCLIScreen.rows + 5)
         let organization = String(repeating: "Example", count: 30)
         let text = "\u{1b}[32mCurrent session\n3% used\n" + padding
             + "Org: \(organization)\nEmail: fixture@example.com\u{1b}[0m"
@@ -85,6 +85,39 @@ struct ClaudeCLIScreenTests {
         #expect(lines.allSatisfy { $0.count <= ClaudeCLIScreen.columns })
         #expect(lines[0] == "X" + String(repeating: " ", count: ClaudeCLIScreen.columns - 2) + "Z")
         #expect(lines.last == String(repeating: " ", count: ClaudeCLIScreen.columns - 1) + "Q")
+    }
+
+    @Test
+    func `captured tall inline usage panel retains quota rows`() throws {
+        let url = try #require(Bundle.module.url(
+            forResource: "usage-pty-2.1.294-tall-panel",
+            withExtension: "ansi",
+            subdirectory: "Fixtures/Providers/Claude"))
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let snapshot = try ClaudeStatusProbe.parse(text: text)
+        #expect(snapshot.sessionPercentLeft == 93)
+        #expect(snapshot.primaryResetDescription == "Resets 2:30pm (Europe/Malta)")
+        #expect(snapshot.weeklyPercentLeft == 80)
+        #expect(snapshot.secondaryResetDescription == "Resets Oct 14, 10pm (Europe/Malta)")
+        let fable = try #require(snapshot.extraRateWindows.first { $0.id == "claude-weekly-scoped-fable" })
+        #expect(fable.window.usedPercent == 2)
+    }
+
+    @Test(arguments: ["200C", "200G", "200;200H", "200;200f"])
+    func `tall screen cursor moves still clamp to the last column`(movement: String) {
+        let frame = "top\u{1b}[200B\u{1b}[\(movement)X"
+        let lines = ClaudeCLIScreen.render(frame).components(separatedBy: "\n")
+        #expect(lines.count == 200)
+        #expect(lines.first == "top")
+        #expect(lines.last == String(repeating: " ", count: ClaudeCLIScreen.columns - 1) + "X")
+    }
+
+    @Test
+    func `erase below the old column bound removes the entire quota`() {
+        let frame = "\u{1b}[180;1HCurrent session\n7% used\u{1b}[200;1Hfooter"
+            + "\u{1b}[180;1H\u{1b}[J"
+        #expect(ClaudeCLIScreen.render(frame).isEmpty)
+        #expect(throws: ClaudeStatusProbeError.self) { try ClaudeStatusProbe.parse(text: frame) }
     }
 
     private static func fixture(_ name: String) throws -> String {

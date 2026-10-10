@@ -2503,3 +2503,6 @@
 "~%@ tracked tokens (partial)" = "約 %@ 個已記錄 token（部分數據）";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "使用節奏符號";
+"Ahead of pace is +" = "超出節奏為 +";
+"Reserve is +" = "餘量為 +";

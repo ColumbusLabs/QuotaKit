@@ -8,15 +8,15 @@ read_when:
 
 # Cursor provider
 
-QuotaKit fetches Cursor usage with a first-party session from the Cursor app or with a cursor.com cookie. Automatic mode
-prefers a valid app token on macOS. On Linux, it tries cached and stored cookies before the signed-in Cursor app token;
-browser cookie import is unavailable.
+QuotaKit fetches Cursor usage with a first-party session from Cursor.app or `cursor-agent login`, or with a cursor.com
+cookie. Automatic mode prefers a valid Cursor.app token on macOS. On Linux, it tries cached and stored cookies before
+Cursor.app and cursor-agent local logins; browser cookie import is unavailable.
 
 ## Data sources + fallback order
 
 Manual cookie configuration is always the explicit override. Automatic mode follows app token → cached cookie → browser
-cookie import → stored session on macOS, and cached cookie → stored session → app token on Linux. Explicit `web` mode never
-reads app credentials; Linux requires a configured manual cookie.
+cookie import → stored session on macOS, and cached cookie → stored session → local Cursor.app / cursor-agent login on
+Linux. Explicit `web` mode never reads app credentials; Linux requires a configured manual cookie.
 
 1) **Cached cookie header** (after app auth on macOS; first automatic source on Linux)
    - Stored after successful browser import.
@@ -34,14 +34,15 @@ reads app credentials; Linux requires a configured manual cookie.
    - Legacy sessions captured by older CodexBar releases remain readable.
    - Stored at: `~/Library/Application Support/CodexBar/cursor-session.json`.
 
-4) **Cursor.app local auth** (first automatic source on macOS; last fallback on Linux)
+4) **Cursor local auth** (first automatic source on macOS; last fallback on Linux)
    - Reads Cursor.app's VS Code-style global state DB for the local app bearer token.
    - Files consulted by read-only SQLite:
      - macOS: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`
      - Linux: absolute `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb`; otherwise absolute `$HOME/.config/Cursor/User/globalStorage/state.vscdb`, then the account home's `.config` directory.
      - Active WAL sidecars, when present: `state.vscdb-wal` and `state.vscdb-shm`.
+   - Linux also reads the `cursor-agent login` file at `$XDG_CONFIG_HOME/cursor/auth.json`, or `$HOME/.config/cursor/auth.json` when XDG is unset or relative. If Cursor.app auth is absent, expired, unreadable, or rejected, QuotaKit tries the cursor-agent session.
    - A token is usable only when its JWT expiry is more than 60 seconds away. QuotaKit never refreshes it.
-   - Linux reads the app database directly and does not persist the app token.
+   - Linux reads both local sources without refreshing, rewriting, or persisting their tokens.
    - Derives Cursor's first-party web-session cookie, then uses the same usage and account endpoints as browser sessions.
    - Account identity comes from that authenticated session; cached app profile fields are not mixed across accounts.
 
@@ -79,7 +80,7 @@ Manual option:
 - Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
 
 ## Linux CLI
-- `quotakit usage --provider cursor` reads the signed-in Cursor app's access token from the Linux global state DB and reuses the same `cursor.com` usage endpoints as macOS.
+- `quotakit usage --provider cursor` reads the signed-in Cursor.app token from the Linux global state DB or a `cursor-agent login` token from its auth file, then uses the same `cursor.com` usage endpoints as macOS.
 - Long-running CLI requests disable automatic cookie storage, so cookies set by a previous response cannot replace the selected account on a later refresh.
 - Automatic browser cookie import and the external-browser Add/Switch flow remain macOS app features.
 - Manual cookie headers from `~/.config/quotakit/config.json`, `~/.quotakit/config.json`, or legacy `~/.codexbar/config.json` work on Linux.

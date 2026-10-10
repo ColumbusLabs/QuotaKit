@@ -5,7 +5,17 @@ import Foundation
 import Security
 
 enum ClaudeOAuthKeychainQueryTiming {
+    #if DEBUG
+    @TaskLocal static var copyMatchingOverride: (@Sendable ([String: Any]) -> (OSStatus, AnyObject?, Double))?
+    #endif
+
     static func copyMatching(_ query: [String: Any]) -> (status: OSStatus, result: AnyObject?, durationMs: Double) {
+        #if DEBUG
+        if let override = self.copyMatchingOverride {
+            let (status, result, durationMs) = override(query)
+            return (status, result, durationMs)
+        }
+        #endif
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)

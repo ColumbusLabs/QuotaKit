@@ -11,9 +11,9 @@ extension StatusItemController {
     /// A single fast flick should not race the highlight through the whole list.
     private static let maxScrollStepsPerEvent = 3
 
-    /// Classic scroll wheels keep row-to-row overview navigation. Precise trackpad scrolling is
-    /// left to AppKit's native menu scroller so the content follows the user's fingers instead
-    /// of waiting for a threshold and jumping the highlighted row.
+    /// Classic scroll wheels keep row-to-row overview navigation while the whole menu fits.
+    /// Overflowing menus and precise trackpad scrolling are left to AppKit's native scroller so
+    /// content follows the user's input instead of jumping only the highlighted row.
     @discardableResult
     func handleOverviewScrollWheel(_ event: NSEvent, menu: NSMenu) -> Bool {
         guard self.menuHasOverviewRows(menu) else {
@@ -29,6 +29,18 @@ extension StatusItemController {
         guard !event.hasPreciseScrollingDeltas else {
             self.overviewScrollAccumulatedDelta = 0
             return false
+        }
+        // Highlighting a custom row does not reveal it. Let AppKit move overflowing content,
+        // using settled geometry from this presentation rather than a cached menu size.
+        if let scrollView = Self.attachedMenuScrollView(in: menu) {
+            scrollView.layoutSubtreeIfNeeded()
+            if let geometry = Self.menuViewportGeometry(in: scrollView),
+               geometry.clipSize.height > 0,
+               geometry.documentSize.height - geometry.clipSize.height > 0.5
+            {
+                self.overviewScrollAccumulatedDelta = 0
+                return false
+            }
         }
         // Precise trackpad/Magic Mouse scrolling already returned above, so this only guards
         // non-precise devices that still report a momentum phase: swallow that flick tail so the

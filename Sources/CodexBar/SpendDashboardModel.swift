@@ -1,6 +1,24 @@
 import CodexBarCore
 import Foundation
 
+/// Copies of a currency group share one derived navigation array.
+/// The memo is safe to read concurrently and does not participate in model equality.
+private final class SpendHourlyDaysMemo: @unchecked Sendable, Equatable {
+    private let lock = NSLock()
+    private var cached: [Date]?
+
+    static func == (_: SpendHourlyDaysMemo, _: SpendHourlyDaysMemo) -> Bool { true }
+
+    func value(build: () -> [Date]) -> [Date] {
+        self.lock.withLock {
+            if let cached = self.cached { return cached }
+            let dates = build()
+            self.cached = dates
+            return dates
+        }
+    }
+}
+
 // swiftlint:disable:next type_body_length
 struct SpendDashboardModel: Equatable, Sendable {
     enum SourceKind: String, Sendable, Equatable {
@@ -268,8 +286,17 @@ struct SpendDashboardModel: Equatable, Sendable {
         let displayedModels: [ModelRow]
         let selectedDay: Date?
         let hourlyPoints: [HourlyPoint]
-        let hourlyChartDomain: ClosedRange<Date>?
+        private let hourlyDaysMemo = SpendHourlyDaysMemo()
         let timeZone: TimeZone
+
+        var hourlyDays: [Date] {
+            self.hourlyDaysMemo.value {
+                let calendar = self.calendar
+                return Set(self.hourlyPoints.filter {
+                    $0.hour >= self.chartDomain.lowerBound && $0.hour < self.chartDomain.upperBound
+                }.map { calendar.startOfDay(for: $0.hour) }).sorted()
+            }
+        }
 
         var calendar: Calendar {
             SpendDashboardModel.gregorianCalendar(timeZone: self.timeZone)
@@ -300,7 +327,6 @@ struct SpendDashboardModel: Equatable, Sendable {
             overflowModelCount: Int = 0,
             selectedDay: Date? = nil,
             hourlyPoints: [HourlyPoint] = [],
-            hourlyChartDomain: ClosedRange<Date>? = nil,
             timeZone: TimeZone = .current)
         {
             self.currencyCode = currencyCode
@@ -324,7 +350,6 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.displayedModels = Array(models.prefix(Self.modelRowDisplayLimit))
             self.selectedDay = selectedDay
             self.hourlyPoints = hourlyPoints
-            self.hourlyChartDomain = hourlyChartDomain
             self.timeZone = timeZone
         }
 
@@ -667,10 +692,6 @@ struct SpendDashboardModel: Equatable, Sendable {
             overflowModelCount: overflowCount,
             selectedDay: selectedDay,
             hourlyPoints: hourlyPoints,
-            hourlyChartDomain: Self.hourlyChartDomain(
-                points: hourlyPoints,
-                selectedDay: selectedDay,
-                calendar: calendar),
             timeZone: calendar.timeZone)
     }
 
@@ -1593,23 +1614,6 @@ struct SpendDashboardModel: Equatable, Sendable {
             }
             return points
         }
-    }
-
-    private static func hourlyChartDomain(
-        points: [HourlyPoint],
-        selectedDay: Date?,
-        calendar: Calendar) -> ClosedRange<Date>?
-    {
-        if let selectedDay {
-            let start = calendar.startOfDay(for: selectedDay)
-            let end = calendar.dateInterval(of: .day, for: start)?.end ?? start
-            return start...end
-        }
-        guard let first = points.map(\.hour).min(),
-              let last = points.map(\.hour).max(),
-              let end = calendar.date(byAdding: .hour, value: 1, to: last)
-        else { return nil }
-        return first...end
     }
 }
 

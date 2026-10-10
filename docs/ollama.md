@@ -1,5 +1,5 @@
 ---
-summary: "Ollama provider notes: API key auth, settings scrape, cookie auth, and Cloud Usage parsing."
+summary: "Ollama provider notes: API key credit balances, settings scrape, and cookie auth."
 read_when:
   - Adding or modifying the Ollama provider
   - Debugging Ollama cookie import or settings parsing
@@ -8,8 +8,10 @@ read_when:
 
 # Ollama Provider
 
-The Ollama provider can verify Ollama Cloud API-key access and scrape the **Plan & Billing** page to extract Cloud
-Usage limits for session and weekly windows.
+The Ollama provider reads included usage and purchased credits through an API key or usage-related data from the
+authenticated settings page. Current Usage settings can expose a **credit balance**, **monthly credits used**, and a
+**refill target**, but not a quota percentage; QuotaKit shows those as details instead of inventing a quota bar.
+Older settings pages that report monthly included usage, session/hourly, or weekly meters remain supported.
 
 ## Features
 
@@ -17,16 +19,18 @@ Usage limits for session and weekly windows.
 - **Included usage**: Parses the monthly credits meter labeled `Monthly usage` on paid plans or `Free usage` on free plans.
 - **Legacy session + weekly usage**: Parses older session, hourly, and weekly meters when present.
 - **Reset timestamps**: Uses the `data-time` attribute on the “Resets in …” elements.
-- **API key auth**: Verifies direct `https://ollama.com/api` access with `OLLAMA_API_KEY` or a configured key.
-- **Browser cookie auth**: Required for Cloud Usage quota windows because Ollama does not expose those limits through
-  the documented API.
+- **API key auth**: Reads `https://ollama.com/api/balance` with `OLLAMA_API_KEY` or a configured key. Included usage
+  supplies the primary **Monthly** bar; purchased credits appear as **Credit balance** in the existing **Credits**
+  details section.
+- **Browser cookie auth**: Reads the settings page without an API key, including older session/hourly and weekly meters.
 
 ## Setup
 
 1. Open **Settings → Providers**.
 2. Enable **Ollama**.
-3. For API-key mode, paste an API key from `https://ollama.com/settings/keys` or set `OLLAMA_API_KEY`.
-4. For quota bars, leave **Cookie source** on **Auto** (recommended, imports Chrome cookies by default).
+3. For API-key mode, select **API key** as the usage source and paste an API key from
+   `https://ollama.com/settings/keys` or set `OLLAMA_API_KEY`.
+4. For browser-cookie mode, leave **Cookie source** on **Auto**, or paste a manual header below.
 
 Ollama API keys currently do not expire, but they can be revoked from the key settings page.
 
@@ -38,19 +42,28 @@ Ollama API keys currently do not expire, but they can be revoked from the key se
 
 ## How it works
 
-- API-key mode first probes the authenticated `https://ollama.com/api/web_search` endpoint without performing a
-  search, then fetches `https://ollama.com/api/tags` for the model catalog. The catalog endpoint is public and cannot
-  verify a key by itself.
+- API-key mode uses the bundled `ollama-api.ts` plugin for one bearer-authenticated GET to
+  `https://ollama.com/api/balance`; refresh no longer probes search or fetches the public model catalog.
+- `included.allowance_usd - included.balance_usd` supplies **Monthly credits used** and the primary utilization
+  percentage. `included.period.until` supplies its reset. The existing monthly-window sentinel preserves the
+  cookie path's calendar-based pace. The shared window model does not store `period.from` as a separate start date.
+- `purchased.balance_usd` supplies **Credit balance** and is never added to the included allowance. Numeric and
+  decimal-string amounts are supported; absent purchased credits stay absent. Purchased-only accounts show balance
+  details without a quota bar, and a zero allowance does not create a percentage.
+- HTTP 401 and 403 invalidate the API key. Malformed balances fail parsing without exposing the response body;
+  missing reset timestamps remain unavailable.
 - Cookie mode fetches `https://ollama.com/settings` using browser cookies.
 - Cookie discovery recognizes the current WorkOS AuthKit `wos-session` cookie alongside legacy Ollama and NextAuth
   session names.
 - Redirects from settings to `/signin` or the WorkOS AuthKit authorization page are treated as expired sessions, so
   QuotaKit can try the next cookie candidate and show sign-in guidance instead of a parser error.
 - Parses:
-  - Plan badge under **Cloud Usage**.
+  - Plan badge under **Included usage** or **Cloud Usage**.
   - The monthly included-credit meter for both Free and paid plans.
   - Legacy **Session usage**, **Hourly usage**, and **Weekly usage** percentages.
   - `data-time` ISO timestamps for reset times.
+- API balance's purchased credits are reported separately from included usage. No percentage is inferred when Ollama
+  reports only a credit balance.
 
 ## Troubleshooting
 

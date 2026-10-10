@@ -505,6 +505,7 @@ def main() -> int:
                         "timeout": args.timeout,
                         "workers": args.direct_workers,
                         "retry_non_timeout_failures": args.retry_non_timeout_failures,
+                        "keep_going": args.keep_going,
                     }))
                     execution_started = time.monotonic()
                     result = run_command(

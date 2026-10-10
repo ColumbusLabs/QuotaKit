@@ -2523,3 +2523,6 @@
 "~%@ tracked tokens (partial)" = "~%@ Обліковані токени (ЧАСТКОВИЙ)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "Знак темпу витрат";
+"Ahead of pace is +" = "Випередження темпу — +";
+"Reserve is +" = "Запас — +";

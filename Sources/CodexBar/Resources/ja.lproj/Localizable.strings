@@ -2523,3 +2523,6 @@
 "~%@ tracked tokens (partial)" = "~%@ 記録済みトークン (部分的)";
 "~/.local/bin/cswap" = "~/.local/bin/cswap";
 "~/Library/Application Support/JetBrains/IntelliJIdea2024.3" = "~/Library/Application Support/JetBrains/IntelliJIdea2024.3";
+"Pace sign" = "ペースの符号";
+"Ahead of pace is +" = "ペース超過を + で表示";
+"Reserve is +" = "余裕を + で表示";
