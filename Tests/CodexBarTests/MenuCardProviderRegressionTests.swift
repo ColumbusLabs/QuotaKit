@@ -93,7 +93,7 @@ struct MenuCardProviderRegressionTests {
     }
 
     @Test
-    func `ollama api key model explains browser session quota requirement`() throws {
+    func `ollama verified API key without balance has no usage or browser warning`() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.ollama])
         let snapshot = OllamaAPIUsageSnapshot(modelCount: 3, updatedAt: now).toUsageSnapshot()
@@ -122,8 +122,50 @@ struct MenuCardProviderRegressionTests {
         #expect(model.metrics.isEmpty)
         #expect(model.placeholder == nil)
         #expect(model.planText == "API key")
-        #expect(model.usageNotes == [
-            "API key verified. Cloud quotas need browser cookies. Sign in to Ollama.",
+        #expect(model.usageNotes.isEmpty)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    @MainActor
+    func `ollama api key model shows monthly usage and credits without browser warning`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let now = Date()
+        let metadata = try #require(ProviderDefaults.metadata[.ollama])
+        let snapshot = try await OllamaAPIBalanceTests.fetch(engine: engine)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .ollama,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            sourceLabel: "api",
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.map(\.title) == ["Monthly"])
+        #expect(model.metrics.first?.percent == 87.5)
+        #expect(model.placeholder == nil)
+        #expect(model.planText == "API key")
+        #expect(model.usageNotes.isEmpty)
+        #expect(model.providerDetails.first?.title == "Credits")
+        #expect(model.providerDetails.first?.rows.map(\.label) == [
+            "Credit balance", "Monthly credits used",
+        ])
+        #expect(model.providerDetails.first?.rows.map(\.value) == [
+            "$18.25", "$7.50",
         ])
     }
 
