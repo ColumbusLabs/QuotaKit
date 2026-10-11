@@ -9,8 +9,8 @@ import SQLite3
 import Testing
 @testable import CodexBarCore
 
-// This bounded cross-refresh convergence fixture has its own suite. The explicit per-operation
-// performance gates remain in CostUsagePerformanceGateTests unchanged.
+/// This bounded cross-refresh convergence fixture has its own suite. The explicit per-operation
+/// performance gates remain in CostUsagePerformanceGateTests unchanged.
 @Suite(.serialized)
 struct CostUsagePriorityDrainPerformanceGateTests {
     @Test
