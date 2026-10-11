@@ -1311,13 +1311,23 @@ struct CostUsagePerformanceGateTests {
             maxCodexSessionFileBytes: 0,
             maxCodexScanBytesPerRefresh: 0)
         options.refreshMinIntervalSeconds = 0
+
+        func readMetadataOnlyCache() throws -> CostUsageCache {
+            let cache = CostUsageStoreAccess.loadCodexWorkingSet(
+                cacheRoot: env.cacheRoot,
+                calendar: options.calendar,
+                hydratingPaths: Set<String>()).cache
+            try #require(cache.files.count == fileCount)
+            return cache
+        }
+
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
             now: day,
             options: options)
-        let originalCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let originalCache = try readMetadataOnlyCache()
         let originalTurnKeys = originalCache.codexPriorityTurnKeys
         let originalCursor = originalCache.codexPriorityTurnsCursor
 
@@ -1340,7 +1350,7 @@ struct CostUsagePerformanceGateTests {
                 until: day,
                 now: day.addingTimeInterval(TimeInterval(pass)),
                 options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = try readMetadataOnlyCache()
             if cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false {
                 sawPendingTail = true
                 #expect(cache.codexPriorityTurnKeys == originalTurnKeys)
