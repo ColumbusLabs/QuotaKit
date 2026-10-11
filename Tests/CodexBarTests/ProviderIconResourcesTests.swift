@@ -98,10 +98,10 @@ struct ProviderIconResourcesTests {
             contentsOf: root.appending(path: "docs/logos/replicate.svg"),
             encoding: .utf8)
         #expect(website == svg)
+        let mobilePath = "CodexBarMobile/CodexBarMobile/ProviderIcons.xcassets/" +
+            "ProviderIcon-replicate.imageset/ProviderIcon-replicate.svg"
         let mobile = try String(
-            contentsOf: root.appending(path:
-                "CodexBarMobile/CodexBarMobile/ProviderIcons.xcassets/" +
-                    "ProviderIcon-replicate.imageset/ProviderIcon-replicate.svg"),
+            contentsOf: root.appending(path: mobilePath),
             encoding: .utf8)
         #expect(mobile == svg)
         let cli = try String(

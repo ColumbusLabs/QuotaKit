@@ -23,7 +23,8 @@ final class PlaceholderSettingsWindowGuard {
     typealias WindowsProvider = @MainActor () -> [NSWindow]
     typealias WindowPredicate = @MainActor (NSWindow) -> Bool
     typealias WindowAction = @MainActor (NSWindow) -> Void
-    typealias SweepScheduler = @MainActor (@MainActor () -> Void) -> Void
+    typealias SweepAction = @MainActor () -> Void
+    typealias SweepScheduler = @MainActor (@escaping SweepAction) -> Void
 
     private let windows: WindowsProvider
     private let isKnownSettingsWindow: WindowPredicate
