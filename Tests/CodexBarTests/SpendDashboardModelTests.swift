@@ -429,7 +429,6 @@ struct SpendDashboardModelTests {
         #expect(group.models.map(\.provider) == [.claude])
         #expect(group.models.map(\.modelName) == ["test-model"])
         #expect(group.models.map(\.totalCost) == [4])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             #expect(spendDashboardGroupTokenText(group).hasPrefix("~"))
             #expect(spendDashboardHistoryCaption(group, requestedDays: 7).contains("Partial estimate"))
@@ -457,7 +456,6 @@ struct SpendDashboardModelTests {
         #expect(group.totalTokens == nil)
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(group) == .unavailable)
     }
 
     @Test
@@ -892,7 +890,6 @@ struct SpendDashboardModelTests {
         #expect(group.providers.first?.totalCost == nil)
         #expect(group.models.map(\.modelName) == ["test-model"])
         #expect(group.models.map(\.totalCost) == [nil])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
     }
 
     @Test(CodexCredentialFixtures())

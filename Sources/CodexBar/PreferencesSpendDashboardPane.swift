@@ -109,13 +109,6 @@ func codexCostCatchUpProgressText(_ activity: CodexCostCatchUpActivity) -> Strin
     return L("Loading…")
 }
 
-enum SpendDashboardModelHistoryPresentation: Equatable {
-    case unavailable
-    case empty
-    case partial
-    case complete
-}
-
 enum SpendDashboardModelMetric: String, CaseIterable {
     case cost
     case tokens
@@ -185,35 +178,6 @@ func spendDashboardModelValueText(
     case .tokens:
         row.totalTokens.map(UsageFormatter.tokenCountString) ?? "—"
     }
-}
-
-func spendDashboardModelHistoryPresentation(
-    _ group: SpendDashboardModel.CurrencyGroup) -> SpendDashboardModelHistoryPresentation
-{
-    if group.models.isEmpty {
-        return group.modelHistoryCompleteness == .incomplete ? .unavailable : .empty
-    }
-    return group.modelHistoryCompleteness == .incomplete ? .partial : .complete
-}
-
-func spendDashboardModelHistoryPresentation(
-    _ group: SpendDashboardModel.CurrencyGroup,
-    metric: SpendDashboardModelMetric) -> SpendDashboardModelHistoryPresentation
-{
-    guard metric == .tokens else {
-        return spendDashboardModelHistoryPresentation(group)
-    }
-    guard !group.models.isEmpty else {
-        return spendDashboardModelHistoryPresentation(group)
-    }
-    let tokenValues = group.models.map(\.totalTokens)
-    if tokenValues.allSatisfy({ $0 == nil }) {
-        return .unavailable
-    }
-    if tokenValues.contains(where: { $0 == nil }) {
-        return .partial
-    }
-    return .complete
 }
 
 enum SpendDashboardDetailSection: Hashable, Identifiable {
@@ -1259,10 +1223,6 @@ private func spendDashboardIncludesLocalHistory(_ group: SpendDashboardModel.Cur
 
 func spendDashboardProviderCountTitle(_ group: SpendDashboardModel.CurrencyGroup) -> String {
     spendDashboardIncludesLocalHistory(group) ? L("Sources") : L("Subscriptions")
-}
-
-func spendDashboardProviderPanelTitle(_ group: SpendDashboardModel.CurrencyGroup) -> String {
-    spendDashboardIncludesLocalHistory(group) ? L("By source") : L("By subscription")
 }
 
 func spendDashboardPartialSourceCoverageText(_ group: SpendDashboardModel.CurrencyGroup) -> String {

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/package_product_paths.sh"
+unset CODEXBAR_MACOS_SDK_PATH
 
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-package-paths.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -64,11 +65,22 @@ fi
 grep -Fq "$SWIFTBUILD_DIR/CodexBar.dSYM" "$TEMP_DIR/missing-dsym.log"
 
 swift() {
-  [[ "$*" == "build --show-bin-path -c release --arch arm64" ]]
+  [[ "$*" == "build --show-bin-path -c release --arch arm64" ]] || return 1
   printf '%s\n' "$SWIFTBUILD_DIR"
 }
 reported=$(codexbar_swiftpm_bin_path release arm64)
 [[ "$reported" == "$SWIFTBUILD_DIR" ]]
+
+CODEXBAR_MACOS_SDK_PATH="$TEMP_DIR/Selected macOS SDK"
+swift() {
+  [[ "$1" == "build" && "$2" == "--show-bin-path" && "$3" == "-c" && "$4" == "release" ]] || return 1
+  [[ "$5" == "--sdk" && "$6" == "$CODEXBAR_MACOS_SDK_PATH" ]] || return 1
+  [[ "$7" == "--arch" && "$8" == "arm64" ]] || return 1
+  printf '%s\n' "$SWIFTBUILD_DIR"
+}
+reported=$(codexbar_swiftpm_bin_path release arm64)
+[[ "$reported" == "$SWIFTBUILD_DIR" ]]
+unset CODEXBAR_MACOS_SDK_PATH
 
 swift() {
   return 23
@@ -87,5 +99,79 @@ if codexbar_swiftpm_bin_path release arm64 2>"$TEMP_DIR/empty.log"; then
   exit 1
 fi
 grep -Fq "SwiftPM reported an empty" "$TEMP_DIR/empty.log"
+
+otool() {
+  [[ "$1" == "-arch" && "$2" == "arm64" && "$3" == "-lv" ]] || return 1
+  printf '%s\n' "$MOCK_OTOOL_OUTPUT"
+}
+SDK_VERSION=27.2
+MOCK_OTOOL_OUTPUT=$(cat <<'OTOOL'
+Load command 11
+          cmd LC_BUILD_VERSION
+      cmdsize 32
+     platform MACOS
+        minos 14.0
+          sdk 27.2
+      ntools 1
+        tool LD
+     version 1280.0
+OTOOL
+)
+codexbar_verify_macos_build_metadata "$SWIFTBUILD_DIR/CodexBar" arm64 14.0 "$SDK_VERSION"
+
+MOCK_OTOOL_OUTPUT=$(cat <<'OTOOL'
+Load command 11
+          cmd LC_BUILD_VERSION
+      cmdsize 32
+     platform MACOS
+        minos 14.0
+          sdk 14.0
+      ntools 1
+        tool LD
+     version 1280.0
+OTOOL
+)
+if codexbar_verify_macos_build_metadata "$SWIFTBUILD_DIR/CodexBar" arm64 14.0 "$SDK_VERSION" \
+  2>"$TEMP_DIR/sdk-mismatch.log"; then
+  echo "ERROR: A deployment-target SDK was accepted as the selected SDK." >&2
+  exit 1
+fi
+grep -Fq "Expected macOS 14.0 / SDK ${SDK_VERSION}" "$TEMP_DIR/sdk-mismatch.log"
+
+MOCK_OTOOL_OUTPUT=$(cat <<'OTOOL'
+Load command 11
+          cmd LC_BUILD_VERSION
+      cmdsize 32
+     platform MACOS
+        minos 15.0
+          sdk 27.2
+      ntools 1
+        tool LD
+     version 1280.0
+OTOOL
+)
+if codexbar_verify_macos_build_metadata "$SWIFTBUILD_DIR/CodexBar" arm64 14.0 "$SDK_VERSION" \
+  2>"$TEMP_DIR/minimum-mismatch.log"; then
+  echo "ERROR: A raised minimum macOS version was accepted." >&2
+  exit 1
+fi
+
+MOCK_OTOOL_OUTPUT=$(cat <<'OTOOL'
+Load command 11
+          cmd LC_BUILD_VERSION
+      cmdsize 32
+     platform IOS
+        minos 14.0
+          sdk 27.2
+      ntools 1
+        tool LD
+     version 1280.0
+OTOOL
+)
+if codexbar_verify_macos_build_metadata "$SWIFTBUILD_DIR/CodexBar" arm64 14.0 "$SDK_VERSION" \
+  2>"$TEMP_DIR/platform-mismatch.log"; then
+  echo "ERROR: Non-macOS build metadata was accepted." >&2
+  exit 1
+fi
 
 echo "Package product path tests passed."

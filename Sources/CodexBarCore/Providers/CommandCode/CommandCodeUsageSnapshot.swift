@@ -97,7 +97,7 @@ public struct CommandCodeUsageSnapshot: Sendable {
             // The grant size comes from the optional subscription lookup. When that lookup times out
             // or fails, the plan is unknown rather than absent: reporting the free-tier reading below
             // would show an untouched monthly bar for a paid plan that is partly or fully spent.
-            guard !self.subscriptionEnrichmentUnavailable,
+            guard self.plan == nil, !self.subscriptionEnrichmentUnavailable,
                   self.monthlyCreditsRemaining > 0 || self.purchasedCredits > 0 else { return nil }
             // Free tier: no monthly allowance exists to consume, so report 0% used while any balance remains.
             percent = 0
@@ -117,7 +117,7 @@ public struct CommandCodeUsageSnapshot: Sendable {
         if let total = self.monthlyCreditsTotal {
             let used = self.monthlyCreditsUsed ?? 0
             parts.append("\(Self.formatUSD(used)) of \(Self.formatUSD(total))")
-        } else if self.monthlyCreditsRemaining > 0 {
+        } else if self.plan != nil || self.monthlyCreditsRemaining > 0 {
             parts.append("\(Self.formatUSD(self.monthlyCreditsRemaining)) remaining")
         }
         if self.purchasedCredits > 0 {
@@ -127,12 +127,8 @@ public struct CommandCodeUsageSnapshot: Sendable {
     }
 
     static func formatUSD(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.locale = Locale(identifier: "en_US")
-        formatter.maximumFractionDigits = value < 100 ? 2 : 0
-        formatter.minimumFractionDigits = value < 100 ? 2 : 0
-        return formatter.string(from: NSNumber(value: value)) ?? "$\(value)"
+        value < 100
+            ? UsageFormatter.usdString(value)
+            : UsageFormatter.compactCurrencyString(value, currencyCode: "USD")
     }
 }

@@ -49,9 +49,35 @@ esac
 
 # Load version info
 source "$ROOT/version.env"
+source "$ROOT/Scripts/package_product_paths.sh"
 if [[ -f "$ROOT/.mac-release.env" ]]; then
   source "$ROOT/.mac-release.env"
 fi
+
+CODEXBAR_MACOS_MINIMUM_VERSION=14.0
+if ! CODEXBAR_MACOS_SDK_PATH=$(xcrun --sdk macosx --show-sdk-path); then
+  echo "ERROR: Cannot resolve the selected macOS SDK path." >&2
+  exit 1
+fi
+if [[ ! -d "$CODEXBAR_MACOS_SDK_PATH" ]]; then
+  echo "ERROR: Selected macOS SDK directory does not exist: $CODEXBAR_MACOS_SDK_PATH" >&2
+  exit 1
+fi
+if ! SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version); then
+  echo "ERROR: Cannot resolve the selected macOS SDK version." >&2
+  exit 1
+fi
+if [[ ! "$SDK_VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+  echo "ERROR: Invalid selected macOS SDK version: $SDK_VERSION" >&2
+  exit 1
+fi
+BUILD_ARGS=(
+  --sdk "$CODEXBAR_MACOS_SDK_PATH"
+  -Xlinker -platform_version
+  -Xlinker macos
+  -Xlinker "$CODEXBAR_MACOS_MINIMUM_VERSION"
+  -Xlinker "$SDK_VERSION"
+)
 
 APP_DISPLAY_NAME="${MAC_RELEASE_APP_NAME:-QuotaKit}"
 APP_EXECUTABLE_NAME="${MAC_RELEASE_APP_EXECUTABLE:-QuotaKit}"
@@ -156,19 +182,36 @@ PY
 
 KEYBOARD_SHORTCUTS_UTIL="$ROOT/.build/checkouts/KeyboardShortcuts/Sources/KeyboardShortcuts/Utilities.swift"
 if [[ ! -f "$KEYBOARD_SHORTCUTS_UTIL" ]]; then
-  swift build -c "$CONF" --arch "${ARCH_LIST[0]}"
+  swift build "${BUILD_ARGS[@]}" -c "$CONF" --arch "${ARCH_LIST[0]}"
 fi
 patch_keyboard_shortcuts
 
 for ARCH in "${ARCH_LIST[@]}"; do
-  swift build -c "$CONF" --arch "$ARCH"
+  swift build "${BUILD_ARGS[@]}" -c "$CONF" --arch "$ARCH"
 
   # SwiftPM's default swiftbuild backend uses one shared Products directory
   # for sequential --arch builds. Preserve each architecture before the next
   # build replaces it so universal packaging never feeds lipo the same binary
   # twice. This also keeps the package layout independent of the selected
   # SwiftPM backend.
-  PRODUCT_DIR=$(swift build -c "$CONF" --arch "$ARCH" --show-bin-path)
+  PRODUCT_DIR=$(codexbar_swiftpm_bin_path "$CONF" "$ARCH")
+  PRODUCT_PATH=$(codexbar_require_product_file "$PRODUCT_DIR" "$APP_SWIFTPM_PRODUCT" "$ARCH")
+  if ! codexbar_verify_macos_build_metadata \
+    "$PRODUCT_PATH" "$ARCH" "$CODEXBAR_MACOS_MINIMUM_VERSION" "$SDK_VERSION"; then
+    exit 1
+  fi
+  for PRODUCT_NAME in "$APP_SWIFTPM_PRODUCT" "$CLI_SWIFTPM_PRODUCT" "$WATCHDOG_SWIFTPM_PRODUCT"; do
+    if [[ "$PRODUCT_NAME" == "$APP_SWIFTPM_PRODUCT" ]]; then
+      continue
+    fi
+    PRODUCT_PATH="$PRODUCT_DIR/$PRODUCT_NAME"
+    if [[ -f "$PRODUCT_PATH" ]]; then
+      if ! codexbar_verify_macos_build_metadata \
+        "$PRODUCT_PATH" "$ARCH" "$CODEXBAR_MACOS_MINIMUM_VERSION" "$SDK_VERSION"; then
+        exit 1
+      fi
+    fi
+  done
   STAGED_PRODUCT_DIR="$ROOT/.build/codexbar-products/$CONF/$ARCH"
   rm -rf "$STAGED_PRODUCT_DIR"
   mkdir -p "$(dirname "$STAGED_PRODUCT_DIR")"
@@ -312,7 +355,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSMinimumSystemVersion</key><string>${CODEXBAR_MACOS_MINIMUM_VERSION}</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
     <key>NSHumanReadableCopyright</key><string>QuotaKit includes upstream CodexBar code. MIT License notices are preserved.</string>

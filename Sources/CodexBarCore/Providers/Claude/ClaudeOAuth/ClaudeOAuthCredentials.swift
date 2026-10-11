@@ -1380,10 +1380,7 @@ public enum ClaudeOAuthCredentialsStore {
                         allowKeychainPrompt: false),
                     !data.isEmpty
                 {
-                    let fingerprint = ClaudeKeychainFingerprint(
-                        modifiedAt: candidate.modifiedAt.map { Int($0.timeIntervalSince1970) },
-                        createdAt: candidate.createdAt.map { Int($0.timeIntervalSince1970) },
-                        persistentRefHash: ClaudeOAuthCredentialsStore.sha256Prefix(candidate.persistentRef))
+                    let fingerprint = candidate.fingerprint
 
                     if let creds = try? ClaudeOAuthCredentials.parse(data: data), !creds.isExpired {
                         ClaudeOAuthCredentialsStore.saveClaudeKeychainFingerprint(fingerprint)
@@ -1993,18 +1990,6 @@ public enum ClaudeOAuthCredentialsStore {
         return .matched(persistentRefHash: evidence.persistentRefHash)
     }
 
-    private static func matchingClaudeKeychainPersistentRefHash(
-        for record: ClaudeOAuthCredentialRecord,
-        evidence: ClaudeKeychainCredentialEvidence?) -> String?
-    {
-        guard let evidence,
-              evidence.credentials.accessToken == record.credentials.accessToken
-        else {
-            return nil
-        }
-        return evidence.persistentRefHash
-    }
-
     private static func newestClaudeKeychainCredentialEvidenceWithoutPrompt()
         -> ClaudeKeychainProbe<ClaudeKeychainCredentialEvidence?>
     {
@@ -2032,20 +2017,9 @@ public enum ClaudeOAuthCredentialsStore {
         #if os(macOS)
         let promptMode = ClaudeOAuthKeychainPromptPreference.current()
         let newest: ClaudeKeychainCandidate?
-        switch self.claudeKeychainCandidatesProbeWithoutPrompt(promptMode: promptMode) {
-        case .unavailable:
-            return .unavailable
-        case let .value(candidates):
-            if let first = candidates.first {
-                newest = first
-            } else {
-                switch self.claudeKeychainLegacyCandidateProbeWithoutPrompt(promptMode: promptMode) {
-                case .unavailable:
-                    return .unavailable
-                case let .value(candidate):
-                    newest = candidate
-                }
-            }
+        switch self.newestClaudeKeychainCandidateProbeWithoutPrompt(promptMode: promptMode) {
+        case .unavailable: return .unavailable
+        case let .value(candidate): newest = candidate
         }
         guard let newest else { return .value(nil) }
         guard let persistentRefHash = self.sha256Prefix(newest.persistentRef),
@@ -2080,20 +2054,6 @@ public enum ClaudeOAuthCredentialsStore {
             credentials: credentials,
             persistentRefHash: persistentRefHash)
     }
-
-    #if DEBUG
-    static func _matchingClaudeKeychainPersistentRefHashForTesting(
-        record: ClaudeOAuthCredentialRecord,
-        candidateCredentials: ClaudeOAuthCredentials,
-        persistentRefHash: String) -> String?
-    {
-        self.matchingClaudeKeychainPersistentRefHash(
-            for: record,
-            evidence: ClaudeKeychainCredentialEvidence(
-                credentials: candidateCredentials,
-                persistentRefHash: persistentRefHash))
-    }
-    #endif
 
     private enum ClaudeKeychainProbe<Value> {
         case unavailable
@@ -2246,32 +2206,14 @@ public enum ClaudeOAuthCredentialsStore {
             return .unavailable
         }
         #if os(macOS)
-        let candidatesProbe = self.claudeKeychainCandidatesProbeWithoutPrompt(promptMode: mode)
         let newest: ClaudeKeychainCandidate?
-        switch candidatesProbe {
-        case .unavailable:
-            return .unavailable
-        case let .value(candidates):
-            if let first = candidates.first {
-                newest = first
-            } else {
-                switch self.claudeKeychainLegacyCandidateProbeWithoutPrompt(promptMode: mode) {
-                case .unavailable:
-                    return .unavailable
-                case let .value(candidate):
-                    newest = candidate
-                }
-            }
+        switch self.newestClaudeKeychainCandidateProbeWithoutPrompt(promptMode: mode) {
+        case .unavailable: return .unavailable
+        case let .value(candidate): newest = candidate
         }
         guard let newest else { return .value(nil) }
 
-        let modifiedAt = newest.modifiedAt.map { Int($0.timeIntervalSince1970) }
-        let createdAt = newest.createdAt.map { Int($0.timeIntervalSince1970) }
-        let persistentRefHash = Self.sha256Prefix(newest.persistentRef)
-        return .value(ClaudeKeychainFingerprint(
-            modifiedAt: modifiedAt,
-            createdAt: createdAt,
-            persistentRefHash: persistentRefHash))
+        return .value(newest.fingerprint)
         #else
         return .unavailable
         #endif
@@ -2447,14 +2389,7 @@ public enum ClaudeOAuthCredentialsStore {
                 {
                     // Store fingerprint after a successful interactive read so we don't immediately try to
                     // "sync" in the background (which can still show UI on some systems).
-                    let modifiedAt = newest.modifiedAt.map { Int($0.timeIntervalSince1970) }
-                    let createdAt = newest.createdAt.map { Int($0.timeIntervalSince1970) }
-                    let persistentRefHash = Self.sha256Prefix(newest.persistentRef)
-                    self.saveClaudeKeychainFingerprint(
-                        ClaudeKeychainFingerprint(
-                            modifiedAt: modifiedAt,
-                            createdAt: createdAt,
-                            persistentRefHash: persistentRefHash))
+                    self.saveClaudeKeychainFingerprint(newest.fingerprint)
                     return data
                 }
             } catch let error as ClaudeOAuthCredentialsError {
@@ -2494,6 +2429,13 @@ public enum ClaudeOAuthCredentialsStore {
         let account: String?
         let modifiedAt: Date?
         let createdAt: Date?
+
+        var fingerprint: ClaudeKeychainFingerprint {
+            ClaudeKeychainFingerprint(
+                modifiedAt: self.modifiedAt.map { Int($0.timeIntervalSince1970) },
+                createdAt: self.createdAt.map { Int($0.timeIntervalSince1970) },
+                persistentRefHash: ClaudeOAuthCredentialsStore.sha256Prefix(self.persistentRef))
+        }
     }
 
     private static func claudeKeychainCandidatesProbeWithoutPrompt(
@@ -2552,6 +2494,18 @@ public enum ClaudeOAuthCredentialsStore {
             return lhsDate > rhsDate
         }
         return .value(sorted)
+    }
+
+    private static func newestClaudeKeychainCandidateProbeWithoutPrompt(
+        promptMode: ClaudeOAuthKeychainPromptMode) -> ClaudeKeychainProbe<ClaudeKeychainCandidate?>
+    {
+        switch self.claudeKeychainCandidatesProbeWithoutPrompt(promptMode: promptMode) {
+        case .unavailable:
+            return .unavailable
+        case let .value(candidates):
+            if let first = candidates.first { return .value(first) }
+            return self.claudeKeychainLegacyCandidateProbeWithoutPrompt(promptMode: promptMode)
+        }
     }
 
     private static func claudeKeychainCandidatesWithoutPrompt(

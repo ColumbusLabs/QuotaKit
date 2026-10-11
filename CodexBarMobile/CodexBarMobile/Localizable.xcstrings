@@ -1,6 +1,148 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "xAI estimated remaining credit now syncs from Mac to iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة الرصيد المتبقي المقدّر في xAI من Mac إلى iPhone."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El crèdit restant estimat de xAI ara se sincronitza del Mac a l’iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das geschätzte verbleibende xAI-Guthaben wird jetzt vom Mac auf das iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI estimated remaining credit now syncs from Mac to iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El crédito restante estimado de xAI ahora se sincroniza del Mac al iPhone."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعتبار باقی‌ماندهٔ تخمینی xAI اکنون از Mac به iPhone همگام می‌شود."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le crédit restant estimé de xAI se synchronise désormais du Mac vers l’iPhone."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O crédito restante estimado de xAI agora sincronízase do Mac ao iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perkiraan sisa kredit xAI kini disinkronkan dari Mac ke iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il credito residuo stimato di xAI ora si sincronizza dal Mac all’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI の推定残りクレジットが Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이제 xAI의 예상 잔여 크레딧이 Mac에서 iPhone으로 동기화됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het geschatte resterende xAI-tegoed wordt nu van Mac naar iPhone gesynchroniseerd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Szacowane pozostałe środki xAI są teraz synchronizowane z Maca na iPhone’a."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O crédito restante estimado do xAI agora é sincronizado do Mac para o iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оценка оставшегося кредита xAI теперь синхронизируется с Mac на iPhone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beräknad återstående xAI-kredit synkroniseras nu från Mac till iPhone."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เครดิตคงเหลือโดยประมาณของ xAI ซิงค์จาก Mac ไปยัง iPhone แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI tahmini kalan kredisi artık Mac’ten iPhone’a eşzamanlanıyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оцінка залишку кредиту xAI тепер синхронізується з Mac на iPhone."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tín dụng còn lại ước tính của xAI hiện được đồng bộ từ Mac sang iPhone."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI 的估算剩余额度现可从 Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xAI 的估算剩餘額度現可從 Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Claude subscription dates now sync from Mac to iPhone.": {
       "localizations": {
         "ar": {

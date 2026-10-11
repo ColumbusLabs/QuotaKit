@@ -186,6 +186,27 @@ Settings tests skip automatic app-group migration and shared defaults discovery.
 
 The sharded runner retries `swift test list` once only when it detects the known missing Sparkle framework path. It validates the built framework before repairing the test bundle's `PackageFrameworks` symlink. Other discovery failures retain their original result.
 
+### CI efficiency
+
+Use the current workflow and test/cache helpers as the baseline when changing CI.
+Preserve the complete discovered test inventory, required compatibility checks,
+deadlines, failure handling, verified cache inputs, and conservative clean fallback.
+Keep temporary performance experiments separate from routine CI, and never copy
+compiled products between worktrees. A cache download alone does not prove safe
+incremental reuse.
+
+Run focused checks while developing and required checks on the final source.
+Repeat a successful check only after relevant inputs or the environment change,
+or when an unresolved failure needs investigation. Record comparable commits,
+toolchains, runner/cache state, and coverage for performance claims; distinguish
+queue time from execution time and predicted reuse from observed reuse.
+
+Upstream integration uses GitHub CI by default. Standard hosted execution in this
+public repository is free; larger runners are excluded. Confirm current visibility,
+workflow runners, free storage, and existing stop-usage controls before starting
+workflows. Do not duplicate hosted Swift/Xcode tests locally for convenience or
+change budgets, storage limits, release lanes, or required gates.
+
 ### Format And Lint
 
 `Scripts/install_lint_tools.sh` installs repository-pinned SwiftFormat and SwiftLint archives after checksum verification.

@@ -1020,8 +1020,9 @@ extension UsageMenuCardView.Model {
         }
         if input.provider == .xai, input.snapshot?.xaiUsage != nil {
             details = details.compactMap { section in
-                guard let chart = section.chart else { return nil }
-                return try? ProviderDetailSection(title: section.title, rows: [], chart: chart)
+                let rows = section.rows.filter { $0.label == "Live remaining (est.)" }
+                guard !rows.isEmpty || section.chart != nil else { return nil }
+                return try? ProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
             }
         }
         if !input.showOptionalCreditsAndExtraUsage {

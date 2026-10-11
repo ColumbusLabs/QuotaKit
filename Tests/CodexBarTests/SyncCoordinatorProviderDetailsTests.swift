@@ -8,6 +8,89 @@ import Testing
 @Suite(.serialized)
 struct SyncCoordinatorProviderDetailsTests {
     @Test
+    func `xAI sync exports only the live estimate and clears it when unavailable`() {
+        let withEstimate = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [
+                .makeSection(title: "Billing summary", rows: [
+                    .makeRow(label: "Prepaid balance", value: "$274.81"),
+                    .makeRow(label: "Live remaining (est.)", value: "$141.17"),
+                    .makeRow(label: "Last 30 days", value: "$12.00"),
+                    .makeRow(label: "Account Email", value: "person@example.com"),
+                ]),
+            ],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .xai, snapshot: withEstimate) == [
+            SyncProviderDetailSection(title: "Billing summary", rows: [
+                .init(label: "Live remaining (est.)", value: "$141.17"),
+            ]),
+        ])
+
+        let withoutEstimate = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Billing summary", rows: [
+                .makeRow(label: "Prepaid balance", value: "$274.81"),
+            ])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .xai, snapshot: withoutEstimate) == [])
+    }
+
+    @Test
+    func `xAI estimate reaches the provider exporter without creating quota`() async throws {
+        let settings = testSettingsStore(
+            suiteName: "SyncCoordinatorXAIProviderDetailsTests-\(UUID().uuidString)",
+            config: testConfigWithAllProvidersDisabled())
+        settings.iCloudSyncEnabled = true
+        settings.accountWidgetsEnabled = false
+        try settings.setProviderEnabled(
+            provider: .xai,
+            metadata: #require(ProviderDefaults.metadata[.xai]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [
+                XAISettingsReader.apiKeyEnvironmentKey: "fixture-management-key",
+                XAISettingsReader.teamIDEnvironmentKey: "team-1234",
+            ])
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
+        let pusher = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+
+        store._setSnapshotForTesting(
+            XAIUsageSnapshot(
+                balanceUSD: 274.81,
+                liveRemainingUSD: 141.17,
+                daily: [],
+                updatedAt: timestamp).toUsageSnapshot(),
+            provider: .xai)
+        await coordinator.pushCurrentSnapshot()
+        let exported = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "xai"
+        }?.provider)
+        #expect(exported.providerDetails == [SyncProviderDetailSection(title: "Billing summary", rows: [
+            .init(label: "Live remaining (est.)", value: "$141.17"),
+        ])])
+        #expect(exported.statusMessage == "Prepaid credits: USD 274.81")
+        #expect(exported.rateWindows.isEmpty)
+        #expect(exported.budget == nil)
+
+        store._setSnapshotForTesting(
+            XAIUsageSnapshot(balanceUSD: 274.81, daily: [], updatedAt: timestamp).toUsageSnapshot(),
+            provider: .xai)
+        await coordinator.pushCurrentSnapshot()
+        let cleared = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "xai"
+        }?.provider)
+        #expect(cleared.providerDetails == [])
+        #expect(cleared.statusMessage == "Prepaid credits: USD 274.81")
+    }
+
+    @Test
     func `WorkBuddy sync allowlists numeric credit details and clears empty results`() {
         let snapshot = UsageSnapshot(
             primary: nil,

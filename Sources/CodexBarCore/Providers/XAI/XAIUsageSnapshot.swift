@@ -24,6 +24,9 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
     /// inverted ledger in string USD cents (a $10 top-up is "-1000"), so this
     /// is `-cents / 100`; a negative value means the team is in deficit.
     public let balanceUSD: Double
+    /// Best-effort current-cycle remaining credit estimate from the invoice preview.
+    /// This is distinct from the posted prepaid ledger balance above.
+    public let liveRemainingUSD: Double?
     public let daily: [DailyBucket]
     public let historyDays: Int
     /// True when the usage endpoint reported its cardinality cap; daily sums
@@ -36,6 +39,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
 
     public init(
         balanceUSD: Double,
+        liveRemainingUSD: Double? = nil,
         daily: [DailyBucket],
         historyDays: Int = 30,
         limitReached: Bool = false,
@@ -43,6 +47,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
         updatedAt: Date)
     {
         self.balanceUSD = balanceUSD
+        self.liveRemainingUSD = liveRemainingUSD
         self.daily = daily.sorted { $0.day < $1.day }
         self.historyDays = max(1, min(365, historyDays))
         self.limitReached = limitReached
@@ -52,6 +57,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case balanceUSD
+        case liveRemainingUSD
         case daily
         case historyDays
         case limitReached
@@ -63,6 +69,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let daily = try container.decode([DailyBucket].self, forKey: .daily)
         self.balanceUSD = try container.decode(Double.self, forKey: .balanceUSD)
+        self.liveRemainingUSD = try container.decodeIfPresent(Double.self, forKey: .liveRemainingUSD)
         self.daily = daily.sorted { $0.day < $1.day }
         self.historyDays = try max(1, min(365, container.decode(Int.self, forKey: .historyDays)))
         self.limitReached = try container.decode(Bool.self, forKey: .limitReached)
@@ -76,6 +83,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.balanceUSD, forKey: .balanceUSD)
+        try container.encodeIfPresent(self.liveRemainingUSD, forKey: .liveRemainingUSD)
         try container.encode(self.daily, forKey: .daily)
         try container.encode(self.historyDays, forKey: .historyDays)
         try container.encode(self.limitReached, forKey: .limitReached)
@@ -93,7 +101,20 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
-        UsageSnapshot(
+        var rows = [
+            ProviderDetailSection.Row.makeRow(
+                label: "Prepaid balance",
+                value: UsageFormatter.usdString(self.balanceUSD)),
+        ]
+        if let liveRemainingUSD = self.liveRemainingUSD {
+            rows.append(.makeRow(
+                label: "Live remaining (est.)",
+                value: UsageFormatter.usdString(liveRemainingUSD)))
+        }
+        rows.append(.makeRow(
+            label: self.historyWindowPeriodLabel,
+            value: UsageFormatter.usdString(self.windowCostUSD)))
+        return UsageSnapshot(
             primary: nil,
             secondary: nil,
             providerCost: ProviderCostSnapshot(
@@ -104,12 +125,7 @@ public struct XAIUsageSnapshot: Codable, Equatable, Sendable {
                 updatedAt: self.updatedAt),
             details: [.makeSection(
                 title: "Billing summary",
-                rows: [
-                    .makeRow(label: "Prepaid balance", value: UsageFormatter.usdString(self.balanceUSD)),
-                    .makeRow(
-                        label: self.historyWindowPeriodLabel,
-                        value: UsageFormatter.usdString(self.windowCostUSD)),
-                ],
+                rows: rows,
                 chart: self.historyAvailable ? .makeChart(
                     title: "Daily spend",
                     unit: "USD",

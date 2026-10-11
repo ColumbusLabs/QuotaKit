@@ -43,6 +43,10 @@ Uses Xcode’s `ictool` + transparent padding + iconset → Icon.icns.
 ```
 What it does:
 - `swift build -c release --arch arm64` and `swift build -c release --arch x86_64`
+- Selects the active macOS SDK and links the app, CLI, and watchdog with the
+  macOS 14.0 minimum and that SDK version. Each packaged slice's
+  `LC_BUILD_VERSION` is checked before staging so current SDK metadata is
+  retained without raising the deployment target or enabling legacy native UI.
 - Packages `QuotaKit.app` with Info.plist and Icon.icns
 - Embeds Sparkle.framework, Updater, Autoupdate, XPCs
 - Codesigns **everything** with runtime + timestamp (deep) and adds rpath
