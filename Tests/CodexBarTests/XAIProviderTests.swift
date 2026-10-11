@@ -781,32 +781,6 @@ struct XAIProviderTests {
         #expect(snapshot.details.first?.chart?.points.count == 3)
     }
 
-    private static func fetchPlugin(
-        previewBody: String,
-        previewStatus: Int,
-        engine: ProviderPluginEngineKind) async throws -> UsageSnapshot
-    {
-        let transport = ProviderHTTPTransportStub { request in
-            let url = try #require(request.url)
-            switch url.path {
-            case "/v1/billing/teams/team-1234/prepaid/balance":
-                return Self.response(url: url, body: Self.balanceFixture)
-            case "/v1/billing/teams/team-1234/postpaid/invoice/preview":
-                return Self.response(url: url, body: previewBody, statusCode: previewStatus)
-            case "/v1/billing/teams/team-1234/usage":
-                return Self.response(url: url, body: Self.usageFixture)
-            default:
-                Issue.record("unexpected request path \(url.path)")
-                throw URLError(.badURL)
-            }
-        }
-        let runtime = try BundledPluginTestSupport.runtime("xai", engine: engine, transport: transport)
-        return try await runtime.fetchUsage(
-            settings: ["XAI_TEAM_ID": "team-1234"],
-            secrets: ["XAI_MANAGEMENT_API_KEY": "fixture-management-key"],
-            now: Date(timeIntervalSince1970: 1_800_000_000))
-    }
-
     private static func fetch(
         balanceBody: String = balanceFixture,
         balanceStatus: Int = 200,
@@ -905,5 +879,33 @@ struct XAIProviderTests {
             httpVersion: "HTTP/1.1",
             headerFields: ["Content-Type": "application/json"])!
         return (Data(body.utf8), response)
+    }
+}
+
+extension XAIProviderTests {
+    private static func fetchPlugin(
+        previewBody: String,
+        previewStatus: Int,
+        engine: ProviderPluginEngineKind) async throws -> UsageSnapshot
+    {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            switch url.path {
+            case "/v1/billing/teams/team-1234/prepaid/balance":
+                return Self.response(url: url, body: Self.balanceFixture)
+            case "/v1/billing/teams/team-1234/postpaid/invoice/preview":
+                return Self.response(url: url, body: previewBody, statusCode: previewStatus)
+            case "/v1/billing/teams/team-1234/usage":
+                return Self.response(url: url, body: Self.usageFixture)
+            default:
+                Issue.record("unexpected request path \(url.path)")
+                throw URLError(.badURL)
+            }
+        }
+        let runtime = try BundledPluginTestSupport.runtime("xai", engine: engine, transport: transport)
+        return try await runtime.fetchUsage(
+            settings: ["XAI_TEAM_ID": "team-1234"],
+            secrets: ["XAI_MANAGEMENT_API_KEY": "fixture-management-key"],
+            now: Date(timeIntervalSince1970: 1_800_000_000))
     }
 }
