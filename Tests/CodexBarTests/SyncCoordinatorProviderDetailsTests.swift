@@ -53,7 +53,10 @@ struct SyncCoordinatorProviderDetailsTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: [:])
+            environmentBase: [
+                XAISettingsReader.apiKeyEnvironmentKey: "fixture-management-key",
+                XAISettingsReader.teamIDEnvironmentKey: "team-1234",
+            ])
         let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
         let pusher = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
