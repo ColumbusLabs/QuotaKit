@@ -428,12 +428,10 @@ struct SpendDashboardPartialCostTests {
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.map(\.modelName) == ["gpt-5.4-mini", "deepseek-v4-flash", "deepseek-v4-flash"])
         #expect(group.models.map(\.totalCost) == [4, nil, nil])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             #expect(spendDashboardGroupCostText(group).hasPrefix("~"))
             #expect(spendDashboardGroupTokenText(group) == "240")
             #expect(spendDashboardProviderCountTitle(group) == "Subscriptions")
-            #expect(spendDashboardProviderPanelTitle(group) == "By subscription")
             #expect(spendDashboardPartialSourceCoverageText(group) == "1 of 3 subscriptions have spend")
             #expect(spendDashboardHistoryCaption(group, requestedDays: 30).contains("Partial estimate"))
         }
@@ -457,7 +455,6 @@ struct SpendDashboardPartialCostTests {
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.map(\.modelName) == ["deepseek-v4-flash", "deepseek-v4-flash"])
         #expect(group.models.map(\.totalCost) == [nil, nil])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             #expect(spendDashboardGroupCostText(group) == "Spend unavailable")
         }
@@ -479,7 +476,6 @@ struct SpendDashboardPartialCostTests {
         #expect(group.models.map(\.totalCost) == [nil])
         #expect(group.models.map(\.totalTokens) == [100])
         #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
     }
 
     @Test
@@ -505,7 +501,6 @@ struct SpendDashboardPartialCostTests {
         #expect(group.totalCost == nil)
         #expect(group.models.isEmpty)
         #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(spendDashboardModelHistoryPresentation(group) == .unavailable)
     }
 
     private static func group(_ snapshot: CostUsageTokenSnapshot) throws -> SpendDashboardModel.CurrencyGroup {

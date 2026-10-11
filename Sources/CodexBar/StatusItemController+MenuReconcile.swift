@@ -187,7 +187,7 @@ extension StatusItemController {
             (highlightedItem.view as? MenuCardHighlighting)?.setHighlighted(false)
             return
         }
-        (highlightedItem.view as? MenuCardHighlighting)?.setHighlighted(true)
+        self.applyMenuCardHighlight(highlightedItem, highlighted: true)
     }
 
     private func replaceMenuContent(_ menu: NSMenu, fromIndex: Int, with newItems: [NSMenuItem]) {
@@ -219,8 +219,7 @@ extension StatusItemController {
         liveItem.representedObject = newItem.representedObject
         liveItem.state = newItem.state
         liveItem.isEnabled = newItem.isEnabled
-        let allowsHighlight = (view as? MenuCardHighlighting)?.allowsMenuHighlight != false
-        (view as? MenuCardHighlighting)?.setHighlighted(newItem.isEnabled && allowsHighlight && remainsHighlighted)
+        self.applyMenuCardHighlight(liveItem, highlighted: remainsHighlighted)
         liveItem.image = newItem.image
         liveItem.toolTip = newItem.toolTip
         liveItem.keyEquivalent = newItem.keyEquivalent
@@ -301,9 +300,7 @@ extension StatusItemController {
         cachedItem.identifier = liveIdentifier
         swap(&liveItem.state, &cachedItem.state)
         swap(&liveItem.isEnabled, &cachedItem.isEnabled)
-        let liveHosting = liveItem.view as? MenuCardHighlighting
-        let allowsHighlight = liveHosting?.allowsMenuHighlight != false
-        liveHosting?.setHighlighted(liveItem.isEnabled && allowsHighlight && liveRemainsHighlighted)
+        self.applyMenuCardHighlight(liveItem, highlighted: liveRemainsHighlighted)
         (cachedItem.view as? MenuCardHighlighting)?.setHighlighted(false)
         if self.isPersistentRefreshItem(liveItem) {
             self.persistentRefreshItems.add(liveItem)

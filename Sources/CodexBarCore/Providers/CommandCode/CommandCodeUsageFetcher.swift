@@ -76,22 +76,6 @@ public enum CommandCodeUsageFetcher {
             transport: transport,
             subscriptionGrace: subscriptionGrace)
 
-        let plan: CommandCodePlanCatalog.Plan? = subscription.flatMap { sub in
-            CommandCodePlanCatalog.plan(forID: sub.planID)
-        }
-
-        // If we got an active subscription with an unrecognised plan ID, surface that
-        // explicitly rather than silently dropping the totals row.
-        if let sub = subscription, sub.status.lowercased() == "active", plan == nil {
-            Self.log.error("Unknown CommandCode planId: \(sub.planID)")
-            // That answer also proves any remembered plan is superseded, so a later timed-out
-            // refresh must not keep sizing the lane from it.
-            await self.planCache.clear(
-                fingerprint: CookieHeaderCache.credentialFingerprint(cookieHeader),
-                now: now)
-            throw CommandCodeUsageError.unknownPlan(sub.planID)
-        }
-
         let resolved = await self.resolveSubscription(
             subscription: subscription,
             enrichmentUnavailable: subscriptionEnrichmentUnavailable,
@@ -114,9 +98,10 @@ public enum CommandCodeUsageFetcher {
     }
 
     /// Resolves the plan and billing period from this refresh when the subscription lookup answered, and
-    /// from the plan remembered for this billing period when it did not. The plan names the grant and sizes
-    /// it when the credits response omits `monthlyCreditsGranted`. The percentage always comes from the
-    /// fresh credits response, so a remembered plan reports current spend rather than a stale reading.
+    /// from the plan remembered for this billing period when it did not. A known plan names the grant and
+    /// sizes it when the credits response omits `monthlyCreditsGranted`; an unknown plan keeps its raw ID
+    /// without inventing a grant size. The percentage always comes from the fresh credits response, so a
+    /// remembered plan reports current spend rather than a stale reading.
     ///
     /// Only the grant size and its period are remembered. `subscriptionStatus` describes the current
     /// subscription, so the remembered path reports it as unknown rather than repeating an old value.
@@ -128,13 +113,23 @@ public enum CommandCodeUsageFetcher {
     {
         let fingerprint = CookieHeaderCache.credentialFingerprint(cookieHeader)
         guard enrichmentUnavailable else {
-            guard let subscription,
-                  let plan = CommandCodePlanCatalog.plan(forID: subscription.planID)
-            else {
+            guard let subscription else {
                 // The lookup succeeded and reported no subscription: the free tier owns this account
                 // until a later refresh says otherwise.
                 await self.planCache.clear(fingerprint: fingerprint, now: now)
-                return (nil, subscription?.currentPeriodEnd, subscription?.status)
+                return (nil, nil, nil)
+            }
+            guard let plan = CommandCodePlanCatalog.plan(forID: subscription.planID) else {
+                // A raw plan ID preserves the subscription label, but its grant must not borrow a
+                // remembered allowance or be sized from an unrelated catalog entry.
+                await self.planCache.clear(fingerprint: fingerprint, now: now)
+                return (
+                    CommandCodePlanCatalog.Plan(
+                        id: subscription.planID,
+                        displayName: subscription.planID,
+                        monthlyCreditsUSD: nil),
+                    subscription.currentPeriodEnd,
+                    subscription.status)
             }
             await self.planCache.store(
                 plan: plan,

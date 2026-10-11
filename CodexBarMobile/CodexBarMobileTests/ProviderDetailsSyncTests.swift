@@ -82,4 +82,34 @@ struct ProviderDetailsSyncTests {
         let legacyData = try JSONSerialization.data(withJSONObject: legacy)
         #expect(try JSONDecoder().decode(ProviderUsageSnapshot.self, from: legacyData).providerDetails == nil)
     }
+
+    @Test
+    func `xAI live estimate decodes displays and clears with an empty sync result`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let estimate = SyncProviderDetailSection(
+            title: "Billing summary",
+            rows: [.init(label: "Live remaining (est.)", value: "$141.17")])
+        let incoming = ProviderUsageSnapshot(
+            providerID: "xai", providerName: "xAI", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: "Management API", statusMessage: nil, isError: false,
+            lastUpdated: now, providerDetails: [estimate])
+        let decoded = try JSONDecoder().decode(
+            ProviderUsageSnapshot.self,
+            from: JSONEncoder().encode(incoming))
+
+        #expect(decoded.providerDetails == [estimate])
+        #expect(ProviderDetailSectionDispatcher.sections(for: decoded, hasRateWindowPace: false)
+            .map(\.id) == ["provider-details"])
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: decoded) == [estimate])
+
+        let cleared = ProviderUsageSnapshot(
+            providerID: "xai", providerName: "xAI", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: "Management API", statusMessage: nil, isError: false,
+            lastUpdated: now, providerDetails: [])
+        let clearedRoundTrip = try JSONDecoder().decode(
+            ProviderUsageSnapshot.self,
+            from: JSONEncoder().encode(cleared))
+        #expect(clearedRoundTrip.providerDetails == [])
+        #expect(ProviderDetailSectionDispatcher.sections(for: clearedRoundTrip, hasRateWindowPace: false).isEmpty)
+    }
 }

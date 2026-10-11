@@ -223,6 +223,7 @@ extension StatusItemController {
             secondary: MenuBarLayoutRenderWindow(windows.secondary),
             tertiary: MenuBarLayoutRenderWindow(windows.tertiary),
             provider: provider,
+            quotaIsEstimated: snapshot?.dataConfidence == .estimated,
             extraRateWindows: MenuBarLayoutNamedExtra.windows(provider: provider, snapshot: snapshot)
                 .map(MenuBarLayoutRenderExtra.init),
             session: MenuBarLayoutRenderWindow(windows.session),

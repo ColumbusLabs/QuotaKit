@@ -87,6 +87,7 @@ extension StatusItemController {
             "scopedTitle=\(scopedWeekly?.title ?? "nil")",
             "credits=\(Self.iconSignatureValue(creditsRemaining))",
             "creditsPercent=\(Self.iconSignatureValue(creditsRemainingPercent))",
+            "confidence=\(snapshot?.dataConfidence.rawValue ?? UsageDataConfidence.unknown.rawValue)",
             "stale=\(self.store.isStale(provider: provider) ? "1" : "0")",
             "status=\(self.store.statusIndicator(for: provider).rawValue)",
             "anim=\(self.shouldAnimate(provider: provider) ? "1" : "0")",

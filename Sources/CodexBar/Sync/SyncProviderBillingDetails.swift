@@ -90,6 +90,9 @@ enum SyncProviderBillingDetails {
         // Provider-specific by design: JetBrains exposes only the remaining top-up credit value on this typed wire.
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
+        case .xai:
+            // The invoice preview is display-only enrichment; do not sync the posted balance or spend history here.
+            [.init(title: "Billing summary", rows: [("Live remaining (est.)", .dollars(allowNegative: true))])]
         default:
             nil
         }

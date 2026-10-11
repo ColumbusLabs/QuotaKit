@@ -998,6 +998,7 @@ struct MenuBarLayoutPreview: View {
             secondary: MenuBarLayoutRenderWindow(secondary),
             tertiary: MenuBarLayoutRenderWindow(tertiary),
             provider: provider,
+            quotaIsEstimated: snapshot.dataConfidence == .estimated,
             extraRateWindows: MenuBarLayoutNamedExtra.windows(provider: provider, snapshot: snapshot)
                 .map(MenuBarLayoutRenderExtra.init),
             session: MenuBarLayoutRenderWindow(session),

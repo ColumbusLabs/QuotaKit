@@ -427,6 +427,13 @@ struct MenuDescriptor {
                 preferredCurrency: preferredCurrencyCode,
                 providerCurrency: "USD")
             entries.append(.text("\(L("Posted balance")): \(balance)", .primary))
+            if let liveRemainingUSD = xaiUsage.liveRemainingUSD {
+                let liveRemaining = UsageFormatter.convertedCostString(
+                    liveRemainingUSD,
+                    preferredCurrency: preferredCurrencyCode,
+                    providerCurrency: "USD")
+                entries.append(.text("Live remaining (est.): \(liveRemaining)", .secondary))
+            }
             entries.append(.text(L("Ledger may lag current-cycle spend"), .secondary))
             if !xaiUsage.daily.isEmpty {
                 let spend = UsageFormatter.convertedCostString(

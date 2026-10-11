@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Menu cards can hide pointer hover highlights while retaining keyboard selection.
+- Session performance shows cache reuse and the number of measured first-token samples in its primary metrics.
+
 - A Mac Accounts widget compares saved-account quotas, orders the most constrained accounts first, and reports additional accounts without exposing their identities.
 - Langdock can use an explicitly selected Chrome, Safari, or Edge profile; selected-profile refreshes retain the existing consent and ownership checks.
 - Menu bar pace labels can use either sign convention through a persisted preference.
@@ -23,6 +26,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- xAI shows estimated remaining credit from the current invoice preview separately from posted prepaid balance; preview failures keep balance data available.
+- CommandCode preserves unknown plan names without inventing quota limits; estimated OpenCode Go menu metrics are marked explicitly.
+- Replicate uses its verified official glyph, and Settings placeholder dismissal waits for presentation to finish.
+- Mac packaging records the selected SDK while preserving the macOS 14 deployment minimum; Claude credential handling removes redundant paths while retaining consent and ownership safeguards.
 
 - Codex history catch-up clears completed work during sleep and retains refreshes that arrive during completion checks; hourly spend navigation reuses dates only when needed.
 - Claude handles taller CLI usage panels and shows Refresh guidance after an external login; unchanged history blocks avoid unnecessary artifact writes.

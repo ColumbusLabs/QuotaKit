@@ -207,6 +207,43 @@ struct StatusItemIconObservationSignatureTests {
     }
 
     @Test
+    func `store icon observation signature tracks quota confidence`() {
+        let (_, store, controller) = self.makeController(
+            suiteName: "StatusItemIconObservationSignatureTests-quota-confidence",
+            menuBarLayout: MenuBarLayout(lines: [[.lanePercent(lane: .secondary)]]),
+            provider: .opencodego)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        func snapshot(_ confidence: UsageDataConfidence) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: nil,
+                secondary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                updatedAt: Date(timeIntervalSince1970: 100),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .opencodego,
+                    accountEmail: "icon@example.com",
+                    accountOrganization: nil,
+                    loginMethod: "plus"),
+                dataConfidence: confidence)
+        }
+
+        store._setSnapshotForTesting(
+            snapshot(.estimated),
+            provider: .opencodego)
+        let estimated = controller.storeIconObservationSignature()
+
+        store._setSnapshotForTesting(
+            snapshot(.exact),
+            provider: .opencodego)
+
+        #expect(controller.storeIconObservationSignature() != estimated)
+    }
+
+    @Test
     func `store icon observation signature tracks selected copilot budget`() throws {
         let (settings, store, controller) = self.makeController(
             suiteName: "StatusItemIconObservationSignatureTests-copilot-budget")

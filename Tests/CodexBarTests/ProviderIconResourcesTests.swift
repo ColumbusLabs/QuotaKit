@@ -39,12 +39,12 @@ struct ProviderIconResourcesTests {
         #expect(first.isTemplate)
     }
 
-    @Test
-    func `ollama provider icon uses template rendering`() throws {
+    @Test(arguments: [UsageProvider.ollama, .llmman, .replicate])
+    func `provider icons use template rendering`(provider: UsageProvider) throws {
         ProviderBrandIcon.resetCacheForTesting()
         defer { ProviderBrandIcon.resetCacheForTesting() }
 
-        let image = try #require(ProviderBrandIcon.image(for: .ollama))
+        let image = try #require(ProviderBrandIcon.image(for: provider))
 
         #expect(image.size == NSSize(width: 18, height: 18))
         #expect(image.isTemplate)
@@ -77,6 +77,38 @@ struct ProviderIconResourcesTests {
         }
         #expect(visiblePixels > 40)
         #expect(visiblePixels < 240)
+    }
+
+    @Test
+    func `replicate uses the official glyph across Mac iPhone website and serve`() throws {
+        let root = try Self.repoRoot()
+        let svg = try String(
+            contentsOf: root.appending(path: "Sources/CodexBar/Resources/ProviderIcon-replicate.svg"),
+            encoding: .utf8)
+        #expect(svg.contains("fill=\"currentColor\""))
+        #expect(svg.contains("viewBox=\"-125 -125 1250 1250\""))
+        for points in [
+            "1000,427.6 1000,540.6 603.4,540.6 603.4,1000 477,1000 477,427.6",
+            "1000,213.8 1000,327 364.8,327 364.8,1000 238.4,1000 238.4,213.8",
+            "1000,0 1000,113.2 126.4,113.2 126.4,1000 0,1000 0,0",
+        ] {
+            #expect(svg.contains("points=\"\(points)\""))
+        }
+        let website = try String(
+            contentsOf: root.appending(path: "docs/logos/replicate.svg"),
+            encoding: .utf8)
+        #expect(website == svg)
+        let mobile = try String(
+            contentsOf: root.appending(path:
+                "CodexBarMobile/CodexBarMobile/ProviderIcons.xcassets/" +
+                    "ProviderIcon-replicate.imageset/ProviderIcon-replicate.svg"),
+            encoding: .utf8)
+        #expect(mobile == svg)
+        let cli = try String(
+            contentsOf: root.appending(path: "Sources/CodexBarCLI/CLIServeProviderIcons.swift"),
+            encoding: .utf8)
+        let servedSVG = Data(svg.utf8).base64EncodedString()
+        #expect(cli.contains("\"ProviderIcon-replicate\": \"\(servedSVG)\""))
     }
 
     @Test

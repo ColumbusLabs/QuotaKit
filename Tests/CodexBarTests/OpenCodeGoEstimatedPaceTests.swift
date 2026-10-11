@@ -70,6 +70,45 @@ struct OpenCodeGoEstimatedPaceTests {
         #expect((usage["tertiary"] as? [String: Any])?["resetsAt"] != nil)
     }
 
+    @Test
+    func `menu bar percentages disclose local estimates`() {
+        let settings = testSettingsStore(
+            suiteName: "OpenCodeGoEstimatedPaceTests-marker", config: testConfigWithAllProvidersDisabled())
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let layout = MenuBarLayout(lines: [[.percent(window: .automatic), .space, .lanePercent(lane: .tertiary)]])
+        let preview = MenuBarLayoutPreview(layout: layout, provider: .opencodego, settings: settings, store: store)
+        let renderer = MenuBarLayoutRenderer()
+        let options = MenuBarLayoutRenderOptions(
+            size: .regular,
+            highContrast: false,
+            showUsed: false,
+            conditionals: [],
+            appearanceName: "aqua",
+            isDebugApp: false,
+            now: OpenCodeGoPaceTestSupport.now)
+        let estimated = renderer.render(
+            layout: layout,
+            data: preview.liveData(
+                provider: .opencodego,
+                snapshot: OpenCodeGoPaceTestSupport.snapshot(confidence: .estimated)),
+            icon: nil,
+            options: options)
+        #expect(estimated.attributedTitle.string == "~95% ~95%")
+        let exact = renderer.render(
+            layout: layout,
+            data: preview.liveData(
+                provider: .opencodego,
+                snapshot: OpenCodeGoPaceTestSupport.snapshot(confidence: .exact)),
+            icon: nil,
+            options: options)
+        #expect(exact.attributedTitle.string == "95% 95%")
+    }
+
     @Test(arguments: [UsageDataConfidence.estimated, .unknown, .exact])
     func `menu card preserves quotas but does not forecast from local estimates`(
         confidence: UsageDataConfidence) throws
@@ -120,7 +159,7 @@ struct OpenCodeGoEstimatedPaceTests {
         if !expectedPace {
             for mode in [MenuBarDisplayMode.pace, .both] {
                 #expect(MenuBarDisplayText.displayText(
-                    mode: mode, percentWindow: window, pace: pace, showUsed: false) == "96%")
+                    mode: mode, percentWindow: window, pace: pace, showUsed: false, estimated: true) == "~96%")
             }
         }
         #expect(store.weeklyPace(

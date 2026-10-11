@@ -228,31 +228,6 @@ extension StatusItemController {
         }
     }
 
-    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-        let key = ObjectIdentifier(menu)
-        let previous = self.highlightedMenuItems[key]
-        guard previous !== item else { return }
-        let previousWasNative = self.isNativeMenuItemHighlighted(in: menu)
-
-        if let previous {
-            (previous.view as? MenuCardHighlighting)?.setHighlighted(false)
-        }
-
-        if let item,
-           item.isEnabled,
-           (item.view as? MenuCardHighlighting)?.allowsMenuHighlight != false
-        {
-            self.highlightedMenuItems[key] = item
-            (item.view as? MenuCardHighlighting)?.setHighlighted(true)
-        } else {
-            self.highlightedMenuItems.removeValue(forKey: key)
-        }
-
-        if previousWasNative, !self.isNativeMenuItemHighlighted(in: menu) {
-            self.resumeMenuRebuildDeferredForNativeHighlightIfNeeded(menu)
-        }
-    }
-
     func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
         let trace = self.beginMenuOperationTrace(
             "populateMenu",

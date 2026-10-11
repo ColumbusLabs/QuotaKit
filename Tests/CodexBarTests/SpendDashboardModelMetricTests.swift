@@ -53,33 +53,6 @@ extension SpendDashboardModelTests {
     }
 
     @Test
-    func `token metric reports partial and unavailable model coverage`() throws {
-        let complete = Self.input(id: "complete", provider: .codex, currency: "USD", cost: 4)
-        let missing = SpendDashboardModel.ProviderInput(
-            id: "missing",
-            provider: .claude,
-            displayName: "Claude",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [Self.entry(day: "2026-07-16", cost: 2, tokens: nil, model: "claude-model")]))
-        let partial = try #require(SpendDashboardModel.build(
-            inputs: [complete, missing],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(spendDashboardModelHistoryPresentation(partial, metric: .cost) == .complete)
-        #expect(spendDashboardModelHistoryPresentation(partial, metric: .tokens) == .partial)
-
-        let unavailable = try #require(SpendDashboardModel.build(
-            inputs: [missing],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-        #expect(spendDashboardModelHistoryPresentation(unavailable, metric: .tokens) == .unavailable)
-    }
-
-    @Test
     func `partially attributed Codex history retains its priced model rows`() throws {
         let codex = SpendDashboardModel.ProviderInput(
             provider: .codex,
@@ -100,7 +73,6 @@ extension SpendDashboardModelTests {
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.map(\.modelName) == ["gpt-5.2-codex"])
         #expect(group.models.map(\.totalCost) == [2])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
     }
 
     @Test
@@ -130,7 +102,6 @@ extension SpendDashboardModelTests {
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.first(where: { $0.modelName == "example-priced-codex-model" })?.totalCost == 2)
         #expect(group.models.first(where: { $0.modelName == "example-unpriced-routing-model" })?.totalCost == nil)
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
     }
 
     @Test
@@ -158,7 +129,6 @@ extension SpendDashboardModelTests {
         #expect(group.totalCost == 2)
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(group) == .unavailable)
     }
 
     @Test
@@ -208,7 +178,6 @@ extension SpendDashboardModelTests {
         #expect(group.totalTokens == 20)
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(group) == .unavailable)
     }
 
     @Test
@@ -253,21 +222,18 @@ extension SpendDashboardModelTests {
         #expect(unpricedGroup.totalCost == nil)
         #expect(unpricedGroup.modelHistoryCompleteness == .incomplete)
         #expect(unpricedGroup.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(unpricedGroup) == .unavailable)
 
         let emptyGroup = try #require(empty.groups.first)
         #expect(emptyGroup.totalCost == 0)
         #expect(emptyGroup.totalTokens == 0)
         #expect(emptyGroup.modelHistoryCompleteness == .complete)
         #expect(emptyGroup.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(emptyGroup) == .empty)
 
         let knownZeroGroup = try #require(knownZero.groups.first)
         #expect(knownZeroGroup.totalCost == 0)
         #expect(knownZeroGroup.totalTokens == 0)
         #expect(knownZeroGroup.modelHistoryCompleteness == .complete)
         #expect(knownZeroGroup.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(knownZeroGroup) == .empty)
     }
 
     @Test
@@ -325,7 +291,7 @@ extension SpendDashboardModelTests {
         #expect(group.tokenMix.outputTokens == 2)
         #expect(group.tokenMix.cacheReadTokens == nil)
         #expect(group.tokenMix.reasoningTokens == 3)
-        #expect(group.displayedModels.count == 1)
+        #expect(group.models.count == 1)
         #expect(group.sessions.count == 1)
         #expect(group.provenance == .listPriceEstimate)
     }

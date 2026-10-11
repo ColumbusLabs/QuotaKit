@@ -43,6 +43,8 @@ public enum XAIBillingFetcher {
     static let baseURL = URL(string: "https://management-api.x.ai")!
     public static let historyDays = 30
     private static let requestTimeoutSeconds: TimeInterval = 15
+    private static let invoicePreviewTimeoutSeconds: TimeInterval = 5
+    private static let maxSafeInvoiceCents: Int64 = 9_007_199_254_740_991
 
     public static func fetchUsage(
         managementKey rawKey: String,
@@ -61,6 +63,27 @@ public enum XAIBillingFetcher {
         }
 
         let balanceUSD = try await self.fetchBalanceUSD(key: key, teamID: teamID, transport: transport)
+
+        // The invoice preview estimates current-cycle credit remaining. Keep it separate from the
+        // posted ledger balance and treat it as optional enrichment.
+        var liveRemainingUSD: Double?
+        do {
+            liveRemainingUSD = try await self.fetchLiveRemainingUSD(
+                postedBalanceUSD: balanceUSD,
+                key: key,
+                teamID: teamID,
+                transport: transport)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch {
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+            liveRemainingUSD = nil
+            // A missing, forbidden, or malformed preview does not invalidate the posted balance.
+        }
 
         // History is best-effort enrichment: the balance is independently useful,
         // so only credential problems (and cancellation) are allowed to escalate.
@@ -88,6 +111,7 @@ public enum XAIBillingFetcher {
 
         return XAIUsageSnapshot(
             balanceUSD: balanceUSD,
+            liveRemainingUSD: liveRemainingUSD,
             daily: daily,
             historyDays: self.historyDays,
             limitReached: limitReached,
@@ -96,6 +120,43 @@ public enum XAIBillingFetcher {
     }
 
     // MARK: - Balance
+
+    private static func fetchLiveRemainingUSD(
+        postedBalanceUSD: Double,
+        key: String,
+        teamID: String,
+        transport: any ProviderHTTPTransport) async throws -> Double
+    {
+        var request = URLRequest(url: self.teamURL(teamID: teamID, suffix: ["postpaid", "invoice", "preview"]))
+        request.httpMethod = "GET"
+        request.timeoutInterval = self.invoicePreviewTimeoutSeconds
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let response = try await transport.response(for: request)
+        guard (200..<300).contains(response.statusCode) else {
+            throw self.error(statusCode: response.statusCode)
+        }
+
+        let envelope: InvoicePreviewEnvelope
+        do {
+            envelope = try JSONDecoder().decode(InvoicePreviewEnvelope.self, from: response.data)
+        } catch {
+            throw XAIBillingError.parseFailed("invoice preview amountAfterVat is unavailable")
+        }
+        guard let raw = envelope.coreInvoice?.amountAfterVat,
+              raw.range(of: #"^-?\d+$"#, options: .regularExpression) != nil,
+              let cents = Int64(raw),
+              (-Self.maxSafeInvoiceCents...Self.maxSafeInvoiceCents).contains(cents)
+        else {
+            throw XAIBillingError.parseFailed("invoice preview amountAfterVat is not a safe cent amount")
+        }
+        let liveRemaining = postedBalanceUSD - Double(cents) / 100
+        guard liveRemaining.isFinite else {
+            throw XAIBillingError.parseFailed("invoice preview estimate is not finite")
+        }
+        return liveRemaining
+    }
 
     private static func fetchBalanceUSD(
         key: String,
@@ -275,6 +336,14 @@ private struct BalanceEnvelope: Decodable {
     }
 
     let total: Amount
+}
+
+private struct InvoicePreviewEnvelope: Decodable {
+    struct CoreInvoice: Decodable {
+        let amountAfterVat: String?
+    }
+
+    let coreInvoice: CoreInvoice?
 }
 
 private struct UsageRequestEnvelope: Encodable {

@@ -542,6 +542,10 @@ extension SettingsStore {
         let resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         let providerChangelogLinksEnabled = userDefaults.object(
             forKey: "providerChangelogLinksEnabled") as? Bool ?? false
+        let highlightMenuCardsOnHover = Self.loadBoolDefault(
+            "highlightMenuCardsOnHover",
+            fallback: true,
+            from: userDefaults)
         let menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
         let menuBarHidesCritters = userDefaults.object(forKey: "menuBarHidesCritters") as? Bool ?? false
@@ -672,6 +676,7 @@ extension SettingsStore {
             usageBarsShowUsed: usageBarsShowUsed,
             resetTimesShowAbsolute: resetTimesShowAbsolute,
             providerChangelogLinksEnabled: providerChangelogLinksEnabled,
+            highlightMenuCardsOnHover: highlightMenuCardsOnHover,
             menuBarShowsBrandIconWithPercent: menuBarShowsBrandIconWithPercent,
             menuBarHidesCritters: menuBarHidesCritters,
             menuBarColorPace: userDefaults.bool(forKey: "menuBarColorPace"),

@@ -23,11 +23,13 @@ final class PlaceholderSettingsWindowGuard {
     typealias WindowsProvider = @MainActor () -> [NSWindow]
     typealias WindowPredicate = @MainActor (NSWindow) -> Bool
     typealias WindowAction = @MainActor (NSWindow) -> Void
+    typealias SweepScheduler = @MainActor (@MainActor () -> Void) -> Void
 
     private let windows: WindowsProvider
     private let isKnownSettingsWindow: WindowPredicate
     private let isVisible: WindowPredicate
     private let closeWindow: WindowAction
+    private let scheduleSweep: SweepScheduler
     private let logger = CodexBarLog.logger(LogCategories.app)
     private let closedWindows = NSHashTable<NSWindow>(options: [.weakMemory, .objectPointerPersonality])
     private var closingWindows: Set<ObjectIdentifier> = []
@@ -37,12 +39,16 @@ final class PlaceholderSettingsWindowGuard {
         windows: @escaping WindowsProvider = { NSApp?.windows ?? [] },
         isKnownSettingsWindow: @escaping WindowPredicate = { _ in false },
         isVisible: @escaping WindowPredicate = { $0.isVisible },
-        closeWindow: @escaping WindowAction = { $0.close() })
+        closeWindow: @escaping WindowAction = { $0.close() },
+        scheduleSweep: @escaping SweepScheduler = { operation in
+            DispatchQueue.main.async { operation() }
+        })
     {
         self.windows = windows
         self.isKnownSettingsWindow = isKnownSettingsWindow
         self.isVisible = isVisible
         self.closeWindow = closeWindow
+        self.scheduleSweep = scheduleSweep
     }
 
     /// Sweeps once and keeps sweeping as window state changes; SwiftUI presents the placeholder after
@@ -94,7 +100,10 @@ final class PlaceholderSettingsWindowGuard {
     }
 
     @objc private func windowStateDidChange(_: Notification) {
-        self.sweep()
+        // AppKit posts notifications inside makeKeyAndOrderFront; finish ordering before closing.
+        self.scheduleSweep { [weak self] in
+            self?.sweep()
+        }
     }
 
     deinit {

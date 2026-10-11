@@ -1113,6 +1113,7 @@ extension StatusItemController {
                 mode: mode,
                 percentWindow: percentWindow,
                 showUsed: self.settings.usageBarsShowUsed,
+                estimated: snapshot?.dataConfidence == .estimated,
                 resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
                 now: now)
         }
@@ -1151,6 +1152,7 @@ extension StatusItemController {
             pace: pace,
             paceReservePositive: self.settings.menuBarPaceReservePositive,
             showUsed: self.settings.usageBarsShowUsed,
+            estimated: snapshot?.dataConfidence == .estimated,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
             showsResetTimeWhenExhausted: self.settings.menuBarShowsResetTimeWhenExhausted,
             now: now)

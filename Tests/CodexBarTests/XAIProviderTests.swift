@@ -42,6 +42,10 @@ struct XAIProviderTests {
             case "/v1/billing/teams/team-1234/prepaid/balance":
                 #expect(request.httpMethod == "GET")
                 return Self.response(url: url, body: Self.balanceFixture)
+            case "/v1/billing/teams/team-1234/postpaid/invoice/preview":
+                #expect(request.httpMethod == "GET")
+                #expect(request.timeoutInterval == 5)
+                return Self.response(url: url, body: #"{"coreInvoice":{"amountAfterVat":"350"}}"#)
             case "/v1/billing/teams/team-1234/usage":
                 #expect(request.httpMethod == "POST")
                 #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
@@ -73,13 +77,22 @@ struct XAIProviderTests {
             transport: transport,
             now: now)
 
-        #expect(await transport.requests().count == 2)
+        #expect(await transport.requests().compactMap { $0.url?.lastPathComponent } == [
+            "balance", "preview", "usage",
+        ])
         // Docs example: a $10 top-up shows total.val = "-1000" (string USD cents,
         // inverted ledger), so the remaining balance is +$10.00.
         #expect(usage.balanceUSD == 10.0)
+        #expect(usage.liveRemainingUSD == 6.5)
         #expect(!usage.limitReached)
         #expect(usage.historyDays == 30)
         #expect(usage.updatedAt == now)
+        let snapshot = usage.toUsageSnapshot()
+        #expect(snapshot.providerCost?.used == 10)
+        #expect(snapshot.details.first?.rows.map(\.label) == [
+            "Prepaid balance", "Live remaining (est.)", "Last 30 days",
+        ])
+        #expect(snapshot.details.first?.rows.first(where: { $0.label == "Live remaining (est.)" })?.value == "$6.50")
         // Two series contribute to the same days; sums are per-day and zeros stay dense.
         #expect(usage.daily.map(\.day) == ["2027-01-13", "2027-01-14", "2027-01-15"])
         let costs = usage.daily.map(\.costUSD)
@@ -153,6 +166,64 @@ struct XAIProviderTests {
     func `fractional cent strings convert exactly`() async throws {
         let usage = try await Self.fetch(balanceBody: #"{"changes":[],"total":{"val":"-333"}}"#)
         #expect(usage.balanceUSD == 3.33)
+    }
+
+    @Test(arguments: [
+        ("13364", 141.17),
+        ("0", 274.81),
+        ("-100", 275.81),
+        ("30000", -25.19),
+    ])
+    func `invoice preview applies signed cents without replacing posted balance`(
+        invoiceCents: String, expectedRemaining: Double) async throws
+    {
+        let usage = try await Self.fetch(
+            balanceBody: #"{"total":{"val":"-27481"}}"#,
+            previewBody: #"{"coreInvoice":{"amountAfterVat":"\#(invoiceCents)"}}"#)
+        #expect(usage.balanceUSD == 274.81)
+        #expect(abs((usage.liveRemainingUSD ?? 0) - expectedRemaining) < 0.000_001)
+        let snapshot = usage.toUsageSnapshot()
+        #expect(snapshot.providerCost?.used == 274.81)
+        #expect(snapshot.details.first?.rows.first?.value == "$274.81")
+        #expect(snapshot.details.first?.rows.contains { $0.label == "Live remaining (est.)" } == true)
+        #expect(snapshot.dataConfidence == .exact)
+    }
+
+    @Test(arguments: [
+        (403, #"{"coreInvoice":{"amountAfterVat":"350"}}"#),
+        (404, #"{"coreInvoice":{"amountAfterVat":"350"}}"#),
+        (200, ""),
+        (200, #"{}"#),
+        (200, #"{"coreInvoice":{"amountAfterVat":null}}"#),
+        (200, #"{"coreInvoice":{"amountAfterVat":"n/a"}}"#),
+        (200, #"{"coreInvoice":{"amountAfterVat":"9007199254740993"}}"#),
+    ])
+    func `unavailable invoice preview keeps posted balance and history`(response: (Int, String)) async throws {
+        let usage = try await Self.fetch(previewBody: response.1, previewStatus: response.0)
+        #expect(usage.balanceUSD == 10)
+        #expect(usage.liveRemainingUSD == nil)
+        #expect(usage.historyAvailable)
+        let snapshot = usage.toUsageSnapshot()
+        #expect(snapshot.details.first?.rows.map(\.label) == ["Prepaid balance", "Last 30 days"])
+        #expect(snapshot.dataConfidence == .exact)
+    }
+
+    @Test
+    func `invoice preview transport failure keeps posted balance and history`() async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.hasSuffix("/postpaid/invoice/preview") { throw URLError(.timedOut) }
+            return Self.response(
+                url: url,
+                body: url.path.hasSuffix("/prepaid/balance") ? Self.balanceFixture : Self.usageFixture)
+        }
+        let usage = try await XAIBillingFetcher.fetchUsage(
+            managementKey: "fixture-management-key",
+            teamID: "team-1234",
+            transport: transport)
+        #expect(usage.balanceUSD == 10)
+        #expect(usage.liveRemainingUSD == nil)
+        #expect(usage.historyAvailable)
     }
 
     @Test
@@ -421,6 +492,7 @@ struct XAIProviderTests {
         let decoded = try JSONDecoder().decode(XAIUsageSnapshot.self, from: legacy)
 
         #expect(!decoded.historyAvailable)
+        #expect(decoded.liveRemainingUSD == nil)
         #expect(decoded.costHistorySnapshot() == nil)
     }
 
@@ -429,6 +501,7 @@ struct XAIProviderTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let usage = XAIUsageSnapshot(
             balanceUSD: 7.36,
+            liveRemainingUSD: 6.5,
             daily: [.init(day: "2027-01-15", costUSD: 0.25)],
             updatedAt: now)
         let encoded = try JSONEncoder().encode(usage.toUsageSnapshot())
@@ -519,6 +592,7 @@ struct XAIProviderTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let usage = XAIUsageSnapshot(
             balanceUSD: 7.36,
+            liveRemainingUSD: 6.5,
             daily: [.init(day: "2027-01-15", costUSD: 0.25)],
             updatedAt: now)
         let model = UsageMenuCardView.Model.make(.init(
@@ -548,14 +622,84 @@ struct XAIProviderTests {
         #expect(model.providerCost?.spendLine == "Posted balance: $7.36")
         #expect(model.providerCost?.percentUsed == nil)
         #expect(model.providerCost?.percentLine == "Ledger may lag current-cycle spend")
-        #expect(model.providerDetails.flatMap(\.rows).isEmpty)
+        #expect(model.providerDetails.flatMap(\.rows).contains {
+            $0.label == "Live remaining (est.)" && $0.value == "$6.50"
+        })
         #expect(model.providerDetails.first?.chart?.points.map(\.value) == [0.25])
+    }
+
+    @Test @MainActor
+    func `menu card omits live estimate when invoice preview is unavailable`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let usage = XAIUsageSnapshot(
+            balanceUSD: 7.36,
+            daily: [],
+            updatedAt: now)
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .xai,
+            metadata: XAIProviderDescriptor.descriptor.metadata,
+            snapshot: usage.toUsageSnapshot(),
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            costSummaryInlineEnabled: true,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(!model.providerDetails.flatMap(\.rows).contains { $0.label == "Live remaining (est.)" })
+    }
+
+    @Test @MainActor
+    func `native menu descriptor shows invoice estimate as a separate detail`() {
+        let settings = testSettingsStore(
+            suiteName: "XAIProviderTests-menu-estimate",
+            userDefaults: InMemoryUserDefaults())
+        settings.statusChecksEnabled = false
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        store._setSnapshotForTesting(
+            XAIUsageSnapshot(
+                balanceUSD: 7.36,
+                liveRemainingUSD: 6.5,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)).toUsageSnapshot(),
+            provider: .xai)
+
+        let descriptor = MenuDescriptor.build(
+            provider: .xai,
+            store: store,
+            settings: settings,
+            account: AccountInfo(email: nil, plan: nil),
+            updateReady: false,
+            includeContextualActions: false)
+        let lines = descriptor.sections.flatMap(\.entries).compactMap { entry -> String? in
+            guard case let .text(text, _) = entry else { return nil }
+            return text
+        }
+
+        #expect(lines.contains(where: { $0.hasPrefix("Live remaining (est.): ") && $0.contains("6.50") }))
+        #expect(!lines.contains(where: { $0.hasPrefix("Cost:") }))
     }
 
     @Test
     func `CLI text renders the prepaid balance instead of the generic cost fallback`() {
         let usage = XAIUsageSnapshot(
             balanceUSD: 7.36,
+            liveRemainingUSD: 6.5,
             daily: [
                 .init(day: "2027-01-14", costUSD: 1.5),
                 .init(day: "2027-01-15", costUSD: 0.25),
@@ -572,6 +716,7 @@ struct XAIProviderTests {
                 resetStyle: .countdown))
 
         #expect(text.contains("Posted balance: $7.36"))
+        #expect(text.contains("Live remaining (est.): $6.50"))
         #expect(text.contains("Ledger: May lag current-cycle spend"))
         #expect(text.contains("Last 30 days: $1.75"))
         // The generic no-window fallback would print "Cost: 7.4 / 0.0", which
@@ -583,9 +728,64 @@ struct XAIProviderTests {
 
     // MARK: - Helpers
 
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `plugin estimate stays separate from posted balance`(engine: ProviderPluginEngineKind) async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            switch url.path {
+            case "/v1/billing/teams/team-1234/prepaid/balance":
+                return Self.response(url: url, body: Self.balanceFixture)
+            case "/v1/billing/teams/team-1234/postpaid/invoice/preview":
+                return Self.response(url: url, body: #"{"coreInvoice":{"amountAfterVat":"350"}}"#)
+            case "/v1/billing/teams/team-1234/usage":
+                return Self.response(url: url, body: Self.usageFixture)
+            default:
+                Issue.record("unexpected request path \(url.path)")
+                throw URLError(.badURL)
+            }
+        }
+        let runtime = try BundledPluginTestSupport.runtime("xai", engine: engine, transport: transport)
+        let snapshot = try await runtime.fetchUsage(
+            settings: ["XAI_TEAM_ID": "team-1234"],
+            secrets: ["XAI_MANAGEMENT_API_KEY": "fixture-management-key"],
+            now: Date(timeIntervalSince1970: 1_800_000_000))
+
+        #expect(await transport.requests().compactMap { $0.url?.lastPathComponent } == [
+            "balance", "preview", "usage",
+        ])
+        #expect(snapshot.providerCost?.used == 10)
+        #expect(snapshot.dataConfidence == .exact)
+        #expect(snapshot.details.first?.rows.map(\.label) == [
+            "Prepaid balance", "Live remaining (est.)", "Last 30 days",
+        ])
+        #expect(snapshot.details.first?.rows.first(where: { $0.label == "Live remaining (est.)" })?.value == "$6.50")
+    }
+
+    @Test(arguments: [
+        (403, #"{"coreInvoice":{"amountAfterVat":"350"}}"#),
+        (404, #"{"coreInvoice":{"amountAfterVat":"350"}}"#),
+        (200, ""),
+        (200, #"{}"#),
+        (200, #"{"coreInvoice":{"amountAfterVat":"9007199254740993"}}"#),
+    ], BundledPluginTestSupport.engines)
+    func `plugin preview failure omits only the estimate`(
+        response: (Int, String), engine: ProviderPluginEngineKind) async throws
+    {
+        let snapshot = try await Self.fetchPlugin(
+            previewBody: response.1,
+            previewStatus: response.0,
+            engine: engine)
+        #expect(snapshot.providerCost?.used == 10)
+        #expect(snapshot.dataConfidence == .exact)
+        #expect(snapshot.details.first?.rows.map(\.label) == ["Prepaid balance", "Last 30 days"])
+        #expect(snapshot.details.first?.chart?.points.count == 3)
+    }
+
     private static func fetch(
         balanceBody: String = balanceFixture,
         balanceStatus: Int = 200,
+        previewBody: String = "{}",
+        previewStatus: Int = 200,
         usageBody: String = usageFixture,
         usageStatus: Int = 200,
         now: Date = Date(timeIntervalSince1970: 1_800_000_000)) async throws -> XAIUsageSnapshot
@@ -594,6 +794,9 @@ struct XAIProviderTests {
             let url = try #require(request.url)
             if url.path.hasSuffix("/prepaid/balance") {
                 return Self.response(url: url, body: balanceBody, statusCode: balanceStatus)
+            }
+            if url.path.hasSuffix("/postpaid/invoice/preview") {
+                return Self.response(url: url, body: previewBody, statusCode: previewStatus)
             }
             return Self.response(url: url, body: usageBody, statusCode: usageStatus)
         }
@@ -609,6 +812,9 @@ struct XAIProviderTests {
             let url = try #require(request.url)
             if url.path.hasSuffix("/prepaid/balance") {
                 return Self.response(url: url, body: Self.balanceFixture)
+            }
+            if url.path.hasSuffix("/postpaid/invoice/preview") {
+                return Self.response(url: url, body: "{}")
             }
             return Self.response(url: url, body: Self.usageFixture)
         }

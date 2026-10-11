@@ -5,6 +5,27 @@ import Testing
 @MainActor
 struct PlaceholderSettingsWindowGuardTests {
     @Test
+    func `window change defers sweep until presentation ordering finishes`() {
+        var sweepCount = 0
+        var scheduledSweeps: [@MainActor () -> Void] = []
+        let guardian = PlaceholderSettingsWindowGuard(
+            windows: {
+                sweepCount += 1
+                return []
+            },
+            scheduleSweep: { scheduledSweeps.append($0) })
+        guardian.start()
+        #expect(sweepCount == 1)
+
+        NotificationCenter.default.post(name: NSWindow.didUpdateNotification, object: nil)
+        #expect(sweepCount == 1)
+        #expect(scheduledSweeps.count == 1)
+
+        scheduledSweeps.removeFirst()()
+        #expect(sweepCount == 2)
+    }
+
+    @Test
     func `closes the empty SwiftUI Settings placeholder window`() {
         _ = NSApplication.shared
         let placeholder = self.makeWindow(

@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- xAI estimated remaining credit syncs from Mac as a separate detail, preserving posted balance and adding no quota budget or alerts.
+
 - X API prepaid balances sync from Mac with branded status and purchase/free-credit details, without inventing a quota budget or quota alerts.
 
 - Verified Claude subscription renewal and expiration dates now sync from Mac to iPhone; calendar-only dates preserve their original day.
