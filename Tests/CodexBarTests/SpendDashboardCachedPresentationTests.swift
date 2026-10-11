@@ -125,6 +125,10 @@ struct SpendDashboardCachedPresentationTests {
 
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        #expect(controller.model.groups.first?.totalCost == 3)
+        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:account"])
+
         await gate.resume(at: 0, result: .init(
             inputs: [Self.input(
                 id: "codex:account",
@@ -363,11 +367,12 @@ struct SpendDashboardCachedPresentationTests {
     }
 
     private static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0..<1000 {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < deadline {
             if condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         Issue.record("Timed out waiting for controller state")
     }
