@@ -307,6 +307,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         default: .off
         }
         menu.addItem(login)
+
+        // The version line (S12): the version and the commit it was built from.
+        menu.addItem(.separator())
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let sha = info?["QuotaKitLiteGitSHA"] as? String ?? "dev"
+        let about = NSMenuItem(title: "QuotaKit Lite \(version) (\(sha))", action: nil, keyEquivalent: "")
+        about.isEnabled = false
+        menu.addItem(about)
         return menu
     }
 

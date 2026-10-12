@@ -284,6 +284,8 @@ run_swiftformat_lint() {
     CodexBarMobile/CodexBarMobileUITests \
     CodexBarMobile/CodexBarMobileWidgets \
     CodexBarMobile/CodexBarMobilePushExtension \
+    QuotaKitLite/Sources \
+    QuotaKitLite/Tests \
     --lint
 }
 
@@ -327,7 +329,9 @@ case "$cmd" in
       CodexBarMobile/CodexBarMobileTests \
       CodexBarMobile/CodexBarMobileUITests \
       CodexBarMobile/CodexBarMobileWidgets \
-      CodexBarMobile/CodexBarMobilePushExtension
+      CodexBarMobile/CodexBarMobilePushExtension \
+      QuotaKitLite/Sources \
+      QuotaKitLite/Tests
     ;;
   audit-i18n)
     audit_xcstrings

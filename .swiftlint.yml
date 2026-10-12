@@ -4,6 +4,8 @@
 included:
   - Sources
   - Tests
+  - QuotaKitLite/Sources
+  - QuotaKitLite/Tests
 
 # Paths to exclude
 excluded:

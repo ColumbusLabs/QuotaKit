@@ -12,6 +12,9 @@ ios_test_result="${7:-}"
 linux_build_result="${8-<missing>}"
 macos_compatibility_result="${9-<missing>}"
 linux_build_required="${10-<missing>}"
+# Older callers predate the QuotaKit Lite job; omitted means not required and skipped.
+lite_tests_required="${11-false}"
+lite_test_result="${12-skipped}"
 
 if [[ "$lint_result" != "success" ]]; then
   printf 'lint job finished with %s\n' "${lint_result:-<empty>}" >&2
@@ -80,6 +83,20 @@ case "${ios_tests_required}:${ios_test_result}" in
   *)
     printf 'iOS test gate/result mismatch: required=%s result=%s\n' \
       "${ios_tests_required:-<empty>}" "${ios_test_result:-<empty>}" >&2
+    exit 1
+    ;;
+esac
+
+case "${lite_tests_required}:${lite_test_result}" in
+  true:success)
+    printf 'QuotaKit Lite build and tests passed.\n'
+    ;;
+  false:skipped)
+    printf 'QuotaKit Lite tests skipped: no Lite or Shared paths changed.\n'
+    ;;
+  *)
+    printf 'QuotaKit Lite gate/result mismatch: required=%s result=%s\n' \
+      "${lite_tests_required:-<empty>}" "${lite_test_result:-<empty>}" >&2
     exit 1
     ;;
 esac

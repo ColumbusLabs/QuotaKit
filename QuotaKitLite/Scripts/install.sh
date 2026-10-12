@@ -32,10 +32,17 @@ BIN_PATH="$(swift build -c release --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+"$LITE_DIR/Scripts/size-check.sh" "$BIN_PATH/$EXECUTABLE"
 cp "$BIN_PATH/$EXECUTABLE" "$APP/Contents/MacOS/$EXECUTABLE"
 # Drop local symbols: halves the binary (3.0 -> 1.6 MB) and keeps the bundle inside the 3 MB budget (068 §1).
 strip -x "$APP/Contents/MacOS/$EXECUTABLE"
 cp "$LITE_DIR/App/Info.plist" "$APP/Contents/Info.plist"
+# The short commit for the menu's version line; "+dirty" when built from uncommitted changes.
+git_sha="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if [[ -n "$(git -C "$ROOT_DIR" status --porcelain -- QuotaKitLite Shared 2>/dev/null)" ]]; then
+  git_sha="${git_sha}+dirty"
+fi
+/usr/libexec/PlistBuddy -c "Add :QuotaKitLiteGitSHA string $git_sha" "$APP/Contents/Info.plist"
 cp "$LITE_DIR"/Resources/*.svg "$LITE_DIR"/Resources/*.png "$APP/Contents/Resources/"
 cp "$LITE_DIR/App/Icon.icns" "$APP/Contents/Resources/Icon.icns"
 

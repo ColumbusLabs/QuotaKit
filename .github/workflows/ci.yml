@@ -36,6 +36,8 @@ jobs:
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
       macos-test-filter: ${{ steps.macos-tests.outputs.macos-test-filter }}
       macos-shard-indexes: ${{ steps.macos-tests.outputs.macos-shard-indexes }}
+      lite-tests: ${{ steps.macos-tests.outputs.lite-tests }}
+      lite-tests-reason: ${{ steps.macos-tests.outputs.lite-tests-reason }}
       ios-tests: ${{ steps.ios-tests.outputs.ios-tests }}
       ios-tests-reason: ${{ steps.ios-tests.outputs.ios-tests-reason }}
     steps:
@@ -498,6 +500,42 @@ jobs:
           timeout 240 python3 Scripts/test_linux_serve_rpc_pipes.py "$bin_dir/CodexBarCLI"
           timeout 240 python3 Scripts/test_linux_procfs_reads.py
 
+  lite-test-macos:
+    needs: changes
+    if: ${{ needs.changes.outputs.lite-tests == 'true' }}
+    # QuotaKit Lite (QuotaKitLite/, see CodexBarMobile/Research/068-quotakit-lite-mac.md) is a standalone
+    # package that compiles Shared/ through a symlink. Shared/ imports Compression and CryptoKit without guards,
+    # so it builds on macOS only.
+    runs-on: macos-26
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: QuotaKitLite
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 26.3 or 26.2
+        run: |
+          set -euo pipefail
+          for candidate in /Applications/Xcode_26.3.app /Applications/Xcode_26.2.app; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "${candidate}/Contents/Developer"
+              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.* ]]
+          swift --version
+
+      - name: Build and test
+        run: swift test
+
+      - name: Release build and size budget
+        run: |
+          set -euo pipefail
+          swift build -c release --product QuotaKitLite
+          Scripts/size-check.sh "$(swift build -c release --show-bin-path)/QuotaKitLite"
+
   lint-build-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -508,6 +546,7 @@ jobs:
       - swift-build-macos-compatibility
       - ios-test
       - build-linux-cli
+      - lite-test-macos
     if: ${{ always() && !cancelled() }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -524,7 +563,9 @@ jobs:
             "${{ needs.ios-test.result }}" \
             "${{ needs.build-linux-cli.result }}" \
             "${{ needs.swift-build-macos-compatibility.result }}" \
-            "${{ needs.changes.outputs.linux-cli-build }}"
+            "${{ needs.changes.outputs.linux-cli-build }}" \
+            "${{ needs.changes.outputs.lite-tests }}" \
+            "${{ needs.lite-test-macos.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -543,6 +584,9 @@ jobs:
           LINUX_RESULT: ${{ needs.build-linux-cli.result }}
           LINUX_CLI_BUILD: ${{ needs.changes.outputs.linux-cli-build }}
           MACOS_COMPATIBILITY_RESULT: ${{ needs.swift-build-macos-compatibility.result }}
+          LITE_TESTS: ${{ needs.changes.outputs.lite-tests }}
+          LITE_TESTS_REASON: ${{ needs.changes.outputs.lite-tests-reason }}
+          LITE_RESULT: ${{ needs.lite-test-macos.result }}
         run: |
           set -euo pipefail
           macos_reason="${MACOS_TESTS_REASON:-<unset>}"
@@ -566,4 +610,7 @@ jobs:
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| iOS gate reason | %s |\n' "$ios_reason"
             printf '| ios-test result | `%s` |\n' "$IOS_RESULT"
+            printf '| QuotaKit Lite tests required | `%s` |\n' "${LITE_TESTS:-<unset>}"
+            printf '| QuotaKit Lite reason | %s |\n' "${LITE_TESTS_REASON//|/\\|}"
+            printf '| lite-test-macos result | `%s` |\n' "$LITE_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"

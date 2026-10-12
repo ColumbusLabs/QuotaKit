@@ -600,6 +600,8 @@ Lite's real long-term cost is undocumented endpoints drifting. The Claude, Codex
 1. **Shared fixtures:**
    - Copy the response fixtures for the three parsers from `Tests/CodexBarTests` into `QuotaKitLite/Tests/Fixtures/`.
    - Add a script, `Scripts/lite-fixture-sync.sh`, that diffs them against the main tests. Run it in CI and fail when they differ.
+     (Not built: Lite's tests embed their payloads inline, modelled on the full app's tests, so there are no copied
+     files to diff. `Scripts/lite-drift-check.sh` flags the upstream changes instead.)
 2. **Drift watch:** `Scripts/lite-drift-check.sh` lists commits since the last Lite review that touch any of these:
    - `Providers/Claude/ClaudeOAuth/`
    - `Providers/Codex/CodexOAuth/`
@@ -904,7 +906,15 @@ model-quota fallbacks (the summary endpoint answered in Phase 0 and live). 18 te
 
 **Phase 4: finish**
 
-**S12 — Hardening.**
+**S12 — Hardening.** 🔶 Built 2026-10-12; the week of daily use is what remains. A `lite-test-macos` CI job
+(macOS 26) runs `swift test`, a release build and the size gate whenever `QuotaKitLite/**`, `Shared/**` or the CI
+contract changes; Lite-only changes no longer start the full app's suites. The aggregate `lint-build-test` gate
+requires it (`ci_verify_test_jobs.sh` arguments 11–12, covered by `test_ci_path_gate.sh`). `Scripts/lint.sh` and
+`.swiftlint.yml` now cover `QuotaKitLite/Sources` and `QuotaKitLite/Tests`. `QuotaKitLite/Scripts/size-check.sh`
+fails a stripped binary over 3 MB (2.05 MB now) and runs in `install.sh` too. `Scripts/lite-soak.sh` and
+`Scripts/lite-drift-check.sh` (baseline in `QuotaKitLite/DRIFT_BASELINE`) are in place. Settings ▸ ends with
+"QuotaKit Lite 0.1.0 (sha)". `lite-fixture-sync.sh` was dropped: Lite's tests carry their payloads inline rather
+than copying fixture files, so there is nothing to diff; the drift check covers the same risk.
 - Contents:
   - `Scripts/lite-soak.sh`, `lite-fixture-sync.sh` and `lite-drift-check.sh`;
   - a `QuotaKitLite` build-and-test job on a macOS runner in `.github/workflows/ci.yml`, run only when

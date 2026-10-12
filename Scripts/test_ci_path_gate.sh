@@ -48,6 +48,25 @@ if "      - swift-build-macos-compatibility\n" not in body:
     raise SystemExit("aggregate CI gate must require Xcode 26.3 compatibility build")
 if '"${{ needs.swift-build-macos-compatibility.result }}"' not in body:
     raise SystemExit("aggregate CI verifier must receive the Xcode 26.3 build result")
+lite = re.search(r"(?ms)^  lite-test-macos:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if lite is None:
+    raise SystemExit("missing QuotaKit Lite build-and-test job")
+for required in (
+    "needs: changes",
+    "if: ${{ needs.changes.outputs.lite-tests == 'true' }}",
+    "runs-on: macos-26",
+    "working-directory: QuotaKitLite",
+    "swift test",
+    "Scripts/size-check.sh",
+):
+    if required not in lite.group("body"):
+        raise SystemExit(f"QuotaKit Lite job is missing {required!r}")
+if 'lite-tests: ${{ steps.macos-tests.outputs.lite-tests }}' not in workflow:
+    raise SystemExit("changes must expose the QuotaKit Lite path gate")
+if "      - lite-test-macos\n" not in body or '"${{ needs.lite-test-macos.result }}"' not in body:
+    raise SystemExit("aggregate CI gate must require the QuotaKit Lite job result")
+if '"${{ needs.changes.outputs.lite-tests }}"' not in body:
+    raise SystemExit("aggregate verifier must receive the QuotaKit Lite requirement")
 PY
 
 assert_gate() {
@@ -114,6 +133,40 @@ assert_gate true test-markdown $'M\tTests/Fixtures/README.md'
 assert_gate true shared-markdown $'M\tShared/README.md'
 assert_gate true mobile-markdown $'M\tCodexBarMobile/README.md'
 assert_gate true workflow-markdown $'M\t.github/workflows/README.md'
+
+assert_lite() {
+  local expected_lite="$1"
+  local expected_macos="$2"
+  local name="$3"
+  local paths_file="${tmp_dir}/${name}.lite.paths"
+  local output_file="${tmp_dir}/${name}.lite.output"
+  shift 3
+
+  printf '%s\n' "$@" > "$paths_file"
+  GITHUB_OUTPUT="$output_file" "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$paths_file" >/dev/null
+  local actual_lite actual_macos
+  actual_lite="$(sed -n 's/^lite-tests=//p' "$output_file")"
+  actual_macos="$(sed -n 's/^macos-tests=//p' "$output_file")"
+  if [[ "$actual_lite" != "$expected_lite" || "$actual_macos" != "$expected_macos" ]]; then
+    printf '%s: expected lite-tests=%s macos-tests=%s, got lite-tests=%s macos-tests=%s\n' \
+      "$name" "$expected_lite" "$expected_macos" "${actual_lite:-<empty>}" "${actual_macos:-<empty>}" >&2
+    exit 1
+  fi
+  if [[ -z "$(sed -n 's/^lite-tests-reason=//p' "$output_file")" ]]; then
+    printf '%s: expected lite-tests-reason output\n' "$name" >&2
+    exit 1
+  fi
+}
+
+assert_lite true false lite-source $'M\tQuotaKitLite/Sources/LiteCore/Probe.swift'
+assert_lite true false lite-package $'M\tQuotaKitLite/Package.swift' $'A\tQuotaKitLite/Tests/LiteCoreTests/NewTests.swift'
+assert_lite false false lite-markdown $'M\tQuotaKitLite/README.md'
+assert_lite true true shared-source $'M\tShared/iCloud/CloudSyncManager.swift'
+assert_lite false true shared-markdown-only-full $'M\tShared/README.md'
+assert_lite true true ci-workflow-lite $'M\t.github/workflows/ci.yml'
+assert_lite false true app-source-only $'M\tSources/CodexBar/App.swift'
+assert_lite false false docs-only-lite $'M\tdocs/providers.md'
+assert_lite true true lite-and-app $'M\tQuotaKitLite/Sources/LiteCore/Probe.swift' $'M\tSources/CodexBar/App.swift'
 
 assert_macos_selection() {
   local expected_filter="$1"
@@ -357,6 +410,22 @@ for linux_required in true false; do
         ;;
       *)
         assert_verify_fails success success false skipped false false skipped "$linux_result" skipped "$linux_required"
+        ;;
+    esac
+  done
+done
+
+# QuotaKit Lite: arguments 11 and 12, defaulting to not required and skipped for older callers.
+"$verify" success success false skipped false false skipped skipped skipped false true success >/dev/null
+"$verify" success success false skipped false false skipped skipped skipped false false skipped >/dev/null
+for lite_required in true false; do
+  for lite_result in success failure cancelled skipped '' unknown; do
+    case "${lite_required}:${lite_result}" in
+      true:success|false:skipped)
+        ;;
+      *)
+        assert_verify_fails success success false skipped false false skipped skipped skipped false \
+          "$lite_required" "$lite_result"
         ;;
     esac
   done

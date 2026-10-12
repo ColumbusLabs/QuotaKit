@@ -19,6 +19,8 @@ full_suite_required=false
 settings_appearance_changed=false
 spend_heatmap_changed=false
 spend_dashboard_midnight_dst_changed=false
+lite_tests=false
+lite_tests_reason=""
 
 case "$draft_pull_request" in
   true|false)
@@ -39,13 +41,44 @@ require_macos_tests() {
   fi
 }
 
+require_lite_tests() {
+  local path="$1"
+  local reason="$2"
+
+  lite_tests=true
+  if [[ -z "$lite_tests_reason" ]]; then
+    lite_tests_reason="${path}: ${reason}"
+  fi
+}
+
 classify_path() {
   local path="$1"
   [[ -z "$path" ]] && return
 
   path_count=$((path_count + 1))
 
+  # QuotaKit Lite is a standalone package that compiles Shared/ through a symlink, so either tree (and the
+  # workflow that runs it) needs its own macOS build-and-test job.
   case "$path" in
+    QuotaKitLite/*.md)
+      ;;
+    QuotaKitLite/*)
+      require_lite_tests "$path" "changes QuotaKit Lite"
+      ;;
+    Shared/*.md)
+      ;;
+    Shared/*)
+      require_lite_tests "$path" "changes shared sync code compiled by QuotaKit Lite"
+      ;;
+    .github/workflows/ci.yml|Scripts/ci_macos_test_gate.sh|Scripts/ci_verify_test_jobs.sh)
+      require_lite_tests "$path" "changes the QuotaKit Lite CI contract"
+      ;;
+  esac
+
+  case "$path" in
+    QuotaKitLite/*)
+      # Covered by the QuotaKit Lite job; the full app's suites don't build this package.
+      ;;
     AGENTS.md|docs/configuration.md)
       require_macos_tests "$path" "changes contributor or runtime configuration contracts"
       full_suite_required=true
@@ -179,6 +212,8 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'changed-path-count=%s\n' "$path_count" >> "$GITHUB_OUTPUT"
   printf 'macos-test-filter=%s\n' "$macos_test_filter" >> "$GITHUB_OUTPUT"
   printf 'macos-shard-indexes=%s\n' "$macos_shard_indexes" >> "$GITHUB_OUTPUT"
+  printf 'lite-tests=%s\n' "$lite_tests" >> "$GITHUB_OUTPUT"
+  printf 'lite-tests-reason=%s\n' "${lite_tests_reason:-no QuotaKit Lite or Shared paths changed}" >> "$GITHUB_OUTPUT"
 fi
 
 if [[ "$macos_tests_deferred" == true ]]; then
