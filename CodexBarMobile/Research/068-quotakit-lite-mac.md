@@ -344,7 +344,9 @@ If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunni
     - `loginMethod` is the plan.
     - `accountEmail` and `accountIdentities` follow §4.
     - `statusMessage` is set for error states, with `isError` true.
-    - `pace` is optional. The pace stage maths is small and pure (expected versus actual over the elapsed part of the window), so Lite can port it in Phase 4. iOS treats it as optional.
+    - `pace` is filled in for every window (§7.5). Its `stage`, `deltaPercent`, `expectedUsedPercent` and
+      `actualUsedPercent` fields come from the same calculation the menu uses. `leftLabel` and `rightLabel` carry the
+      exact strings ("3% in reserve", "Runs out in 1d 4h"), so the iPhone shows the same text as the Mac.
 - Every cost, budget, history and provider-specific extension field is nil.
 
 ### 6.2 Write minimisation, better than the full app today
@@ -459,9 +461,11 @@ visible at a glance.
 ```
 ┌────────────────────────────────────────────────┐
 │ [Claude logo]  Claude      Max 20x     2m ago  │
-│   Session  ███████░░░░░░░░░░░░  37%            │
+│   Session  ███████░┆░░░░░░░░░░  37%            │
+│            3% in reserve · Lasts until reset   │
 │            Resets in 2h 14m · 4:30 PM          │
-│   Weekly   ████████████░░░░░░░  61%            │
+│   Weekly   ████████████░┆░░░░░  61%            │
+│            8% in deficit · Runs out in 1d 4h   │
 │            Resets Thu 9:00 AM                  │
 │   Sonnet   ████░░░░░░░░░░░░░░░  22%            │
 ├────────────────────────────────────────────────┤
@@ -497,6 +501,10 @@ visible at a glance.
   bars show where an alert will fire;
 - a projected (post-reset) value is drawn with a dashed outline instead of a solid fill.
 
+**Pace line** goes under each bar: "3% in reserve" (or "8% in deficit" / "On pace") on the left, then "Lasts until
+reset" / "Runs out in 1d 4h" / "Projected empty in 40m" on the right, as in the full app. A small `┆` tick on the
+bar marks the expected position, so you can see at a glance whether you're ahead of or behind pace. Details are in §7.5.
+
 **Reset text** combines a relative and an absolute time ("Resets in 2h 14m · 4:30 PM"), formatted only when the
 menu opens.
 
@@ -515,6 +523,42 @@ menu opens.
 - Antigravity: nothing.
 
 **No settings window.** All preferences live in `UserDefaults` and are edited through these menu toggles.
+
+### 7.5 Pace ("3% in reserve")
+
+**Port `UsagePace.weekly` unchanged.** It's in `Sources/CodexBarCore/UsagePace.swift`, about 150 lines, with no
+dependencies; it only needs a small local `RateWindow` stand-in. It does the following:
+
+- `expected = elapsed / windowDuration × 100`, with an optional workday weighting for weekly windows;
+- `delta = actual − expected`. Delta of 2 or less is "On pace"; otherwise a negative delta is "N% in reserve" and a
+  positive one is "N% in deficit";
+- stages: 2 or less is on track, 6 or less is slightly ahead or behind, 12 or less is ahead or behind, and anything
+  more is far ahead or behind;
+- the run-out estimate extrapolates the current burn rate:
+  - if usage will last to the reset, the label is "Lasts until reset";
+  - otherwise it is "Runs out in X" for weekly windows and "Projected empty in X" for the session.
+
+**Port the label wording** from `Sources/CodexBar/UsagePaceText.swift` (`detailLeftLabel` and `detailRightLabel`), as
+plain English strings.
+
+**Where pace shows up:**
+
+- every window, Antigravity's group buckets included;
+- the menu cards;
+- the iPhone cards, through `SyncUsagePace`;
+- optionally the menu bar: a "Show pace in menu bar" toggle adds `+3`/`−8` next to the percentage in the
+  Percentages and Most-constrained styles, following the full app's sign convention ("Reserve is +").
+
+**Workday pacing:** there's an optional menu choice of 5 or 6 workdays for the weekly expectation, which the
+full app also has (`workDays`). The default is 7 days.
+
+**Not ported:** the full app's history-based pace (`HistoricalUsagePace.swift`, the "(12% risk)" suffix and
+learned burn curves). It needs weeks of stored usage history plus about 900 lines of code. If you want the risk
+figure later, the cheap way is a small ring buffer of `(timestamp, usedPercent)` samples per window, persisted as one
+small JSON file and appended only on fetched data. It's listed as a Phase 5 option.
+
+**Cost:** nothing. Pace is computed only when the menu opens, when the status item changes, and when the iPhone
+payload is built. There's no extra timer.
 
 ## 8. Maintenance strategy
 
@@ -568,11 +612,11 @@ Lightweight tactics to keep the footprint down:
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
 | **0 — Spike** (1–2 days) | Throwaway checks on a real Mac (the six questions below) | All six answered; record the results in this doc |
-| **1 — Core and menu** | Shell, scheduler, Claude and Codex probes, local reset projection, the full polished menu (§7) with logos, status item styles | §9 budget met with sync off; parser tests green; the menu looks right in light and dark mode |
-| **2 — iPhone sync and alerts** | SyncBridge, persisted dedup hash, cleanup, identity strings, `quotaWarnings`, QuotaTransition push alerts, Mac banners, auto-pause | iPhone shows Lite cards; a single merged card when the full app has the same accounts; no write when nothing changed; a forced threshold crossing delivers exactly one iPhone push and one Mac banner; no alerts while paused |
+| **1 — Core and menu** | Shell, scheduler, Claude and Codex probes, local reset projection, the full polished menu (§7) with logos, status item styles, pace (§7.5) | §9 budget met with sync off; parser tests green; the menu looks right in light and dark mode |
+| **2 — iPhone sync and alerts** | SyncBridge, persisted dedup hash, cleanup, identity strings, pace on iPhone cards, `quotaWarnings`, QuotaTransition push alerts, Mac banners, auto-pause | iPhone shows Lite cards; a single merged card when the full app has the same accounts; no write when nothing changed; a forced threshold crossing delivers exactly one iPhone push and one Mac banner; no alerts while paused |
 | **3 — Antigravity** | Kernel process discovery, loopback fetch, launch observer, two-group card | Live data while the Antigravity app is open; a clean "not running" state otherwise; zero subprocesses; Antigravity alerts work |
-| **4 — Finish** | Pace on the iPhone cards, `install.sh`, launch at login, soak test | One week of daily use with no unexplained prompts, stale data or energy flags |
-| **5 — Optional** | Codex app-server "refresh via CLI", shared `QuotaProbes` extraction, the Codex `chatgpt_base_url` override | As needed |
+| **4 — Finish** | `install.sh`, launch at login, soak test | One week of daily use with no unexplained prompts, stale data or energy flags |
+| **5 — Optional** | History-based pace risk (§7.5), Codex app-server "refresh via CLI", shared `QuotaProbes` extraction, the Codex `chatgpt_base_url` override | As needed |
 
 **Phase 0 questions:**
 
@@ -605,4 +649,5 @@ Lightweight tactics to keep the footprint down:
 | Audience | **Personal tool for the owner only.** Built from source and signed locally; no public release, updater, setup page, onboarding or localization. |
 | Alerts | **In v1.** iPhone push through `QuotaTransition` records and a local Mac banner, both in Phase 2 alongside sync. |
 | Menu look | **Polished.** Real provider logos and brand colours from the full app's assets, brand-coloured bars with threshold ticks; custom-drawn AppKit, not SwiftUI, to keep the footprint (§7). |
+| Pace | **In v1**, on the Mac menu and the iPhone cards, using the full app's formula and wording (§7.5) |
 | Coexistence | **Auto-pause** while the full QuotaKit app is running (§5.4). |
