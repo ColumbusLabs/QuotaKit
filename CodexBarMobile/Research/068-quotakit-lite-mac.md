@@ -347,7 +347,9 @@ Each window stores `resetsAt`. When `now ≥ resetsAt`, the displayed `usedPerce
 
 ### 5.4 Coexisting with the full app (confirmed: auto-pause)
 
-If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunningApplication` and the launch and terminate notifications, Lite does both of these:
+If the full app (`com.columbuslabs.quotakit.mac`) is running, found by observing `NSWorkspace.runningApplications`
+with KVO, Lite does both of these. (Launch and terminate notifications don't work: macOS doesn't post them for
+`LSUIElement` apps, and the full app is one. Verified 2026-10-12.)
 
 - **Pauses network fetching and CloudKit writes.** The menu then shows "QuotaKit is running — Lite is paused", or reads the full app's snapshot if one is accessible.
 - **Avoids doubling API traffic.** Claude's per-token 429 gate makes double polling actively harmful.
@@ -827,7 +829,9 @@ menu-bar pace sign is not built. 12 tests.
 
 **Phase 2: iPhone sync, alerts, auto-pause**
 
-**S8 — Auto-pause.**
+**S8 — Auto-pause.** ✅ Done 2026-10-12. `FullAppMonitor` pauses the scheduler before the first fetch if the full app
+is already running; cards show "Paused — QuotaKit is running" and Refresh Now is disabled; quitting the full app
+fetches once. S9 and S10 must check the same pause before syncing or alerting.
 - Contents:
   - detect the full app with `NSRunningApplication` and launch/terminate notifications;
   - suspend fetching, syncing and alerts while it runs;

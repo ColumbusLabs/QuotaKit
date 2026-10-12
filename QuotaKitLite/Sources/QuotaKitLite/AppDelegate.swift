@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scheduler: RefreshScheduler?
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
+    private var fullAppMonitor: FullAppMonitor?
     private let statusRenderer = StatusItemRenderer()
     private let preferences = LitePreferences()
 
@@ -67,9 +68,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         watcher.start()
 
+        // Before `start()`, so nothing is fetched at launch if the full app is already running (§5.4).
+        let fullApp = FullAppMonitor { [weak scheduler] running in
+            // Ending the pause fetches every enabled provider once.
+            scheduler?.setPaused(running)
+        }
+        fullApp.start()
+        scheduler.setPaused(fullApp.isRunning)
+
         self.scheduler = scheduler
         self.systemObservers = observers
         self.activityWatcher = watcher
+        self.fullAppMonitor = fullApp
         scheduler.start()
     }
 
@@ -129,8 +139,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let now = Date()
+        let isPaused = self.fullAppMonitor?.isRunning ?? false
         for provider in self.enabledProviders {
-            let state = self.states[provider] ?? ProviderState(provider: provider)
+            var state = self.states[provider] ?? ProviderState(provider: provider)
+            // Display only: the stored status stays the last fetch's, so it shows again when the pause ends.
+            if isPaused { state.status = .paused }
             let card = ProviderCardView(card: CardPresentation(state: state, now: now), tint: provider.brandColor)
             let host = NSHostingView(rootView: card)
             host.frame = NSRect(origin: .zero, size: NSSize(width: ProviderCardView.width, height: 1))
@@ -147,6 +160,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func addActionItems(to menu: NSMenu) {
         let refresh = NSMenuItem(title: "Refresh Now", action: #selector(self.refreshNow), keyEquivalent: "r")
         refresh.target = self
+        // Nothing is fetched while the full app runs.
+        if self.fullAppMonitor?.isRunning == true {
+            refresh.action = nil
+        }
         menu.addItem(refresh)
 
         let providers = NSMenu()
