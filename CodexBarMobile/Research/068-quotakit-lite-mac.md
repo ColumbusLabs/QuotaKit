@@ -1,9 +1,11 @@
 # 068 — QuotaKit Lite for Mac (rate-limit-only spinoff)
 
-- **Status:** `proposed`
+- **Status:** `planned` (product decisions recorded in §12)
 - **Date:** 2026-10-12
 - **Scope:** A new, separate Mac menu bar app that tracks only rate-limit windows for
   Claude, Codex, and Antigravity, and syncs them to the existing iOS app without iOS changes.
+- **Audience:** Personal tool for the repository owner, not a public product. There are no public
+  releases, updater, website, or onboarding. Its only user-facing surfaces are its own menu and the existing iPhone app.
 
 ## 1. Problem and goal
 
@@ -35,11 +37,11 @@ A user who only wants to know how much of a quota is used and when it resets pay
    | CPU while idle | 0.0% |
    | Average wakeups | < 1 per minute |
    | Network while the user is not coding | none (one heartbeat every 30 min) |
-   | Binary size, excluding Sparkle | ≤ 3 MB |
+   | Binary size, including logo resources | ≤ 3 MB |
    | Helper processes | none |
    | Keychain prompts during background work | none, ever |
 
-3. Needs almost no upkeep: no third-party runtime dependencies, about 2k lines of new code, and no upstream-sync burden.
+3. Needs almost no upkeep: no third-party runtime dependencies, about 3k lines of new code, and no upstream-sync burden.
 4. **Publishes to the existing iPhone app** through the same CloudKit records the full app writes, so iOS, widgets, and push alerts work unchanged.
 
 **Non-goals:**
@@ -50,7 +52,8 @@ A user who only wants to know how much of a quota is used and when it resets pay
 - web or cookie sources;
 - a CLI;
 - Mac widgets;
-- a settings window.
+- a settings window;
+- public distribution: no notarized release lane, no Sparkle or appcast, no setup page, no onboarding copy, no localization.
 
 ## 2. Key findings that shape the design
 
@@ -116,8 +119,9 @@ Lite takes a much smaller position (see §4.1): it **reads but never prompts in 
 ## 3. Architecture
 
 ```
-QuotaKitLite.app  (single process, AppKit, no helpers, not sandboxed, Developer ID)
-├── AppShell          NSApplication .accessory, NSStatusItem, NSMenu  (~250 LOC)
+QuotaKitLite.app  (single process, AppKit, no helpers, not sandboxed, signed locally)
+├── AppShell          NSApplication .accessory, NSStatusItem, NSMenu, auto-pause (~250 LOC)
+├── UI/               status item renderer, provider cards, bars, logos (~700 LOC, §7)
 ├── Scheduler         activity-driven refresh engine                   (~250 LOC)
 ├── Probes/
 │   ├── ClaudeProbe   creds (file → own cache → silent Keychain) + GET  (~350 LOC)
@@ -125,10 +129,11 @@ QuotaKitLite.app  (single process, AppKit, no helpers, not sandboxed, Developer 
 │   └── AntigravityProbe  kernel proc scan + loopback POST              (~350 LOC)
 ├── Model             QuotaWindow / ProviderState, local reset projection (~150 LOC)
 ├── SyncBridge        ProviderState → ProviderUsageSnapshot → CloudSyncManager (~300 LOC)
+├── Alerts            transition detector, QuotaTransition writer, Mac banners (~300 LOC, §6.4)
 └── CodexBarSync      ../Shared, reused unmodified                     (6k LOC, existing)
 ```
 
-The new code is about 2k lines, against about 340k in the full app. The only outside dependency is CodexBarSync.
+The new code is about 3k lines, against about 340k in the full app. The only outside dependency is CodexBarSync.
 
 ### 3.1 Repository and package layout
 
@@ -157,7 +162,12 @@ The new code is about 2k lines, against about 340k in the full app. The only out
   - read access to `~/.claude/.credentials.json` and `~/.codex/auth.json`;
   - kernel process inspection of the Antigravity `language_server`.
 
-  This rules out the Mac App Store. Ship it the same way as the full app: Developer ID, notarized ZIP or DMG, from `columbus-labs.com/quotakit/mac`.
+  This rules out the Mac App Store, which doesn't matter for a personal tool.
+- **Build and install** run locally from source: `QuotaKitLite/Scripts/install.sh` builds a release binary, assembles
+  the `.app` with its icon resources, and signs it with the same team identity and a provisioning profile that
+  carries the CloudKit entitlement (§6.5). It installs to `~/Applications/QuotaKit Lite.app` and relaunches the app.
+  Notarization isn't needed, because the app is built and signed on the machine that runs it. Updating is just
+  `git pull`, then running the script again.
 
 ## 4. Providers
 
@@ -310,7 +320,7 @@ Each window stores `resetsAt`. When `now ≥ resetsAt`, the displayed `usedPerce
 - Lite does not publish projected windows to iOS as fresh data. It republishes the last real `lastUpdated`.
 - iOS already does its own reset display from `resetsAt`.
 
-### 5.4 Coexisting with the full app
+### 5.4 Coexisting with the full app (confirmed: auto-pause)
 
 If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunningApplication` and the launch and terminate notifications, Lite does both of these:
 
@@ -334,7 +344,7 @@ If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunni
     - `loginMethod` is the plan.
     - `accountEmail` and `accountIdentities` follow §4.
     - `statusMessage` is set for error states, with `isError` true.
-    - `pace` is optional. The pace stage maths is small and pure (expected versus actual over the elapsed part of the window), so Lite can port it about Phase 4. iOS treats it as optional.
+    - `pace` is optional. The pace stage maths is small and pure (expected versus actual over the elapsed part of the window), so Lite can port it in Phase 4. iOS treats it as optional.
 - Every cost, budget, history and provider-specific extension field is nil.
 
 ### 6.2 Write minimisation, better than the full app today
@@ -354,15 +364,32 @@ If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunni
 - When a provider is disabled in Lite, delete `{deviceID}|{provider}|*` for Lite's own deviceID.
 - Add an "Unpublish from iPhone" menu action that deletes every Lite record. Without it, uninstalling Lite leaves stale cards behind, which is a known gap in the full app (§2.2).
 
-### 6.4 Push alerts (Phase 4)
+### 6.4 Alerts (v1, shipped with sync in Phase 2)
 
-- Port the transition logic from `Sources/CodexBar/Sync/QuotaTransitionWriter.swift`, about 200 lines.
-  - **depleted:** `usedPercent >= 100`.
-  - **restored:** usage drops back after a depletion.
-  - **warning:** the thresholds come from `SyncQuotaWarningConfig`.
-- Write `QuotaTransition` records with the same record-name scheme and the same per-hour bucket, so alerts from several Macs collapse into one, just as they do today.
-- Debounce: 5 min for depleted and restored, 60 s for warnings.
-- iOS Pro users then get the same push notifications whichever Mac app they run.
+**iPhone push alerts** come from CloudKit `QuotaTransition` records. iOS already subscribes to them when Pro is unlocked, and its notification service extension rewrites the text.
+
+- Port the transition logic from `Sources/CodexBar/Sync/QuotaTransitionWriter.swift`, about 200 lines, without the `CodexBarCore` import.
+  - **depleted:** a window reaches `usedPercent >= 100`.
+  - **restored:** usage drops back after a depletion. In practice this happens after a reset, and the confirm fetch from §5.3 detects it.
+  - **warning:** a window crosses a remaining-percent threshold. The defaults are `[50, 20]` remaining, the same as the full app, configured per window (session or weekly).
+- **Write the records exactly as the full app does:**
+  - zones `Quota-{providerID}-{depleted|restored|warning}Zone`;
+  - the same record-name scheme, including the hour bucket and the 8-byte SHA256 scope;
+  - fields `providerName`, `providerID`, `state`, `transitionAt`, `deviceID`, `accountEmail`, `windowDisplayLabel`.
+
+  Same-hour duplicates then collapse into one alert, and the extension renders the text correctly.
+- **Debounce:** 5 min for depleted and restored, 60 s for warnings. A debounce timestamp is stored only after a successful write.
+- **Never alert from guesses.** Transitions are evaluated only on **fetched** data, never on the projected values from §5.3. On a cold start, Lite seeds its "last state" from a persisted copy, so a restart doesn't fire a fresh alert for a window that was already depleted.
+- **Keep the iPhone markers in step.** Lite also ships the effective thresholds as `ProviderUsageEnvelope.quotaWarnings` (`SyncQuotaWarningConfig`), so the iPhone draws markers at the same places alerts fire.
+- **Paused means silent.** While auto-paused (§5.4), Lite writes no alerts; the full app owns them then.
+
+**Mac alerts** are a local `UNUserNotificationCenter` banner for the same transitions, using the provider logo as the attachment. They are on by default and can be turned off in the menu. Notification permission is requested once, the first time an alert would fire. No extra process is involved.
+
+**Alert menu (Alerts ▸):**
+
+- iPhone push on or off;
+- Mac banner on or off;
+- warning thresholds, with presets `50 / 20`, `25 / 10`, or `Depleted only`.
 
 ### 6.5 Signing and entitlements
 
@@ -374,36 +401,120 @@ If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunni
   - KVS, because Lite doesn't write the legacy record;
   - `aps-environment`, because Lite only writes.
 - **iOS needs no change.** No `appVersion` or `mobileVersion` gate was found on iOS, and Phase 0 should confirm that.
-  - Optional copy change: mention Lite on the `/quotakit/mac` setup page and in iOS onboarding text. Any iOS string change needs all `Localizable.xcstrings` locales, per AGENTS.md.
-  - The iOS free tier's one-card limit still applies.
+  - Since this is a personal tool, there's no setup-page or onboarding copy.
+  - Push alerts need Pro unlocked on the phone, as they do with the full app.
 
-## 7. UI
+## 7. UI: polished but cheap
 
-**Status item:**
+The menu should look as good as the full app's cards, with real provider logos, brand colours and proper bars.
+It should still cost nothing while closed.
 
-- A template image, drawn with `NSImage(size:flipped:drawingHandler:)` and cached per rendered value.
-- It shows up to three pairs of tiny bars (session over weekly), or the user's choice of compact text, for example `C 42 · X 18 · A 70`.
-- It re-renders only when a rounded integer percent changes.
+### 7.1 Rendering approach
 
-**Menu:**
+- **AppKit with custom-drawn `NSView` rows,** not SwiftUI. SwiftUI hosted in `NSMenu` items (as the full app's
+  `MenuCardView` does) loads the SwiftUI and AttributeGraph runtime for the life of the process. Phase 0 measures
+  the actual cost; expect it to be in the 10–20 MB range, against a total budget of 25 MB.
+  Custom `draw(_:)` code produces the same visual result for one fixed layout, in about 300 lines.
+- **Card views live only while the menu is open.** Build them in `menuNeedsUpdate(_:)` and release them in
+  `menuDidClose(_:)`. A closed menu holds only the model structs.
+- **Appearance:**
+  - Semantic colours (`labelColor`, `secondaryLabelColor`, `quaternaryLabelColor` for bar tracks) adapt
+    to light and dark mode and to the menu's vibrancy for free.
+  - Text uses the system font, with `monospacedDigit` for percentages, so numbers don't jitter.
+- **Accessibility:** every card sets an accessibility label such as "Claude, session 37 percent used, resets in 2 hours
+  14 minutes".
 
-- Content is built in `menuNeedsUpdate(_:)`, so formatting runs only when the menu is opened.
-- One row per provider:
-  - name and plan;
-  - two bars with "37% · resets in 2h 14m";
-  - the status note;
-  - "updated 3m ago".
-- **Actions:**
-  - Refresh now.
-  - Claude: allow Keychain access… (only when it's needed).
-  - Providers ▸ with Claude, Codex and Antigravity toggles.
-  - Menu bar style ▸ Bars / Percent / Most-used only.
-  - Sync to iPhone (toggle).
-  - Unpublish from iPhone.
-  - Launch at login.
-  - Check for updates….
-  - Quit.
-- **No settings window.** All preferences live in `UserDefaults` and are edited through these menu toggles.
+### 7.2 Provider assets, reused from the full app
+
+| Provider | Template icon (menu bar) | Brand icon (menu card) | Brand colour |
+|---|---|---|---|
+| Claude | `Sources/CodexBar/Resources/ProviderIcon-claude.svg` | `Brand-ProviderIcon-claude.svg` | `#CC7C5E` |
+| Codex | `ProviderIcon-codex.svg` | `Brand-ProviderIcon-codex.png` | `#49A3B0` |
+| Antigravity | `ProviderIcon-antigravity.svg` | `Brand-ProviderIcon-antigravity.png` | `#60BA7E` |
+
+- **Where the colours come from:** the `branding.color` values in each `*ProviderDescriptor.swift`.
+- **Copy, don't link:** the six files total about 50 KB and go into `QuotaKitLite/Resources/`. A check in
+  `lite-fixture-sync.sh` flags any time the full app's copies change.
+- **Loading:** `NSImage` loads them once at 16 pt and 18 pt. Template icons get `isTemplate = true`, the same
+  way `ProviderBrandIcon.swift` handles them.
+- **App icon:** the QuotaKit icon with a small "Lite" badge. It only shows in Finder and in notification banners.
+
+### 7.3 Status item
+
+The status item is a single `NSStatusItem` with a cached image. It redraws only when the displayed value changes.
+There are three styles, chosen under Menu bar style ▸:
+
+1. **Logos and bars** (default). For each enabled provider: its template logo at 14 pt, and two hairline bars under
+   it (session on top, weekly underneath). Three providers fit in about 70 pt.
+2. **Most constrained.** One logo for whichever provider has the least headroom, plus its percent, for example
+   `[Claude logo] 82%`.
+3. **Percentages.** A logo and a percentage for each provider.
+
+The image stays a template image, so it follows the menu bar's appearance. The one exception is a provider that is
+depleted or at 95% or more: its bars are drawn in `systemRed` as a non-template overlay, so a problem is
+visible at a glance.
+
+### 7.4 Menu layout
+
+```
+┌────────────────────────────────────────────────┐
+│ [Claude logo]  Claude      Max 20x     2m ago  │
+│   Session  ███████░░░░░░░░░░░░  37%            │
+│            Resets in 2h 14m · 4:30 PM          │
+│   Weekly   ████████████░░░░░░░  61%            │
+│            Resets Thu 9:00 AM                  │
+│   Sonnet   ████░░░░░░░░░░░░░░░  22%            │
+├────────────────────────────────────────────────┤
+│ [Codex logo]  Codex         Pro        1m ago  │
+│   Session  …                                   │
+│   Weekly   …                                   │
+├────────────────────────────────────────────────┤
+│ [Antigravity logo]  Antigravity  Ultra  5m ago │
+│   Gemini        5h ██░░  12%   Week █████░ 48% │
+│   Claude + GPT  5h ████  70%   Week ███░░░ 33% │
+│   ⏸ Not running — showing last data            │
+├────────────────────────────────────────────────┤
+│ ↻ Refresh now                            ⌘R    │
+│ Alerts ▸   Providers ▸   Menu bar style ▸      │
+│ ✓ Sync to iPhone          ✓ Launch at login    │
+│ Unpublish from iPhone                          │
+│ Quit QuotaKit Lite                       ⌘Q    │
+└────────────────────────────────────────────────┘
+```
+
+**Card header:**
+
+- the brand logo at 18 pt;
+- the provider name, semibold;
+- the plan as a small rounded pill;
+- a "2m ago" freshness label, right-aligned.
+
+**Bars:**
+
+- 6 pt rounded capsules filled with the provider's brand colour;
+- the fill turns `systemOrange` at 80% and `systemRed` at 95% or more;
+- thin tick marks at the alert thresholds (the same idea as the full app's `MenuCardQuotaWarningMarkers`), so the
+  bars show where an alert will fire;
+- a projected (post-reset) value is drawn with a dashed outline instead of a solid fill.
+
+**Reset text** combines a relative and an absolute time ("Resets in 2h 14m · 4:30 PM"), formatted only when the
+menu opens.
+
+**State footer:** one line with an SF Symbol, shown only when something needs attention:
+
+- `key` with "Allow Keychain access…" (clickable);
+- `terminal` with "Token expired — run claude once";
+- `pause.circle` with "Not running — showing last data";
+- `pause.fill` with "Paused — QuotaKit is running";
+- `exclamationmark.triangle` with a short error.
+
+**Clicking a card** opens that provider's own usage page in the browser:
+
+- Claude: `claude.ai/settings/usage`;
+- Codex: the ChatGPT Codex usage settings page;
+- Antigravity: nothing.
+
+**No settings window.** All preferences live in `UserDefaults` and are edited through these menu toggles.
 
 ## 8. Maintenance strategy
 
@@ -424,12 +535,15 @@ Lite's real long-term cost is undocumented endpoints drifting. The Claude, Codex
    - Every decode uses `decodeIfPresent`.
    - An unknown shape becomes an "unrecognised response, update Lite" state, not a crash.
    - Never retry tightly on decode failures.
-4. **No third-party dependencies at runtime.** The one optional exception is Sparkle; the update-path decision is in §10.
+4. **No third-party dependencies at all.** No Sparkle: updating is `git pull` followed by `install.sh`.
 5. **Later, optional:** extract a tiny shared `QuotaProbes` module (the three parsers and requests, no dependencies) that both `CodexBarCore` and Lite use. That removes the duplication, but it refactors full-app provider code, which `VISION.md` says needs sign-off. Do it only if drift-porting turns out to be frequent.
 6. **Build hygiene:**
-   - `swift build -c release` for `QuotaKitLite/` runs in the existing macOS CI.
-   - Parser unit tests run with no Keychain or network access, per AGENTS.md.
+   - `swift build -c release` for `QuotaKitLite/` runs in the existing macOS CI. It's cheap, and it stops a
+     `Shared/` change from breaking Lite silently.
+   - Parser and alert-transition unit tests run with no Keychain or network access, per AGENTS.md.
    - A binary-size check fails if `QuotaKitLite` exceeds 4 MB.
+   - Because this is a personal tool, there's no release lane, versioning ceremony, or changelog. A git short SHA
+     in the About line is enough.
 
 ## 9. Measuring the budget
 
@@ -437,10 +551,10 @@ Each check, and when it runs:
 
 | Check | Method | When |
 | --- | --- | --- |
-| Footprint | `footprint -p QuotaKitLite` at 1 min, 1 h and 8 h; target ≤ 25 MB steady, no growth | Phase 1 exit; every release |
-| CPU and wakeups | `sudo powermetrics --samplers tasks --show-process-energy -i 60000` for 1 h idle and 1 h while running Claude Code; Activity Monitor Energy tab "Avg Energy Impact" ≈ 0 | Phase 1 exit; every release |
+| Footprint | `footprint -p QuotaKitLite` at 1 min, 1 h and 8 h; target ≤ 25 MB steady, no growth; also after opening and closing the menu 20 times, to show card views are released | Phase 1 exit; after UI changes |
+| CPU and wakeups | `sudo powermetrics --samplers tasks --show-process-energy -i 60000` for 1 h idle and 1 h while running Claude Code; Activity Monitor Energy tab "Avg Energy Impact" ≈ 0 | Phase 1 exit; after scheduler changes |
 | Network | `nettop -p QuotaKitLite`: 0 requests over 30 min idle with the screen locked | Phase 1 exit |
-| Regressions | Scripted soak (`Scripts/lite-soak.sh`) that samples `footprint` and `ps -o rss,%cpu` every minute for 1 h and fails on > 30 MB or any sample > 1% CPU at idle | Before each release |
+| Regressions | Scripted soak (`Scripts/lite-soak.sh`) that samples `footprint` and `ps -o rss,%cpu` every minute for 1 h and fails on > 30 MB or any sample > 1% CPU at idle | Before installing a build with structural changes |
 
 Lightweight tactics to keep the footprint down:
 
@@ -453,11 +567,11 @@ Lightweight tactics to keep the footprint down:
 
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
-| **0 — Spike** (1–2 days) | Throwaway checks on a real Mac (the five questions below) | All five answered; record the results in this doc |
-| **1 — Lite core** | Shell, scheduler, Claude and Codex probes, menu UI, local reset projection | §9 budget met with sync off; parser tests green |
-| **2 — iPhone sync** | SyncBridge, persisted dedup hash, cleanup, identity strings | iPhone shows Lite cards; a single card when the full app also runs on another Mac with the same accounts; no write when nothing changed |
-| **3 — Antigravity** | Kernel process discovery, loopback fetch, launch observer | Live data while the Antigravity app is open; a clean "not running" state otherwise; zero subprocesses |
-| **4 — Polish and ship** | QuotaTransition alerts, pace, Sparkle (or a lightweight appcast check), notarized release lane, setup page link | Pro push alerts fire from Lite; soak test passes; notarized build installs cleanly |
+| **0 — Spike** (1–2 days) | Throwaway checks on a real Mac (the six questions below) | All six answered; record the results in this doc |
+| **1 — Core and menu** | Shell, scheduler, Claude and Codex probes, local reset projection, the full polished menu (§7) with logos, status item styles | §9 budget met with sync off; parser tests green; the menu looks right in light and dark mode |
+| **2 — iPhone sync and alerts** | SyncBridge, persisted dedup hash, cleanup, identity strings, `quotaWarnings`, QuotaTransition push alerts, Mac banners, auto-pause | iPhone shows Lite cards; a single merged card when the full app has the same accounts; no write when nothing changed; a forced threshold crossing delivers exactly one iPhone push and one Mac banner; no alerts while paused |
+| **3 — Antigravity** | Kernel process discovery, loopback fetch, launch observer, two-group card | Live data while the Antigravity app is open; a clean "not running" state otherwise; zero subprocesses; Antigravity alerts work |
+| **4 — Finish** | Pace on the iPhone cards, `install.sh`, launch at login, soak test | One week of daily use with no unexplained prompts, stale data or energy flags |
 | **5 — Optional** | Codex app-server "refresh via CLI", shared `QuotaProbes` extraction, the Codex `chatgpt_base_url` override | As needed |
 
 **Phase 0 questions:**
@@ -465,13 +579,11 @@ Lightweight tactics to keep the footprint down:
 1. Does a no-UI read of `Claude Code-credentials` succeed for a newly signed app, and how often does Claude Code's ACL rewrite force a re-grant?
 2. Does `/usr/bin/security find-generic-password -s "Claude Code-credentials" -w` read the item without a prompt? That depends on whether Claude Code lists `security` in the item's ACL. If it does, it's a better fallback than an interactive grant: one about 10 ms subprocess roughly every 8 h, and only on token expiry.
 3. Can `PROC_PIDFDSOCKETINFO` list the Antigravity `language_server`'s listening ports without root? It should for the same user.
-4. Does a Developer ID provisioning profile for the new bundle ID with the existing container write to Production?
+4. Does a provisioning profile for the new bundle ID with the existing container write to Production? Try a
+   Developer ID profile, or a Mac Development profile with `icloud-container-environment = Production`.
 5. Baseline footprint of an empty `NSStatusItem` app with and without CloudKit loaded.
-
-**Update path (decision in Phase 4):**
-
-- **Default:** Sparkle, reusing the existing EdDSA appcast pipeline with a separate `appcast-lite.xml`, set to check once a day.
-- **If footprint is tight:** replace it with one daily GET of the appcast and a "Download update" menu item. This trades install convenience for about 1–2 MB less binary and fewer dependencies.
+6. How much footprint does one SwiftUI-hosted menu row add, compared with a custom-drawn `NSView` row? This confirms
+   the §7.1 choice.
 
 ## 11. Risks
 
@@ -482,11 +594,15 @@ Lightweight tactics to keep the footprint down:
 | Antigravity is closed most of the time | No live Antigravity data | By design; a launch observer gives an instant fetch when it opens; the last-known data stays projected |
 | Lite and the full app run on the same Mac | Double polling, 429s | §5.4 auto-pause |
 | CloudKit ghost records after Lite is uninstalled | Stale card on iPhone | An "Unpublish from iPhone" action; iOS already hides records with no email after 30 min |
+| Duplicate or spurious alerts | Noise on phone and Mac | Alerts only from fetched data, never projected; persisted last state; same record names and hour bucket as the full app; paused means silent |
 | CloudKit entitlement provisioning for a second Mac bundle ID | Sync blocked | Phase 0 question 4, before any sync code |
 
-## 12. Open product decisions
+## 12. Decisions
 
-1. Name: "QuotaKit Lite", "QuotaKit Mini", or something else.
-2. Should Lite be a free standalone download alongside the full app, or replace it for users who only need these three providers?
-3. Should iOS Pro push alerts (Phase 4) ship in v1, or is the card plus widget sync enough at first?
-4. Should Lite pause when the full app is running (recommended), or keep publishing independently?
+| Question | Decision |
+|---|---|
+| Name | **QuotaKit Lite** (bundle ID `com.columbuslabs.quotakit.lite`) |
+| Audience | **Personal tool for the owner only.** Built from source and signed locally; no public release, updater, setup page, onboarding or localization. |
+| Alerts | **In v1.** iPhone push through `QuotaTransition` records and a local Mac banner, both in Phase 2 alongside sync. |
+| Menu look | **Polished.** Real provider logos and brand colours from the full app's assets, brand-coloured bars with threshold ticks; custom-drawn AppKit, not SwiftUI, to keep the footprint (§7). |
+| Coexistence | **Auto-pause** while the full QuotaKit app is running (§5.4). |
