@@ -324,8 +324,11 @@ struct MenuBarLayoutProviderBalanceTests {
         (UsageProvider.grok, "–"), (.opencode, "–"), (.huggingface, "–"), (.replicate, "–"),
         (.typesafe, "$4.98"), (.xapi, "$4.98"), (.openrouter, "$12.34"),
     ])
-    func `existing provider balance output ignores unrelated prepaid cost`(provider: UsageProvider, expected: String) {
-        let snapshot = UsageSnapshot(
+    func `existing provider balance output ignores unrelated prepaid cost`(
+        provider: UsageProvider,
+        expected: String) throws
+    {
+        let snapshot = try UsageSnapshot(
             primary: nil,
             secondary: nil,
             providerCost: ProviderCostSnapshot(

@@ -1,5 +1,6 @@
 #if os(macOS)
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBarCore
 
@@ -70,8 +71,15 @@ struct KimiLocalStorageRecoveryTests {
                 ofItemAtPath: storage.appendingPathComponent(file).path)
         }
         let api = BrowserLocalStorageAPI { origin, _, _, logger in
-            BrowserLocalStorageAPI.loadProfiles(
-                origin: origin, root: root, browserID: "fixture", labelPrefix: "Fixture", logger: logger)
+            let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
+                for: origin,
+                in: storage,
+                logger: logger)
+            let profiles = entries.map { BrowserLocalStorageAPI.Entry(key: $0.key, value: $0.value) }
+            return [BrowserLocalStorageAPI.Profile(
+                id: "fixture",
+                label: "Fixture",
+                entries: profiles)]
         }
         #expect(KimiCookieImporter.localStorageTokens(
             region: region, localStorage: api, now: Self.now) ==
