@@ -74,6 +74,11 @@ final class RefreshScheduler {
         self.send(.menuOpened)
     }
 
+    /// Refresh now from the menu.
+    func refreshNow() {
+        self.send(.manualRefresh)
+    }
+
     /// The Antigravity app launched: fetch after the 5 s grace (§4.3). Process observation itself is S11.
     func antigravityLaunched() {
         self.send(.antigravityLaunched)

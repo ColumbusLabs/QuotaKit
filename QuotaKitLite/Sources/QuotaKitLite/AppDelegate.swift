@@ -1,12 +1,10 @@
 import AppKit
 import LiteCore
+import ServiceManagement
 import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    /// Antigravity joins in S11 (068 §13).
-    private static let enabledProviders: [LiteProvider] = [.claude, .codex]
-
     private var statusItem: NSStatusItem?
     private let store = LiteStateStore(fileURL: LiteStateStore.defaultFileURL())
     private var states: [LiteProvider: ProviderState] = [:]
@@ -14,6 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
     private let statusRenderer = StatusItemRenderer()
+    private let preferences = LitePreferences()
+
+    private var enabledProviders: [LiteProvider] {
+        self.preferences.enabledProviders
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -42,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             tokenCache: LiteKeychainTokenCache())
 
         let scheduler = RefreshScheduler(
-            enabledProviders: Set(Self.enabledProviders),
+            enabledProviders: Set(self.enabledProviders),
             refresh: { [weak self] provider in
                 let now = Date()
                 let result: Result<ProbeResult, ProbeFailure> = switch provider {
@@ -90,13 +93,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.updateStatusItem()
     }
 
-    /// Each provider's logo and remaining percent, like the full app's brand icon with percent mode.
+    /// The status item in the chosen §7.3 style. Percentages is the full app's brand icon with percent mode.
     private func updateStatusItem() {
         let now = Date()
-        let segments = Self.enabledProviders.map { provider in
+        let enabled = self.enabledProviders
+        func percent(_ provider: LiteProvider) -> StatusItemRenderer.Segment {
             StatusItemRenderer.Segment(
-                iconName: "ProviderIcon-\(provider.rawValue)",
-                text: self.states[provider].flatMap { MenuBarText.percent(for: $0, now: now) })
+                provider: provider,
+                content: .percent(self.states[provider].flatMap { MenuBarText.percent(for: $0, now: now) }))
+        }
+        let segments: [StatusItemRenderer.Segment] = switch self.preferences.menuBarStyle {
+        case .percentages:
+            enabled.map(percent)
+        case .mostConstrained:
+            [percent(MenuBarText.mostConstrained(enabled.compactMap { self.states[$0] }, now: now)?.provider
+                    ?? enabled[0])]
+        case .logosAndBars:
+            enabled.map { provider in
+                StatusItemRenderer.Segment(
+                    provider: provider,
+                    content: .bars(self.states[provider].flatMap { MenuBarText.bars(for: $0, now: now) }))
+            }
         }
         self.statusRenderer.render(segments, into: self.statusItem?.button)
     }
@@ -112,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let now = Date()
-        for provider in Self.enabledProviders {
+        for provider in self.enabledProviders {
             let state = self.states[provider] ?? ProviderState(provider: provider)
             let card = ProviderCardView(card: CardPresentation(state: state, now: now), tint: provider.brandColor)
             let host = NSHostingView(rootView: card)
@@ -123,10 +140,97 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
             menu.addItem(.separator())
         }
+        self.addActionItems(to: menu)
+    }
+
+    /// Refresh now, Providers ▸, Menu bar style ▸, Launch at login and Quit (068 §7.4).
+    private func addActionItems(to menu: NSMenu) {
+        let refresh = NSMenuItem(title: "Refresh Now", action: #selector(self.refreshNow), keyEquivalent: "r")
+        refresh.target = self
+        menu.addItem(refresh)
+
+        let providers = NSMenu()
+        let enabled = self.enabledProviders
+        for provider in LitePreferences.availableProviders {
+            let item = NSMenuItem(
+                title: provider.displayName,
+                action: #selector(self.toggleProvider(_:)),
+                keyEquivalent: "")
+            item.target = self
+            item.representedObject = provider.rawValue
+            item.state = enabled.contains(provider) ? .on : .off
+            providers.addItem(item)
+        }
+        self.addSubmenu(providers, titled: "Providers", to: menu)
+
+        let styles = NSMenu()
+        let current = self.preferences.menuBarStyle
+        for style in MenuBarStyle.allCases {
+            let item = NSMenuItem(title: style.displayName, action: #selector(self.chooseStyle(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = style.rawValue
+            item.state = style == current ? .on : .off
+            styles.addItem(item)
+        }
+        self.addSubmenu(styles, titled: "Menu Bar Style", to: menu)
+
+        let login = NSMenuItem(
+            title: "Launch at Login",
+            action: #selector(self.toggleLaunchAtLogin),
+            keyEquivalent: "")
+        login.target = self
+        login.state = switch SMAppService.mainApp.status {
+        case .enabled: .on
+        case .requiresApproval: .mixed
+        default: .off
+        }
+        menu.addItem(login)
+
+        menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit QuotaKit Lite",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q")
+    }
+
+    private func addSubmenu(_ submenu: NSMenu, titled title: String, to menu: NSMenu) {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        menu.addItem(item)
+    }
+
+    @objc private func refreshNow() {
+        self.scheduler?.refreshNow()
+    }
+
+    @objc private func toggleProvider(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let provider = LiteProvider(rawValue: raw) else { return }
+        self.preferences.toggle(provider)
+        self.scheduler?.setEnabledProviders(Set(self.enabledProviders))
+        self.updateStatusItem()
+    }
+
+    @objc private func chooseStyle(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let style = MenuBarStyle(rawValue: raw) else { return }
+        self.preferences.menuBarStyle = style
+        self.updateStatusItem()
+    }
+
+    /// `SMAppService.mainApp`, with no helper bundle (068 §3.2). If macOS wants approval, open Login Items.
+    @objc private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            NSLog("QuotaKit Lite: launch at login change failed: %@", String(describing: error))
+        }
+        if service.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+        }
     }
 
     func menuDidClose(_ menu: NSMenu) {

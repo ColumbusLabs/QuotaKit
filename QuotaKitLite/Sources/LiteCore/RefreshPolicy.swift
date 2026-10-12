@@ -75,6 +75,8 @@ public struct RefreshPolicy: Sendable, Equatable {
         case activity(LiteProvider)
         /// The status item menu opened.
         case menuOpened
+        /// Refresh now: fetch every enabled provider at once. A 429 or backoff block still applies.
+        case manualRefresh
         /// The system woke from sleep.
         case wake
         /// The network path became reachable again.
@@ -156,6 +158,10 @@ public struct RefreshPolicy: Sendable, Equatable {
             }
         case .menuOpened:
             for provider in self.enabledProviders where self.isMenuStale(provider, at: now) {
+                self.schedules[provider, default: Schedule()].menuRequestedAt = now
+            }
+        case .manualRefresh:
+            for provider in self.enabledProviders {
                 self.schedules[provider, default: Schedule()].menuRequestedAt = now
             }
         case .wake, .networkRestored:

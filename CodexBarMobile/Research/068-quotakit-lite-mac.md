@@ -812,7 +812,11 @@ logos, threshold ticks (with S10), click-through.
 - **Size:** about 450 lines.
 - **Done when:** checked by eye in light and dark mode, and footprint is unchanged after opening and closing the menu 20 times.
 
-**S7 — Status item styles and menu actions.**
+**S7 — Status item styles and menu actions.** ✅ Done 2026-10-12 (pending a by-eye check of each style).
+Refresh Now (⌘R, still honours a 429 or backoff), Providers ▸, Menu Bar Style ▸ and Launch at Login
+(`SMAppService.mainApp`); preferences in `LitePreferences`. Changes from the plan: Percentages is the default style,
+because it matches the full app and the user prefers it; workday pacing was dropped at the user's request; the
+menu-bar pace sign is not built. 12 tests.
 - Contents:
   - the three status item styles from §7.3, each cached and redrawn only when its value changes, with a red
     overlay at 95% or more;

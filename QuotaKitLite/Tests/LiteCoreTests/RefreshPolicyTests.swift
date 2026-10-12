@@ -179,6 +179,28 @@ struct RefreshPolicyTests {
         #expect(policy.dueProviders(at: Self.t0) == [.claude])
     }
 
+    @Test
+    func `refresh now fetches every enabled provider even with fresh data`() {
+        var policy = Self.policy([.claude, .codex])
+        Self.fetch(&policy, .claude, at: -5)
+        Self.fetch(&policy, .codex, at: -5)
+
+        policy.handle(.manualRefresh, at: Self.t0)
+
+        #expect(policy.dueProviders(at: Self.t0) == [.claude, .codex])
+    }
+
+    @Test
+    func `refresh now still waits out a rate limit`() {
+        var policy = Self.policy()
+        let until = Self.at(600)
+        Self.fetch(&policy, at: 0, .failure(.rateLimited(until: until)))
+
+        policy.handle(.manualRefresh, at: Self.at(60))
+
+        #expect(policy.dueDate(for: .claude) == until)
+    }
+
     // MARK: - Heartbeat
 
     @Test
