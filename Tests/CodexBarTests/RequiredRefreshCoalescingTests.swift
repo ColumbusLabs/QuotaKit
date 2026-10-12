@@ -5,7 +5,7 @@ import Testing
 
 extension CodexBackgroundRefreshCoalescingTests {
     @Test
-    func `background startup request coalesced with manual refresh retains startup metadata and background interaction`() async
+    func `background startup coalesced with manual refresh retains metadata and background interaction`() async
         throws
     {
         let settings = try self.makeSettingsStore(
