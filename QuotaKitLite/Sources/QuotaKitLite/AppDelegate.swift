@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var activityWatcher: ActivityWatcher?
     private var fullAppMonitor: FullAppMonitor?
     private var antigravityAppMonitor: AntigravityAppMonitor?
+    /// The open menu's card views, so a fetch that lands while the menu is open redraws its card.
+    private var cardHosts: [LiteProvider: NSHostingView<ProviderCardView>] = [:]
     private let alertStore = AlertMemoryStore(fileURL: AlertMemoryStore.defaultFileURL())
     private lazy var alertMemories = self.alertStore.load()
     private let alertDelivery = AlertDelivery()
@@ -86,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 await self?.apply(result, for: provider, at: now)
                 return result
             })
+        scheduler.setHeartbeat(self.preferences.refreshInterval.seconds)
         for state in self.states.values {
             scheduler.restore(state.provider, windows: state.windows, lastSuccess: state.lastFetched)
         }
@@ -158,6 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.states[provider] = state
         _ = try? self.store.save(LiteProvider.allCases.compactMap { self.states[$0] })
         self.updateStatusItem()
+        self.updateOpenCard(for: provider)
         self.syncIfAllowed()
     }
 
@@ -225,15 +229,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let now = Date()
-        let isPaused = self.fullAppMonitor?.isRunning ?? false
+        self.cardHosts = [:]
         for provider in self.enabledProviders {
-            var state = self.states[provider] ?? ProviderState(provider: provider)
-            // Display only: the stored status stays the last fetch's, so it shows again when the pause ends.
-            if isPaused { state.status = .paused }
-            let card = ProviderCardView(card: CardPresentation(state: state, now: now), tint: provider.brandColor)
-            let host = NSHostingView(rootView: card)
+            let host = NSHostingView(rootView: self.cardView(for: provider, now: now))
             host.frame = NSRect(origin: .zero, size: NSSize(width: ProviderCardView.width, height: 1))
             host.frame.size.height = host.fittingSize.height
+            self.cardHosts[provider] = host
             let item = NSMenuItem()
             item.view = host
             menu.addItem(item)
@@ -296,6 +297,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         self.addSubmenu(styles, titled: "Menu Bar Style", to: menu)
         self.addSubmenu(self.alertsMenu(), titled: "Alerts", to: menu)
+
+        let intervals = NSMenu()
+        let currentInterval = self.preferences.refreshInterval
+        for interval in RefreshInterval.allCases {
+            let item = NSMenuItem(
+                title: interval.displayName,
+                action: #selector(self.chooseRefreshInterval(_:)),
+                keyEquivalent: "")
+            item.target = self
+            item.tag = interval.rawValue
+            item.state = interval == currentInterval ? .on : .off
+            intervals.addItem(item)
+        }
+        self.addSubmenu(intervals, titled: "Refresh Interval", to: menu)
 
         menu.addItem(.separator())
         let sync = NSMenuItem(title: "Sync to iPhone", action: #selector(self.toggleSync), keyEquivalent: "")
@@ -360,6 +375,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         return menu
+    }
+
+    @objc private func chooseRefreshInterval(_ sender: NSMenuItem) {
+        guard let interval = RefreshInterval(rawValue: sender.tag) else { return }
+        self.preferences.refreshInterval = interval
+        self.scheduler?.setHeartbeat(interval.seconds)
     }
 
     @objc private func toggleMacAlerts() {
@@ -430,7 +451,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private func cardView(for provider: LiteProvider, now: Date) -> ProviderCardView {
+        var state = self.states[provider] ?? ProviderState(provider: provider)
+        // Display only: the stored status stays the last fetch's, so it shows again when the pause ends.
+        if self.fullAppMonitor?.isRunning == true { state.status = .paused }
+        return ProviderCardView(card: CardPresentation(state: state, now: now), tint: provider.brandColor)
+    }
+
+    /// Opening the menu starts a refresh of stale providers; their results arrive after the cards were drawn.
+    private func updateOpenCard(for provider: LiteProvider) {
+        guard let host = self.cardHosts[provider] else { return }
+        host.rootView = self.cardView(for: provider, now: Date())
+        host.frame.size.height = host.fittingSize.height
+    }
+
     func menuDidClose(_ menu: NSMenu) {
+        self.cardHosts = [:]
         // After the current event, so AppKit can still deliver the chosen item's action (for example Quit).
         DispatchQueue.main.async {
             menu.removeAllItems()

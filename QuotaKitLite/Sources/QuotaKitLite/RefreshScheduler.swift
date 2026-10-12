@@ -103,6 +103,15 @@ final class RefreshScheduler {
         self.evaluate()
     }
 
+    /// The Refresh Interval preference changed (or was read at launch).
+    func setHeartbeat(_ interval: TimeInterval) {
+        var policy = self.policy
+        policy.setHeartbeat(interval)
+        guard policy.timing != self.policy.timing else { return }
+        self.policy.timing = policy.timing
+        self.evaluate()
+    }
+
     func setEnabledProviders(_ providers: Set<LiteProvider>) {
         guard self.policy.enabledProviders != providers else { return }
         self.policy.enabledProviders = providers

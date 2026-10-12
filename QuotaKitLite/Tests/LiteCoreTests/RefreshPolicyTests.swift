@@ -204,6 +204,25 @@ struct RefreshPolicyTests {
     // MARK: - Heartbeat
 
     @Test
+    func `the refresh interval preference sets the heartbeat`() {
+        var policy = Self.policy()
+        policy.setHeartbeat(2 * Self.minute)
+        Self.fetch(&policy, at: 0)
+
+        #expect(policy.nextDueDate() == Self.at(2 * Self.minute))
+    }
+
+    @Test
+    func `low power stretches a short refresh interval to 5 minutes`() {
+        var policy = Self.policy()
+        policy.setHeartbeat(2 * Self.minute)
+        policy.environment.isLowPowerMode = true
+        Self.fetch(&policy, at: 0)
+
+        #expect(policy.nextDueDate() == Self.at(5 * Self.minute))
+    }
+
+    @Test
     func `heartbeat fires every 30 minutes while the user is active`() {
         var policy = Self.policy()
         Self.fetch(&policy, at: 0)

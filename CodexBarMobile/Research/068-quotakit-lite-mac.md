@@ -329,6 +329,15 @@ The full app polls every 2 to 30 minutes and adjusts the interval around menu op
 | **Idle heartbeat** | Every 30 min while the user is active on the Mac. Paused while the screen is locked, asleep, or the user has been idle more than 30 min. This keeps the iOS "updated" timestamps honest. |
 | **Low Power Mode / serious thermal state** | Activity throttle 90 s → 5 min; heartbeat 30 min → 60 min |
 
+**Amendment (2026-10-12): a refresh timer while the user is active.** In daily use Claude was often 15+ minutes
+stale while Codex stayed fresh. Claude used from the desktop app or the cloud writes nothing under
+`~/.claude/projects` (untouched for 15 hours that day), so activity detection never fired for it, and the 30-minute
+heartbeat was the only refresh. The full app polls on a timer (this Mac: every 2 minutes). Lite now does too:
+Settings ▸ Refresh Interval (1, 2, 5 or 15 minutes, default 2) sets the heartbeat; Low Power Mode or thermal
+pressure stretches it to at least 5 minutes; idle, locked or asleep still suspends it. Activity, menu open, wake
+and reset confirms still trigger extra refreshes. Separately, cards now redraw when a fetch lands while the menu is
+open (the menu bar and an open card could disagree before).
+
 ### 5.1 Activity detection with FSEvents
 
 One `FSEventStreamCreate` call, with these settings:

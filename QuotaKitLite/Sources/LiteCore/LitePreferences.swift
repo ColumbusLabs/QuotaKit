@@ -18,6 +18,30 @@ public enum MenuBarStyle: String, CaseIterable, Sendable {
     }
 }
 
+/// How often every enabled provider is refreshed while the user is at the Mac (068 §5, amended 2026-10-12).
+///
+/// Activity detection alone missed Claude used from the desktop app or the cloud, which write nothing Lite can
+/// watch, so a timer runs too, as in the full app (which defaults to adaptive and is set to two minutes here).
+public enum RefreshInterval: Int, CaseIterable, Sendable {
+    case oneMinute = 60
+    case twoMinutes = 120
+    case fiveMinutes = 300
+    case fifteenMinutes = 900
+
+    public var seconds: TimeInterval {
+        TimeInterval(self.rawValue)
+    }
+
+    public var displayName: String {
+        switch self {
+        case .oneMinute: "Every Minute"
+        case .twoMinutes: "Every 2 Minutes"
+        case .fiveMinutes: "Every 5 Minutes"
+        case .fifteenMinutes: "Every 15 Minutes"
+        }
+    }
+}
+
 /// Lite's preferences, kept in `UserDefaults` and edited only through menu toggles (068 §7.4: no settings window).
 public struct LitePreferences: Sendable {
     /// Providers Lite can fetch, in display order.
@@ -30,6 +54,7 @@ public struct LitePreferences: Sendable {
         static let macAlerts = "macAlerts"
         static let iPhoneAlerts = "iPhoneAlerts"
         static let alertThresholds = "alertThresholds"
+        static let refreshInterval = "refreshInterval"
     }
 
     private nonisolated(unsafe) let defaults: UserDefaults
@@ -83,6 +108,13 @@ public struct LitePreferences: Sendable {
             self.defaults.string(forKey: Key.alertThresholds).flatMap(AlertThresholds.init(rawValue:)) ?? .standard
         }
         nonmutating set { self.defaults.set(newValue.rawValue, forKey: Key.alertThresholds) }
+    }
+
+    public var refreshInterval: RefreshInterval {
+        get {
+            RefreshInterval(rawValue: self.defaults.integer(forKey: Key.refreshInterval)) ?? .twoMinutes
+        }
+        nonmutating set { self.defaults.set(newValue.rawValue, forKey: Key.refreshInterval) }
     }
 
     /// Turns one provider on or off. The last enabled provider can't be turned off, so the menu bar is never empty.

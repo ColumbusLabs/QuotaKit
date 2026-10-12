@@ -17,6 +17,7 @@ struct LitePreferencesTests {
 
         #expect(preferences.enabledProviders == [.claude, .codex, .antigravity])
         #expect(preferences.menuBarStyle == .percentages)
+        #expect(preferences.refreshInterval == .twoMinutes)
     }
 
     @Test

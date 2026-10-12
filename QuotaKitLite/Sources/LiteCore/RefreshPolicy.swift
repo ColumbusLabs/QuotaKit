@@ -120,6 +120,13 @@ public struct RefreshPolicy: Sendable, Equatable {
         self.timing = timing
     }
 
+    /// Sets the heartbeat from the Refresh Interval preference. Low Power Mode or thermal pressure stretches it to at
+    /// least 5 minutes.
+    public mutating func setHeartbeat(_ interval: TimeInterval) {
+        self.timing.heartbeat = interval
+        self.timing.constrainedHeartbeat = max(interval, 5 * 60)
+    }
+
     /// The idle heartbeat in effect now.
     public var heartbeatInterval: TimeInterval {
         self.environment.isConstrained ? self.timing.constrainedHeartbeat : self.timing.heartbeat
