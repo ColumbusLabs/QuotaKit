@@ -140,28 +140,27 @@ struct ClaudeUsageParserTests {
     }
 
     @Test
-    func `identities match AccountIdentityComputer's Claude output`() {
-        // Format, order and normalisation from the full app's `AccountIdentityComputerTests.swift`:
+    func `identities are the email in AccountIdentityComputer's Claude format`() {
+        // Format and normalisation from the full app's `AccountIdentityComputerTests.swift`:
         // `Claude follows the same shape as Codex` and `normalize byte-equals iOS shared contract`.
         #expect(
-            ClaudeUsageAPI.accountIdentities(accountUUID: "anthropic-org-xyz", email: "claude-user@example.com")
-                == ["claude:account:anthropic-org-xyz", "claude:email:claude-user@example.com"])
+            ClaudeUsageAPI.accountIdentities(email: "claude-user@example.com")
+                == ["claude:email:claude-user@example.com"])
         #expect(
-            ClaudeUsageAPI.accountIdentities(accountUUID: nil, email: " Café@Example.com ")
+            ClaudeUsageAPI.accountIdentities(email: " Café@Example.com ")
                 == ["claude:email:caf%C3%A9@example.com"])
         #expect(
-            ClaudeUsageAPI.accountIdentities(accountUUID: "a:b|c/d", email: "cafe\u{0301}@example.com")
-                == ["claude:account:a%3Ab%7Cc%2Fd", "claude:email:caf%C3%A9@example.com"])
-        #expect(ClaudeUsageAPI.accountIdentities(accountUUID: "  ", email: "") == [])
+            ClaudeUsageAPI.accountIdentities(email: "cafe\u{0301}@example.com")
+                == ["claude:email:caf%C3%A9@example.com"])
+        #expect(ClaudeUsageAPI.accountIdentities(email: "") == [])
+        #expect(ClaudeUsageAPI.accountIdentities(email: nil) == [])
     }
 
     @Test
     func `identities use the shared normaliser byte for byte`() {
-        let uuid = "8F1C2D3E-0000-4000-8000-ABCDEF012345"
         let email = "Person.Name+tag@Example.COM"
 
-        #expect(ClaudeUsageAPI.accountIdentities(accountUUID: uuid, email: email) == [
-            "claude:account:" + (AccountIdentityNormalize.normalize(uuid) ?? ""),
+        #expect(ClaudeUsageAPI.accountIdentities(email: email) == [
             "claude:email:" + (AccountIdentityNormalize.normalize(email) ?? ""),
         ])
     }

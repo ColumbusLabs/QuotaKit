@@ -30,7 +30,9 @@ public enum CodexUsageParser {
         guard !windows.isEmpty else { return .failure(.unrecognizedResponse) }
         return .success(ProbeResult(
             windows: windows,
-            plan: CodexPlanName.displayName(response.planType),
+            // The raw `plan_type`, as the full app syncs it for `loginMethod` (`CodexReconciledState.resolvePlan`).
+            // The menu formats it with `CodexPlanName.displayName`.
+            plan: response.planType.flatMap { $0.isEmpty ? nil : $0 },
             accountEmail: auth.email,
             accountIdentities: auth.accountIdentities))
     }

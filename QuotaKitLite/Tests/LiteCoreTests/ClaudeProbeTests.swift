@@ -20,7 +20,7 @@ struct ClaudeProbeTests {
         #expect(result.windows.map(\.usedPercent) == [12.5, 30, 5])
         #expect(result.plan == "Claude Max 20x")
         #expect(result.accountEmail == "user@example.com")
-        #expect(result.accountIdentities == ["claude:account:account-123", "claude:email:user@example.com"])
+        #expect(result.accountIdentities == ["claude:email:user@example.com"])
     }
 
     @Test
@@ -252,7 +252,7 @@ struct ClaudeProbeTests {
         let second = try await probe.fetch(now: Self.now.addingTimeInterval(60)).get()
         #expect(transport.profileRequests.count == 1)
         #expect(transport.usageRequests.count == 2)
-        #expect(second.accountIdentities == ["claude:account:account-123", "claude:email:user@example.com"])
+        #expect(second.accountIdentities == ["claude:email:user@example.com"])
 
         // token-a expires and Claude Code writes token-b: a new fingerprint, so one more profile request.
         seams.metadata.state = .found(modifiedAt: Date(timeIntervalSince1970: 1_700_009_999))

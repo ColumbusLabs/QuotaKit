@@ -188,7 +188,7 @@ public actor ClaudeProbe {
         }
         let value = Identity(
             email: profile.email,
-            accountIdentities: ClaudeUsageAPI.accountIdentities(accountUUID: profile.accountUUID, email: profile.email))
+            accountIdentities: ClaudeUsageAPI.accountIdentities(email: profile.email))
         self.identity = (accessToken, value)
         self.profileFailure = nil
         return value

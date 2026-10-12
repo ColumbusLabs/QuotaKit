@@ -241,14 +241,13 @@ struct CodexAuthTests {
 
     // MARK: - Identities
 
-    // `AccountIdentityComputerTests.swift`: `Codex with org + email produces both identifiers, account first`
-    // expects ["codex:account:org-abc123", "codex:email:user@example.com"] for an organization "org-abc123" and
-    // email "user@example.com"; `normalize byte-equals iOS shared contract` pins the encoding below.
+    /// The full app's ambient OAuth path leaves `accountOrganization` nil, so `AccountIdentityComputer.codex` emits
+    /// only the email (`Codex with only email returns email-only set`). The ChatGPT account ID is never an identity.
     @Test
-    func `identities list the account first then the email`() {
+    func `identities are only the email even with an account ID`() {
         let auth = CodexAuth(accessToken: "t", accountID: "org-abc123", email: "user@example.com")
 
-        #expect(auth.accountIdentities == ["codex:account:org-abc123", "codex:email:user@example.com"])
+        #expect(auth.accountIdentities == ["codex:email:user@example.com"])
     }
 
     @Test
@@ -260,11 +259,10 @@ struct CodexAuthTests {
     }
 
     @Test
-    func `an account only auth produces the account identity`() {
-        // AccountIdentityComputerTests.swift, `Codex with only org returns account-only set`.
+    func `an account only auth produces no identity`() {
         let auth = CodexAuth(accessToken: "t", accountID: "org-abc")
 
-        #expect(auth.accountIdentities == ["codex:account:org-abc"])
+        #expect(auth.accountIdentities.isEmpty)
     }
 
     @Test
@@ -272,21 +270,21 @@ struct CodexAuthTests {
         // AccountIdentityComputerTests.swift, `normalize byte-equals iOS shared contract`.
         let accented = CodexAuth(accessToken: "t", email: "Café@Example.com")
         let decomposed = CodexAuth(accessToken: "t", email: "cafe\u{0301}@example.com")
-        let separators = CodexAuth(accessToken: "t", accountID: " A:b|c/d ")
+        let separators = CodexAuth(accessToken: "t", email: " A:b|c/d@example.com ")
         let blank = CodexAuth(accessToken: "t", accountID: "   ", email: "")
 
         #expect(accented.accountIdentities == ["codex:email:caf%C3%A9@example.com"])
         #expect(decomposed.accountIdentities == ["codex:email:caf%C3%A9@example.com"])
-        #expect(separators.accountIdentities == ["codex:account:a%3Ab%7Cc%2Fd"])
+        #expect(separators.accountIdentities == ["codex:email:a%3Ab%7Cc%2Fd@example.com"])
         #expect(blank.accountIdentities.isEmpty)
     }
 
     @Test
     func `very long identity values are capped with a digest suffix`() throws {
         // AccountIdentityComputerTests.swift, `Over-limit value cap uses stable SHA-256 suffix`.
-        let auth = CodexAuth(accessToken: "t", accountID: String(repeating: "a", count: 356))
+        let auth = CodexAuth(accessToken: "t", email: String(repeating: "a", count: 356))
         let identity = try #require(auth.accountIdentities.first)
-        let value = identity.dropFirst("codex:account:".count)
+        let value = identity.dropFirst("codex:email:".count)
 
         #expect(value.count == 256)
         #expect(value.hasSuffix("#sha256#9bad493076a15c3d04cb2e1f41607ef0f47270f8a79ebf1620bbb9d3e31e191e"))

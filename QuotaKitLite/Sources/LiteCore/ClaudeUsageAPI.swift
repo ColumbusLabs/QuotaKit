@@ -200,17 +200,10 @@ public enum ClaudeUsageAPI {
         return nil
     }
 
-    /// `claude:account:<uuid>` then `claude:email:<email>`, each value normalised by `AccountIdentityNormalize`, the
-    /// shared copy of `AccountIdentityComputer.normalize`, in the order and format `AccountIdentityComputer.claude`
-    /// writes them (068 §4.1).
-    public static func accountIdentities(accountUUID: String?, email: String?) -> [String] {
-        var identities: [String] = []
-        if let account = AccountIdentityNormalize.normalize(accountUUID) {
-            identities.append("claude:account:\(account)")
-        }
-        if let email = AccountIdentityNormalize.normalize(email) {
-            identities.append("claude:email:\(email)")
-        }
-        return identities
+    /// `claude:email:<normalized>`, in the format `AccountIdentityComputer.claude` writes (068 §4.1). Lite emits no
+    /// `claude:account:` string: the full app fills that from the organization name on its CLI and web paths, never
+    /// from the profile's account UUID, so a UUID would never match anything iOS could merge with.
+    public static func accountIdentities(email: String?) -> [String] {
+        AccountIdentityNormalize.normalize(email).map { ["claude:email:\($0)"] } ?? []
     }
 }

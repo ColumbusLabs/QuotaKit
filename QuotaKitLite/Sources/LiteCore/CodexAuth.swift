@@ -68,21 +68,11 @@ public struct CodexAuth: Sendable, Equatable, CustomStringConvertible, CustomDeb
         return now.timeIntervalSince(lastRefresh) > Self.maxAgeWithoutExpiry
     }
 
-    /// `codex:account:<id>` then `codex:email:<normalized>`, the order and normalisation of the full app's
-    /// `AccountIdentityComputer.codex` (`AccountIdentityNormalize` is the same code, shared with iOS).
-    ///
-    /// Caveat for the main thread: the full app's ambient OAuth path leaves `accountOrganization` nil, so a full-app
-    /// Mac emits only `codex:email:...` for the same account. The `codex:account:` string is the plan's choice
-    /// (068 §4.2) and is additive: iOS still merges the cards through the shared email identity.
+    /// `codex:email:<normalized>`, exactly what the full app's `AccountIdentityComputer.codex` writes for this
+    /// login: its ambient OAuth path leaves `accountOrganization` nil, so it never emits `codex:account:`. Matching
+    /// byte for byte is what lets iOS merge a Lite card with a full-app card (068 §2.2).
     public var accountIdentities: [String] {
-        var identities: [String] = []
-        if let account = AccountIdentityNormalize.normalize(self.accountID) {
-            identities.append("codex:account:\(account)")
-        }
-        if let email = AccountIdentityNormalize.normalize(self.email) {
-            identities.append("codex:email:\(email)")
-        }
-        return identities
+        AccountIdentityNormalize.normalize(self.email).map { ["codex:email:\($0)"] } ?? []
     }
 }
 

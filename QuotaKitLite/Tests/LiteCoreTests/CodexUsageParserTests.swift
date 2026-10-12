@@ -313,16 +313,17 @@ struct CodexUsageParserTests {
         let result = try Self.result(json)
 
         #expect(result.windows.count == 1)
-        #expect(result.plan == "Plus")
+        #expect(result.plan == "plus")
     }
 
     // MARK: - Plan, email and identities
 
     @Test
-    func `plan type maps through the full app display names`() throws {
-        #expect(try Self.result(Self.proWithCredits).plan == "Pro 20x")
-        #expect(try Self.result(Self.prolite).plan == "Pro 5x")
-        #expect(try Self.result(Self.freeWeeklyOnly).plan == "Free")
+    func `plan is the raw plan type the full app syncs as loginMethod`() throws {
+        // `CodexReconciledState.resolvePlan` returns `planType.rawValue`; the menu formats it with `CodexPlanName`.
+        #expect(try Self.result(Self.proWithCredits).plan == "pro")
+        #expect(try Self.result(Self.prolite).plan == "prolite")
+        #expect(try Self.result(Self.freeWeeklyOnly).plan == "free")
         #expect(try Self.result(Self.sessionAndWeekly).plan == nil)
     }
 
@@ -358,7 +359,7 @@ struct CodexUsageParserTests {
         let result = try Self.result(Self.sessionAndWeekly)
 
         #expect(result.accountEmail == "Person@Example.com")
-        #expect(result.accountIdentities == ["codex:account:account-123", "codex:email:person@example.com"])
+        #expect(result.accountIdentities == ["codex:email:person@example.com"])
     }
 
     @Test

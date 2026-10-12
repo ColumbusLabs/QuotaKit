@@ -48,9 +48,9 @@ struct CodexProbeTests {
 
         #expect(result.windows.map(\.lane) == [.session, .weekly])
         #expect(result.windows.map(\.usedPercent) == [22, 43])
-        #expect(result.plan == "Plus")
+        #expect(result.plan == "plus")
         #expect(result.accountEmail == "person@example.com")
-        #expect(result.accountIdentities == ["codex:account:account-123", "codex:email:person@example.com"])
+        #expect(result.accountIdentities == ["codex:email:person@example.com"])
         #expect(await transport.requestCount == 1)
     }
 
