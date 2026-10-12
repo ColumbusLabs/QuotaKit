@@ -1,6 +1,6 @@
 # 068 — QuotaKit Lite for Mac (rate-limit-only spinoff)
 
-- **Status:** `planned` (product decisions recorded in §12)
+- **Status:** `in progress`: Phase 0 done (§10); product decisions recorded in §12
 - **Date:** 2026-10-11
 - **Scope:** A new, separate Mac menu bar app that tracks only rate-limit windows for
   Claude, Codex, and Antigravity, and syncs them to the existing iOS app without iOS changes.
@@ -107,7 +107,7 @@ All of `Shared/` (about 6k lines) imports only Foundation, CloudKit, Compression
   - `payload` is a zlib-compressed `ProviderUsageEnvelope`.
   - `encodingVersion` is 1.
 - **Device metadata comes from the envelope.** The legacy `DeviceSnapshot` record and KVS are not required (`SnapshotCache.swift:178,226`).
-- **What makes a card render:** `providerID`, `providerName`, `isError` and `lastUpdated`, plus at least one signal such as `primary`, `secondary` or `rateWindows`. Without a signal iOS drops the card as a ghost (`SnapshotCache.swift:59-71`).
+- **What makes a card render:** `providerID`, `providerName`, `isError` and `lastUpdated`, plus at least one signal such as `primary`, `secondary` or `rateWindows`, or `isError` set, or a `statusMessage`. Otherwise iOS drops the card as a ghost (`SnapshotCache.isGhost`).
 - **iOS wakes itself.** It subscribes with `device-provider-zone-sub` (a CKRecordZoneSubscription, content-available), so there is no server and no APNs relay to run.
 - **Several Macs are supported by design.** Records are keyed per `deviceID`, and iOS merges cards across Macs by `accountIdentities` strings. So Lite is simply "another Mac" to iOS.
 - **Push alerts are optional.** Alerts are `QuotaTransition` records in `Quota-{providerID}-{depleted|restored|warning}Zone`. If Lite writes them, Pro users keep depletion and restoration notifications.
@@ -116,7 +116,7 @@ All of `Shared/` (about 6k lines) imports only Foundation, CloudKit, Compression
 
 On macOS, Claude Code stores its token in the Keychain item `Claude Code-credentials`, and usually not in `~/.claude/.credentials.json`. Claude Code also rewrites that item's ACL on every token refresh, so an "Always Allow" grant does not last. Handling this costs the full app thousands of lines in `ClaudeOAuthCredentials.swift`: consent gates, prompt policies, cooldowns, delegated `claude /status` PTY refresh, and ACL repair.
 
-Lite takes a much smaller position (see §4.1): it **reads but never prompts in the background, never refreshes, and never spawns `claude`**.
+Lite takes a much smaller position (see §4.1): it **reads the token through `/usr/bin/security` only when the item changes, never prompts, never refreshes, and never spawns `claude`**.
 
 ## 3. Architecture
 
@@ -151,7 +151,8 @@ The new code is about 3k lines, against about 340k in the full app. The only out
 
 - **App type:** `LSUIElement = YES` (no Dock icon), with `NSApplication.setActivationPolicy(.accessory)`.
 - **AppKit only.** No SwiftUI, Combine or Observation. Each of those adds megabytes of footprint and its own invalidation machinery. A plain `NSMenu` with a few custom `NSView` rows is enough.
-- **No WebKit, no subprocesses in steady state, no `DisplayLink`, no animations.** The status icon redraws only when its rendered value changes.
+- **No WebKit, no `DisplayLink`, no animations, and no subprocesses in steady state.** The one exception is a
+  short `/usr/bin/security` read (about 0.1 s) when the Claude Keychain item changes (§4.1). The status icon redraws only when its rendered value changes.
 - **One networking stack:** a single `URLSession(configuration: .ephemeral)` with:
   - `urlCache = nil`
   - `httpMaximumConnectionsPerHost = 2`
@@ -178,20 +179,34 @@ The new code is about 3k lines, against about 340k in the full app. The only out
 **Credential resolution** runs only when there is no cached token, or the cached one has expired. Steps in order:
 
 1. **`~/.claude/.credentials.json`**, or `$CLAUDE_CONFIG_DIR/.credentials.json`. Parse `claudeAiOauth.{accessToken, expiresAt(ms), scopes, subscriptionType, rateLimitTier}`.
+   On the owner's Mac this file does not exist (Phase 0), so in practice the token comes from step 3.
 2. **Lite's own Keychain cache item.**
    - Service `com.columbuslabs.quotakit.lite.cache`.
    - `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
-   - Lite created this item, so reading it never prompts.
-3. **Silent read of `Claude Code-credentials`.**
-   - Use the `KeychainNoUIQuery` technique: `LAContext.interactionNotAllowed` plus `kSecUseAuthenticationUIFail`. Port the 20-line helper.
-   - If the ACL denies access, do not prompt. Mark the state as `needsKeychainGrant`.
-   - Run an attributes-only query first, and read the item's data only when its modification date changed since the last read. This is the full app's fingerprint trick (`ClaudeOAuthCredentials.swift:2441-2630`): it stops repeated secret reads and catches a CLI-side refresh cheaply.
-4. **User-initiated grant only.** A menu row reads "Claude: allow Keychain access…". It runs one interactive read and copies the token into the cache from step 2. The row explains that macOS may ask again after Claude Code refreshes its token, which is Claude Code's behaviour and not Lite's.
+   - Lite created this item, so reading it never prompts. It saves a subprocess on every launch.
+3. **Change check, then `/usr/bin/security`.**
+   - First run an attributes-only `SecItemCopyMatching` on `Claude Code-credentials` (no `kSecReturnData`), with
+     the `KeychainNoUIQuery` flags. Phase 0 showed this never prompts, even after Claude Code rewrites the item.
+   - Read the secret only when the item's modification date changed since the last read. This is the full app's
+     fingerprint trick (`ClaudeOAuthCredentials.swift:2441-2630`).
+   - Read it with `/usr/bin/security find-generic-password -s "Claude Code-credentials" -w`. Claude Code lists
+     `security` in the item's ACL, and it stayed silent after a token refresh (Phase 0: about 0.05–0.12 s). Rules:
+     hard 5 s timeout, then SIGKILL; stdout read into memory only, never logged; at most one run per modification
+     date.
+   - **Never read the item's data with `SecItemCopyMatching`.** Phase 0 showed that the no-UI flags do **not**
+     stop the Keychain dialog for this item. A newly signed app got a dialog, and "Always Allow" was wiped by
+     Claude Code's next token refresh, which brought the dialog back. In the background, that would be a dialog
+     roughly every 8 hours of Claude use.
+4. **If `security` ever fails** (a non-zero exit, or a timeout), mark the state `needsKeychainAccess` and show
+   "Claude: token unavailable — run `claude` once". Lite has no interactive grant fallback, because a grant
+   doesn't survive the next token refresh.
 
 **When the token expires:**
 
-- Do **not** call `platform.claude.com/v1/oauth/token`. Re-run step 3, which costs nothing because the attributes check is metadata-only.
-- If the Claude CLI has been used since, its refresh has already rewritten the item, so the new token is picked up silently whenever the ACL allows.
+- Do **not** call `platform.claude.com/v1/oauth/token`. Re-run step 3, which costs nothing until the
+  modification date changes.
+- If the Claude CLI has been used since, its refresh has already rewritten the item, so the change check picks up
+  the new token with a single `security` read.
 - If nobody has run `claude`, show the last known numbers with **local reset projection** (§5.3) and a muted "token expired — run `claude` once" note. Someone who isn't running Claude isn't using Claude quota, so stale numbers that roll over at known reset times are still correct.
 
 **The request** is described in §2.1. Errors are handled as follows:
@@ -255,6 +270,9 @@ Lite **never launches `agy`**. Doing so needs a PTY, a keyring warm-up of severa
 2. `sysctl(KERN_PROCARGS2)` on the matches only, to read argv.
    - Classify as app, IDE or CLI using the regexes in `AntigravityStatusProbe.swift:1226-1300`.
    - Extract `--csrf_token`, `--extension_server_port` and `--extension_server_csrf_token`.
+   - The Antigravity 2.0 app (`/Applications/Antigravity.app/Contents/Resources/bin/language_server --standalone`)
+     passes `--https_server_port` and `--csrf_token`, and no extension-server flags (Phase 0). When
+     `--https_server_port` is present, use it directly and skip the socket scan.
 3. Listening ports come from `proc_pidinfo(PROC_PIDLISTFDS)` plus `proc_pidfdinfo(PROC_PIDFDSOCKETINFO)`, filtered to TCP sockets in LISTEN state on 127.0.0.1.
 4. **Cache `(pid, port, token, kind)`.** Rediscover only when:
    - a request fails with a connection error;
@@ -365,7 +383,8 @@ If the full app (`com.columbuslabs.quotakit.mac`) is running, found via `NSRunni
 
 ### 6.3 Cleanup
 
-- When a provider is disabled in Lite, delete `{deviceID}|{provider}|*` for Lite's own deviceID.
+- When a provider is disabled in Lite, delete `{deviceID}|{provider}|*` for Lite's own deviceID. Delete by the record
+  names Lite has persisted, not by querying on `deviceID`, which can come back empty right after a write (Phase 0, Q4).
 - Add an "Unpublish from iPhone" menu action that deletes every Lite record. Without it, uninstalling Lite leaves stale cards behind, which is a known gap in the full app (§2.2).
 
 ### 6.4 Alerts (v1, shipped with sync in Phase 2)
@@ -416,8 +435,9 @@ It should still cost nothing while closed.
 ### 7.1 Rendering approach
 
 - **AppKit with custom-drawn `NSView` rows,** not SwiftUI. SwiftUI hosted in `NSMenu` items (as the full app's
-  `MenuCardView` does) loads the SwiftUI and AttributeGraph runtime for the life of the process. Phase 0 measures
-  the actual cost; expect it to be in the 10–20 MB range, against a total budget of 25 MB.
+  `MenuCardView` does) loads the SwiftUI and AttributeGraph runtime for the life of the process. Phase 0 measured
+  about 5 MB for one hosted row (15.1–15.8 MB in total), against 0.8 MB for a custom-drawn row, within a budget
+  of 25 MB.
   Custom `draw(_:)` code produces the same visual result for one fixed layout, in about 300 lines.
 - **Card views live only while the menu is open.** Build them in `menuNeedsUpdate(_:)` and release them in
   `menuDidClose(_:)`. A closed menu holds only the model structs.
@@ -512,7 +532,7 @@ menu opens.
 
 **State footer:** one line with an SF Symbol, shown only when something needs attention:
 
-- `key` with "Allow Keychain access…" (clickable);
+- `key` with "Claude token unavailable — run claude once" (shown if `/usr/bin/security` fails, §4.1);
 - `terminal` with "Token expired — run claude once";
 - `pause.circle` with "Not running — showing last data";
 - `pause.fill` with "Paused — QuotaKit is running";
@@ -631,11 +651,27 @@ Lightweight tactics to keep the footprint down:
 6. How much footprint does one SwiftUI-hosted menu row add, compared with a custom-drawn `NSView` row? This confirms
    the §7.1 choice.
 
+**Phase 0 results** (2026-10-11, macOS 27.0, Claude Code 2.1.292). The spike was a throwaway SwiftPM package
+outside the repo. It linked `Shared/` and was signed with Developer ID as `com.columbuslabs.quotakit.lite`, and it
+never printed secret values.
+
+| Q | Result |
+|---|---|
+| 1 | **No.** The no-UI read (`interactionNotAllowed` plus `kSecUseAuthenticationUIFail`) **showed the Keychain dialog** and blocked for 158 s until the owner answered. After "Always Allow" it read in 0.05 s. After Claude Code refreshed its token (`claude -p`, which rewrote the item), the same read showed the dialog again; the owner denied it (`-128`). So every token refresh, about every 8 h of use, wipes a grant, and the no-UI flags don't stop the dialog. An attributes-only query never prompted. |
+| 2 | **Yes.** `security find-generic-password -w` read the item silently both before and after the refresh (0.12 s, then 0.05 s, exit 0), returning the new token. §4.1 now reads through `security` only. |
+| 3 | **Yes, without root.** Scanning every process found the 2.0 app's `language_server` in 18–58 ms with no subprocesses. `PROC_PIDFDSOCKETINFO` listed ports 56140 (HTTPS) and 56142 (HTTP). `RetrieveUserQuotaSummary` returned HTTP 200 with a `response` object on both. |
+| 4 | **Yes.** Created App ID `com.columbuslabs.quotakit.lite` ("QuotaKit Lite": iCloud with CloudKit, container `iCloud.com.columbuslabs.quotakit`) and a Developer ID profile, "QuotaKit Lite Developer ID" (UUID `152abca4-170b-4b14-a30b-324e5e619af7`, Developer ID certificate expiring 2031-08-01). With the profile embedded and `icloud-container-environment = Production`, `CloudSyncManager.pushPerProviderRecords` saved a ghost record. Fetching it by record ID returned it (196-byte payload); `deletePerProviderRecords` removed it, and a second fetch returned `unknownItem`. Account status: `available`. One caveat: `fetchPerProviderRecordNames(forDeviceID:)` returned 0 right after the save, either because the query index lags or because that helper hides errors. Lite's cleanup (§6.3) should delete by known record names rather than rely on that query. |
+| 5 | AppKit `.accessory` status item app: **10.1–10.3 MB**. With `CodexBarSync` linked and CloudKit unused: **11.0–11.5 MB**. After touching CloudKit (account status plus one query): **11.5–12.3 MB**, so CloudKit costs under 1 MB. Signed spike bundle including `CodexBarSync`: **2.1–2.2 MB**. |
+| 6 | A custom-drawn `NSView` row adds **0.8 MB**; a SwiftUI-hosted row adds **about 5 MB**. AppKit stays (§7.1). |
+
+Other finding: `~/.claude/.credentials.json` does not exist on this Mac, so §4.1 step 1 never applies here.
+
 ## 11. Risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Claude Code Keychain ACL churn | Claude data goes stale after token refresh until the user re-grants | `.credentials.json` first; a metadata-only change check; the `security` CLI path if Phase 0 proves it; honest stale UI with reset projection |
+| Claude Code Keychain ACL churn | A direct read prompts after every token refresh (confirmed in Phase 0) | Never read the secret with `SecItem`; a metadata-only change check, then `/usr/bin/security`, which Claude Code allows; honest stale UI with reset projection if `security` ever fails |
+| Claude Code drops `security` from the item's ACL | Claude token unavailable | Detected as a non-zero exit; "run `claude` once" state; no dialog is ever shown |
 | A private endpoint changes shape | A provider shows "unrecognised response" | Fail-soft decoding, fixture sync, drift check (§8) |
 | Antigravity is closed most of the time | No live Antigravity data | By design; a launch observer gives an instant fetch when it opens; the last-known data stays projected |
 | Lite and the full app run on the same Mac | Double polling, 429s | §5.4 auto-pause |
@@ -670,7 +706,7 @@ that most of the logic can be tested without AppKit:
 
 **Phase 0: verify on a real Mac**
 
-**S0 — Spike harness.**
+**S0 — Spike harness.** ✅ Done 2026-10-11; results in §10.
 - Build a throwaway `lite-spike` executable with five subcommands:
   - `keychain` does a silent read of `Claude Code-credentials`, then tries the `security` CLI;
   - `cloudkit` saves and then deletes one `DeviceProviderSnapshot` under a `spike-` deviceID;
@@ -715,9 +751,8 @@ that most of the logic can be tested without AppKit:
 
 **S4 — Claude probe.**
 - Contents:
-  - the credential chain from §4.1: file, then Lite's Keychain cache, then a silent read of the Claude Code item
-    with a metadata fingerprint;
-  - the user-initiated grant action, plus the `security` CLI path if S0 proves it;
+  - the credential chain from §4.1: file, then Lite's Keychain cache, then an attributes-only change check
+    followed by a `/usr/bin/security` read, with a 5 s timeout;
   - the usage request with its `cedar_ember` retry, and the 429 gate;
   - the profile identity call, made once per token fingerprint.
 - **Tests:** parsing and mapping run against fixtures; the Keychain code sits behind a protocol and is tested
