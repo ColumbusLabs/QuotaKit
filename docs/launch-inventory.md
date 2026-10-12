@@ -1,7 +1,9 @@
-# Launch Inventory
+# Historical Launch Inventory
 
 Generated: 2026-06-07
 Scope: repository inventory for turning the current `CodexBar` / `CodexBarMobile` fork into the privacy-first QuotaKit product. This document records the upstream baseline and the first QuotaKit safety decisions.
+
+This is a June 7, 2026 planning record, not current installation, pricing, or release guidance. Inherited identifiers and links below describe the inventory baseline. For current QuotaKit Mac downloads and setup, use [the Columbus Labs setup page](https://columbus-labs.com/quotakit/mac).
 
 ## Product Decisions To Preserve
 
@@ -385,7 +387,7 @@ Must be changed before QuotaKit launch:
 
 - Inherited internal names still appear in target/module names such as `CodexBar`, `CodexBarMobile`, `CodexBarWidget`, and `CodexBarCLI`.
 - Public README/App Store copy should present QuotaKit.
-- App Store ID URL: `https://apps.apple.com/app/id6760216772`.
+- Inherited App Store ID: `6760216772` identifies another publisher's **CodexBar - Usage of AI** app (`com.o1xhack.codexbar.mobile`), not QuotaKit. Do not use it as a QuotaKit download link; no replacement QuotaKit App Store link is established by this inventory.
 - Website: `https://columbus-labs.com/quotakit/mac`.
 - Social link: `https://columbus-labs.com`.
 - GitHub URLs: `ColumbusLabs/QuotaKit`, `steipete/CodexBar`.
