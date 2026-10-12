@@ -552,20 +552,24 @@ menu opens.
 dependencies; it only needs a small local `RateWindow` stand-in. It does the following:
 
 - `expected = elapsed / windowDuration × 100`, with an optional workday weighting for weekly windows;
-- `delta = actual − expected`. Delta of 2 or less is "On pace"; otherwise a negative delta is "N% in reserve" and a
-  positive one is "N% in deficit";
+- `delta = actual − expected`. The label rounds the delta: 0 is "On pace"; otherwise a negative delta is
+  "N% in reserve" and a positive one is "N% in deficit". So a delta of 1.4 is "1% in deficit", even though its
+  stage is on track;
 - stages: 2 or less is on track, 6 or less is slightly ahead or behind, 12 or less is ahead or behind, and anything
   more is far ahead or behind;
 - the run-out estimate extrapolates the current burn rate:
-  - if usage will last to the reset, the label is "Lasts until reset";
+  - if usage will last to the reset, the label is "Lasts until reset". For Codex only, it adds "· 1.5× headroom"
+    when the reserve is over 15% (the full app's `showsHeadroomHint`);
   - otherwise it is "Runs out in X" for weekly windows and "Projected empty in X" for the session.
+- session pace is hidden once the window is depleted, and during the first 3% of the window.
 
 **Port the label wording** from `Sources/CodexBar/UsagePaceText.swift` (`detailLeftLabel` and `detailRightLabel`), as
 plain English strings.
 
 **Where pace shows up:**
 
-- every window, Antigravity's group buckets included;
+- every window, Antigravity's group buckets included. The full app only paces Antigravity's 5h buckets; Lite also
+  paces its weekly buckets with the same weekly rules;
 - the menu cards;
 - the iPhone cards, through `SyncUsagePace`;
 - optionally the menu bar: a "Show pace in menu bar" toggle adds `+3`/`−8` next to the percentage in the
@@ -733,7 +737,11 @@ wakeups, `footprint` 11 MB at launch and 16 MB after opening the menu. `Scripts/
 - **Size:** about 250 lines.
 - **Done when:** it launches at the menu bar and survives a relaunch, with a measured idle footprint.
 
-**S2 — Model, pace and reset projection** (`LiteCore`).
+**S2 — Model, pace and reset projection** (`LiteCore`). ✅ Done 2026-10-11: `LiteProvider`, `QuotaWindow` (with
+`projected(at:)`), `ProviderState`/`ProviderStatus`, the `UsagePace` port (its stage is `SyncUsagePace.Stage`, so S9
+needs no mapping), `PaceText`/`ResetText`, and `LiteStateStore` (writes atomically, skips writes when nothing changed,
+ignores unreadable or other-version files). 33 Swift Testing tests, with cases and expected values taken from the
+full app's `UsagePaceTests` and `UsagePaceTextTests`. About 1,100 lines including tests.
 - Contents:
   - `QuotaWindow`, `ProviderState` and `ProviderStatus`;
   - the `UsagePace.weekly` port and the label wording (§7.5);

@@ -26,4 +26,7 @@ let package = Package(
         .executableTarget(
             name: "QuotaKitLite",
             dependencies: ["LiteCore"]),
+        .testTarget(
+            name: "LiteCoreTests",
+            dependencies: ["LiteCore"]),
     ])
