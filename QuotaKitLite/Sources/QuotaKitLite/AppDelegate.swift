@@ -13,16 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scheduler: RefreshScheduler?
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
+    private let statusRenderer = StatusItemRenderer()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let icon = LiteResources.templateIcon(named: "ProviderIcon-claude") {
-            item.button?.image = icon
-        } else {
-            // Running outside the `.app` bundle (for example `swift run`), so there are no resources.
-            item.button?.title = "QK"
-        }
-        item.button?.setAccessibilityLabel("QuotaKit Lite")
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu
@@ -31,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for state in self.store.load() {
             self.states[state.provider] = state
         }
+        self.updateStatusItem()
         self.startScheduling()
     }
 
@@ -92,6 +87,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         self.states[provider] = state
         _ = try? self.store.save(LiteProvider.allCases.compactMap { self.states[$0] })
+        self.updateStatusItem()
+    }
+
+    /// Each provider's logo and remaining percent, like the full app's brand icon with percent mode.
+    private func updateStatusItem() {
+        let now = Date()
+        let segments = Self.enabledProviders.map { provider in
+            StatusItemRenderer.Segment(
+                iconName: "ProviderIcon-\(provider.rawValue)",
+                text: self.states[provider].flatMap { MenuBarText.percent(for: $0, now: now) })
+        }
+        self.statusRenderer.render(segments, into: self.statusItem?.button)
     }
 
     // MARK: - Menu
@@ -126,6 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // After the current event, so AppKit can still deliver the chosen item's action (for example Quit).
         DispatchQueue.main.async {
             menu.removeAllItems()
+            // Hand the cards' SwiftUI allocations back to the system (068 §9), as the full app's heap trimmer does.
+            malloc_zone_pressure_relief(nil, 0)
         }
     }
 }
