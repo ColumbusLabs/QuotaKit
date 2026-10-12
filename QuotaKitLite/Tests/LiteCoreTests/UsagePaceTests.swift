@@ -69,7 +69,9 @@ struct UsagePaceTests {
 
     @Test
     func `weekly pace keeps deficit sign without workdays`() throws {
-        let pace = try #require(Self.weekly(used: 88, resetIn: 2 * 24 * 3600 + 19 * 3600))
+        // Typed outside the macro: Xcode 26.3's compiler can't type-check the literal arithmetic inside #require.
+        let resetIn: TimeInterval = 2 * 24 * 3600 + 19 * 3600
+        let pace = try #require(Self.weekly(used: 88, resetIn: resetIn))
 
         #expect(abs(pace.expectedUsedPercent - (101.0 / 168.0 * 100.0)) < 0.01)
         #expect(pace.deltaPercent > 25)
