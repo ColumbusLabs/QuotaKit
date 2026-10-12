@@ -25,8 +25,8 @@ let package = Package(
         // The AppKit app. `Scripts/install.sh` wraps it in a signed `.app` with `App/Info.plist` and `Resources/`.
         .executableTarget(
             name: "QuotaKitLite",
-            dependencies: ["LiteCore"]),
+            dependencies: ["LiteCore", "CodexBarSync"]),
         .testTarget(
             name: "LiteCoreTests",
-            dependencies: ["LiteCore"]),
+            dependencies: ["LiteCore", "CodexBarSync"]),
     ])

@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarSync
 import LiteCore
 import ServiceManagement
 import SwiftUI
@@ -12,6 +13,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
     private var fullAppMonitor: FullAppMonitor?
+    private lazy var syncBridge = SyncBridge(
+        pusher: { CloudSyncManager.shared },
+        device: { [unowned self] in self.syncDevice },
+        inputs: { [unowned self] in
+            SyncBridge.Inputs(
+                states: self.enabledProviders.compactMap { self.states[$0] },
+                enabled: Set(self.enabledProviders))
+        },
+        store: SyncLedgerStore(fileURL: SyncLedgerStore.defaultFileURL()))
+    /// Lite's own device ID (in Lite's defaults, so never the full app's) and the Mac's name, read once.
+    private lazy var syncDevice = SyncBridge.Device(
+        id: CloudSyncManager.shared.stableDeviceID(),
+        name: Host.current().localizedName ?? "Mac",
+        appVersion: (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+            .map { "Lite \($0)" })
     private let statusRenderer = StatusItemRenderer()
     private let preferences = LitePreferences()
 
@@ -101,6 +117,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.states[provider] = state
         _ = try? self.store.save(LiteProvider.allCases.compactMap { self.states[$0] })
         self.updateStatusItem()
+        self.syncIfAllowed()
+    }
+
+    /// Publishes to the iPhone when Sync to iPhone is on and the full app isn't running (§5.4: paused means
+    /// the full app owns the iPhone).
+    private func syncIfAllowed() {
+        guard self.preferences.syncToIPhone, self.fullAppMonitor?.isRunning != true else { return }
+        self.syncBridge.requestSync()
     }
 
     /// The status item in the chosen §7.3 style. Percentages is the full app's brand icon with percent mode.
@@ -191,6 +215,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         self.addSubmenu(styles, titled: "Menu Bar Style", to: menu)
 
+        let sync = NSMenuItem(title: "Sync to iPhone", action: #selector(self.toggleSync), keyEquivalent: "")
+        sync.target = self
+        sync.state = self.preferences.syncToIPhone ? .on : .off
+        menu.addItem(sync)
+        if self.preferences.syncToIPhone, let error = self.syncBridge.lastError {
+            let item = NSMenuItem(title: "iCloud: \(error)", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        let unpublish = NSMenuItem(
+            title: "Unpublish from iPhone",
+            action: #selector(self.unpublishFromIPhone),
+            keyEquivalent: "")
+        unpublish.target = self
+        if !self.syncBridge.hasPublishedRecords {
+            unpublish.action = nil
+        }
+        menu.addItem(unpublish)
+
         let login = NSMenuItem(
             title: "Launch at Login",
             action: #selector(self.toggleLaunchAtLogin),
@@ -225,6 +268,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.preferences.toggle(provider)
         self.scheduler?.setEnabledProviders(Set(self.enabledProviders))
         self.updateStatusItem()
+        // Deletes the disabled provider's record from the iPhone.
+        self.syncIfAllowed()
+    }
+
+    @objc private func toggleSync() {
+        self.preferences.syncToIPhone.toggle()
+        self.syncIfAllowed()
+    }
+
+    /// Removes every Lite card from the iPhone and turns sync off, so the next fetch doesn't publish them again.
+    @objc private func unpublishFromIPhone() {
+        self.preferences.syncToIPhone = false
+        self.syncBridge.unpublishAll()
     }
 
     @objc private func chooseStyle(_ sender: NSMenuItem) {

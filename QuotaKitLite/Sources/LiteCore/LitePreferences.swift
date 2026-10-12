@@ -26,6 +26,7 @@ public struct LitePreferences: Sendable {
     private enum Key {
         static let enabledProviders = "enabledProviders"
         static let menuBarStyle = "menuBarStyle"
+        static let syncToIPhone = "syncToIPhone"
     }
 
     private nonisolated(unsafe) let defaults: UserDefaults
@@ -54,6 +55,12 @@ public struct LitePreferences: Sendable {
         nonmutating set {
             self.defaults.set(newValue.rawValue, forKey: Key.menuBarStyle)
         }
+    }
+
+    /// Sync to iPhone (068 §6). Off until turned on in the menu, so nothing reaches CloudKit unasked.
+    public var syncToIPhone: Bool {
+        get { self.defaults.bool(forKey: Key.syncToIPhone) }
+        nonmutating set { self.defaults.set(newValue, forKey: Key.syncToIPhone) }
     }
 
     /// Turns one provider on or off. The last enabled provider can't be turned off, so the menu bar is never empty.

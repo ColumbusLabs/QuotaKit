@@ -840,7 +840,13 @@ fetches once. S9 and S10 must check the same pause before syncing or alerting.
 - **Size:** about 80 lines.
 - This comes before sync so the two apps never double-publish, even for a moment.
 
-**S9 — SyncBridge.**
+**S9 — SyncBridge.** ✅ Done 2026-10-12 (live: Claude and Codex records written at the first sync and shown on the iPhone). `SyncSnapshot` (envelope mapping, ghost rule,
+timestamp-free FNV-1a hash), `SyncLedger` (persisted in `sync.json`: write on change or after 30 minutes, delete
+disabled or re-keyed records by name, only after writes succeed) and `SyncBridge` (serial CloudKit operations
+through `SyncPushing`, `CloudSyncManager.shared` created on the first write). Sync to iPhone is off until turned on
+in the menu; Unpublish from iPhone deletes every Lite record and turns sync off. No sync while paused. Pace text
+includes the "Runs out in …" countdown, so an active window's record changes as time passes; that is at most one
+write per fetch. `quotaWarnings` stays nil until S10. 22 tests.
 - Contents:
   - in `LiteCore`: `ProviderState` to `ProviderUsageEnvelope` (windows, identities, `pace`, `quotaWarnings`);
   - in `LiteCore`: a content hash that excludes timestamps;
