@@ -651,3 +651,176 @@ Lightweight tactics to keep the footprint down:
 | Menu look | **Polished.** Real provider logos and brand colours from the full app's assets, brand-coloured bars with threshold ticks; custom-drawn AppKit, not SwiftUI, to keep the footprint (§7). |
 | Pace | **In v1**, on the Mac menu and the iPhone cards, using the full app's formula and wording (§7.5) |
 | Coexistence | **Auto-pause** while the full QuotaKit app is running (§5.4). |
+
+## 13. Implementation slices
+
+Each slice is one reviewable commit or PR that builds and is used on its own. The package splits into two targets so
+that most of the logic can be tested without AppKit:
+
+- **`LiteCore`** depends only on Foundation and `CodexBarSync`. It holds the models, parsers, pace, reset projection,
+  the scheduler policy, the transition detector and the envelope mapping. `Shared/` guards its CloudKit code with
+  `canImport(CloudKit)`, so this target compiles and tests on Linux CI too.
+- **`QuotaKitLite`** is the AppKit app. It holds the UI, Keychain, FSEvents, kernel process APIs, CloudKit and the
+  notification glue, and it is verified on the Mac.
+
+**Phase 0: verify on a real Mac**
+
+**S0 — Spike harness.**
+- Build a throwaway `lite-spike` executable with five subcommands:
+  - `keychain` does a silent read of `Claude Code-credentials`, then tries the `security` CLI;
+  - `cloudkit` saves and then deletes one `DeviceProviderSnapshot` under a `spike-` deviceID;
+  - `antigravity` prints the ports found through kernel socket info;
+  - `footprint-empty` and `footprint-cloudkit` measure baselines.
+- **Size:** about 300 lines, deleted after use.
+- **Done when:** all six Phase 0 answers are recorded in §10. If the CloudKit check fails, rework the plan before S8.
+
+**Phase 1: core and menu**
+
+**S1 — Skeleton and install.**
+- Files:
+  - `QuotaKitLite/Package.swift`;
+  - the `Shared` symlink;
+  - an empty `LiteCore`;
+  - an `.accessory` app with one `NSStatusItem` showing a static Claude template logo and a Quit item;
+  - resources copied from the full app (§7.2);
+  - `Scripts/install.sh`, which builds, assembles the `.app`, adds entitlements (§6.5), signs, installs to
+    `~/Applications` and relaunches.
+- **Size:** about 250 lines.
+- **Done when:** it launches at the menu bar and survives a relaunch, with a measured idle footprint.
+
+**S2 — Model, pace and reset projection** (`LiteCore`).
+- Contents:
+  - `QuotaWindow`, `ProviderState` and `ProviderStatus`;
+  - the `UsagePace.weekly` port and the label wording (§7.5);
+  - local reset projection (§5.3);
+  - a persisted state store (one JSON file in Application Support).
+- **Tests:** pace stages and labels against the full app's expectations, reset rollover, and workday pacing.
+- **Size:** about 450 lines including tests.
+
+**S3 — Codex probe.**
+- Contents:
+  - the `auth.json` reader (`CODEX_HOME`, JWT claims for account ID, email and expiry);
+  - the `wham/usage` request;
+  - window mapping by length;
+  - the 401, 429 and 5xx handling from §4.2;
+  - identity strings that match `AccountIdentityComputer`.
+- **Tests:** fixtures copied from `Tests/CodexBarTests`.
+- **Size:** about 250 lines.
+- **Done when:** a temporary menu row shows real Codex numbers.
+
+**S4 — Claude probe.**
+- Contents:
+  - the credential chain from §4.1: file, then Lite's Keychain cache, then a silent read of the Claude Code item
+    with a metadata fingerprint;
+  - the user-initiated grant action, plus the `security` CLI path if S0 proves it;
+  - the usage request with its `cedar_ember` retry, and the 429 gate;
+  - the profile identity call, made once per token fingerprint.
+- **Tests:** parsing and mapping run against fixtures; the Keychain code sits behind a protocol and is tested
+  with a stub, never real `SecItem` calls (AGENTS.md).
+- **Size:** about 400 lines.
+
+**S5 — Scheduler.**
+- Contents:
+  - the due-time policy in `LiteCore`, as a pure function from the trigger list in §5 to the next due time
+    per provider;
+  - in the app: one `DispatchSourceTimer` with leeway, the FSEvents stream, wake and network observers, the
+    menu-open trigger, a Low Power and thermal clamp, and exponential backoff.
+- **Tests:** a policy table covering activity bursts, idle, lock, low power and backoff.
+- **Size:** about 350 lines.
+- **Done when:** over 30 minutes of locked idle, `nettop` shows no requests; while a coding agent runs, there is at
+  most one fetch per 90 s.
+
+**S6 — Menu cards.**
+- Contents: the custom-drawn `ProviderCardView`, with
+  - the header row (logo, name, plan pill, freshness);
+  - capsule bars in brand colours with orange and red states;
+  - pace and reset lines;
+  - the expected-pace tick;
+  - threshold ticks;
+  - a dashed bar for projected values;
+  - the state footer;
+  - click-through to the provider's usage page;
+  - accessibility labels.
+- Views are built on open and released on close.
+- **Size:** about 450 lines.
+- **Done when:** checked by eye in light and dark mode, and footprint is unchanged after opening and closing the menu 20 times.
+
+**S7 — Status item styles and menu actions.**
+- Contents:
+  - the three status item styles from §7.3, each cached and redrawn only when its value changes, with a red
+    overlay at 95% or more;
+  - the optional pace sign in the menu bar;
+  - Refresh, Providers ▸, Menu bar style ▸, Launch at login (`SMAppService`) and the workday pacing choice.
+- **Size:** about 300 lines.
+- **Done when:** Phase 1 exit criteria in §10 are met. **This is the first build to use day to day.**
+
+**Phase 2: iPhone sync, alerts, auto-pause**
+
+**S8 — Auto-pause.**
+- Contents:
+  - detect the full app with `NSRunningApplication` and launch/terminate notifications;
+  - suspend fetching, syncing and alerts while it runs;
+  - a "Paused — QuotaKit is running" footer;
+  - an immediate refresh when the full app quits.
+- **Size:** about 80 lines.
+- This comes before sync so the two apps never double-publish, even for a moment.
+
+**S9 — SyncBridge.**
+- Contents:
+  - in `LiteCore`: `ProviderState` to `ProviderUsageEnvelope` (windows, identities, `pace`, `quotaWarnings`);
+  - in `LiteCore`: a content hash that excludes timestamps;
+  - in the app: lazy `CloudSyncManager`;
+  - in the app: a write on change, on state transitions, or on the 30-minute heartbeat;
+  - in the app: a persisted hash, deletes when a provider is disabled, and Unpublish from iPhone;
+  - in the app: a Sync to iPhone toggle.
+- **Tests:** envelope snapshots that the iOS decoder accepts, using a round trip through
+  `CloudSyncConstants.makeJSONDecoder` and the `SnapshotCache` ghost rule; identity strings checked
+  byte-for-byte against `AccountIdentityComputer` outputs.
+- **Size:** about 350 lines.
+- **Done when:** Lite's cards show up on the iPhone, merge with the full app's cards for the same account, and
+  nothing is written when nothing changed.
+
+**S10 — Alerts.**
+- Contents:
+  - in `LiteCore`: a transition detector covering depleted, restored and warning thresholds, fed only fetched
+    data, with persisted last state;
+  - in the app: a port of `QuotaTransitionWriter`, keeping the same zones, record names and debounce;
+  - Mac banners through `UNUserNotificationCenter` with the logo attached;
+  - the Alerts ▸ menu.
+- **Tests:** threshold crossing, restart without re-alerting, a projected reset not alerting, and the hour-bucket
+  record names matching the full app.
+- **Size:** about 350 lines.
+- **Done when:** a forced crossing gives exactly one iPhone push and one Mac banner, and nothing fires while paused.
+
+**Phase 3: Antigravity**
+
+**S11 — Antigravity probe.**
+- Contents:
+  - kernel process discovery (`proc_listallpids`, `KERN_PROCARGS2`, `PROC_PIDFDSOCKETINFO`);
+  - a cached endpoint;
+  - a loopback-only TLS trust;
+  - `RetrieveUserQuotaSummary` with fallbacks to `GetUserStatus` and `GetCommandModelConfigs`;
+  - a launch and terminate observer;
+  - the two-group card layout;
+  - alerts and sync, which come for free.
+- **Tests:** classification of command lines and the three response parsers, using fixtures from the full app.
+- **Size:** about 450 lines.
+- **Done when:** data is live with Antigravity open, the "Not running" state looks clean, and no subprocess is ever
+  spawned (checked with `ps` during refresh).
+
+**Phase 4: finish**
+
+**S12 — Hardening.**
+- Contents:
+  - `Scripts/lite-soak.sh`, `lite-fixture-sync.sh` and `lite-drift-check.sh`;
+  - a `QuotaKitLite` build-and-test job in `.github/workflows/ci.yml`, run only when `QuotaKitLite/**` or
+    `Shared/**` changes;
+  - a binary-size gate;
+  - a short git SHA in the About line.
+- **Done when:** a week of daily use with no unexplained prompts, stale data or energy flags; then mark this
+  doc `done`.
+
+**Order and parallelism:** S0 → S1 → S2. After S2, S3, S4 and S5 are independent. S6 and S7 need S2. S8 needs S7.
+S9 needs S8. S10 needs S9. S11 can start any time after S2; its sync and alerts work once S9 and S10 land.
+
+**Total:** about 3.2k lines across 13 slices.
