@@ -11,10 +11,13 @@ public final class SyncBridge {
     public struct Inputs: Sendable {
         public var states: [ProviderState]
         public var enabled: Set<LiteProvider>
+        /// The alert thresholds the iPhone draws as markers.
+        public var quotaWarnings: SyncQuotaWarningConfig?
 
-        public init(states: [ProviderState], enabled: Set<LiteProvider>) {
+        public init(states: [ProviderState], enabled: Set<LiteProvider>, quotaWarnings: SyncQuotaWarningConfig? = nil) {
             self.states = states
             self.enabled = enabled
+            self.quotaWarnings = quotaWarnings
         }
     }
 
@@ -105,7 +108,12 @@ public final class SyncBridge {
         let inputs = self.inputs()
         let now = self.now()
         let device = self.device()
-        let plan = self.ledger.plan(states: inputs.states, enabled: inputs.enabled, deviceID: device.id, now: now)
+        let plan = self.ledger.plan(
+            states: inputs.states,
+            enabled: inputs.enabled,
+            deviceID: device.id,
+            now: now,
+            quotaWarnings: inputs.quotaWarnings)
         guard !plan.isEmpty else { return }
 
         let pusher = self.pusher()

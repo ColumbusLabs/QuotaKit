@@ -13,13 +13,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
     private var fullAppMonitor: FullAppMonitor?
+    private let alertStore = AlertMemoryStore(fileURL: AlertMemoryStore.defaultFileURL())
+    private lazy var alertMemories = self.alertStore.load()
+    private let alertDelivery = AlertDelivery()
     private lazy var syncBridge = SyncBridge(
         pusher: { CloudSyncManager.shared },
         device: { [unowned self] in self.syncDevice },
         inputs: { [unowned self] in
             SyncBridge.Inputs(
                 states: self.enabledProviders.compactMap { self.states[$0] },
-                enabled: Set(self.enabledProviders))
+                enabled: Set(self.enabledProviders),
+                quotaWarnings: self.preferences.alertThresholds.syncConfig)
         },
         store: SyncLedgerStore(fileURL: SyncLedgerStore.defaultFileURL()))
     /// Lite's own device ID (in Lite's defaults, so never the full app's) and the Mac's name, read once.
@@ -105,6 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var state = self.states[provider] ?? ProviderState(provider: provider)
         switch result {
         case let .success(probe):
+            self.evaluateAlerts(for: provider, probe: probe)
             state.windows = probe.windows
             state.plan = probe.plan
             state.accountEmail = probe.accountEmail
@@ -118,6 +123,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         _ = try? self.store.save(LiteProvider.allCases.compactMap { self.states[$0] })
         self.updateStatusItem()
         self.syncIfAllowed()
+    }
+
+    /// Alerts come only from fetched windows, never projections (§6.4). The memory is kept current even with
+    /// alerts off, so turning them on later doesn't alert about the past.
+    private func evaluateAlerts(for provider: LiteProvider, probe: ProbeResult) {
+        let (events, memory) = AlertLogic.evaluate(
+            provider: provider,
+            windows: probe.windows,
+            accountEmail: probe.accountEmail,
+            thresholds: self.preferences.alertThresholds.values,
+            memory: self.alertMemories[provider])
+        if memory != self.alertMemories[provider] {
+            self.alertMemories[provider] = memory
+            _ = try? self.alertStore.save(self.alertMemories)
+        }
+        // Paused means silent: the full app owns alerts while it runs.
+        guard !events.isEmpty, self.fullAppMonitor?.isRunning != true else { return }
+        self.alertDelivery.deliver(
+            events,
+            mac: self.preferences.macAlerts,
+            iPhone: self.preferences.iPhoneAlerts)
     }
 
     /// Publishes to the iPhone when Sync to iPhone is on and the full app isn't running (§5.4: paused means
@@ -180,7 +206,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.addActionItems(to: menu)
     }
 
-    /// Refresh now, Providers ▸, Menu bar style ▸, Launch at login and Quit (068 §7.4).
+    /// Refresh Now, Settings ▸ and Quit (068 §7.4). Every preference lives in the Settings submenu, so the menu
+    /// itself stays short.
     private func addActionItems(to menu: NSMenu) {
         let refresh = NSMenuItem(title: "Refresh Now", action: #selector(self.refreshNow), keyEquivalent: "r")
         refresh.target = self
@@ -189,6 +216,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             refresh.action = nil
         }
         menu.addItem(refresh)
+        // A sync failure stays visible without opening Settings.
+        if self.preferences.syncToIPhone, let error = self.syncBridge.lastError {
+            let item = NSMenuItem(title: "iCloud: \(error)", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        self.addSubmenu(self.settingsMenu(), titled: "Settings", to: menu)
+
+        menu.addItem(.separator())
+        menu.addItem(
+            withTitle: "Quit QuotaKit Lite",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q")
+    }
+
+    /// Providers ▸, Menu Bar Style ▸, the iPhone sync items and Launch at Login.
+    private func settingsMenu() -> NSMenu {
+        let menu = NSMenu()
 
         let providers = NSMenu()
         let enabled = self.enabledProviders
@@ -214,16 +259,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             styles.addItem(item)
         }
         self.addSubmenu(styles, titled: "Menu Bar Style", to: menu)
+        self.addSubmenu(self.alertsMenu(), titled: "Alerts", to: menu)
 
+        menu.addItem(.separator())
         let sync = NSMenuItem(title: "Sync to iPhone", action: #selector(self.toggleSync), keyEquivalent: "")
         sync.target = self
         sync.state = self.preferences.syncToIPhone ? .on : .off
         menu.addItem(sync)
-        if self.preferences.syncToIPhone, let error = self.syncBridge.lastError {
-            let item = NSMenuItem(title: "iCloud: \(error)", action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
-        }
         let unpublish = NSMenuItem(
             title: "Unpublish from iPhone",
             action: #selector(self.unpublishFromIPhone),
@@ -234,6 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(unpublish)
 
+        menu.addItem(.separator())
         let login = NSMenuItem(
             title: "Launch at Login",
             action: #selector(self.toggleLaunchAtLogin),
@@ -245,12 +288,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         default: .off
         }
         menu.addItem(login)
+        return menu
+    }
 
+    /// Mac banners, iPhone pushes and the threshold presets (068 §6.4).
+    private func alertsMenu() -> NSMenu {
+        let menu = NSMenu()
+        let mac = NSMenuItem(title: "Mac Banners", action: #selector(self.toggleMacAlerts), keyEquivalent: "")
+        mac.target = self
+        mac.state = self.preferences.macAlerts ? .on : .off
+        menu.addItem(mac)
+        let iPhone = NSMenuItem(title: "iPhone Push", action: #selector(self.toggleIPhoneAlerts), keyEquivalent: "")
+        iPhone.target = self
+        iPhone.state = self.preferences.iPhoneAlerts ? .on : .off
+        menu.addItem(iPhone)
         menu.addItem(.separator())
-        menu.addItem(
-            withTitle: "Quit QuotaKit Lite",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q")
+        let current = self.preferences.alertThresholds
+        for preset in AlertThresholds.allCases {
+            let item = NSMenuItem(
+                title: preset.displayName,
+                action: #selector(self.chooseThresholds(_:)),
+                keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.rawValue
+            item.state = preset == current ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func toggleMacAlerts() {
+        self.preferences.macAlerts.toggle()
+    }
+
+    @objc private func toggleIPhoneAlerts() {
+        self.preferences.iPhoneAlerts.toggle()
+    }
+
+    /// The iPhone's warning markers follow the thresholds, so a change republishes.
+    @objc private func chooseThresholds(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let preset = AlertThresholds(rawValue: raw) else { return }
+        self.preferences.alertThresholds = preset
+        self.syncIfAllowed()
     }
 
     private func addSubmenu(_ submenu: NSMenu, titled title: String, to menu: NSMenu) {

@@ -27,6 +27,9 @@ public struct LitePreferences: Sendable {
         static let enabledProviders = "enabledProviders"
         static let menuBarStyle = "menuBarStyle"
         static let syncToIPhone = "syncToIPhone"
+        static let macAlerts = "macAlerts"
+        static let iPhoneAlerts = "iPhoneAlerts"
+        static let alertThresholds = "alertThresholds"
     }
 
     private nonisolated(unsafe) let defaults: UserDefaults
@@ -61,6 +64,25 @@ public struct LitePreferences: Sendable {
     public var syncToIPhone: Bool {
         get { self.defaults.bool(forKey: Key.syncToIPhone) }
         nonmutating set { self.defaults.set(newValue, forKey: Key.syncToIPhone) }
+    }
+
+    /// Mac banners for alerts (068 §6.4). On by default.
+    public var macAlerts: Bool {
+        get { self.defaults.object(forKey: Key.macAlerts) as? Bool ?? true }
+        nonmutating set { self.defaults.set(newValue, forKey: Key.macAlerts) }
+    }
+
+    /// iPhone push alerts, written to CloudKit. Off until turned on, like Sync to iPhone.
+    public var iPhoneAlerts: Bool {
+        get { self.defaults.bool(forKey: Key.iPhoneAlerts) }
+        nonmutating set { self.defaults.set(newValue, forKey: Key.iPhoneAlerts) }
+    }
+
+    public var alertThresholds: AlertThresholds {
+        get {
+            self.defaults.string(forKey: Key.alertThresholds).flatMap(AlertThresholds.init(rawValue:)) ?? .standard
+        }
+        nonmutating set { self.defaults.set(newValue.rawValue, forKey: Key.alertThresholds) }
     }
 
     /// Turns one provider on or off. The last enabled provider can't be turned off, so the menu bar is never empty.

@@ -8,21 +8,34 @@ import Foundation
 /// - each window carries its lane as `identity` and the menu's pace text as `pace`;
 /// - `loginMethod` is the raw plan, `accountIdentities` follow §4;
 /// - a status that isn't live data travels as `statusMessage` with `isError`, like the full app's error string;
+/// - `quotaWarnings` carries the alert thresholds, so the iPhone's markers sit where alerts fire (§6.4);
 /// - every cost, budget, history and provider-specific extension stays nil.
 ///
 /// Only fetched windows are published, never the local reset projection (§5.3); the iPhone projects on its own.
 public enum SyncSnapshot {
     /// The snapshot for `state`, or nil when it has no usable signal (the iPhone's `SnapshotCache.isGhost` rule,
     /// which the full app also applies before writing).
-    public static func make(for state: ProviderState, now: Date) -> ProviderUsageSnapshot? {
-        self.make(for: state, now: now, lastUpdated: state.lastFetched ?? now)
+    public static func make(
+        for state: ProviderState,
+        now: Date,
+        quotaWarnings: SyncQuotaWarningConfig? = nil) -> ProviderUsageSnapshot?
+    {
+        self.make(for: state, now: now, lastUpdated: state.lastFetched ?? now, quotaWarnings: quotaWarnings)
     }
 
     /// FNV-1a over the sorted-key JSON, as the full app's per-provider diff does, but with `lastUpdated` pinned so
     /// a fetch that changes nothing else doesn't count as a change (§6.2).
-    public static func contentHash(for state: ProviderState, now: Date) -> Int? {
-        guard let snapshot = self.make(for: state, now: now, lastUpdated: Date(timeIntervalSinceReferenceDate: 0)),
-              let data = try? self.hashEncoder.encode(snapshot)
+    public static func contentHash(
+        for state: ProviderState,
+        now: Date,
+        quotaWarnings: SyncQuotaWarningConfig? = nil) -> Int?
+    {
+        guard let snapshot = self.make(
+            for: state,
+            now: now,
+            lastUpdated: Date(timeIntervalSinceReferenceDate: 0),
+            quotaWarnings: quotaWarnings),
+            let data = try? self.hashEncoder.encode(snapshot)
         else { return nil }
         var hash: UInt64 = 0xCBF2_9CE4_8422_2325
         for byte in data {
@@ -43,7 +56,12 @@ public enum SyncSnapshot {
         return encoder
     }()
 
-    static func make(for state: ProviderState, now: Date, lastUpdated: Date) -> ProviderUsageSnapshot? {
+    static func make(
+        for state: ProviderState,
+        now: Date,
+        lastUpdated: Date,
+        quotaWarnings: SyncQuotaWarningConfig?) -> ProviderUsageSnapshot?
+    {
         let windows = state.windows.map { self.rateWindow(for: $0, provider: state.provider, now: now) }
         let statusMessage = self.statusMessage(for: state)
         guard !windows.isEmpty || statusMessage != nil else { return nil }
@@ -58,7 +76,8 @@ public enum SyncSnapshot {
             isError: statusMessage != nil,
             lastUpdated: lastUpdated,
             rateWindows: windows,
-            accountIdentities: state.accountIdentities.isEmpty ? nil : state.accountIdentities)
+            accountIdentities: state.accountIdentities.isEmpty ? nil : state.accountIdentities,
+            quotaWarnings: quotaWarnings)
     }
 
     static func rateWindow(for window: QuotaWindow, provider: LiteProvider, now: Date) -> SyncRateWindow {

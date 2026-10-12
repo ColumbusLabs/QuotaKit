@@ -861,7 +861,14 @@ write per fetch. `quotaWarnings` stays nil until S10. 22 tests.
 - **Done when:** Lite's cards show up on the iPhone, merge with the full app's cards for the same account, and
   nothing is written when nothing changed.
 
-**S10 — Alerts.**
+**S10 — Alerts.** 🔶 Built 2026-10-12; waiting for a real crossing to confirm on screen. `AlertLogic` ports the
+full app's depleted/restored (session window) and threshold-crossing rules on fetched windows only, with memory in
+`alerts.json` and a silent baseline on the first fetch or a new account. iPhone pushes go through
+`CloudSyncManager.writeQuotaTransition`/`writeQuotaWarningTransition` with an `email:` deduplication scope and the
+5 min / 60 s debounce recorded after success; Mac banners use the full app's English copy. Settings ▸ Alerts ▸ has
+Mac Banners (on), iPhone Push (off until turned on) and the 50/20, 25/10 and Depleted Only presets, which also ship
+as `quotaWarnings`. Not built: the logo attachment on banners, warnings for the Claude Sonnet window. All
+preferences moved under a Settings ▸ submenu at the user's request. 16 tests.
 - Contents:
   - in `LiteCore`: a transition detector covering depleted, restored and warning thresholds, fed only fetched
     data, with persisted last state;

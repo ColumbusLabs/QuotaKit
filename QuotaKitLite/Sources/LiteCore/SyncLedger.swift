@@ -55,13 +55,14 @@ public struct SyncLedger: Codable, Sendable, Equatable {
         states: [ProviderState],
         enabled: Set<LiteProvider>,
         deviceID: String,
-        now: Date) -> Plan
+        now: Date,
+        quotaWarnings: SyncQuotaWarningConfig? = nil) -> Plan
     {
         var writes: [Write] = []
         var current: [LiteProvider: String] = [:]
         for state in states where enabled.contains(state.provider) {
-            guard let snapshot = SyncSnapshot.make(for: state, now: now),
-                  let hash = SyncSnapshot.contentHash(for: state, now: now)
+            guard let snapshot = SyncSnapshot.make(for: state, now: now, quotaWarnings: quotaWarnings),
+                  let hash = SyncSnapshot.contentHash(for: state, now: now, quotaWarnings: quotaWarnings)
             else { continue }
             let name = SyncSnapshot.recordName(
                 deviceID: deviceID,
