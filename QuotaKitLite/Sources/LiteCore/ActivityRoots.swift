@@ -9,8 +9,34 @@ import Foundation
 ///
 /// - an *activity root* (session logs, projects): any change at or below it counts;
 /// - a *credential directory* (where `auth.json` or `.credentials.json` lives): only changes directly in it
-///   count, not changes in its other subdirectories, so unrelated churn there doesn't wake Lite.
+///   count, not changes in its other subdirectories, and only when one of its `signalFiles` changed
+///   (`ActivitySignalGate`). Codex's home is busy with background SQLite writes, so a bare directory event there
+///   means nothing.
+///
+/// Current Codex (the ChatGPT app's) no longer writes `sessions/`; it keeps threads in `thread_history_*.sqlite`
+/// at the top of `~/.codex`, so that file's write-ahead log is Codex's activity signal.
 public struct ActivityRoots: Sendable, Equatable {
+    /// A file whose newer modification date counts as activity in a credential directory.
+    public struct SignalFile: Sendable, Equatable {
+        public let prefix: String
+        public let suffix: String
+        public let isExact: Bool
+
+        public static func named(_ name: String) -> SignalFile {
+            SignalFile(prefix: name, suffix: "", isExact: true)
+        }
+
+        public static func pattern(prefix: String, suffix: String) -> SignalFile {
+            SignalFile(prefix: prefix, suffix: suffix, isExact: false)
+        }
+
+        public func matches(_ fileName: String) -> Bool {
+            if self.isExact { return fileName == self.prefix }
+            return fileName.hasPrefix(self.prefix) && fileName.hasSuffix(self.suffix)
+                && fileName.count > self.prefix.count + self.suffix.count
+        }
+    }
+
     public struct Root: Sendable, Equatable {
         public enum Kind: Sendable, Equatable {
             /// Changes at or below this path count.
@@ -22,6 +48,8 @@ public struct ActivityRoots: Sendable, Equatable {
         public var path: String
         public var provider: LiteProvider
         public var kind: Kind
+        /// For `.directoryOnly` roots: the files whose changes count. Empty for trees.
+        public var signalFiles: [SignalFile] = []
     }
 
     public let roots: [Root]
@@ -46,9 +74,13 @@ public struct ActivityRoots: Sendable, Equatable {
             home: homeDirectory)
         let raw: [Root] = [
             Root(path: "\(claudeHome)/projects", provider: .claude, kind: .tree),
-            Root(path: claudeHome, provider: .claude, kind: .directoryOnly),
+            Root(path: claudeHome, provider: .claude, kind: .directoryOnly, signalFiles: [.named(".credentials.json")]),
             Root(path: "\(codexHome)/sessions", provider: .codex, kind: .tree),
-            Root(path: codexHome, provider: .codex, kind: .directoryOnly),
+            Root(
+                path: codexHome,
+                provider: .codex,
+                kind: .directoryOnly,
+                signalFiles: [.named("auth.json"), .pattern(prefix: "thread_history_", suffix: ".sqlite-wal")]),
             Root(path: "\(homeDirectory)/.gemini/antigravity", provider: .antigravity, kind: .tree),
         ]
         self.roots = raw.map { root in
@@ -68,18 +100,32 @@ public struct ActivityRoots: Sendable, Equatable {
 
     /// The provider an FSEvents path belongs to, or nil if it matches no root.
     public func provider(forEventPath eventPath: String) -> LiteProvider? {
+        self.root(forEventPath: eventPath)?.provider
+    }
+
+    /// The root an FSEvents path belongs to, or nil if it matches none.
+    public func root(forEventPath eventPath: String) -> Root? {
         let path = Self.trimmed(eventPath)
         for root in self.roots {
             switch root.kind {
             case .tree where path == root.path || Self.isInside(path, of: root.path):
-                return root.provider
+                return root
             case .directoryOnly where path == root.path:
-                return root.provider
+                return root
             default:
                 continue
             }
         }
         return nil
+    }
+
+    /// The distinct roots hit by a batch of event paths.
+    public func roots(forEventPaths eventPaths: [String]) -> [Root] {
+        var hit: [Root] = []
+        for root in eventPaths.compactMap({ self.root(forEventPath: $0) }) where !hit.contains(root) {
+            hit.append(root)
+        }
+        return hit
     }
 
     /// The providers with activity among a batch of event paths, in `LiteProvider.allCases` order.

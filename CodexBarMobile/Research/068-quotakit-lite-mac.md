@@ -321,6 +321,11 @@ One `FSEventStreamCreate` call, with these settings:
   - the directory of `~/.claude/.credentials.json`
   - `~/.gemini/antigravity*` — the exact path needs verifying in Phase 0.
 - `latency = 15 s`: the kernel coalesces events, so there is one callback per burst at most.
+- **Signal files in the credential directories** (found in live use, 2026-10-11): `~/.codex` is full of background
+  SQLite churn (`logs_2`, `state_5`, `memories_1`, `models_cache.json`), so a bare event there isn't activity. An event
+  in `~/.codex` or `~/.claude` counts only if a signal file appeared or got a newer modification date: `auth.json` and
+  `thread_history_*.sqlite-wal` for Codex, `.credentials.json` for Claude. Current Codex (inside the ChatGPT app) no
+  longer writes `~/.codex/sessions` (unchanged since May 2026); its threads live in `thread_history_*.sqlite`.
 - `kFSEventStreamCreateFlagNoDefer` off.
 - File-level events off: directory-level is enough. Lite never reads these files; it only maps the changed path to a provider.
 
