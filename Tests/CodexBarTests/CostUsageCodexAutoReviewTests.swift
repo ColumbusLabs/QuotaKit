@@ -26,14 +26,24 @@ struct CostUsageCodexAutoReviewTests {
                 output: 10)],
             codexScanComplete: true)
         usage.codexSession = .init(
-            sessionId: nil, forkedFromId: nil, cwd: nil, title: nil,
-            startedAtUnixMs: nil, latestActivityUnixMs: nil, hasCreatorAccount: true)
+            sessionId: nil,
+            forkedFromId: nil,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil,
+            hasCreatorAccount: true)
         var cache = CostUsageCache()
         cache.files = ["/review-fixture.jsonl": usage]
         cache.days = usage.days
         let catalog = ModelsDevCatalog(providers: ["openai": .init(
-            id: "openai", name: "OpenAI", models: [model: .init(
-                id: model, name: nil, cost: .init(input: 1, output: 2), limit: nil)])])
+            id: "openai",
+            name: "OpenAI",
+            models: [model: .init(
+                id: model,
+                name: nil,
+                cost: .init(input: 1, output: 2),
+                limit: nil)])])
         func report(_ custom: CostUsageCustomPricing = .empty) -> CostUsageDailyReport {
             CostUsageScanner.buildCodexReportFromCache(
                 cache: cache,
@@ -147,8 +157,12 @@ struct CostUsageCodexAutoReviewTests {
         #expect(result.codexSession.hasCreatorAccount == chatGPTLeaf)
         #expect(result.codexSession.sessionId == "leaf-fixture")
         let appended = CostUsageCodexSessionMetadata(
-            sessionId: nil, forkedFromId: nil, cwd: nil, title: nil,
-            startedAtUnixMs: nil, latestActivityUnixMs: nil)
+            sessionId: nil,
+            forkedFromId: nil,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil)
         #expect(result.codexSession.merging(appended).hasCreatorAccount == chatGPTLeaf)
     }
 
@@ -159,24 +173,39 @@ struct CostUsageCodexAutoReviewTests {
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         let day = "2026-10-06"
         let row = CostUsageScanner.CodexUsageRow(
-            day: day, model: "openai/codex-auto-review", turnID: nil,
+            day: day,
+            model: "openai/codex-auto-review",
+            turnID: nil,
             eventIndex: evidence == "missing request" ? nil : 0,
             timestampUnixMs: evidence == "missing timestamp" ? nil : 1_791_270_000_000,
-            input: 100, cached: 0, output: 10,
+            input: 100,
+            cached: 0,
+            output: 10,
             knownCostNanos: evidence == "saved" ? 123_000_000 : nil,
             unpricedTokens: evidence == "unpriced tokens" ? 1 : nil)
         var usage = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 1, days: [day: [row.model: [100, 0, 10]]],
-            parsedBytes: 1, codexRows: [row], codexScanComplete: true)
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [day: [row.model: [100, 0, 10]]],
+            parsedBytes: 1,
+            codexRows: [row],
+            codexScanComplete: true)
         usage.codexSession = .init(
-            sessionId: nil, forkedFromId: nil, cwd: nil, title: nil,
-            startedAtUnixMs: nil, latestActivityUnixMs: nil, hasCreatorAccount: true)
+            sessionId: nil,
+            forkedFromId: nil,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil,
+            hasCreatorAccount: true)
         var cache = CostUsageCache()
         cache.files["/review-fixture.jsonl"] = usage
         cache.days = usage.days
         let report = CostUsageScanner.buildCodexReportFromCache(
-            cache: cache, range: .init(since: instant, until: instant, calendar: calendar),
-            modelsDevCatalog: ModelsDevCatalog(providers: [:]), customPricing: .empty)
+            cache: cache,
+            range: .init(since: instant, until: instant, calendar: calendar),
+            modelsDevCatalog: ModelsDevCatalog(providers: [:]),
+            customPricing: .empty)
         let expected: Double? = evidence == "saved" ? 0.123 : (evidence == "eligible" ? 0 : nil)
         #expect(report.data.first?.costUSD == expected)
         #expect(report.summary?.totalTokens == 110)
@@ -203,12 +232,18 @@ struct CostUsageCodexAutoReviewTests {
         ])
         _ = try env.writeCodexSessionFile(day: now, filename: "routine-review.jsonl", contents: contents)
         var options = CostUsageScanner.Options(
-            codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot,
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.refreshMinIntervalSeconds = 0
         let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
-            provider: .codex, now: now, historyDays: 1, allowPricingRefresh: false,
-            refreshPricingInBackground: false, includePiSessions: false, scannerOptions: options)
+            provider: .codex,
+            now: now,
+            historyDays: 1,
+            allowPricingRefresh: false,
+            refreshPricingInBackground: false,
+            includePiSessions: false,
+            scannerOptions: options)
         let daily = snapshot.daily.first { $0.modelsUsed?.contains("codex-auto-review") == true }
         #expect(daily?.costUSD == 0)
         #expect(daily?.totalTokens == 110)
@@ -240,8 +275,14 @@ struct CostUsageCodexAutoReviewTests {
         let file = try env.writeCodexSessionFile(day: instant, filename: "projection-review.jsonl", contents: "{}\n")
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: file)
         let row = CostUsageScanner.CodexUsageRow(
-            day: range.sinceKey, model: "codex-auto-review", turnID: nil, eventIndex: 0,
-            timestampUnixMs: 1_791_270_000_000, input: 100, cached: 0, output: 10,
+            day: range.sinceKey,
+            model: "codex-auto-review",
+            turnID: nil,
+            eventIndex: 0,
+            timestampUnixMs: 1_791_270_000_000,
+            input: 100,
+            cached: 0,
+            output: 10,
             knownCostNanos: policy == "saved" ? 123_000_000 : nil)
         let days = [range.sinceKey: [row.model: [policy.hasPrefix("uncovered") ? 150 : 100, 0, 10]]]
         var cache = CostUsageCache()
@@ -251,13 +292,22 @@ struct CostUsageCodexAutoReviewTests {
         cache.roots = [env.codexSessionsRoot.path: 0]
         cache.days = days
         var usage = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: metadata.mtimeUnixMs, size: metadata.size, days: days,
-            parsedBytes: metadata.size, sessionId: "projection-review",
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: days,
+            parsedBytes: metadata.size,
+            sessionId: "projection-review",
             codexRows: policy.hasPrefix("no rows") ? [] : [row],
-            codexScanFileId: metadata.fileId, codexScanComplete: true)
+            codexScanFileId: metadata.fileId,
+            codexScanComplete: true)
         usage.codexSession = .init(
-            sessionId: "projection-review", forkedFromId: nil, cwd: nil, title: nil,
-            startedAtUnixMs: nil, latestActivityUnixMs: nil, hasCreatorAccount: true)
+            sessionId: "projection-review",
+            forkedFromId: nil,
+            cwd: nil,
+            title: nil,
+            startedAtUnixMs: nil,
+            latestActivityUnixMs: nil,
+            hasCreatorAccount: true)
         if policy == "no rows priority custom" {
             usage.codexPriorityTokens = [range.sinceKey: [row.model: 110]]
         }
@@ -267,8 +317,13 @@ struct CostUsageCodexAutoReviewTests {
             : .empty
         if policy == "no rows catalog" {
             let catalog = ModelsDevCatalog(providers: ["openai": .init(
-                id: "openai", name: "OpenAI", models: [row.model: .init(
-                    id: row.model, name: nil, cost: .init(input: 1, output: 2), limit: nil)])])
+                id: "openai",
+                name: "OpenAI",
+                models: [row.model: .init(
+                    id: row.model,
+                    name: nil,
+                    cost: .init(input: 1, output: 2),
+                    limit: nil)])])
             #expect(ModelsDevCache.save(catalog: catalog, cacheRoot: env.cacheRoot))
         }
         var hooks = CostUsageStoreTestHooks()
@@ -281,8 +336,11 @@ struct CostUsageCodexAutoReviewTests {
             let store = CostUsageStore(cacheRoot: env.cacheRoot)
             let projection = store.syncReadCodexReportProjection(calendar: calendar)
             let compact = CostUsageCodexReportProjectionBuilder.build(
-                projection: projection, roots: [env.codexSessionsRoot], range: range,
-                cacheRoot: env.cacheRoot, includeBreakdowns: true).report
+                projection: projection,
+                roots: [env.codexSessionsRoot],
+                range: range,
+                cacheRoot: env.cacheRoot,
+                includeBreakdowns: true).report
             let expected: Double? = switch policy {
             case "saved": 0.123
             case "custom", "no rows custom": 0.0006
@@ -331,7 +389,8 @@ struct CostUsageCodexAutoReviewTests {
         ])
         let file = try env.writeCodexSessionFile(day: instant, filename: "historical-review.jsonl", contents: contents)
         var options = CostUsageScanner.Options(
-            codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot,
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"),
             useCodexCatchUpWorkingSet: true)
         options.refreshMinIntervalSeconds = 0

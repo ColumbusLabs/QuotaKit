@@ -789,7 +789,8 @@ extension CostUsageStoreReadPerformanceTests {
         cache.files[path] = usage
         cache.days = usage.days
         #expect(!store.syncSaveCodexCache(
-            cache, calendar: calendar,
+            cache,
+            calendar: calendar,
             requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01")).catchUpRequired)
         let persisted = await store.readSnapshot()
         let scanned = store.syncLoadCodexCache(calendar: calendar)
