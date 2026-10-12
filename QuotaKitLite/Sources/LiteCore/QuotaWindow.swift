@@ -49,3 +49,14 @@ public struct QuotaWindow: Codable, Sendable, Equatable {
         return window
     }
 }
+
+extension [QuotaWindow] {
+    /// The window that speaks for a lane in the menu bar, alerts and the iPhone's two bars. Antigravity has a
+    /// window per model group in each lane, so the one with the least left wins (068 §4.3); other providers have
+    /// one per lane (Claude's Sonnet window is a weekly extra and never stands in for Weekly).
+    public func representative(_ lane: QuotaWindow.Lane, for provider: LiteProvider) -> QuotaWindow? {
+        let matching = self.filter { $0.lane == lane }
+        guard provider == .antigravity else { return matching.first }
+        return matching.min { $0.remainingPercent < $1.remainingPercent }
+    }
+}

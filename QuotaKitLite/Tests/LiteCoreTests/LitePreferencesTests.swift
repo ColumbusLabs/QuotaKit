@@ -15,7 +15,7 @@ struct LitePreferencesTests {
     func `defaults to every available provider and percentages`() {
         let preferences = Self.preferences()
 
-        #expect(preferences.enabledProviders == [.claude, .codex])
+        #expect(preferences.enabledProviders == [.claude, .codex, .antigravity])
         #expect(preferences.menuBarStyle == .percentages)
     }
 
@@ -24,16 +24,17 @@ struct LitePreferencesTests {
         let preferences = Self.preferences()
 
         preferences.toggle(.claude)
-        #expect(preferences.enabledProviders == [.codex])
+        #expect(preferences.enabledProviders == [.codex, .antigravity])
 
         preferences.toggle(.claude)
-        #expect(preferences.enabledProviders == [.claude, .codex])
+        #expect(preferences.enabledProviders == [.claude, .codex, .antigravity])
     }
 
     @Test
     func `the last enabled provider cannot be turned off`() {
         let preferences = Self.preferences()
         preferences.toggle(.claude)
+        preferences.toggle(.antigravity)
 
         preferences.toggle(.codex)
 
@@ -41,12 +42,14 @@ struct LitePreferencesTests {
     }
 
     @Test
-    func `a provider that is not available yet is ignored`() {
+    func `a stored list keeps display order and an empty one means all`() {
         let preferences = Self.preferences()
 
-        preferences.enabledProviders = [.antigravity]
+        preferences.enabledProviders = [.antigravity, .claude]
+        #expect(preferences.enabledProviders == [.claude, .antigravity])
 
-        #expect(preferences.enabledProviders == [.claude, .codex])
+        preferences.enabledProviders = []
+        #expect(preferences.enabledProviders == [.claude, .codex, .antigravity])
     }
 
     @Test

@@ -882,7 +882,13 @@ preferences moved under a Settings ▸ submenu at the user's request. 16 tests.
 
 **Phase 3: Antigravity**
 
-**S11 — Antigravity probe.**
+**S11 — Antigravity probe.** ✅ Done 2026-10-12 (live: plan "Google AI Pro", four windows from the 2.0 app,
+synced to the iPhone; no child processes; 15 MB, 0.0% CPU). `AntigravityScanner` uses kernel calls only;
+`AntigravityProcess` classifies argv and builds endpoints; `AntigravityProbe` caches the working endpoint and reads
+`GetUserStatus` once per process; `LoopbackTransport` trusts the self-signed certificate on 127.0.0.1 only. The
+2.0 app now passes `--https_server_port 0`, so a zero port falls back to the socket scan. The menu bar, alerts and
+the iPhone's two bars use the lowest window per lane. Not built: the `GetUserStatus`/`GetCommandModelConfigs`
+model-quota fallbacks (the summary endpoint answered in Phase 0 and live). 18 tests.
 - Contents:
   - kernel process discovery (`proc_listallpids`, `KERN_PROCARGS2`, `PROC_PIDFDSOCKETINFO`);
   - a cached endpoint;

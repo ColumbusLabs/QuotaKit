@@ -10,7 +10,8 @@ public enum MenuBarText {
         if let exhausted = windows.first(where: { $0.usedPercent >= 100 }) {
             return exhausted
         }
-        return windows.first { $0.lane == .session } ?? windows.first { $0.lane == .weekly }
+        return windows.representative(.session, for: state.provider)
+            ?? windows.representative(.weekly, for: state.provider)
     }
 
     /// "11%", the remaining share as `UsageFormatter.percentString` formats it, or nil before the first fetch.
@@ -50,7 +51,7 @@ public enum MenuBarText {
         let windows = state.projected(at: now).windows
         guard !windows.isEmpty else { return nil }
         func remaining(_ lane: QuotaWindow.Lane) -> Double? {
-            windows.first { $0.lane == lane }.map { $0.remainingPercent / 100 }
+            windows.representative(lane, for: state.provider).map { $0.remainingPercent / 100 }
         }
         return Bars(
             session: remaining(.session),

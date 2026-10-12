@@ -137,7 +137,7 @@ public enum AlertLogic {
         var events: [AlertEvent] = []
         let active = thresholds.filter { (1...99).contains($0) }
 
-        let session = windows.first { $0.lane == .session }?.remainingPercent
+        let session = windows.representative(.session, for: provider)?.remainingPercent
         next.sessionRemaining = session
         if let session, let before = previous?.sessionRemaining {
             let wasDepleted = before <= self.depletedThreshold
@@ -150,7 +150,7 @@ public enum AlertLogic {
         }
 
         for lane in [QuotaWindow.Lane.session, .weekly] {
-            guard let remaining = windows.first(where: { $0.lane == lane })?.remainingPercent else { continue }
+            guard let remaining = windows.representative(lane, for: provider)?.remainingPercent else { continue }
             next.remaining[lane] = remaining
             // `thresholdsToClear`: a window back above a threshold can alert on it again.
             var fired = (previous?.fired[lane] ?? []).filter { remaining <= Double($0) }

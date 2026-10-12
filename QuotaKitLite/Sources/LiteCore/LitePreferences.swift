@@ -20,8 +20,8 @@ public enum MenuBarStyle: String, CaseIterable, Sendable {
 
 /// Lite's preferences, kept in `UserDefaults` and edited only through menu toggles (068 §7.4: no settings window).
 public struct LitePreferences: Sendable {
-    /// Providers Lite can fetch today. Antigravity joins in S11.
-    public static let availableProviders: [LiteProvider] = [.claude, .codex]
+    /// Providers Lite can fetch, in display order.
+    public static let availableProviders: [LiteProvider] = [.claude, .codex, .antigravity]
 
     private enum Key {
         static let enabledProviders = "enabledProviders"

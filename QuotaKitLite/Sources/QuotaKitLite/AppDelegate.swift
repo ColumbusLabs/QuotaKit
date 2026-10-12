@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var systemObservers: SystemObservers?
     private var activityWatcher: ActivityWatcher?
     private var fullAppMonitor: FullAppMonitor?
+    private var antigravityAppMonitor: AntigravityAppMonitor?
     private let alertStore = AlertMemoryStore(fileURL: AlertMemoryStore.defaultFileURL())
     private lazy var alertMemories = self.alertStore.load()
     private let alertDelivery = AlertDelivery()
@@ -58,6 +59,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startScheduling() {
         let transport = URLSessionTransport()
         let codex = CodexProbe(transport: transport)
+        // Its own loopback-only session, so the self-signed trust never applies to the cloud providers.
+        let antigravity = AntigravityProbe(
+            transport: LoopbackTransport(),
+            discover: { AntigravityScanner.endpoints() },
+            isAlive: { AntigravityScanner.isAlive($0) })
         let claude = ClaudeProbe(
             transport: transport,
             credentialsFile: ClaudeCredentialsFile(),
@@ -72,7 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let result: Result<ProbeResult, ProbeFailure> = switch provider {
                 case .claude: await claude.fetch(now: now)
                 case .codex: await codex.fetch(now: now)
-                case .antigravity: .failure(.notRunning)
+                case .antigravity: await antigravity.fetch(now: now)
                 }
                 await self?.apply(result, for: provider, at: now)
                 return result
@@ -100,6 +106,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.systemObservers = observers
         self.activityWatcher = watcher
         self.fullAppMonitor = fullApp
+
+        // The Antigravity app opening fetches after the launch grace; quitting shows "Not running" at once,
+        // keeping the last data (§4.3).
+        let antigravityApp = AntigravityAppMonitor { [weak self, weak scheduler] running in
+            Task { await antigravity.invalidate() }
+            if running {
+                scheduler?.antigravityLaunched()
+            } else {
+                self?.apply(.failure(.notRunning), for: .antigravity, at: Date())
+            }
+        }
+        antigravityApp.start()
+        self.antigravityAppMonitor = antigravityApp
         scheduler.start()
     }
 

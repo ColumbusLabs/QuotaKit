@@ -65,11 +65,24 @@ public enum SyncSnapshot {
         let windows = state.windows.map { self.rateWindow(for: $0, provider: state.provider, now: now) }
         let statusMessage = self.statusMessage(for: state)
         guard !windows.isEmpty || statusMessage != nil else { return nil }
+        // The full app's legacy pair is the first two windows. Antigravity's four windows instead put the
+        // lowest 5-hour and the lowest weekly window up front, so the iPhone's two bars show the binding limits.
+        let primary: SyncRateWindow?
+        let secondary: SyncRateWindow?
+        if state.provider == .antigravity {
+            primary = state.windows.representative(.session, for: .antigravity)
+                .map { self.rateWindow(for: $0, provider: .antigravity, now: now) }
+            secondary = state.windows.representative(.weekly, for: .antigravity)
+                .map { self.rateWindow(for: $0, provider: .antigravity, now: now) }
+        } else {
+            primary = windows.first
+            secondary = windows.count > 1 ? windows[1] : nil
+        }
         return ProviderUsageSnapshot(
             providerID: state.provider.rawValue,
             providerName: state.provider.displayName,
-            primary: windows.first,
-            secondary: windows.count > 1 ? windows[1] : nil,
+            primary: primary,
+            secondary: secondary,
             accountEmail: state.accountEmail,
             loginMethod: state.plan,
             statusMessage: statusMessage,
