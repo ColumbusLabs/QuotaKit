@@ -33,6 +33,8 @@ BIN_PATH="$(swift build -c release --show-bin-path)"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH/$EXECUTABLE" "$APP/Contents/MacOS/$EXECUTABLE"
+# Drop local symbols: halves the binary (3.0 -> 1.6 MB) and keeps the bundle inside the 3 MB budget (068 §1).
+strip -x "$APP/Contents/MacOS/$EXECUTABLE"
 cp "$LITE_DIR/App/Info.plist" "$APP/Contents/Info.plist"
 cp "$LITE_DIR"/Resources/*.svg "$LITE_DIR"/Resources/*.png "$APP/Contents/Resources/"
 cp "$LITE_DIR/App/Icon.icns" "$APP/Contents/Resources/Icon.icns"

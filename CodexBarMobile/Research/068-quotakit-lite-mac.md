@@ -750,7 +750,9 @@ full app's `UsagePaceTests` and `UsagePaceTextTests`. About 1,100 lines includin
 - **Tests:** pace stages and labels against the full app's expectations, reset rollover, and workday pacing.
 - **Size:** about 450 lines including tests.
 
-**S3 — Codex probe.**
+**S3 — Codex probe.** ✅ Done 2026-10-11 (live: Weekly 7% fetched on the first run; this account's response had no
+session window). Identities are only `codex:email:`, as the full app writes for ambient OAuth, and `plan` is the raw
+`plan_type` the full app syncs as `loginMethod`.
 - Contents:
   - the `auth.json` reader (`CODEX_HOME`, JWT claims for account ID, email and expiry);
   - the `wham/usage` request;
@@ -761,7 +763,10 @@ full app's `UsagePaceTests` and `UsagePaceTextTests`. About 1,100 lines includin
 - **Size:** about 250 lines.
 - **Done when:** a temporary menu row shows real Codex numbers.
 
-**S4 — Claude probe.**
+**S4 — Claude probe.** ✅ Done 2026-10-11 (live: Session 88% and Weekly 76% fetched on the first run, plan
+"Claude Pro"). Identities are only `claude:email:`: the full app fills `claude:account:` from the organization name
+on its CLI and web paths, and writes no identity on its OAuth path. The User-Agent is the full app's non-detecting
+fallback, `claude-cli/2.1.0 (external, cli)`.
 - Contents:
   - the credential chain from §4.1: file, then Lite's Keychain cache, then an attributes-only change check
     followed by a `/usr/bin/security` read, with a 5 s timeout;
@@ -771,7 +776,9 @@ full app's `UsagePaceTests` and `UsagePaceTextTests`. About 1,100 lines includin
   with a stub, never real `SecItem` calls (AGENTS.md).
 - **Size:** about 400 lines.
 
-**S5 — Scheduler.**
+**S5 — Scheduler.** ✅ Done 2026-10-11. Live with both probes: 0.0% CPU, 0 idle wakeups, 13–14 MB, no open
+sockets once the first fetch's connections closed. Still to check: one fetch per 90 s while a coding agent runs.
+`URLSessionTransport` refuses redirects. `install.sh` now strips the binary (3.0 → 1.6 MB; bundle 1.8 MB).
 - Contents:
   - the due-time policy in `LiteCore`, as a pure function from the trigger list in §5 to the next due time
     per provider;
