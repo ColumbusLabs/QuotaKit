@@ -690,7 +690,7 @@ Other finding: `~/.claude/.credentials.json` does not exist on this Mac, so §4.
 | Name | **QuotaKit Lite** (bundle ID `com.columbuslabs.quotakit.lite`) |
 | Audience | **Personal tool for the owner only.** Built from source and signed locally; no public release, updater, setup page, onboarding or localization. |
 | Alerts | **In v1.** iPhone push through `QuotaTransition` records and a local Mac banner, both in Phase 2 alongside sync. |
-| Menu look | **Polished.** Real provider logos and brand colours from the full app's assets, brand-coloured bars with threshold ticks; custom-drawn AppKit, not SwiftUI, to keep the footprint (§7). |
+| Menu look | **Same as the full app's usage card** (owner's call, 2026-10-11). The card header and usage rows reuse the full app's SwiftUI layout and copy its `UsageProgressBar` verbatim: brand-coloured bars and the green/red pace stripe. This replaces the earlier custom-drawn AppKit choice; it costs about 5 MB (Phase 0, Q6), within the 25 MB budget (§7). |
 | Pace | **In v1**, on the Mac menu and the iPhone cards, using the full app's formula and wording (§7.5) |
 | Coexistence | **Auto-pause** while the full QuotaKit app is running (§5.4). |
 
@@ -789,7 +789,10 @@ sockets once the first fetch's connections closed. Still to check: one fetch per
 - **Done when:** over 30 minutes of locked idle, `nettop` shows no requests; while a coding agent runs, there is at
   most one fetch per 90 s.
 
-**S6 — Menu cards.**
+**S6 — Menu cards.** 🔶 In progress 2026-10-11, in SwiftUI rather than custom AppKit (see §12). Done so far: header
+(name, email, "Updated 2m ago", plan) and one row per window, with "Session 12% left", "Resets in 2h 14m", the
+full app's bar and pace stripe, and the pace text. `CardPresentation` in LiteCore builds the text; 6 tests. Still to do:
+logos, threshold ticks (with S10), click-through.
 - Contents: the custom-drawn `ProviderCardView`, with
   - the header row (logo, name, plan pill, freshness);
   - capsule bars in brand colours with orange and red states;

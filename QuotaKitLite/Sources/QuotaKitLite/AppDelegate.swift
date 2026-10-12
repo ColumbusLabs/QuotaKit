@@ -1,5 +1,6 @@
 import AppKit
 import LiteCore
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -100,22 +101,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.scheduler?.menuOpened()
     }
 
-    /// Plain text rows until the custom-drawn cards land in S6.
+    /// Card views exist only while the menu is open (068 §7.1): built here, released in `menuDidClose`.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let now = Date()
         for provider in Self.enabledProviders {
-            let state = (self.states[provider] ?? ProviderState(provider: provider)).projected(at: now)
-            menu.addItem(Self.disabledItem(MenuText.header(for: state, now: now)))
-            if state.windows.isEmpty, state.status == .ok {
-                menu.addItem(Self.disabledItem("    Waiting for first refresh…"))
-            }
-            for window in state.windows {
-                menu.addItem(Self.disabledItem("    " + MenuText.line(for: window, provider: provider, now: now)))
-            }
-            if let footer = MenuText.footer(for: state) {
-                menu.addItem(Self.disabledItem("    " + footer))
-            }
+            let state = self.states[provider] ?? ProviderState(provider: provider)
+            let card = ProviderCardView(card: CardPresentation(state: state, now: now), tint: provider.brandColor)
+            let host = NSHostingView(rootView: card)
+            host.frame = NSRect(origin: .zero, size: NSSize(width: ProviderCardView.width, height: 1))
+            host.frame.size.height = host.fittingSize.height
+            let item = NSMenuItem()
+            item.view = host
+            menu.addItem(item)
             menu.addItem(.separator())
         }
         menu.addItem(
@@ -124,72 +122,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             keyEquivalent: "q")
     }
 
-    private static func disabledItem(_ title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
-}
-
-/// Text for the temporary menu rows. Formatted only when the menu opens (068 §5.2).
-enum MenuText {
-    static func header(for state: ProviderState, now: Date) -> String {
-        var parts = [state.provider.displayName]
-        if let plan = self.planName(for: state) {
-            parts.append(plan)
+    func menuDidClose(_ menu: NSMenu) {
+        // After the current event, so AppKit can still deliver the chosen item's action (for example Quit).
+        DispatchQueue.main.async {
+            menu.removeAllItems()
         }
-        if let fetched = state.lastFetched {
-            parts.append(self.age(of: fetched, now: now))
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    static func line(for window: QuotaWindow, provider: LiteProvider, now: Date) -> String {
-        var parts = ["\(window.label) \(Int(window.usedPercent.rounded()))%"]
-        if window.isProjected {
-            parts[0] += " (projected)"
-        }
-        if let resetsAt = window.resetsAt {
-            parts.append("resets " + ResetText.countdown(to: resetsAt, now: now))
-        }
-        if let pace = PaceText.detail(for: window, provider: provider, now: now) {
-            parts.append([pace.leftLabel, pace.rightLabel].compactMap(\.self).joined(separator: " · "))
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    static func footer(for state: ProviderState) -> String? {
-        let cli = state.provider == .codex ? "codex" : "claude"
-        return switch state.status {
-        case .ok: nil
-        case .tokenExpired: "Token expired — run \(cli) once"
-        case .tokenUnavailable: "Claude token unavailable — run claude once"
-        case .signInRequired: "Sign in to \(cli) again"
-        case .notRunning: "Not running — showing last data"
-        case .paused: "Paused — QuotaKit is running"
-        case .unrecognizedResponse: "Unrecognized response — update Lite"
-        case let .error(message): message
-        }
-    }
-
-    /// The synced plan is the full app's raw `loginMethod`; the menu shows a friendlier name.
-    private static func planName(for state: ProviderState) -> String? {
-        guard let plan = state.plan, !plan.isEmpty else { return nil }
-        switch state.provider {
-        case .codex:
-            return CodexPlanName.displayName(plan) ?? plan
-        case .claude:
-            return plan.hasPrefix("Claude ") ? String(plan.dropFirst("Claude ".count)) : plan
-        case .antigravity:
-            return plan
-        }
-    }
-
-    private static func age(of date: Date, now: Date) -> String {
-        let minutes = Int(now.timeIntervalSince(date) / 60)
-        if minutes < 1 { return "just now" }
-        if minutes < 60 { return "\(minutes)m ago" }
-        if minutes < 24 * 60 { return "\(minutes / 60)h ago" }
-        return "\(minutes / (24 * 60))d ago"
     }
 }
