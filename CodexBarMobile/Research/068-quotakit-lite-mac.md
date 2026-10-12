@@ -1,7 +1,7 @@
 # 068 — QuotaKit Lite for Mac (rate-limit-only spinoff)
 
 - **Status:** `planned` (product decisions recorded in §12)
-- **Date:** 2026-10-12
+- **Date:** 2026-10-11
 - **Scope:** A new, separate Mac menu bar app that tracks only rate-limit windows for
   Claude, Codex, and Antigravity, and syncs them to the existing iOS app without iOS changes.
 - **Audience:** Personal tool for the repository owner, not a public product. There are no public
@@ -72,7 +72,9 @@ A user who only wants to know how much of a quota is used and when it resets pay
   - `anthropic-beta: oauth-2025-04-20`
   - `User-Agent: claude-cli/<ver> (external, cli)`
   - query `?cedar_ember=1`
-- On 400, retry once without `cedar_ember`.
+- On a 400, or a 403 whose body does not mention `user:profile`, retry once without `cedar_ember`, using the
+  same token and the fallback User-Agent `claude-code/<ver>`. A 403 that mentions `user:profile` is a scope error
+  and is not retried. This matches `ClaudeOAuthUsageFetcher.swift:104-113`.
 - On 429, honour `Retry-After`.
 - Use from the response:
   - `five_hour` and `seven_day`, each `{utilization, resets_at}`;
@@ -197,8 +199,8 @@ The new code is about 3k lines, against about 340k in the full app. The only out
 | Response | Handling |
 |---|---|
 | 401 | Invalidate the cached token and run credential resolution once. |
-| 403 without `user:profile` | Retry without `cedar_ember`. |
-| 403 with a scope error | Terminal state with a "sign in to Claude Code again" message. |
+| 400, or 403 whose body doesn't mention `user:profile` | Retry once without `cedar_ember` (§2.1), then handle the retry's status with this table. |
+| 403 whose body mentions `user:profile` | Scope error: terminal state with a "sign in to Claude Code again" message. No retry. |
 | 429 | Block this token until `max(Retry-After, 5 min)`. |
 | 5xx or network error | Exponential backoff: 1, 2, 4, 8 min, capped at the regular interval. |
 
@@ -658,8 +660,11 @@ Each slice is one reviewable commit or PR that builds and is used on its own. Th
 that most of the logic can be tested without AppKit:
 
 - **`LiteCore`** depends only on Foundation and `CodexBarSync`. It holds the models, parsers, pace, reset projection,
-  the scheduler policy, the transition detector and the envelope mapping. `Shared/` guards its CloudKit code with
-  `canImport(CloudKit)`, so this target compiles and tests on Linux CI too.
+  the scheduler policy, the transition detector and the envelope mapping. It builds and tests on **macOS only**.
+  `Shared/` guards only `CloudSyncManager.swift` with `canImport(CloudKit)`. `PayloadCompression.swift` imports
+  `Compression` and `AccountIdentityNormalize.swift` imports `CryptoKit` without guards, and neither framework
+  exists on Linux. Lite doesn't change `Shared/` to fix this, because the iOS app builds the same files. The split
+  is still worth having: `LiteCore` tests run without AppKit, a Keychain or the network.
 - **`QuotaKitLite`** is the AppKit app. It holds the UI, Keychain, FSEvents, kernel process APIs, CloudKit and the
   notification glue, and it is verified on the Mac.
 
@@ -813,8 +818,8 @@ that most of the logic can be tested without AppKit:
 **S12 — Hardening.**
 - Contents:
   - `Scripts/lite-soak.sh`, `lite-fixture-sync.sh` and `lite-drift-check.sh`;
-  - a `QuotaKitLite` build-and-test job in `.github/workflows/ci.yml`, run only when `QuotaKitLite/**` or
-    `Shared/**` changes;
+  - a `QuotaKitLite` build-and-test job on a macOS runner in `.github/workflows/ci.yml`, run only when
+    `QuotaKitLite/**` or `Shared/**` changes (Linux can't build `Shared/`; see the start of §13);
   - a binary-size gate;
   - a short git SHA in the About line.
 - **Done when:** a week of daily use with no unexplained prompts, stale data or energy flags; then mark this
