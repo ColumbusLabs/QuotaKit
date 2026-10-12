@@ -587,7 +587,8 @@ enum MenuBarLayoutBalanceResolver {
     static func balance(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
-        codexCredits: CreditsSnapshot? = nil)
+        codexCredits: CreditsSnapshot? = nil,
+        showsOptionalCredits: Bool = true)
         -> String?
     {
         // Provider-specific by design: shared extraction for stored layouts, previews, and legacy text.
@@ -624,7 +625,14 @@ enum MenuBarLayoutBalanceResolver {
             let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
             let labels = descriptor.presentation.menuBarBalanceDetailLabels
                 ?? (descriptor.metadata.balanceOnly ? ["Balance"] : [])
-            if snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID,
+            let prepaid = self.prepaidBalanceCost(
+                provider: provider,
+                snapshot: snapshot,
+                showsOptionalCredits: showsOptionalCredits)
+            if let prepaid, let balance = prepaid.balance {
+                return UsageFormatter.currencyString(balance, currencyCode: prepaid.currencyCode)
+            }
+            if self.ownsSnapshot(provider: provider, snapshot: snapshot),
                let balance = labels.lazy.compactMap({ snapshot?.detailRow(label: $0)?.value }).first
             { return balance }
             guard descriptor.presentation.menuBarBalanceDetailLabels == nil else { return nil }
@@ -634,20 +642,47 @@ enum MenuBarLayoutBalanceResolver {
         }
     }
 
-    /// Numeric USD amounts behind OpenRouter's "Credits" detail rows. The plugin formats both rows as
-    /// `$` + `toFixed(2)` (`Sources/CodexBarCore/Resources/Plugins/openrouter.js`), so the amounts are
-    /// USD with no grouping separators; the plugin never populates `providerCost`, so there is nothing
-    /// structured to read instead.
+    /// USD amounts for balance predicates. OpenRouter retains its displayed detail-row precision;
+    /// providers declaring prepaid cost balances use the reported amount without currency conversion.
     static func balanceAmountsUSD(
         provider: UsageProvider,
-        snapshot: UsageSnapshot?)
+        snapshot: UsageSnapshot?,
+        showsOptionalCredits: Bool = true)
         -> (remaining: Double?, used: Double?)
     {
-        // Provider-specific by design: only OpenRouter reports credit amounts in its "Credits" detail rows.
-        guard provider == .openrouter else { return (nil, nil) }
+        // Provider-specific by design: OpenRouter reports credit amounts in its "Credits" detail rows.
+        guard provider == .openrouter else {
+            let prepaid = self.prepaidBalanceCost(
+                provider: provider,
+                snapshot: snapshot,
+                showsOptionalCredits: showsOptionalCredits)
+            guard let cost = prepaid, cost.currencyCode.caseInsensitiveCompare("USD") == .orderedSame
+            else { return (nil, nil) }
+            return (cost.balance, nil)
+        }
         return (
             self.amount(snapshot?.detailRow(label: "Remaining")?.value),
             self.amount(snapshot?.detailRow(label: "Used")?.value))
+    }
+
+    /// Providers declaring `menuBarBalanceUsesPrepaidCost` get the Balance token without a case above. Like the
+    /// provider's menu card, the amount follows the optional credits setting, even for a retained snapshot.
+    private static func prepaidBalanceCost(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        showsOptionalCredits: Bool)
+        -> ProviderCostSnapshot?
+    {
+        guard showsOptionalCredits,
+              ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuBarBalanceUsesPrepaidCost,
+              self.ownsSnapshot(provider: provider, snapshot: snapshot),
+              let cost = snapshot?.providerCost, cost.balance != nil
+        else { return nil }
+        return cost
+    }
+
+    private static func ownsSnapshot(provider: UsageProvider, snapshot: UsageSnapshot?) -> Bool {
+        snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID
     }
 
     private static func amount(_ text: String?) -> Double? {

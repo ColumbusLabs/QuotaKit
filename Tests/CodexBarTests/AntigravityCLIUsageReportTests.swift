@@ -124,6 +124,46 @@ struct AntigravityCLIUsageReportTests {
         #expect(result.usage.identity?.accountEmail == "owner@example.com")
     }
 
+    @Test
+    func `print usage cannot launch the system browser`() async throws {
+        // Each fallback launcher is checked before it runs, so a regression fails safely in the test.
+        let fixture = try Self.printExecutable("""
+        for name in open xdg-open; do
+          launcher=$(command -v "$name")
+          case "$launcher" in
+            "$HOME/$name"|*/codexbar-agy-usage-*/"$name") ;;
+            *) exit 30 ;;
+          esac
+          "$launcher" https://example.invalid/oauth || true
+        done
+        command -v open > "$HOME/open-path"
+        "$BROWSER" https://example.invalid/oauth || true
+        echo "Authentication required. Please visit the URL to log in:" >&2
+        exit 1
+        """)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        for name in ["open", "xdg-open", "browser"] {
+            let launcher = fixture.directory.appendingPathComponent(name)
+            try "#!/bin/sh\necho invoked >> \"$HOME/browser-invoked\"\nexit 1\n"
+                .write(to: launcher, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: launcher.path)
+        }
+        var environment = fixture.environment
+        environment["PATH"] = fixture.directory.path + ":/usr/bin:/bin"
+        environment["BROWSER"] = fixture.directory.appendingPathComponent("browser").path
+        await ProviderInteractionContext.$current.withValue(.background) {
+            await #expect(throws: AntigravityStatusProbeError.parseFailed("CLI usage report failed")) {
+                try await AntigravityCLIHTTPSFetchStrategy().fetchPrintUsage(
+                    binary: fixture.binary.path, environment: environment)
+            }
+        }
+        #expect(!FileManager.default
+            .fileExists(atPath: fixture.directory.appendingPathComponent("browser-invoked").path))
+        let openPath = try String(contentsOf: fixture.directory.appendingPathComponent("open-path"), encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(!FileManager.default.fileExists(atPath: openPath))
+    }
+
     @Test(arguments: [ProviderSourceMode.auto, .cli])
     func `unselected fetch falls back to identity free print`(mode: ProviderSourceMode) async throws {
         let expected = AntigravityCLIHTTPSFetchStrategy().makeResult(

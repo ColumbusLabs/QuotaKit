@@ -219,7 +219,10 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
   - Session + weekly + model-specific percent used.
   - Daily Routines extra window when returned by the usage API.
   - Extra usage spend/limit (if enabled).
-  - Remaining Usage credits balance (if enabled).
+  - Remaining Usage credits balance (if enabled). Custom menu bar layouts can show it with the **Balance** element
+    beside the quota windows; the default menu bar text keeps showing quota. Turning off **Show credits & extra
+    usage** hides it from the menu card and the Balance element immediately. Otherwise a fresh snapshot without a
+    successful prepaid credits response has no balance, while a failed refresh keeps the last snapshot and its balance.
   - Account email + inferred plan.
 
 ### Recovering an existing browser session

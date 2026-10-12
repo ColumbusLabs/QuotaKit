@@ -381,7 +381,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
-    static let currentCodexParserRevision = 12
+    static let currentCodexParserRevision = 13
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -523,6 +523,8 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
     var startedAtUnixMs: Int64?
     var latestActivityUnixMs: Int64?
     var latestAcceptedUsageUnixMs: Int64?
+    /// Whether the leaf session metadata named a ChatGPT creator; nil means not parsed yet.
+    var hasCreatorAccount: Bool?
 
     init(
         sessionId: String?,
@@ -532,7 +534,8 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
         title: String?,
         startedAtUnixMs: Int64?,
         latestActivityUnixMs: Int64?,
-        latestAcceptedUsageUnixMs: Int64? = nil)
+        latestAcceptedUsageUnixMs: Int64? = nil,
+        hasCreatorAccount: Bool? = nil)
     {
         self.sessionId = sessionId
         self.concreteSessionId = concreteSessionId
@@ -542,13 +545,14 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
         self.startedAtUnixMs = startedAtUnixMs
         self.latestActivityUnixMs = latestActivityUnixMs
         self.latestAcceptedUsageUnixMs = latestAcceptedUsageUnixMs
+        self.hasCreatorAccount = hasCreatorAccount
     }
 
     var isEmpty: Bool {
         self.sessionId == nil && self.concreteSessionId == nil && self.forkedFromId == nil
             && self.cwd == nil && self.title == nil
             && self.startedAtUnixMs == nil && self.latestActivityUnixMs == nil
-            && self.latestAcceptedUsageUnixMs == nil
+            && self.latestAcceptedUsageUnixMs == nil && self.hasCreatorAccount == nil
     }
 
     func merging(_ newer: CostUsageCodexSessionMetadata) -> CostUsageCodexSessionMetadata {
@@ -560,7 +564,8 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
             title: newer.title ?? self.title,
             startedAtUnixMs: Self.earlier(self.startedAtUnixMs, newer.startedAtUnixMs),
             latestActivityUnixMs: Self.later(self.latestActivityUnixMs, newer.latestActivityUnixMs),
-            latestAcceptedUsageUnixMs: newer.latestAcceptedUsageUnixMs ?? self.latestAcceptedUsageUnixMs)
+            latestAcceptedUsageUnixMs: newer.latestAcceptedUsageUnixMs ?? self.latestAcceptedUsageUnixMs,
+            hasCreatorAccount: newer.hasCreatorAccount ?? self.hasCreatorAccount)
     }
 
     private static func earlier(_ lhs: Int64?, _ rhs: Int64?) -> Int64? {

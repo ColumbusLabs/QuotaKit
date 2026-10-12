@@ -24,9 +24,16 @@ After you acknowledge the Claude OAuth explanation, QuotaKit does not repeat tha
 cooldown only applies to QuotaKit's explanatory alert: macOS can still show its own Keychain authorization prompt,
 and the Claude **Never prompt** and global **Disable Keychain access** settings remain in effect.
 
-Scheduled browser-cookie refresh uses a noninteractive Safe Storage preflight. A current allowed
-result can resume background refresh after a prior denial; interactive or failed preflight results
-remain blocked, and the user-initiated denial cooldown is preserved.
+Scheduled and settings-triggered Chromium imports never request Keychain interaction, even when a
+settings change occurs during a manual refresh. Every import first tries the actual Safe Storage read
+without UI. A manual refresh shares one interactive retry across its browser imports and providers;
+successful no-UI reads do not spend that allowance, and ACL preflight metadata cannot authorize extra
+prompts.
+
+A denied browser prompt suppresses Chromium-family interactive retries for six hours, including
+repeated Refresh actions in the menu or provider settings. Only `quotakit cookie refresh
+--allow-keychain-prompt` explicitly overrides that cooldown. An acknowledged Claude repair has its
+own user-action policy.
 
 Concurrent preflights for the same trusted application and executable share an in-flight code-signature validation.
 For the running executable (or its own main app bundle), preflight checks the ACL's signing requirement against the
@@ -84,10 +91,12 @@ on Keychain can still work where the provider supports them.
 
 ## Browser Safe Storage prompts
 
-If a Chromium-family Safe Storage check requires interaction or is denied, QuotaKit pauses automatic cookie imports
-for every Chromium-family browser for six hours. This prevents a denial in Arc, Edge, Brave, or another Chromium
-browser from immediately moving to the next browser and showing another prompt. **Refresh Now** is an explicit retry
-for the browser that was blocked; Safari and Firefox-family cookie imports remain available during the pause.
+If an interactive Chromium-family Safe Storage read is denied, QuotaKit pauses further interactive cookie reads for
+every Chromium-family browser for six hours. This prevents a denial in Arc, Edge, Brave, or another Chromium browser
+from immediately moving to the next browser and showing another prompt. Scheduled refresh can still use access that
+a no-UI preflight confirms is already allowed. Menu and settings Refresh actions respect the cooldown; use
+`quotakit cookie refresh --allow-keychain-prompt` for an explicit retry. Safari and Firefox-family cookie imports do
+not use this Chromium cooldown.
 
 For normal browser-cookie import prompts, either allow QuotaKit in the Keychain item's Access Control list or disable
 Keychain access:

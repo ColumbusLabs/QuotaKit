@@ -157,6 +157,51 @@ struct CloudKitMergeTests {
         #expect(share.topModels.isEmpty)
     }
 
+    @Test(arguments: [true, false])
+    func `synced Codex free request costs preserve pricing coverage alongside custom rates`(
+        freeCostIsKnown: Bool) throws
+    {
+        let now = Date()
+        let todayKey = CostDashboardInsights.todayDayKey(now: now)
+        func summary(cost: Double, tokens: Int, isKnown: Bool) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: tokens,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: tokens,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey, costUSD: cost, totalTokens: tokens, costIsKnown: isKnown)],
+                costIsKnown: isKnown,
+                historyCoverageIsEstablished: true)
+        }
+        // Mac Auto-review produces known zero prices; unresolved requests also carry zero placeholders.
+        // Wire decoding and merging must retain the coverage flag rather than infer it from the amount.
+        let free = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProvider(
+                id: "codex", name: "Codex", email: "fixture@example.com", lastUpdated: now,
+                costSummary: summary(cost: 0, tokens: 120, isKnown: freeCostIsKnown)),
+        ])
+        let decoded = try JSONDecoder().decode(SyncedUsageSnapshot.self, from: JSONEncoder().encode(free))
+        let priced = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProvider(
+                id: "codex", name: "Codex", email: "fixture@example.com", lastUpdated: now,
+                costSummary: summary(cost: 3.25, tokens: 80, isKnown: true)),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([decoded, priced]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let day = try #require(cost.daily.first(where: { $0.dayKey == todayKey }))
+        #expect(day.costUSD == 3.25)
+        #expect(day.totalTokens == 200)
+        #expect(day.costIsKnown == freeCostIsKnown)
+        #expect(cost.last30DaysCostUSD == 3.25)
+        #expect(cost.costIsKnown == freeCostIsKnown)
+        #expect(cost.todayTotals(now: now).isPartial == !freeCostIsKnown)
+        let insights = CostDashboardInsights(snapshot: merged)
+        #expect(insights.totalTodayCost == 3.25)
+        #expect(insights.totalTodayTokens == 200)
+        #expect(insights.todayHasPartialCost == !freeCostIsKnown)
+    }
+
     @Test
     func `unknown zero cost keeps known tokens without claiming zero spend`() {
         let now = Date()
@@ -470,8 +515,8 @@ struct CloudKitMergeTests {
         #expect(singleDevice.providers.first?.costSummary?.daily.first?.dayEvidence == olderProof)
     }
 
-    @Test
-    func `Complete correction can reduce a previously published total`() {
+    @Test(arguments: [8.0, 0.0])
+    func `Complete correction can reduce a previously published total`(correctedCost: Double) {
         let establishedAt = self.olderDate
         let correctedAt = self.newerDate
         let established = SyncCostSummary(
@@ -484,12 +529,16 @@ struct CloudKitMergeTests {
             historyCoverageIsEstablished: true,
             costUpdatedAt: establishedAt,
             totalCostUpdatedAt: establishedAt)
+        // A pricing correction can retain all measured tokens while making eligible requests free.
+        let correctedTokens = correctedCost == 0 ? 13000 : 800
         let correction = SyncCostSummary(
-            sessionCostUSD: 8,
-            sessionTokens: 800,
-            last30DaysCostUSD: 8,
-            last30DaysTokens: 800,
-            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            sessionCostUSD: correctedCost,
+            sessionTokens: correctedTokens,
+            last30DaysCostUSD: correctedCost,
+            last30DaysTokens: correctedTokens,
+            daily: [SyncDailyPoint(
+                dayKey: "2026-08-12", costUSD: correctedCost, totalTokens: correctedTokens, costIsKnown: true)],
+            costIsKnown: true,
             historyDays: 30,
             historyCoverageIsEstablished: true,
             costUpdatedAt: correctedAt,
@@ -500,8 +549,11 @@ struct CloudKitMergeTests {
             incomingFallbackUpdatedAt: correctedAt,
             previousFallbackUpdatedAt: establishedAt)
 
-        #expect(reconciled.last30DaysCostUSD == 8)
-        #expect(reconciled.daily.first?.costUSD == 8)
+        #expect(reconciled.last30DaysCostUSD == correctedCost)
+        #expect(reconciled.daily.first?.costUSD == correctedCost)
+        #expect(reconciled.last30DaysTokens == correctedTokens)
+        #expect(reconciled.daily.first?.totalTokens == correctedTokens)
+        #expect(reconciled.daily.first?.costIsKnown == true)
         #expect(reconciled.totalCostUpdatedAt == correctedAt)
     }
 

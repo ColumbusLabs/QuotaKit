@@ -5,11 +5,11 @@ import Testing
 
 extension CodexBackgroundRefreshCoalescingTests {
     @Test
-    func `background startup request upgraded by manual refresh retains startup metadata and user interaction`() async
+    func `background startup coalesced with manual refresh retains metadata and background interaction`() async
         throws
     {
         let settings = try self.makeSettingsStore(
-            suite: "CodexBackgroundRefreshCoalescingTests-required-startup-user-upgrade")
+            suite: "CodexBackgroundRefreshCoalescingTests-required-startup-background-preservation")
         settings.statusChecksEnabled = false
         settings.costUsageEnabled = false
         settings.openAIWebAccessEnabled = false
@@ -51,7 +51,7 @@ extension CodexBackgroundRefreshCoalescingTests {
 
         let merged = try #require(store.pendingRequiredRefreshRequest)
         #expect(merged.startupConnectivityRetryAttempt == 1)
-        #expect(merged.interaction == .userInitiated)
+        #expect(merged.interaction == .background)
         #expect(!merged.coalesceProviderRefreshes)
 
         store.isRefreshing = false
@@ -59,7 +59,7 @@ extension CodexBackgroundRefreshCoalescingTests {
         #expect(await manualRequest.value)
 
         #expect(!observed.isEmpty)
-        #expect(observed.allSatisfy { $0.0 == .userInitiated && $0.1 == .startup })
+        #expect(observed.allSatisfy { $0.0 == .background && $0.1 == .startup })
         #expect(store.requiredRefreshCompletedGeneration == 2)
     }
 

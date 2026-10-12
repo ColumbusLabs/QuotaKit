@@ -106,6 +106,12 @@ UI and settings should become descriptor-driven:
 - no provider-specific branching for labels/links/toggle titles
 - minimal provider-specific UI (only when a provider truly needs bespoke UX)
 
+Providers that store a remaining prepaid amount in `ProviderCostSnapshot.balance` set
+`presentation.menuBarBalanceUsesPrepaidCost`. The shared menu bar resolver formats it in the snapshot currency
+for Balance elements and passes USD amounts to Balance remaining conditionals. Legacy menu bar text never
+shows it, so the balance sits beside subscription quotas rather than replacing them. The optional credits
+setting hides it. Preserve genuine quota windows; a prepaid balance does not create a quota or alert lane.
+
 ## Fetch strategies
 
 A provider declares a pipeline of strategies, in priority order. Each strategy:

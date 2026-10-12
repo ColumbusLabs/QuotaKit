@@ -353,6 +353,45 @@ struct AntigravityScopedPrintFetchTests {
     }
 
     @Test
+    func `scoped print cannot launch browser sign in`() async throws {
+        let fixture = try self.scopedPrintFixture(body: """
+        for name in open xdg-open; do
+          launcher=$(command -v "$name")
+          [ "$launcher" = "$HOME/$name" ] || exit 30
+          "$launcher" https://example.invalid/oauth || true
+        done
+        [ "$BROWSER" = "$HOME/open" ] || exit 31
+        "$BROWSER" https://example.invalid/oauth || true
+        printf '%s' "$BROWSER" > "$(dirname "$0")/browser-path"
+        echo "Authentication required. Please visit the URL to log in:" >&2
+        exit 1
+        """)
+        defer { self.removeFixture(fixture.directory) }
+        for name in ["open", "xdg-open", "browser"] {
+            let launcher = fixture.directory.appendingPathComponent(name)
+            try "#!/bin/sh\necho invoked >> \"$(dirname \"$0\")/launcher-invoked\"\nexit 1\n"
+                .write(to: launcher, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: launcher.path)
+        }
+        var environment = self.accountEnv(email: "scoped@example.com")
+        environment.merge(fixture.environment) { _, new in new }
+        environment["PATH"] = fixture.directory.path + ":/usr/bin:/bin"
+        environment["BROWSER"] = fixture.directory.appendingPathComponent("browser").path
+
+        await #expect(throws: AntigravityStatusProbeError.parseFailed("CLI usage report failed")) {
+            try await AntigravityCLIHTTPSFetchStrategy().fetchScopedPrintUsage(
+                binary: fixture.binary.path,
+                environment: environment)
+        }
+        #expect(!FileManager.default.fileExists(
+            atPath: fixture.directory.appendingPathComponent("launcher-invoked").path))
+        let browserPath = try String(
+            contentsOf: fixture.directory.appendingPathComponent("browser-path"), encoding: .utf8)
+        #expect(browserPath.contains("codexbar-agy-scoped-"))
+        #expect(browserPath.hasSuffix("/open"))
+    }
+
+    @Test
     func `scoped print rejects a report when the effective token belongs to another account`() async throws {
         let report = try self.reportJSON()
         // Simulate agy refreshing the staged grant into a different account's

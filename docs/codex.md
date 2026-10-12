@@ -294,6 +294,29 @@ existing display identity projection.
 - Cache:
   - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
+- Status and activity read views omit full per-file request ledgers, while retaining QuotaKit's compact
+  typed-response ownership flag. Detailed reports and scanner baselines keep the ledger and native turn-performance
+  data. A warm status or activity view never serves a report or becomes a scanner save baseline.
+- [OpenAI's policy](https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan) makes Auto-review
+  safety checks free for ChatGPT sign-in. QuotaKit adopts upstream's assumed cutoff of `2026-10-06T07:00:00Z`
+  (midnight US Pacific); the policy page does not establish that effective date. Earlier requests retain prior pricing.
+  Eligible `codex-auto-review` request rows require a non-blank `creator_account_id` in the rollout's leaf
+  `session_meta`, a timestamp at or after the cutoff, an exact request index, and no unresolved token evidence.
+  [Codex defines the field](https://github.com/openai/codex/blob/27065a91ccbf5ba8532844be3777fcf83b77820d/codex-rs/protocol/src/protocol.rs#L3028) at thread creation and never updates it on resume. A ChatGPT-created thread later resumed with an API key remains eligible;
+  copied ancestor or later resume metadata cannot change the leaf classification. Tokens remain in every total.
+  Saved monetary amounts and explicit custom-pricing rates take precedence; otherwise eligible requests cost $0.
+  Classification uses temporary report and aggregate row copies; saved monetary evidence remains unchanged.
+  Both detailed and compact daily projections apply the waiver. Retained requests that do not cover their model/day
+  group remain unpriced in daily and hourly results. Without retained request rows, existing explicit custom or catalog
+  aggregate estimates remain available; creator metadata alone never waives those totals. Parser revision 13 captures eligibility within the existing scan
+  budgets; QuotaKit stores from `652f5d14be9ccccf` retain rows, checkpoints, and migration compatibility without a
+  rebuild. Pricing formula version 5 invalidates report presentation caches. Later pricing-key changes reseed the
+  existing bounded working-set queue so custom overlays reprice settled history without loading every ledger at once.
+  Workspaces/Models sidecars lack this
+  eligibility evidence and retain their existing pricing behavior.
+- **Cost → Conversations** uses saved, trimmed titles and exposes the shortened session ID in a tooltip. Blank or
+  missing titles use `Session <id>`. **Hide personal information** uses the same ID label; title-only changes refresh
+  visible rows without additional metadata reads or scans, while masked rows ignore hidden title changes.
 - Warm Codex scans reuse decoded history only when the locked SQLite baseline still certifies the same content.
   Freshness and priority-cursor updates share one checked metadata write; unexpected writes request a rescan.
   Hydrating an empty token history avoids rewriting content only when no snapshot rows exist, while clearing a

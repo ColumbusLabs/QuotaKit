@@ -118,10 +118,12 @@ extension UsageStore {
     }
 
     func refreshForSettingsChange() async {
-        await self.runRefresh(
-            startupConnectivityRetryAttempt: nil,
-            coalesceProviderRefreshesOverride: false,
-            waitForRefreshAvailability: true)
+        _ = await ProviderInteractionContext.$current.withValue(.background) {
+            await self.runRefresh(
+                startupConnectivityRetryAttempt: nil,
+                coalesceProviderRefreshesOverride: false,
+                waitForRefreshAvailability: true)
+        }
     }
 
     func prepareRefreshState(for provider: UsageProvider? = nil) {

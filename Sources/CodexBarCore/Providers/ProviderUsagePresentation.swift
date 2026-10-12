@@ -477,6 +477,8 @@ public struct ProviderUsagePresentation: Sendable {
     public let menuBarLayoutPrimaryLabel: String?
     public let menuBarLayoutSecondaryLabel: String?
     public let menuBarBalanceDetailLabels: [String]?
+    /// Menu bar Balance elements read `ProviderCostSnapshot.balance` as the remaining prepaid amount.
+    public let menuBarBalanceUsesPrepaidCost: Bool
     public let requestedMenuBarLaneOrders: [ProviderMenuBarMetric: [ProviderUsageLane]]
     public let automaticSelectionPrioritizesExhaustedWindow: Bool
     public let switcherUsesAutomaticMenuBarWindow: Bool
@@ -507,6 +509,7 @@ public struct ProviderUsagePresentation: Sendable {
         menuBarLayoutPrimaryLabel: String? = nil,
         menuBarLayoutSecondaryLabel: String? = nil,
         menuBarBalanceDetailLabels: [String]? = nil,
+        menuBarBalanceUsesPrepaidCost: Bool = false,
         requestedMenuBarLaneOrders: [ProviderMenuBarMetric: [ProviderUsageLane]] = [:],
         automaticSelectionPrioritizesExhaustedWindow: Bool = true,
         switcherUsesAutomaticMenuBarWindow: Bool = false,
@@ -538,6 +541,7 @@ public struct ProviderUsagePresentation: Sendable {
         self.menuBarLayoutPrimaryLabel = menuBarLayoutPrimaryLabel
         self.menuBarLayoutSecondaryLabel = menuBarLayoutSecondaryLabel
         self.menuBarBalanceDetailLabels = menuBarBalanceDetailLabels
+        self.menuBarBalanceUsesPrepaidCost = menuBarBalanceUsesPrepaidCost
         self.requestedMenuBarLaneOrders = requestedMenuBarLaneOrders
         self.automaticSelectionPrioritizesExhaustedWindow = automaticSelectionPrioritizesExhaustedWindow
         self.switcherUsesAutomaticMenuBarWindow = switcherUsesAutomaticMenuBarWindow

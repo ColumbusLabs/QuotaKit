@@ -4,7 +4,7 @@ import Testing
 @testable import CodexBar
 
 // swiftlint:disable type_body_length
-@Suite(.serialized)
+@Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct StatusItemBalanceDisplayTests {
     @Test

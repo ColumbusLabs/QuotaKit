@@ -81,17 +81,17 @@ struct KimiTokenAccountTests {
         let strategy = KimiWebFetchStrategy(
             fetchUsage: { token, selectedRegion in
                 #expect(selectedRegion == region)
-                #expect(["first", "second"].contains(token))
+                #expect(["first", "second"].contains(token.token))
                 return KimiUsageSnapshot(
                     weekly: .init(
                         limit: "100",
-                        used: token == "first" ? "25" : "75",
+                        used: token.token == "first" ? "25" : "75",
                         remaining: nil,
                         resetTime: nil),
                     rateLimit: nil,
                     updatedAt: Date(timeIntervalSince1970: 100))
             },
-            desktopToken: { _ in Issue.record("Unexpected desktop import"); return nil },
+            desktopCredential: { _ in Issue.record("Unexpected desktop import"); return nil },
             browserTokens: { _ in Issue.record("Unexpected browser import"); return [] })
         for (index, account) in accounts.enumerated() {
             let snapshot = try #require(cli.settingsSnapshot(for: .kimi, account: account))
@@ -111,10 +111,10 @@ struct KimiTokenAccountTests {
         let expectedToken = KimiCookieHeader.override(from: settings.kimi?.manualCookieHeader)?.token
         let strategy = KimiWebFetchStrategy(
             fetchUsage: { authToken, _ in
-                #expect(authToken == expectedToken)
+                #expect(authToken.token == expectedToken)
                 throw KimiAPIError.invalidToken
             },
-            desktopToken: { _ in Issue.record("Unexpected desktop import"); return nil },
+            desktopCredential: { _ in Issue.record("Unexpected desktop import"); return nil },
             browserTokens: { _ in Issue.record("Unexpected browser import"); return [] })
         let context = self.context(environment: environment, settings: settings)
         #expect(await strategy.isAvailable(context) == (expectedToken != nil))

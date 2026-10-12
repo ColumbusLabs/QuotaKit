@@ -920,67 +920,10 @@ struct MenuBarLayoutPreview: View {
 
     func liveData(provider: UsageProvider, snapshot: UsageSnapshot) -> MenuBarLayoutRenderData {
         let now = Date()
-        let session: RateWindow?
-        let weekly: RateWindow?
-        let rawAutomatic: RateWindow?
-        let primary: RateWindow?
-        let secondary: RateWindow?
-        let tertiary = snapshot.tertiary
-        if provider == .codex,
-           let projection = self.store.codexConsumerProjectionIfNeeded(
-               for: provider,
-               surface: .menuBar,
-               snapshotOverride: snapshot,
-               now: now)
-        {
-            session = projection.menuBarSelectableRateWindow(for: .session)
-            weekly = projection.menuBarSelectableRateWindow(for: .weekly)
-            rawAutomatic = projection.automaticMenuBarWindow()
-            primary = session
-            secondary = weekly
-        } else {
-            let semanticWindows = MenuBarLayoutSemanticWindowResolver.windows(
-                provider: provider,
-                snapshot: snapshot)
-            session = semanticWindows.session
-            weekly = semanticWindows.weekly
-            // Provider-specific by design: Mistral's automatic lane can explicitly select its Monthly Plan window.
-            let automaticPreference = provider == .mistral
-                ? self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
-                : .automatic
-            rawAutomatic = MenuBarMetricWindowResolver.rateWindow(
-                preference: automaticPreference,
-                provider: provider,
-                snapshot: snapshot,
-                supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
-                antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
-                now: now)
-            primary = snapshot.primary
-            secondary = snapshot.secondary
-        }
-        let automatic = MenuBarLayoutAutomaticWindowDisplayNormalizer.normalized(
-            provider: provider,
-            snapshot: snapshot,
-            window: rawAutomatic)
-        let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
-        let paceWindow = weekly ?? automatic
-        // Bind the pace itself: `etaSeconds` is the numeric run-out conditional predicates compare.
-        let pace = paceWindow.flatMap {
-            self.store.weeklyPace(
-                provider: provider,
-                window: $0,
-                dataConfidence: snapshot.dataConfidence,
-                now: now)
-        }
-        let runsOut = pace
-            .flatMap { UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now).rightLabel }
         let cost = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let costToday = MenuBarLayoutCostResolver.todayCostUSD(snapshot: cost, now: now)
-        let balanceAmounts = MenuBarLayoutBalanceResolver.balanceAmountsUSD(
-            provider: provider,
-            snapshot: snapshot)
-        // Thresholds are USD, and `convertedCost` returns the source amount unchanged when no rate
-        // exists, so keep the datum only when the conversion actually landed in USD.
+        // Thresholds are USD, and convertedCost returns the source amount unchanged when no rate
+        // exists, so keep the datum only when conversion actually landed in USD.
         let toUSD = { (value: Double) -> Double? in
             let converted = UsageFormatter.convertedCost(
                 value,
@@ -988,80 +931,22 @@ struct MenuBarLayoutPreview: View {
                 providerCurrency: cost?.currencyCode)
             return converted.currencyCode == "USD" ? converted.value : nil
         }
-        let automaticRenderWindow = MenuBarLayoutRenderWindow(automatic)
-        return MenuBarLayoutRenderData(
-            iconKey: provider.rawValue,
-            providerName: L(self.store.metadata(for: provider).displayName),
-            accountLabel: self.settings.hidePersonalInfo ? nil : snapshot.accountEmail(for: provider),
-            laneLabels: MenuBarLayoutLaneLabels(provider: provider, snapshot: snapshot),
-            primary: MenuBarLayoutRenderWindow(primary),
-            secondary: MenuBarLayoutRenderWindow(secondary),
-            tertiary: MenuBarLayoutRenderWindow(tertiary),
+        let costs = MenuBarLayoutCostValues(
+            today: costToday.map {
+                UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
+            },
+            last30Days: cost?.last30DaysCostUSD.map {
+                UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
+            },
+            todayUSD: costToday.flatMap(toUSD),
+            last30DaysUSD: cost?.last30DaysCostUSD.flatMap(toUSD))
+        return self.store.menuBarLayoutRenderData(
             provider: provider,
-            quotaIsEstimated: snapshot.dataConfidence == .estimated,
-            extraRateWindows: MenuBarLayoutNamedExtra.windows(provider: provider, snapshot: snapshot)
-                .map(MenuBarLayoutRenderExtra.init),
-            session: MenuBarLayoutRenderWindow(session),
-            weekly: MenuBarLayoutRenderWindow(weekly),
-            scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),
-            scopedWeeklyTitle: scopedNamed?.title,
-            automatic: automaticRenderWindow,
-            // Provider-specific by design: Mistral uses spend text when its automatic lane has no percentage window.
-            automaticText: StatusItemController.menuBarLayoutAutomaticText(
-                provider: provider, snapshot: snapshot, automatic: automaticRenderWindow),
-            sessionPace: self.store.menuBarLayoutPaceText(
-                provider: provider,
-                window: session,
-                dataConfidence: snapshot.dataConfidence,
-                now: now),
-            weeklyPace: self.store.menuBarLayoutPaceText(
-                provider: provider,
-                window: weekly,
-                dataConfidence: snapshot.dataConfidence,
-                now: now,
-                minimumElapsedPercent: 1),
-            automaticPace: self.store.menuBarLayoutPaceText(
-                provider: provider,
-                window: automatic,
-                dataConfidence: snapshot.dataConfidence,
-                now: now),
-            runsOut: runsOut,
-            balance: MenuBarLayoutBalanceResolver.balance(
-                provider: provider,
-                snapshot: snapshot,
-                codexCredits: self.store.codexConsumerProjectionIfNeeded(
-                    for: provider,
-                    surface: .menuBar,
-                    snapshotOverride: snapshot,
-                    now: now)?.credits?.snapshot),
-            costToday: costToday.map {
-                UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
-            },
-            cost30d: cost?.last30DaysCostUSD.map {
-                UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
-            },
-            metrics: MenuBarLayoutRenderMetrics(
-                sessionPaceDelta: self.store.menuBarLayoutPaceDelta(
-                    provider: provider,
-                    window: session,
-                    dataConfidence: snapshot.dataConfidence,
-                    now: now),
-                weeklyPaceDelta: self.store.menuBarLayoutPaceDelta(
-                    provider: provider,
-                    window: weekly,
-                    dataConfidence: snapshot.dataConfidence,
-                    now: now,
-                    minimumElapsedPercent: 1),
-                automaticPaceDelta: self.store.menuBarLayoutPaceDelta(
-                    provider: provider,
-                    window: automatic,
-                    dataConfidence: snapshot.dataConfidence,
-                    now: now),
-                runsOutMinutes: pace?.etaSeconds.map { Int(($0 / 60).rounded()) },
-                balanceRemainingUSD: balanceAmounts.remaining,
-                balanceUsedUSD: balanceAmounts.used,
-                costTodayUSD: costToday.flatMap(toUSD),
-                cost30dUSD: cost?.last30DaysCostUSD.flatMap(toUSD)))
+            snapshot: snapshot,
+            iconKey: provider.rawValue,
+            accountLabel: self.settings.hidePersonalInfo ? nil : snapshot.accountEmail(for: provider),
+            costs: costs,
+            now: now)
     }
 
     func representativeData(provider: UsageProvider) -> MenuBarLayoutRenderData {

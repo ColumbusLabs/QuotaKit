@@ -189,7 +189,9 @@ extension CostUsageStore {
                 hydratingPaths: nil,
                 tokenSnapshotsLoaded: false,
                 preserveMalformedFiles: true,
-                decodedUsageRowsByPath: read.usageRows?.rowsByPath)
+                decodedUsageRowsByPath: read.usageRows?.rowsByPath,
+                // Reports and scanner reconciliation own the full request ledger.
+                includesRequestLedgerState: purpose == .report)
             let persistence = CodexPersistenceState(
                 snapshot: snapshot,
                 usageRowCountsByPath: read.usageRows?.rowCountsByPath)
@@ -1058,6 +1060,7 @@ extension CostUsageStore {
         explicitlyLoadedTokenSnapshotPaths: Set<String> = [],
         preserveMalformedFiles: Bool = false,
         decodedUsageRowsByPath: [String: [CostUsageScanner.CodexUsageRow]]? = nil,
+        includesRequestLedgerState: Bool = true,
         makeDecoder: () -> JSONDecoder = JSONDecoder.init) -> CostUsageCache
     {
         let decoder = makeDecoder()
@@ -1259,7 +1262,7 @@ extension CostUsageStore {
                     try? decoder.decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
                 codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
-                codexRequestLedgerState: isHydrated ? details.requestLedgerState : nil,
+                codexRequestLedgerState: isHydrated && includesRequestLedgerState ? details.requestLedgerState : nil,
                 codexRequestReconciliation: details.requestReconciliation,
                 codexBufferedSubagentLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .subagent, decoder: decoder) : nil,
@@ -2315,7 +2318,8 @@ extension CostUsageStore {
                 until: until,
                 calendar: calendar),
             modelsDevCatalog: pricing.catalog,
-            modelsDevCacheRoot: pricing.cacheRoot)
+            modelsDevCacheRoot: pricing.cacheRoot,
+            customPricing: pricing.customPricing)
         let hourly = report.hourly.map { entry in
             CostUsageStoreTemporalAggregate(
                 path: path,
@@ -2339,6 +2343,59 @@ extension CostUsageStore {
                 costIsComplete: entry.costIsComplete)
         }
         return hourly + slices
+    }
+
+    private struct AutoReviewRowCoverage {
+        var input: Int64 = 0
+        var cached: Int64 = 0
+        var output: Int64 = 0
+        var overflow = false
+        var requestCount = 0
+
+        mutating func add(_ row: CostUsageScanner.CodexUsageRow) {
+            self.requestCount += 1
+            let input = self.input.addingReportingOverflow(Int64(max(0, row.input)))
+            let cached = self.cached.addingReportingOverflow(Int64(max(0, row.cached)))
+            let output = self.output.addingReportingOverflow(Int64(max(0, row.output)))
+            self.input = input.partialValue
+            self.cached = cached.partialValue
+            self.output = output.partialValue
+            self.overflow = self.overflow || input.overflow || cached.overflow || output.overflow
+        }
+    }
+
+    private static func autoReviewAggregateWithoutRows(
+        _ aggregate: CostUsageStoreDayAggregate,
+        allowsAggregateEstimate: Bool,
+        pricing: AggregatePricingContext) -> CostUsageStoreDayAggregate
+    {
+        var aggregate = aggregate
+        guard allowsAggregateEstimate else {
+            aggregate.standardUnresolvedPricingCount = 1
+            return aggregate
+        }
+        // With no retained request evidence, match the detailed builder's aggregate estimate.
+        // Creator metadata alone cannot waive usage whose request timestamp/index are absent.
+        let cost = CostUsagePricing.codexAggregateCostUSD(
+            model: aggregate.model,
+            inputTokens: Int(aggregate.inputTokens),
+            cachedInputTokens: Int(aggregate.cachedTokens),
+            outputTokens: Int(aggregate.outputTokens),
+            modelsDevCatalog: pricing.catalog,
+            modelsDevCacheRoot: pricing.cacheRoot,
+            customPricing: pricing.customPricing)
+        let nanos = cost.map { $0 * 1_000_000_000 }
+        guard let nanos, nanos.isFinite, nanos >= Double(Int64.min), nanos < Double(Int64.max) else {
+            aggregate.standardUnresolvedPricingCount = 1
+            return aggregate
+        }
+        aggregate.standardResolvedCostNanos = Int64(nanos.rounded())
+        aggregate.standardInputTokens = aggregate.inputTokens
+        aggregate.standardCachedTokens = aggregate.cachedTokens
+        aggregate.standardOutputTokens = aggregate.outputTokens
+        let tokens = aggregate.inputTokens.addingReportingOverflow(aggregate.outputTokens)
+        aggregate.standardTokens = tokens.overflow ? 0 : tokens.partialValue
+        return aggregate
     }
 
     private static func fileAggregates(
@@ -2377,9 +2434,20 @@ extension CostUsageStore {
         }
         // Each persisted event row updates only its key's accumulator. Avoid temporary row
         // arrays so memory use stays proportional to distinct day/model keys.
-        for row in usage.codexRows ?? [] {
+        var autoReviewCoverage = Dictionary(uniqueKeysWithValues: keys
+            .filter { CostUsagePricing.normalizeCodexModel($0.model) == "codex-auto-review" }
+            .map { ($0, AutoReviewRowCoverage()) })
+        for sourceRow in usage.codexRows ?? [] {
             onRowVisit?()
+            var row = sourceRow
+            row.isIncludedInPlan = CostUsageScanner.codexAutoReviewIsIncluded(
+                row,
+                hasCreatorAccount: usage.codexSession?.hasCreatorAccount,
+                customPricing: pricing.customPricing)
             let key = DayModelKey(day: row.day, model: row.model)
+            if CostUsagePricing.normalizeCodexModel(row.model) == "codex-auto-review" {
+                autoReviewCoverage[key, default: AutoReviewRowCoverage()].add(row)
+            }
             var aggregate = values[key] ?? .zero(day: row.day, model: row.model)
             aggregate.requestCount += 1
             if (row.unpricedTokens ?? 0) > 0 { aggregate.unpricedRequestCount += 1 }
@@ -2434,6 +2502,25 @@ extension CostUsageStore {
                     }
                 }
             }
+            values[key] = aggregate
+        }
+        for (key, coverage) in autoReviewCoverage {
+            guard var aggregate = values[key] else { continue }
+            if coverage.requestCount == 0 {
+                values[key] = self.autoReviewAggregateWithoutRows(
+                    aggregate,
+                    allowsAggregateEstimate: (usage.codexPriorityTokens?[key.day]?[key.model] ?? 0) == 0,
+                    pricing: pricing)
+                continue
+            }
+            guard coverage.overflow || coverage.input != aggregate.inputTokens
+                || coverage.cached != aggregate.cachedTokens || coverage.output != aggregate.outputTokens
+            else { continue }
+            // Retained but unmatched request rows cannot certify an aggregate price or waiver.
+            // A derived zero must never certify uncovered tokens.
+            aggregate.standardUnresolvedPricingCount = max(
+                aggregate.standardUnresolvedPricingCount,
+                max(1, aggregate.requestCount) - aggregate.priorityUnresolvedPricingCount)
             values[key] = aggregate
         }
         return values.values.sorted { ($0.day, $0.model) < ($1.day, $1.model) }

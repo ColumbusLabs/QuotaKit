@@ -70,21 +70,23 @@ extension UsageStore {
             _ = self.backgroundWorkSettingsObservationToken
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.observeSettingsChanges()
-                self.invalidateProviderAvailabilityCache()
-                self.probeLogs = [:]
-                guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
-                self.retireDisabledCredentialNotifications()
-                self.startTimer()
-                self.updateProviderRuntimes()
-                let enabledNow = Set(self.settings.enabledProvidersOrdered(
-                    metadataByProvider: self.providerMetadata))
-                if enabledNow != self.versionDetectionProviders {
-                    self.detectVersions()
+                await ProviderInteractionContext.$current.withValue(.background) {
+                    guard let self else { return }
+                    self.observeSettingsChanges()
+                    self.invalidateProviderAvailabilityCache()
+                    self.probeLogs = [:]
+                    guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
+                    self.retireDisabledCredentialNotifications()
+                    self.startTimer()
+                    self.updateProviderRuntimes()
+                    let enabledNow = Set(self.settings.enabledProvidersOrdered(
+                        metadataByProvider: self.providerMetadata))
+                    if enabledNow != self.versionDetectionProviders {
+                        self.detectVersions()
+                    }
+                    await self.refreshHistoricalDatasetIfNeeded()
+                    await self.refreshForSettingsChange()
                 }
-                await self.refreshHistoricalDatasetIfNeeded()
-                await self.refreshForSettingsChange()
             }
         }
     }

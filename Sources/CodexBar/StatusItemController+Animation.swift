@@ -1066,6 +1066,7 @@ extension StatusItemController {
         }
         if self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
            self.menuBarMetricWindow(for: provider, snapshot: snapshot, now: now) == nil,
+           !ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuBarBalanceUsesPrepaidCost,
            let balance = MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
         {
             return balance
@@ -1217,13 +1218,17 @@ extension StatusItemController {
     nonisolated static func menuBarLayoutAutomaticText(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
-        automatic: MenuBarLayoutRenderWindow?) -> String?
+        automatic: MenuBarLayoutRenderWindow?,
+        showsOptionalCredits: Bool = true) -> String?
     {
         // Provider-specific by design: DeepInfra's real billing window has no balance detail.
         let balanceOnly = provider == .deepseek
             || (provider == .deepinfra && automatic?.resetDescription != nil && automatic?.resetsAt == nil)
         guard automatic == nil || balanceOnly else { return nil }
-        return MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
+        return MenuBarLayoutBalanceResolver.balance(
+            provider: provider,
+            snapshot: snapshot,
+            showsOptionalCredits: showsOptionalCredits)
     }
 
     nonisolated static func extraUsageSpendDisplayText(snapshot: UsageSnapshot?) -> String? {
