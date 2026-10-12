@@ -9,7 +9,7 @@ Add the first iOS Home Screen and Lock Screen widgets for QuotaKit Pro, backed o
 
 ## Evidence
 
-- `docs/launch-inventory.md` identifies the existing widget extension as macOS-only and app-group JSON based.
+- At the June 7, 2026 baseline, the existing widget extension was macOS-only and app-group JSON based; this slice added the iOS widget extension.
 - iOS already maintains sanitized CloudKit/SwiftData display state through `SyncedUsageData`, `SwiftDataBridge`, and `ProviderSnapshotModel`.
 - `ProductConfig` already owns QuotaKit bundle, app group, CloudKit, and StoreKit identifiers.
 - Existing iOS entitlements need an app group before a WidgetKit extension can read shared app state.

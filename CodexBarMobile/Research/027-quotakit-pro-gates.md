@@ -9,7 +9,7 @@ Complete the existing iOS Pro gates before adding widgets or broad launch rebran
 
 ## Already Done
 
-- Launch inventory: `docs/launch-inventory.md`.
+- Initial launch planning inventory completed June 7, 2026; the obsolete inventory is now retained privately.
 - Security model: `docs/security-model.md`.
 - Data inventory: `docs/data-inventory.md`.
 - Product constants: `Shared/App/ProductConfig.swift`.
