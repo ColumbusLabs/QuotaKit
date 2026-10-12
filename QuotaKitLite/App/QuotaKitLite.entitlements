@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- CloudKit write access to the iPhone app's container (068 §6.5). Applied only when
+     Scripts/install.sh finds the "QuotaKit Lite Developer ID" provisioning profile. -->
+<dict>
+    <key>com.apple.application-identifier</key>
+    <string>78PXX669LQ.com.columbuslabs.quotakit.lite</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>78PXX669LQ</string>
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array>
+        <string>iCloud.com.columbuslabs.quotakit</string>
+    </array>
+    <key>com.apple.developer.icloud-container-environment</key>
+    <string>Production</string>
+</dict>
+</plist>

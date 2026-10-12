@@ -717,7 +717,11 @@ that most of the logic can be tested without AppKit:
 
 **Phase 1: core and menu**
 
-**S1 — Skeleton and install.**
+**S1 — Skeleton and install.** ✅ Done 2026-10-11. Signed with the Developer ID profile (CloudKit entitlement
+present), installed to `~/Applications/QuotaKit Lite.app` (2.2 MB: 2.0 MB binary, a 158 KB `App/Icon.icns`
+without the 512/1024 px sizes, plus the logos). Reinstalling replaces the running copy. Idle: 0.0% CPU, 0 idle
+wakeups, `footprint` 11 MB at launch and 16 MB after opening the menu. `Scripts/lint.sh` doesn't cover
+`QuotaKitLite/` yet (S12).
 - Files:
   - `QuotaKitLite/Package.swift`;
   - the `Shared` symlink;
