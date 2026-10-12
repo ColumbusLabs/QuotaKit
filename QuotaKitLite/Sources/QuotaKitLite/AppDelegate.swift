@@ -59,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func startScheduling() {
         let transport = URLSessionTransport()
         let codex = CodexProbe(transport: transport)
+        // An expired Claude login is renewed by the Claude CLI itself, never by Lite (§4.1, amended).
+        let claudeRecovery = ClaudeLoginRecovery(
+            refresher: ClaudeCLIRefresher(keychainMetadata: ClaudeKeychainMetadataReader()))
         // Its own loopback-only session, so the self-signed trust never applies to the cloud providers.
         let antigravity = AntigravityProbe(
             transport: LoopbackTransport(),
@@ -76,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             refresh: { [weak self] provider in
                 let now = Date()
                 let result: Result<ProbeResult, ProbeFailure> = switch provider {
-                case .claude: await claude.fetch(now: now)
+                case .claude: await Self.fetchClaude(claude, recovery: claudeRecovery, now: now)
                 case .codex: await codex.fetch(now: now)
                 case .antigravity: await antigravity.fetch(now: now)
                 }
@@ -120,6 +123,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         antigravityApp.start()
         self.antigravityAppMonitor = antigravityApp
         scheduler.start()
+    }
+
+    /// Fetches Claude; on an expired token, lets the Claude CLI renew its login once (rationed by the gate) and, if
+    /// it did, fetches again with the fresh token.
+    private nonisolated static func fetchClaude(
+        _ claude: ClaudeProbe,
+        recovery: ClaudeLoginRecovery,
+        now: Date) async -> Result<ProbeResult, ProbeFailure>
+    {
+        let result = await claude.fetch(now: now)
+        guard case let .failure(failure) = result,
+              await recovery.recover(from: failure, now: now)
+        else { return result }
+        return await claude.fetch(now: Date())
     }
 
     /// Folds a fetch into the provider's state and persists it. A failure keeps the last data and only changes

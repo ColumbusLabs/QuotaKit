@@ -116,7 +116,7 @@ All of `Shared/` (about 6k lines) imports only Foundation, CloudKit, Compression
 
 On macOS, Claude Code stores its token in the Keychain item `Claude Code-credentials`, and usually not in `~/.claude/.credentials.json`. Claude Code also rewrites that item's ACL on every token refresh, so an "Always Allow" grant does not last. Handling this costs the full app thousands of lines in `ClaudeOAuthCredentials.swift`: consent gates, prompt policies, cooldowns, delegated `claude /status` PTY refresh, and ACL repair.
 
-Lite takes a much smaller position (see §4.1): it **reads the token through `/usr/bin/security` only when the item changes, never prompts, never refreshes, and never spawns `claude`**.
+Lite takes a much smaller position (see §4.1): it **reads the token through `/usr/bin/security` only when the item changes, never prompts, and never refreshes the token itself**. When the token has expired it starts `claude` briefly so Claude Code renews its own login (amended 2026-10-12, §4.1).
 
 ## 3. Architecture
 
@@ -228,6 +228,25 @@ The new code is about 3k lines, against about 340k in the full app. The only out
 
 **Dropped:** `extra_usage`, `limits[]`, `iguana_necktie`, `cedar_ember`. They can be added later as optional envelope fields.
 
+
+**Amendment (2026-10-12): renewing an expired login.** In daily use the Claude card stopped updating whenever
+Claude Code's token expired and nothing ran `claude` (the user works in the desktop app, which doesn't renew the
+CLI's Keychain item). The full app avoids this with `ClaudeOAuthDelegatedRefreshCoordinator`, so Lite now does the
+same, still never spending the refresh token itself (it rotates, and Lite using it would sign Claude Code out):
+
+- On `.tokenExpired`, `ClaudeLoginRecovery` asks `ClaudeCLIRefreshGate` (one attempt per 30 minutes, persisted),
+  then `ClaudeCLIRefresher` starts `claude /status` in a pseudo-terminal in
+  `~/Library/Application Support/QuotaKit Lite/claude-cli` (with `disableDeepLinkRegistration`, as in the full app).
+- Success is Claude Code rewriting its Keychain item, seen through the attributes-only metadata read; Lite then
+  fetches again, which re-reads the item through `security`. Nothing is parsed from the CLI's output.
+- The first run in that folder shows Claude Code's folder-trust prompt (default "No, exit"). Like the full app in
+  its dedicated probe folder, `ClaudeCLITrustPrompt` selects "Yes, I trust this folder" for Lite's empty folder
+  only; Claude Code remembers it.
+- The CLI is closed with Escape and Ctrl-C twice, so it removes its session file; it ignores SIGTERM, so SIGKILL is
+  only the last resort after 4 seconds.
+- Live (2026-10-12): starting `claude` renewed an expired token within seconds (Keychain item rewritten 14:44:53Z,
+  Lite back to OK at 14:45:11Z). Claude Code can also rewrite the item without a new token; Lite then just re-reads,
+  and the gate stops any loop. `QuotaKitLite --check-claude-cli-refresh` runs one attempt for diagnosis.
 ### 4.2 Codex
 
 1. Read `$CODEX_HOME/auth.json`, defaulting to `~/.codex/auth.json`.
