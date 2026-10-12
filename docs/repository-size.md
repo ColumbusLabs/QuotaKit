@@ -8,6 +8,8 @@ read_when:
 
 # Repository size
 
+The measurements and cleanup rehearsal below are historical upstream CodexBar evidence, not current QuotaKit repository-size measurements. The checkout examples target QuotaKit; preserve upstream history and do not treat this record as authorization to rewrite it.
+
 The checked-out source tree is not the main cause of CodexBar's clone size. At commit `61ff9320`, tracked files total
 22,292,801 bytes, while the packed Git object database is 103.91 MiB. `CHANGELOG.md` is 150,271 bytes in the current
 tree and all of its historical blobs occupy about 0.55 MB compressed.
@@ -40,8 +42,8 @@ the check.
 For a smaller local checkout when full history is unnecessary, use one of:
 
 ```bash
-git clone --filter=blob:none https://github.com/steipete/CodexBar.git
-git clone --depth=1 https://github.com/steipete/CodexBar.git
+git clone --filter=blob:none https://github.com/ColumbusLabs/QuotaKit.git
+git clone --depth=1 https://github.com/ColumbusLabs/QuotaKit.git
 ```
 
 ## One-time history cleanup

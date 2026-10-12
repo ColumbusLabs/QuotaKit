@@ -1,20 +1,19 @@
 # QuotaKit
 
-QuotaKit is a Columbus Labs app for tracking AI quota, usage, and spend across the tools you use. The Mac app gathers provider data locally, syncs it through iCloud, and the iPhone app turns that data into clear status views, alerts, share cards, and widgets.
+<img src="docs/quotakit.png" alt="QuotaKit app icon" width="96">
 
-This repository is the Columbus Labs QuotaKit codebase. It preserves upstream CodexBar history, but QuotaKit releases, bundle identifiers, iCloud containers, StoreKit products, and setup links are owned by Columbus Labs.
+Track AI quota, usage, and spend on Mac and iPhone. QuotaKit by Columbus Labs collects data locally on your Mac and syncs it through your iCloud account to the iPhone companion, with status views, alerts, share cards, and widgets.
 
 ## Get QuotaKit
 
-- Mac setup: [columbus-labs.com/quotakit/mac](https://columbus-labs.com/quotakit/mac)
-- Mac releases: [github.com/ColumbusLabs/QuotaKit/releases/latest](https://github.com/ColumbusLabs/QuotaKit/releases/latest)
-- Source repository: [github.com/ColumbusLabs/QuotaKit](https://github.com/ColumbusLabs/QuotaKit)
+- [Mac download and setup](https://columbus-labs.com/quotakit/mac)
+- [Latest Mac release](https://github.com/ColumbusLabs/QuotaKit/releases/latest)
 
 Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the iPhone app can show synced quota data and send quota notifications.
 
 ## Highlights
 
-- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, ClinePass, LongCat, Vertex AI, Mistral, Perplexity, OpenRouter, LiteLLM, ElevenLabs, Deepgram, and more.
+- Quota tracking for Codex, Claude, Cursor, Gemini, OpenAI, and many more. See the [provider catalog and setup notes](docs/providers.md) for supported sources and requirements.
 - iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
 - iPhone alerts when a provider runs out of quota or becomes available again.
 - Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.
@@ -22,6 +21,12 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 - A stacked merged menu icon that shows two providers at once, using each provider’s first layout line.
 - QuotaKit Pro widgets for Home Screen and Lock Screen status at a glance.
 - Share cards for usage and cost views.
+
+## Preview
+
+<img src="docs/screenshots/usage-spend-dashboard-maintainer-light.png" alt="Mac Usage & Spend dashboard showing estimated spend, token totals, and provider breakdowns with demo data" width="800">
+
+Mac Usage & Spend dashboard with demo data. Available quota windows and cost details depend on each provider's data source.
 
 ## How It Works
 
@@ -40,7 +45,9 @@ Some providers may require local permissions on macOS, such as access to browser
 
 ## Development
 
-This repo contains both the Mac app and the iOS companion app. iOS-specific work lives under `CodexBarMobile/`.
+This repo contains both the Mac app and the iOS companion app. iOS-specific work lives under `CodexBarMobile/`; shared sync code lives under `Shared/`. Internal targets retain inherited names such as `CodexBar` and `CodexBarCLI`.
+
+Build the Mac app with `swift build`. The package requires Swift 6.2 and macOS 14 or later. The iPhone companion requires iOS 17 or later.
 
 Common checks:
 
@@ -62,90 +69,11 @@ xcodegen generate
 
 ## Documentation
 
-Provider setup notes and Mac provider internals live in [docs/providers.md](docs/providers.md).
-
-- [Codex](docs/codex.md) — OAuth API or local Codex CLI, plus optional OpenAI web dashboard extras.
-- [OpenAI](docs/openai.md) — Admin API key usage/cost graphs with legacy credit-balance fallback.
-- [Azure OpenAI](docs/azure-openai.md) — API key, endpoint, and deployment validation probe.
-- [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
-- [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
-- [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
-- [OpenCode Go](docs/opencodego.md) — Usage API, browser fallback, and local SQLite cost history.
-- [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
-- [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
-- [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.
-- [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
-- [GitKraken AI](docs/gitkraken.md) — API access token for personal weekly credits and optional organization pool usage.
-- [Antigravity](docs/antigravity.md) — Local language server probe, `agy` CLI HTTPS source, and Google OAuth fallback (experimental).
-- [Droid](docs/factory.md) — Browser cookies + WorkOS token flows for Factory usage + billing.
-- [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
-- [Devin](docs/devin.md) — Chrome localStorage session or manual Bearer token for daily and weekly quotas.
-- [z.ai](docs/zai.md) — API token for personal/team quota, MCP, 5-hour, and hourly usage windows.
-- [Manus](docs/manus.md) — Browser `session_id` auth for credit balance, monthly credits, and daily refresh tracking.
-- [MiniMax](docs/minimax.md) — API token, cookie header, or browser cookies for coding-plan usage.
-- [T3 Chat](docs/t3chat.md) — Browser cookies capture for Base and Overage usage buckets.
-- [ZoomMate](docs/zoommate.md) — Chrome cookie auto-import or manual cURL capture for credits usage.
-- [Kimi](docs/kimi.md) — Auth token (JWT from `kimi-auth` cookie) for weekly quota + 5‑hour rate limit.
-- [Kilo](docs/kilo.md) — API token with CLI-auth fallback for Kilo Pass usage.
-- [Kiro](docs/kiro.md) — CLI-based usage; monthly credits + bonus credits.
-- [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
-- [Augment](docs/augment.md) — Augment CLI or browser cookies for credits tracking and usage monitoring.
-- [Amp](docs/amp.md) — Browser cookie-based authentication with Amp Free usage tracking.
-- [Ollama](docs/ollama.md) — API key access plus browser cookies for Ollama Cloud usage windows.
-- [Synthetic](docs/synthetic.md) — API key quota endpoint for rolling five-hour, weekly token, and search-hourly usage.
-- [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
-- [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
-- [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
-- [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
-- [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
-- [Zed](docs/zed.md) — Zed editor Keychain session for plan, edit-prediction quota, billing cycle, and overdue invoices.
-- [Perplexity](docs/perplexity.md) — Account usage credits from Perplexity usage data.
-- [Xiaomi MiMo](docs/mimo.md) — Browser cookies for balance and token-plan usage.
-- [Doubao](docs/doubao.md) — API key for Volcengine Ark request-limit probes.
-- [Sakana AI](docs/sakana.md) — Manual Cookie header for 5-hour and weekly quota windows.
-- [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
-- [Mistral](docs/mistral.md) — Browser cookies for API spend, credit balance, and monthly-plan usage.
-- [Muse (muse.ai)](docs/museai.md) — Browser or manual session cookie for weekly subscription quota and remaining tokens.
-- [Langdock](docs/langdock.md) — Personal session and weekly limits from a selected Edge profile; Mac-only session data.
-- [LithosAI](docs/lithosai.md) — Chrome or manual console cookies for prepaid balance and optional daily/monthly spend.
-- [Notion AI](docs/notion.md) — Browser cookies for rolling six-hour and monthly workspace allowance windows.
-- [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).
-- [Moonshot / Kimi API](docs/moonshot.md) — API key for Moonshot/Kimi API account balance tracking.
-- [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
-- [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
-- [Command Code](docs/command-code.md) — Browser or manual cookies for monthly USD credits from Command Code billing.
-- [Qoder](docs/qoder.md) — Browser or manual cookies for Qoder big model credit usage.
-- [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
-- [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer spend, monthly budgets, and optional CloudWatch Claude activity.
-- [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
-- [GroqCloud](docs/groqcloud.md) — Console session for spend and token usage, with an Enterprise Prometheus API-key fallback.
-- [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
-- [ClawRouter](docs/clawrouter.md) — API key for monthly budget, spend, requests, tokens, and routed-provider usage.
-- [Wayfinder](docs/wayfinder.md) — Local router gateway polling for health, per-route breakdown, savings, and decision latency.
-- [LiteLLM](docs/litellm.md) — Virtual key + proxy URL for personal and team budget/spend tracking.
-- [DevPass](docs/devpass.md) — API key for plan credits, premium weekly usage, and key spend.
-- [Bifrost](docs/bifrost.md) — Virtual key + self-hosted gateway URL for budgets, rate limits, and model spend.
-- [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
-- [DeepInfra](docs/deepinfra.md) — API key for prepaid balance, amount owed, and billing-cycle spend.
-- [ai&](docs/aiand.md) — API key for 30-day organization spend from request logs.
-- [Poe](docs/poe.md) — API key for current point balance and recent points history.
-- [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
-- [ClinePass](docs/providers.md) — API key usage for five-hour, weekly, and monthly plan limits.
-- [LongCat](docs/providers.md) — Browser or manual-cookie usage for LongCat plan quotas.
-- [Neuralwatt](docs/neuralwatt.md) — API key for subscription kWh usage and prepaid credit balance.
-- [ZenMux](docs/zenmux.md) — Management API key for rolling five-hour and seven-day quota windows plus PAYG balance.
-- [xAI](docs/xai.md) — Management API key + team ID for prepaid credit balance and daily platform spend.
-- [X API](docs/xapi.md) — Console session for separate purchased and free prepaid API credits.
-- [Tavily](docs/tavily.md) — Account-plan, API-key quota, and pay-as-you-go credit usage.
-- [Linkup](docs/linkup.md) — Prepaid USD credit balance without inferred quota.
-- [TinyApi](docs/tinyapi.md) — Browser session for available console credits.
-- [Exa](docs/exa.md) — Selected API-key month-to-date spend.
-- [Cosmic AI](docs/cosmic.md) — Project-scoped input and output token usage.
-- [Aerostack](docs/aerostack.md) — Account-reported monthly AI-token usage.
-- [Sail Research](docs/sailresearch.md) — Organization balance and reported spend.
-- [Sofya](docs/sofya.md) — Separate account, plan, and purchased credit balances.
-
-- Open to new providers: [provider authoring guide](docs/provider.md).
+- [Provider catalog and setup notes](docs/providers.md) — supported providers, authentication sources, and available quota/cost data.
+- [CLI configuration](docs/cli-configuration.md) — configuration, source selection, and overrides.
+- [Provider authoring guide](docs/provider.md) — adding a provider.
+- [Release guide](docs/RELEASING.md) — packaging and release validation.
+- [Privacy policy](https://columbus-labs.com/quotakit/privacy).
 
 ## Linux desktop integration
 
