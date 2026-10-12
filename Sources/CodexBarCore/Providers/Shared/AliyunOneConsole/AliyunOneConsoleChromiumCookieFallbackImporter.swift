@@ -43,12 +43,11 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         logger: ((String) -> Void)? = nil) throws -> AliyunOneConsoleCookieImporter.SessionInfo?
     {
         // Discover eligible stores first: this is metadata-only and also enforces QuotaKit's default-home
-        // suppression. The fallback reads SQLite cookie payloads directly, so it must claim the same gated
-        // read as BrowserCookieClient.codexBarRecords before deriving Safe Storage keys or opening a database.
+        // suppression. Check the shared access gate before deriving Safe Storage keys or opening a database;
+        // the fallback's Keychain and SQLite reads remain strictly non-interactive.
         let stores = try cookieClient.codexBarStores(for: browser).filter { $0.databaseURL != nil }
         guard !stores.isEmpty else { return nil }
         guard BrowserCookieAccessGate.shouldAttempt(browser) else { return nil }
-        guard BrowserCookieAccessGate.claimExplicitRetryCookieReadIfNeeded(for: browser) else { return nil }
 
         logger?("Trying \(browser.displayName) Chromium fallback")
         do {
@@ -82,9 +81,6 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
                 }
             }
             return nil
-        } catch let error as ImportError {
-            if case .keychainDenied = error { BrowserCookieAccessGate.recordDenied(for: browser) }
-            throw error
         } catch {
             BrowserCookieAccessGate.recordIfNeeded(error)
             throw error

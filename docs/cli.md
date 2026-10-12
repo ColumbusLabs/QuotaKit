@@ -140,8 +140,9 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   - `--all` clears both cookies and cost caches. `--provider` is cookie-only and cannot be combined with `--cost` or `--all`.
 - `quotakit cookie refresh --provider <id>` validates and refreshes a provider's browser session; `--all` targets every
   browser-cookie provider. Selected-profile providers use the saved browser and profile selection. Chromium cookie
-  decryption may show a Keychain prompt only when `--allow-keychain-prompt` acknowledges it; Safari profile refresh
-  does not require that acknowledgment. See [Langdock](langdock.md) for browser-profile setup.
+  decryption may show one Keychain prompt across the selected providers only when `--allow-keychain-prompt`
+  acknowledges it. That flag also bypasses the six-hour denial cooldown; Safari profile refresh does not require the
+  acknowledgment. Output never includes cookie values. See [Langdock](langdock.md) for browser-profile setup.
 - `quotakit plugins` lists installed user-provider plugins and their approval/runtime state. Plugin manifests can describe settings, detail rows, and charts; see `docs/plugins.md` for install paths, permissions, and the JavaScript/TypeScript sandbox.
 - `--provider <id|both|all>` (default: enabled providers in config; falls back to defaults when missing).
   - Provider IDs live in the config file (see `docs/configuration.md`).

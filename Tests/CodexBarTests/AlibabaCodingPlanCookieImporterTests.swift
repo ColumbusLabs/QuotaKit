@@ -103,6 +103,46 @@ struct AlibabaCodingPlanCookieImporterTests {
     }
 
     @Test
+    func `manual chromium fallback remains noninteractive when Safe Storage requires UI`() throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookiesDirectory = home
+            .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network")
+        try FileManager.default.createDirectory(at: cookiesDirectory, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: cookiesDirectory.appendingPathComponent("Cookies").path,
+            contents: Data())
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        let client = BrowserCookieClient(configuration: .init(homeDirectories: [home]))
+        let keychainProbeCount = OSAllocatedUnfairLock(initialState: 0)
+        try BrowserCookieAccessGate.withExplicitRetry(bypassingCooldown: true) {
+            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                    try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                        keychainProbeCount.withLock { $0 += 1 }
+                        return .interactionRequired
+                    } operation: {
+                        #expect(throws: AliyunOneConsoleChromiumCookieFallbackImporter.ImportError.self) {
+                            try AliyunOneConsoleChromiumCookieFallbackImporter.importSession(
+                                browser: .chrome,
+                                domains: ["example.com"],
+                                isAuthenticatedSession: { _ in false },
+                                sessionLabel: "Test",
+                                cookieClient: client)
+                        }
+                    }
+                }
+            }
+        }
+
+        #expect(keychainProbeCount.withLock { $0 } > 0)
+        #expect(!BrowserCookieAccessGate.hasActiveDenial(for: .chrome))
+    }
+
+    @Test
     func `domain matching requires exact or label bounded suffix`() {
         #expect(AlibabaCodingPlanCookieImporter.matchesCookieDomain("console.aliyun.com"))
         #expect(AlibabaCodingPlanCookieImporter.matchesCookieDomain(".modelstudio.console.alibabacloud.com"))

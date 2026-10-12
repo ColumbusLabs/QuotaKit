@@ -558,6 +558,8 @@ enum CostUsageScanner {
         var unpricedTokens: Int?
         var pricingModel: String?
         var pricingMode: String?
+        /// Derived for report copies only; never persisted as monetary evidence.
+        var isIncludedInPlan: Bool?
 
         init(
             day: String,
@@ -3179,12 +3181,13 @@ enum CostUsageScanner {
 
     /// Bump when the report pricing formula changes. Rates are resolved when reports are read;
     /// this fingerprint only invalidates downstream presentation caches such as Workspaces snapshots.
-    private static let codexCostFormulaVersion = 4
+    private static let codexCostFormulaVersion = 5
 
     static func codexPricingKey(modelsDevArtifact: ModelsDevCacheArtifact?) -> String {
         CostUsagePricingKey.codex(
             modelsDevArtifact: modelsDevArtifact,
-            formulaVersion: self.codexCostFormulaVersion)
+            formulaVersion: self.codexCostFormulaVersion,
+            customPricingFingerprint: CostUsagePricing.customPricingOverlay().fingerprint)
     }
 
     private static func codexPriorityMetadataKey(databaseURL: URL?) -> String {
@@ -4901,6 +4904,8 @@ enum CostUsageScanner {
         let subagentHistoryStartOrdinal: Int?
         let historyBaseThreadId: String?
         let requestSessionID: String?
+        /// Optional to keep persisted retry buffers from earlier parsers decodable.
+        var hasCreatorAccount: Bool?
 
         init(
             sessionId: String?,
@@ -4911,7 +4916,8 @@ enum CostUsageScanner {
             isSubagentThread: Bool,
             subagentHistoryStartOrdinal: Int?,
             historyBaseThreadId: String? = nil,
-            requestSessionID: String? = nil)
+            requestSessionID: String? = nil,
+            hasCreatorAccount: Bool? = nil)
         {
             self.sessionId = sessionId
             self.concreteSessionId = concreteSessionId
@@ -4922,6 +4928,7 @@ enum CostUsageScanner {
             self.subagentHistoryStartOrdinal = subagentHistoryStartOrdinal
             self.historyBaseThreadId = historyBaseThreadId
             self.requestSessionID = requestSessionID
+            self.hasCreatorAccount = hasCreatorAccount
         }
     }
 
@@ -5435,7 +5442,9 @@ enum CostUsageScanner {
             isSubagentThread: Self.codexIsSubagentThread(from: payload),
             subagentHistoryStartOrdinal: (payload?["subagent_history_start_ordinal"] as? NSNumber)?.intValue,
             historyBaseThreadId: Self.codexHistoryBaseThreadId(from: payload),
-            requestSessionID: payload?["session_id"] as? String)
+            requestSessionID: payload?["session_id"] as? String,
+            hasCreatorAccount: (payload?["creator_account_id"] as? String)
+                .map { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? false)
     }
 
     private static func parseCodexSessionMetadata(
@@ -6314,6 +6323,8 @@ enum CostUsageScanner {
             self.codexSession.sessionId = metadata.sessionId
             self.codexSession.concreteSessionId = metadata.concreteSessionId
             self.codexSession.forkedFromId = metadata.forkedFromId
+            // Only leaf metadata establishes eligibility; appended/copied ancestors cannot change it.
+            self.codexSession.hasCreatorAccount = metadata.hasCreatorAccount
             self.observeTimestamp(metadata.forkTimestamp)
             self.observeCwd(metadata.projectPath)
             self.isSubagentThread = metadata.isSubagentThread
@@ -7701,13 +7712,14 @@ enum CostUsageScanner {
                 range: range,
                 workRecorder: options.codexScanWorkRecorderForTesting)
             : []
-        let requiresAllFilesForCacheWideMigration = !options.useCodexCatchUpWorkingSet
-            && !cache.files.isEmpty
-            && (options.forceRescan
-                || pricingKeyChanged
-                || needsProjectMetadataMigration
-                || priorityMetadataChanged
-                || priorityTurnsChanged)
+        // Compact projections persist resolved estimates. A new pricing fingerprint must
+        // revisit existing files through the bounded queue even when source bytes are unchanged.
+        let requiresAllFilesForCacheWideMigration = !cache.files.isEmpty
+            && (pricingKeyChanged || (!options.useCodexCatchUpWorkingSet
+                    && (options.forceRescan
+                        || needsProjectMetadataMigration
+                        || priorityMetadataChanged
+                        || priorityTurnsChanged)))
         let cacheWideMigrationPendingPathKeys = pricingMetadataMigrationPathKeys
             .union(turnIDCacheMigrationPathKeys)
             .union(parserMigrationPathKeys)

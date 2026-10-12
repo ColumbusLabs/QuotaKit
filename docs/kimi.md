@@ -85,7 +85,7 @@ reuse; use an explicit API key for endpoint-override testing.
 The current CLI credential file does not identify its issuing host, so switching to International disables
 automatic CLI credential reuse. Configure an International API key or use a `kimi.ai` web session instead.
 
-### Method 3: Automatic Browser Import
+### Method 3: Automatic Discovery
 
 **No setup needed!** If you're already logged in to Kimi in Arc, Chrome, Safari, Edge, Brave, or Chromium:
 
@@ -94,12 +94,34 @@ automatic CLI credential reuse. Configure an International API key or use a `kim
 3. Enable the Kimi provider toggle
 4. QuotaKit will automatically find your session
 
-**Note**: Requires Full Disk Access to read browser cookies (System Settings -> Privacy & Security -> Full Disk Access -> QuotaKit).
+Automatic mode prefers the current China Kimi Desktop access token from its primary Local Storage profile.
+Expired or invalid Desktop JWTs are skipped; if the Kimi service rejects a Desktop session, the Web source
+continues through browser profiles instead of stopping.
 
-Automatic mode also checks the official Kimi Desktop app before importing browser cookies. Its Chromium
-Cookies database is opened read-only: active WAL databases use SQLite's normal WAL-aware path, while idle
-WAL-mode databases with no sidecars use an immutable read-only fallback. QuotaKit never creates or modifies
-Kimi Desktop database files.
+For China, Desktop discovery reads only the exact `https://www.kimi.com` / `access_token` record in
+`~/Library/Application Support/kimi-desktop/Local Storage/leveldb`. The shared reader follows the current
+LevelDB manifest and sequence numbers, honors deletions, and rejects incomplete or changing reads and
+symlinked profile paths. Only a bare, unexpired access JWT with the `kimi.com` audience is accepted.
+QuotaKit does not scan historical tokens, import refresh tokens, or fall back to old China Desktop cookies.
+
+The acquired Desktop session is checked again before each web request. A deleted, replaced, expired, or
+unreadable session stops further requests with that credential. Confirm the intended account is signed in
+to Kimi Desktop, then refresh QuotaKit to acquire it again. Successful Code API or CLI quota results remain
+available when this optional membership enrichment is unavailable. These local checks do not verify JWT
+signatures or revoke requests already sent; the Kimi service authenticates the token.
+
+International retains its existing read-only Desktop cookie discovery. Its Cookies database uses
+WAL-aware SQLite reads, with an immutable fallback for idle WAL-mode databases that have no sidecars.
+International Desktop Local Storage is not imported, and QuotaKit never creates or modifies Desktop
+database files.
+
+For the selected region, Automatic mode also reads `access_token` from Chromium browser local storage
+through the shared browser catalog after cookie discovery. Tokens stay bound to the selected Kimi origin;
+expired or malformed tokens are skipped. QuotaKit never reads or refreshes browser refresh tokens. Open
+Kimi in your browser to renew an expired session, or use a Kimi Code API key for unattended use.
+Safari and Firefox local storage are not imported.
+
+**Note**: Reading browser cookies requires Full Disk Access (System Settings -> Privacy & Security -> Full Disk Access -> QuotaKit).
 
 ### Method 4: Manual Token Entry
 
@@ -147,10 +169,11 @@ When multiple sources are available, QuotaKit uses this order:
 2. Fresh Kimi Code CLI access token (`~/.kimi-code/credentials/kimi-code.json`)
 3. Manual cookie/token (from Settings UI) when web fallback is used
 4. Cookie environment variable (`KIMI_AUTH_TOKEN`)
-5. Kimi Desktop `kimi-auth` cookie
+5. Current China Kimi Desktop Local Storage access token (International retains its `kimi-auth` cookie)
 6. Browser cookies (Arc → Chrome → Safari → Edge → Brave → Chromium)
+7. Chromium local storage `access_token` for the selected region
 
-For Code API and CLI results, sources 3–6 are best-effort enrichment only: the required Code usage remains
+For Code API and CLI results, sources 3–7 are best-effort enrichment only: the required Code usage remains
 available if the membership request fails. Setting **Cookie source** to **Off** disables this enrichment and
 does not inspect Kimi Desktop or browser cookies.
 
@@ -239,6 +262,10 @@ All tiers have a rate limit of 200 requests per 5 hours.
 ### "Kimi auth token is invalid or expired"
 - Your token has expired. Paste a new token from your browser
 - If using Automatic mode, log in to Kimi again in your browser
+
+### "Kimi Desktop session changed before the request was sent"
+- Confirm the intended account is signed in to Kimi Desktop, then refresh QuotaKit.
+- The next refresh reads the current session again; no restart is needed.
 
 ### "No Kimi session cookies found"
 - You're not logged in to Kimi in any supported browser

@@ -296,14 +296,16 @@ public final class BrowserDetection: Sendable {
     private func hasValidProfileDirectory(for browser: Browser, at profilePath: String) -> Bool {
         guard let contents = self.directoryContents(profilePath) else { return false }
 
-        // Check for Default/ or Profile*/ subdirectories for Chromium browsers
+        // Check for Default/ or Profile*/ subdirectories for Chromium browsers.
         let hasProfile = contents.contains { name in
             name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-")
         }
 
+        // Gecko defaults include `.default`, `.default-release`, and channel forms such as
+        // Developer Edition's `.dev-edition-default`.
         if browser.usesGeckoProfileStore {
             return contents.contains { name in
-                name.range(of: ".default", options: [.caseInsensitive]) != nil
+                name.range(of: "default", options: [.caseInsensitive]) != nil
             }
         }
 
@@ -314,7 +316,7 @@ public final class BrowserDetection: Sendable {
         guard let contents = self.directoryContents(profilePath) else { return false }
 
         if browser.usesGeckoProfileStore {
-            for name in contents where name.range(of: ".default", options: [.caseInsensitive]) != nil {
+            for name in contents where name.range(of: "default", options: [.caseInsensitive]) != nil {
                 let cookieDB = "\(profilePath)/\(name)/cookies.sqlite"
                 if self.fileExists(cookieDB) {
                     return true

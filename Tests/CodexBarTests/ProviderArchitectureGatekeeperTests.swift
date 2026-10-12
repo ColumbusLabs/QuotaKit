@@ -1693,14 +1693,6 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: ["codex@0"],
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
-            path: "Sources/CodexBar/MenuBarLayoutEditor.swift",
-            line: 929,
-            anchor: "if provider == .codex,",
-            expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 1,
-            expectedReferenceFingerprint: ["codex@0"],
-            reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
-        AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuCardView+CodexResetCredits.swift",
             line: 218,
             anchor: "guard input.provider == .codex,",
@@ -5707,14 +5699,6 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["antigravity@0"],
             reason: "Antigravity's CLI descriptor has no version detector, so this detail pane omits the unavailable Version row."),
-        AllowedProviderConstruct(
-            path: "Sources/CodexBar/StatusItemController+MenuBarLayout.swift",
-            line: 258,
-            anchor: "codexCredits: provider == .codex ? self.store.codexConsumerProjection(",
-            expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 1,
-            expectedReferenceFingerprint: ["codex@0"],
-            reason: "Codex's consumer credit snapshot is passed separately because its menu-bar balance is not a generic provider quota."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+QuotaWarnings.swift",
             line: 262,

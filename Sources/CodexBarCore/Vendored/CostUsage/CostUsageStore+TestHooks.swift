@@ -5,6 +5,9 @@ import Foundation
 struct CostUsageStoreTestHooks: Sendable {
     @TaskLocal static var current = CostUsageStoreTestHooks()
 
+    /// Isolated overlay input for scanner/store pricing parity; never reads user configuration.
+    var customPricingOverlay: CostUsageCustomPricing?
+
     /// Invoked after each persisted file, inside the save transaction, for crash-safety proof.
     var saveCycleCheckpoint: (@Sendable (Int) -> Void)?
     var identicalContentPreLockCheckpoint: (databaseURL: URL, checkpoint: @Sendable () -> Void)?

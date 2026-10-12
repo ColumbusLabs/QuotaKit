@@ -133,7 +133,7 @@ extension StatusItemController {
         guard !predicates.isEmpty else { return [] }
 
         let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
-        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
+        let windows = self.store.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
         let scopedWeekly = MenuBarLayoutSemanticWindowResolver
             .scopedWeeklyNamedWindow(snapshot: snapshot)?.window
         return predicates.compactMap { predicate -> TimeInterval? in
@@ -209,7 +209,7 @@ extension StatusItemController {
                 || self.referencedConditionalMetrics(resolution: resolution).contains(.weeklyPace)
             guard showsWeeklyPace else { return nil }
             let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
-            guard let window = self.menuBarLayoutWindows(
+            guard let window = self.store.menuBarLayoutWindows(
                 provider: provider,
                 snapshot: snapshot,
                 now: now).weekly

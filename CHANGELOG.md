@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Cost menu session rows trim conversation titles and refresh when only the title changes.
+- Kimi can discover and revalidate the current Desktop session before fetching usage.
+
 - Menu cards can hide pointer hover highlights while retaining keyboard selection.
 - Session performance shows cache reuse and the number of measured first-token samples in its primary metrics.
 
@@ -26,6 +29,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Claude prepaid usage credits appear in stored Balance layouts and respect the optional credits setting.
+- Returning from a stored menu layout redraws the selected meter or critter immediately.
+- Codex status and activity reads omit the detailed request ledger; free Auto-review requests retain zero pricing unless an explicit custom rate applies.
+- Browser cookie imports share one prompt allowance per manual refresh and respect denial cooldowns; automatic settings refreshes remain noninteractive.
+- Antigravity usage probes cannot launch browser sign-in, and Firefox Developer Edition default profiles are detected.
 
 - xAI shows estimated remaining credit from the current invoice preview separately from posted prepaid balance; preview failures keep balance data available.
 - CommandCode preserves unknown plan names without inventing quota limits; estimated OpenCode Go menu metrics are marked explicitly.

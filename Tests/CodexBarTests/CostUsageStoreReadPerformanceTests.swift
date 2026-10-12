@@ -734,3 +734,97 @@ private final class CountingReadPerformanceDecoder: JSONDecoder, @unchecked Send
         self.counts[data] ?? 0
     }
 }
+
+extension CostUsageStoreReadPerformanceTests {
+    @Test
+    func `status and activity read views omit the request ledger while reports and scans keep it`() async throws {
+        let fixture = try ReadPerformanceFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 12)))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day, calendar: calendar)
+        let nowMs = Int64(day.timeIntervalSince1970 * 1000)
+        let path = "/sessions/request-ledger.jsonl"
+        var cache = Self.seededCache()
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 64, days: ["2026-08-01": ["gpt-5.5": [30, 0, 15]]])
+        usage.sessionId = "request-ledger"
+        usage.codexRows = [
+            Self.row(model: "gpt-5.5", input: 10, eventIndex: 0),
+            Self.row(model: "gpt-5.5", input: 20, eventIndex: 1),
+        ]
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        usage.codexRows = (usage.codexRows ?? []).enumerated().map { index, row in
+            CostUsageScanner.CodexUsageRow(
+                day: row.day,
+                model: row.model,
+                turnID: row.turnID,
+                eventIndex: row.eventIndex,
+                timestampUnixMs: Int64(day.timeIntervalSince1970 * 1000) - 1000,
+                input: row.input,
+                cached: row.cached,
+                output: row.output,
+                knownCostNanos: row.knownCostNanos,
+                pricingModel: row.pricingModel,
+                pricingMode: row.pricingMode,
+                responseID: "fixture-response-\(index)")
+        }
+        let turnID = try #require(usage.codexRows?.first?.turnID)
+        var ledger = CostUsageScanner.CodexRequestLedgerState()
+        ledger.responseIDs = ["fixture-response-0", "fixture-response-1"]
+        ledger.mirroredResponses = ["fixture-snapshot-0": "fixture-response-0"]
+        ledger.legacyRowIndices = ["fixture-legacy-0": 0]
+        ledger.turnModels = [turnID: "gpt-5.5"]
+        var performance = CostUsageScanner.CodexTurnPerformanceState()
+        performance.reportedOutputTokens = 5
+        performance.completion = .init(
+            turnID: turnID,
+            timestamp: "2026-08-01T12:00:00Z",
+            completedAtUnixMs: nowMs,
+            durationMilliseconds: 2000,
+            firstTokenMilliseconds: 100,
+            startedAtUnixMs: nowMs - 5000)
+        ledger.turnPerformance = [turnID: performance]
+        usage.codexRequestLedgerState = ledger
+        cache.files[path] = usage
+        cache.days = usage.days
+        #expect(!store.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01")).catchUpRequired)
+        let persisted = await store.readSnapshot()
+        let scanned = store.syncLoadCodexCache(calendar: calendar)
+        #expect(scanned.files[path]?.codexRequestLedgerState == ledger)
+
+        let reader = CostUsageStore(cacheRoot: fixture.root)
+        _ = reader.syncLoadCodexReadView(calendar: calendar, purpose: .status)
+        _ = reader.syncLoadCodexReadView(calendar: calendar, purpose: .status)
+        let retainedStatus = try #require(await reader.retainedCodexRead)
+        #expect(retainedStatus.purpose == .status)
+        #expect(retainedStatus.decoded.files.count == 1)
+        #expect(retainedStatus.decoded.files.values.allSatisfy { $0.codexRequestLedgerState == nil })
+        #expect(retainedStatus.decoded.files[path]?.codexTypedResponseIdentity == true)
+
+        _ = reader.syncLoadCodexReadView(calendar: calendar, purpose: .activity)
+        _ = reader.syncLoadCodexReadView(calendar: calendar, purpose: .activity)
+        _ = reader.syncLoadCodexReadView(calendar: calendar, purpose: .status)
+        let retainedActivity = try #require(await reader.retainedCodexRead)
+        #expect(retainedActivity.purpose == .activity)
+        #expect(retainedActivity.decoded.files.values.allSatisfy { $0.codexRequestLedgerState == nil })
+
+        // A ledger-stripped warm view must never satisfy a report request.
+        #expect(!CostUsageStoreReadPurpose.status.includes(.report))
+        #expect(!CostUsageStoreReadPurpose.activity.includes(.report))
+        let roots = [URL(fileURLWithPath: "/sessions")]
+        let report = reader.syncLoadCodexReadView(calendar: calendar, purpose: .report).scoped(to: roots)
+        #expect(report.dailyReport(range: range, cacheRoot: fixture.root).data ==
+            CostUsageScanner.buildCodexReportFromCache(cache: scanned, range: range).data)
+        let sessions = report.sessions(range: range, cacheRoot: fixture.root, roots: roots)
+        #expect(sessions == CostUsageScanner.buildCodexSessionBreakdownsFromCache(
+            cache: scanned, range: range, sessionRoots: roots))
+        #expect(sessions.contains { !$0.turnPerformanceSamples.isEmpty })
+        #expect(await reader.retainedCodexRead?.purpose == .activity)
+
+        #expect(reader.syncLoadCodexCache(calendar: calendar).files[path]?.codexRequestLedgerState == ledger)
+        #expect(await store.readSnapshot() == persisted)
+    }
+}

@@ -575,7 +575,10 @@ enum CostUsagePricing {
     }
 
     static func customPricingOverlay(fileURL: URL? = nil) -> CostUsageCustomPricing {
-        CostUsageCustomPricing.load(fileURL: fileURL)
+        #if DEBUG
+        if fileURL == nil, let pricing = CostUsageStoreTestHooks.current.customPricingOverlay { return pricing }
+        #endif
+        return CostUsageCustomPricing.load(fileURL: fileURL)
     }
 
     static func resolvedCodexPricing(

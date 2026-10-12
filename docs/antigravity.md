@@ -26,7 +26,13 @@ For `agy` 1.2.2 and later, a failed legacy HTTPS fetch can fall back to
 or later before using print mode; [Google introduced non-interactive usage reports in 1.1.11](https://antigravity.google/changelog).
 It requires a successful `usage` command report with known,
 enabled quota buckets, bounds the command to 90 seconds and its output to 1 MiB, and terminates the command
-on cancellation. It does not send a model prompt or parse TUI output. The ambient report contains no account
+on cancellation. It does not send a model prompt or parse TUI output. When silent sign-in fails, `agy` print mode
+can exec `open` or `xdg-open` through `PATH` to start Google OAuth. Every usage probe installs failing launchers in
+its private working directory, prepends it to `PATH`, and sets `BROWSER` to the blocked launcher; if installation
+fails, the report does not start. A working login can still return quota, but the refresh cannot open browser
+sign-in. Run `agy` in a terminal to sign in again; **Add Account...** keeps its explicit OAuth flow. The same guard
+protects ambient and account-scoped print reports, and the launchers are removed after subprocess cleanup.
+The ambient report contains no account
 or plan identity, so explicit CLI mode remains authoritative and Auto uses it only when no token account is
 selected or injected. When Auto has a selected or injected account, the fallback instead stages that account's
 credentials in a fresh private temporary home and runs `agy` with an allowlisted environment that selects its

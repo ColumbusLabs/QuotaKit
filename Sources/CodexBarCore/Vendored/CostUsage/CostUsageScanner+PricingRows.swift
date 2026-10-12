@@ -1,6 +1,22 @@
 import Foundation
 
 extension CostUsageScanner {
+    /// Read-time eligibility shared by detailed reports and compact persisted projections.
+    static func codexAutoReviewIsIncluded(
+        _ row: CodexUsageRow,
+        hasCreatorAccount: Bool?,
+        priorityTurns: [String: CodexPriorityTurnMetadata] = [:],
+        customPricing: CostUsageCustomPricing) -> Bool
+    {
+        hasCreatorAccount == true && row.knownCostNanos == nil && row.eventIndex != nil
+            && (row.unpricedTokens ?? 0) == 0
+            && row.timestampUnixMs.map { $0 >= 1_791_270_000_000 } == true // 2026-10-06 00:00 PDT.
+            && CostUsagePricing.normalizeCodexModel(row.model) == "codex-auto-review"
+            && customPricing.rates(
+                providerID: CostUsagePricing.codexModelsDevProviderID,
+                model: self.codexPricedModel(for: row, priorityTurns: priorityTurns)) == nil
+    }
+
     static func codexResolvedCostUSD(
         for row: CodexUsageRow,
         priorityTurns: [String: CodexPriorityTurnMetadata] = [:],
@@ -12,11 +28,9 @@ extension CostUsageScanner {
         if let authoritativeCostNanos = row.knownCostNanos {
             return Double(authoritativeCostNanos) / self.costScale
         }
-        let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
-        let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
-        let pricedModel = priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
-            ?? row.pricingModel
-            ?? row.model
+        if row.isIncludedInPlan == true { return 0 }
+        let isPriority = row.turnID.flatMap { priorityTurns[$0] } != nil || row.pricingMode == "priority"
+        let pricedModel = self.codexPricedModel(for: row, priorityTurns: priorityTurns)
         let overlay = customPricing ?? .empty
         let pricingDate = row.timestampUnixMs.map { Date(timeIntervalSince1970: Double($0) / 1000) }
         let baseCost = CostUsagePricing.codexCostUSD(
@@ -82,6 +96,13 @@ extension CostUsageScanner {
                     pricingMode: usage.codexPriorityTokens?[day]?[model] == nil ? "standard" : "priority")
             }
         }
+    }
+
+    /// The model whose rates price `row`, as the custom overlay and catalogs look it up.
+    static func codexPricedModel(for row: CodexUsageRow, priorityTurns: [String: CodexPriorityTurnMetadata]) -> String {
+        row.turnID.flatMap { priorityTurns[$0] }.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
+            ?? row.pricingModel
+            ?? row.model
     }
 
     static func codexPriorityPricingModel(
