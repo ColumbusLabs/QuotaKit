@@ -9,6 +9,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- fal tracks account credits; FLORA tracks workspace balance and month-to-date spend, with billing details synced to iPhone.
+- Provider settings support search, filters, reversible alphabetical sorting, and restoring the default order.
+- Custom menu layouts support graphical quota bars and provider icons spanning both text rows; cost tokens follow the configured history window.
+- The CLI can combine identified Codex request subtotals from local and SSH histories without estimating prices.
+
 - Cost menu session rows trim conversation titles and refresh when only the title changes.
 - Kimi can discover and revalidate the current Desktop session before fetching usage.
 
@@ -29,6 +34,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Automatic cookie imports stop after a provider accepts a working session; TypeSafe uses the shared supported-browser catalog and Charm Hyper repairs expired dashboard sessions.
+- OpenCode Go caches bounded local scans with database/WAL fingerprints while preserving consent for browser-session discovery.
+- Menu cards distinguish provider errors from stale-usage notices, and Codex persistent caches retain compatible predecessor adoption.
 
 - Claude prepaid usage credits appear in stored Balance layouts and respect the optional credits setting.
 - Returning from a stored menu layout redraws the selected meter or critter immediately.

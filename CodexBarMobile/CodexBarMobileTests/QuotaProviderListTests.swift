@@ -355,7 +355,7 @@ struct QuotaProviderListTests {
         let providers = QuotaProviderList.providers
         #expect(providers.suffix(3).map(\.id) == ["tavily", "cosmic", "aerostack"])
         #expect(providers.suffix(3).map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])
-        for id in ["linkup", "tinyapi", "exa", "sailresearch", "sofya"] {
+        for id in ["linkup", "tinyapi", "exa", "sailresearch", "sofya", "fal", "flora"] {
             #expect(!providers.contains { $0.id == id }, "\(id) reports balance/spend without quota transitions")
         }
     }

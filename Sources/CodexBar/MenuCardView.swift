@@ -337,31 +337,32 @@ private struct UsageMenuCardHeaderView: View {
                     .lineLimit(1).truncationMode(.middle)
             }
             let liveSubtitle = self.liveSubtitle
+            let displayed = liveSubtitle.displayed(reservesStaleRow: self.model.lastKnownUsageText != nil)
             // Keep the geometry AppKit measured for this hosted row. A new error stays one line
             // until the next rebuild; a recovered error keeps its reserved height until then.
             let usesErrorLayout = self.model.subtitleStyle == .error
             let subtitleAlignment: VerticalAlignment = usesErrorLayout ? .top : .firstTextBaseline
             HStack(alignment: subtitleAlignment, spacing: UsageMenuCardLayout.headerColumnSpacing) {
                 if usesErrorLayout {
-                    Text(self.model.subtitleText)
+                    Text(MenuInlineCodeText.attributed(self.model.subtitleText))
                         .font(.footnote)
-                        .lineLimit(4)
+                        .lineLimit(3)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 4)
                         .hidden()
                         .overlay(alignment: .topLeading) {
-                            Text(liveSubtitle.text)
+                            Text(MenuInlineCodeText.attributed(displayed.subtitle))
                                 .font(.footnote)
                                 .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
-                                .lineLimit(4)
+                                .lineLimit(3)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .clipped()
                         .layoutPriority(1)
                 } else {
-                    Text(liveSubtitle.text)
+                    Text(MenuInlineCodeText.attributed(displayed.subtitle))
                         .font(.footnote)
                         .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
                         .lineLimit(1)
@@ -376,6 +377,7 @@ private struct UsageMenuCardHeaderView: View {
                         copyText: liveSubtitle.text,
                         isHighlighted: self.isHighlighted,
                         isInteractive: showsCopyButton)
+                        .offset(y: -6)
                         .opacity(showsCopyButton ? 1 : 0)
                         .allowsHitTesting(showsCopyButton)
                         .accessibilityHidden(!showsCopyButton)
@@ -400,17 +402,24 @@ private struct UsageMenuCardHeaderView: View {
                     .layoutPriority(2)
                 }
             }
-            if let lastKnownUsageText = self.model.lastKnownUsageText {
-                Text(lastKnownUsageText)
+            if let reservedStaleText = self.model.lastKnownUsageText {
+                Text(displayed.staleRow ?? reservedStaleText)
+                    .opacity(displayed.staleRow == nil ? 0 : 1)
+                    .accessibilityHidden(displayed.staleRow == nil)
                     .font(.footnote)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private var liveSubtitle: MenuCardLiveSubtitle {
-        let fallback = MenuCardLiveSubtitle(text: self.model.subtitleText, style: self.model.subtitleStyle)
+        let fallback = MenuCardLiveSubtitle(
+            text: self.model.subtitleText,
+            style: self.model.subtitleStyle,
+            lastKnownUsageText: self.model.lastKnownUsageText)
         guard self.model.usesLiveSubtitle else { return fallback }
         return self.refreshMonitor?.subtitle(for: self.model.provider, fallback: fallback) ?? fallback
     }

@@ -5,6 +5,40 @@ import Testing
 
 @MainActor
 struct UsageStoreMenuCardModelTests {
+    @Test
+    func `Claude menu separates stale usage from its error while settings retain the notice`() throws {
+        try KeychainAccessGate.withTaskOverrideForTesting(false) {
+            try CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+                let store = self.makeStore()
+                let snapshot = self.snapshot()
+                let raw = ClaudeOAuthCredentialsError.missingAccessToken.localizedDescription
+                store.snapshots[.claude] = snapshot
+                store.errors[.claude] = raw
+
+                let menu = store.menuCardModel(for: .claude, now: snapshot.updatedAt.addingTimeInterval(3600))
+                #expect(menu.subtitleText == raw)
+                #expect(menu.subtitleStyle == .error)
+                #expect(menu.lastKnownUsageText?.hasPrefix("Showing last-known usage captured ") == true)
+                #expect(!menu.subtitleText.contains("Showing last-known usage"))
+
+                let settings = store.menuCardModel(for: .claude, context: .settings)
+                let message = try #require(store.userFacingError(for: .claude))
+                #expect(settings.subtitleText == message)
+                #expect(settings.subtitleText.components(separatedBy: "Showing last-known usage").count == 2)
+                #expect(settings.lastKnownUsageText == nil)
+            }
+        }
+    }
+
+    @Test
+    func `Claude error without a snapshot has no stale line`() {
+        let store = self.makeStore()
+        store.errors[.claude] = "Claude request failed"
+        let model = store.menuCardModel(for: .claude)
+        #expect(model.subtitleText == "Claude request failed")
+        #expect(model.lastKnownUsageText == nil)
+    }
+
     @Test(arguments: [UsageDataConfidence.estimated, .exact])
     func `account pace uses its own confidence instead of the live account`(confidence: UsageDataConfidence) {
         let store = self.makeStore()

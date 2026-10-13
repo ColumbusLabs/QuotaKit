@@ -1452,7 +1452,7 @@
 "menu_bar_layout_token_reset_at" = "بازنشانی در ساعت";
 "menu_bar_layout_token_runs_out" = "تمام می‌شود";
 "menu_bar_layout_token_cost_today" = "هزینهٔ امروز";
-"menu_bar_layout_token_cost_30d" = "هزینهٔ ۳۰ روز";
+"menu_bar_layout_token_cost_window" = "هزینه (پنجره تاریخچه)";
 "menu_bar_layout_token_space" = "فاصله";
 "menu_bar_layout_token_line_break" = "شکست خط";
 "menu_bar_layout_token_separator_accessibility" = "نقطهٔ جداکننده";
@@ -1470,7 +1470,6 @@
 "Reset time unavailable" = "بازنشانی در ساعت: در دسترس نیست";
 "Run-out estimate unavailable" = "تمام می‌شود: در دسترس نیست";
 "Cost today unavailable" = "هزینهٔ امروز: در دسترس نیست";
-"30-day cost unavailable" = "هزینهٔ ۳۰ روز: در دسترس نیست";
 "Resets" = "بازنشانی‌ها";
 "Most usable account" = "قابل استفاده ترین حساب";
 "%d more accounts ready" = "%d حساب های بیشتر آماده است";
@@ -2531,3 +2530,18 @@
 "Pace sign" = "علامت آهنگ مصرف";
 "Ahead of pace is +" = "جلوتر از آهنگ مصرف یعنی +";
 "Reserve is +" = "ذخیره یعنی +";
+"menu_bar_layout_preset_bars_stacked" = "نوارهای پیشرفت انباشته";
+"claude_oauth_keychain_access_disabled" = "دسترسی به Keychain غیرفعال است، بنابراین QuotaKit نمی‌تواند اطلاعات ورود به Claude را بخواند.";
+"Provider order updated" = "ترتیب ارائه‌دهندگان به‌روزرسانی شد";
+"Undo" = "واگرد";
+"Clear filters" = "پاک کردن فیلترها";
+"Change provider order" = "تغییر ترتیب ارائه‌دهندگان";
+"Provider sorting" = "مرتب‌سازی ارائه‌دهندگان";
+"Only enabled providers" = "فقط ارائه‌دهندگان فعال";
+"Restore default order" = "بازیابی ترتیب پیش‌فرض";
+"Also restores the provider order in the menu bar. Can be undone." = "ترتیب ارائه‌دهندگان در نوار منو را نیز بازیابی می‌کند. قابل واگرد است.";
+"Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "کلیدی با دسترسی خواندن صورت‌حساب (پیش‌تنظیم BILLING یا READONLY). یا FAL_KEY را تنظیم کنید.";
+"Needs billing permission on the workspace. Or set FLORA_API_KEY." = "به مجوز صورت‌حساب در فضای کاری نیاز دارد. یا FLORA_API_KEY را تنظیم کنید.";
+"Required. The ws_… ID of the workspace the key can bill. Or set FLORA_WORKSPACE_ID." = "الزامی. شناسه ws_… فضای کاری که کلید می‌تواند صورت‌حساب آن را ببیند. یا FLORA_WORKSPACE_ID را تنظیم کنید.";
+"ak_…" = "ak_…";
+"ws_…" = "ws_…";

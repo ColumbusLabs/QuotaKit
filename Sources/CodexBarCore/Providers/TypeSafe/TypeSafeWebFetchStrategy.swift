@@ -11,6 +11,7 @@ struct TypeSafeResolvedSession: Sendable {
 final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable {
     typealias UsageLoader = @Sendable (String) async throws -> UsageSnapshot
     typealias SessionLoader = @Sendable (BrowserDetection) throws -> [TypeSafeResolvedSession]
+    typealias SessionCandidateLoader = @Sendable (BrowserDetection) throws -> AnySequence<TypeSafeResolvedSession>
     typealias CacheObservation = CookieHeaderCache.ConditionalMutationObservation
     typealias CacheLoader = @Sendable () -> CacheObservation
     typealias CacheClearer = @Sendable (CookieHeaderCache.Entry?) -> Bool
@@ -20,7 +21,7 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
     let kind: ProviderFetchKind = .web
     private let transport: any ProviderHTTPTransport
     private let usageLoader: UsageLoader?
-    private let sessionLoader: SessionLoader
+    private let sessionCandidateLoader: SessionCandidateLoader
     private let cacheLoader: CacheLoader
     private let cacheClearer: CacheClearer
     private let cacheWriter: CacheWriter
@@ -30,7 +31,8 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
     init(
         transport: any ProviderHTTPTransport = TypeSafeWebFetchStrategy.isolatedTransport,
         usageLoader: UsageLoader? = nil,
-        sessionLoader: @escaping SessionLoader = TypeSafeWebFetchStrategy.loadSessions,
+        sessionLoader: SessionLoader? = nil,
+        sessionCandidateLoader: SessionCandidateLoader? = nil,
         cacheLoader: @escaping CacheLoader = { CookieHeaderCache.observeForConditionalMutation(provider: .typesafe) },
         cacheClearer: @escaping CacheClearer = { CookieHeaderCache.clearIfCurrent(provider: .typesafe, expected: $0) },
         cacheWriter: @escaping CacheWriter = { expected, session in
@@ -43,7 +45,10 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
     {
         self.transport = transport
         self.usageLoader = usageLoader
-        self.sessionLoader = sessionLoader
+        self.sessionCandidateLoader = sessionCandidateLoader ?? { browserDetection in
+            if let sessionLoader { return AnySequence(try sessionLoader(browserDetection)) }
+            return try Self.loadSessionCandidates(browserDetection: browserDetection)
+        }
         self.cacheLoader = cacheLoader
         self.cacheClearer = cacheClearer
         self.cacheWriter = cacheWriter
@@ -97,18 +102,21 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
             }
         }
         try Task.checkCancellation()
-        let sessions = try self.sessionLoader(context.browserDetection)
-        guard !sessions.isEmpty else { throw TypeSafeCredentialError.missingCookie }
-        return try await ProviderCandidateRetryRunner.run(
-            sessions,
-            shouldRetry: Self.isAuthenticationFailure,
-            attempt: { session in
-                try Task.checkCancellation()
-                let usage = try await self.fetchUsage(cookieHeader: session.cookieHeader)
-                try Task.checkCancellation()
-                self.cacheWriter(observation, session)
-                return self.makeResult(usage: usage, sourceLabel: "web")
-            })
+        let sessions = try self.sessionCandidateLoader(context.browserDetection)
+        do {
+            return try await ProviderCandidateRetryRunner.run(
+                sessions,
+                shouldRetry: Self.isAuthenticationFailure,
+                attempt: { session in
+                    try Task.checkCancellation()
+                    let usage = try await self.fetchUsage(cookieHeader: session.cookieHeader)
+                    try Task.checkCancellation()
+                    self.cacheWriter(observation, session)
+                    return self.makeResult(usage: usage, sourceLabel: "web")
+                })
+        } catch ProviderCandidateRetryRunnerError.noCandidates {
+            throw TypeSafeCredentialError.missingCookie
+        }
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool { false }
@@ -141,9 +149,11 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
         return runtime
     }
 
-    private static func loadSessions(browserDetection: BrowserDetection) throws -> [TypeSafeResolvedSession] {
+    private static func loadSessionCandidates(
+        browserDetection: BrowserDetection) throws -> AnySequence<TypeSafeResolvedSession>
+    {
         #if os(macOS)
-        try TypeSafeCookieImporter.importSessions(browserDetection: browserDetection)
+        try TypeSafeCookieImporter.sessionCandidates(browserDetection: browserDetection)
         #else
         throw TypeSafeCredentialError.missingCookie
         #endif

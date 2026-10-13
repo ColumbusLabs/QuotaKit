@@ -1452,7 +1452,7 @@
 "menu_bar_layout_token_reset_at" = "Reset at";
 "menu_bar_layout_token_runs_out" = "Runs out";
 "menu_bar_layout_token_cost_today" = "Cost today";
-"menu_bar_layout_token_cost_30d" = "Cost 30d";
+"menu_bar_layout_token_cost_window" = "Cost (History window)";
 "menu_bar_layout_token_space" = "Space";
 "menu_bar_layout_token_line_break" = "Line break";
 "menu_bar_layout_token_separator_accessibility" = "Separator dot";
@@ -1470,7 +1470,6 @@
 "Reset time unavailable" = "Reset time unavailable";
 "Run-out estimate unavailable" = "Run-out estimate unavailable";
 "Cost today unavailable" = "Cost today unavailable";
-"30-day cost unavailable" = "30-day cost unavailable";
 "Resets" = "Resets";
 "Most usable account" = "Most usable account";
 "%d more accounts ready" = "%d more accounts ready";
@@ -2529,3 +2528,18 @@
 "Pace sign" = "Pace sign";
 "Ahead of pace is +" = "Ahead of pace is +";
 "Reserve is +" = "Reserve is +";
+"menu_bar_layout_preset_bars_stacked" = "Progress bars stacked";
+"claude_oauth_keychain_access_disabled" = "Keychain access is disabled, so QuotaKit can't read Claude's sign-in.";
+"Provider order updated" = "Provider order updated";
+"Undo" = "Undo";
+"Clear filters" = "Clear filters";
+"Change provider order" = "Change provider order";
+"Provider sorting" = "Provider sorting";
+"Only enabled providers" = "Only enabled providers";
+"Restore default order" = "Restore default order";
+"Also restores the provider order in the menu bar. Can be undone." = "Also restores the provider order in the menu bar. Can be undone.";
+"Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY.";
+"Needs billing permission on the workspace. Or set FLORA_API_KEY." = "Needs billing permission on the workspace. Or set FLORA_API_KEY.";
+"Required. The ws_… ID of the workspace the key can bill. Or set FLORA_WORKSPACE_ID." = "Required. The ws_… ID of the workspace the key can bill. Or set FLORA_WORKSPACE_ID.";
+"ak_…" = "ak_…";
+"ws_…" = "ws_…";

@@ -347,6 +347,42 @@ struct ProviderPluginCookieBrokerTests {
         }
     }
 
+    @Test
+    func `cookie jar batches advance only after earlier candidates are rejected`() throws {
+        try self.isolated { () throws in
+            let domain = "apps.abacus.ai"
+            let batches = BatchCalls()
+            let broker = ProviderPluginCookieBroker(
+                provider: .abacus,
+                domains: [domain],
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                batches: { _, _ in nil },
+                usesCookieJar: true,
+                batchJarImporter: { _, batch in
+                    batches.append(batch)
+                    return switch batch {
+                    case 0: [(records: [Self.cookieRecord(domain: domain, value: "chrome")], source: "Chrome")]
+                    case 1: [
+                        (records: [Self.cookieRecord(domain: domain, value: "chrome")], source: "Duplicate"),
+                        (records: [Self.cookieRecord(domain: domain, value: "firefox")], source: "Firefox"),
+                    ]
+                    default: nil
+                    }
+                })
+
+            let chrome = try #require(try broker.nextSession(domain: domain))
+            #expect(chrome.source == "Chrome")
+            #expect(batches.values == [0])
+            broker.rejectCookie(domain: domain, id: chrome.id)
+            let firefox = try #require(try broker.nextSession(domain: domain))
+            #expect(firefox.source == "Firefox")
+            #expect(batches.values == [0, 1])
+            broker.rejectCookie(domain: domain, id: firefox.id)
+            #expect(try broker.nextSession(domain: domain) == nil)
+            #expect(batches.values == [0, 1, 2])
+        }
+    }
+
     private final class BatchCalls: @unchecked Sendable {
         private let lock = NSLock()
         private var storage: [Int] = []
@@ -367,6 +403,17 @@ struct ProviderPluginCookieBrokerTests {
             domains: self.domains,
             settings: .init(cookieSource: source, manualCookieHeader: "Cookie: session=manual"),
             importer: importer)
+    }
+
+    private static func cookieRecord(domain: String, value: String) -> ProviderPluginCookieRecord {
+        ProviderPluginCookieRecord(
+            name: "session",
+            value: value,
+            domain: domain,
+            hostOnly: true,
+            path: "/",
+            secure: true,
+            expires: nil)
     }
 
     private func isolated(_ body: () throws -> Void) rethrows {

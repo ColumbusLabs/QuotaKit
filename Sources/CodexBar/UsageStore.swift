@@ -351,7 +351,6 @@ final class UsageStore {
     @ObservationIgnored let claudeFetcher: any ClaudeUsageFetching
     @ObservationIgnored let costUsageFetcher: CostUsageFetcher
     @ObservationIgnored let browserDetection: BrowserDetection
-    @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored @ProcessEnvironment private(set) var environmentBase: [String: String]
     @ObservationIgnored let pluginApprovalStore: ProviderPluginApprovalStore
@@ -541,7 +540,6 @@ final class UsageStore {
         self.claudeFetcher = claudeFetcher ?? ClaudeUsageFetcher(browserDetection: browserDetection)
         self.costUsageFetcher = costUsageFetcher
         self.settings = settings
-        self.registry = registry
         self.environmentBase = environmentBase
         self.pluginApprovalStore = pluginApprovalStore
         self.widgetSnapshotURL = widgetSnapshotURL
@@ -1475,19 +1473,8 @@ extension UsageStore {
         }
     }
 
-    private func runBackgroundSnapshot(
-        _ snapshot: @escaping @Sendable () async -> PathDebugSnapshot) async
-    {
-        let result = await snapshot()
-        await MainActor.run {
-            self.pathDebugInfo = result
-        }
-    }
-
     private func refreshPathDebugInfo() async {
-        await self.runBackgroundSnapshot {
-            await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
-        }
+        self.pathDebugInfo = await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
     }
 
     // Keep the existing provider flow together; splitting it would obscure state transitions.

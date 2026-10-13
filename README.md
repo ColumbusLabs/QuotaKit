@@ -84,6 +84,10 @@ QuotaKit does not ship a Linux desktop installer.
 
 - [codexbar-kde](https://github.com/materemias/codexbar-kde) — Community KDE Plasma 6 widget built for the upstream CodexBar Linux CLI, with usage meters, agent-session search, terminal focus, and kitty session restoration. Maintained separately from QuotaKit.
 
+## Desk display integration
+
+- [TokenTV](https://github.com/click6067-ship-it/token-tv) is a community desk-clock integration built for the upstream CodexBar CLI and `codexbar serve`. It uses a Python host to display Claude and Codex usage on compatible Wi-Fi clocks. Maintained separately from QuotaKit.
+
 ## Upstream And Credits
 
 QuotaKit is derived from:

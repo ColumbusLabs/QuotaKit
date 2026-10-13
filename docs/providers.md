@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 100 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 102 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -778,3 +778,9 @@ See also: `docs/provider.md` for architecture notes.
 - Shows account-wide, plan, and purchased credit pools separately; only the provider-reported eligible credit reset is shown, with no inferred percentage.
 - Balance-only; no quota alerts are registered.
 - Details: `docs/sofya.md`.
+
+## fal and FLORA
+- fal uses an API key with billing read access to show the account's current credit balance.
+- FLORA uses a billing-enabled API key and required workspace ID to show available balance and reported month-to-date spend.
+- Both are balance-only and do not create quota alerts or guessed resets.
+- Details: [fal](fal.md) and [FLORA](flora.md).

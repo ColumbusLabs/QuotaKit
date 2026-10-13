@@ -59,6 +59,10 @@ shared API-key provider spec and fixed-origin GET requests in both plugin engine
 through the spec's workspace field. Their scripts preserve provider account scope, distinct credit pools, and reported
 periods; missing quotas and reset dates remain unavailable.
 
+[fal](fal.md) and [FLORA](flora.md) use the same provider spec for fixed-origin API-key requests. fal reports only
+the current account balance; FLORA reports one workspace's available balance and UTC month-to-date spend. Neither
+provider infers a quota or reset.
+
 ```js
 defineProvider({
   id: "acme-usage",

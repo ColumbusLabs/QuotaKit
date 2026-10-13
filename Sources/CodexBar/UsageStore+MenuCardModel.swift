@@ -94,6 +94,15 @@ extension UsageStore {
             codexProjection: codexProjection,
             account: account,
             now: now)
+        let errorPresentation = isLive ? self.userFacingErrorPresentation(for: provider) : nil
+        let liveError = isLive
+            ? (isSettings ? self.userFacingError(for: provider) : errorPresentation?.message)
+            : nil
+        let lastError = account?.error ?? codexProjection?.userFacingErrors.usage ?? liveError
+            ?? (provider == .codex ? account?.codexPublicationHold
+                ?? (isLive ? self.codexQuotaPublicationHoldMessage : nil) : nil)
+        // Settings keeps its historical combined error preview; the live menu card has a separate notice row.
+        let errorCapturedAt = isSettings ? nil : errorPresentation?.lastKnownUsageCapturedAt
         return UsageMenuCardView.Model.Input(
             provider: provider,
             metadata: metadata,
@@ -113,13 +122,11 @@ extension UsageStore {
             planOverride: account?.plan ?? .automatic,
             planEmphasis: account?.planEmphasis ?? .none,
             lastKnownUsageCapturedAt: account?.lastKnownUsageCapturedAt
+                ?? errorCapturedAt
                 ?? (isLive ? self.browserSessionLastKnownUsageCapturedAt(for: provider, snapshot: snapshot) : nil),
             isRefreshing: isSettings ? self.refreshingProviders.contains(provider.instanceID)
                 : self.shouldShowRefreshingMenuCardIndicator(for: provider),
-            lastError: account?.error ?? codexProjection?.userFacingErrors.usage
-                ?? (isLive ? self.userFacingError(for: provider) : nil)
-                ?? (provider == .codex ? account?.codexPublicationHold
-                    ?? (isLive ? self.codexQuotaPublicationHoldMessage : nil) : nil),
+            lastError: lastError,
             limitsAvailability: isSettings && !isLive ? nil : self.knownLimitsAvailability(for: provider),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,

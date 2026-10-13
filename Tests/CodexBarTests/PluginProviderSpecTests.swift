@@ -277,6 +277,18 @@ struct PluginProviderSpecTests {
                 balanceOnly: true,
                 allowsBurnDown: false,
                 sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .fal,
+                displayName: "fal",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .flora,
+                displayName: "FLORA",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
         ]
         for expectation in expected {
             let descriptor = ProviderDescriptorRegistry.descriptor(for: expectation.provider)

@@ -42,8 +42,8 @@ enum TypeSafeCookieImporter {
     private static let cookieClient = BrowserCookieClient()
 
     static func resolvedImportOrder(_ preferredBrowsers: [Browser]?) -> [Browser] {
-        guard let preferredBrowsers, !preferredBrowsers.isEmpty else { return [.chrome] }
-        return preferredBrowsers
+        if let preferredBrowsers, !preferredBrowsers.isEmpty { return preferredBrowsers }
+        return BrowserCookieImportSupport.importOrder(for: .typesafe)
     }
 
     static func importSessions(
@@ -51,24 +51,37 @@ enum TypeSafeCookieImporter {
         preferredBrowsers: [Browser]? = nil,
         logger: ((String) -> Void)? = nil) throws -> [TypeSafeResolvedSession]
     {
-        var sessions: [TypeSafeResolvedSession] = []
-        for browser in self.resolvedImportOrder(preferredBrowsers).cookieImportCandidates(using: browserDetection) {
-            do {
-                let sources = try self.cookieClient.codexBarRecords(
-                    matching: self.cookieQuery(),
-                    in: browser,
-                    logger: logger)
-                for source in sources {
-                    let header = self.cookieHeader(from: source.records)
-                    guard !header.isEmpty else { continue }
-                    sessions.append(TypeSafeResolvedSession(cookieHeader: header, sourceLabel: source.label))
-                }
-            } catch {
-                BrowserCookieAccessGate.recordIfNeeded(error)
-            }
+        try Array(self.sessionCandidates(
+            browserDetection: browserDetection,
+            preferredBrowsers: preferredBrowsers,
+            logger: logger))
+    }
+
+    static func sessionCandidates(
+        browserDetection: BrowserDetection,
+        preferredBrowsers: [Browser]? = nil,
+        logger: ((String) -> Void)? = nil) throws -> AnySequence<TypeSafeResolvedSession>
+    {
+        try BrowserCookieImportSupport.collectSessions(
+            from: self.resolvedImportOrder(preferredBrowsers).lazyCookieImportCandidates(using: browserDetection),
+            missingError: TypeSafeCredentialError.missingCookie,
+            logger: { logger?($0) },
+            load: { browser in try self.importSessions(from: browser, logger: logger) })
+    }
+
+    private static func importSessions(
+        from browser: Browser,
+        logger: ((String) -> Void)?) throws -> [TypeSafeResolvedSession]
+    {
+        let sources = try self.cookieClient.codexBarRecords(
+            matching: self.cookieQuery(),
+            in: browser,
+            logger: logger)
+        return sources.compactMap { source in
+            let header = self.cookieHeader(from: source.records)
+            guard !header.isEmpty else { return nil }
+            return TypeSafeResolvedSession(cookieHeader: header, sourceLabel: source.label)
         }
-        guard !sessions.isEmpty else { throw TypeSafeCredentialError.missingCookie }
-        return sessions
     }
 }
 #endif

@@ -1449,7 +1449,7 @@
 "menu_bar_layout_token_reset_at" = "Đặt lại lúc";
 "menu_bar_layout_token_runs_out" = "Sắp hết";
 "menu_bar_layout_token_cost_today" = "Chi phí hôm nay";
-"menu_bar_layout_token_cost_30d" = "Chi phí 30 ngày";
+"menu_bar_layout_token_cost_window" = "Chi phí (Cửa sổ lịch sử)";
 "menu_bar_layout_token_space" = "Khoảng trắng";
 "menu_bar_layout_token_line_break" = "Ngắt dòng";
 "menu_bar_layout_token_separator_accessibility" = "Dấu chấm phân cách";
@@ -1467,7 +1467,6 @@
 "Reset time unavailable" = "Đặt lại lúc: Không có sẵn";
 "Run-out estimate unavailable" = "Sắp hết: Không có sẵn";
 "Cost today unavailable" = "Chi phí hôm nay: Không có sẵn";
-"30-day cost unavailable" = "Chi phí 30 ngày: Không có sẵn";
 "Resets" = "Lần đặt lại";
 "Most usable account" = "Tài khoản hữu ích nhất";
 "%d more accounts ready" = "%d sẵn sàng thêm tài khoản";
@@ -2528,3 +2527,18 @@
 "Pace sign" = "Dấu nhịp sử dụng";
 "Ahead of pace is +" = "Vượt nhịp là +";
 "Reserve is +" = "Dự trữ là +";
+"menu_bar_layout_preset_bars_stacked" = "Thanh tiến độ xếp chồng";
+"claude_oauth_keychain_access_disabled" = "Quyền truy cập Keychain bị tắt nên QuotaKit không thể đọc thông tin đăng nhập Claude.";
+"Provider order updated" = "Đã cập nhật thứ tự nhà cung cấp";
+"Undo" = "Hoàn tác";
+"Clear filters" = "Xóa bộ lọc";
+"Change provider order" = "Đổi thứ tự nhà cung cấp";
+"Provider sorting" = "Sắp xếp nhà cung cấp";
+"Only enabled providers" = "Chỉ nhà cung cấp đã bật";
+"Restore default order" = "Khôi phục thứ tự mặc định";
+"Also restores the provider order in the menu bar. Can be undone." = "Cũng khôi phục thứ tự nhà cung cấp trên thanh menu. Có thể hoàn tác.";
+"Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Khóa có quyền đọc thanh toán (cài đặt sẵn BILLING hoặc READONLY). Hoặc đặt FAL_KEY.";
+"Needs billing permission on the workspace. Or set FLORA_API_KEY." = "Cần quyền thanh toán trên không gian làm việc. Hoặc đặt FLORA_API_KEY.";
+"Required. The ws_… ID of the workspace the key can bill. Or set FLORA_WORKSPACE_ID." = "Bắt buộc. ID ws_… của không gian làm việc mà khóa có thể thanh toán. Hoặc đặt FLORA_WORKSPACE_ID.";
+"ak_…" = "ak_…";
+"ws_…" = "ws_…";

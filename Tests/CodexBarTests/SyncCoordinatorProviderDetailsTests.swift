@@ -505,6 +505,17 @@ struct SyncCoordinatorProviderDetailsTests {
             .init(provider: .jetbrains, expected: [
                 .init(title: "Top-up credits", rows: [.init(label: "Remaining", value: "54.90 credits")]),
             ]),
+            .init(provider: .fal, expected: [
+                .init(title: "Account balance", rows: [.init(label: "Credit balance", value: "€42.50")]),
+            ]),
+            .init(provider: .flora, expected: [
+                .init(title: "Workspace balance", rows: [
+                    .init(label: "Available", value: "-€7.25"),
+                    .init(label: "Member limit", value: "€50.00"),
+                    .init(label: "Spent this month", value: "Unavailable"),
+                    .init(label: "Runs this month", value: "1,234"),
+                ]),
+            ]),
         ]
     }
 
@@ -520,6 +531,19 @@ struct SyncCoordinatorProviderDetailsTests {
                 provider: fixture.provider,
                 snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date())) == [])
         }
+
+        let formattedCurrency = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Workspace balance", rows: [
+                .makeRow(label: "Spent this month", value: "CHF\u{00A0}12.50"),
+            ])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .flora, snapshot: formattedCurrency) == [
+            .init(title: "Workspace balance", rows: [
+                .init(label: "Spent this month", value: "CHF\u{00A0}12.50"),
+            ]),
+        ])
     }
 
     @Test
@@ -586,6 +610,9 @@ struct SyncCoordinatorProviderDetailsTests {
             (.sofya, "Account credits", "Monthly reset", "2026-02-30 12:30:00 UTC"),
             (.sailresearch, "Organization billing", "Credit balance", "USD 10.00 secret"),
             (.linkup, "Account balance", "Credit balance", "$1.00 owed fixture-private"),
+            (.fal, "Account balance", "Credit balance", "USD 10.00 secret"),
+            (.flora, "Workspace balance", "Available", "Unavailable"),
+            (.flora, "Workspace balance", "Member limit", "-$1.00"),
         ]
         for (provider, title, label, value) in malformed {
             let snapshot = UsageSnapshot(
@@ -619,6 +646,9 @@ struct SyncCoordinatorProviderDetailsTests {
                 "COSMIC_TOKEN": "fixture-cosmic-token",
                 "COSMIC_PROJECT_ID": "fixture-cosmic-project",
                 "AEROSTACK_TOKEN": "fixture-aerostack-token",
+                "FAL_KEY": "fixture-fal-key",
+                "FLORA_API_KEY": "fixture-flora-key",
+                "FLORA_WORKSPACE_ID": "ws_fixture123",
             ])
         for fixture in Self.billingFixtures {
             try settings.setProviderEnabled(

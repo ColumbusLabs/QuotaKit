@@ -45,6 +45,8 @@ read_when:
 - Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
   palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
   per provider. Manual edits select the Custom preset.
+- The **Progress bars stacked** preset places Session and Weekly graphical bars beside their reset countdowns. Graphical bars follow the used/remaining preference; automatic balance values remain text, and older layout generations keep the matching percentage.
+- A single leading provider icon can sit beside both rows in a two-line layout. Separate row icons, icon-only first rows, high-contrast rendering, and provider-colored rendering keep icons inline.
 - Palette chips retain their natural label widths and wrap to the next row instead of squeezing longer names into
   equal-width columns.
 - Small/Regular controls the token font scale. Tight/Regular controls status-item padding. Compact stacked uses two
@@ -55,10 +57,10 @@ read_when:
 | Group | Tokens | Behavior |
 | --- | --- | --- |
 | Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
-| Usage | Session %, Weekly %, Auto %, provider-specific %, Usage bar | Window percentage or a compact three-glyph usage bar; named Cursor and Antigravity allowances retain their own labels and show a dash when unavailable |
+| Usage | Session %, Weekly %, Auto %, provider-specific %, Usage bar, graphical progress bars | Window percentage, compact three-glyph usage bar, or graphical bar; named Cursor and Antigravity allowances retain their own labels and show a dash when unavailable |
 | Usage | Session pace, Weekly pace, Auto pace | Signed pace delta for that window |
 | Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
-| Money | Balance, Cost today, Cost 30d | OpenRouter credit balance, or local cost estimate for the selected period |
+| Money | Balance, Cost today, Cost (History window) | OpenRouter credit balance or local cost estimate. Cost (History window) is the total for the selected [History window](cost-reporting-periods.md), and cost thresholds compare that window's total |
 | Structure | Separator dot, Space, Line break | Spacing and optional two-line composition |
 
 The pace tokens render the same delta the menu card shows as "in deficit"/"in reserve", in the compact signed form the
@@ -112,6 +114,7 @@ accessibility.
   tertiary, and extra windows render when the provider snapshot has data for them.
 - Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the
   active request, and the existing row geometry remains fixed through success or failure.
+- Provider errors use up to three red lines, with inline backtick-delimited commands rendered in monospace and the copy control aligned to the first line. Copy preserves the original error text. Stale Claude usage has a separate, single-line secondary notice; Settings error previews retain the notice with the error.
 - Codex credits can add a separate “Buy Credits…” menu action.
 - Shared stats retain complete providers' model history when another provider is incomplete and mark the
   resulting model list as partial. A selected day never presents its models as a full-window ranking.

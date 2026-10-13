@@ -10,6 +10,7 @@ current Columbus Labs product surface and recent release history.
 ### Added
 
 - xAI estimated remaining credit syncs from Mac as a separate detail, preserving posted balance and adding no quota budget or alerts.
+- fal account balance and FLORA workspace balance, member limit, and month-to-date spend now sync from QuotaKit Mac to iPhone with provider branding; neither provider emits quota alerts.
 
 - X API prepaid balances sync from Mac with branded status and purchase/free-credit details, without inventing a quota budget or quota alerts.
 

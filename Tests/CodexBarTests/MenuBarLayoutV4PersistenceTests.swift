@@ -16,6 +16,7 @@ struct MenuBarLayoutV4PersistenceTests {
         let decoder = JSONDecoder()
 
         #expect(try decoder.decode(MenuBarLayout.self, from: blobs.current) == layout)
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.v4) == layout)
         let older = MenuBarLayout(lines: [[.icon, .resetCountdown]])
         #expect(try decoder.decode(MenuBarLayout.self, from: blobs.v3) == older)
         #expect(try decoder.decode(MenuBarLayout.self, from: blobs.released) == older)
@@ -42,6 +43,7 @@ struct MenuBarLayoutV4PersistenceTests {
         let decoder = JSONDecoder()
 
         #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.current) == library)
+        #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.v4) == library)
         #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.v3) == [readable])
         #expect(try decoder.decode([MenuBarLayoutConditional].self, from: blobs.released) == [readable])
         #expect(try decoder.decode([PreResetConditional].self, from: blobs.v3).map(\.id) == [readable.id])
@@ -66,6 +68,7 @@ struct MenuBarLayoutV4PersistenceTests {
         let decoder = JSONDecoder()
 
         #expect(try decoder.decode(MenuBarLayout.self, from: blobs.current) == layout)
+        #expect(try decoder.decode(MenuBarLayout.self, from: blobs.v4) == layout)
         #expect(try decoder.decode(PreExtraMenuBarLayout.self, from: blobs.v3)
             == PreExtraMenuBarLayout(lines: [[.icon, .percent(window: .weekly)]]))
         #expect(try decoder.decode(PreExtraMenuBarLayout.self, from: blobs.released)
@@ -107,12 +110,15 @@ struct MenuBarLayoutV4PersistenceTests {
         #expect(overrides == oldOverrides)
         #expect(library == oldLibrary)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV4) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV3) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutReleased) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV4) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV3) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesReleased) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV4) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV3) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsReleased) != nil)
     }
@@ -147,8 +153,11 @@ struct MenuBarLayoutV4PersistenceTests {
             into: defaults) == library)
 
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV4) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV4) != nil)
         #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent) != nil)
+        #expect(defaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV4) != nil)
     }
 
     @Test

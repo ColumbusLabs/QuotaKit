@@ -1452,7 +1452,7 @@
 "menu_bar_layout_token_reset_at" = "重置时间";
 "menu_bar_layout_token_runs_out" = "预计用尽";
 "menu_bar_layout_token_cost_today" = "今日费用";
-"menu_bar_layout_token_cost_30d" = "30 天费用";
+"menu_bar_layout_token_cost_window" = "费用（历史窗口）";
 "menu_bar_layout_token_space" = "空格";
 "menu_bar_layout_token_line_break" = "换行";
 "menu_bar_layout_token_separator_accessibility" = "分隔点";
@@ -1470,7 +1470,6 @@
 "Reset time unavailable" = "重置时间: 不可用";
 "Run-out estimate unavailable" = "预计用尽: 不可用";
 "Cost today unavailable" = "今日费用: 不可用";
-"30-day cost unavailable" = "30 天费用: 不可用";
 "Resets" = "重置";
 "Most usable account" = "最适合使用的账户";
 "%d more accounts ready" = "另有 %d 个账户可用";
@@ -2520,3 +2519,18 @@
 "Pace sign" = "使用节奏符号";
 "Ahead of pace is +" = "超出节奏为 +";
 "Reserve is +" = "余量为 +";
+"menu_bar_layout_preset_bars_stacked" = "进度条堆叠";
+"claude_oauth_keychain_access_disabled" = "Keychain 访问已禁用，因此 QuotaKit 无法读取 Claude 的登录信息。";
+"Provider order updated" = "供应商顺序已更新";
+"Undo" = "撤销";
+"Clear filters" = "清除筛选";
+"Change provider order" = "更改供应商顺序";
+"Provider sorting" = "供应商排序";
+"Only enabled providers" = "仅显示已启用";
+"Restore default order" = "恢复默认顺序";
+"Also restores the provider order in the menu bar. Can be undone." = "同时恢复菜单栏中的供应商顺序。可以撤销。";
+"Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "具有账单读取权限的密钥（BILLING 或 READONLY 预设）。或设置 FAL_KEY。";
+"Needs billing permission on the workspace. Or set FLORA_API_KEY." = "需要工作区的账单权限。或设置 FLORA_API_KEY。";
+"Required. The ws_… ID of the workspace the key can bill. Or set FLORA_WORKSPACE_ID." = "必填。密钥可计费的工作区的 ws_… ID。或设置 FLORA_WORKSPACE_ID。";
+"ak_…" = "ak_…";
+"ws_…" = "ws_…";

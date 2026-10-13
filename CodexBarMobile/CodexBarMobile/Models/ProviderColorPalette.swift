@@ -214,6 +214,9 @@ enum ProviderColorPalette {
             (["aerostack"], RawColor(red: 123 / 255, green: 108 / 255, blue: 219 / 255)),
             (["sailresearch"], RawColor(red: 44 / 255, green: 70 / 255, blue: 129 / 255)),
             (["sofya"], RawColor(red: 176 / 255, green: 184 / 255, blue: 32 / 255)),
+            // Balance-only providers retain their published Mac descriptor colors.
+            (["fal"], RawColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255)),
+            (["flora"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

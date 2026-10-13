@@ -236,6 +236,11 @@ pricing provenance, missing values, and incomplete-request counts. Only bounded 
 the local result and returns a nonzero exit code. See [CLI host reporting](cli.md) for the versioned summary contract.
 
 - A queued refresh does not restart a cost-history worker after it exits paused. A later explicit refresh can retry.
+For copied or resumed histories, `cost --provider codex --identified-only --format json --remote <ssh-host>`
+reports an **identified-request subtotal** over one UTC window. Strong native session/response identities are
+deduplicated; conflicting identities and legacy/unidentified usage are excluded and reported. Combined prices are
+unavailable (`costUSD: null`). This opt-in CLI mode does not change ordinary cost reports or account quota.
+
 - Menu source selection:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
   - **Local session cost estimates** is a Codex-only opt-in that instead scans this Mac's ambient `$CODEX_HOME`

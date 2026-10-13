@@ -2300,7 +2300,8 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test(arguments: [
+    private static let testedPredecessorParserHashes = [
+        "7465d609f5f2dcfb",
         "652f5d14be9ccccf",
         "1718c75982e86913",
         "3f70d97998be5ff8",
@@ -2315,22 +2316,14 @@ extension CostUsageStoreTests {
         "005a869f36400f7e",
         "15a7d46518e83cc0",
         "7607317f30850961",
-    ])
+    ]
+
+    @Test(arguments: Self.testedPredecessorParserHashes)
     func `compatible predecessor parser hash adopts without rebuilding`(predecessorHash: String) async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
-        #expect(CostUsageStore.compatiblePredecessorParserHashes == [
-            "652f5d14be9ccccf",
-            "1718c75982e86913",
-            "3f70d97998be5ff8",
-            "af117122edc4c286",
-            "755dfa55c816c503",
-            "c52728bbaeedeb90",
-            "0001601034856fb6",
-            "91aceec74bae13b6",
+        #expect(CostUsageStore.compatiblePredecessorParserHashes == Set(Self.testedPredecessorParserHashes).union([
             "36872d2d0ebf9818",
-            "053a4fb6aa6156c2",
-            "4e2ff98d27e5c601",
             "7c53241287d9fe21",
             "4c666659fa05e700",
             "1dfdbe376483ff0c",
@@ -2348,7 +2341,6 @@ extension CostUsageStoreTests {
             "a72e15e9d5724e06",
             "398d5964ff82286a",
             "f22371c47d2e006f",
-            "295616a4e7dcfc3f",
             "238791b3f1229c6b",
             "f3c7abf13e841047",
             "1a8e14e8e822301c",
@@ -2372,10 +2364,7 @@ extension CostUsageStoreTests {
             "3053f2f21b526cb2",
             "794d08208e8b4be3",
             "a9e63a41a2306504",
-            "005a869f36400f7e",
-            "15a7d46518e83cc0",
-            "7607317f30850961",
-        ])
+        ]))
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: predecessorHash)

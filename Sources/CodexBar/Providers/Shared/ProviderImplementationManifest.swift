@@ -106,5 +106,7 @@ enum ProviderImplementationManifest {
         { PluginAPIKeyProviderImplementation(spec: AerostackProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: SailResearchProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: SofyaProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: FalProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: FloraProviderDescriptor.spec) },
     ]
 }

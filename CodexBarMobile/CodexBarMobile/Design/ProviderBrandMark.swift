@@ -98,6 +98,8 @@ enum ProviderBrandAsset {
         "zed",
         "zenmux",
         "zoommate",
+        "fal",
+        "flora",
         "aiand",
     ]
 
