@@ -1,8 +1,8 @@
-import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 // SyncCoordinator's CloudKit lifecycle fixtures share one mock and serialized suite.
 // swiftlint:disable file_length

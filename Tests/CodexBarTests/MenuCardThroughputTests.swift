@@ -299,6 +299,16 @@ struct MenuCardThroughputTests {
             provider: .openai,
             settings: settings,
             store: store,
+            boolBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            stringBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
             statusText: { _ in nil },
             setStatusText: { _, _ in },
             lastAppActiveRunAt: { _ in nil },
@@ -400,9 +410,9 @@ struct MenuCardThroughputTests {
                     layout: .init(lines: [layout.tokens]),
                     data: data,
                     icon: nil,
-                    options: MenuBarLayoutRendererTests().options(appearanceName: appearance.rawValue))
+                    options: Self.layoutOptions(appearanceName: appearance.rawValue))
                 let label = NSTextField(labelWithAttributedString: output.attributedTitle)
-                label.textColor = dark ? .white : .black
+                label.textColor = dark ? NSColor.white : NSColor.black
                 let hosting = NSHostingView(rootView: NativeLayoutProofView(view: label).padding(8)
                     .background(Color(nsColor: .windowBackgroundColor))
                     .environment(\.colorScheme, dark ? .dark : .light))
@@ -445,8 +455,9 @@ struct MenuCardThroughputTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
-            tokenSnapshot: nil,
+            tokenSnapshot: snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot(),
             tokenError: nil,
             account: .init(
                 email: nil,
@@ -460,6 +471,17 @@ struct MenuCardThroughputTests {
             showOptionalCreditsAndExtraUsage: true,
             hidePersonalInfo: false,
             now: OpenAIThroughputTests.now))
+    }
+
+    private static func layoutOptions(appearanceName: String) -> MenuBarLayoutRenderOptions {
+        MenuBarLayoutRenderOptions(
+            size: .regular,
+            highContrast: false,
+            showUsed: true,
+            conditionals: [],
+            appearanceName: appearanceName,
+            isDebugApp: false,
+            now: OpenAIThroughputTests.now)
     }
 
     private static func render(

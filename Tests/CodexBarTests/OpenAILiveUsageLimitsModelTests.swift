@@ -207,6 +207,16 @@ struct OpenAILiveUsageLimitsModelTests {
             provider: .openai,
             settings: settings,
             store: store,
+            boolBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            stringBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
             statusText: { _ in nil },
             setStatusText: { _, _ in },
             lastAppActiveRunAt: { _ in nil },
@@ -366,15 +376,7 @@ struct OpenAILiveUsageLimitsModelTests {
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        let context = ProviderSettingsContext(
-            provider: .openai,
-            settings: settings,
-            store: store,
-            statusText: { _ in nil },
-            setStatusText: { _, _ in },
-            lastAppActiveRunAt: { _ in nil },
-            setLastAppActiveRunAt: { _, _ in },
-            requestConfirmation: { _ in })
+        let context = self.context(settings: settings, store: store)
         let descriptor = try #require(OpenAIAPIProviderImplementation().settingsModelLimits(context: context).first)
         #expect(descriptor.title == "Organization rate limits")
         #expect(descriptor.actions.count == 1)

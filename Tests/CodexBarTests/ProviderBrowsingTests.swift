@@ -10,7 +10,7 @@ struct ProviderBrowsingTests {
         defaults: UserDefaults = InMemoryUserDefaults(),
         config: CodexBarConfig? = nil) -> SettingsStore
     {
-        testSettingsStore(suiteName: "ProviderBrowsingTests", userDefaults: defaults, config: config)
+        testSettingsStore(suiteName: "ProviderBrowsingTests", config: config, userDefaults: defaults)
     }
 
     @Test

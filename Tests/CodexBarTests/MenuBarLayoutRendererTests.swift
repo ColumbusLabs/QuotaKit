@@ -567,28 +567,6 @@ struct MenuBarLayoutRendererTests {
     @Test
     func `missing token data keeps every sibling visible as a placeholder`() {
         let renderer = MenuBarLayoutRenderer()
-        let missingData = MenuBarLayoutRenderData(
-            iconKey: "missing",
-            providerName: nil,
-            accountLabel: nil,
-            laneLabels: MenuBarLayoutLaneLabels(provider: .codex, snapshot: nil),
-            primary: nil,
-            secondary: nil,
-            tertiary: nil,
-            session: nil,
-            weekly: nil,
-            scopedWeekly: nil,
-            scopedWeeklyTitle: nil,
-            automatic: nil,
-            automaticText: nil,
-            sessionPace: nil,
-            weeklyPace: nil,
-            automaticPace: nil,
-            runsOut: nil,
-            balance: nil,
-            costToday: nil,
-            cost30d: nil,
-            metrics: .unavailable)
         let layout = MenuBarLayout(lines: [[
             .icon,
             .providerName,
@@ -613,7 +591,7 @@ struct MenuBarLayoutRendererTests {
             .costWindow,
         ]])
 
-        let output = renderer.render(layout: layout, data: missingData, icon: nil, options: self.options())
+        let output = renderer.render(layout: layout, data: self.missingData(), icon: nil, options: self.options())
 
         #expect(output.attributedTitle.string.count(where: { $0 == "–" }) == 21)
         #expect(output.accessibilityLabel.contains("unavailable"))
@@ -624,7 +602,7 @@ struct MenuBarLayoutRendererTests {
         let renderer = MenuBarLayoutRenderer()
         let layout = MenuBarLayout(lines: [[.costWindow]])
 
-        #expect(renderer.render(layout: layout, data: Self.missingData, icon: nil, options: self.options())
+        #expect(renderer.render(layout: layout, data: self.missingData(), icon: nil, options: self.options())
             .accessibilityLabel == "Cost (History window) unavailable")
     }
 
@@ -2027,6 +2005,31 @@ struct MenuBarLayoutRendererTests {
                 cost30dUSD: 20))
     }
 
+    private func missingData() -> MenuBarLayoutRenderData {
+        MenuBarLayoutRenderData(
+            iconKey: "missing",
+            providerName: nil,
+            accountLabel: nil,
+            laneLabels: MenuBarLayoutLaneLabels(provider: .codex, snapshot: nil),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            session: nil,
+            weekly: nil,
+            scopedWeekly: nil,
+            scopedWeeklyTitle: nil,
+            automatic: nil,
+            automaticText: nil,
+            sessionPace: nil,
+            weeklyPace: nil,
+            automaticPace: nil,
+            runsOut: nil,
+            balance: nil,
+            costToday: nil,
+            cost30d: nil,
+            metrics: .unavailable)
+    }
+
     private func options(
         now: Date? = nil,
         showUsed: Bool = true,
@@ -2035,6 +2038,7 @@ struct MenuBarLayoutRendererTests {
         conditionals: [MenuBarLayoutConditional] = [],
         isDebugApp: Bool = false,
         colorPace: Bool = false,
+        colorByProvider: Bool = false,
         highContrast: Bool = false,
         appearanceName: String = "aqua",
         forceStackedStyle: Bool = false) -> MenuBarLayoutRenderOptions
@@ -2050,7 +2054,8 @@ struct MenuBarLayoutRendererTests {
             now: now ?? self.now,
             verticalAdjustment: verticalAdjustment,
             forceStackedStyle: forceStackedStyle,
-            colorPace: colorPace)
+            colorPace: colorPace,
+            colorByProvider: colorByProvider)
     }
 
     private func averageBrightness(

@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct UsageStoreMenuCardModelTests {
@@ -59,8 +59,8 @@ struct UsageStoreMenuCardModelTests {
         let catalogue = UsageMenuCardView.Model.make(store.menuCardInput(
             for: .claude,
             context: .settings,
-            optionalUsageOverride: true,
-            now: now))
+            now: now,
+            optionalUsageOverride: true))
         #expect(!displayed.metrics.contains { $0.id == "claude-extra-usage" })
         #expect(catalogue.usageItemDescriptors.contains {
             $0.id == .claudeExtraUsage && $0.requiresOptionalUsage
