@@ -595,11 +595,11 @@ struct SpendDashboardPane: View {
                     group: group,
                     requestedDays: self.controller.model.requestedDays,
                     hidePersonalInfo: self.settings.hidePersonalInfo,
+                    onSelectDay: { self.controller.selectDay($0) },
+                    onClearSelectedDay: { self.controller.selectDay(nil) },
                     detailSelection: self.detailSelection(for: group.id),
                     supportsCodexDetails: self.controller.configuration?.supportsCodexDetails == true
-                        && (group.currencyCode == "USD" || group.currencyCode == self.detailCurrency),
-                    onSelectDay: { self.controller.selectDay($0) },
-                    onClearSelectedDay: { self.controller.selectDay(nil) })
+                        && (group.currencyCode == "USD" || group.currencyCode == self.detailCurrency))
             }
         }
 

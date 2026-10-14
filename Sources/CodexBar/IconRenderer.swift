@@ -17,7 +17,7 @@ enum IconRenderer {
                 windows?.secondary == nil
             return Self(
                 reservesMissingSecondaryLane: presentation.reservesMissingSecondaryIconLane && !projectedSingleWindow,
-                treatsExhaustedSecondaryAsMissing: presentation.treatsExhaustedSecondaryAsMissingIconWindow)
+                treatsExhaustedSecondaryAsMissing: presentation.treatsExhaustedSecondaryIconWindowAsMissing)
         }
 
         static func style(_ style: IconStyle) -> Self {

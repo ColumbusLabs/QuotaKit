@@ -422,7 +422,7 @@ extension UsageMenuCardView.Model {
             detailLines: details)
         model.quotaWindows = quota.rows
         model.currencyCode = displayCurrencyCode
-        model.chartTitle = L("Daily spend · %@", period)
+        model.chartTitle = L("Daily spend · %@", codexHistoryPeriod)
         return model
     }
 

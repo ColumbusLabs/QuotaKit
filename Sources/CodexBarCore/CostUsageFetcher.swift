@@ -1025,6 +1025,16 @@ public struct CostUsageFetcher: Sendable {
         let staleSnapshotUpdatedAt: Date?
     }
 
+    private struct LocalCodexReportProjectionInput {
+        let projection: CostUsageStoreCodexReportProjection
+        let cache: CostUsageCache
+        let roots: [URL]
+        let rootsFingerprint: [String: Int64]
+        let range: CostUsageScanner.CostUsageDayRange
+        let cacheRoot: URL?
+        let now: Date
+    }
+
     private static func unavailableLocalSnapshot(
         now: Date,
         historyDays: Int,
@@ -1039,13 +1049,12 @@ public struct CostUsageFetcher: Sendable {
     }
 
     private static func loadLocalCodexTokenReport(
-        scanOptions: CostUsageScanner.Options,
+        options: LocalTokenScanOptions,
         historyRange: CostUsageScanner.CostUsageDayRange,
         since: Date,
-        now: Date,
-        includePiSessions: Bool,
-        environment: [String: String]) -> LocalCodexTokenReport
+        now: Date) -> LocalCodexTokenReport
     {
+        let scanOptions = options.scanOptions
         let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
         let range = CostUsageScanner.CostUsageDayRange(
             since: since, until: now, calendar: scanOptions.calendar)
@@ -1061,23 +1070,24 @@ public struct CostUsageFetcher: Sendable {
             : projection.fileTemporalCoverageIsComplete
         let historyCoverageIsEstablished = Self.codexHistoryCoverageIsEstablished(
             options: scanOptions,
-            range: historyRange) && (!includePiSessions || nativeTemporalIsComplete)
+            range: historyRange) && (!options.includePiSessions || nativeTemporalIsComplete)
         let detailsAreComplete = historyCoverageIsEstablished
             && (view.days.isEmpty || view.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion)
         let reportProjection = Self.projectLocalCodexTokenReport(
-            projection: projection,
-            cache: cache,
-            roots: roots,
-            rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions),
-            range: range,
-            cacheRoot: scanOptions.cacheRoot,
-            now: now)
+            input: LocalCodexReportProjectionInput(
+                projection: projection,
+                cache: cache,
+                roots: roots,
+                rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions),
+                range: range,
+                cacheRoot: scanOptions.cacheRoot,
+                now: now))
         let (projects, sessions) = Self.codexBreakdownsWithMetadata(
             reportProjection.sessions,
             projects: reportProjection.projects,
             projectSessionIDs: projectSessionIDs,
             sessionsRoot: roots.first,
-            environment: environment)
+            environment: options.environment)
         return LocalCodexTokenReport(
             daily: reportProjection.daily,
             projects: projects,
@@ -1090,29 +1100,23 @@ public struct CostUsageFetcher: Sendable {
     }
 
     private static func projectLocalCodexTokenReport(
-        projection: CostUsageStoreCodexReportProjection,
-        cache: CostUsageCache,
-        roots: [URL],
-        rootsFingerprint: [String: Int64],
-        range: CostUsageScanner.CostUsageDayRange,
-        cacheRoot: URL?,
-        now: Date) -> LocalCodexReportProjection
+        input: LocalCodexReportProjectionInput) -> LocalCodexReportProjection
     {
         if let previous = CostUsageScanner.codexPreviousReport(
-            cache: cache,
-            range: range,
-            rootsFingerprint: rootsFingerprint)
+            cache: input.cache,
+            range: input.range,
+            rootsFingerprint: input.rootsFingerprint)
         {
             let retained = Self.cachedCodexPreviousReportProjection(
                 CachedCodexPreviousReportProjectionInput(
                     previous: previous,
-                    projection: projection,
-                    cache: cache,
-                    roots: roots,
-                    range: range,
-                    cacheRoot: cacheRoot,
+                    projection: input.projection,
+                    cache: input.cache,
+                    roots: input.roots,
+                    range: input.range,
+                    cacheRoot: input.cacheRoot,
                     includeBreakdowns: true,
-                    now: now))
+                    now: input.now))
             return LocalCodexReportProjection(
                 daily: retained.report,
                 projects: retained.projects,
@@ -1120,10 +1124,10 @@ public struct CostUsageFetcher: Sendable {
                 staleSnapshotUpdatedAt: retained.updatedAt)
         } else {
             let projected = CostUsageCodexReportProjectionBuilder.build(
-                projection: projection,
-                roots: roots,
-                range: range,
-                cacheRoot: cacheRoot,
+                projection: input.projection,
+                roots: input.roots,
+                range: input.range,
+                cacheRoot: input.cacheRoot,
                 includeBreakdowns: true)
             return LocalCodexReportProjection(
                 daily: projected.report,
@@ -1195,12 +1199,10 @@ public struct CostUsageFetcher: Sendable {
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
                 let codexReport = Self.loadLocalCodexTokenReport(
-                    scanOptions: scanOptions,
+                    options: options,
                     historyRange: historyRange,
                     since: since,
-                    now: now,
-                    includePiSessions: options.includePiSessions,
-                    environment: options.environment)
+                    now: now)
                 daily = codexReport.daily
                 projects = codexReport.projects
                 sessions = codexReport.sessions

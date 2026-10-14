@@ -90,7 +90,8 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
                 placeholder: "API key",
                 binding: context.binding(\.commandcodeAPIKey),
                 actions: [],
-                isVisible: { context.settings.commandcodeUsageDataSource != .web }),
+                isVisible: { context.settings.commandcodeUsageDataSource != .web },
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "commandcode-cookie",
                 title: "",

@@ -157,10 +157,16 @@ struct OpenAIAPIProviderImplementation: ProviderImplementation {
             subtitle: "OpenAI's API doesn't expose organization rate limits. Copy them from your organization's " +
                 "Limits page. Model IDs match dated snapshots (gpt-5 covers gpt-5-2025-…).",
             binding: context.modelRateLimitsBinding(scope: scope),
-            actions: [.openURL(
+            actions: [ProviderSettingsActionDescriptor(
                 id: "openai-open-limits",
                 title: "Open organization Limits",
-                url: URL(string: "https://platform.openai.com/settings/organization/limits"))],
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://platform.openai.com/settings/organization/limits") {
+                        NSWorkspace.shared.open(url)
+                    }
+                })],
             scopeText: scopeText,
             scope: scope)]
     }

@@ -1171,8 +1171,9 @@ extension MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", title, resolvedValue.text)
             : L("%@ unavailable", title)
-        let shortLabel = ProviderDescriptorRegistry.descriptor(for: data.provider)
-            .menuBarMetrics.namedExtraShortLabels[id]
+        let shortLabel = data.provider.flatMap { provider in
+            ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtraShortLabels[id]
+        }
         return self.textToken(
             L("%@ %@", shortLabel ?? title, resolvedValue.text),
             accessibilityText: accessibility,
@@ -1454,7 +1455,8 @@ extension MenuBarLayoutRenderer {
 extension MenuBarLayoutRenderer {
     /// Match the actual lane title so older saved layouts keep the correct semantic tag.
     private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        guard let provider = data.provider else { return nil }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let declaredLabels: [(MenuBarLayoutLane, String)] = [
             (.primary, L(descriptor.metadata.sessionLabel)),
             (.secondary, L(descriptor.metadata.weeklyLabel)),
@@ -1477,16 +1479,24 @@ extension MenuBarLayoutRenderer {
         _ window: PercentWindow,
         data: MenuBarLayoutRenderData) -> MenuBarLayoutLane?
     {
-        let presentation = ProviderDescriptorRegistry.descriptor(for: data.provider).presentation
-        let primaryWindow = PercentWindow.forSemanticWindow(presentation.primarySemanticWindow)
+        guard let provider = data.provider else { return nil }
+        let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
+        let primaryWindow = self.percentWindow(for: presentation.primarySemanticWindow)
         let lane: MenuBarLayoutLane? = if window == primaryWindow {
             .primary
-        } else if window == PercentWindow.forSemanticWindow(presentation.secondarySemanticWindow) {
+        } else if window == self.percentWindow(for: presentation.secondarySemanticWindow) {
             .secondary
         } else {
             nil
         }
         guard let lane, self.laneShortLabel(lane, data: data) != nil else { return nil }
         return lane
+    }
+
+    private static func percentWindow(for semanticWindow: ProviderSemanticWindow) -> PercentWindow {
+        switch semanticWindow {
+        case .session: .session
+        case .weekly: .weekly
+        }
     }
 }
