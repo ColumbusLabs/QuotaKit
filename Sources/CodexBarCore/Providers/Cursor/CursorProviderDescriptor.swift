@@ -137,7 +137,9 @@ public enum CursorProviderDescriptor {
                 metadata.weeklyLabel)
         }
         return ProviderRateWindowLabels(
-            primary: labels.0, secondary: labels.1, tertiary: metadata.opusLabel ?? "Tertiary",
+            primary: labels.0,
+            secondary: labels.1,
+            tertiary: metadata.opusLabel ?? "Tertiary",
             showsTertiary: metadata.supportsOpus)
     }
 

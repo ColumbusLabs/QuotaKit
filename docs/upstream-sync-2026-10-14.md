@@ -47,4 +47,6 @@ Hosted runtime fixtures also follow the shared supported-browser catalog, Claude
 
 ## Qualification
 
-In progress. No passing CI or merge is claimed by this ledger checkpoint. The primary local-only user commit remains preserved.
+Behavior qualification on `fb05ca054` is recorded in [hosted run 38562031134](https://github.com/ColumbusLabs/QuotaKit/actions/runs/38562031134). Both Linux architectures, iOS, Lite, Xcode 26.3 test/widget compatibility and Mac shards 0/2/3 passed. Shard 0 also passed both plugin engines. Shard 1’s product/shared-wire tests passed; its sole failure was the Italian exact unchanged-token set missing the literal `ak_…` placeholder. Lint reported only two multiline-argument errors in the Cursor label initializer. The qualification follow-up fixes both static expectations without altering behavior or weakening assertions. Independent source review covers the full integration and each substantive repair; the Codex parser hash remains `65175f55d6bacbca`.
+
+All applicable hosted checks must pass on the exact independently reviewed head before merge. [PR #245](https://github.com/ColumbusLabs/QuotaKit/pull/245) records that final CI and merge receipt and closes the upstream-sync issue. No applicable slice is deferred. The primary local-only user commit remains preserved; a non-fast-forward local main must not be overwritten.

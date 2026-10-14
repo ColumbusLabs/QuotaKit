@@ -628,6 +628,7 @@ struct LocalizationLanguageCatalogTests {
             "00000000-0000-0000-0000-000000000000",
             "<1%% %@",
             "AKIA...",
+            "ak_…",
             "Amp CLI",
             "Bailian CLI",
             "Base",
