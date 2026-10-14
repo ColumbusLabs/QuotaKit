@@ -782,40 +782,8 @@ final class MenuBarLayoutRenderer {
                 data: data,
                 showUsed: options.showUsed,
                 attributes: style.attributes)
-        case .providerName, .accountLabel, .lanePercent, .tokensPerMinute, .tokensSparkline:
-            preconditionFailure("Provider text and throughput tokens should render before the main switch")
-        case .usageBar, .progressBar:
-            preconditionFailure("Usage meter tokens should render before the main switch")
-        }
-    }
-
-    /// Character `usageBar` and graphical `progressBar` meters.
-    private static func renderUsageMeterItem(
-        _ item: MenuBarLayoutToken,
-        data: MenuBarLayoutRenderData,
-        style: TokenStyle,
-        options: MenuBarLayoutRenderOptions)
-        -> (value: NSAttributedString, accessibilityText: String?)?
-    {
-        switch item {
-        case .usageBar:
-            guard let window = data.automatic else {
-                return self.textToken(
-                    self.missingValue,
-                    accessibilityText: L("Usage bar unavailable"),
-                    attributes: style.attributes)
-            }
-            let displayedPercent = options.showUsed ? window.usedPercent : window.remainingPercent
-            let filled = Int((displayedPercent.clamped(to: 0...100) / 100 * 3).rounded())
-            let value = String(repeating: "▮", count: filled) + String(repeating: "▯", count: 3 - filled)
-            return self.textToken(
-                value,
-                accessibilityText: L("Usage bar, %d of 3 filled", filled),
-                attributes: style.attributes)
-        case let .progressBar(window):
-            return self.progressBarToken(window, data: data, style: style, options: options)
-        default:
-            return nil
+        case .providerName, .accountLabel, .lanePercent, .tokensPerMinute, .tokensSparkline, .usageBar, .progressBar:
+            preconditionFailure("Provider, throughput, and usage-meter tokens should render before the main switch")
         }
     }
 
@@ -878,93 +846,6 @@ final class MenuBarLayoutRenderer {
 
     private static func iconAccessibilityText(data: MenuBarLayoutRenderData) -> String {
         L("%@ icon", data.providerName ?? L("Provider"))
-    }
-
-    private static func renderProviderTextItem(
-        _ item: MenuBarLayoutToken,
-        data: MenuBarLayoutRenderData,
-        showUsed: Bool,
-        attributes: [NSAttributedString.Key: Any],
-        providerTintColor: NSColor? = nil)
-        -> (value: NSAttributedString, accessibilityText: String?)?
-    {
-        switch item {
-        case .providerName:
-            return self.optionalTextToken(
-                data.providerName,
-                unavailableLabel: L("Provider name unavailable"),
-                attributes: attributes)
-        case .accountLabel:
-            return self.optionalTextToken(
-                data.accountLabel,
-                unavailableLabel: L("Account unavailable"),
-                attributes: attributes)
-        case let .lanePercent(lane):
-            var tokenAttributes = attributes
-            if let providerTintColor {
-                tokenAttributes[.foregroundColor] = providerTintColor
-            }
-            return self.lanePercentToken(
-                lane,
-                data: data,
-                showUsed: showUsed,
-                attributes: tokenAttributes)
-        case let .extraPercent(id):
-            var tokenAttributes = attributes
-            if let providerTintColor {
-                tokenAttributes[.foregroundColor] = providerTintColor
-            }
-            return self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: tokenAttributes)
-        default:
-            return nil
-        }
-    }
-
-    private static func lanePercentToken(
-        _ lane: MenuBarLayoutLane,
-        data: MenuBarLayoutRenderData,
-        showUsed: Bool,
-        attributes: [NSAttributedString.Key: Any])
-        -> (value: NSAttributedString, accessibilityText: String?)
-    {
-        let rateWindow = Self.laneWindow(lane, data: data)
-        let resolvedValue = Self.percentValue(
-            window: .automatic,
-            rateWindow: rateWindow,
-            automaticText: nil,
-            estimated: data.quotaIsEstimated,
-            showUsed: showUsed)
-        let label = data.laneLabels.label(for: lane)
-        let accessibility = resolvedValue.isAvailable
-            ? L("%@ %@", label, resolvedValue.text)
-            : L("%@ unavailable", label)
-        let display = Self.laneShortLabel(lane, data: data)
-            .map { "\($0) \(resolvedValue.text)" } ?? resolvedValue.text
-        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
-    }
-
-    private static func extraPercentToken(
-        _ id: String,
-        data: MenuBarLayoutRenderData,
-        showUsed: Bool,
-        attributes: [NSAttributedString.Key: Any])
-        -> (value: NSAttributedString, accessibilityText: String?)
-    {
-        let title = data.extraTitle(id) ?? L("Usage")
-        let resolvedValue = self.percentValue(
-            window: .automatic,
-            rateWindow: data.extraWindow(id)?.window,
-            automaticText: nil,
-            estimated: data.quotaIsEstimated,
-            showUsed: showUsed)
-        let accessibility = resolvedValue.isAvailable
-            ? L("%@ %@", title, resolvedValue.text)
-            : L("%@ unavailable", title)
-        let shortLabel = ProviderDescriptorRegistry.descriptor(for: data.provider)
-            .menuBarMetrics.namedExtraShortLabels[id]
-        return self.textToken(
-            L("%@ %@", shortLabel ?? title, resolvedValue.text), accessibilityText: accessibility,
-            attributes: attributes)
     }
 
     private static func percentValue(
@@ -1209,6 +1090,125 @@ final class MenuBarLayoutRenderer {
 }
 
 extension MenuBarLayoutRenderer {
+    /// Provider identity and labeled percentages are resolved separately from generic token rendering.
+    private static func renderProviderTextItem(
+        _ item: MenuBarLayoutToken,
+        data: MenuBarLayoutRenderData,
+        showUsed: Bool,
+        attributes: [NSAttributedString.Key: Any],
+        providerTintColor: NSColor? = nil)
+        -> (value: NSAttributedString, accessibilityText: String?)?
+    {
+        switch item {
+        case .providerName:
+            return self.optionalTextToken(
+                data.providerName,
+                unavailableLabel: L("Provider name unavailable"),
+                attributes: attributes)
+        case .accountLabel:
+            return self.optionalTextToken(
+                data.accountLabel,
+                unavailableLabel: L("Account unavailable"),
+                attributes: attributes)
+        case let .lanePercent(lane):
+            var tokenAttributes = attributes
+            if let providerTintColor {
+                tokenAttributes[.foregroundColor] = providerTintColor
+            }
+            return self.lanePercentToken(
+                lane,
+                data: data,
+                showUsed: showUsed,
+                attributes: tokenAttributes)
+        case let .extraPercent(id):
+            var tokenAttributes = attributes
+            if let providerTintColor {
+                tokenAttributes[.foregroundColor] = providerTintColor
+            }
+            return self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: tokenAttributes)
+        default:
+            return nil
+        }
+    }
+
+    private static func lanePercentToken(
+        _ lane: MenuBarLayoutLane,
+        data: MenuBarLayoutRenderData,
+        showUsed: Bool,
+        attributes: [NSAttributedString.Key: Any])
+        -> (value: NSAttributedString, accessibilityText: String?)
+    {
+        let rateWindow = Self.laneWindow(lane, data: data)
+        let resolvedValue = Self.percentValue(
+            window: .automatic,
+            rateWindow: rateWindow,
+            automaticText: nil,
+            estimated: data.quotaIsEstimated,
+            showUsed: showUsed)
+        let label = data.laneLabels.label(for: lane)
+        let accessibility = resolvedValue.isAvailable
+            ? L("%@ %@", label, resolvedValue.text)
+            : L("%@ unavailable", label)
+        let display = Self.laneShortLabel(lane, data: data)
+            .map { "\($0) \(resolvedValue.text)" } ?? resolvedValue.text
+        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
+    }
+
+    private static func extraPercentToken(
+        _ id: String,
+        data: MenuBarLayoutRenderData,
+        showUsed: Bool,
+        attributes: [NSAttributedString.Key: Any])
+        -> (value: NSAttributedString, accessibilityText: String?)
+    {
+        let title = data.extraTitle(id) ?? L("Usage")
+        let resolvedValue = self.percentValue(
+            window: .automatic,
+            rateWindow: data.extraWindow(id)?.window,
+            automaticText: nil,
+            estimated: data.quotaIsEstimated,
+            showUsed: showUsed)
+        let accessibility = resolvedValue.isAvailable
+            ? L("%@ %@", title, resolvedValue.text)
+            : L("%@ unavailable", title)
+        let shortLabel = ProviderDescriptorRegistry.descriptor(for: data.provider)
+            .menuBarMetrics.namedExtraShortLabels[id]
+        return self.textToken(
+            L("%@ %@", shortLabel ?? title, resolvedValue.text),
+            accessibilityText: accessibility,
+            attributes: attributes)
+    }
+
+    /// Character `usageBar` and graphical `progressBar` meters.
+    private static func renderUsageMeterItem(
+        _ item: MenuBarLayoutToken,
+        data: MenuBarLayoutRenderData,
+        style: TokenStyle,
+        options: MenuBarLayoutRenderOptions)
+        -> (value: NSAttributedString, accessibilityText: String?)?
+    {
+        switch item {
+        case .usageBar:
+            guard let window = data.automatic else {
+                return self.textToken(
+                    self.missingValue,
+                    accessibilityText: L("Usage bar unavailable"),
+                    attributes: style.attributes)
+            }
+            let displayedPercent = options.showUsed ? window.usedPercent : window.remainingPercent
+            let filled = Int((displayedPercent.clamped(to: 0...100) / 100 * 3).rounded())
+            let value = String(repeating: "▮", count: filled) + String(repeating: "▯", count: 3 - filled)
+            return self.textToken(
+                value,
+                accessibilityText: L("Usage bar, %d of 3 filled", filled),
+                attributes: style.attributes)
+        case let .progressBar(window):
+            return self.progressBarToken(window, data: data, style: style, options: options)
+        default:
+            return nil
+        }
+    }
+
     /// Graphical progress bar for one semantic window, embedded as an `NSTextAttachment` so the
     /// status-item title keeps surrounding countdown text in the same line. The pre-tinted bitmap
     /// is cached with the rest of the title because AppKit does not template-tint attachments.

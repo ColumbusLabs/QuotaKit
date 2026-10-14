@@ -185,7 +185,9 @@ public enum MiMoCookieImporter {
         browserDetection: BrowserDetection,
         logger: ((String) -> Void)? = nil,
         loadRecords: @escaping (Browser, BrowserCookieQuery, ((String) -> Void)?) throws
-            -> [BrowserCookieStoreRecords],
+            -> [BrowserCookieStoreRecords] = {
+                try Self.cookieClient.codexBarRecords(matching: $1, in: $0, logger: $2)
+            },
         loadStores: @escaping (Browser) throws
             -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
         throws -> AnySequence<SessionInfo>

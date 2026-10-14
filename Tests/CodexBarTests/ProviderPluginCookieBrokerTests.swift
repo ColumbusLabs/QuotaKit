@@ -466,13 +466,16 @@ struct ProviderPluginCookieBrokerTests {
                 usesCookieJar: true,
                 batchJarImporter: { _, batch in
                     batches.append(batch)
-                    return switch batch {
-                    case 0: [(records: [Self.cookieRecord(domain: domain, value: "chrome")], source: "Chrome")]
-                    case 1: [
+                    switch batch {
+                    case 0:
+                        return [(records: [Self.cookieRecord(domain: domain, value: "chrome")], source: "Chrome")]
+                    case 1:
+                        return [
                             (records: [Self.cookieRecord(domain: domain, value: "chrome")], source: "Duplicate"),
                             (records: [Self.cookieRecord(domain: domain, value: "firefox")], source: "Firefox"),
                         ]
-                    default: nil
+                    default:
+                        return nil
                     }
                 })
 

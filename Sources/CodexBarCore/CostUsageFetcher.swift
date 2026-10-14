@@ -1007,6 +1007,24 @@ public struct CostUsageFetcher: Sendable {
         let reportContext: CostUsageReportContext?
     }
 
+    private struct LocalCodexTokenReport: Sendable {
+        let daily: CostUsageDailyReport
+        let projects: [CostUsageProjectBreakdown]
+        let sessions: [CostUsageSessionBreakdown]
+        let projectSessionIDs: [String: Set<String>]
+        let nativeTemporalIsComplete: Bool
+        let historyCoverageIsEstablished: Bool
+        let detailsAreComplete: Bool
+        let staleSnapshotUpdatedAt: Date?
+    }
+
+    private struct LocalCodexReportProjection: Sendable {
+        let daily: CostUsageDailyReport
+        let projects: [CostUsageProjectBreakdown]
+        let sessions: [CostUsageSessionBreakdown]
+        let staleSnapshotUpdatedAt: Date?
+    }
+
     private static func unavailableLocalSnapshot(
         now: Date,
         historyDays: Int,
@@ -1018,6 +1036,101 @@ public struct CostUsageFetcher: Sendable {
             historyDays: historyDays,
             calendar: calendar,
             historyCoverageIsEstablished: false)
+    }
+
+    private static func loadLocalCodexTokenReport(
+        scanOptions: CostUsageScanner.Options,
+        historyRange: CostUsageScanner.CostUsageDayRange,
+        since: Date,
+        now: Date,
+        includePiSessions: Bool,
+        environment: [String: String]) -> LocalCodexTokenReport
+    {
+        let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: since, until: now, calendar: scanOptions.calendar)
+        let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
+            .syncReadCodexReportProjection(
+                calendar: scanOptions.calendar,
+                temporalRange: (range.sinceKey, range.untilKey))
+        let cache = CostUsageScanner.codexCache(projection.cache, scopedTo: roots)
+        let view = CostUsageStoreReadView(cache: cache)
+        let projectSessionIDs = view.projectSessionIDs(range: range)
+        let nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
+            ? projection.verifiedTemporalCoverageIsComplete
+            : projection.fileTemporalCoverageIsComplete
+        let historyCoverageIsEstablished = Self.codexHistoryCoverageIsEstablished(
+            options: scanOptions,
+            range: historyRange) && (!includePiSessions || nativeTemporalIsComplete)
+        let detailsAreComplete = historyCoverageIsEstablished
+            && (view.days.isEmpty || view.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion)
+        let reportProjection = Self.projectLocalCodexTokenReport(
+            projection: projection,
+            cache: cache,
+            roots: roots,
+            rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions),
+            range: range,
+            cacheRoot: scanOptions.cacheRoot,
+            now: now)
+        let (projects, sessions) = Self.codexBreakdownsWithMetadata(
+            reportProjection.sessions,
+            projects: reportProjection.projects,
+            projectSessionIDs: projectSessionIDs,
+            sessionsRoot: roots.first,
+            environment: environment)
+        return LocalCodexTokenReport(
+            daily: reportProjection.daily,
+            projects: projects,
+            sessions: sessions,
+            projectSessionIDs: projectSessionIDs,
+            nativeTemporalIsComplete: nativeTemporalIsComplete,
+            historyCoverageIsEstablished: historyCoverageIsEstablished,
+            detailsAreComplete: detailsAreComplete,
+            staleSnapshotUpdatedAt: reportProjection.staleSnapshotUpdatedAt)
+    }
+
+    private static func projectLocalCodexTokenReport(
+        projection: CostUsageStoreCodexReportProjection,
+        cache: CostUsageCache,
+        roots: [URL],
+        rootsFingerprint: [String: Int64],
+        range: CostUsageScanner.CostUsageDayRange,
+        cacheRoot: URL?,
+        now: Date) -> LocalCodexReportProjection
+    {
+        if let previous = CostUsageScanner.codexPreviousReport(
+            cache: cache,
+            range: range,
+            rootsFingerprint: rootsFingerprint)
+        {
+            let retained = Self.cachedCodexPreviousReportProjection(
+                CachedCodexPreviousReportProjectionInput(
+                    previous: previous,
+                    projection: projection,
+                    cache: cache,
+                    roots: roots,
+                    range: range,
+                    cacheRoot: cacheRoot,
+                    includeBreakdowns: true,
+                    now: now))
+            return LocalCodexReportProjection(
+                daily: retained.report,
+                projects: retained.projects,
+                sessions: retained.sessions,
+                staleSnapshotUpdatedAt: retained.updatedAt)
+        } else {
+            let projected = CostUsageCodexReportProjectionBuilder.build(
+                projection: projection,
+                roots: roots,
+                range: range,
+                cacheRoot: cacheRoot,
+                includeBreakdowns: true)
+            return LocalCodexReportProjection(
+                daily: projected.report,
+                projects: projected.projects,
+                sessions: projected.sessions,
+                staleSnapshotUpdatedAt: nil)
+        }
     }
 
     private static func loadLocalTokenScanResult(
@@ -1081,64 +1194,21 @@ public struct CostUsageFetcher: Sendable {
             var detailsAreComplete = true
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
-                let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
-                let range = CostUsageScanner.CostUsageDayRange(
-                    since: since, until: now, calendar: scanOptions.calendar)
-                let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
-                    .syncReadCodexReportProjection(
-                        calendar: scanOptions.calendar,
-                        temporalRange: (range.sinceKey, range.untilKey))
-                let cache = CostUsageScanner.codexCache(
-                    projection.cache,
-                    scopedTo: roots)
-                let view = CostUsageStoreReadView(cache: cache)
-                projectSessionIDs = view.projectSessionIDs(range: range)
-                nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
-                    ? projection.verifiedTemporalCoverageIsComplete
-                    : projection.fileTemporalCoverageIsComplete
-                historyCoverageIsEstablished = Self.codexHistoryCoverageIsEstablished(
-                    options: scanOptions,
-                    range: historyRange) && (!options.includePiSessions || nativeTemporalIsComplete)
-                detailsAreComplete = historyCoverageIsEstablished &&
-                    (view.days.isEmpty || view.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion)
-                if let previous = CostUsageScanner.codexPreviousReport(
-                    cache: cache,
-                    range: range,
-                    rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions))
-                {
-                    let retained = Self.cachedCodexPreviousReportProjection(
-                        CachedCodexPreviousReportProjectionInput(
-                            previous: previous,
-                            projection: projection,
-                            cache: cache,
-                            roots: roots,
-                            range: range,
-                            cacheRoot: scanOptions.cacheRoot,
-                            includeBreakdowns: true,
-                            now: now))
-                    daily = retained.report
-                    projects = retained.projects
-                    sessions = retained.sessions
-                    staleSnapshotUpdatedAt = retained.updatedAt
-                } else {
-                    let projected = CostUsageCodexReportProjectionBuilder.build(
-                        projection: projection,
-                        roots: roots,
-                        range: range,
-                        cacheRoot: scanOptions.cacheRoot,
-                        includeBreakdowns: true)
-                    daily = projected.report
-                    projects = projected.projects
-                    sessions = projected.sessions
-                }
-            }
-            if provider == .codex {
-                (projects, sessions) = Self.codexBreakdownsWithMetadata(
-                    sessions,
-                    projects: projects,
-                    projectSessionIDs: projectSessionIDs,
-                    sessionsRoot: CostUsageScanner.codexSessionsRoots(options: scanOptions).first,
+                let codexReport = Self.loadLocalCodexTokenReport(
+                    scanOptions: scanOptions,
+                    historyRange: historyRange,
+                    since: since,
+                    now: now,
+                    includePiSessions: options.includePiSessions,
                     environment: options.environment)
+                daily = codexReport.daily
+                projects = codexReport.projects
+                sessions = codexReport.sessions
+                projectSessionIDs = codexReport.projectSessionIDs
+                nativeTemporalIsComplete = codexReport.nativeTemporalIsComplete
+                historyCoverageIsEstablished = codexReport.historyCoverageIsEstablished
+                detailsAreComplete = codexReport.detailsAreComplete
+                staleSnapshotUpdatedAt = codexReport.staleSnapshotUpdatedAt
             }
             let native = LocalTokenScanReport(
                 daily: daily,

@@ -198,11 +198,16 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                     provider: provider, policy: $0, background: background, accountID: accountID)
                 : nil
         }
-        let resolvedJarImporter = batchJarImporter ?? jarImporter.map { importer in
-            { (domain: String, batch: Int) throws in
+        let resolvedJarImporter: BatchJarImporter? = if let batchJarImporter {
+            batchJarImporter
+        } else if let jarImporter {
+            { @Sendable (domain: String, batch: Int) throws
+                -> [(records: [ProviderPluginCookieRecord], source: String)]? in
                 guard batch == 0 else { return nil }
-                return try importer(domain)
+                return try jarImporter(domain)
             }
+        } else {
+            nil
         }
         #if os(macOS)
         let importBatch = BrowserCookieAccessGate.operationPreservingAccessContext { (input: (String, Int)) in

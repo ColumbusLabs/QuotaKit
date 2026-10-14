@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 
 enum OpenCodeWebCookieSupport {
     /// `auth` serves the legacy pages and server functions. The console signs requests with its own

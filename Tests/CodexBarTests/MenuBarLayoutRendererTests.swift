@@ -124,7 +124,7 @@ struct MenuBarLayoutRendererTests {
             options: self.options())
 
         #expect(output.attributedTitle.string.contains("\u{FFFC}"))
-        #expect(output.attributedTitle.attribute(.attachment, at: 2, effectiveRange: nil) as? NSTextAttachment != nil)
+        #expect(output.attributedTitle.attribute(.attachment, at: 2, effectiveRange: nil) is NSTextAttachment)
         #expect(output.accessibilityLabel == L("%@ %@", L("Session"), "25%"))
     }
 
