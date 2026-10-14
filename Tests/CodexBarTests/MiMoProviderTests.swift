@@ -933,15 +933,18 @@ extension MiMoProviderTests {
         CookieHeaderCache.clear(provider: .mimo)
         CookieHeaderCache.store(provider: .mimo, cookieHeader: "invalid", sourceLabel: "invalid")
 
-        try await MiMoCookieImporter.withImportSessionsOverrideForTesting { _, _ in
-            [
+        try await MiMoCookieImporter.withSessionCandidatesOverrideForTesting { _, _ in
+            AnySequence([
                 .init(
                     cookieHeader: "api-platform_serviceToken=expired-token; userId=111",
                     sourceLabel: "Expired Chrome"),
                 .init(
                     cookieHeader: "api-platform_serviceToken=valid-token; userId=222",
                     sourceLabel: "Active Chrome"),
-            ]
+                .init(
+                    cookieHeader: "api-platform_serviceToken=unused-token; userId=333",
+                    sourceLabel: "Later Chrome"),
+            ])
         } operation: {
             let lock = NSLock()
             var requestedCookies: [String] = []
@@ -981,6 +984,7 @@ extension MiMoProviderTests {
             #expect(requestedCookies.count == 6)
             #expect(requestedCookies.contains(where: { $0.contains("expired-token") }))
             #expect(requestedCookies.contains(where: { $0.contains("valid-token") }))
+            #expect(!requestedCookies.contains(where: { $0.contains("unused-token") }))
             #expect(result.usage.detailRow(label: "Balance")?.value == "$25.51")
             #expect(CookieHeaderCache.load(provider: .mimo)?.sourceLabel == "Active Chrome")
         }
@@ -1005,15 +1009,15 @@ extension MiMoProviderTests {
             cookieHeader: "api-platform_serviceToken=stale-chrome-token; userId=111",
             sourceLabel: "Chrome")
 
-        try await MiMoCookieImporter.withImportSessionsOverrideForTesting { _, _ in
-            [
+        try await MiMoCookieImporter.withSessionCandidatesOverrideForTesting { _, _ in
+            AnySequence([
                 .init(
                     cookieHeader: "api-platform_serviceToken=stale-chrome-token; userId=111",
                     sourceLabel: "Chrome"),
                 .init(
                     cookieHeader: "api-platform_serviceToken=valid-safari-token; userId=222",
                     sourceLabel: "Safari"),
-            ]
+            ])
         } operation: {
             let lock = NSLock()
             var requestedCookies: [String] = []

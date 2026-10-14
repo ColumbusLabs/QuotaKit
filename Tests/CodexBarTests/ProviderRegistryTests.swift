@@ -232,6 +232,12 @@ struct ProviderRegistryTests {
             [.muse, .museai],
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
+            // New providers retain upstream violet/neutral accents, mirrored by the iPhone palette.
+            [.grok, .parallel],
+            [.deepgram, .fal],
+            [.pi, .fal],
+            [.v0, .flora],
+            [.typesafe, .flora],
         ]
 
         for leftIndex in descriptors.indices {

@@ -41,6 +41,8 @@ struct ProviderUsageItemDescriptor: Identifiable, Equatable, Sendable {
 extension ProviderUsageItemID {
     @MainActor
     func requiresOptionalUsage(for provider: UsageProvider) -> Bool {
+        // Provider-specific by design: Codex optional limits and Claude extra usage retain their persisted
+        // optional-display contract.
         if self == .credits || (provider == .claude && self == .claudeExtraUsage) { return true }
         if let metricID = self.metricID {
             return (provider == .codex && (metricID.hasPrefix("codex-") || metricID == "monthly")) ||
@@ -83,6 +85,8 @@ extension ProviderUsageItemID {
 
 extension UsageMenuCardView.Model {
     var quotaSubscriptionNotes: [String] {
+        // Provider-specific by design: Codex and Claude report quota subscription dates separately from supplemental
+        // notes.
         self.provider == .codex || self.provider == .claude ? self.subscriptionNotes : []
     }
 
@@ -104,7 +108,8 @@ extension UsageMenuCardView.Model {
         if !self.quotaSubscriptionNotes.isEmpty {
             descriptors.append(.init(id: .subscription, title: L("Plan renewal / expiry")))
         }
-        // The fork shares a reset-credit presentation type, while the saved visibility choice stays provider-specific.
+        // Provider-specific by design: the shared reset-credit presentation keeps distinct saved Claude and Codex/Grok
+        // visibility choices.
         if self.codexResetCredits != nil {
             if self.provider == .claude {
                 descriptors.append(.init(id: .claudeResetCredits, title: L("Limit Reset Credits")))
@@ -138,6 +143,7 @@ extension UsageMenuCardView.Model {
                 title: cloudCredits.title,
                 requiresOptionalUsage: true))
         }
+        // Provider-specific by design: Claude financial extra usage uses the same stable visibility ID as its meter.
         if self.provider == .claude, let cost = self.providerCost,
            cost.title == L("Extra usage") || cost.title == L("Credits")
         {
@@ -172,6 +178,8 @@ extension UsageMenuCardView.Model {
     func applyingUsageItemVisibility(hiddenItemIDs: Set<ProviderUsageItemID>) -> Self {
         guard !hiddenItemIDs.isEmpty else { return self }
         var projected = self
+        // Provider-specific by design: preserve independent Claude financial and reset-credit choices alongside
+        // Codex/Grok reset credits.
         projected.metrics.removeAll { metric in
             hiddenItemIDs.contains(.metric(metric.id)) ||
                 (self.provider == .claude && metric.id == "claude-extra-usage" &&
@@ -223,6 +231,8 @@ extension SettingsStore {
         if let storedIDs = self.providerConfig(for: provider)?.hiddenUsageItemIDs {
             return Set(storedIDs.map { rawID in
                 let itemID = ProviderUsageItemID(rawValue: rawID)
+                // Provider-specific by design: migrate legacy Claude reset-credit choices from the formerly shared
+                // Codex ID.
                 if provider == .claude, itemID == .codexResetCredits { return .claudeResetCredits }
                 if let rawTitle = itemID.detailSectionTitle {
                     return .detailSection(rawTitle)

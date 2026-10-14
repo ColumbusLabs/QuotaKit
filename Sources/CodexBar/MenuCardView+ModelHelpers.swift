@@ -1037,6 +1037,8 @@ extension UsageMenuCardView.Model {
         percentStyle: PercentStyle) -> [Metric]
     {
         var extraRateWindows = snapshot.extraRateWindows ?? []
+        // Provider-specific by design: Claude financial windows and provider-owned optional limits retain their
+        // visibility and detail policies.
         if input.provider == .claude, input.showOptionalCreditsAndExtraUsage,
            MenuBarMetricWindowResolver.claudeSpendLimitWindow(snapshot: snapshot) != nil,
            let spend = snapshot.claudeMonthlySpendWindow

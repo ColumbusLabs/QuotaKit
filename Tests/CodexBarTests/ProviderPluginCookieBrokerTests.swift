@@ -7,6 +7,19 @@ import Testing
 struct ProviderPluginCookieBrokerTests {
     private let domains: Set<String> = ["cloud.example.test", "community.example.test"]
 
+    private static let interactiveCookieJarPolicyFixture = """
+    defineProvider({
+      id: "longcat",
+      name: "LongCat cookie broker policy fixture",
+      settings: [],
+      endpoints: ["https://longcat.chat"],
+      capabilities: ["browser-cookies", "http-status"],
+      cookieDomains: ["longcat.chat"],
+      cookiePolicy: { selection: "request-url", cache: "nonpersistent" },
+      async fetchUsage(ctx) { return {}; },
+    });
+    """
+
     @Test
     func `denied synthetic profile reports Files and Folders instead of sign in`() throws {
         try self.isolated {
@@ -49,11 +62,15 @@ struct ProviderPluginCookieBrokerTests {
     @Test
     func `policy blocked jar imports do not report profile permissions`() throws {
         try self.isolated {
-            let runtime = try BundledPluginTestSupport.runtime(
-                "longcat", engine: .quickJS, transport: ProviderHTTPTransportStub { _ in
+            // LongCat is native in this fork, so keep the broker's default interactive-only
+            // policy coverage in a test-only runtime fixture instead of requiring longcat.js.
+            let runtime = try ProviderPluginRuntime(
+                source: Self.interactiveCookieJarPolicyFixture,
+                transport: ProviderHTTPTransportStub { _ in
                     Issue.record("No network request is expected")
                     throw URLError(.unsupportedURL)
-                })
+                },
+                engine: .quickJS)
             let detection = BrowserDetection(
                 homeDirectory: "/synthetic-cookie-home",
                 cacheTTL: 0,
@@ -80,6 +97,7 @@ struct ProviderPluginCookieBrokerTests {
                         provider: .longcat,
                         domains: runtime.manifest.cookieDomains,
                         context: context,
+                        usesCookieJar: runtime.manifest.usesCookieJar,
                         policy: runtime.manifest.cookiePolicy)
                     let session = try broker.nextSession(domain: "longcat.chat")
                     #expect(session == nil)

@@ -66,13 +66,15 @@ struct ClaudeMenuCardCostTests {
             cost: Self.cost(used: 12.34, limit: 0, period: "Last 30 days"),
             showUsed: false,
             showOptional: false,
-            isAdminAPI: true)
+            isAdminAPI: true,
+            costSummaryInlineEnabled: true)
 
         #expect(model.providerCost?.title == "API spend")
         #expect(model.providerCost?.spendLine == "Last 30 days: $12.34")
         #expect(model.providerCost?.presentation == .detail)
         #expect(model.providerCost?.showsInProviderDetails == true)
         #expect(model.metrics.isEmpty)
+        #expect(model.tokenUsage == nil)
     }
 
     @Test(arguments: [false, true])
@@ -93,6 +95,7 @@ struct ClaudeMenuCardCostTests {
         showUsed: Bool,
         showOptional: Bool = true,
         isAdminAPI: Bool = false,
+        costSummaryInlineEnabled: Bool? = nil,
         paceVisible: Bool = true) throws -> UsageMenuCardView.Model
     {
         let metadata = try #require(ProviderDefaults.metadata[.claude])
@@ -123,6 +126,7 @@ struct ClaudeMenuCardCostTests {
             usageBarsShowUsed: showUsed,
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
+            costSummaryInlineEnabled: costSummaryInlineEnabled,
             showOptionalCreditsAndExtraUsage: showOptional,
             hidePersonalInfo: false,
             paceVisible: paceVisible,

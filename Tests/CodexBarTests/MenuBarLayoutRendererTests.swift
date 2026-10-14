@@ -116,7 +116,7 @@ struct MenuBarLayoutRendererTests {
     }
 
     @Test
-    func `graphical progress bars preserve semantic labels and accessibility values`() {
+    func `graphical progress bars preserve semantic labels and accessibility values`() throws {
         let output = MenuBarLayoutRenderer().render(
             layout: MenuBarLayout(lines: [[.progressBar(window: .session)]]),
             data: self.data(),
@@ -124,7 +124,10 @@ struct MenuBarLayoutRendererTests {
             options: self.options())
 
         #expect(output.attributedTitle.string.contains("\u{FFFC}"))
-        #expect(output.attributedTitle.attribute(.attachment, at: 2, effectiveRange: nil) is NSTextAttachment)
+        let attachmentRange = (output.attributedTitle.string as NSString).range(of: "\u{FFFC}")
+        try #require(attachmentRange.location != NSNotFound)
+        #expect(output.attributedTitle.attribute(
+            .attachment, at: attachmentRange.location, effectiveRange: nil) is NSTextAttachment)
         #expect(output.accessibilityLabel == L("%@ %@", L("Session"), "25%"))
     }
 

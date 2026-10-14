@@ -351,7 +351,14 @@ struct SyncCostIsEstimatedTests {
     @Test
     func `SyncCoordinator: balance-only providers never mark model costs estimated`() async throws {
         let providers: [UsageProvider] = [.fal, .flora, .parallel]
-        let settings = self.makeSettingsStore(suite: "SyncCoord-isEst-balance-only")
+        let settings = self.makeSettingsStore(
+            suite: "SyncCoord-isEst-balance-only",
+            config: CodexBarConfig(providers: [
+                ProviderConfig(
+                    id: UsageProvider.flora.instanceID,
+                    apiKey: "fixture-flora-key",
+                    workspaceID: "ws_fixture123"),
+            ]))
         settings.iCloudSyncEnabled = true
         for provider in providers {
             try settings.setProviderEnabled(
@@ -403,14 +410,16 @@ struct SyncCostIsEstimatedTests {
 
     // MARK: - Helpers (mirrored from SyncCoordinatorTests setup pattern)
 
-    private func makeSettingsStore(suite: String) -> SettingsStore {
-        testSettingsStore(suiteName: suite)
+    private func makeSettingsStore(suite: String, config: CodexBarConfig? = nil) -> SettingsStore {
+        testSettingsStore(suiteName: suite, config: config)
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {
         UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
     }
 }

@@ -210,7 +210,8 @@ struct CodexBarConfigMigrator {
         config: inout CodexBarConfig,
         state: inout MigrationState)
     {
-        // Claude reset credits used the global optional gate before this independent choice existed.
+        // Provider-specific by design: Claude reset credits previously shared the global optional gate; migrate that
+        // saved choice once.
         guard let index = config.providers.firstIndex(where: { $0.id == .claude }),
               config.providers[index].claudeResetCreditsVisibilityMigrated != true
         else { return }

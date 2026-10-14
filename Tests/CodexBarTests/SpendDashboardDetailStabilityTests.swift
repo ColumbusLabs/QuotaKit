@@ -183,7 +183,7 @@ struct SpendDashboardDetailStabilityTests {
         controller.update(configuration: configuration.value)
         try await gate.waitForPendingCount(1)
         gate.resume(returning: .init(inputs: [old], failedSourceIDs: []))
-        try await Self.waitUntil { !controller.isRefreshing }
+        try await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         configuration.value = SpendDashboardConfiguration(
             costUsageEnabled: true,
             providerIDs: ["codex"],
@@ -194,7 +194,7 @@ struct SpendDashboardDetailStabilityTests {
         #expect(controller.model.groups.first?.projects.count == 2)
         #expect(controller.model.groups.first?.sessions.first?.turnPerformance?.sampleCount == 1)
         gate.resume(returning: .init(inputs: [partial], failedSourceIDs: []))
-        try await Self.waitUntil { !controller.isRefreshing }
+        try await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.projects.count == 2)
     }
 
@@ -285,7 +285,7 @@ struct SpendDashboardDetailStabilityTests {
             controller.update(configuration: configuration.value)
             try await gate.waitForPendingCount(1)
             gate.resume(returning: .init(inputs: [input], failedSourceIDs: []))
-            try await Self.waitUntil { !controller.isRefreshing }
+            try await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         }
         return controller
     }
@@ -295,7 +295,7 @@ struct SpendDashboardDetailStabilityTests {
     private static func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         for _ in 0..<1000 {
             if condition() { return }
-            await Task.yield()
+            try await Task.sleep(nanoseconds: 1_000_000)
         }
         throw NSError(domain: "SpendDashboardDetailStabilityTests", code: 1)
     }

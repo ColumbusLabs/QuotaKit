@@ -131,6 +131,18 @@ public enum MiMoCookieImporter {
 
     @TaskLocal private static var taskImportSessionsOverrideStore: ImportSessionsOverrideStore?
 
+    final class SessionCandidatesOverrideStore: @unchecked Sendable {
+        let sessionCandidates: (BrowserDetection, ((String) -> Void)?) throws -> AnySequence<SessionInfo>
+
+        init(
+            sessionCandidates: @escaping (BrowserDetection, ((String) -> Void)?) throws -> AnySequence<SessionInfo>)
+        {
+            self.sessionCandidates = sessionCandidates
+        }
+    }
+
+    @TaskLocal private static var taskSessionCandidatesOverrideStore: SessionCandidatesOverrideStore?
+
     static func withImportSessionsOverrideForTesting<T>(
         _ override: ((BrowserDetection, ((String) -> Void)?) throws -> [SessionInfo])?,
         operation: () throws -> T) rethrows -> T
@@ -147,6 +159,25 @@ public enum MiMoCookieImporter {
         try await self.$taskImportSessionsOverrideStore.withValue(override.map(ImportSessionsOverrideStore.init)) {
             try await operation()
         }
+    }
+
+    static func withSessionCandidatesOverrideForTesting<T>(
+        _ override: ((BrowserDetection, ((String) -> Void)?) throws -> AnySequence<SessionInfo>)?,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$taskSessionCandidatesOverrideStore.withValue(override.map(SessionCandidatesOverrideStore.init)) {
+            try operation()
+        }
+    }
+
+    static func withSessionCandidatesOverrideForTesting<T>(
+        _ override: ((BrowserDetection, ((String) -> Void)?) throws -> AnySequence<SessionInfo>)?,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskSessionCandidatesOverrideStore
+            .withValue(override.map(SessionCandidatesOverrideStore.init)) {
+                try await operation()
+            }
     }
     #endif
 
@@ -192,6 +223,12 @@ public enum MiMoCookieImporter {
             -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
         throws -> AnySequence<SessionInfo>
     {
+        #if DEBUG
+        if let override = self.taskSessionCandidatesOverrideStore?.sessionCandidates {
+            return try override(browserDetection, logger)
+        }
+        #endif
+
         let log: (String) -> Void = { msg in
             logger?("[mimo-cookie] \(msg)")
             Self.log.debug("\(msg)")

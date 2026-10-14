@@ -1544,7 +1544,7 @@ extension ProviderSettingsDescriptorTests {
     func `MuseAI cookie plugin preserves source and manual cookie settings`() throws {
         let descriptor = MuseAIProviderDescriptor.descriptor
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
-        #expect(descriptor.metadata.browserCookieOrder == nil)
+        #expect(descriptor.metadata.browserCookieOrder == ProviderBrowserCookieDefaults.defaultImportOrder)
         #if os(macOS)
         let importOrder = BrowserCookieImportSupport.importOrder(for: .museai)
         let sharedImportOrder = try #require(ProviderBrowserCookieDefaults.defaultImportOrder)

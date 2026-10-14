@@ -13,7 +13,7 @@ struct CLICostProjectCoverageTests {
         let output = Self.render(snapshot)
 
         #expect(output.contains(Self.partialHistoryMessage))
-        #expect(output.contains("Projects (All):"))
+        #expect(output.contains("Projects (Last 365 days):"))
         if hasProjects {
             #expect(output.contains(Self.projectLines))
         } else {

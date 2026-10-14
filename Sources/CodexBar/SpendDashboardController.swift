@@ -767,6 +767,7 @@ enum SpendDashboardSource {
             "\(provider.rawValue):\(settings.providerConfigRevision(for: provider))"
         }
         parts.append("bucket:\(settings.costUsageBucketTimeZoneIdentifier)")
+        // Provider-specific by design: Codex account homes and selection sources scope cached dashboard ownership.
         if providers.contains(.codex) {
             parts.append(contentsOf: self.codexHomes(settings: settings, store: store).map { home in
                 [

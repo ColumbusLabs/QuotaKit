@@ -718,6 +718,7 @@ struct LocalizationLanguageCatalogTests {
             "v0_...",
             "wk-...",
             "wrk_…",
+            "ws_…",
             "x0mh0x",
             "xai-...",
             "xi-...",

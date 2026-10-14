@@ -33,7 +33,8 @@ defineProvider({
     const domain = "hyper.charm.land";
     const key = ctx.settings.getSecret("HYPER_API_KEY");
     const canUseKey = Boolean(key) && ctx.settings.get("SOURCE_MODE") !== "web";
-    const cookiePolicy = ctx.browser.availability(domain);
+    const apiOnly = ctx.settings.get("SOURCE_MODE") === "api";
+    const cookiePolicy = apiOnly ? "off" : ctx.browser.availability(domain);
     const missing = () => {
       throw ctx.fail.missingCredential("Sign in to hyper.charm.land or configure a Charm Hyper API key.");
     };

@@ -81,6 +81,9 @@ public enum CursorProviderDescriptor {
                     "invoice."),
             pace: ProviderPaceCapability(resetWindowPace: .windowDurationPresent),
             presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    Self.rateWindowLabels(metadata: metadata, snapshot: snapshot)
+                },
                 extraRateWindowSelector: { snapshot in
                     (snapshot.extraRateWindows ?? []).filter { $0.id == CursorSandUsageStatus.extraWindowID }
                 },
@@ -114,6 +117,28 @@ public enum CursorProviderDescriptor {
                     #endif
                 }),
             nativeAppBundleIdentifiers: ["com.todesktop.230313mzl4w4u92"])
+    }
+
+    /// Persisted Cursor layouts can place Auto/API in the first two slots instead of Total/Auto/API.
+    private static func rateWindowLabels(
+        metadata: ProviderMetadata,
+        snapshot: UsageSnapshot) -> ProviderRateWindowLabels
+    {
+        let labels: (String, String) = switch snapshot.cursorRateWindowLayout {
+        case .requests: ("Requests", metadata.weeklyLabel)
+        case .plan: ("Plan", metadata.weeklyLabel)
+        case .apiOnly: ("API", metadata.weeklyLabel)
+        case .autoOnly: ("Auto", metadata.weeklyLabel)
+        case .autoAPI: ("Auto", "API")
+        case .none:
+            (
+                snapshot.cursorRequests == nil && snapshot.detailRow(label: "Request quota") == nil
+                    ? metadata.sessionLabel : "Requests",
+                metadata.weeklyLabel)
+        }
+        return ProviderRateWindowLabels(
+            primary: labels.0, secondary: labels.1, tertiary: metadata.opusLabel ?? "Tertiary",
+            showsTertiary: metadata.supportsOpus)
     }
 
     private static var supportsCostCommand: Bool {

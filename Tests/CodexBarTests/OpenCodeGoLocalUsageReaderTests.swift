@@ -159,18 +159,22 @@ struct OpenCodeGoLocalUsageReaderTests {
             databaseURL: env.databaseURL,
             createdMs: Self.ms("2026-03-06T11:00:00.000Z"),
             cost: 1)
+        let now = Date(timeIntervalSince1970: 1_772_798_400)
+        let stableModificationDate = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
+        try FileManager.default.setAttributes(
+            [.modificationDate: stableModificationDate],
+            ofItemAtPath: env.databaseURL.path)
+        let originalAttributes = try FileManager.default.attributesOfItem(atPath: env.databaseURL.path)
+        let originalModificationDate = try #require(originalAttributes[.modificationDate] as? Date)
+        let originalFileNumber = try #require(originalAttributes[.systemFileNumber] as? NSNumber)
         let reader = OpenCodeGoLocalUsageReader(authURL: env.authURL, databaseURL: env.databaseURL)
         let scans = LockIsolated(0)
-        let now = Date(timeIntervalSince1970: 1_772_798_400)
         let observer: @Sendable () -> Void = { scans.setValue(scans.value + 1) }
 
         try OpenCodeGoLocalUsageReader.$scanObserverForTesting.withValue(observer) { () throws in
             #expect(try reader.fetch(now: now).rollingUsagePercent == 8.3)
             #expect(scans.value == 1)
 
-            let originalAttributes = try FileManager.default.attributesOfItem(atPath: env.databaseURL.path)
-            let originalModificationDate = try #require(originalAttributes[.modificationDate] as? Date)
-            let originalFileNumber = try #require(originalAttributes[.systemFileNumber] as? NSNumber)
             let replacementURL = env.root.appendingPathComponent("replacement.db")
             try Self.createDatabase(at: replacementURL)
             try Self.insertMessage(
