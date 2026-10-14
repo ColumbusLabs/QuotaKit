@@ -82,11 +82,15 @@ QuotaKit does not ship a Linux desktop installer.
 
 - [codexbar-cosmic-applet](https://github.com/andrew-verde/codexbar-cosmic-applet) — Native COSMIC (System76) desktop panel applet with provider tabs, pace projections, and cost/token stats, built on QuotaKit's bundled Linux CLI.
 
-- [codexbar-kde](https://github.com/materemias/codexbar-kde) — Community KDE Plasma 6 widget built for the upstream CodexBar Linux CLI, with usage meters, agent-session search, terminal focus, and kitty session restoration. Maintained separately from QuotaKit.
+- [CodexBar AgentView](https://github.com/materemias/codexbar-agentview) — Community KDE Plasma 6 widget built for the upstream CodexBar Linux CLI, with usage meters, agent-session search, terminal focus, and kitty session restoration. Maintained separately from QuotaKit.
 
 ## Desk display integration
 
 - [TokenTV](https://github.com/click6067-ship-it/token-tv) is a community desk-clock integration built for the upstream CodexBar CLI and `codexbar serve`. It uses a Python host to display Claude and Codex usage on compatible Wi-Fi clocks. Maintained separately from QuotaKit.
+
+## Community phone companions
+
+- [Notify! CodexBar](https://github.com/simplytoast1/notify-codexbar) is an upstream community macOS companion that reads CodexBar CLI or local `codexbar serve` output and sends selected usage through [Notify!](https://getnotifyapp.com/) for iPhone/iPad widgets, Live Activities, and quota notifications. Maintained separately from QuotaKit; QuotaKit compatibility is not verified.
 
 ## Upstream And Credits
 

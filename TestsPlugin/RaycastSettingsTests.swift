@@ -4,14 +4,14 @@ import Testing
 
 struct RaycastSettingsTests {
     @Test
-    func `descriptor uses Chrome cookies and the shared script strategy`() async throws {
+    func `descriptor uses the shared browser order and script strategy`() async throws {
         let descriptor = RaycastProviderDescriptor.descriptor
         #expect(!descriptor.metadata.defaultEnabled)
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
         #expect(descriptor.metadata.usesDetailBackedWindow)
         #expect(descriptor.credentials?.tokenAccountSupport == nil)
         #if os(macOS)
-        #expect(descriptor.metadata.browserCookieOrder == [.chrome])
+        #expect(descriptor.metadata.browserCookieOrder == ProviderBrowserCookieDefaults.defaultImportOrder)
         #endif
         for source in ProviderCookieSource.allCases {
             let context = ProviderFetchContext(

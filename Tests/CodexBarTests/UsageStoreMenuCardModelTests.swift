@@ -39,6 +39,42 @@ struct UsageStoreMenuCardModelTests {
         #expect(model.lastKnownUsageText == nil)
     }
 
+    @Test
+    func `settings catalogue exposes gated Claude extra usage without changing rendered preferences`() {
+        let store = self.makeStore()
+        let now = Date(timeIntervalSince1970: 1_782_000_000)
+        store.settings.showOptionalCreditsAndExtraUsage = false
+        store.snapshots[.claude] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 12,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly cap",
+                updatedAt: now),
+            updatedAt: now)
+
+        let displayed = store.menuCardModel(for: .claude, context: .settings)
+        let catalogue = UsageMenuCardView.Model.make(store.menuCardInput(
+            for: .claude,
+            context: .settings,
+            optionalUsageOverride: true,
+            now: now))
+        #expect(!displayed.metrics.contains { $0.id == "claude-extra-usage" })
+        #expect(catalogue.usageItemDescriptors.contains {
+            $0.id == .claudeExtraUsage && $0.requiresOptionalUsage
+        })
+        #expect(!store.settings.showOptionalCreditsAndExtraUsage)
+
+        store.settings.setUsageItemVisible(false, itemID: .claudeExtraUsage, for: .claude)
+        store.settings.showOptionalCreditsAndExtraUsage = true
+        #expect(store.menuCardModel(for: .claude).metrics.isEmpty)
+        #expect(store.menuCardModel(for: .claude, context: .settings).metrics.isEmpty)
+        store.settings.setUsageItemVisible(true, itemID: .claudeExtraUsage, for: .claude)
+        #expect(store.menuCardModel(for: .claude).metrics.contains { $0.id == "claude-extra-usage" })
+    }
+
     @Test(arguments: [UsageDataConfidence.estimated, .exact])
     func `account pace uses its own confidence instead of the live account`(confidence: UsageDataConfidence) {
         let store = self.makeStore()

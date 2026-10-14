@@ -170,7 +170,8 @@ public enum MiMoCookieImporter {
         logger: ((String) -> Void)? = nil,
         loadRecords: @escaping (Browser, BrowserCookieQuery, ((String) -> Void)?) throws
             -> [BrowserCookieStoreRecords],
-        loadStores: @escaping (Browser) throws -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
+        loadStores: @escaping (Browser) throws
+            -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
         throws -> [SessionInfo]
     {
         try Array(self.sessionCandidates(
@@ -185,7 +186,8 @@ public enum MiMoCookieImporter {
         logger: ((String) -> Void)? = nil,
         loadRecords: @escaping (Browser, BrowserCookieQuery, ((String) -> Void)?) throws
             -> [BrowserCookieStoreRecords],
-        loadStores: @escaping (Browser) throws -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
+        loadStores: @escaping (Browser) throws
+            -> [BrowserCookieStore] = { try Self.cookieClient.codexBarStores(for: $0) })
         throws -> AnySequence<SessionInfo>
     {
         let log: (String) -> Void = { msg in

@@ -39,6 +39,7 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
 3) **Budget fetch** (optional GitHub web endpoint, best-effort)
    - Disabled by default. The Copilot provider's "Budget extras" setting must be enabled before QuotaKit imports
      github.com cookies or renders budget bars.
+   - Automatic cookie imports follow the shared supported-browser order and access gate; background imports never request Keychain permission.
    - QuotaKit asks the logged-in GitHub web endpoint for customer-scope budgets:
      - `GET https://github.com/settings/billing/budgets?page=<page>&page_size=10&scope=customer`
    - Headers:

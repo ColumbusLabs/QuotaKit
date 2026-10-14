@@ -23,7 +23,8 @@ extension StatusItemController {
         subtitleOverride: String? = nil,
         sourceLabelOverride: String? = nil,
         creditsOverride: CreditsSnapshot? = nil,
-        codexPublicationHoldOverride: String? = nil) -> UsageMenuCardView.Model?
+        codexPublicationHoldOverride: String? = nil,
+        tokenAccountIDOverride: UUID? = nil) -> UsageMenuCardView.Model?
     {
         // Provider-specific by design: Codex is the historical card fallback when no enabled provider is available.
         let target = provider ?? self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex
@@ -105,8 +106,21 @@ extension StatusItemController {
             ?? (metadata.usesAccountFallback
                 ? self.store.accountInfo(for: target)
                 : AccountInfo(email: nil, plan: nil))
+        let throughputScope: ProviderModelRateLimitScope? = surface == .liveCard
+            ? self.settings.modelRateLimitScope(for: target)
+            : tokenAccountIDOverride.map { .tokenAccount($0) }
         let input = UsageMenuCardView.Model.Input(
             provider: target,
+            throughputPresentation: snapshot?.throughput.flatMap {
+                var presentation = ProviderCatalog.implementation(for: target)?.throughputPresentation(
+                    snapshot: $0,
+                    settings: self.settings,
+                    limitScope: throughputScope)
+                if surface != .liveCard, throughputScope != self.settings.modelRateLimitScope(for: target) {
+                    presentation?.action = nil
+                }
+                return presentation
+            },
             metadata: metadata,
             snapshot: snapshot,
             codexProjection: codexProjection,

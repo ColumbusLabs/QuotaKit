@@ -13,15 +13,6 @@ public enum BrowserCookieImportSupport {
         #endif
     }
 
-    /// Keep deliberate Chrome-only policies explicit without duplicating platform guards in descriptors.
-    static func chromeOnly(reason _: StaticString) -> BrowserCookieImportOrder? {
-        #if os(macOS)
-        Browser.defaultImportOrder.filter { $0 == .chrome }
-        #else
-        nil
-        #endif
-    }
-
     #if os(macOS)
     static func importOrder(for provider: UsageProvider?) -> [Browser] {
         provider.map { ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder } ?? [.chrome]

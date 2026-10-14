@@ -966,7 +966,9 @@ extension SettingsStore {
         MenuBarLayoutPersistence.loadLibrary(
             current: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)),
-            v4: self.decodeMenuBarLayoutConditionals(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV4)),
+            v4: self
+                .decodeMenuBarLayoutConditionals(userDefaults
+                    .data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV4)),
             v3: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV3)),
             released: self.decodeMenuBarLayoutConditionals(

@@ -490,6 +490,8 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     case runsOutCompact
     case balance
     case costToday
+    case tokensPerMinute
+    case tokensSparkline
     case costWindow
     case separatorDot
     case space
@@ -504,7 +506,7 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case icon, providerName, accountLabel, percent, lanePercent, extraPercent, pace, usageBar, progressBar
         case resetCountdown, resetAbsolute, windowResetCountdown, windowResetAbsolute
-        case runsOut, runsOutCompact, balance, costToday
+        case runsOut, runsOutCompact, balance, costToday, tokensPerMinute, tokensSparkline
         case costWindow = "cost30d"
         case separatorDot, space, hidden, conditional
     }
@@ -532,14 +534,25 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
 
     /// Keep the selected window readable without putting a new discriminator in the V4 keys.
     var v4Compatible: MenuBarLayoutToken {
-        if case let .progressBar(window) = self { return .percent(window: window) }
-        return self
+        switch self {
+        case let .progressBar(window): .percent(window: window)
+        case .tokensPerMinute, .tokensSparkline: .hidden
+        default: self
+        }
+    }
+
+    var hasV4Representation: Bool {
+        switch self {
+        case .tokensPerMinute, .tokensSparkline: false
+        default: true
+        }
     }
 
     /// Older decoders must never see token cases added in a newer layout schema.
     var hasLegacyRepresentation: Bool {
         switch self {
-        case .conditional, .extraPercent, .hidden, .windowResetCountdown, .windowResetAbsolute, .progressBar: false
+        case .conditional, .extraPercent, .hidden, .windowResetCountdown, .windowResetAbsolute,
+             .progressBar, .tokensPerMinute, .tokensSparkline: false
         default: true
         }
     }
@@ -547,14 +560,16 @@ enum MenuBarLayoutToken: Codable, Hashable, Sendable {
     /// V3 readers predate descriptor-owned named extras and explicit reset-window tokens.
     var hasV3Representation: Bool {
         switch self {
-        case .extraPercent, .windowResetCountdown, .windowResetAbsolute, .progressBar: false
+        case .extraPercent, .windowResetCountdown, .windowResetAbsolute,
+             .progressBar, .tokensPerMinute, .tokensSparkline: false
         default: true
         }
     }
 
     var hasReleasedRepresentation: Bool {
         switch self {
-        case .extraPercent, .windowResetCountdown, .windowResetAbsolute, .progressBar: false
+        case .extraPercent, .windowResetCountdown, .windowResetAbsolute,
+             .progressBar, .tokensPerMinute, .tokensSparkline: false
         default: true
         }
     }
@@ -769,7 +784,7 @@ struct MenuBarLayout: Codable, Hashable, Sendable {
     }
 
     func v4Compatible() -> MenuBarLayout {
-        self.projected { $0.v4Compatible }
+        self.projected { $0.hasV4Representation ? $0.v4Compatible : nil }
     }
 
     /// Older-readable projection of this layout. Graphical bars become percentages; tokens with no

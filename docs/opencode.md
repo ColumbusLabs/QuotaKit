@@ -68,9 +68,8 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
   accounts can still report a Zen balance, including zero or negative values. Other Console billing modes are not
   mapped. A failed optional balance read does not discard valid Go usage.
 - Missing workspace ID or rolling usage fields should raise parse errors; omitted weekly usage stays absent.
-- OpenCode web Auto imports Chrome first, then Dia when their cookie stores exist; Keychain preflight stays scoped
-  to each candidate browser. Other browsers stay on Manual Cookie import until QuotaKit has an explicit browser
-  selector.
+- OpenCode web Auto imports cookies in the shared supported-browser order; Keychain preflight stays scoped
+  to each candidate browser and the shared access gate bounds prompts.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
 - Workspace override accepts a raw `wrk_…` or `org_…` ID, a full legacy `https://opencode.ai/workspace/...` URL, or
   a Console `https://opencode.ai/console/...` URL.

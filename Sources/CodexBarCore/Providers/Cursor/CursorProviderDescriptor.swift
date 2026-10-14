@@ -27,7 +27,10 @@ public enum CursorProviderDescriptor {
             menuBarMetrics: ProviderMenuBarMetricCapabilities(
                 supported: [.automatic, .primary, .secondary, .tertiary, .extraUsage],
                 tertiaryRequiresWindow: true,
-                namedExtras: [CursorSandUsageStatus.extraWindowID: CursorSandUsageStatus.extraWindowTitle]),
+                namedExtras: [CursorSandUsageStatus.extraWindowID: CursorSandUsageStatus.extraWindowTitle],
+                // Match QuotaKit’s Total, Auto and API lane names, including older saved layouts.
+                laneShortLabels: [.primary: "T", .secondary: "A", .tertiary: "API"],
+                namedExtraShortLabels: [CursorSandUsageStatus.extraWindowID: "GB"]),
             settingsSection: .init(CursorProviderSettingsKey.self, cookieSettings: CursorProviderSettings.self),
             credentials: self.credentials,
             metadata: ProviderMetadata(

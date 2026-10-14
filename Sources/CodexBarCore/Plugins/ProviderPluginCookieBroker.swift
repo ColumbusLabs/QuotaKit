@@ -131,7 +131,9 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                     browserDetection: detection,
                     batch: batch)
             }
-        } else { nil }
+        } else {
+            nil
+        }
         self.init(
             provider: provider,
             domains: domains,
@@ -292,14 +294,13 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         guard let classified = error as? ProviderFetchClassifiedError,
               classified.kind == .missingCredential || classified.kind == .authenticationExpired
         else { return error }
-        if let failure = self.accessFailureLock.withLock({ self.cookieAccessFailure }) { return failure }
-        return error
+        return self.accessFailureLock.withLock { self.cookieAccessFailure as Error? } ?? error
     }
 
     private func importCandidates<Candidate>(_ operation: () throws -> [Candidate]?) throws -> [Candidate]? {
         #if os(macOS)
         return try BrowserCookieAccessGate.withAccessFailureObserver {
-            self.recordAccessFailure(for: $0)
+            self.recordAccessFailure(for: $0, profileDenied: $1)
         } operation: {
             do {
                 return try operation()
@@ -315,14 +316,20 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     }
 
     #if os(macOS)
-    private func recordAccessFailure(for browser: Browser) {
+    private func recordAccessFailure(for browser: Browser, profileDenied: Bool) {
         let permission = browser.usesKeychainForCookieDecryption ? "Keychain permission" : "browser permission"
         self.accessFailureLock.withLock {
+            // An actual decryption denial takes precedence over a skipped profile.
+            guard !profileDenied || self.cookieAccessFailure == nil else { return }
+            let message = profileDenied
+                ? "Cannot read \(browser.displayName)'s profile. In System Settings → Privacy & Security → "
+                + "Files & Folders, turn on \(browser.displayName) under QuotaKit, then refresh."
+                : "\(browser.displayName) cookie access needs \(permission) — "
+                + "use Refresh beside Cookie source or Refresh in the provider menu to allow it, "
+                + "or paste a Cookie header in Manual mode."
             self.cookieAccessFailure = ProviderFetchClassifiedError(
                 kind: .permissionDenied,
-                message: "\(browser.displayName) cookie access needs \(permission) — "
-                    + "use Refresh beside Cookie source or Refresh in the provider menu to allow it, "
-                    + "or paste a Cookie header in Manual mode.")
+                message: message)
         }
     }
     #endif
@@ -597,7 +604,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     {
         #if os(macOS)
         for batch in self.importOrder(for: provider).indices {
-            guard let candidates = try Self.importCookieHeaderBatch(
+            guard let candidates = try importCookieHeaderBatch(
                 provider: provider,
                 domain: domain,
                 browserDetection: browserDetection,

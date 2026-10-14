@@ -33,7 +33,7 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
                 id: "helmcode-cookie-source",
                 title: "Cookie source",
                 subtitle: L(
-                    "Imports Chrome sessions for %@ / %@; Cloud is preferred.",
+                    "Imports browser sessions for %@ / %@; Cloud is preferred.",
                     "Helmcode Cloud",
                     "NaN Builders"),
                 dynamicSubtitle: {
@@ -42,7 +42,7 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
                         subtitles: ProviderCookieSourceUI.Subtitles(
                             auto: L(
-                                "Imports Chrome sessions for %@ / %@; Cloud is preferred.",
+                                "Imports browser sessions for %@ / %@; Cloud is preferred.",
                                 "Helmcode Cloud",
                                 "NaN Builders"),
                             manual: L("Paste a Cookie header and select its tenant below."),

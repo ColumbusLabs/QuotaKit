@@ -99,7 +99,10 @@
     "cosmic",
     "aerostack",
     "sailresearch",
-    "sofya"
+    "sofya",
+    "fal",
+    "flora",
+    "parallel"
   ],
   "order": [
     "codex",
@@ -201,7 +204,10 @@
     "cosmic",
     "aerostack",
     "sailresearch",
-    "sofya"
+    "sofya",
+    "fal",
+    "flora",
+    "parallel"
   ],
   "providers": [
     {

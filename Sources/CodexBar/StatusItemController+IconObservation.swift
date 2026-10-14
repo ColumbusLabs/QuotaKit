@@ -146,10 +146,21 @@ extension StatusItemController {
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
         let showsToday = tokens.contains(.costToday) || metrics.contains(.costToday)
         let showsLast30Days = tokens.contains(.costWindow) || metrics.contains(.costWindow)
-        guard showsToday || showsLast30Days else { return nil }
+        let showsThroughput = tokens.contains(.tokensPerMinute)
+        let showsSparkline = tokens.contains(.tokensSparkline)
+        guard showsToday || showsLast30Days || showsThroughput || showsSparkline else { return nil }
 
+        let throughput = showsThroughput
+            ? self.store.menuBarSnapshot(for: provider.instanceID)?.throughput?.latestTokensPerMinute.map(String.init)
+            : "unused"
+        let sparkline = showsSparkline
+            ? self.store.menuBarSnapshot(for: provider.instanceID)?.throughput.map {
+                String(MenuBarTokensSparkline(minutes: $0.minutes).hashValue)
+            } : "unused"
         let costs = self.menuBarLayoutCosts(provider: provider)
         return [
+            "throughput=\(throughput ?? "nil")",
+            "sparkline=\(sparkline ?? "nil")",
             "today=\(showsToday ? costs.today ?? "nil" : "unused")",
             "last30Days=\(showsLast30Days ? costs.last30Days ?? "nil" : "unused")",
             // Predicates compare the unrounded amounts, and two token-cost updates can cross a

@@ -41,6 +41,7 @@ struct PluginProviderSpecTests {
             (.ollama, "Cookie source"),
             (.copilot, "GitHub cookies"),
             (.zed, "Cookie source"),
+            (.parallel, "Cookie source"),
         ]
         for (provider, title) in cookiePickers {
             let implementation = try #require(ProviderCatalog.implementation(for: provider))

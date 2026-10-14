@@ -24,8 +24,7 @@ public enum RaycastProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 usesDetailBackedWindow: true,
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                    reason: "Raycast imports only Chrome to avoid unrelated browser prompts."),
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://www.raycast.com/settings",
                 statusPageURL: nil),
             branding: ProviderBranding(

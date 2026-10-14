@@ -719,3 +719,22 @@ struct ProviderSettingsOrganizationsRowView: View {
         }
     }
 }
+
+@MainActor
+struct ProviderSettingsButtonsView: View {
+    let actions: [ProviderSettingsActionDescriptor]
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(self.actions.filter { $0.isVisible?() ?? true }) { action in
+                Button(L(action.title)) {
+                    Task { @MainActor in
+                        await action.perform()
+                    }
+                }
+                .applyProviderSettingsButtonStyle(action.style)
+                .controlSize(.small)
+            }
+        }
+    }
+}

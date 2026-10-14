@@ -20,6 +20,7 @@ enum UsageMenuCardContext {
         var sourceLabel: String?
         var credits: CreditsSnapshot?
         var codexPublicationHold: String?
+        var tokenAccountID: UUID?
     }
 
     var account: Account? {
@@ -50,7 +51,8 @@ extension UsageStore {
     func menuCardInput(
         for provider: UsageProvider,
         context: UsageMenuCardContext,
-        now: Date = Date()) -> UsageMenuCardView.Model.Input
+        now: Date = Date(),
+        optionalUsageOverride: Bool? = nil) -> UsageMenuCardView.Model.Input
     {
         let account = context.account
         let isSettings = context.isSettings
@@ -103,8 +105,21 @@ extension UsageStore {
                 ?? (isLive ? self.codexQuotaPublicationHoldMessage : nil) : nil)
         // Settings keeps its historical combined error preview; the live menu card has a separate notice row.
         let errorCapturedAt = isSettings ? nil : errorPresentation?.lastKnownUsageCapturedAt
+        let throughputScope: ProviderModelRateLimitScope? = isLive
+            ? self.settings.modelRateLimitScope(for: provider)
+            : account?.tokenAccountID.map { .tokenAccount($0) }
         return UsageMenuCardView.Model.Input(
             provider: provider,
+            throughputPresentation: snapshot?.throughput.flatMap {
+                var presentation = ProviderCatalog.implementation(for: provider)?.throughputPresentation(
+                    snapshot: $0,
+                    settings: self.settings,
+                    limitScope: throughputScope)
+                if !isLive, throughputScope != self.settings.modelRateLimitScope(for: provider) {
+                    presentation?.action = nil
+                }
+                return presentation
+            },
             metadata: metadata,
             snapshot: snapshot,
             codexProjection: codexProjection,
@@ -139,7 +154,7 @@ extension UsageStore {
                 ? self.settings.isCostUsageEffectivelyEnabled(for: provider)
                 : descriptor.tokenCost.showsCostMenuSection && self.settings.costSummaryShowsSubmenu(for: provider),
             costComparisonPeriodsEnabled: !isSettings && self.settings.costComparisonPeriodsEnabled,
-            showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            showOptionalCreditsAndExtraUsage: optionalUsageOverride ?? self.settings.showOptionalCreditsAndExtraUsage,
             copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             showsAllUsageLanes: isSettings,
             sourceLabel: account?.sourceLabel ?? (!isSettings && isLive ? self.sourceLabel(for: provider) : nil),

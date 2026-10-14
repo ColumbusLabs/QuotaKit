@@ -18,6 +18,7 @@ struct SpendDashboardSnapshotRevisionEncoder {
         encoder.append(snapshot.currencyCode)
         encoder.append(snapshot.historyDays)
         encoder.append(snapshot.historyCoverageIsEstablished)
+        encoder.append(snapshot.detailsAreComplete)
         encoder.append(snapshot.updatedAt.timeIntervalSinceReferenceDate)
         encoder.append(snapshot.last30DaysTokens)
         encoder.append(snapshot.last30DaysCostUSD)
@@ -53,6 +54,7 @@ struct SpendDashboardSnapshotRevisionEncoder {
         encoder.append(snapshot.sessions.count)
         for project in snapshot.projects {
             encoder.append(project.name)
+            encoder.append(project.isProjectless)
             encoder.append(project.path ?? "")
             encoder.append(project.totalTokens)
             encoder.append(project.totalCostUSD)

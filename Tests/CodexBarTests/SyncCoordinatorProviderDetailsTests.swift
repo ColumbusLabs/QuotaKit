@@ -516,6 +516,12 @@ struct SyncCoordinatorProviderDetailsTests {
                     .init(label: "Runs this month", value: "1,234"),
                 ]),
             ]),
+            .init(provider: .parallel, expected: [
+                .init(title: "Account balance", rows: [
+                    .init(label: "Balance", value: "$123.45"),
+                    .init(label: "Pending debit", value: "$1.50"),
+                ]),
+            ]),
         ]
     }
 

@@ -84,6 +84,31 @@ struct ProviderDetailsSyncTests {
     }
 
     @Test
+    func `Parallel balance details display without quota windows`() throws {
+        let details = [SyncProviderDetailSection(title: "Account balance", rows: [
+            .init(label: "Balance", value: "$123.45"),
+            .init(label: "Pending debit", value: "$1.50"),
+        ])]
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "parallel", providerName: "Parallel", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: "Browser session", statusMessage: nil, isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_800_000_000), providerDetails: details)
+        let roundTrip = try JSONDecoder().decode(
+            ProviderUsageSnapshot.self,
+            from: JSONEncoder().encode(snapshot))
+
+        #expect(roundTrip.rateWindows.isEmpty)
+        #expect(ProviderDetailSectionDispatcher.sections(for: roundTrip, hasRateWindowPace: false)
+            .map(\.id) == ["provider-details"])
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: roundTrip) == details)
+        if case .genericRateLimits = ProviderDetailSectionDispatcher.primarySection(for: roundTrip) {
+            // Display-only billing details do not replace the ordinary quota presentation.
+        } else {
+            Issue.record("Parallel balance details must not create a quota card.")
+        }
+    }
+
+    @Test
     func `xAI live estimate decodes displays and clears with an empty sync result`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let estimate = SyncProviderDetailSection(

@@ -65,7 +65,7 @@ struct GrokProviderImplementation: ProviderImplementation {
                 source: context.settings.grokCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports %@ cookies from %@.", "grok.com", "Chrome"),
+                    auto: L("Automatic imports browser cookies."),
                     manual: L("Paste a Cookie header from %@.", "grok.com"),
                     off: L("%@ cookies are disabled.", "Grok")))
         }
@@ -83,7 +83,7 @@ struct GrokProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "grok-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports %@ cookies from %@.", "grok.com", "Chrome"),
+                subtitle: L("Automatic imports browser cookies."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

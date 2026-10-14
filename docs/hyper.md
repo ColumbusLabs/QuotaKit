@@ -13,7 +13,7 @@ which accepts bearer keys only — cookie authentication is rejected there, so c
 
 ## Authentication
 
-Enable **Settings → Providers → Charm Hyper**. Automatic session access imports Chrome cookies for
+Enable **Settings → Providers → Charm Hyper**. Automatic session access follows the shared browser order for
 `hyper.charm.land`; Manual accepts a Cookie header from that domain, and Off uses only the API key.
 Auto prefers the session, falling back to the API key when cookies are missing, the session expires,
 or the session request cannot connect. Malformed successful responses fail visibly without fallback.

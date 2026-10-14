@@ -3,7 +3,7 @@ import Foundation
 #if os(macOS)
 import SweetCookieKit
 
-/// Imports CommandCode session cookies from installed browsers (Chrome by default).
+/// Imports Command Code session cookies from installed supported browsers.
 public enum CommandCodeCookieImporter {
     private static let log = CodexBarLog.logger(LogCategories.provider(.commandcode, scope: "cookie"))
     private static let cookieClient = BrowserCookieClient()
@@ -157,7 +157,6 @@ public enum CommandCodeCookieImporter {
         case (nil, nil): false
         }
     }
-
 }
 
 public enum CommandCodeCookieImportError: LocalizedError {

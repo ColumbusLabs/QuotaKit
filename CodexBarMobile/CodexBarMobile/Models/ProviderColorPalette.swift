@@ -217,6 +217,7 @@ enum ProviderColorPalette {
             // Balance-only providers retain their published Mac descriptor colors.
             (["fal"], RawColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255)),
             (["flora"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),
+            (["parallel"], RawColor(red: 29 / 255, green: 28 / 255, blue: 26 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

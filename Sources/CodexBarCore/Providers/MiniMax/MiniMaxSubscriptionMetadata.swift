@@ -230,7 +230,6 @@ enum MiniMaxSubscriptionMetadataFetcher {
         formatter.dateFormat = "MM/dd/yyyy"
         return formatter.date(from: value)
     }
-
 }
 
 extension MiniMaxUsageFetcher {

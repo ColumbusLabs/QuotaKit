@@ -31,9 +31,10 @@ struct SpendDashboardModel: Equatable, Sendable {
     struct ProviderInput: Sendable {
         let id: String
         let provider: UsageProvider
-        let displayName: String
+        var displayName: String
         let modelProviderName: String
-        let snapshot: CostUsageTokenSnapshot
+        var snapshot: CostUsageTokenSnapshot
+        var retainedDetailSnapshot: CostUsageTokenSnapshot?
         let tokenActivityCache: CostUsageTokenActivityCache?
         let accounting: PiSnapshotAccounting?
 
@@ -52,6 +53,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.displayName = displayName
             self.modelProviderName = modelProviderName ?? displayName
             self.snapshot = snapshot
+            self.retainedDetailSnapshot = nil
             self.tokenActivityCache = tokenActivityCache
             self.sourceKind = sourceKind
             self.accounting = accounting
@@ -282,6 +284,8 @@ struct SpendDashboardModel: Equatable, Sendable {
         let meteredCost: Double?
         let sessions: [SessionRow]
         let projects: [ProjectRow]
+        var retainedDetailUpdatedAt: Date?
+        var detailsExcludedFromTotals = false
         let selectedDay: Date?
         let hourlyPoints: [HourlyPoint]
         private let hourlyDaysMemo = SpendHourlyDaysMemo()
@@ -416,12 +420,14 @@ struct SpendDashboardModel: Equatable, Sendable {
         let availableSources = inputs
             .map { SourceFilterItem(id: $0.id, displayName: $0.displayName) }
             .sorted { $0.id < $1.id }
-        let visibleInputs = Self.visibleInputs(
+        let aggregateInputs = Self.visibleInputs(
             inputs,
             hiddenSourceIDs: hiddenSourceIDs,
             hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent)
+        let detailInputs = inputs.filter { !hiddenSourceIDs.contains($0.id) }
+        let aggregateIDs = Set(aggregateInputs.map(\.id))
         var conversionCache: [String: Double?] = [:]
-        let classifiedInputs = visibleInputs.compactMap { input -> ClassifiedInput? in
+        let classifiedInputs = detailInputs.compactMap { input -> ClassifiedInput? in
             guard let sourceCurrencyCode = Self.currencyCode(input.snapshot.currencyCode) else { return nil }
             let targetCurrencyCode = UsageFormatter.effectiveCurrencyCode(
                 preferred: preferredCurrencyCode,
@@ -447,11 +453,14 @@ struct SpendDashboardModel: Equatable, Sendable {
             ?? (requestedDays >= SpendDashboardSource.scanDays ? .allTime : .rolling(days: max(1, requestedDays)))
         let bounds = period.bounds(now: now, calendar: calculationCalendar)
         let days = period.days(now: now, calendar: calculationCalendar)
+        let detailBounds = bounds
         let groups = Dictionary(grouping: classifiedInputs, by: { $0.currencyCode })
             .map { currencyCode, inputs in
                 Self.buildCurrencyGroup(
                     currencyCode: currencyCode,
                     inputs: inputs,
+                    aggregateIDs: aggregateIDs,
+                    detailBounds: detailBounds,
                     days: days,
                     calendar: calculationCalendar,
                     bounds: bounds,
@@ -463,7 +472,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             groups: groups,
             availableSources: availableSources,
             tokenActivity: Self.tokenActivity(
-                inputs: visibleInputs,
+                inputs: aggregateInputs,
                 now: now,
                 calendar: calculationCalendar),
             selectedDay: selectedDay.map { calculationCalendar.startOfDay(for: $0) })
@@ -567,12 +576,14 @@ struct SpendDashboardModel: Equatable, Sendable {
     private static func buildCurrencyGroup(
         currencyCode: String,
         inputs: [ClassifiedInput],
+        aggregateIDs: Set<String>,
+        detailBounds: ClosedRange<Date>,
         days: Int,
         calendar: Calendar,
         bounds: ClosedRange<Date>,
         selectedDay: Date?) -> CurrencyGroup
     {
-        let summaries = inputs.map { classified in
+        let summaries = inputs.filter { aggregateIDs.contains($0.input.id) }.map { classified in
             Self.inputSummary(
                 input: classified.input,
                 costMultiplier: classified.costMultiplier,
@@ -654,11 +665,23 @@ struct SpendDashboardModel: Equatable, Sendable {
             selectedDay: selectedDay,
             bounds: bounds,
             calendar: calendar)
-        return CurrencyGroup(
+        let detailSummaries = inputs.map { classified in
+            var input = classified.input
+            input.snapshot = input.retainedDetailSnapshot ?? input.snapshot
+            return Self.inputSummary(
+                input: input,
+                costMultiplier: classified.costMultiplier,
+                bounds: detailBounds,
+                calendar: calendar)
+        }
+        var group = CurrencyGroup(
             currencyCode: currencyCode,
             providers: providers,
             models: modelSummary.rows,
-            projects: Self.projectRows(summaries: summaries, bounds: bounds, calendar: calendar),
+            projects: Self.projectRows(
+                summaries: detailSummaries,
+                bounds: selectedDay.map { $0...$0 } ?? detailBounds,
+                calendar: calendar),
             dailyPoints: dailyPoints,
             dailySummaries: Self.dailySummaries(summaries: summaries, calendar: calendar),
             totalTokens: Self.knownIntSum(providers.map(\.totalTokens)),
@@ -672,13 +695,16 @@ struct SpendDashboardModel: Equatable, Sendable {
             provenance: provenance,
             meteredCost: hasMeteredCostAmount ? metered : nil,
             sessions: Self.sessionRows(
-                summaries: summaries,
-                bounds: bounds,
+                summaries: detailSummaries,
+                bounds: detailBounds,
                 calendar: calendar,
                 selectedDay: selectedDay),
             selectedDay: selectedDay,
             hourlyPoints: hourlyPoints,
             timeZone: calendar.timeZone)
+        group.retainedDetailUpdatedAt = inputs.compactMap { $0.input.retainedDetailSnapshot?.updatedAt }.min()
+        group.detailsExcludedFromTotals = inputs.contains { !aggregateIDs.contains($0.input.id) }
+        return group
     }
 
     private static func summaries(_ summaries: [InputSummary], matching selectedDay: Date?) -> [InputSummary] {

@@ -957,6 +957,7 @@ public struct CostUsageFetcher: Sendable {
             costProvenance: .listPriceEstimate,
             projects: scanResult.inclusive.projects,
             sessions: scanResult.inclusive.sessions,
+            detailsAreComplete: scanResult.inclusive.detailsAreComplete,
             updatedAt: scanResult.inclusive.staleSnapshotUpdatedAt)
         // Provider-specific by design: native projections exist for the two transcript families.
         let accounting: PiSnapshotAccounting? = if let scope = scanResult.piScope {
@@ -969,6 +970,7 @@ public struct CostUsageFetcher: Sendable {
                 costProvenance: .listPriceEstimate,
                 projects: scanResult.native.projects,
                 sessions: scanResult.native.sessions,
+                detailsAreComplete: scanResult.native.detailsAreComplete,
                 updatedAt: scanResult.native.staleSnapshotUpdatedAt))
         } else if provider == .codex || provider == .claude {
             .nativeOnly
@@ -984,6 +986,7 @@ public struct CostUsageFetcher: Sendable {
         let sessions: [CostUsageSessionBreakdown]
         let staleSnapshotUpdatedAt: Date?
         let historyCoverageIsEstablished: Bool
+        let detailsAreComplete: Bool
         let historySinceDayKey: String
         let historyUntilDayKey: String
     }
@@ -1074,6 +1077,8 @@ public struct CostUsageFetcher: Sendable {
             var projectSessionIDs: [String: Set<String>] = [:]
             var piScanIsComplete = true
             var nativeTemporalIsComplete = true
+            var historyCoverageIsEstablished = provider != .codex
+            var detailsAreComplete = true
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
                 let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
@@ -1086,10 +1091,16 @@ public struct CostUsageFetcher: Sendable {
                 let cache = CostUsageScanner.codexCache(
                     projection.cache,
                     scopedTo: roots)
-                projectSessionIDs = CostUsageStoreReadView(cache: cache).projectSessionIDs(range: range)
+                let view = CostUsageStoreReadView(cache: cache)
+                projectSessionIDs = view.projectSessionIDs(range: range)
                 nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
                     ? projection.verifiedTemporalCoverageIsComplete
                     : projection.fileTemporalCoverageIsComplete
+                historyCoverageIsEstablished = Self.codexHistoryCoverageIsEstablished(
+                    options: scanOptions,
+                    range: historyRange) && (!options.includePiSessions || nativeTemporalIsComplete)
+                detailsAreComplete = historyCoverageIsEstablished &&
+                    (view.days.isEmpty || view.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion)
                 if let previous = CostUsageScanner.codexPreviousReport(
                     cache: cache,
                     range: range,
@@ -1134,9 +1145,8 @@ public struct CostUsageFetcher: Sendable {
                 projects: projects,
                 sessions: sessions,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
-                historyCoverageIsEstablished: provider != .codex
-                    || (Self.codexHistoryCoverageIsEstablished(options: scanOptions, range: historyRange)
-                        && (!options.includePiSessions || nativeTemporalIsComplete)),
+                historyCoverageIsEstablished: historyCoverageIsEstablished,
+                detailsAreComplete: detailsAreComplete,
                 historySinceDayKey: historyRange.sinceKey,
                 historyUntilDayKey: historyRange.untilKey)
             var piScope: String?
@@ -1177,6 +1187,7 @@ public struct CostUsageFetcher: Sendable {
                     sessions: sessions,
                     staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
                     historyCoverageIsEstablished: native.historyCoverageIsEstablished && piScanIsComplete,
+                    detailsAreComplete: native.detailsAreComplete && piScanIsComplete && piScope == nil,
                     historySinceDayKey: historyRange.sinceKey,
                     historyUntilDayKey: historyRange.untilKey),
                 native: native,
@@ -1635,6 +1646,10 @@ public struct CostUsageFetcher: Sendable {
             let nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
                 ? persistedProjection.verifiedTemporalCoverageIsComplete
                 : persistedProjection.fileTemporalCoverageIsComplete
+            let nativeDetailsAreComplete = includeProjectAndSessionBreakdowns && nativeHistoryCoverageIsEstablished
+                &&
+                (cache.days.isEmpty || cache.codexProjectMetadataVersion == CostUsageScanner
+                    .codexProjectMetadataVersion)
             let previousReport = CostUsageScanner.codexPreviousReport(
                 cache: cache,
                 range: range,
@@ -1778,6 +1793,7 @@ public struct CostUsageFetcher: Sendable {
                 costProvenance: .listPriceEstimate,
                 projects: Self.mergedProjectBreakdowns(projects),
                 sessions: sessions,
+                detailsAreComplete: nativeDetailsAreComplete,
                 updatedAt: scanTimes.min())
             if piHistoryRequested, shouldMergePiUsage {
                 let piOptions = piScannerOptions ?? PiSessionCostScanner.Options(
@@ -1853,6 +1869,7 @@ public struct CostUsageFetcher: Sendable {
                     costProvenance: .listPriceEstimate,
                     projects: presentation.projects,
                     sessions: presentation.sessions,
+                    detailsAreComplete: nativeDetailsAreComplete && !piHistoryRequested,
                     updatedAt: scanTimes.min()),
                 accounting: accounting,
                 lastRefreshAt: piMerged || !piHistoryIsComplete || staleSnapshotUpdatedAt != nil
@@ -2403,6 +2420,7 @@ public struct CostUsageFetcher: Sendable {
         historyLabel: String? = nil,
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
+        detailsAreComplete: Bool = false,
         updatedAt: Date? = nil) -> CostUsageTokenSnapshot
     {
         let sessionEntry = useCurrentLocalDayForSession
@@ -2490,6 +2508,7 @@ public struct CostUsageFetcher: Sendable {
             daily: daily.data,
             projects: projects,
             sessions: sessions,
+            detailsAreComplete: detailsAreComplete,
             hourly: daily.hourly,
             quotaSlices: daily.quotaSlices,
             updatedAt: updatedAt ?? now)

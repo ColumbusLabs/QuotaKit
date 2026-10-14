@@ -106,6 +106,11 @@ enum SyncProviderBillingDetails {
                 ("Spent this month", .currencyAmount(allowNegative: false, allowUnavailable: true)),
                 ("Runs this month", .count),
             ])]
+        case .parallel:
+            [.init(title: "Account balance", rows: [
+                ("Balance", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+                ("Pending debit", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+            ])]
         default:
             nil
         }

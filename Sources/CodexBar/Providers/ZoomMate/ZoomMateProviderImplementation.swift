@@ -41,7 +41,7 @@ struct ZoomMateProviderImplementation: ProviderImplementation {
                 source: context.settings.zoomMateCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically signs in using your %@ session cookies from Chrome.", "ZoomMate"),
+                    auto: L("Automatic imports browser cookies."),
                     manual: L("Paste a cURL capture from %@.", "ZoomMate AI"),
                     off: L("Paste a cURL capture from %@.", "ZoomMate AI")))
         }
@@ -50,7 +50,7 @@ struct ZoomMateProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "zoommate-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically signs in using your %@ session cookies from Chrome.", "ZoomMate"),
+                subtitle: L("Automatic imports browser cookies."),
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,

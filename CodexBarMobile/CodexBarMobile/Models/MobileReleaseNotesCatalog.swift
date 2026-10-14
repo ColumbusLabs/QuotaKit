@@ -42,6 +42,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "fal balance and FLORA workspace billing details now sync from QuotaKit Mac to iPhone without quota alerts."),
                         String(
+                            localized: "Parallel balance and pending debit details now sync from QuotaKit Mac to iPhone as display-only information."),
+                        String(
                             localized: "Crof is retired from active quota alerts; existing synced records remain readable."),
                         String(
                             localized: "The app now uses refreshed provider accent colors; widget colors stay the same."),

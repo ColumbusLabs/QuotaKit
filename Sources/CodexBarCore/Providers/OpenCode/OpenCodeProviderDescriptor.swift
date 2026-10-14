@@ -1,5 +1,4 @@
 import Foundation
-import SweetCookieKit
 
 public enum OpenCodeProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
@@ -16,15 +15,6 @@ public enum OpenCodeProviderDescriptor {
               snapshot.primary?.windowMinutes == 30 * 24 * 60
         else { return nil }
         return "Monthly"
-    }
-
-    /// Auto stays Chrome-only by default, with Dia as the bounded exception for a confirmed reporter need.
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome, .dia]
-        #else
-        nil
-        #endif
     }
 
     static func makeDescriptor() -> ProviderDescriptor {
@@ -61,7 +51,7 @@ public enum OpenCodeProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "OpenCode debug log not yet implemented",
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://opencode.ai/auth",
                 statusPageURL: nil),
             branding: ProviderBranding(

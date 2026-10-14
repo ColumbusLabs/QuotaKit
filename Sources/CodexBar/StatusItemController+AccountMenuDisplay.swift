@@ -94,7 +94,8 @@ extension StatusItemController {
             accountOverride: AccountInfo(email: label.isEmpty ? nil : label, plan: nil),
             historySelectionOverride: self.store.planUtilizationHistorySelection(
                 for: provider,
-                account: accountSnapshot.account))
+                account: accountSnapshot.account),
+            tokenAccountIDOverride: accountSnapshot.account.id)
     }
 
     func codexAccountMenuDisplay(for provider: UsageProvider) -> CodexAccountMenuDisplay? {

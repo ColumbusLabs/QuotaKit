@@ -271,12 +271,14 @@ struct ClaudeRateLimitResetCreditsTests {
             "No expiry",
         ])
         #expect(presentation.accessibilityLabel.contains(presentation.helpText))
-        #expect(model.usageItemDescriptors.contains { $0.id == .codexResetCredits })
+        #expect(model.usageItemDescriptors.contains { $0.id == .claudeResetCredits })
         #expect(model.providerDetails.flatMap(\.rows).contains { $0.label == "Limit Reset Credits" } == false)
-        #expect(model.applyingUsageItemVisibility(hiddenItemIDs: [.codexResetCredits]).codexResetCredits == nil)
+        #expect(model.applyingUsageItemVisibility(hiddenItemIDs: [.claudeResetCredits]).codexResetCredits == nil)
 
         let hiddenByPreference = try Self.menuModel(resets: resets, showOptionalUsage: false, now: now)
-        #expect(hiddenByPreference.codexResetCredits == nil)
+        #expect(hiddenByPreference.codexResetCredits?.text == "3 available")
+        #expect(hiddenByPreference.applyingUsageItemVisibility(hiddenItemIDs: [.claudeResetCredits])
+            .codexResetCredits == nil)
     }
 
     private static func usageJSON(grants: [String], eligible: Bool) -> String {

@@ -200,6 +200,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     /// Whether this snapshot can safely be attached to an authenticated provider account.
     public let ownership: CostUsageTokenOwnership
     public let daily: [CostUsageDailyReport.Entry]
+    /// Whether this read produced the complete project and session projection, including a confirmed empty result.
+    public let detailsAreComplete: Bool
     public let projects: [CostUsageProjectBreakdown]
     public let sessions: [CostUsageSessionBreakdown]
     /// Hour-aligned buckets for spend charts and legacy quota history.
@@ -235,6 +237,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         daily: [CostUsageDailyReport.Entry],
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
+        detailsAreComplete: Bool = false,
         hourly: [CostUsageHourlyEntry] = [],
         quotaSlices: [CostUsageTimedEntry] = [],
         updatedAt: Date)
@@ -259,6 +262,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.credentialScopeFingerprint = credentialScopeFingerprint
         self.ownership = ownership
         self.daily = daily
+        self.detailsAreComplete = detailsAreComplete
         self.projects = projects
         self.sessions = sessions
         self.hourly = hourly

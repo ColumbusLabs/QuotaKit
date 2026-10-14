@@ -17,7 +17,7 @@ struct XAPIProviderTests {
         #expect(descriptor.menuBarMetrics.supported == [.automatic])
         #expect(descriptor.history == .unavailable)
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
-        #expect(descriptor.metadata.browserCookieOrder == [.chrome])
+        #expect(descriptor.metadata.browserCookieOrder == ProviderBrowserCookieDefaults.defaultImportOrder)
         #expect(descriptor.snapshotExport.allowsIPhoneSync)
         #expect(descriptor.snapshotExport.allowsWidgets)
         #expect(descriptor.presentation.cost(snapshot: UsageSnapshot(

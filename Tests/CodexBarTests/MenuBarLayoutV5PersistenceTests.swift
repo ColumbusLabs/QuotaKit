@@ -94,7 +94,7 @@ struct MenuBarLayoutV5PersistenceTests {
             (MenuBarLayoutUserDefaultsKey.layoutReleased, historical),
             (MenuBarLayoutUserDefaultsKey.layout, historical),
         ] {
-            defaults.set(try JSONEncoder().encode(value), forKey: key)
+            try defaults.set(JSONEncoder().encode(value), forKey: key)
         }
 
         let returned = testSettingsStore(suiteName: "historical-separators", userDefaults: defaults)

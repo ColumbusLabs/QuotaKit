@@ -81,6 +81,8 @@ struct MenuBarLayoutRenderData: Hashable {
     let automaticPace: String?
     let runsOut: String?
     let balance: String?
+    var tokensPerMinute: Int?
+    var tokensSparkline: MenuBarTokensSparkline?
     let costToday: String?
     let cost30d: String?
     /// Numeric twins of the display strings above, for conditional predicates.
@@ -671,6 +673,9 @@ final class MenuBarLayoutRenderer {
         {
             return rendered
         }
+        if let rendered = Self.renderThroughputItem(item, data: data, style: style, options: options) {
+            return rendered
+        }
         if let rendered = Self.renderUsageMeterItem(item, data: data, style: style, options: options) {
             return rendered
         }
@@ -777,8 +782,8 @@ final class MenuBarLayoutRenderer {
                 data: data,
                 showUsed: options.showUsed,
                 attributes: style.attributes)
-        case .providerName, .accountLabel, .lanePercent:
-            preconditionFailure("Provider text tokens should render before the main switch")
+        case .providerName, .accountLabel, .lanePercent, .tokensPerMinute, .tokensSparkline:
+            preconditionFailure("Provider text and throughput tokens should render before the main switch")
         case .usageBar, .progressBar:
             preconditionFailure("Usage meter tokens should render before the main switch")
         }
@@ -844,12 +849,14 @@ final class MenuBarLayoutRenderer {
 
     private static func windowPrefix(_ window: PercentWindow, data: MenuBarLayoutRenderData) -> String {
         let rateWindow = self.window(window, data: data)
-        switch window {
+        let taggedPrefix = Self.taggedSemanticLane(window, data: data)
+            .flatMap { Self.laneShortLabel($0, data: data) }
+        return switch window {
         case .session:
-            self.primaryLabel(data: data).flatMap(\.first).map { String($0).uppercased() }
+            taggedPrefix ?? self.primaryLabel(data: data).flatMap(\.first).map { String($0).uppercased() }
                 ?? Self.sessionPrefix(rateWindow)
         case .weekly:
-            String(data.laneLabels.secondary.prefix(1)).uppercased()
+            taggedPrefix ?? String(data.laneLabels.secondary.prefix(1)).uppercased()
         case .scopedWeekly:
             data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
         case .automatic:
@@ -858,7 +865,10 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func windowAccessibilityLabel(_ window: PercentWindow, data: MenuBarLayoutRenderData) -> String {
-        switch window {
+        if let lane = self.taggedSemanticLane(window, data: data) {
+            return data.laneLabels.label(for: lane)
+        }
+        return switch window {
         case .session: self.primaryLabel(data: data) ?? L("Session")
         case .weekly: data.laneLabels.secondary
         case .scopedWeekly: data.scopedWeeklyTitle ?? L("Scoped weekly")
@@ -928,7 +938,9 @@ final class MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", label, resolvedValue.text)
             : L("%@ unavailable", label)
-        return self.textToken(resolvedValue.text, accessibilityText: accessibility, attributes: attributes)
+        let display = Self.laneShortLabel(lane, data: data)
+            .map { "\($0) \(resolvedValue.text)" } ?? resolvedValue.text
+        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
     }
 
     private static func extraPercentToken(
@@ -948,8 +960,11 @@ final class MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", title, resolvedValue.text)
             : L("%@ unavailable", title)
+        let shortLabel = ProviderDescriptorRegistry.descriptor(for: data.provider)
+            .menuBarMetrics.namedExtraShortLabels[id]
         return self.textToken(
-            L("%@ %@", title, resolvedValue.text), accessibilityText: accessibility, attributes: attributes)
+            L("%@ %@", shortLabel ?? title, resolvedValue.text), accessibilityText: accessibility,
+            attributes: attributes)
     }
 
     private static func percentValue(
@@ -1384,5 +1399,94 @@ extension MenuBarLayoutConditional {
         let seconds = resetsAt.timeIntervalSince(now)
         guard seconds > 0 else { return nil }
         return seconds / 3600
+    }
+}
+
+extension MenuBarLayoutRenderer {
+    /// Tokens-per-minute text and graph, kept out of the class body's main switch.
+    private static func renderThroughputItem(
+        _ item: MenuBarLayoutToken,
+        data: MenuBarLayoutRenderData,
+        style: TokenStyle,
+        options: MenuBarLayoutRenderOptions)
+        -> (value: NSAttributedString, accessibilityText: String?)?
+    {
+        switch item {
+        case .tokensPerMinute:
+            self.optionalTextToken(
+                data.tokensPerMinute.map { ProviderThroughputSection.count($0) + "/min" },
+                unavailableLabel: L("%@ unavailable", L("Tokens / min")),
+                attributes: style.attributes)
+        case .tokensSparkline:
+            self.sparklineToken(data: data, style: style, options: options)
+        default:
+            nil
+        }
+    }
+
+    private static func sparklineToken(
+        data: MenuBarLayoutRenderData,
+        style: TokenStyle,
+        options: MenuBarLayoutRenderOptions)
+        -> (value: NSAttributedString, accessibilityText: String?)
+    {
+        guard let graph = data.tokensSparkline,
+              let image = graph.image(height: style.iconHeight, highlighted: options.isHighlighted)
+        else {
+            return self.textToken(
+                self.missingValue,
+                accessibilityText: L("%@ unavailable", L("Tokens / min graph")),
+                attributes: style.attributes)
+        }
+        let attachment = NSTextAttachment()
+        attachment.image = Self.attachmentImage(image, tint: style.foregroundColor)
+        attachment.bounds = NSRect(
+            x: 0,
+            y: ((style.font.capHeight - style.iconHeight) / 2).rounded(),
+            width: image.size.width,
+            height: style.iconHeight)
+        let value = NSMutableAttributedString(attachment: attachment)
+        value.addAttributes(style.attributes, range: NSRange(location: 0, length: value.length))
+        return (value, L("Tokens per minute, latest %@", graph.latest.map(ProviderThroughputSection.count) ?? "—"))
+    }
+}
+
+extension MenuBarLayoutRenderer {
+    /// Match the actual lane title so older saved layouts keep the correct semantic tag.
+    private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        let declaredLabels: [(MenuBarLayoutLane, String)] = [
+            (.primary, L(descriptor.metadata.sessionLabel)),
+            (.secondary, L(descriptor.metadata.weeklyLabel)),
+            (.tertiary, L(descriptor.metadata.opusLabel ?? "Tertiary")),
+        ]
+        guard let declaredLane = declaredLabels.first(where: { $0.1 == data.laneLabels.label(for: lane) })?.0 else {
+            return nil
+        }
+        let providerLane: ProviderUsageLane = switch declaredLane {
+        case .primary: .primary
+        case .secondary: .secondary
+        case .tertiary: .tertiary
+        }
+        return descriptor.menuBarMetrics.laneShortLabels[providerLane]
+    }
+
+    /// The tagged lane backing a session/weekly percentage, so a provider with explicit lane tags never falls
+    /// back to colliding first-letter prefixes; nil when the window maps to no tagged lane.
+    private static func taggedSemanticLane(
+        _ window: PercentWindow,
+        data: MenuBarLayoutRenderData) -> MenuBarLayoutLane?
+    {
+        let presentation = ProviderDescriptorRegistry.descriptor(for: data.provider).presentation
+        let primaryWindow = PercentWindow.forSemanticWindow(presentation.primarySemanticWindow)
+        let lane: MenuBarLayoutLane? = if window == primaryWindow {
+            .primary
+        } else if window == PercentWindow.forSemanticWindow(presentation.secondarySemanticWindow) {
+            .secondary
+        } else {
+            nil
+        }
+        guard let lane, self.laneShortLabel(lane, data: data) != nil else { return nil }
+        return lane
     }
 }

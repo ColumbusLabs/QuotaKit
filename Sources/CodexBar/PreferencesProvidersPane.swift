@@ -63,7 +63,9 @@ struct ProvidersPane: View {
                 }
             }
         } : nil
-        let usageItems = ((overview?.usageItems ?? []) + unfilteredModel.usageItemDescriptors(
+        let visibilityModel = UsageMenuCardView.Model.make(self.store.menuCardInput(
+            for: self.provider, context: .settings, optionalUsageOverride: true))
+        let usageItems = ((overview?.usageItems ?? []) + visibilityModel.usageItemDescriptors(
             includingHidden: self.settings.hiddenUsageItemIDs(for: self.provider),
             hidePersonalInfo: self.settings.hidePersonalInfo))
             .reduce(into: [ProviderUsageItemDescriptor]()) { items, item in
@@ -84,6 +86,7 @@ struct ProvidersPane: View {
             settingsToggles: self.extraSettingsToggles(for: self.provider),
             settingsFields: self.extraSettingsFields(for: self.provider),
             settingsDirectoryLists: self.extraSettingsDirectoryLists(for: self.provider),
+            settingsModelLimits: self.extraSettingsModelLimits(for: self.provider),
             settingsActions: self.extraSettingsActions(for: self.provider),
             settingsTokenAccounts: self.tokenAccountDescriptor(for: self.provider),
             settingsOrganizations: self.extraSettingsOrganizations(for: self.provider),
@@ -416,6 +419,11 @@ struct ProvidersPane: View {
         let context = self.makeSettingsContext(provider: provider)
         return impl.settingsFields(context: context)
             .filter { $0.isVisible?() ?? true }
+    }
+
+    private func extraSettingsModelLimits(for provider: UsageProvider) -> [ProviderSettingsModelLimitsDescriptor] {
+        ProviderCatalog.implementation(for: provider)?
+            .settingsModelLimits(context: self.makeSettingsContext(provider: provider)) ?? []
     }
 
     private func extraSettingsDirectoryLists(for provider: UsageProvider) -> [ProviderSettingsDirectoryListDescriptor] {

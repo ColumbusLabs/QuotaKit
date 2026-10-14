@@ -258,7 +258,8 @@ public struct AgentProcessRecord: Equatable, Sendable {
             self.arguments?.first ??
             self.command.split(whereSeparator: \ .isWhitespace).first.map(String.init) ?? ""
         let firstBasename = AgentProcessPath.basename(firstToken)
-        if firstBasename != "disclaimer", self.command.contains("Application Support/Claude/claude-code/claude") {
+        let executable = self.executablePath ?? self.arguments?.first ?? self.command
+        if firstBasename != "disclaimer", executable.contains("Application Support/Claude/claude-code/claude") {
             return AgentSession.Provider.claude.rawValue
         }
         return firstBasename
@@ -292,15 +293,16 @@ public enum AgentPSOutputParser {
             if self.piDialect(for: record) != nil {
                 return !self.isObviousPiFamilyHelper(record.command)
             }
+            let executable = record.executablePath ?? record.arguments?.first ?? record.command
             if basename == AgentSession.Provider.codex.rawValue {
                 let arguments = self.arguments(record)
-                return self.isCodexAgentExecutable(record.command) &&
+                return self.isCodexAgentExecutable(executable) &&
                     !arguments.contains("app-server") &&
                     !arguments.contains("--help") &&
                     !arguments.contains("--version")
             }
             if basename == AgentSession.Provider.claude.rawValue {
-                return self.isClaudeAgentExecutable(record.command) && !self.isObviousClaudeHelper(record.command)
+                return self.isClaudeAgentExecutable(executable) && !self.isObviousClaudeHelper(record.command)
             }
             return basename == "disclaimer" && record.command.contains(AgentSession.Provider.claude.rawValue)
         }
@@ -335,12 +337,9 @@ public enum AgentPSOutputParser {
     }
 
     static func piDialect(arguments: [String]) -> AgentSession.Dialect? {
-        guard let dialect = self.piDialect(
+        self.piDialect(
             executableBasename: AgentProcessPath.basename(arguments.first ?? ""),
             arguments: Array(arguments.dropFirst()))
-        else { return nil }
-        return arguments.joined(separator: " ")
-            .contains("Application Support/Claude/claude-code/claude") ? nil : dialect
     }
 
     static func piDialect(
@@ -362,14 +361,25 @@ public enum AgentPSOutputParser {
 
     public static func source(for record: AgentProcessRecord) -> AgentSession.Source {
         guard self.provider(for: record) == .claude else { return .cli }
-        return record.command.contains("Application Support/Claude/claude-code") ? .desktopApp : .cli
+        let executable: String
+        if record.executableBasename.lowercased() == "disclaimer" {
+            executable = record.command
+        } else if let path = record.executablePath ?? record.arguments?.first {
+            executable = path
+        } else {
+            let firstToken = record.command.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""
+            executable = AgentProcessPath.basename(firstToken).lowercased() == AgentSession.Provider.claude.rawValue
+                ? firstToken : record.command
+        }
+        return executable.contains("Application Support/Claude/claude-code") ? .desktopApp : .cli
     }
 
     public static func hasCodexAppServer(in records: [AgentProcessRecord]) -> Bool {
         records.contains { record in
             record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
-                self.isCodexDesktopAgentExecutable(record.command) &&
-                self.arguments(record.command).contains("app-server")
+                self
+                .isCodexDesktopAgentExecutable(record.executablePath ?? record.arguments?.first ?? record.command) &&
+                self.arguments(record).contains("app-server")
         }
     }
 

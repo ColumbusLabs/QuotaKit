@@ -18,10 +18,10 @@ public enum ZoomMateUsageError: LocalizedError, Sendable {
             "Paste a cURL capture of the HTTPS ZoomMate credits/status request " +
                 "(from ai.zoom.us or zoommate.zoom.us)."
         case .noSession:
-            "No ZoomMate session is cached and no session cookies were imported from Chrome. " +
-                "Sign in to zoommate.zoom.us in Chrome and refresh from QuotaKit, or paste a cURL capture."
+            "No ZoomMate session is cached and no session cookies were imported from supported browsers. " +
+                "Sign in to zoommate.zoom.us in a supported browser and refresh from QuotaKit, or paste a cURL capture."
         case .invalidCredentials:
-            "ZoomMate rejected the current credentials. Sign in again in Chrome or paste a fresh cURL capture."
+            "ZoomMate rejected the current credentials. Sign in again in a supported browser or paste a fresh cURL capture."
         case let .apiError(message):
             "ZoomMate API error: \(message)"
         case let .parseFailed(message):

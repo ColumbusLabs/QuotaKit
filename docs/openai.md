@@ -68,3 +68,11 @@ that endpoint is not project-filtered. The legacy `OPENAI_API_KEY` environment p
 
 - Costs are the source of truth for financial totals. Token usage and cost buckets can differ slightly from dashboard billing reconciliation.
 - Admin API keys are organization-scoped and cannot be used for normal model inference.
+
+## Live usage and manual limits
+
+The Mac Live Usage window shows 15-minute, 1-hour or 6-hour views of one-minute token/request buckets. The menu card can switch between daily spend and last-hour tokens per minute; optional custom menu tokens show the current rate or a sparkline. A pending newest minute is labeled as reporting rather than treated as measured zero.
+
+Set organization model limits in Settings. Each provider API key and saved token account keeps its own list; selecting another credential never inherits those limits. Project caps provide context separately from configured organization utilization. Limit accounting includes cached input plus other input and output, excludes Batch traffic, and pools dated model snapshots under the matching configured limit.
+
+Live windows and stacked account cards retain their credential ownership. Old sync peers that omit manual limits preserve existing choices; an explicit empty list clears them. Existing usage and cost totals remain available if optional cached throughput cannot be decoded.

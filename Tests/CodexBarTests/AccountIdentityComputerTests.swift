@@ -201,7 +201,7 @@ struct AccountIdentityComputerTests {
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
             .fireworks, .ibmbob, .huggingface, .museai, .lithosai, .langdock,
-            .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora,
+            .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

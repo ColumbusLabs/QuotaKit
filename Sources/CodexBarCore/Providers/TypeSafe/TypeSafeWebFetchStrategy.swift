@@ -46,7 +46,7 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
         self.transport = transport
         self.usageLoader = usageLoader
         self.sessionCandidateLoader = sessionCandidateLoader ?? { browserDetection in
-            if let sessionLoader { return AnySequence(try sessionLoader(browserDetection)) }
+            if let sessionLoader { return try AnySequence(sessionLoader(browserDetection)) }
             return try Self.loadSessionCandidates(browserDetection: browserDetection)
         }
         self.cacheLoader = cacheLoader

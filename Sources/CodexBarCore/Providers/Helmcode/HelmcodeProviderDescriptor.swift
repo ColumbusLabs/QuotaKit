@@ -4,14 +4,6 @@ import SweetCookieKit
 public enum HelmcodeProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
-
     public static func dashboardURL(snapshot: UsageSnapshot?) -> URL {
         let domain = snapshot?.identity?.accountOrganization == "NaN Builders" ? "nan.builders" : "helmcode.com"
         return URL(string: "https://cloud.\(domain)/dashboard")!
@@ -46,7 +38,7 @@ public enum HelmcodeProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://cloud.helmcode.com/dashboard",
                 statusPageURL: nil),
             branding: ProviderBranding(

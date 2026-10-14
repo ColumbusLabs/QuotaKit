@@ -655,16 +655,16 @@ struct ZoomMateUsageFetcherTests {
 
     #if os(macOS)
     @Test
-    func `descriptor limits automatic cookie import to Chrome`() throws {
+    func `descriptor uses the shared automatic browser order`() throws {
         let order = try #require(ZoomMateProviderDescriptor.descriptor.metadata.browserCookieOrder)
-        #expect(order == [.chrome])
+        #expect(order == Browser.defaultImportOrder)
     }
     #endif
 
     @Test
     func `credential errors describe distinct recovery actions`() {
         #expect(ZoomMateUsageError.noCapture.localizedDescription.contains("ai.zoom.us"))
-        #expect(ZoomMateUsageError.noSession.localizedDescription.contains("Chrome"))
+        #expect(ZoomMateUsageError.noSession.localizedDescription.contains("supported browsers"))
         #expect(ZoomMateUsageError.invalidCredentials.localizedDescription.contains("rejected"))
     }
 

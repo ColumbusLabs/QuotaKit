@@ -30,11 +30,11 @@ struct ClaudeUsageTests {
         let data = Data(json.utf8)
         let snap = ClaudeUsageFetcher.parse(json: data)
         #expect(snap != nil)
-        #expect(snap?.primary.usedPercent == 1)
-        #expect(snap?.primary.windowMinutes == 300)
+        #expect(snap?.primary?.usedPercent == 1)
+        #expect(snap?.primary?.windowMinutes == 300)
         #expect(snap?.secondary?.usedPercent == 8)
         #expect(snap?.secondary?.windowMinutes == 10080)
-        #expect(snap?.primary.resetDescription == "11am (Europe/Vienna)")
+        #expect(snap?.primary?.resetDescription == "11am (Europe/Vienna)")
     }
 
     @Test
@@ -89,7 +89,7 @@ struct ClaudeUsageTests {
 
         #expect(await loadCounter.current() == 2)
         #expect(await delegatedCounter.current() == 1)
-        #expect(snapshot.primary.usedPercent == 7)
+        #expect(snapshot.primary?.usedPercent == 7)
         #expect(snapshot.secondary?.usedPercent == 21)
     }
 
@@ -258,7 +258,7 @@ struct ClaudeUsageTests {
 
         #expect(await loadCounter.current() == 2)
         #expect(await delegatedCounter.current() == 1)
-        #expect(snapshot.primary.usedPercent == 7)
+        #expect(snapshot.primary?.usedPercent == 7)
 
         #expect(flags.allowKeychainPromptFlags.count == 2)
         #expect(flags.allowKeychainPromptFlags == [true, true])
@@ -428,7 +428,7 @@ struct ClaudeUsageTests {
         }
 
         #expect(flags.allowKeychainPromptFlags == [false])
-        #expect(snapshot.primary.usedPercent == 7)
+        #expect(snapshot.primary?.usedPercent == 7)
     }
 
     @Test
@@ -509,7 +509,7 @@ struct ClaudeUsageTests {
         let data = Data(json.utf8)
         let snap = ClaudeUsageFetcher.parse(json: data)
         #expect(snap != nil)
-        #expect(snap?.primary.usedPercent == 4)
+        #expect(snap?.primary?.usedPercent == 4)
         #expect(snap?.secondary == nil)
     }
 
@@ -597,15 +597,15 @@ struct ClaudeUsageTests {
         let weeklyUsed = snap.secondary?.usedPercent ?? -1
         let email = snap.accountEmail ?? "nil"
         let org = snap.accountOrganization ?? "nil"
-        print(
+        try print(
             """
             Live Claude usage (PTY):
-            session used \(snap.primary.usedPercent)%
+            session used \(#require(snap.primary).usedPercent)%
             week used \(weeklyUsed)%
             opus \(opusUsed)%
             email \(email) org \(org)
             """)
-        #expect(snap.primary.usedPercent >= 0)
+        #expect(try #require(snap.primary).usedPercent >= 0)
     }
 
     // MARK: - Web API tests
@@ -620,15 +620,15 @@ struct ClaudeUsageTests {
         let snap = try await fetcher.loadLatestUsage()
         let weeklyUsed = snap.secondary?.usedPercent ?? -1
         let opusUsed = snap.opus?.usedPercent ?? -1
-        print(
+        try print(
             """
             Live Claude usage (Web API):
-            session used \(snap.primary.usedPercent)%
+            session used \(#require(snap.primary).usedPercent)%
             week used \(weeklyUsed)%
             opus \(opusUsed)%
             login method: \(snap.loginMethod ?? "nil")
             """)
-        #expect(snap.primary.usedPercent >= 0)
+        #expect(try #require(snap.primary).usedPercent >= 0)
     }
 
     @Test
@@ -895,8 +895,8 @@ struct ClaudeOAuthUsageMappingTests {
         """
         let snapshot = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
 
-        #expect(snapshot.primary.usedPercent == 42)
-        #expect(snapshot.primary.windowMinutes == 7 * 24 * 60)
+        #expect(snapshot.primary?.usedPercent == 42)
+        #expect(snapshot.primary?.windowMinutes == 7 * 24 * 60)
         #expect(snapshot.secondary?.usedPercent == 42)
         #expect(snapshot.opus?.usedPercent == 17)
     }
@@ -911,8 +911,8 @@ struct ClaudeOAuthUsageMappingTests {
         """
         let snapshot = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
 
-        #expect(snapshot.primary.usedPercent == 9)
-        #expect(snapshot.primary.windowMinutes == 7 * 24 * 60)
+        #expect(snapshot.primary?.usedPercent == 9)
+        #expect(snapshot.primary?.windowMinutes == 7 * 24 * 60)
     }
 
     @Test
@@ -1091,7 +1091,7 @@ struct ClaudeAutoFetcherCharacterizationTests {
                             try await fetcher.loadLatestUsage(model: "sonnet")
                         })
 
-                    #expect(snapshot.primary.usedPercent == 7)
+                    #expect(snapshot.primary?.usedPercent == 7)
                     #expect(snapshot.secondary?.usedPercent == 21)
                     #expect(log.contents().isEmpty)
                     let requests = webRequests.current()
@@ -1283,7 +1283,7 @@ struct ClaudeAutoFetcherCharacterizationTests {
                     }, operation: {
                         let snapshot = try await fetcher.loadLatestUsage(model: "sonnet")
 
-                        #expect(snapshot.primary.usedPercent == 11)
+                        #expect(snapshot.primary?.usedPercent == 11)
                         #expect(snapshot.secondary?.usedPercent == 22)
                         #expect(snapshot.opus?.usedPercent == 33)
                         #expect(snapshot.accountEmail == "web@example.com")
@@ -1406,7 +1406,7 @@ extension ClaudeAutoFetcherCharacterizationTests {
         }, operation: {
             let snapshot = try await fetcher.loadLatestUsage(model: "sonnet")
 
-            #expect(snapshot.primary.usedPercent == 14)
+            #expect(snapshot.primary?.usedPercent == 14)
             #expect(snapshot.secondary?.usedPercent == 28)
             #expect(snapshot.accountOrganization == "Team Org")
             #expect(snapshot.accountEmail == "linked@example.com")

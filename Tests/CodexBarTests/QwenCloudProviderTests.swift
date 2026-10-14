@@ -12,15 +12,13 @@ private func qwenCloudFixture(_ name: String) throws -> Data {
 
 struct QwenCloudSettingsReaderTests {
     @Test
-    func `missing cookie error names supported browser recovery paths`() {
+    func `missing cookie error offers supported browser and manual recovery`() {
         let error = QwenCloudSettingsError.missingCookie()
         let message = error.errorDescription ?? ""
 
-        #expect(message.contains("Chrome"))
-        #expect(message.contains("Brave"))
-        #expect(message.contains("Safe Storage"))
+        #expect(message.contains("supported browser"))
+        #expect(message.contains("Refresh"))
         #expect(message.contains("manual Cookie header"))
-        #expect(message.contains("Keychain Access"))
     }
 
     @Test
@@ -124,9 +122,7 @@ struct QwenCloudUsageSnapshotTests {
         #expect(metadata.sessionLabel == "5-hour")
         #expect(metadata.weeklyLabel == "Weekly")
         #if os(macOS)
-        let expectedOrder: BrowserCookieImportOrder = [.chrome, .brave]
-        #expect(metadata.browserCookieOrder == expectedOrder)
-        #expect(QwenCloudWebFetchStrategy.browserOrder == expectedOrder)
+        #expect(metadata.browserCookieOrder == ProviderBrowserCookieDefaults.defaultImportOrder)
         #else
         #expect(metadata.browserCookieOrder == nil)
         #endif

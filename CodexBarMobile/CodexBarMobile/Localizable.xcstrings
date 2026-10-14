@@ -22951,6 +22951,148 @@
             }
           }
         }
+      },
+      "Parallel balance and pending debit details now sync from QuotaKit Mac to iPhone as display-only information.": {
+        "localizations": {
+          "ar": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "تتم الآن مزامنة تفاصيل رصيد Parallel والخصم المعلّق من QuotaKit على Mac إلى iPhone كمعلومات للعرض فقط."
+            }
+          },
+          "ca": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Els detalls del saldo de Parallel i dels càrrecs pendents ara se sincronitzen des de QuotaKit per a Mac amb l’iPhone només per mostrar-los."
+            }
+          },
+          "de": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Details zum Guthaben von Parallel und zu ausstehenden Abbuchungen werden jetzt von QuotaKit für Mac mit dem iPhone synchronisiert und dort nur angezeigt."
+            }
+          },
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel balance and pending debit details now sync from QuotaKit Mac to iPhone as display-only information."
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Los detalles del saldo de Parallel y de los débitos pendientes ahora se sincronizan desde QuotaKit para Mac con el iPhone y se muestran solo como información."
+            }
+          },
+          "fa": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "جزئیات موجودی Parallel و برداشت‌های در انتظار اکنون از QuotaKit برای Mac به iPhone همگام‌سازی می‌شوند و فقط برای نمایش هستند."
+            }
+          },
+          "fr": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Les détails du solde Parallel et des débits en attente sont désormais synchronisés de QuotaKit pour Mac vers l’iPhone à titre informatif uniquement."
+            }
+          },
+          "gl": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Os detalles do saldo de Parallel e dos cargos pendentes sincronízanse agora desde QuotaKit para Mac co iPhone só como información."
+            }
+          },
+          "id": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Detail saldo Parallel dan debit tertunda kini disinkronkan dari QuotaKit untuk Mac ke iPhone hanya sebagai informasi."
+            }
+          },
+          "it": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "I dettagli del saldo Parallel e degli addebiti in sospeso ora si sincronizzano da QuotaKit per Mac a iPhone solo a scopo informativo."
+            }
+          },
+          "ja": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel の残高と保留中の引き落としの詳細が QuotaKit for Mac から iPhone に同期され、表示専用の情報として表示されます。"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel 잔액과 대기 중인 차감 내역이 이제 QuotaKit Mac에서 iPhone으로 동기화되어 표시 전용 정보로 제공됩니다."
+            }
+          },
+          "nl": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Details over het Parallel-saldo en openstaande afschrijvingen worden nu van QuotaKit voor Mac naar de iPhone gesynchroniseerd en alleen ter informatie weergegeven."
+            }
+          },
+          "pl": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Szczegóły salda Parallel i oczekujących obciążeń są teraz synchronizowane z QuotaKit dla Mac na iPhone’a wyłącznie do wyświetlania."
+            }
+          },
+          "pt-BR": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Os detalhes do saldo da Parallel e dos débitos pendentes agora são sincronizados do QuotaKit para Mac com o iPhone apenas para exibição."
+            }
+          },
+          "ru": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Сведения о балансе Parallel и ожидаемых списаниях теперь синхронизируются из QuotaKit для Mac на iPhone только для отображения."
+            }
+          },
+          "sv": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Uppgifter om Parallel-saldo och väntande debiteringar synkas nu från QuotaKit för Mac till iPhone och visas endast som information."
+            }
+          },
+          "th": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "รายละเอียด余额 Parallel และรายการหักบัญชีที่รอดำเนินการจะซิงค์จาก QuotaKit สำหรับ Mac ไปยัง iPhone เพื่อแสดงข้อมูลเท่านั้น"
+            }
+          },
+          "tr": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel bakiyesi ve bekleyen borçlandırma ayrıntıları artık QuotaKit Mac’ten iPhone’a eşitleniyor ve yalnızca bilgi amaçlı gösteriliyor."
+            }
+          },
+          "uk": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Дані про баланс Parallel і відкладені списання тепер синхронізуються з QuotaKit для Mac на iPhone лише для відображення."
+            }
+          },
+          "vi": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Chi tiết số dư Parallel và khoản ghi nợ đang chờ xử lý hiện được đồng bộ từ QuotaKit cho Mac sang iPhone chỉ để hiển thị thông tin."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel 余额和待扣款详情现在会从 QuotaKit Mac 同步到 iPhone，仅供显示。"
+            }
+          },
+          "zh-Hant": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Parallel 餘額與待扣款詳細資料現在會從 QuotaKit Mac 同步到 iPhone，僅供顯示。"
+            }
+          }
+        }
       }
   },
   "version": "1.0"

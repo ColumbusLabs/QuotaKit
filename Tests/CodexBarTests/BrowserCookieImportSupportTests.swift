@@ -74,29 +74,19 @@ struct BrowserCookieImportSupportTests {
         #expect(Array(sessions).isEmpty)
     }
 
-    @Test(arguments: [
-        UsageProvider.copilot,
-        .grok,
-        .helmcode,
-        .qoder,
-        .replicate,
-        .venice,
-        .zoommate,
-    ])
-    func `Chrome-only providers retain their bounded browser policy`(provider: UsageProvider) throws {
-        let browsers = try #require(ProviderDefaults.metadata[provider]?.browserCookieOrder)
-        #expect(browsers == [.chrome])
-        var visited: [Browser] = []
-        let sessions = try BrowserCookieImportSupport.collectSessions(
-            from: browsers,
-            missingError: ImportError.missing,
-            logger: { _ in },
-            load: { browser in
-                visited.append(browser)
-                return ["fixture-session"]
-            })
-        #expect(visited == [.chrome])
-        #expect(Array(sessions) == ["fixture-session"])
+    @Test
+    func `automatic provider cookie orders include every supported browser`() {
+        #expect(ReplicateCookieImporter.resolvedImportOrder(nil) == Browser.defaultImportOrder)
+        #expect(ReplicateCookieImporter.resolvedImportOrder([]) == Browser.defaultImportOrder)
+        for descriptor in ProviderDescriptorRegistry.all {
+            // Devin reads Chromium local storage; selected-profile providers honor the user's picker.
+            // WorkBuddy sessions bind to the Chrome User-Agent supplied by its host integration.
+            guard descriptor.id != .devin, descriptor.id != .workbuddy,
+                  descriptor.settingsSection.selectedProfileBrowsers == nil,
+                  let order = descriptor.metadata.browserCookieOrder
+            else { continue }
+            #expect(Set(order) == Set(Browser.defaultImportOrder), "\(descriptor.id) restricts automatic cookie import")
+        }
     }
 
     private enum ImportError: Error {

@@ -792,6 +792,29 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Claude OAuth spend-only usage maps to mobile billing without a quota window`() throws {
+        let data = Data(#"""
+        {"five_hour":null,"seven_day":null,
+         "extra_usage":{"is_enabled":true,"monthly_limit":10000,"used_credits":2500}}
+        """#.utf8)
+        let usage = try ClaudeUsageFetcher._mapOAuthUsageForTesting(data)
+        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage)
+
+        #expect(snapshot.primary == nil)
+        let providerCost = try #require(snapshot.providerCost)
+        #expect(providerCost.used == 25)
+        #expect(providerCost.limit == 100)
+        let extra = try #require(SyncCoordinator.mapClaudeExtraUsage(
+            provider: .claude,
+            snapshot: snapshot,
+            providerCost: providerCost))
+
+        #expect(extra.utilization == 25)
+        #expect(extra.monthlySpendUSD == 25)
+        #expect(extra.monthlyLimitUSD == 100)
+    }
+
+    @Test
     func `push skipped when sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false

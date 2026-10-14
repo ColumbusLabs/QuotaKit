@@ -53,7 +53,7 @@ public enum HyperProviderDescriptor {
                 defaultEnabled: false,
                 widgetSelectable: false,
                 balanceOnly: true,
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(reason: "Automatic Hyper sessions use Chrome"),
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://hyper.charm.land",
                 statusPageURL: nil),
             branding: ProviderBranding(

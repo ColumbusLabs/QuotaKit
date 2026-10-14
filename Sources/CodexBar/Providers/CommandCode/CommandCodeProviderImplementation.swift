@@ -8,8 +8,15 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.commandcodeUsageDataSource
+        _ = settings.commandcodeAPIKey
         _ = settings.commandcodeCookieSource
         _ = settings.commandcodeCookieHeader
+    }
+
+    @MainActor
+    func sourceMode(context: ProviderSourceModeContext) -> ProviderSourceMode {
+        context.settings.commandcodeUsageDataSource
     }
 
     @MainActor
@@ -19,6 +26,11 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let usageBinding = Binding(
+            get: { context.settings.commandcodeUsageDataSource.rawValue },
+            set: { raw in
+                context.settings.commandcodeUsageDataSource = ProviderSourceMode(rawValue: raw) ?? .auto
+            })
         let cookieBinding = Binding(
             get: { context.settings.commandcodeCookieSource.rawValue },
             set: { raw in
@@ -42,6 +54,18 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
 
         return [
             ProviderSettingsPickerDescriptor(
+                id: "commandcode-usage-source",
+                title: "Usage source",
+                subtitle: "Auto uses an API key when configured, otherwise browser cookies.",
+                binding: usageBinding,
+                options: [
+                    ProviderSettingsPickerOption(id: ProviderSourceMode.auto.rawValue, title: "Auto"),
+                    ProviderSettingsPickerOption(id: ProviderSourceMode.api.rawValue, title: "API key"),
+                    ProviderSettingsPickerOption(id: ProviderSourceMode.web.rawValue, title: "Browser cookies"),
+                ],
+                isVisible: nil,
+                onChange: nil),
+            ProviderSettingsPickerDescriptor(
                 id: "commandcode-cookie-source",
                 title: "Cookie source",
                 subtitle: ProviderCookieSourceUI.browserImportSubtitle(
@@ -50,7 +74,7 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
+                isVisible: { context.settings.commandcodeUsageDataSource != .api },
                 onChange: nil),
         ]
     }
@@ -58,6 +82,15 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "commandcode-api-key",
+                title: "API key",
+                subtitle: "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.",
+                kind: .secure,
+                placeholder: "API key",
+                binding: context.binding(\.commandcodeAPIKey),
+                actions: [],
+                isVisible: { context.settings.commandcodeUsageDataSource != .web }),
             ProviderSettingsFieldDescriptor(
                 id: "commandcode-cookie",
                 title: "",
@@ -77,7 +110,10 @@ struct CommandCodeProviderImplementation: ProviderImplementation {
                             }
                         }),
                 ],
-                isVisible: { context.settings.commandcodeCookieSource == .manual },
+                isVisible: {
+                    context.settings.commandcodeUsageDataSource != .api &&
+                        context.settings.commandcodeCookieSource == .manual
+                },
                 onActivate: { context.settings.ensureCommandCodeCookieLoaded() }),
         ]
     }

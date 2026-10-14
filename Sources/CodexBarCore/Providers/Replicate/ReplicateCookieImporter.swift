@@ -19,32 +19,42 @@ public enum ReplicateCookieImporter {
         cookies.contains { $0.name == "sessionid" && !$0.value.isEmpty }
     }
 
+    static func sessionCandidates(
+        browserDetection: BrowserDetection,
+        preferredBrowsers: [Browser]? = nil,
+        logger: ((String) -> Void)? = nil,
+        loadRecords: @escaping (Browser, BrowserCookieQuery, ((String) -> Void)?) throws
+            -> [BrowserCookieStoreRecords] = { try cookieClient.codexBarRecords(matching: $1, in: $0, logger: $2) })
+        throws -> AnySequence<SessionInfo>
+    {
+        try BrowserCookieImportSupport.collectSessions(
+            from: self.resolvedImportOrder(preferredBrowsers).lazyCookieImportCandidates(using: browserDetection),
+            missingError: ReplicateCredentialError.missingCookie,
+            logger: { logger?($0) },
+            load: { browser in
+                let query = self.cookieQuery()
+                let sources = try loadRecords(browser, query, logger)
+                return sources.compactMap { source in
+                    let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
+                    guard Self.hasSessionCookie(cookies) else { return nil }
+                    return SessionInfo(cookies: cookies, sourceLabel: source.label)
+                }
+            })
+    }
+
     static func importSessions(
         browserDetection: BrowserDetection,
         preferredBrowsers: [Browser]? = nil,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
-        let order = self.resolvedImportOrder(preferredBrowsers)
-        var sessions: [SessionInfo] = []
-        for browser in order.cookieImportCandidates(using: browserDetection) {
-            do {
-                let query = self.cookieQuery()
-                let sources = try Self.cookieClient.codexBarRecords(matching: query, in: browser, logger: logger)
-                for source in sources {
-                    let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
-                    guard Self.hasSessionCookie(cookies) else { continue }
-                    sessions.append(SessionInfo(cookies: cookies, sourceLabel: source.label))
-                }
-            } catch {
-                BrowserCookieAccessGate.recordIfNeeded(error)
-            }
-        }
-        guard !sessions.isEmpty else { throw ReplicateCredentialError.missingCookie }
-        return sessions
+        try Array(self.sessionCandidates(
+            browserDetection: browserDetection,
+            preferredBrowsers: preferredBrowsers,
+            logger: logger))
     }
 
     static func resolvedImportOrder(_ preferredBrowsers: [Browser]?) -> [Browser] {
-        guard let preferredBrowsers, !preferredBrowsers.isEmpty else { return [.chrome] }
+        guard let preferredBrowsers, !preferredBrowsers.isEmpty else { return Browser.defaultImportOrder }
         return preferredBrowsers
     }
 

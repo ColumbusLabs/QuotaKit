@@ -57,6 +57,51 @@ struct CodexBarConfigMigratorTests {
     }
 
     @Test
+    func `Claude reset visibility migrates once and preserves unrelated selections`() throws {
+        let suite = "CodexBarConfigMigratorTests-claude-reset-visibility-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: "showOptionalCreditsAndExtraUsage")
+        defaults.set(true, forKey: Self.legacyMigrationCompletedKey)
+
+        let configStore = testConfigStore(suiteName: suite)
+        var config = CodexBarConfig.makeDefault()
+        var claude = ProviderConfig(id: .claude, enabled: true)
+        claude.hiddenUsageItemIDs = ["metric:secondary", "future:item"]
+        config.setProviderConfig(claude)
+        config.setProviderConfig(ProviderConfig(id: .codex, hiddenUsageItemIDs: ["section:credits"]))
+        try configStore.save(config)
+        let beforeIdentity = try JSONEncoder().encode(claude.fetchIdentityConfig)
+
+        let stores = Self.legacyStores(
+            secrets: CountingLegacySecretStore(),
+            accountStore: CountingTokenAccountStore())
+        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore, userDefaults: defaults, stores: stores)
+        let migratedClaude = try #require(migrated.providerConfig(for: .claude))
+        #expect(Set(migratedClaude.hiddenUsageItemIDs ?? []) == [
+            "metric:secondary", "future:item", "section:claude-reset-credits",
+        ])
+        #expect(migratedClaude.claudeResetCreditsVisibilityMigrated == true)
+        #expect(migrated.providerConfig(for: .codex)?.hiddenUsageItemIDs == ["section:credits"])
+        #expect(try JSONEncoder().encode(migratedClaude.fetchIdentityConfig) == beforeIdentity)
+
+        var explicitChoice = migratedClaude
+        explicitChoice.hiddenUsageItemIDs = ["metric:secondary", "future:item"]
+        var updated = migrated
+        updated.setProviderConfig(explicitChoice)
+        try configStore.save(updated)
+        defaults.set(false, forKey: "showOptionalCreditsAndExtraUsage")
+        let relaunched = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore, userDefaults: defaults, stores: stores)
+        #expect(relaunched.providerConfig(for: .claude)?.hiddenUsageItemIDs == [
+            "metric:secondary", "future:item",
+        ])
+        #expect(relaunched.providerConfig(for: .claude)?.claudeResetCreditsVisibilityMigrated == true)
+    }
+
+    @Test
     func `legacy secret migration completion flag skips repeated scans`() throws {
         let suite = "CodexBarConfigMigratorTests-skip-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
