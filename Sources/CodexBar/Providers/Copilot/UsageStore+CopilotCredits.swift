@@ -65,7 +65,8 @@ extension UsageStore {
                 usageScope: account.usageScope,
                 organizationID: account.organizationID,
                 workspaceID: account.workspaceID,
-                seatCreditEntitlement: previousAccount.seatCreditEntitlement)
+                seatCreditEntitlement: previousAccount.seatCreditEntitlement,
+                modelRateLimits: account.modelRateLimits)
             if cached.cacheKey == self.tokenAccountSnapshotCacheKey(
                 provider: .copilot,
                 account: previousAllowanceAccount),

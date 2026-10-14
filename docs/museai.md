@@ -11,10 +11,12 @@ read_when:
 This is separate from [Muse Code](muse.md), which reads the `muse` CLI login.
 
 Sign in at `muse.ai` in a supported browser for **Automatic** import, or choose **Manual** and paste a Cookie header.
-Automatic import follows SweetCookieKit's default browser order, including Aside, Opera, and Opera Neon with version
-0.5.5. Existing profile and Keychain access checks still apply. **Off** disables cookie access. For browsers outside
+Automatic import follows the shared supported-browser order. Existing profile and Keychain access checks still apply.
+**Off** disables cookie access. For browsers outside
 the catalog, choose **Manual** and paste a Cookie header from a signed-in `muse.ai` request. On Linux, use a manual
-Cookie header; no browser integration or Muse Code CLI login is needed. QuotaKit shows the weekly
+Cookie header; no browser integration or Muse Code CLI login is needed. CLI cookie refresh supports
+`quotakit cookie refresh --provider museai --allow-keychain-prompt` and
+`quotakit cookie refresh --all --allow-keychain-prompt`. QuotaKit shows the weekly
 percentage, reset time, plan, tokens left (paid plans), renewal date, and any additional (top-up) tokens.
 
 muse.ai has no usage API. `museai.js` posts the settings dialog's Next.js server action (`fetchSubscriptionAction`) with

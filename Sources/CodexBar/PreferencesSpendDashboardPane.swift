@@ -203,13 +203,23 @@ enum SpendDashboardDetailSection: Hashable, Identifiable {
 func spendDashboardAvailableDetailSections(
     hasProjects: Bool,
     hasSessions: Bool,
-    hasChats: Bool = false) -> [SpendDashboardDetailSection]
+    hasChats: Bool = false,
+    supportsCodexDetails: Bool = false) -> [SpendDashboardDetailSection]
 {
     var sections: [SpendDashboardDetailSection] = [.providers]
-    if hasProjects { sections.append(.projects) }
-    if hasChats { sections.append(.chats) }
-    if hasSessions { sections.append(.sessions) }
+    if supportsCodexDetails || hasProjects { sections.append(.projects) }
+    if supportsCodexDetails || hasChats { sections.append(.chats) }
+    if supportsCodexDetails || hasSessions { sections.append(.sessions) }
     return sections
+}
+
+func spendDashboardCodexDetailPlaceholderCurrency(
+    configuration: SpendDashboardConfiguration,
+    currencyCodes: [String]) -> String?
+{
+    guard configuration.supportsCodexDetails else { return nil }
+    let currency = configuration.preferredCurrencyCode == "auto" ? "USD" : configuration.preferredCurrencyCode
+    return currencyCodes.contains("USD") || currencyCodes.contains(currency) ? nil : currency
 }
 
 /// Filter for display without regrouping ledger paths or changing any amounts.
@@ -262,6 +272,7 @@ struct SpendDashboardPane: View {
     @State private var isVisible = false
     @State private var userSelectedBackground = false
     @State private var isDataControlsExpanded = true
+    @State private var detailSelections: [String: SpendDashboardDetailSection] = [:]
 
     init(settings: SettingsStore, store: UsageStore) {
         self.settings = settings
@@ -344,6 +355,15 @@ struct SpendDashboardPane: View {
 
     private var controller: SpendDashboardController {
         self.store.sharedSpendDashboardController()
+    }
+
+    private var detailCurrency: String {
+        let preferred = self.controller.configuration?.preferredCurrencyCode ?? "auto"
+        return preferred == "auto" ? "USD" : preferred
+    }
+
+    private func detailSelection(for currency: String) -> Binding<SpendDashboardDetailSection> {
+        Binding(get: { self.detailSelections[currency] ?? .providers }, set: { self.detailSelections[currency] = $0 })
     }
 
     var header: some View {
@@ -528,6 +548,28 @@ struct SpendDashboardPane: View {
 
     @ViewBuilder
     private var content: some View {
+        if self.settings.costUsageEnabled,
+           let configuration = self.controller.configuration,
+           let currency = spendDashboardCodexDetailPlaceholderCurrency(
+               configuration: configuration,
+               currencyCodes: self.controller.model.groups.map(\.currencyCode))
+        {
+            SpendDashboardDetailPanel(
+                group: .init(
+                    currencyCode: currency,
+                    providers: [],
+                    models: [],
+                    dailyPoints: [],
+                    totalTokens: nil,
+                    totalCost: nil,
+                    coveredDayCount: 0,
+                    chartDomain: Date.distantPast...Date.distantPast,
+                    modelHistoryCompleteness: .incomplete,
+                    timeZone: self.controller.configuration?.bucketCalendar.timeZone ?? .current),
+                hidePersonalInfo: self.settings.hidePersonalInfo,
+                supportsCodexDetails: true,
+                selection: self.detailSelection(for: currency))
+        }
         if !self.settings.costUsageEnabled {
             SpendDashboardPanel {
                 ContentUnavailableView {
@@ -554,7 +596,10 @@ struct SpendDashboardPane: View {
                     requestedDays: self.controller.model.requestedDays,
                     hidePersonalInfo: self.settings.hidePersonalInfo,
                     onSelectDay: { self.controller.selectDay($0) },
-                    onClearSelectedDay: { self.controller.selectDay(nil) })
+                    onClearSelectedDay: { self.controller.selectDay(nil) },
+                    detailSelection: self.detailSelection(for: group.id),
+                    supportsCodexDetails: self.controller.configuration?.supportsCodexDetails == true
+                        && (group.currencyCode == "USD" || group.currencyCode == self.detailCurrency))
             }
         }
 
@@ -702,6 +747,8 @@ struct SpendDashboardCurrencySection: View {
     let hidePersonalInfo: Bool
     let onSelectDay: ((Date) -> Void)?
     let onClearSelectedDay: (() -> Void)?
+    let detailSelection: Binding<SpendDashboardDetailSection>?
+    let supportsCodexDetails: Bool
     @State private var selectedDetailSection: SpendDashboardDetailSection
     @State private var selectedTrendSection: SpendDashboardTrendSection
 
@@ -711,6 +758,8 @@ struct SpendDashboardCurrencySection: View {
         hidePersonalInfo: Bool = false,
         onSelectDay: ((Date) -> Void)? = nil,
         onClearSelectedDay: (() -> Void)? = nil,
+        detailSelection: Binding<SpendDashboardDetailSection>? = nil,
+        supportsCodexDetails: Bool = false,
         detailSection: SpendDashboardDetailSection = .providers)
     {
         self.group = group
@@ -718,21 +767,11 @@ struct SpendDashboardCurrencySection: View {
         self.hidePersonalInfo = hidePersonalInfo
         self.onSelectDay = onSelectDay
         self.onClearSelectedDay = onClearSelectedDay
+        self.detailSelection = detailSelection
+        self.supportsCodexDetails = supportsCodexDetails
         self._selectedDetailSection = State(initialValue: detailSection)
         self._selectedTrendSection = State(
             initialValue: group.selectedDay != nil && !group.hourlyPoints.isEmpty ? .hourly : .daily)
-    }
-
-    private var availableDetailSections: [SpendDashboardDetailSection] {
-        spendDashboardAvailableDetailSections(
-            hasProjects: self.group.projects.contains { !$0.isProjectless },
-            hasSessions: !self.group.sessions.isEmpty,
-            hasChats: self.group.projects.contains(where: \.isProjectless))
-    }
-
-    private var activeDetailSection: SpendDashboardDetailSection {
-        self.availableDetailSections.contains(self.selectedDetailSection)
-            ? self.selectedDetailSection : .providers
     }
 
     var body: some View {
@@ -749,9 +788,38 @@ struct SpendDashboardCurrencySection: View {
                 group: self.group,
                 onClearSelectedDay: self.onClearSelectedDay)
 
-            if self.availableDetailSections.count > 1 {
-                Picker(L("Usage & Spend"), selection: self.$selectedDetailSection) {
-                    ForEach(self.availableDetailSections) { section in
+            SpendDashboardDetailPanel(
+                group: self.group,
+                hidePersonalInfo: self.hidePersonalInfo,
+                supportsCodexDetails: self.supportsCodexDetails,
+                selection: self.detailSelection ?? self.$selectedDetailSection)
+            SpendDashboardTrendPanel(
+                group: self.group,
+                selection: self.$selectedTrendSection,
+                onSelectDay: self.onSelectDay,
+                onClearSelectedDay: self.onClearSelectedDay)
+            SpendDailyLedger(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
+        }
+        .environment(\.timeZone, self.group.timeZone)
+        .environment(\.calendar, self.group.calendar)
+        .onChange(of: self.group.selectedDay) { _, selectedDay in
+            self.selectedTrendSection = selectedDay != nil && !self.group.hourlyPoints.isEmpty
+                ? .hourly : .daily
+        }
+    }
+}
+
+private struct SpendDashboardDetailPanel: View {
+    let group: SpendDashboardModel.CurrencyGroup
+    let hidePersonalInfo: Bool
+    var supportsCodexDetails = false
+    @Binding var selection: SpendDashboardDetailSection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if self.availableSections.count > 1 {
+                Picker(L("Usage & Spend"), selection: self.normalizedSelection) {
+                    ForEach(self.availableSections) { section in
                         Text(section.title).tag(section)
                     }
                 }
@@ -762,39 +830,56 @@ struct SpendDashboardCurrencySection: View {
                 .accessibilityIdentifier("spend-dashboard-detail-picker")
             }
 
-            if self.activeDetailSection == .providers {
-                SpendDashboardPanel {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L("Usage & Spend")).font(.headline)
-                        SpendProviderBreakdownRows(
-                            group: self.group,
-                            hidePersonalInfo: self.hidePersonalInfo)
-                    }
+            self.detailContent
+            if self.activeSection != .providers {
+                if self.group.projects.isEmpty, self.group.sessions.isEmpty {
+                    Text(L("No usage breakdown data available."))
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-            } else if self.activeDetailSection == .projects {
-                SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: false)
-            } else if self.activeDetailSection == .chats {
-                SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: true)
-            } else {
-                SpendSessionPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
+                if self.group.detailsExcludedFromTotals {
+                    Text(L("Local Codex details; excluded from combined totals."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let updatedAt = self.group.retainedDetailUpdatedAt {
+                    Text(L("Incomplete") + " · " + L(
+                        "Updated %@",
+                        spendDashboardLedgerDateText(updatedAt, timeZone: self.group.timeZone)))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
-            SpendDashboardTrendPanel(
-                group: self.group,
-                selection: self.$selectedTrendSection,
-                onSelectDay: self.onSelectDay.map { onSelectDay in
-                    { day in
-                        self.selectedDetailSection = .providers
-                        onSelectDay(day)
-                    }
-                },
-                onClearSelectedDay: self.onClearSelectedDay)
-            SpendDailyLedger(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
         }
-        .environment(\.timeZone, self.group.timeZone)
-        .environment(\.calendar, self.group.calendar)
-        .onChange(of: self.group.selectedDay) { _, selectedDay in
-            self.selectedTrendSection = selectedDay != nil && !self.group.hourlyPoints.isEmpty
-                ? .hourly : .daily
+    }
+
+    private var availableSections: [SpendDashboardDetailSection] {
+        spendDashboardAvailableDetailSections(
+            hasProjects: self.group.projects.contains { !$0.isProjectless },
+            hasSessions: !self.group.sessions.isEmpty,
+            hasChats: self.group.projects.contains(where: \.isProjectless),
+            supportsCodexDetails: self.supportsCodexDetails)
+    }
+
+    private var activeSection: SpendDashboardDetailSection {
+        self.availableSections.contains(self.selection) ? self.selection : self.availableSections[0]
+    }
+
+    private var normalizedSelection: Binding<SpendDashboardDetailSection> {
+        Binding(get: { self.activeSection }, set: { self.selection = $0 })
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch self.activeSection {
+        case .providers:
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L("Usage & Spend")).font(.headline)
+                SpendProviderBreakdownRows(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
+            }
+        case .projects:
+            SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: false)
+        case .chats:
+            SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: true)
+        case .sessions:
+            SpendSessionPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
         }
     }
 }

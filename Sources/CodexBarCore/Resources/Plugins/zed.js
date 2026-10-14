@@ -12,7 +12,7 @@ defineProvider({
     if (response.status === 401 || response.status === 403) {
       ctx.browser.rejectCookie("zed.dev");
       throw ctx.fail.authenticationExpired(
-        "Zed browser session expired. Sign in to zed.dev in Chrome or update the Cookie header.",
+        "Zed browser session expired. Sign in to zed.dev in a supported browser or update the Cookie header.",
       );
     }
     if (response.status === 429) throw ctx.fail.rateLimited("Zed usage requests are rate limited.");

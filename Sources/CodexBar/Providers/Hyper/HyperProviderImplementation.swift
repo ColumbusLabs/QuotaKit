@@ -39,7 +39,7 @@ struct HyperProviderImplementation: ProviderImplementation {
                 source: context.settings.hyperCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 subtitles: ProviderCookieSourceUI.Subtitles(
-                    auto: L("Automatically imports a Chrome session cookie, then falls back to an API key."),
+                    auto: L("Automatically imports browser cookies, then falls back to an API key."),
                     manual: L("Uses a pasted %@ Cookie header, then falls back to an API key.", "hyper.charm.land"),
                     off: L("Browser cookies are disabled; an API key is still used when available.")))
         }
@@ -48,7 +48,7 @@ struct HyperProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "hyper-cookie-source",
                 title: "Cookie source",
-                subtitle: L("Automatically imports a Chrome session cookie, then falls back to an API key."),
+                subtitle: L("Automatically imports browser cookies, then falls back to an API key."),
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: options,

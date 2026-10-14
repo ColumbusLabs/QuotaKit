@@ -18,11 +18,11 @@ struct MuseAIProviderTests {
     }
 
     @Test
-    func `identity and browser scope are distinct from Muse Code`() {
+    func `identity is distinct from Muse Code and uses the shared browser catalog`() {
         let descriptor = MuseAIProviderDescriptor.descriptor
         #expect(descriptor.metadata.displayName == "Muse (muse.ai)")
         #expect(descriptor.metadata.dashboardURL == "https://muse.ai/?settings_tab=general")
-        #expect(descriptor.metadata.browserCookieOrder == nil)
+        #expect(descriptor.metadata.browserCookieOrder == ProviderBrowserCookieDefaults.defaultImportOrder)
         #expect(MuseProviderDescriptor.descriptor.metadata.displayName == "Muse Code")
     }
 }

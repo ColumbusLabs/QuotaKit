@@ -148,6 +148,23 @@ struct SyncModelTests {
     }
 
     @Test
+    func `Claude visibility migration marker survives older and current provider intents`() throws {
+        var local = ProviderConfig(id: .claude, hiddenUsageItemIDs: ["section:claude-reset-credits"])
+        local.claudeResetCreditsVisibilityMigrated = true
+        let olderPayload = try CanonicalSyncJSON.decode(
+            ProviderIntentPayload.self,
+            from: #"{"schemaVersion":1,"provider":"claude","hiddenUsageItemIDs":[]}"#)
+        let preserved = try olderPayload.applying(to: local, secretFields: [:]) { _, _ in true }
+        #expect(preserved.claudeResetCreditsVisibilityMigrated == true)
+
+        var sender = ProviderConfig(id: .claude, hiddenUsageItemIDs: [])
+        sender.claudeResetCreditsVisibilityMigrated = true
+        let currentPayload = ProviderIntentPayload(config: sender)
+        let synced = try currentPayload.applying(to: ProviderConfig(id: .claude), secretFields: [:]) { _, _ in true }
+        #expect(synced.claudeResetCreditsVisibilityMigrated == true)
+    }
+
+    @Test
     func `conflict resolver picks higher edit count then later modified date`() {
         let older = SyncConflictValue(value: "older", editCount: 3, modifiedAt: Date(timeIntervalSince1970: 20))
         let higher = SyncConflictValue(value: "higher", editCount: 4, modifiedAt: Date(timeIntervalSince1970: 10))

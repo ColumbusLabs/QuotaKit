@@ -32,8 +32,7 @@ public enum QoderProviderDescriptor {
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Qoder debug log not yet implemented",
                 usesDetailBackedWindow: true,
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                    reason: "Preserve documented Chrome import without unrelated Keychain prompts"),
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: QoderWebSite.international.dashboardURL.absoluteString,
                 statusPageURL: nil,
                 statusLinkURL: nil),

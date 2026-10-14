@@ -28,44 +28,65 @@ struct BrowserCookieImportSupportTests {
                 visited.append(candidate)
                 return candidate == browser ? ["fixture-session"] : []
             })
+        #expect(Array(sessions) == ["fixture-session"])
         #expect(visited == Browser.defaultImportOrder)
-        #expect(sessions == ["fixture-session"])
     }
 
     @Test
-    func `empty session iterators let the plugin classify missing credentials`() throws {
-        let sessions: [String] = try BrowserCookieImportSupport.collectSessions(
-            from: [.chrome],
-            missingError: nil,
-            logger: { _ in },
-            load: { _ in [] })
-        #expect(sessions.isEmpty)
-    }
-
-    @Test(arguments: [
-        UsageProvider.copilot,
-        .grok,
-        .helmcode,
-        .qoder,
-        .replicate,
-        .typesafe,
-        .venice,
-        .zoommate,
-    ])
-    func `Chrome-only providers retain their bounded browser policy`(provider: UsageProvider) throws {
-        let browsers = try #require(ProviderDefaults.metadata[provider]?.browserCookieOrder)
-        #expect(browsers == [.chrome])
+    func `usable first session leaves later browsers unread`() throws {
         var visited: [Browser] = []
         let sessions = try BrowserCookieImportSupport.collectSessions(
-            from: browsers,
+            from: [.safari, .chrome, .firefox],
             missingError: ImportError.missing,
             logger: { _ in },
             load: { browser in
                 visited.append(browser)
-                return ["fixture-session"]
+                return [browser.rawValue]
             })
-        #expect(visited == [.chrome])
-        #expect(sessions == ["fixture-session"])
+
+        #expect(sessions.first(where: { _ in true }) == "safari")
+        #expect(visited == [.safari])
+    }
+
+    @Test
+    func `rejected first session reads only the next browser`() throws {
+        var visited: [Browser] = []
+        let sessions = try BrowserCookieImportSupport.collectSessions(
+            from: [.safari, .chrome, .firefox],
+            missingError: ImportError.missing,
+            logger: { _ in },
+            load: { browser in
+                visited.append(browser)
+                return [browser.rawValue]
+            })
+
+        #expect(sessions.first(where: { $0 != "safari" }) == "chrome")
+        #expect(visited == [.safari, .chrome])
+    }
+
+    @Test
+    func `empty session iterators let the plugin classify missing credentials`() throws {
+        let sessions: AnySequence<String> = try BrowserCookieImportSupport.collectSessions(
+            from: [.chrome],
+            missingError: nil,
+            logger: { _ in },
+            load: { _ in [] })
+        #expect(Array(sessions).isEmpty)
+    }
+
+    @Test
+    func `automatic provider cookie orders include every supported browser`() {
+        #expect(ReplicateCookieImporter.resolvedImportOrder(nil) == Browser.defaultImportOrder)
+        #expect(ReplicateCookieImporter.resolvedImportOrder([]) == Browser.defaultImportOrder)
+        for descriptor in ProviderDescriptorRegistry.all {
+            // Devin reads Chromium local storage; selected-profile providers honor the user's picker.
+            // WorkBuddy sessions bind to the Chrome User-Agent supplied by its host integration.
+            guard descriptor.id != .devin, descriptor.id != .workbuddy,
+                  descriptor.settingsSection.selectedProfileBrowsers == nil,
+                  let order = descriptor.metadata.browserCookieOrder
+            else { continue }
+            #expect(Set(order) == Set(Browser.defaultImportOrder), "\(descriptor.id) restricts automatic cookie import")
+        }
     }
 
     private enum ImportError: Error {
@@ -86,8 +107,8 @@ struct BrowserCookieImportSupportTests {
                 if browser == .firefox { throw ImportError.failed }
                 return ["\(browser.rawValue)-first", "\(browser.rawValue)-second"]
             })
+        #expect(Array(sessions) == ["chrome-first", "chrome-second", "safari-first", "safari-second"])
         #expect(visited == [.chrome, .firefox, .safari])
-        #expect(sessions == ["chrome-first", "chrome-second", "safari-first", "safari-second"])
         #expect(messages.count == 1)
         #expect(messages.first?.hasPrefix("Firefox cookie import failed: ") == true)
     }
@@ -96,7 +117,7 @@ struct BrowserCookieImportSupportTests {
     func `empty or failing sources preserve the providers missing session error`() {
         for browsers: [Browser] in [[], [.chrome], [.chrome, .firefox]] {
             #expect(throws: ImportError.missing) {
-                let _: [String] = try BrowserCookieImportSupport.collectSessions(
+                let _: AnySequence<String> = try BrowserCookieImportSupport.collectSessions(
                     from: browsers,
                     missingError: ImportError.missing,
                     logger: { _ in },

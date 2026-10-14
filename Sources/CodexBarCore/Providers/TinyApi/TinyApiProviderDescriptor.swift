@@ -18,8 +18,7 @@ public enum TinyApiProviderDescriptor {
         history: .unavailable,
         webSource: .init(
             settingsSection: .init(TinyApiProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),
-            browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                reason: "TinyApi imports only Chrome to avoid unrelated browser prompts."),
+            browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
             browserSupportExemption: { _, _, settings in
                 settings?[TinyApiProviderSettingsKey.self]?.cookieSource == .manual
             },

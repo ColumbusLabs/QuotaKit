@@ -1,10 +1,80 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct UsageStoreMenuCardModelTests {
+    @Test
+    func `Claude menu separates stale usage from its error while settings retain the notice`() throws {
+        try KeychainAccessGate.withTaskOverrideForTesting(false) {
+            try CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+                let store = self.makeStore()
+                let snapshot = self.snapshot()
+                let raw = ClaudeOAuthCredentialsError.missingAccessToken.localizedDescription
+                store.snapshots[.claude] = snapshot
+                store.errors[.claude] = raw
+
+                let menu = store.menuCardModel(for: .claude, now: snapshot.updatedAt.addingTimeInterval(3600))
+                #expect(menu.subtitleText == raw)
+                #expect(menu.subtitleStyle == .error)
+                #expect(menu.lastKnownUsageText?.hasPrefix("Showing last-known usage captured ") == true)
+                #expect(!menu.subtitleText.contains("Showing last-known usage"))
+
+                let settings = store.menuCardModel(for: .claude, context: .settings)
+                let message = try #require(store.userFacingError(for: .claude))
+                #expect(settings.subtitleText == message)
+                #expect(settings.subtitleText.components(separatedBy: "Showing last-known usage").count == 2)
+                #expect(settings.lastKnownUsageText == nil)
+            }
+        }
+    }
+
+    @Test
+    func `Claude error without a snapshot has no stale line`() {
+        let store = self.makeStore()
+        store.errors[.claude] = "Claude request failed"
+        let model = store.menuCardModel(for: .claude)
+        #expect(model.subtitleText == "Claude request failed")
+        #expect(model.lastKnownUsageText == nil)
+    }
+
+    @Test
+    func `settings catalogue exposes gated Claude extra usage without changing rendered preferences`() {
+        let store = self.makeStore()
+        let now = Date(timeIntervalSince1970: 1_782_000_000)
+        store.settings.showOptionalCreditsAndExtraUsage = false
+        store.snapshots[.claude] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 12,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly cap",
+                updatedAt: now),
+            updatedAt: now)
+
+        let displayed = store.menuCardModel(for: .claude, context: .settings)
+        let catalogue = UsageMenuCardView.Model.make(store.menuCardInput(
+            for: .claude,
+            context: .settings,
+            now: now,
+            optionalUsageOverride: true))
+        #expect(!displayed.metrics.contains { $0.id == "claude-extra-usage" })
+        #expect(catalogue.usageItemDescriptors.contains {
+            $0.id == .claudeExtraUsage && $0.requiresOptionalUsage
+        })
+        #expect(!store.settings.showOptionalCreditsAndExtraUsage)
+
+        store.settings.setUsageItemVisible(false, itemID: .claudeExtraUsage, for: .claude)
+        store.settings.showOptionalCreditsAndExtraUsage = true
+        #expect(store.menuCardModel(for: .claude).metrics.isEmpty)
+        #expect(store.menuCardModel(for: .claude, context: .settings).metrics.isEmpty)
+        store.settings.setUsageItemVisible(true, itemID: .claudeExtraUsage, for: .claude)
+        #expect(store.menuCardModel(for: .claude).metrics.contains { $0.id == "claude-extra-usage" })
+    }
+
     @Test(arguments: [UsageDataConfidence.estimated, .exact])
     func `account pace uses its own confidence instead of the live account`(confidence: UsageDataConfidence) {
         let store = self.makeStore()

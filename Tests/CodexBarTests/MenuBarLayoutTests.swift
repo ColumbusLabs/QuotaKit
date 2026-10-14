@@ -35,7 +35,7 @@ struct MenuBarLayoutTests {
                 .runsOutCompact,
                 .balance,
                 .costToday,
-                .cost30d,
+                .costWindow,
                 .separatorDot,
                 .space,
             ],
@@ -55,6 +55,20 @@ struct MenuBarLayoutTests {
         #expect(String(bytes: labeled, encoding: .utf8) == #"{"runsOut":{}}"#)
         #expect(String(bytes: compact, encoding: .utf8) == #"{"runsOutCompact":{}}"#)
         #expect(try JSONDecoder().decode(MenuBarLayoutToken.self, from: labeled) == .runsOut)
+    }
+
+    @Test
+    func `cost window token keeps its persisted discriminator`() throws {
+        let encoded = try JSONEncoder().encode(MenuBarLayoutToken.costWindow)
+
+        #expect(String(bytes: encoded, encoding: .utf8) == #"{"cost30d":{}}"#)
+        #expect(try JSONDecoder().decode(MenuBarLayoutToken.self, from: encoded) == .costWindow)
+        #expect(try JSONDecoder().decode(MenuBarLayoutToken.self, from: Data(#"{"cost30d":{}}"#.utf8)) == .costWindow)
+        #expect(MenuBarConditionalMetric.costWindow.rawValue == "cost30d")
+        #expect(MenuBarConditionalMetric(rawValue: "cost30d") == .costWindow)
+        let metric = try JSONEncoder().encode(MenuBarConditionalMetric.costWindow)
+        #expect(String(bytes: metric, encoding: .utf8) == #""cost30d""#)
+        #expect(try JSONDecoder().decode(MenuBarConditionalMetric.self, from: metric) == .costWindow)
     }
 
     @Test
@@ -1390,6 +1404,30 @@ struct MenuBarLayoutTests {
 
         let edited = MenuBarLayout(lines: [[.icon, .providerName, .percent(window: .automatic)]])
         #expect(MenuBarLayoutPreset.matching(edited) == .custom)
+    }
+
+    @Test
+    func `bars stacked preset pairs each semantic progress bar with its reset`() throws {
+        let preset = MenuBarLayoutPreset.barsStacked
+        let layout = try #require(preset.layout)
+
+        #expect(layout.lines == [
+            [.progressBar(window: .session), .windowResetCountdown(window: .session)],
+            [.progressBar(window: .weekly), .windowResetCountdown(window: .weekly)],
+        ])
+        #expect(MenuBarLayoutPreset.matching(layout) == preset)
+    }
+
+    @Test
+    func `progress bar compatibility projections compose through V4 V3 and V2`() {
+        let layout = MenuBarLayout(lines: [[.progressBar(window: .session)]])
+        let expected = MenuBarLayout(lines: [[.percent(window: .session)]])
+
+        #expect(layout.v4Compatible() == expected)
+        #expect(layout.v3Compatible() == expected)
+        #expect(layout.releasedCompatible() == expected)
+        #expect(layout.v4Compatible().v3Compatible() == layout.v3Compatible())
+        #expect(layout.v4Compatible().releasedCompatible() == layout.releasedCompatible())
     }
 
     @MainActor

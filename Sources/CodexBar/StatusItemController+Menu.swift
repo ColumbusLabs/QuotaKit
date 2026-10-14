@@ -632,7 +632,7 @@ extension StatusItemController {
                         "layout=\(self.settings.mergedOverviewLayout.rawValue)",
                     ]),
                 submenu: submenu,
-                containsInteractiveControls: row.model.subtitleStyle == .error || row.model.usesLiveSubtitle,
+                containsInteractiveControls: row.model.containsInteractiveControls,
                 usesGPUSelection: true,
                 onClick: { [weak self, weak interactionMenu] in
                     guard let self, let interactionMenu else { return }
@@ -1446,7 +1446,7 @@ extension StatusItemController {
             tilt: 0,
             statusIndicator: indicator,
             hideCritters: self.settings.menuBarHidesCritters,
-            quotaLayoutPolicy: .provider(provider))
+            quotaLayoutPolicy: .provider(provider, snapshot: snapshot))
         image.isTemplate = true
         return image
     }

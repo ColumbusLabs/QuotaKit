@@ -1,27 +1,48 @@
 ---
-summary: "Track a Charm Hyper account's current Hypercredits balance on Mac and iPhone."
+summary: "Charm Hyper setup, session/API authentication, and Hypercredit balance."
 read_when:
-  - Setting up Charm Hyper in QuotaKit
-  - Reviewing Hyper session or API-key behavior
+  - Configuring Charm Hyper
 ---
 
 # Charm Hyper
 
-QuotaKit can show the current Hypercredits balance for a Charm Hyper account. The provider is opt-in and reports the
-balance as credits; it does not convert Hypercredits into currency or infer a quota window.
+Charm Hyper is an opt-in bundled TypeScript provider. A browser session reads the signed-in team dashboard with
+`GET https://hyper.charm.land/` (same-origin redirects land on `/teams/{team}/dashboard`) and shows the Hypercredit
+balance from that page. An API key requests `GET https://hyper.charm.land/v1/credits`,
+which accepts bearer keys only — cookie authentication is rejected there, so cookies are never sent to it.
 
-## Set up a source
+## Authentication
 
-Enable Charm Hyper under **Settings → Providers**, then choose a source:
+Enable **Settings → Providers → Charm Hyper**. Automatic session access follows the shared browser order for
+`hyper.charm.land`; Manual accepts a Cookie header from that domain, and Off uses only the API key.
+Auto prefers the session, falling back to the API key when cookies are missing, the session expires,
+or the session request cannot connect. Malformed successful responses fail visibly without fallback.
+If Chrome is signed in but cookie access needs permission, use **Refresh** beside **Cookie source**.
+A successful browser refresh is reported as `web` and saves the imported session for subsequent refreshes.
 
-- **Automatic** uses the selected Chrome session first and falls back to an API key when available.
-- **Manual** uses a saved Cookie header from a signed-in `hyper.charm.land` request, then falls back to an API key.
-- **Off** disables browser cookies; an API key can still be used.
-- **Web** is session-only. **API** skips cookies and uses the API key.
+A session that does not reach the dashboard is rejected before the API-key fallback. An expired manual
+session asks for a fresh pasted Cookie header; an expired automatic session asks the user to sign in again.
 
-API keys can be stored in QuotaKit's secure provider settings or supplied with `HYPER_API_KEY`. Browser cookies and API
-keys are sent only to `https://hyper.charm.land/v1/credits`. If Hyper rejects a cached automatic session, QuotaKit
-invalidates that session before trying the API-key fallback.
+Add an API key in the provider settings or set `HYPER_API_KEY` in the environment that launches QuotaKit.
+Saved API keys and manual Cookie headers use the QuotaKit config file. Multiple API-key token accounts
+are supported; in Auto mode, selecting one uses API mode so an unrelated browser session cannot override that account.
+Cookies and bearer keys are sent separately, only to the declared `https://hyper.charm.land` origin.
 
-The balance is shown on Mac and included as an optional field in the existing iCloud provider snapshot so the iPhone
-can render the same credits balance. Older synced snapshots without this field remain readable.
+The CLI supports `codexbar usage --provider hyper --source api`. `--source web` requires a usable session
+and never falls back to a key; a configured manual Cookie header works without browser import.
+Automatic browser import is macOS-only. On Linux, Auto can fall back to the API key.
+
+## Display and limits
+
+The card and CLI show a **Hypercredits → Balance** detail row. The JSON detail row preserves the numeric
+balance in `usageValue` alongside the HC display string. No plan, usage percentage, spend history, limit, or reset countdown is inferred
+from this balance-only response. The menu bar shows HC through the Balance or Auto % layout token;
+widgets are not supported.
+Missing credentials produce setup guidance instead of a fabricated zero balance.
+
+The request and parsing contracts are covered by synthetic fixtures on both plugin engines, including the
+dashboard markup shape, redirect/expiry handling, and the API-key response.
+
+Public contracts: [Credits API](https://hyper.charm.land/docs/api/credits.html) and
+[Dashboard](https://hyper.charm.land/docs/dashboard.html). The dashboard markup fixture comes from #4435;
+no live account or browser cookies were accessed during maintainer verification.

@@ -9,6 +9,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- OpenAI live usage shows one-minute throughput, model utilization and a last-hour menu chart, with manual organization limits kept separately for each credential.
+- Parallel tracks prepaid balances and pending debits through its signed-in browser session; billing details sync to iPhone without quota alerts.
+- Claude credits, reset credits and plan dates can be shown independently. Spend-only Claude accounts have financial meters, pace and UTC monthly resets.
+- Cursor menu metrics use compact lane tags while keeping full accessibility labels and saved-layout semantics.
+
+- fal tracks account credits; FLORA tracks workspace balance and month-to-date spend, with billing details synced to iPhone.
+- Provider settings support search, filters, reversible alphabetical sorting, and restoring the default order.
+- Custom menu layouts support graphical quota bars and provider icons spanning both text rows; cost tokens follow the configured history window.
+- The CLI can combine identified Codex request subtotals from local and SSH histories without estimating prices.
+
 - Cost menu session rows trim conversation titles and refresh when only the title changes.
 - Kimi can discover and revalidate the current Desktop session before fetching usage.
 
@@ -29,6 +39,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Browser imports use the supported catalog and explain Files & Folders denial; CommandCode can fetch usage with an API key.
+- Codex spend retains every bounded account result and keeps native detail tabs stable across replaced totals; CLI project reports disclose partial history.
+- Agent sessions retain CLI attribution when prompts mention app paths; JetBrains reads JbaiQuota and Junie quota records.
+- Ordinary CI retains test failure diagnostics in logs and summaries and restores existing caches without new storage uploads; all test and merge gates remain required.
+
+- Automatic cookie imports stop after a provider accepts a working session; TypeSafe uses the shared supported-browser catalog and Charm Hyper repairs expired dashboard sessions.
+- OpenCode Go caches bounded local scans with database/WAL fingerprints while preserving consent for browser-session discovery.
+- Menu cards distinguish provider errors from stale-usage notices, and Codex persistent caches retain compatible predecessor adoption.
 
 - Claude prepaid usage credits appear in stored Balance layouts and respect the optional credits setting.
 - Returning from a stored menu layout redraws the selected meter or critter immediately.

@@ -44,8 +44,8 @@ settings-file change cannot forward a Keychain token to another host.
 
 ## Optional browser billing
 
-Set Zed's cookie source to automatic browser import or provide a manual Cookie header to read
-`GET https://cloud.zed.dev/frontend/billing/usage`; automatic source selection then uses web billing instead of the
+Set Zed's cookie source to automatic browser import in the shared supported-browser order, or provide a manual Cookie
+header to read `GET https://cloud.zed.dev/frontend/billing/usage`; automatic source selection then uses web billing instead of the
 editor probe. Browser import stays off by default. The web source sends its cookie only to the fixed `cloud.zed.dev`
 billing endpoint; it does not use or forward the editor's Keychain credential.
 An expired browser session clears only the automatic cached cookie that produced the rejected request. Manual headers

@@ -11,10 +11,10 @@ Enable LithosAI in **Settings → Providers**. QuotaKit reads the active organiz
 details from `console.lithosai.cloud`, with optional daily and month-to-date spend in UTC. LithosAI does not provide a
 quota window or reset event for QuotaKit to track.
 
-Sign in to the console in Chrome and choose **Automatic**, or choose **Manual** and paste a Cookie header containing
-both `__Host-console_session` and `__Host-console_csrf` from the same signed-in session. Automatic import is limited to
-Chrome and follows QuotaKit's browser-access gate. **Off** disables cookie access. Manual cookies are sent only to the
-LithosAI console origin; inference API keys cannot read console billing.
+Sign in to the console in a supported browser and choose **Automatic**, or choose **Manual** and paste a Cookie header
+containing both `__Host-console_session` and `__Host-console_csrf` from the same signed-in session. Automatic import
+uses the shared supported-browser order and follows QuotaKit's browser-access gate. **Off** disables cookie access.
+Manual cookies are sent only to the LithosAI console origin; inference API keys cannot read console billing.
 
 An explicit refresh from Cookie source or the provider menu may make one bounded Keychain permission retry for one
 browser. Scheduled refreshes stay noninteractive. If access remains blocked, QuotaKit reports which permission needs

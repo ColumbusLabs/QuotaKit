@@ -31,7 +31,7 @@ struct ReplicateCookieStrategyTests {
             },
             sessionLoader: { _ in
                 recorder.browserLoad()
-                return [ReplicateResolvedSession(cookieHeader: "sessionid=browser", sourceLabel: "Chrome")]
+                return AnySequence([ReplicateResolvedSession(cookieHeader: "sessionid=browser", sourceLabel: "Chrome")])
             })
 
         let result = try await strategy.fetch(Self.context(source: .manual, header: "sessionid=manual"))
@@ -49,7 +49,7 @@ struct ReplicateCookieStrategyTests {
                 recorder.record(header)
                 return Self.usage()
             },
-            sessionLoader: { _ in [] })
+            sessionLoader: { _ in AnySequence([]) })
 
         await #expect(throws: ReplicateCredentialError.invalidCookie) {
             _ = try await strategy.fetch(Self.context(source: .manual, header: "csrftoken=missing-session"))
@@ -64,7 +64,7 @@ struct ReplicateCookieStrategyTests {
             usageLoader: { _ in throw Self.authFailure() },
             sessionLoader: { _ in
                 recorder.browserLoad()
-                return [ReplicateResolvedSession(cookieHeader: "sessionid=other", sourceLabel: "Chrome")]
+                return AnySequence([ReplicateResolvedSession(cookieHeader: "sessionid=other", sourceLabel: "Chrome")])
             })
 
         await #expect(throws: ProviderFetchClassifiedError.self) {
@@ -89,7 +89,9 @@ struct ReplicateCookieStrategyTests {
                 },
                 sessionLoader: { _ in
                     recorder.browserLoad()
-                    return [ReplicateResolvedSession(cookieHeader: "sessionid=fresh", sourceLabel: "Chrome Profile")]
+                    return AnySequence([ReplicateResolvedSession(
+                        cookieHeader: "sessionid=fresh",
+                        sourceLabel: "Chrome Profile")])
                 })
 
             let result = try await strategy.fetch(Self.context(source: .auto))
@@ -116,7 +118,9 @@ struct ReplicateCookieStrategyTests {
                 },
                 sessionLoader: { _ in
                     recorder.browserLoad()
-                    return [ReplicateResolvedSession(cookieHeader: "sessionid=other", sourceLabel: "Chrome")]
+                    return AnySequence([ReplicateResolvedSession(
+                        cookieHeader: "sessionid=other",
+                        sourceLabel: "Chrome")])
                 })
 
             await #expect(throws: ProviderFetchClassifiedError.self) {
@@ -146,7 +150,7 @@ struct ReplicateCookieStrategyTests {
                     return Self.usage()
                 },
                 sessionLoader: { _ in
-                    [ReplicateResolvedSession(cookieHeader: "sessionid=browser", sourceLabel: "Chrome")]
+                    AnySequence([ReplicateResolvedSession(cookieHeader: "sessionid=browser", sourceLabel: "Chrome")])
                 })
 
             await #expect(throws: ProviderFetchClassifiedError.self) {
@@ -175,7 +179,9 @@ struct ReplicateCookieStrategyTests {
                         provider: .replicate,
                         cookieHeader: "sessionid=concurrent",
                         sourceLabel: "Other refresh")
-                    return [ReplicateResolvedSession(cookieHeader: "sessionid=browser", sourceLabel: "Chrome")]
+                    return AnySequence([ReplicateResolvedSession(
+                        cookieHeader: "sessionid=browser",
+                        sourceLabel: "Chrome")])
                 })
 
             await #expect(throws: ReplicateCredentialError.cacheChanged) {
@@ -197,7 +203,7 @@ struct ReplicateCookieStrategyTests {
             },
             sessionLoader: { _ in
                 recorder.browserLoad()
-                return []
+                return AnySequence([])
             })
         let task = Task { try await strategy.fetch(Self.context(source: .manual, header: "sessionid=manual")) }
         try? await Task.sleep(for: .milliseconds(20))
@@ -214,9 +220,9 @@ struct ReplicateCookieStrategyTests {
     }
 
     @Test
-    func `browser import defaults to Chrome and filters sessions without sessionid`() throws {
-        #expect(ReplicateCookieImporter.resolvedImportOrder(nil) == [.chrome])
-        #expect(ReplicateCookieImporter.resolvedImportOrder([]) == [.chrome])
+    func `browser import uses the shared order and filters sessions without sessionid`() throws {
+        #expect(ReplicateCookieImporter.resolvedImportOrder(nil) == Browser.defaultImportOrder)
+        #expect(ReplicateCookieImporter.resolvedImportOrder([]) == Browser.defaultImportOrder)
         #expect(ReplicateCookieImporter.resolvedImportOrder([.firefox, .chrome]) == [.firefox, .chrome])
         let session = try #require(HTTPCookie(properties: [
             .domain: "replicate.com",

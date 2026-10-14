@@ -201,15 +201,16 @@ jobs:
         id: build-context
         run: python3 Scripts/ci_swiftpm_cache.py context --lane macos26-arm64
 
+      # Restore existing caches only: ordinary CI never uploads cache storage.
       - name: Restore SwiftPM build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             .build
             ~/Library/Caches/org.swift.swiftpm
-          # Keyed on dependency state: saves once per Package.resolved change,
-          # and partial hits (restore-keys) still carry the dependency builds,
-          # which dominate the cold-build time.
+          # Reuse dependency builds from existing keys; partial hits carry
+          # older dependency builds, which dominate the cold-build time.
+          # Restore-only intentionally does not refresh or create caches.
           key: swiftpm-macos26-arm64-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
             swiftpm-macos26-arm64-
@@ -357,18 +358,42 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/CodexBarMobile.xcresult" \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload iOS test result bundle
+      # Logs and job summaries do not use billable artifact storage. Keep the
+      # simulator test command and its failure status as the required gate.
+      - name: Summarize failed iOS tests without artifact storage
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: CodexBarMobile-xcresult
-          path: ${{ runner.temp }}/CodexBarMobile.xcresult
+        shell: bash
+        run: |
+          result_bundle="$RUNNER_TEMP/CodexBarMobile.xcresult"
+          if [[ ! -d "$result_bundle" ]]; then
+            echo 'No iOS result bundle was produced; inspect the test step log.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          summary="$RUNNER_TEMP/ios-test-summary.json"
+          if xcrun xcresulttool get test-results summary --path "$result_bundle" --compact > "$summary"; then
+            python3 - "$summary" <<'PYTHON'
+          import os
+          import sys
+
+          # Bound diagnostic output; the complete xcodebuild log remains available.
+          with open(sys.argv[1], "rb") as source:
+              summary = source.read(65536).decode("utf-8", errors="ignore")
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+              output.write("### Failed iOS test summary\n\n```json\n")
+              output.write(summary)
+              output.write("\n```\n\nSee the iOS simulator test step for the full log.\n")
+          PYTHON
+          else
+            echo 'Result summary unavailable; inspect the iOS test step log.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   swift-build-macos-compatibility:
     needs: changes
     if: ${{ needs.changes.outputs.macos-tests == 'true' }}
     runs-on: macos-15
-    timeout-minutes: 30
+    # Cold Swift test and widget builds both run here; retain enough time for both gates.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -390,7 +415,7 @@ jobs:
         run: python3 Scripts/ci_swiftpm_cache.py context --lane macos15-arm64
 
       - name: Restore Xcode 26.3 compatibility build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             .build

@@ -207,7 +207,7 @@ extension UsageMenuCardView.Model {
                 resetStyle: input.resetTimeDisplayStyle,
                 now: input.now)
         }
-        if input.provider == .claude, input.showOptionalCreditsAndExtraUsage,
+        if input.provider == .claude,
            let credits = input.snapshot?.claudeResetCredits
         {
             return CodexResetCreditsPresentation.make(

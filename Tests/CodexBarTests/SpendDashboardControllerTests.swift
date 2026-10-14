@@ -1041,6 +1041,7 @@ struct SpendDashboardControllerRevisionTests {
             suiteName: "SpendDashboardControllerTests-completeness-revision-baseline")
         let mutations: [(String, CostUsageTokenSnapshot)] = [
             ("history coverage", Self.completenessSnapshot(historyCoverageIsEstablished: false)),
+            ("detail completeness", Self.completenessSnapshot(detailsAreComplete: true)),
             ("last 30 day tokens", Self.completenessSnapshot(last30DaysTokens: 1)),
             ("last 30 day cost", Self.completenessSnapshot(last30DaysCostUSD: 1)),
             ("entry input tokens", Self.completenessSnapshot(entryInputTokens: 1)),
@@ -1061,6 +1062,14 @@ struct SpendDashboardControllerRevisionTests {
                 suiteName: "SpendDashboardControllerTests-completeness-revision-\(index)")
             #expect(revision != baselineRevision, "\(mutation.0) must affect the snapshot revision")
         }
+
+        let projectRevision = Self.sourceRevision(
+            snapshot: Self.completenessSnapshot(projects: [Self.revisionProject(isProjectless: false)]),
+            suiteName: "SpendDashboardControllerTests-project-revision")
+        let projectlessRevision = Self.sourceRevision(
+            snapshot: Self.completenessSnapshot(projects: [Self.revisionProject(isProjectless: true)]),
+            suiteName: "SpendDashboardControllerTests-projectless-revision")
+        #expect(projectRevision != projectlessRevision, "project ownership must affect the snapshot revision")
     }
 
     @Test
@@ -1191,6 +1200,8 @@ struct SpendDashboardControllerRevisionTests {
     private static func completenessSnapshot(
         date: String = "2026-07-15",
         historyCoverageIsEstablished: Bool = true,
+        detailsAreComplete: Bool = false,
+        projects: [CostUsageProjectBreakdown] = [],
         last30DaysTokens: Int? = 0,
         last30DaysCostUSD: Double? = 0,
         entryInputTokens: Int? = nil,
@@ -1231,7 +1242,20 @@ struct SpendDashboardControllerRevisionTests {
             last30DaysCostUSD: last30DaysCostUSD,
             historyCoverageIsEstablished: historyCoverageIsEstablished,
             daily: [entry],
+            projects: projects,
+            detailsAreComplete: detailsAreComplete,
             updatedAt: Date(timeIntervalSince1970: 1_784_179_200))
+    }
+
+    private static func revisionProject(isProjectless: Bool) -> CostUsageProjectBreakdown {
+        CostUsageProjectBreakdown(
+            name: "Example project",
+            path: "/example/project",
+            totalTokens: 1,
+            totalCostUSD: 0,
+            daily: [],
+            modelBreakdowns: nil,
+            isProjectless: isProjectless)
     }
 
     private static func input(

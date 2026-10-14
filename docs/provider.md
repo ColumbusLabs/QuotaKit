@@ -24,8 +24,8 @@ This doc describes the **current provider architecture** and the exact steps to 
 - **Identity fields**: email/org/plan/loginMethod. Must stay **siloed per provider**.
 
 ## Architecture overview (now)
-- `Sources/QuotaKitCore`: provider descriptors + fetch strategies + probes + parsing + shared utilities.
-- `Sources/QuotaKit`: UI/state + provider implementations (settings/login/menu hooks only).
+- `Sources/CodexBarCore`: provider descriptors + fetch strategies + probes + parsing + shared utilities.
+- `Sources/CodexBar`: UI/state + provider implementations (settings/login/menu hooks only).
 - Provider IDs are compile-time: `UsageProvider` enum (used for persistence + widgets).
 - Provider wiring is descriptor-driven:
   - `ProviderDescriptor` owns labels, URLs, default enablement, and fetch pipeline.
@@ -35,17 +35,27 @@ This doc describes the **current provider architecture** and the exact steps to 
 Common building blocks already exist:
 - PTY: `TTYCommandRunner`
 - subprocess: `SubprocessRunner`
-- cookie import: `BrowserCookieImporter` (Safari/Chrome/Firefox adapters)
+- cookie import: `BrowserCookieImportSupport` and the shared supported-browser catalog
 - OpenAI dashboard web scrape: `OpenAIDashboardFetcher` (WKWebView + JS)
 - cost usage: local log scanner (Codex + Claude)
 
 Browser discovery policy belongs to the provider. Use `ChromiumLocalStorageDiscovery.defaultBrowsers` for
 catalog-derived Chromium storage discovery; the shared traversal handles localStorage, sessionStorage, and
-origin-filtered IndexedDB. For intentionally Chrome-only cookie imports, use
-`BrowserCookieImportSupport.chromeOnly(reason:)` with the provider's reason for avoiding unrelated browser prompts.
-Copilot budgets, Grok, Helmcode, Notion, Qoder, Replicate, TypeSafe, Venice, and ZoomMate retain this restricted
-default. A shared catalog is not permission to widen a provider's documented browser or credential scope.
-Muse (muse.ai) uses the catalog's default browser order, including Aside, Opera, and Opera Neon with SweetCookieKit 0.5.5.
+origin-filtered IndexedDB. Cookie imports use `ProviderBrowserCookieDefaults.defaultImportOrder`, the shared catalog
+order. Keep that metadata non-nil on macOS so web providers participate in `quotakit cookie refresh` and `--all`.
+`BrowserCookieAccessGate` keeps background and settings-triggered refreshes noninteractive. A manual refresh can make
+at most one interactive Keychain read across the action; denials retain the six-hour browser and Chromium-family
+cooldown, which only `quotakit cookie refresh --allow-keychain-prompt` explicitly overrides. Before requesting Safe
+Storage, imports check whether the profile has cookies for the provider's hosts. Candidate traversal is lazy: validate
+one browser's sessions before reading another, and stop on the first working session.
+
+Safari needs filesystem access (potentially Full Disk Access), while Firefox and Zen use unencrypted cookie stores;
+none needs a Safe Storage Keychain grant. If macOS denies a profile read, direct users to **System Settings → Privacy &
+Security → Files & Folders → QuotaKit**. A denied or unavailable store remains skippable. Manual cookies stay pinned to
+the supplied session, Off disables cookie access, and provider cache behavior remains provider-specific. Restrict a
+provider to a browser subset only with a documented technical reason next to the code. WorkBuddy retains Chrome
+because its sessions bind to the Chrome User-Agent supplied by the host; Devin reads Chromium local storage rather
+than cookies. Preserve explicit browser/profile pickers and full-catalog preferred orderings.
 Plugin cookie settings display the provider's catalog-derived supported-browser names and a Manual fallback. Use the
 same `ctx.browser.supportedBrowsers` names in plugin sign-in guidance; do not maintain a second browser-name list.
 
@@ -64,6 +74,12 @@ Credential and config behavior follows the descriptor boundary too. Providers wi
 diagnose classification, validation, and missing-credential messaging; a missing adapter means the provider has no
 credential behavior. Typed settings-section registrations optionally expose cookie settings and a CLI credential
 contribution, so the app, CLI, and plugin cookie broker consume the same provider-owned settings shape.
+
+Automatic cookie traversal reads one browser at a time in the provider's existing order. Fetchers validate
+its candidate sessions before requesting another browser; missing or rejected sessions retain fallback.
+The plugin broker applies the same rule to both header and cookie-jar imports, while explicit browser/profile
+selections remain isolated. Public exhaustive import APIs retain their array return types; live fetches consume
+lazy candidates instead.
 
 ### Provider architecture gatekeeper threat model
 
@@ -138,13 +154,13 @@ Expose a narrow set of protocols/structs that provider implementations can use:
 Rule: providers do not talk to `FileManager`, `Security`, or “browser internals” directly unless they *are* the host API implementation.
 
 ## Provider-specific code layout
-- `Sources/QuotaKitCore/Providers/<ProviderID>/`
+- `Sources/CodexBarCore/Providers/<ProviderID>/`
   - `<ProviderID>Descriptor.swift` (descriptor + strategy pipeline)
   - `<ProviderID>Strategies.swift` (strategy implementations)
   - `<ProviderID>Probe.swift` / `<ProviderID>Fetcher.swift`
   - `<ProviderID>Models.swift`
   - `<ProviderID>Parser.swift` (if text/HTML parsing)
-- `Sources/QuotaKit/Providers/<ProviderID>/`
+- `Sources/CodexBar/Providers/<ProviderID>/`
   - `<ProviderID>ProviderImplementation.swift` (settings/login UI hooks only)
 
 ## Minimal provider example (copy-paste)

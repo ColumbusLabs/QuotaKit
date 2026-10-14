@@ -25,12 +25,6 @@ struct UsageMenuCardView: View {
         }
 
         struct Metric: Identifiable {
-            struct LinePresentation: Equatable {
-                let titleText: String
-                var resetText: String?
-                let metaText: String?
-            }
-
             let id: String
             let title: String
             var percent: Double
@@ -49,6 +43,7 @@ struct UsageMenuCardView: View {
             let workdayTickAppearance: WorkdayTickAppearance
             let cardStyle: Bool
             var sessionEquivalentDetail: UsagePaceText.SessionEquivalentDetail?
+            var helpText: String?
 
             init(
                 id: String,
@@ -67,7 +62,8 @@ struct UsageMenuCardView: View {
                 workdayMarkerPercents: [Double] = [],
                 workdayTickAppearance: WorkdayTickAppearance = .subtle,
                 cardStyle: Bool = false,
-                sessionEquivalentDetail: UsagePaceText.SessionEquivalentDetail? = nil)
+                sessionEquivalentDetail: UsagePaceText.SessionEquivalentDetail? = nil,
+                helpText: String? = nil)
             {
                 self.id = id
                 self.title = title
@@ -86,29 +82,11 @@ struct UsageMenuCardView: View {
                 self.workdayTickAppearance = workdayTickAppearance
                 self.cardStyle = cardStyle
                 self.sessionEquivalentDetail = sessionEquivalentDetail
+                self.helpText = helpText
             }
 
             var percentLabel: String {
                 UsageFormatter.percentText(self.percent, suffix: self.percentStyle.labelSuffix)
-            }
-
-            func linePresentation(title: String) -> LinePresentation {
-                // Keep the title aligned with the configured used/remaining label semantics.
-                let metaParts = [
-                    self.detailLeftText,
-                    self.detailRightText,
-                    self.sessionEquivalentDetail?.leftText,
-                    self.sessionEquivalentDetail?.rightText,
-                ].compactMap { text -> String? in
-                    guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-                        return nil
-                    }
-                    return text
-                }
-                return LinePresentation(
-                    titleText: "\(title) \(self.percentLabel)",
-                    resetText: self.resetText,
-                    metaText: metaParts.isEmpty ? nil : metaParts.joined(separator: " · "))
             }
         }
 
@@ -174,10 +152,11 @@ struct UsageMenuCardView: View {
         let planText: String?
         var planEmphasis: PlanEmphasis = .none
         var metrics: [Metric]
-        let usageNotes: [String]
+        var usageNotes: [String]
         var subscriptionNotes: [String] = []
         var providerDetails: [ProviderDetailSection] = []
         var providerDetailRawTitles: [String?] = []
+        var throughput: ProviderThroughputSection?
         let openAIAPIUsage: OpenAIAPIUsageSnapshot?
         let inlineUsageDashboard: InlineUsageDashboardModel?
         var creditsText: String?
@@ -188,7 +167,7 @@ struct UsageMenuCardView: View {
         var creditsHintCopyText: String?
         var codexResetCredits: CodexResetCreditsPresentation?
         var cloudCredits: ProviderCostSection?
-        let providerCost: ProviderCostSection?
+        var providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
         let placeholder: String?
         let progressColor: Color
@@ -222,8 +201,20 @@ struct UsageMenuCardView: View {
             }
 
             if !liveModel.usesStackedDetailLayout {
+                if liveModel.showsChartSwitch, let throughput = liveModel.throughput,
+                   let dashboard = liveModel.inlineUsageDashboard
+                {
+                    ProviderMenuChartContent(
+                        provider: liveModel.provider.instanceID,
+                        throughput: throughput,
+                        dashboard: dashboard,
+                        color: liveModel.progressColor)
+                        .id(liveModel.provider.instanceID)
+                } else if let throughput = liveModel.throughput {
+                    ProviderThroughputContent(section: throughput, color: liveModel.progressColor)
+                }
                 if let dashboard = liveModel.inlineUsageDashboard {
-                    InlineUsageDashboardContent(model: dashboard)
+                    InlineUsageDashboardContent(model: dashboard, showsChart: !liveModel.showsChartSwitch)
                 } else if !liveModel.usageNotes.isEmpty {
                     UsageNotesContent(notes: liveModel.usageNotes)
                 } else if let placeholder = liveModel.placeholder {
@@ -264,7 +255,7 @@ struct UsageMenuCardView: View {
                             progressColor: liveModel.progressColor)
                     }
                     if liveModel.creditsOnlyInlineUsageDashboard, let dashboard = liveModel.inlineUsageDashboard {
-                        InlineUsageDashboardContent(model: dashboard)
+                        InlineUsageDashboardContent(model: dashboard, showsChart: !liveModel.showsChartSwitch)
                     }
                     if hasCredits, hasCost {
                         Divider()
@@ -337,31 +328,32 @@ private struct UsageMenuCardHeaderView: View {
                     .lineLimit(1).truncationMode(.middle)
             }
             let liveSubtitle = self.liveSubtitle
+            let displayed = liveSubtitle.displayed(reservesStaleRow: self.model.lastKnownUsageText != nil)
             // Keep the geometry AppKit measured for this hosted row. A new error stays one line
             // until the next rebuild; a recovered error keeps its reserved height until then.
             let usesErrorLayout = self.model.subtitleStyle == .error
             let subtitleAlignment: VerticalAlignment = usesErrorLayout ? .top : .firstTextBaseline
             HStack(alignment: subtitleAlignment, spacing: UsageMenuCardLayout.headerColumnSpacing) {
                 if usesErrorLayout {
-                    Text(self.model.subtitleText)
+                    Text(MenuInlineCodeText.attributed(self.model.subtitleText))
                         .font(.footnote)
-                        .lineLimit(4)
+                        .lineLimit(3)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 4)
                         .hidden()
                         .overlay(alignment: .topLeading) {
-                            Text(liveSubtitle.text)
+                            Text(MenuInlineCodeText.attributed(displayed.subtitle))
                                 .font(.footnote)
                                 .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
-                                .lineLimit(4)
+                                .lineLimit(3)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .clipped()
                         .layoutPriority(1)
                 } else {
-                    Text(liveSubtitle.text)
+                    Text(MenuInlineCodeText.attributed(displayed.subtitle))
                         .font(.footnote)
                         .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
                         .lineLimit(1)
@@ -376,6 +368,7 @@ private struct UsageMenuCardHeaderView: View {
                         copyText: liveSubtitle.text,
                         isHighlighted: self.isHighlighted,
                         isInteractive: showsCopyButton)
+                        .offset(y: -6)
                         .opacity(showsCopyButton ? 1 : 0)
                         .allowsHitTesting(showsCopyButton)
                         .accessibilityHidden(!showsCopyButton)
@@ -400,17 +393,24 @@ private struct UsageMenuCardHeaderView: View {
                     .layoutPriority(2)
                 }
             }
-            if let lastKnownUsageText = self.model.lastKnownUsageText {
-                Text(lastKnownUsageText)
+            if let reservedStaleText = self.model.lastKnownUsageText {
+                Text(displayed.staleRow ?? reservedStaleText)
+                    .opacity(displayed.staleRow == nil ? 0 : 1)
+                    .accessibilityHidden(displayed.staleRow == nil)
                     .font(.footnote)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private var liveSubtitle: MenuCardLiveSubtitle {
-        let fallback = MenuCardLiveSubtitle(text: self.model.subtitleText, style: self.model.subtitleStyle)
+        let fallback = MenuCardLiveSubtitle(
+            text: self.model.subtitleText,
+            style: self.model.subtitleStyle,
+            lastKnownUsageText: self.model.lastKnownUsageText)
         guard self.model.usesLiveSubtitle else { return fallback }
         return self.refreshMonitor?.subtitle(for: self.model.provider, fallback: fallback) ?? fallback
     }
@@ -637,6 +637,11 @@ private struct UsageMenuCardUsageContentView: View {
             } else {
                 self.metricRows(self.model.metrics)
             }
+            if !self.model.quotaSubscriptionNotes.isEmpty,
+               self.model.showsOverviewSupplementalContent(compact: self.compactMetrics)
+            {
+                UsageNotesContent(notes: self.model.quotaSubscriptionNotes)
+            }
             if let resetCredits = self.model.codexResetCredits {
                 if !self.model.metrics.isEmpty, self.showsSectionDividers {
                     Divider()
@@ -662,13 +667,25 @@ private struct UsageMenuCardUsageContentView: View {
 
     @ViewBuilder
     private var supplementalContent: some View {
+        if self.model.showsChartSwitch, let throughput = self.model.throughput,
+           let dashboard = self.model.inlineUsageDashboard
+        {
+            ProviderMenuChartContent(
+                provider: self.model.provider.instanceID,
+                throughput: throughput,
+                dashboard: dashboard,
+                color: self.model.progressColor)
+                .id(self.model.provider.instanceID)
+        } else if let throughput = self.model.throughput {
+            ProviderThroughputContent(section: throughput, color: self.model.progressColor)
+        }
         if let dashboard = self.model.inlineUsageDashboard {
-            InlineUsageDashboardContent(model: dashboard)
-            if !self.model.subscriptionNotes.isEmpty {
+            InlineUsageDashboardContent(model: dashboard, showsChart: !self.model.showsChartSwitch)
+            if self.model.quotaSubscriptionNotes.isEmpty, !self.model.subscriptionNotes.isEmpty {
                 UsageNotesContent(notes: self.model.subscriptionNotes)
             }
-        } else if !self.model.usageNotes.isEmpty {
-            UsageNotesContent(notes: self.model.usageNotes)
+        } else if !self.model.supplementalUsageNotes.isEmpty {
+            UsageNotesContent(notes: self.model.supplementalUsageNotes)
         } else if let placeholder = self.model.placeholder, self.model.metrics.isEmpty,
                   self.model.codexResetCredits == nil, self.model.cloudCredits == nil
         {
@@ -918,6 +935,7 @@ extension UsageMenuCardView.Model {
             style: providerCostStyle,
             isClaudeAdminAPI: isClaudeAdminAPI) && !menuCard.providerCostIsRequiredUsage
         let providerCost: ProviderCostSection? = if !showsProviderCost ||
+            metrics.contains(where: { $0.id == "claude-extra-usage" }) ||
             (providerCostFollowsSummaryStyle && !input.costSummaryInlineEnabled)
         {
             nil
@@ -969,6 +987,9 @@ extension UsageMenuCardView.Model {
             subscriptionNotes: Self.subscriptionMetadataNotes(snapshot: input.snapshot, provider: input.provider),
             providerDetails: providerDetailPresentation.sections,
             providerDetailRawTitles: providerDetailPresentation.rawTitles,
+            throughput: input.snapshot?.throughput.map {
+                ProviderThroughputSection(snapshot: $0, presentation: input.throughputPresentation)
+            },
             openAIAPIUsage: openAIAPIUsage,
             inlineUsageDashboard: inlineUsageDashboard,
             creditsText: creditsText,

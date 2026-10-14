@@ -14,7 +14,7 @@ LongCat reads quota data from an authenticated `longcat.chat` web session. It do
 
 - A manual cookie header can be entered in Settings → Providers → LongCat or supplied through
   `LONGCAT_MANUAL_COOKIE`.
-- Automatic mode can import supported browser cookies during a user-initiated refresh.
+- Automatic mode imports cookies in the shared supported-browser order during a user-initiated refresh.
 
 ## Request sequence
 

@@ -18,7 +18,7 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 - **Auto**: Grok CLI, then SuperGrok OAuth CLI-proxy, then browser cookies, then bearer gRPC.
 - **Grok CLI**: `grok agent stdio` only.
 - **SuperGrok OAuth**: `~/.grok/auth.json` or a pasted bearer / `GROK_OAUTH_TOKEN`. CLI-proxy credits, then bearer gRPC. No cookies.
-- **Browser cookies**: grok.com Cookie header / Chrome import only. No OAuth bearer.
+- **Browser cookies**: grok.com Cookie header / supported-browser import. No OAuth bearer.
 - Token accounts classify at fetch time: bearer → OAuth, `Cookie:` / `name=value` → cookies, `xai-` management keys rejected.
 - Selecting a SuperGrok token account remaps Auto to OAuth or Web so it cannot hit an empty `.oauth` pipeline.
 
@@ -99,8 +99,7 @@ generation, account selection, and usage timestamp still match.
    - Uses grok.com browser session cookies. When a non-expired
      `~/.grok/auth.json` token is available, QuotaKit first sends it with each
      browser session, then retries that session with cookies only.
-   - QuotaKit imports Chrome only by default to avoid unrelated browser
-     Keychain prompts.
+   - QuotaKit imports cookies in the shared supported-browser order; the shared access gate bounds Keychain prompts.
    - Ordinary CLI/test runtime does not import browser cookies unless
      `CODEXBAR_ALLOW_BROWSER_COOKIE_IMPORT=1` is set. An explicit
      `quotakit cookie refresh --provider grok` also opts in for that refresh.
@@ -166,8 +165,7 @@ weekly cycle.
   accounts or set `GROK_OAUTH_TOKEN`. Cookie-shaped values and `xai-` management
   keys are rejected. The pasted token uses the same CLI-proxy credits URL.
 - Settings also expose a cookie source (Auto / Manual / Off). Manual accepts a
-  grok.com Cookie header when Chrome Safe Storage is denied. Auto still imports
-  Chrome only.
+  grok.com Cookie header when browser access is unavailable. Auto imports from the shared browser catalog.
 - Credits `subscriptionTier` maps SuperGrok vs SuperGrok Heavy on the plan badge.
   SuperGrok Heavy with no `creditUsagePercent` is unknown usage, not 0%.
 

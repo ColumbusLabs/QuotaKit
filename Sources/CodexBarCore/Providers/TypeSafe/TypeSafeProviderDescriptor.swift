@@ -11,16 +11,6 @@ public enum TypeSafeProviderDescriptor {
         requiresManualCookieSource: true,
         cookieName: nil))
 
-    /// Chrome-only by default to avoid extra Firefox/Safari Keychain and Full Disk Access prompts.
-    /// Use Manual cookie source for other browsers.
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
-
     static func makeDescriptor(
         transport: any ProviderHTTPTransport = TypeSafeWebFetchStrategy.isolatedTransport) -> ProviderDescriptor
     {
@@ -46,7 +36,7 @@ public enum TypeSafeProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://console.typesafe.ai/usage",
                 statusPageURL: nil),
             branding: ProviderBranding(

@@ -179,6 +179,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let clawRouterUsage: ClawRouterUsageSnapshot?
     public let sub2APIUsage: Sub2APIUsageDetails?
     public let wayfinderUsage: WayfinderUsageSnapshot?
+    public let throughput: ProviderThroughputSnapshot?
     public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
     public let bedrockUsage: BedrockUsageSnapshot?
     public let groqConsoleUsage: GroqConsoleUsageSnapshot?
@@ -240,6 +241,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case clawRouterUsage
         case sub2APIUsage
         case wayfinderUsage
+        case throughput
         case openAIAPIUsage
         case bedrockUsage
         case groqConsoleUsage
@@ -294,6 +296,7 @@ public struct UsageSnapshot: Codable, Sendable {
         clawRouterUsage: ClawRouterUsageSnapshot? = nil,
         sub2APIUsage: Sub2APIUsageDetails? = nil,
         wayfinderUsage: WayfinderUsageSnapshot? = nil,
+        throughput: ProviderThroughputSnapshot? = nil,
         openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
         bedrockUsage: BedrockUsageSnapshot? = nil,
         groqConsoleUsage: GroqConsoleUsageSnapshot? = nil,
@@ -354,6 +357,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.clawRouterUsage = clawRouterUsage
         self.sub2APIUsage = sub2APIUsage
         self.wayfinderUsage = wayfinderUsage
+        self.throughput = throughput
         self.openAIAPIUsage = openAIAPIUsage
         self.bedrockUsage = bedrockUsage
         self.groqConsoleUsage = groqConsoleUsage
@@ -469,6 +473,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.clawRouterUsage = try? container.decodeIfPresent(ClawRouterUsageSnapshot.self, forKey: .clawRouterUsage)
         self.sub2APIUsage = try? container.decodeIfPresent(Sub2APIUsageDetails.self, forKey: .sub2APIUsage)
         self.wayfinderUsage = try? container.decodeIfPresent(WayfinderUsageSnapshot.self, forKey: .wayfinderUsage)
+        self.throughput = try? container.decodeIfPresent(ProviderThroughputSnapshot.self, forKey: .throughput)
         self.openAIAPIUsage = try? container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
         self.bedrockUsage = try? container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
         self.groqConsoleUsage = try? container.decodeIfPresent(
@@ -578,6 +583,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.clawRouterUsage, forKey: .clawRouterUsage)
         try container.encodeIfPresent(self.sub2APIUsage, forKey: .sub2APIUsage)
         try container.encodeIfPresent(self.wayfinderUsage, forKey: .wayfinderUsage)
+        try container.encodeIfPresent(self.throughput, forKey: .throughput)
         try container.encodeIfPresent(self.openAIAPIUsage, forKey: .openAIAPIUsage)
         try container.encodeIfPresent(self.bedrockUsage, forKey: .bedrockUsage)
         try container.encodeIfPresent(self.groqConsoleUsage, forKey: .groqConsoleUsage)
@@ -792,6 +798,7 @@ public struct UsageSnapshot: Codable, Sendable {
             clawRouterUsage: self.clawRouterUsage,
             sub2APIUsage: self.sub2APIUsage,
             wayfinderUsage: self.wayfinderUsage,
+            throughput: self.throughput,
             openAIAPIUsage: self.openAIAPIUsage,
             bedrockUsage: self.bedrockUsage,
             groqConsoleUsage: self.groqConsoleUsage,
@@ -1290,7 +1297,7 @@ private final class CodexRPCClient: @unchecked Sendable {
             method: "initialize",
             params: ["clientInfo": ["name": clientName, "version": clientVersion]],
             timeout: self.initializeTimeoutSeconds)
-        try self.sendNotification(method: "initialized")
+        try self.sendPayload(["method": "initialized", "params": [:]])
     }
 
     func fetchAccount() async throws -> RPCAccountResponse {
@@ -1321,7 +1328,7 @@ private final class CodexRPCClient: @unchecked Sendable {
     {
         let id = self.nextID
         self.nextID += 1
-        try self.sendRequest(id: id, method: method, params: params)
+        try self.sendPayload(["id": id, "method": method, "params": params ?? [:]])
 
         let resolvedTimeout = timeout ?? self.requestTimeoutSeconds
         let wrapped = try await self.withTimeout(seconds: resolvedTimeout, method: method) {
@@ -1368,17 +1375,6 @@ private final class CodexRPCClient: @unchecked Sendable {
         DispatchQueue.global(qos: .userInitiated).async {
             RPCChildProcessTeardown.terminate(process: process, stdin: stdin)
         }
-    }
-
-    private func sendNotification(method: String, params: [String: Any]? = nil) throws {
-        let paramsValue: Any = params ?? [:]
-        try self.sendPayload(["method": method, "params": paramsValue])
-    }
-
-    private func sendRequest(id: Int, method: String, params: [String: Any]?) throws {
-        let paramsValue: Any = params ?? [:]
-        let payload: [String: Any] = ["id": id, "method": method, "params": paramsValue]
-        try self.sendPayload(payload)
     }
 
     private func sendPayload(_ payload: [String: Any]) throws {

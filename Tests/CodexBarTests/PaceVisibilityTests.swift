@@ -51,6 +51,67 @@ struct PaceVisibilityTests {
             now: now)
     }
 
+    private static func spendOnlyInput(
+        now: Date,
+        metadata: ProviderMetadata,
+        paceVisible: Bool,
+        hidePersonalInfo: Bool = false) -> UsageMenuCardView.Model.Input
+    {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 25,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly cap",
+                updatedAt: now),
+            updatedAt: now)
+        return .init(
+            provider: .claude,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: hidePersonalInfo,
+            paceVisible: paceVisible,
+            now: now)
+    }
+
+    @Test
+    func `hiding pace preserves inferred monthly reset disclosure`() throws {
+        let now = Date(timeIntervalSince1970: 1_782_000_000)
+        let metadata = try #require(ProviderDefaults.metadata[.claude])
+        let model = UsageMenuCardView.Model.make(Self.spendOnlyInput(
+            now: now, metadata: metadata, paceVisible: false))
+        let metric = try #require(model.metrics.first { $0.id == "claude-extra-usage" })
+
+        #expect(metric.pacePercent == nil)
+        #expect(metric.helpText?.contains("00:00 UTC on the 1st") == true)
+    }
+
+    @Test
+    func `privacy redaction preserves inferred monthly reset disclosure`() throws {
+        let now = Date(timeIntervalSince1970: 1_782_000_000)
+        let metadata = try #require(ProviderDefaults.metadata[.claude])
+        let model = UsageMenuCardView.Model.make(Self.spendOnlyInput(
+            now: now, metadata: metadata, paceVisible: true, hidePersonalInfo: true))
+        let metric = try #require(model.metrics.first { $0.id == "claude-extra-usage" })
+
+        #expect(metric.helpText?.contains("00:00 UTC on the 1st") == true)
+    }
+
     @Test
     func `pace stripe and text render when pace is visible`() throws {
         let now = Date()

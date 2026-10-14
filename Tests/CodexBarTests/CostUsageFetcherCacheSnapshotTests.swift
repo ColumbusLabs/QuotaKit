@@ -581,6 +581,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(cached?.snapshot.last30DaysTokens == 0)
         #expect(cached?.snapshot.last30DaysCostUSD == 0)
         #expect(cached?.snapshot.historyCoverageIsEstablished == true)
+        #expect(cached?.snapshot.detailsAreComplete == true)
         #expect(cached?.lastRefreshAt == scanTime)
         #expect(cached?.snapshot.daily.map(\.date) == ["2026-04-08"])
         #expect(cached?.snapshot.daily.first?.totalTokens == 0)
@@ -612,6 +613,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(legacy?.snapshot.daily.isEmpty == true)
         #expect(legacy?.snapshot.last30DaysCostUSD == 0)
         #expect(legacy?.snapshot.historyCoverageIsEstablished == true)
+        #expect(legacy?.snapshot.detailsAreComplete == true)
     }
 
     @Test
@@ -2342,6 +2344,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
         #expect(current?.projects.count == 1)
+        #expect(current?.detailsAreComplete == true)
 
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         cache.codexProjectMetadataVersion = nil
@@ -2354,6 +2357,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options)
         #expect(legacy?.sessionTokens == 42)
         #expect(legacy?.projects.isEmpty == true)
+        #expect(legacy?.detailsAreComplete == false)
     }
 
     @Test

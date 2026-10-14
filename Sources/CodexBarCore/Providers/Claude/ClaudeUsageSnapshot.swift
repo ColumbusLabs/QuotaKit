@@ -7,13 +7,7 @@ public protocol ClaudeUsageFetching: Sendable {
 }
 
 public struct ClaudeUsageSnapshot: Sendable {
-    public enum PrimaryWindowKind: Equatable, Sendable {
-        case usage
-        case spendLimit
-    }
-
-    public let primary: RateWindow
-    public let primaryWindowKind: PrimaryWindowKind
+    public let primary: RateWindow?
     public let secondary: RateWindow?
     public let opus: RateWindow?
     public let extraRateWindows: [NamedRateWindow]
@@ -44,8 +38,7 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let oauthKeychainCredentialUnavailable: Bool
 
     public init(
-        primary: RateWindow,
-        primaryWindowKind: PrimaryWindowKind = .usage,
+        primary: RateWindow?,
         secondary: RateWindow?,
         opus: RateWindow?,
         extraRateWindows: [NamedRateWindow] = [],
@@ -66,7 +59,6 @@ public struct ClaudeUsageSnapshot: Sendable {
         accountID: String? = nil)
     {
         self.primary = primary
-        self.primaryWindowKind = primaryWindowKind
         self.secondary = secondary
         self.opus = opus
         self.extraRateWindows = extraRateWindows

@@ -33,14 +33,6 @@ public enum HyperProviderDescriptor {
         return raw
     }
 
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
-
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .hyper,
@@ -61,7 +53,7 @@ public enum HyperProviderDescriptor {
                 defaultEnabled: false,
                 widgetSelectable: false,
                 balanceOnly: true,
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://hyper.charm.land",
                 statusPageURL: nil),
             branding: ProviderBranding(

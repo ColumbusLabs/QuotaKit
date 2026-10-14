@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 
 enum OpenCodeWebCookieSupport {
     /// `auth` serves the legacy pages and server functions. The console signs requests with its own
@@ -56,7 +57,7 @@ enum OpenCodeWebCookieSupport {
 
     #if os(macOS)
     static func automaticImportOrder(provider: UsageProvider) -> BrowserCookieImportOrder {
-        ProviderDefaults.metadata[provider]?.browserCookieOrder ?? [.chrome]
+        ProviderDefaults.metadata[provider]?.browserCookieOrder ?? Browser.defaultImportOrder
     }
     #endif
 }

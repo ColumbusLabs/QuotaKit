@@ -23,6 +23,7 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .azureopenai, environmentKey: "AZURE_OPENAI_API_KEY"),
             .init(provider: .claude, environmentKey: "ANTHROPIC_ADMIN_KEY"),
             .init(provider: .clinepass, environmentKey: "CLINE_API_KEY"),
+            .init(provider: .commandcode, environmentKey: "COMMAND_CODE_API_KEY"),
             .init(provider: .zai, environmentKey: "Z_AI_API_KEY"),
             .init(provider: .minimax, environmentKey: "MINIMAX_API_KEY"),
             .init(provider: .alibaba, environmentKey: "ALIBABA_CODING_PLAN_API_KEY"),

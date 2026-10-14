@@ -218,6 +218,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "7465d609f5f2dcfb", // Opt-in export observers preserve QuotaKit saved rows and checkpoints.
         "652f5d14be9ccccf", // Revision 13 captures creator eligibility through bounded reparsing; retains ledger
         // history.
         "1718c75982e86913", // Optional turn timing/tool inspection retains QuotaKit rows and checkpoints.

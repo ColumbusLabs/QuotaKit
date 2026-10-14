@@ -20,8 +20,7 @@ public enum XAPIProviderDescriptor {
         history: .unavailable,
         webSource: .init(
             settingsSection: .init(XAPIProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),
-            browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                reason: "X API imports only Chrome to avoid unrelated browser prompts."),
+            browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
             timeout: .fixed(30),
             browserSupportExemption: { _, _, settings in
                 settings?[XAPIProviderSettingsKey.self]?.cookieSource == .manual
@@ -35,7 +34,7 @@ public enum XAPIProviderDescriptor {
             picker: .init(
                 id: "xapi-cookie-source",
                 allowsOff: true,
-                auto: .literal("Import a signed-in X developer console session from Chrome."),
+                auto: .literal("Import a signed-in X developer console session from your browser."),
                 manual: .literal("Paste console cookies from the same session."),
                 off: .literal("X API cookies are disabled."),
                 showsRefreshAction: true),

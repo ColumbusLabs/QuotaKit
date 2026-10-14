@@ -38,6 +38,18 @@ struct ProviderConfigByteStabilityTests {
     }
 
     @Test
+    func `Claude visibility migration marker is excluded from fetch identity`() throws {
+        var before = ProviderConfig(id: .claude, apiKey: "fictitious-test-key")
+        var after = before
+        after.claudeResetCreditsVisibilityMigrated = true
+        #expect(try JSONEncoder().encode(before.fetchIdentityConfig) ==
+            JSONEncoder().encode(after.fetchIdentityConfig))
+        before.claudeResetCreditsVisibilityMigrated = false
+        #expect(try JSONEncoder().encode(before.fetchIdentityConfig) ==
+            JSONEncoder().encode(after.fetchIdentityConfig))
+    }
+
+    @Test
     func `presentation preferences are excluded from fetch identity`() throws {
         let configured = ProviderConfig(
             id: .codex,

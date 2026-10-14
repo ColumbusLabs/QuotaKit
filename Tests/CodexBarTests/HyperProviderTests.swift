@@ -45,7 +45,7 @@ struct HyperProviderTests {
         #expect(fixture.snapshot.identity?.loginMethod == "Browser session")
         #expect(fixture.cookieResolverCalls.value == 1)
         #expect(fixture.requests.values.count == 1)
-        #expect(fixture.requests.values[0].url == "https://hyper.charm.land/v1/credits")
+        #expect(fixture.requests.values[0].url == "https://hyper.charm.land/")
         #expect(fixture.requests.values[0].method == "GET")
         #expect(fixture.requests.values.first?.cookie == "session=fixture")
         #expect(fixture.requests.values.first?.authorization == nil)
@@ -272,7 +272,6 @@ struct HyperProviderTests {
         cookie: String? = nil,
         manualCookie: String? = nil,
         sessionStatus: Int = 200,
-        sessionHTML: Bool = false,
         apiStatus: Int = 200) async throws -> FetchFixture
     {
         let requests = HyperRequestRecorder()
@@ -286,13 +285,24 @@ struct HyperProviderTests {
                 method: request.httpMethod ?? "",
                 cookie: request.value(forHTTPHeaderField: "Cookie"),
                 authorization: request.value(forHTTPHeaderField: "Authorization")))
+            let responseURL: URL
+            if isSession && sessionStatus == 200 {
+                let dashboardURL = URL(
+                    string: "https://hyper.charm.land/teams/00000000-0000-0000-0000-000000000001")
+                responseURL = try #require(dashboardURL)
+            } else {
+                responseURL = url
+            }
             let response = try #require(HTTPURLResponse(
-                url: url,
+                url: responseURL,
                 statusCode: isSession ? sessionStatus : apiStatus,
                 httpVersion: nil,
-                headerFields: ["Content-Type": isSession && sessionHTML ? "text/html; charset=utf-8" :
-                    "application/json"]))
-            let responseBody = isSession && sessionHTML ? "<html>Log in</html>" : body
+                headerFields: ["Content-Type": isSession ? "text/html; charset=utf-8" : "application/json"]))
+            let responseBody = isSession
+                ? (sessionStatus == 200
+                    ? "<div>Hypercredits Available</div><div class=\"text-5xl font-bold\">42.5</div>"
+                    : "<html>Log in</html>")
+                : body
             return (Data(responseBody.utf8), response)
         }
         let pluginURL = try #require(CodexBarCoreResources.bundle?.url(forResource: "hyper", withExtension: "js"))

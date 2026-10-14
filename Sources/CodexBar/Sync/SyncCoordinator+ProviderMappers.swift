@@ -358,20 +358,9 @@ extension SyncCoordinator {
         providerCost: ProviderCostSnapshot?) -> SyncClaudeExtraUsage?
     {
         guard provider == .claude else { return nil }
-        // Claude extra-usage / spend-limit reaches `UsageSnapshot` via
-        // two paths today and neither is structured:
-        //   - OAuth → a RateWindow with `primaryWindowKind = .spendLimit`
-        //     inside `ClaudeUsageFetcher` that gets flattened to the
-        //     primary RateWindow before it lands on `UsageSnapshot`.
-        //   - Web cookies → a `providerCost` with USD currency and
-        //     `period` like "Last month" / "This month".
-        //
-        // We heuristically synthesise an envelope from `providerCost`
-        // when either used + limit or a prepaid balance is present in USD. The
-        // brittle OAuth path is deferred to a follow-up that adds a
-        // structured field on `UsageSnapshot` to avoid string sniffing.
-        // Until then, OAuth-only Claude accounts continue to surface
-        // the spend-limit metric via the existing primary RateWindow.
+        // OAuth, CLI and Web sources report actual monthly financial limits or
+        // prepaid balances through providerCost. Spend-only accounts can have
+        // no primary quota window; keep their billing envelope independent.
         guard let cost = providerCost,
               cost.currencyCode.caseInsensitiveCompare("USD") == .orderedSame,
               cost.limit > 0 || cost.balance != nil

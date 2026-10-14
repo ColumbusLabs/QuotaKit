@@ -41,6 +41,7 @@ struct PluginProviderSpecTests {
             (.ollama, "Cookie source"),
             (.copilot, "GitHub cookies"),
             (.zed, "Cookie source"),
+            (.parallel, "Cookie source"),
         ]
         for (provider, title) in cookiePickers {
             let implementation = try #require(ProviderCatalog.implementation(for: provider))
@@ -274,6 +275,18 @@ struct PluginProviderSpecTests {
             NewProviderSpecExpectation(
                 provider: .sofya,
                 displayName: "Sofya",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .fal,
+                displayName: "fal",
+                balanceOnly: true,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .flora,
+                displayName: "FLORA",
                 balanceOnly: true,
                 allowsBurnDown: false,
                 sourceModes: [.auto, .api]),

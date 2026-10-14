@@ -957,6 +957,7 @@ public struct CostUsageFetcher: Sendable {
             costProvenance: .listPriceEstimate,
             projects: scanResult.inclusive.projects,
             sessions: scanResult.inclusive.sessions,
+            detailsAreComplete: scanResult.inclusive.detailsAreComplete,
             updatedAt: scanResult.inclusive.staleSnapshotUpdatedAt)
         // Provider-specific by design: native projections exist for the two transcript families.
         let accounting: PiSnapshotAccounting? = if let scope = scanResult.piScope {
@@ -969,6 +970,7 @@ public struct CostUsageFetcher: Sendable {
                 costProvenance: .listPriceEstimate,
                 projects: scanResult.native.projects,
                 sessions: scanResult.native.sessions,
+                detailsAreComplete: scanResult.native.detailsAreComplete,
                 updatedAt: scanResult.native.staleSnapshotUpdatedAt))
         } else if provider == .codex || provider == .claude {
             .nativeOnly
@@ -984,6 +986,7 @@ public struct CostUsageFetcher: Sendable {
         let sessions: [CostUsageSessionBreakdown]
         let staleSnapshotUpdatedAt: Date?
         let historyCoverageIsEstablished: Bool
+        let detailsAreComplete: Bool
         let historySinceDayKey: String
         let historyUntilDayKey: String
     }
@@ -1004,6 +1007,34 @@ public struct CostUsageFetcher: Sendable {
         let reportContext: CostUsageReportContext?
     }
 
+    private struct LocalCodexTokenReport: Sendable {
+        let daily: CostUsageDailyReport
+        let projects: [CostUsageProjectBreakdown]
+        let sessions: [CostUsageSessionBreakdown]
+        let projectSessionIDs: [String: Set<String>]
+        let nativeTemporalIsComplete: Bool
+        let historyCoverageIsEstablished: Bool
+        let detailsAreComplete: Bool
+        let staleSnapshotUpdatedAt: Date?
+    }
+
+    private struct LocalCodexReportProjection: Sendable {
+        let daily: CostUsageDailyReport
+        let projects: [CostUsageProjectBreakdown]
+        let sessions: [CostUsageSessionBreakdown]
+        let staleSnapshotUpdatedAt: Date?
+    }
+
+    private struct LocalCodexReportProjectionInput {
+        let projection: CostUsageStoreCodexReportProjection
+        let cache: CostUsageCache
+        let roots: [URL]
+        let rootsFingerprint: [String: Int64]
+        let range: CostUsageScanner.CostUsageDayRange
+        let cacheRoot: URL?
+        let now: Date
+    }
+
     private static func unavailableLocalSnapshot(
         now: Date,
         historyDays: Int,
@@ -1015,6 +1046,95 @@ public struct CostUsageFetcher: Sendable {
             historyDays: historyDays,
             calendar: calendar,
             historyCoverageIsEstablished: false)
+    }
+
+    private static func loadLocalCodexTokenReport(
+        options: LocalTokenScanOptions,
+        historyRange: CostUsageScanner.CostUsageDayRange,
+        since: Date,
+        now: Date) -> LocalCodexTokenReport
+    {
+        let scanOptions = options.scanOptions
+        let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: since, until: now, calendar: scanOptions.calendar)
+        let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
+            .syncReadCodexReportProjection(
+                calendar: scanOptions.calendar,
+                temporalRange: (range.sinceKey, range.untilKey))
+        let cache = CostUsageScanner.codexCache(projection.cache, scopedTo: roots)
+        let view = CostUsageStoreReadView(cache: cache)
+        let projectSessionIDs = view.projectSessionIDs(range: range)
+        let nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
+            ? projection.verifiedTemporalCoverageIsComplete
+            : projection.fileTemporalCoverageIsComplete
+        let historyCoverageIsEstablished = Self.codexHistoryCoverageIsEstablished(
+            options: scanOptions,
+            range: historyRange) && (!options.includePiSessions || nativeTemporalIsComplete)
+        let detailsAreComplete = historyCoverageIsEstablished
+            && (view.days.isEmpty || view.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion)
+        let reportProjection = Self.projectLocalCodexTokenReport(
+            input: LocalCodexReportProjectionInput(
+                projection: projection,
+                cache: cache,
+                roots: roots,
+                rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions),
+                range: range,
+                cacheRoot: scanOptions.cacheRoot,
+                now: now))
+        let (projects, sessions) = Self.codexBreakdownsWithMetadata(
+            reportProjection.sessions,
+            projects: reportProjection.projects,
+            projectSessionIDs: projectSessionIDs,
+            sessionsRoot: roots.first,
+            environment: options.environment)
+        return LocalCodexTokenReport(
+            daily: reportProjection.daily,
+            projects: projects,
+            sessions: sessions,
+            projectSessionIDs: projectSessionIDs,
+            nativeTemporalIsComplete: nativeTemporalIsComplete,
+            historyCoverageIsEstablished: historyCoverageIsEstablished,
+            detailsAreComplete: detailsAreComplete,
+            staleSnapshotUpdatedAt: reportProjection.staleSnapshotUpdatedAt)
+    }
+
+    private static func projectLocalCodexTokenReport(
+        input: LocalCodexReportProjectionInput) -> LocalCodexReportProjection
+    {
+        if let previous = CostUsageScanner.codexPreviousReport(
+            cache: input.cache,
+            range: input.range,
+            rootsFingerprint: input.rootsFingerprint)
+        {
+            let retained = Self.cachedCodexPreviousReportProjection(
+                CachedCodexPreviousReportProjectionInput(
+                    previous: previous,
+                    projection: input.projection,
+                    cache: input.cache,
+                    roots: input.roots,
+                    range: input.range,
+                    cacheRoot: input.cacheRoot,
+                    includeBreakdowns: true,
+                    now: input.now))
+            return LocalCodexReportProjection(
+                daily: retained.report,
+                projects: retained.projects,
+                sessions: retained.sessions,
+                staleSnapshotUpdatedAt: retained.updatedAt)
+        } else {
+            let projected = CostUsageCodexReportProjectionBuilder.build(
+                projection: input.projection,
+                roots: input.roots,
+                range: input.range,
+                cacheRoot: input.cacheRoot,
+                includeBreakdowns: true)
+            return LocalCodexReportProjection(
+                daily: projected.report,
+                projects: projected.projects,
+                sessions: projected.sessions,
+                staleSnapshotUpdatedAt: nil)
+        }
     }
 
     private static func loadLocalTokenScanResult(
@@ -1074,69 +1194,31 @@ public struct CostUsageFetcher: Sendable {
             var projectSessionIDs: [String: Set<String>] = [:]
             var piScanIsComplete = true
             var nativeTemporalIsComplete = true
+            var historyCoverageIsEstablished = provider != .codex
+            var detailsAreComplete = true
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
-                let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
-                let range = CostUsageScanner.CostUsageDayRange(
-                    since: since, until: now, calendar: scanOptions.calendar)
-                let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
-                    .syncReadCodexReportProjection(
-                        calendar: scanOptions.calendar,
-                        temporalRange: (range.sinceKey, range.untilKey))
-                let cache = CostUsageScanner.codexCache(
-                    projection.cache,
-                    scopedTo: roots)
-                projectSessionIDs = CostUsageStoreReadView(cache: cache).projectSessionIDs(range: range)
-                nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
-                    ? projection.verifiedTemporalCoverageIsComplete
-                    : projection.fileTemporalCoverageIsComplete
-                if let previous = CostUsageScanner.codexPreviousReport(
-                    cache: cache,
-                    range: range,
-                    rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions))
-                {
-                    let retained = Self.cachedCodexPreviousReportProjection(
-                        CachedCodexPreviousReportProjectionInput(
-                            previous: previous,
-                            projection: projection,
-                            cache: cache,
-                            roots: roots,
-                            range: range,
-                            cacheRoot: scanOptions.cacheRoot,
-                            includeBreakdowns: true,
-                            now: now))
-                    daily = retained.report
-                    projects = retained.projects
-                    sessions = retained.sessions
-                    staleSnapshotUpdatedAt = retained.updatedAt
-                } else {
-                    let projected = CostUsageCodexReportProjectionBuilder.build(
-                        projection: projection,
-                        roots: roots,
-                        range: range,
-                        cacheRoot: scanOptions.cacheRoot,
-                        includeBreakdowns: true)
-                    daily = projected.report
-                    projects = projected.projects
-                    sessions = projected.sessions
-                }
-            }
-            if provider == .codex {
-                (projects, sessions) = Self.codexBreakdownsWithMetadata(
-                    sessions,
-                    projects: projects,
-                    projectSessionIDs: projectSessionIDs,
-                    sessionsRoot: CostUsageScanner.codexSessionsRoots(options: scanOptions).first,
-                    environment: options.environment)
+                let codexReport = Self.loadLocalCodexTokenReport(
+                    options: options,
+                    historyRange: historyRange,
+                    since: since,
+                    now: now)
+                daily = codexReport.daily
+                projects = codexReport.projects
+                sessions = codexReport.sessions
+                projectSessionIDs = codexReport.projectSessionIDs
+                nativeTemporalIsComplete = codexReport.nativeTemporalIsComplete
+                historyCoverageIsEstablished = codexReport.historyCoverageIsEstablished
+                detailsAreComplete = codexReport.detailsAreComplete
+                staleSnapshotUpdatedAt = codexReport.staleSnapshotUpdatedAt
             }
             let native = LocalTokenScanReport(
                 daily: daily,
                 projects: projects,
                 sessions: sessions,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
-                historyCoverageIsEstablished: provider != .codex
-                    || (Self.codexHistoryCoverageIsEstablished(options: scanOptions, range: historyRange)
-                        && (!options.includePiSessions || nativeTemporalIsComplete)),
+                historyCoverageIsEstablished: historyCoverageIsEstablished,
+                detailsAreComplete: detailsAreComplete,
                 historySinceDayKey: historyRange.sinceKey,
                 historyUntilDayKey: historyRange.untilKey)
             var piScope: String?
@@ -1177,6 +1259,7 @@ public struct CostUsageFetcher: Sendable {
                     sessions: sessions,
                     staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
                     historyCoverageIsEstablished: native.historyCoverageIsEstablished && piScanIsComplete,
+                    detailsAreComplete: native.detailsAreComplete && piScanIsComplete && piScope == nil,
                     historySinceDayKey: historyRange.sinceKey,
                     historyUntilDayKey: historyRange.untilKey),
                 native: native,
@@ -1635,6 +1718,10 @@ public struct CostUsageFetcher: Sendable {
             let nativeTemporalIsComplete = cache.codexScanCatchUpPending == true
                 ? persistedProjection.verifiedTemporalCoverageIsComplete
                 : persistedProjection.fileTemporalCoverageIsComplete
+            let nativeDetailsAreComplete = includeProjectAndSessionBreakdowns && nativeHistoryCoverageIsEstablished
+                &&
+                (cache.days.isEmpty || cache.codexProjectMetadataVersion == CostUsageScanner
+                    .codexProjectMetadataVersion)
             let previousReport = CostUsageScanner.codexPreviousReport(
                 cache: cache,
                 range: range,
@@ -1778,6 +1865,7 @@ public struct CostUsageFetcher: Sendable {
                 costProvenance: .listPriceEstimate,
                 projects: Self.mergedProjectBreakdowns(projects),
                 sessions: sessions,
+                detailsAreComplete: nativeDetailsAreComplete,
                 updatedAt: scanTimes.min())
             if piHistoryRequested, shouldMergePiUsage {
                 let piOptions = piScannerOptions ?? PiSessionCostScanner.Options(
@@ -1853,6 +1941,7 @@ public struct CostUsageFetcher: Sendable {
                     costProvenance: .listPriceEstimate,
                     projects: presentation.projects,
                     sessions: presentation.sessions,
+                    detailsAreComplete: nativeDetailsAreComplete && !piHistoryRequested,
                     updatedAt: scanTimes.min()),
                 accounting: accounting,
                 lastRefreshAt: piMerged || !piHistoryIsComplete || staleSnapshotUpdatedAt != nil
@@ -2205,13 +2294,10 @@ public struct CostUsageFetcher: Sendable {
         codexHomePath: String?,
         overrideScannerOptions: CostUsageScanner.Options?) -> CostUsageScanner.Options
     {
-        var options = overrideScannerOptions ?? CostUsageScanner.Options()
-        if let codexHomePath = codexHomePath?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !codexHomePath.isEmpty
-        {
-            options.codexSessionsRoot = URL(fileURLWithPath: codexHomePath, isDirectory: true)
-                .appendingPathComponent("sessions", isDirectory: true)
-        }
+        let options = Self.resolvedScannerOptions(
+            overrideScannerOptions,
+            provider: .codex, // Provider-specific by design: local history belongs to the selected Codex home.
+            codexHomePath: codexHomePath)
         return CodexLocalDataScope.resolve(options: options).applying(to: options)
     }
 
@@ -2406,6 +2492,7 @@ public struct CostUsageFetcher: Sendable {
         historyLabel: String? = nil,
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
+        detailsAreComplete: Bool = false,
         updatedAt: Date? = nil) -> CostUsageTokenSnapshot
     {
         let sessionEntry = useCurrentLocalDayForSession
@@ -2493,6 +2580,7 @@ public struct CostUsageFetcher: Sendable {
             daily: daily.data,
             projects: projects,
             sessions: sessions,
+            detailsAreComplete: detailsAreComplete,
             hourly: daily.hourly,
             quotaSlices: daily.quotaSlices,
             updatedAt: updatedAt ?? now)
@@ -2671,19 +2759,7 @@ public struct CostUsageFetcher: Sendable {
     {
         let summaries = CostUsageDailyReport.modelCostSummaries(from: entries)
         guard !summaries.isEmpty else { return nil }
-        return summaries.sorted { lhs, rhs in
-            let lhsCost = lhs.costUSD ?? -1
-            let rhsCost = rhs.costUSD ?? -1
-            if lhsCost != rhsCost {
-                return lhsCost > rhsCost
-            }
-            let lhsTokens = lhs.totalTokens ?? -1
-            let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens {
-                return lhsTokens > rhsTokens
-            }
-            return lhs.modelName > rhs.modelName
-        }
+        return CostUsageDailyReport.sortedModelBreakdowns(summaries)
     }
 
     static func selectCurrentSession(from sessions: [CostUsageSessionReport.Entry])

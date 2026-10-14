@@ -28,7 +28,9 @@ Scheduled and settings-triggered Chromium imports never request Keychain interac
 settings change occurs during a manual refresh. Every import first tries the actual Safe Storage read
 without UI. A manual refresh shares one interactive retry across its browser imports and providers;
 successful no-UI reads do not spend that allowance, and ACL preflight metadata cannot authorize extra
-prompts.
+prompts. Automatic cookie imports stop reading browsers once a provider accepts a session; missing or rejected
+sessions advance to the next browser in the provider's existing order. Explicit browser/profile selections keep
+their own scope.
 
 A denied browser prompt suppresses Chromium-family interactive retries for six hours, including
 repeated Refresh actions in the menu or provider settings. Only `quotakit cookie refresh

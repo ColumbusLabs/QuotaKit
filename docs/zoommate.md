@@ -19,34 +19,32 @@ retrieved 2026-07-18 (page last modified 2025-08-28).
 
 ## Setup
 
-### Automatic (recommended, Chrome only)
+### Automatic (recommended)
 
-1. Sign in to ZoomMate in Chrome.
+1. Sign in to ZoomMate in a supported browser.
 2. Enable **ZoomMate** in **Settings → Providers**. **Cookie source** defaults to **Auto**.
 
-QuotaKit imports your ZoomMate/Zoom session cookies from Chrome's cookie jar (covering
+QuotaKit imports your ZoomMate/Zoom session cookies in the shared browser order (covering
 `zoommate.zoom.us`, `ai.zoom.us`, and the parent `zoom.us` domain, where Zoom's SSO session cookies
 actually live) and exchanges them for a short-lived bearer token via the same
 cookie-to-token bootstrap endpoint ZoomMate's own web app uses internally
 (`GET https://ai.zoom.us/ai-computer/api/v1/login/?continue=...`) — no manual paste required. This
-automatic path intentionally tries Chrome only to avoid surprise prompts from other browser stores;
-other browsers must use manual capture.
+automatic path uses the shared access gate to bound Keychain prompts.
 
 Because the bearer token is minted from your (much longer-lived) session cookies, this keeps working
-as long as you stay signed in to ZoomMate in Chrome. A minted token is reused from an in-memory cache
-across refreshes until it nears expiry, then re-minted from the same cookies — no re-paste required.
-If the Chrome session cookie is missing, QuotaKit reports `noSession`; if Zoom rejects an existing
+as long as you stay signed in to ZoomMate in a supported browser. A minted token is reused from an
+in-memory cache across refreshes until it nears expiry, then re-minted from the same cookies — no
+re-paste required.
+If the browser session cookie is missing, QuotaKit reports `noSession`; if Zoom rejects an existing
 session, QuotaKit reports `invalidCredentials`.
 
-Chrome's cookie decryption key lives in the macOS Keychain, so QuotaKit only reads Chrome's cookie
-store during user-initiated refreshes (a menu or Settings refresh, or `quotakit cookie`). Once a
-fresh import validates — the cookie-to-token mint succeeds — the validated host-scoped cookie headers are saved to
-QuotaKit's shared Keychain cookie cache (`com.steipete.codexbar.cache`, account `cookie.zoommate`,
-same as other cookie providers) and reused before re-importing from Chrome. Background refreshes and
-the bundled `quotakit` CLI run entirely from those cached headers, so they never touch Chrome's cookie
-store or trigger a Keychain prompt. If Zoom rejects the cached session, QuotaKit drops it and retries
-one fresh Chrome import (user-initiated contexts only; background refreshes report `noSession` until
-the next user refresh).
+Chromium cookie decryption uses the macOS Keychain. Background reads require an existing no-UI grant and never request
+permission; an explicit refresh permits one bounded Keychain retry. Safari may need Full Disk Access, while Firefox
+and Zen use unencrypted cookie stores. Once a fresh import validates — the cookie-to-token mint succeeds — the
+validated host-scoped cookie headers are saved to QuotaKit's shared Keychain cookie cache
+(`com.steipete.codexbar.cache`, account `cookie.zoommate`) and reused before re-importing from browser stores. If Zoom
+rejects the cached session, QuotaKit drops it and retries a fresh browser import subject to the shared access gate.
+Use `quotakit cookie refresh --provider zoommate --allow-keychain-prompt` for an explicit CLI retry.
 
 ### Manual
 
@@ -75,7 +73,7 @@ forwards its cookies if a non-auth failure falls back to the sibling host.
 The ZoomMate bearer token itself is short-lived — typically about an hour. Session cookies live far
 longer, so:
 
-- **Automatic mode**: no action needed as long as you stay signed in to ZoomMate in Chrome;
+- **Automatic mode**: no action needed as long as you stay signed in to ZoomMate in a supported browser;
   QuotaKit mints a bearer token from your session cookies and reuses it (in memory) until it nears
   expiry, then re-mints automatically.
 - **Manual mode**: re-capture and re-paste a fresh `curl` command when the pasted token expires
@@ -85,7 +83,7 @@ longer, so:
 ## Auth & privacy
 
 Automatic mode uses the same first-party ZoomMate web-client flow a signed-in browser uses:
-QuotaKit imports Zoom session cookies from the local Chrome cookie jar, partitions them into the
+QuotaKit imports Zoom session cookies from local browser stores in the shared order, partitions them into the
 headers a browser would send to each fixed API host, exchanges one of those host-scoped headers for
 a short-lived bearer token, and then uses that bearer token for the `credits/status` and
 `credits/history` requests.
@@ -93,8 +91,8 @@ a short-lived bearer token, and then uses that bearer token for the `credits/sta
 The minted bearer token is never persisted — it is held only in a process-lifetime in-memory cache.
 The validated host-scoped cookie headers (and only those headers — never the bearer) are persisted to QuotaKit's
 existing shared Keychain cookie cache after a successful mint, the same cache and lifecycle other
-cookie providers (Claude web, Perplexity, OpenCode, …) already use, so background refreshes and the
-bundled CLI can reuse the session without rereading Chrome. ZoomMate logs intentionally omit
+cookie providers (Claude web, Perplexity, OpenCode, …) already use. The cache is checked before any new browser
+import, and background refreshes never request Keychain permission. ZoomMate logs intentionally omit
 cookies, bearer tokens, `nak` values, and raw response bodies. The
 cookie read spans the parent `zoom.us` domain because Zoom's SSO session cookies are parent-scoped,
 but the imported set is then narrowed to only cookies a browser would actually attach to
@@ -235,10 +233,12 @@ descriptor allowlist and keeps showing every component their feed returns, uncha
 quotakit usage --provider zoommate
 ```
 
-The CLI reuses the host-scoped cookie headers cached by a previous validated refresh; it does not read Chrome's
-cookie store itself. If no cached session exists yet (`noSession`), refresh once from the app or
-seed the cache from the terminal with `quotakit cookie --provider zoommate` (add
-`--allow-keychain-prompt` to acknowledge that Chrome cookie decryption may prompt).
+The CLI first reuses host-scoped cookie headers cached by a previous validated
+refresh. Browser fallback uses the shared access gate, which permits background
+reads only with existing prompt-free authorization. If no cached session exists
+yet (`noSession`), refresh once from the app or seed the cache from the terminal
+with `quotakit cookie refresh --provider zoommate` (add `--allow-keychain-prompt`
+to acknowledge that Chromium cookie decryption may prompt).
 
 ZoomMate provides no token-cost data and is not yet supported in the QuotaKit widget (this
 includes the credits history dashboard and status page above — both are app-menu-only).
@@ -248,7 +248,7 @@ includes the credits history dashboard and status page above — both are app-me
 | Error | Cause | Fix |
 |---|---|---|
 | `noCapture` | Manual mode is selected but the capture is empty, off-domain, or lacks a parseable `Authorization` header | Paste a fresh cURL capture of the HTTPS `credits/status` request from `ai.zoom.us` or `zoommate.zoom.us` |
-| `noSession` | Automatic mode found no cached session and no ZoomMate/Zoom session cookies it may read (background refreshes and the CLI never read Chrome directly) | Sign in to ZoomMate in Chrome and refresh once from the app (or `quotakit cookie --provider zoommate`), or switch to Manual and paste a capture |
+| `noSession` | Automatic mode found no cached session and no ZoomMate/Zoom session cookies the access gate allows it to read | Sign in to ZoomMate in a supported browser and refresh once from the app (or `quotakit cookie refresh --provider zoommate --allow-keychain-prompt`), or switch to Manual and paste a capture |
 | `invalidCredentials` | HTTP 401/403 — the token expired (~hourly) or was revoked | Re-sign-in (auto) or re-paste a fresh capture (manual) |
 | `apiError` | Any other non-200 HTTP status | Check ZoomMate's status; retry later |
 | `parseFailed` | HTTP 200 body did not contain the expected `credit_status` shape | Open a QuotaKit issue with a redacted response sample |
@@ -259,7 +259,7 @@ includes the credits history dashboard and status page above — both are app-me
 - `Sources/CodexBarCore/Providers/ZoomMate/ZoomMateUsageFetcher.swift` — credits/status request, cURL parsing, and cookie-to-token minting
 - `Sources/CodexBarCore/Providers/ZoomMate/ZoomMateCreditsHistoryFetcher.swift` — credits/history request, paginated with a date-boundary stop, and the `ZoomMateCreditsHistorySnapshot` model
 - `Sources/CodexBarCore/Providers/ZoomMate/ZoomMateModels.swift` — response decoding, error taxonomy, window mapping, daily-bucket aggregation (`dailyBreakdown()`), today's-total lookup (`todayCreditsUsed(now:calendar:)`), and pacing verdict computation
-- `Sources/CodexBarCore/Providers/ZoomMate/ZoomMateCookieImporter.swift` — Chrome cookie-jar import (macOS only)
+- `Sources/CodexBarCore/Providers/ZoomMate/ZoomMateCookieImporter.swift` — shared supported-browser cookie import (macOS only)
 - `Sources/CodexBar/InlineUsageDashboardContent.swift` — shared Today/30d KPI-tile + mini-bar view also used by Claude/Codex/OpenRouter/etc.; ZoomMate renders through this same component
 - `Sources/CodexBar/MenuCardView.swift` — renders the generic inline-dashboard slot for credits-only stacked cards
 - `Sources/CodexBar/StatusItemController+Menu.swift` — `statusComponentsSubmenuProviders` and descriptor-backed `filterStatusComponents`

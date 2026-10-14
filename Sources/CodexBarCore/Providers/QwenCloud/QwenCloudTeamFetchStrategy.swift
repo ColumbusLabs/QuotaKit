@@ -87,8 +87,7 @@ struct QwenCloudTeamFetchStrategy: ProviderFetchStrategy {
                 if let customImporter { return try customImporter(context, domain) }
                 #if os(macOS)
                 let imported = try QwenCloudCookieImport.importSession(
-                    browserDetection: browserDetection,
-                    importOrder: QwenCloudWebFetchStrategy.browserOrder)
+                    browserDetection: browserDetection)
                 guard let browserRecords = imported.records,
                       QwenCloudCookieImport.isAuthenticatedSession(records: browserRecords) else { return [] }
                 return [(browserRecords.map(ProviderPluginCookieRecord.init(record:)), imported.sourceLabel)]

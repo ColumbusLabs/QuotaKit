@@ -11,15 +11,7 @@ public enum QwenCloudProviderDescriptor {
     })
 
     static func makeDescriptor() -> ProviderDescriptor {
-        #if os(macOS)
-        // Qwen Cloud browser recovery is intentionally limited to Chrome and Brave.
-        // Keeping the list narrow avoids probing unrelated browser stores during refresh.
-        let browserOrder: BrowserCookieImportOrder = [.chrome, .brave]
-        #else
-        let browserOrder: BrowserCookieImportOrder? = nil
-        #endif
-
-        return ProviderDescriptor(
+        ProviderDescriptor(
             id: .qwencloud,
             settingsSection: .init(QwenCloudProviderSettingsKey.self, cookieSettings: QwenCloudProviderSettings.self),
             credentials: self.credentials,
@@ -38,7 +30,7 @@ public enum QwenCloudProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Qwen Cloud debug log not yet implemented",
-                browserCookieOrder: browserOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: QwenCloudUsageFetcher.dashboardURL.absoluteString,
                 statusPageURL: nil,
                 statusLinkURL: "https://status.alibabacloud.com"),
@@ -98,11 +90,6 @@ public enum QwenCloudProviderDescriptor {
 
 struct QwenCloudWebFetchStrategy: ProviderFetchStrategy {
     private static let log = CodexBarLog.logger("qwen-cloud")
-
-    #if os(macOS)
-    /// Mirrors the descriptor's supported browser recovery order.
-    static let browserOrder: BrowserCookieImportOrder = [.chrome, .brave]
-    #endif
 
     let id: String = "qwen-cloud.web"
     let kind: ProviderFetchKind = .web
@@ -224,8 +211,7 @@ struct QwenCloudWebFetchStrategy: ProviderFetchStrategy {
             var importLog: [String] = []
             let session = try QwenCloudCookieImport.importSession(
                 browserDetection: context.browserDetection,
-                logger: { importLog.append($0) },
-                importOrder: Self.browserOrder)
+                logger: { importLog.append($0) })
             let rawCookieNames = session.cookies.map(\.name).filter { !$0.isEmpty }.uniquedSorted()
             guard let headers = QwenCloudCookieHeader.headers(
                 from: session.cookies,

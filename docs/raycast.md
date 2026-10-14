@@ -20,8 +20,8 @@ Cookie: __raycast_session=…; csrf_token=…
 
 ## Authentication
 
-Automatic: QuotaKit imports the Chrome session cookie. The session cookie is the host-only `__raycast_session` on
-`www.raycast.com` from Account settings. Import uses an exact host match, so other Raycast hosts such as
+Automatic: QuotaKit follows the shared browser order and imports the host-only `__raycast_session` from Account settings.
+Import uses an exact host match, so other Raycast hosts such as
 `backend.raycast.com` are left alone. A parent-domain cookie on `.raycast.com` can still be read, and the account-page
 cookie wins when both exist.
 
@@ -32,12 +32,12 @@ Do not paste the desktop OAuth Bearer. Do not send website cookies to
 `backend.raycast.com/api/v1/ai/credits` (401).
 
 Off: disable cookie access and credit requests. Manual headers remain pinned to the selected account and never
-fall back to Chrome. Permission failures, rate limits, service errors, and malformed payloads stop retries without
+fall back to another browser account. Permission failures, rate limits, service errors, and malformed payloads stop retries without
 rejecting the session.
 
 ## Implementation
 
-The shared plugin host owns declared-domain Chrome import and the domain-scoped cookie cache. The bundled
+The shared plugin host owns declared-domain browser import and the domain-scoped cookie cache. The bundled
 `raycast` plugin owns session candidate iteration, rejection, the credits GET, and snapshot mapping:
 
 1. Iterate `ctx.browser.sessions("www.raycast.com")`, keeping only `__raycast_session` and optional `csrf_token`.
@@ -64,5 +64,5 @@ Top-up packages and the Show details breakdown (`GET /api/v1/ai/credits/details`
 ## Limitations
 
 - The website credits route is unofficial and can change without notice.
-- Automatic import needs a signed-in www.raycast.com session (`__raycast_session`) in Chrome.
+- Automatic import needs a signed-in www.raycast.com session (`__raycast_session`) in a supported browser.
 - BYOK, Bring Your Own Subscription, and local models do not count against these credits and are not shown here.

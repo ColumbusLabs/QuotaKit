@@ -1,16 +1,7 @@
 import Foundation
-import SweetCookieKit
 
 public enum ZedProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -43,7 +34,7 @@ public enum ZedProviderDescriptor {
                     "zed free": "Zed Free", "zed pro": "Zed Pro", "zed pro trial": "Zed Pro Trial",
                     "zed student": "Zed Student", "zed business": "Zed Business",
                 ],
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: nil,
                 statusPageURL: nil),
             branding: ProviderBranding(

@@ -16,6 +16,7 @@ enum SyncProviderBillingDetails {
         case month
         case resetDate
         case balance
+        case currencyAmount(allowNegative: Bool, allowUnavailable: Bool)
     }
 
     private struct SectionRule {
@@ -87,12 +88,29 @@ enum SyncProviderBillingDetails {
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
-        // Provider-specific by design: JetBrains exposes only the remaining top-up credit value on this typed wire.
+        // Provider-specific by design: only JetBrains top-up, xAI estimates and fal/FLORA billing amounts
+        // are exported by these typed, display-only rules.
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         case .xai:
             // The invoice preview is display-only enrichment; do not sync the posted balance or spend history here.
             [.init(title: "Billing summary", rows: [("Live remaining (est.)", .dollars(allowNegative: true))])]
+        case .fal:
+            [.init(title: "Account balance", rows: [
+                ("Credit balance", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+            ])]
+        case .flora:
+            [.init(title: "Workspace balance", rows: [
+                ("Available", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+                ("Member limit", .currencyAmount(allowNegative: false, allowUnavailable: false)),
+                ("Spent this month", .currencyAmount(allowNegative: false, allowUnavailable: true)),
+                ("Runs this month", .count),
+            ])]
+        case .parallel:
+            [.init(title: "Account balance", rows: [
+                ("Balance", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+                ("Pending debit", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+            ])]
         default:
             nil
         }
@@ -129,6 +147,19 @@ enum SyncProviderBillingDetails {
             return self.isResetDate(value)
         case .balance:
             return value == "Unavailable" || self.isValid(value, kind: .dollars(allowNegative: true))
+        case let .currencyAmount(allowNegative, allowUnavailable):
+            if allowUnavailable, value == "Unavailable" { return true }
+            // Source plugins use en-US currency formatting. Preserve the currency symbol but reject prose,
+            // localized suffixes, ungrouped junk, and non-finite numeric values.
+            let prefixPattern = #"^-?(?:(?:[A-Z]{1,3}\s?)?\p{Sc}|[A-Z]{3}\s?)"#
+            let amountPattern = #"(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?$"#
+            guard self.matches(value, prefixPattern + amountPattern) else { return false }
+            let numeric = value.replacingOccurrences(
+                of: prefixPattern,
+                with: "",
+                options: .regularExpression)
+            let signed = value.hasPrefix("-") ? "-\(numeric)" : numeric
+            return self.number(signed).map { allowNegative || $0 >= 0 } ?? false
         }
     }
 

@@ -30,16 +30,17 @@ provider error rather than an empty gauge.
 
 ### Automatic (recommended)
 
-1. Sign in to Notion in Chrome.
+1. Sign in to Notion in a supported browser.
 2. Enable **Notion AI** in **Settings → Providers**.
 
 QuotaKit imports your browser session cookie automatically and sends it only to `https://app.notion.com`.
 The import requires the `token_v2` session cookie; a browser profile that has Notion cookies but no
 `token_v2` is skipped rather than used for a request that would fail with 401.
 
-**Note**: Automatic import defaults to Chrome only to avoid probing unrelated browser stores. Callers using
-the shared browser-cookie plumbing can still supply an explicit browser list. Chrome cookie decryption may
-require macOS Keychain approval.
+**Note**: Automatic import follows the shared supported-browser order. Background refreshes only read Chromium cookies
+when the no-UI Keychain preflight confirms existing access; they never request a new permission. Use an explicit Refresh
+to authorize cookie decryption when needed, or use Manual mode. An explicit refresh permits one bounded Keychain retry
+across the import action.
 
 ### Manual
 

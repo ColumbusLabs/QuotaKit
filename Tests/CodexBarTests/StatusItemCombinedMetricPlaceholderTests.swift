@@ -3,12 +3,9 @@ import CodexBarCore
 import Testing
 @testable import CodexBar
 
-/// Regression coverage for the combined "Session + Weekly" menu-bar metric ignoring Claude web's
-/// synthetic `five_hour: null` session placeholder. Claude web parses an account with no live session
-/// (but a real `seven_day` lane) into a 0% 5-hour `primary` with no reset signal; the combined metric
-/// must drop that placeholder so the readout falls back to the weekly lane instead of rendering a
-/// non-existent `5h 0%`/`5h 100%` session. A genuine, freshly reset session (which still carries a
-/// `resetsAt`) must survive the filter.
+/// Regression coverage for filtering legacy Claude Web `five_hour: null` placeholders that may remain in
+/// cached snapshots. Current Web mapping leaves a missing session absent. A genuine, freshly reset
+/// session must survive the filter.
 @MainActor
 @Suite(.serialized)
 struct StatusItemCombinedMetricPlaceholderTests {
@@ -62,8 +59,7 @@ struct StatusItemCombinedMetricPlaceholderTests {
         defer { controller.releaseStatusItemsForTesting() }
 
         let now = Date()
-        // `primary` is the synthetic placeholder Claude web emits for `five_hour: null`: a 0% 5h window
-        // flagged `isSyntheticPlaceholder`. `secondary` is the real weekly lane.
+        // Simulate a previously cached Web placeholder; `secondary` is the real weekly lane.
         let snapshot = UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 0,
@@ -154,10 +150,9 @@ struct StatusItemCombinedMetricPlaceholderTests {
 
     @Test
     func `combined metric keeps an unflagged zero-usage session sharing the placeholder shape`() {
-        // Precision guard: a real empty session can share the placeholder's exact RateWindow shape
-        // (0% used, 5h cadence, no reset) — e.g. the Claude CLI scrape, where session reset text can be
-        // absent. Because the drop keys on the explicit `isSyntheticPlaceholder` marker (set only at the
-        // Claude web boundary) rather than the shape, this unflagged session must be kept, not dropped.
+        // A real empty session can share a legacy placeholder's RateWindow shape (0% used, 5h cadence,
+        // no reset), for example when the Claude CLI reset text is absent. Filtering keys on the explicit
+        // marker rather than shape, so this unflagged session remains visible.
         let (controller, store) = self.makeClaudeCombinedController(
             suiteName: "StatusItemCombinedMetricPlaceholderTests-unflagged-shape",
             displayMode: .percent,

@@ -15,6 +15,8 @@ Artwork adopted from the reviewed steipete/CodexBar source range retains its doc
 | Vertex AI | [Google Cloud icons](https://cloud.google.com/icons), original vector artwork |
 | Replicate | [Official Replicate homepage header SVG](https://replicate.com/), verified 2026-10-10; preserved three polygon paths and `currentColor`, expanded the viewBox for transparent padding |
 | Pi | [Official Pi favicon](https://pi.dev/favicon.svg), verified 2026-10-08 | Preserved the three block paths and `560×560` viewBox; use `currentColor` for adaptive template rendering across Mac, iPhone, and the CLI dashboard. |
+| fal (monochrome) | [fal.ai](https://fal.ai/) site header mark, verified 2026-10-11 | Kept the evenodd mark path without the wordmark; `currentColor` and a padded square view box support adaptive template rendering. |
+| FLORA (monochrome) | [Standalone Flower mark](https://www.flora.ai/marketing/brand/flower-display.svg) linked from the [FLORA brand page](https://www.flora.ai/brand), verified 2026-10-11 | Preserved the four-petal mark and replaced white fill with `currentColor` for adaptive template rendering. |
 
 The colored Pi website logo is not bundled because its redistribution terms were not established. The monochrome official favicon is used consistently by QuotaKit's Mac, iPhone, and embedded CLI dashboard.
 

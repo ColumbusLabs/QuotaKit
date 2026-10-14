@@ -703,7 +703,7 @@ extension ClaudeUsageFetcher {
             let email = snap.accountEmail ?? "nil"
             let org = snap.accountOrganization ?? "nil"
             let weekly = snap.secondary?.remainingPercent ?? -1
-            let primary = snap.primary.remainingPercent
+            let primary = snap.primary?.remainingPercent ?? -1
             return """
             session_left=\(primary) weekly_left=\(weekly)
             opus_left=\(opus) email \(email) org \(org)
@@ -938,9 +938,7 @@ extension ClaudeUsageFetcher {
             usage.extraUsage,
             loginMethod: loginMethod,
             treatAsSpendLimit: treatAsSpendLimit)
-        guard let primary = primaryWindow ?? Self
-            .oauthSpendLimitWindow(from: providerCost, extraUsage: usage.extraUsage)
-        else {
+        guard primaryWindow != nil || (providerCost?.limit ?? 0) > 0 else {
             throw ClaudeUsageError.parseFailed("missing session data")
         }
 
@@ -953,8 +951,7 @@ extension ClaudeUsageFetcher {
 
         let updatedAt = Date()
         return ClaudeUsageSnapshot(
-            primary: primary,
-            primaryWindowKind: treatAsSpendLimit ? .spendLimit : .usage,
+            primary: primaryWindow,
             secondary: weekly,
             opus: modelSpecific,
             extraRateWindows: extraRateWindows,
@@ -991,23 +988,6 @@ extension ClaudeUsageFetcher {
             period: isSpendLimit ? "Spend limit" : "Monthly cap",
             resetsAt: nil,
             updatedAt: Date())
-    }
-
-    private static func oauthSpendLimitWindow(
-        from providerCost: ProviderCostSnapshot?,
-        extraUsage: OAuthExtraUsage?) -> RateWindow?
-    {
-        guard let providerCost,
-              providerCost.limit > 0
-        else { return nil }
-        let usedPercent = extraUsage?.utilization ?? (providerCost.used / providerCost.limit) * 100
-        let used = UsageFormatter.currencyString(providerCost.used, currencyCode: providerCost.currencyCode)
-        let limit = UsageFormatter.currencyString(providerCost.limit, currencyCode: providerCost.currencyCode)
-        return RateWindow(
-            usedPercent: min(100, max(0, usedPercent)),
-            windowMinutes: nil,
-            resetsAt: providerCost.resetsAt,
-            resetDescription: "\(providerCost.period ?? "Spend limit"): \(used) / \(limit)")
     }
 
     private static func oauthExtraRateWindows(from usage: OAuthUsageResponse) -> [NamedRateWindow] {
@@ -1071,13 +1051,15 @@ extension ClaudeUsageFetcher {
     /// menu-bar metric — surface the weekly lane instead of a phantom 5h session. The flag keys off the
     /// reported presence of the session object, so a real session that is merely idle (0% used, possibly
     /// with no reset) stays unflagged and keeps rendering.
-    static func webPrimaryWindow(from webData: ClaudeWebAPIFetcher.WebUsageData) -> RateWindow {
-        RateWindow(
-            usedPercent: webData.sessionPercentUsed,
-            windowMinutes: 5 * 60,
-            resetsAt: webData.sessionResetsAt,
-            resetDescription: webData.sessionResetsAt.map { Self.formatResetDate($0) },
-            isSyntheticPlaceholder: !webData.hasLiveSessionWindow)
+    /// A missing Web session stays absent instead of becoming a synthetic zero-percent quota.
+    static func webPrimaryWindow(from webData: ClaudeWebAPIFetcher.WebUsageData) -> RateWindow? {
+        webData.sessionPercentUsed.map { percent in
+            RateWindow(
+                usedPercent: percent,
+                windowMinutes: 5 * 60,
+                resetsAt: webData.sessionResetsAt,
+                resetDescription: webData.sessionResetsAt.map { Self.formatResetDate($0) })
+        }
     }
 
     private func loadViaWebAPI() async throws -> ClaudeUsageSnapshot {
@@ -1186,7 +1168,7 @@ extension ClaudeUsageFetcher {
         return try Self.makeSnapshot(from: snap)
     }
 
-    private static func makeSnapshot(
+    static func makeSnapshot(
         from snap: ClaudeStatusSnapshot,
         now: Date = .init()) throws -> ClaudeUsageSnapshot
     {
@@ -1226,7 +1208,9 @@ extension ClaudeUsageFetcher {
             secondary: weekly,
             opus: opus,
             extraRateWindows: snap.extraRateWindows,
-            providerCost: nil,
+            providerCost: ClaudeCLISpendCapParser.parse(ClaudeCLIScreen.render(
+                snap.rawText,
+                preservePlainReports: true)),
             updatedAt: now,
             accountEmail: snap.accountEmail,
             accountOrganization: snap.accountOrganization,

@@ -105,6 +105,10 @@ struct ProviderColorPaletteTests {
             ("aerostack", 123 / 255, 108 / 255, 219 / 255),
             ("sailresearch", 44 / 255, 70 / 255, 129 / 255),
             ("sofya", 176 / 255, 184 / 255, 32 / 255),
+            // Brand colors intentionally match Pi and v0; these balance-only providers
+            // are omitted from the palette's distinct-quota-color set below.
+            ("fal", 124 / 255, 58 / 255, 237 / 255),
+            ("flora", 17 / 255, 17 / 255, 17 / 255),
         ]
 
         for (provider, red, green, blue) in expected {

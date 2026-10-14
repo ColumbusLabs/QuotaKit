@@ -96,7 +96,7 @@ struct TTYIntegrationTests {
             let snapshot = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
                 try await fetcher.loadLatestUsage()
             }
-            #expect(snapshot.primary.remainingPercent >= 0)
+            #expect(try #require(snapshot.primary).remainingPercent >= 0)
             // Weekly is absent for some enterprise accounts.
         } catch ClaudeUsageError.parseFailed(_) {
             shouldAssert = false

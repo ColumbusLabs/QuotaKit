@@ -145,6 +145,11 @@ struct MenuContent: View {
             }
         case .openCodexWorkspaces:
             CodexWorkspacesPresenter.shared.present(store: self.store, settings: self.settings)
+        // Provider-specific by design: OpenAI live usage opens its own credential-scoped settings.
+        case .openOpenAILiveUsage:
+            OpenAILiveUsagePresenter.shared.present(settings: self.settings) {
+                self.actions.openProviderSettings(.openai)
+            }
         case .settings:
             self.actions.openSettings()
         case let .providerSettings(provider):

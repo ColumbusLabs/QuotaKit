@@ -40,7 +40,8 @@ struct ProcessOwnershipReaperTests {
         try unrelated.run()
         defer {
             if unrelated.isRunning { kill(unrelated.processIdentifier, SIGKILL) }
-            unrelated.waitUntilExit()
+            // Do not spin a Foundation run loop on a cooperative executor during fixture teardown.
+            ProcessExitRelease.afterExit(unrelated)
             try? FileManager.default.removeItem(at: root)
         }
         // The intermediate session leader exits before the probe does. The grandchild has closed
@@ -73,8 +74,8 @@ struct ProcessOwnershipReaperTests {
         }
         defer { task.cancel() }
         let readyDeadline = Date().addingTimeInterval(60)
-        while (!FileManager.default.fileExists(atPath: readyFile.path)
-            || !FileManager.default.fileExists(atPath: childReadyFile.path)), Date() < readyDeadline
+        while !FileManager.default.fileExists(atPath: readyFile.path)
+            || !FileManager.default.fileExists(atPath: childReadyFile.path), Date() < readyDeadline
         {
             try await Task.sleep(for: .milliseconds(20))
         }

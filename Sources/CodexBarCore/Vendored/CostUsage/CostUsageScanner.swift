@@ -5220,7 +5220,8 @@ enum CostUsageScanner {
             // Invalid timestamps still prove that a known owned turn has incomplete usage or timing.
             // These markers never enter the billing ledger.
             if object["type"] as? String == "token_usage_record" {
-                return Self.codexRejectedRequestUsage(payload).map(CodexFastLine.invalidRequestUsage)
+                return Self.codexRejectedRequestUsage(payload, timestamp: object["timestamp"] as? String)
+                    .map(CodexFastLine.invalidRequestUsage)
             }
             if object["type"] as? String == "event_msg", payload["type"] as? String == "task_complete" {
                 return Self.codexTurnCompletion(
@@ -5233,7 +5234,7 @@ enum CostUsageScanner {
         switch object["type"] as? String {
         case "token_usage_record":
             if let record = Self.codexRequestUsageRecord(from: object) { return .tokenUsageRecord(record) }
-            return Self.codexRejectedRequestUsage(payload).map(CodexFastLine.invalidRequestUsage)
+            return Self.codexRejectedRequestUsage(payload, timestamp: timestamp).map(CodexFastLine.invalidRequestUsage)
         case "inter_agent_communication_metadata":
             return .interAgentCommunication(triggerTurn: payload["trigger_turn"] as? Bool == true)
         case "turn_context":
@@ -5351,14 +5352,19 @@ enum CostUsageScanner {
             turnTotal: turnTotal.flatMap { Self.codexTotalsAtLeast($0, usage) ? $0 : nil })
     }
 
-    private static func codexRejectedRequestUsage(_ payload: [String: Any]) -> CodexInvalidRequestUsage? {
+    private static func codexRejectedRequestUsage(
+        _ payload: [String: Any],
+        timestamp: String?) -> CodexInvalidRequestUsage?
+    {
         guard let threadID = codexModelEvidence(payload["thread_id"] as? String) else { return nil }
         let sessionID = Self.codexModelEvidence(payload["session_id"] as? String)
         guard payload["session_id"] == nil || sessionID != nil else { return nil }
         return CodexInvalidRequestUsage(
             threadID: threadID,
             sessionID: sessionID,
-            turnID: Self.codexTurnID(from: payload))
+            turnID: Self.codexTurnID(from: payload),
+            timestamp: timestamp,
+            responseID: Self.codexModelEvidence(payload["response_id"] as? String))
     }
 
     private static func codexRequestUsage(_ usage: [String: Any]) -> CostUsageCodexTotals? {
@@ -5635,6 +5641,9 @@ enum CostUsageScanner {
         maxBytesToRead: Int64? = nil,
         shouldStopReading: ((Int64) -> Bool)? = nil,
         inheritedTotalsResolver: ((String, String) throws -> CodexForkBaseline)? = nil,
+        ownedRequestObserver: ((CodexRequestUsageRecord, String) -> Void)? = nil,
+        rejectedRequestObserver: ((CodexInvalidRequestUsage) -> Void)? = nil,
+        scanIssueObserver: (() -> Void)? = nil,
         checkCancellation: CancellationCheck? = nil) throws -> CodexParseResult
     {
         try CodexFileParser(
@@ -5663,6 +5672,9 @@ enum CostUsageScanner {
             maxBytesToRead: maxBytesToRead,
             shouldStopReading: shouldStopReading,
             inheritedTotalsResolver: inheritedTotalsResolver,
+            ownedRequestObserver: ownedRequestObserver,
+            rejectedRequestObserver: rejectedRequestObserver,
+            scanIssueObserver: scanIssueObserver,
             checkCancellation: checkCancellation).parse()
     }
 
@@ -5681,6 +5693,9 @@ enum CostUsageScanner {
         let maxBytesToRead: Int64?
         let shouldStopReading: ((Int64) -> Bool)?
         let inheritedTotalsResolver: ((String, String) throws -> CodexForkBaseline)?
+        let ownedRequestObserver: ((CodexRequestUsageRecord, String) -> Void)?
+        let rejectedRequestObserver: ((CodexInvalidRequestUsage) -> Void)?
+        let scanIssueObserver: (() -> Void)?
         let checkCancellation: CancellationCheck?
         let retainedRows: [Int: CodexUsageRow]
         var currentModel: String?
@@ -5750,6 +5765,9 @@ enum CostUsageScanner {
             maxBytesToRead: Int64? = nil,
             shouldStopReading: ((Int64) -> Bool)? = nil,
             inheritedTotalsResolver: ((String, String) throws -> CodexForkBaseline)? = nil,
+            ownedRequestObserver: ((CodexRequestUsageRecord, String) -> Void)? = nil,
+            rejectedRequestObserver: ((CodexInvalidRequestUsage) -> Void)? = nil,
+            scanIssueObserver: (() -> Void)? = nil,
             checkCancellation: CancellationCheck? = nil)
         {
             self.fileURL = fileURL
@@ -5763,6 +5781,9 @@ enum CostUsageScanner {
             self.maxBytesToRead = maxBytesToRead
             self.shouldStopReading = shouldStopReading
             self.inheritedTotalsResolver = inheritedTotalsResolver
+            self.ownedRequestObserver = ownedRequestObserver
+            self.rejectedRequestObserver = rejectedRequestObserver
+            self.scanIssueObserver = scanIssueObserver
             self.checkCancellation = checkCancellation
             let sessionId = initialForkAccountingState?.metadata.sessionId ?? initialSessionID
             let forkedFromId = initialForkAccountingState?.metadata.forkedFromId
@@ -5817,6 +5838,7 @@ enum CostUsageScanner {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                self.scanIssueObserver?()
                 CostUsageScanner.log.warning(
                     "Codex cost usage failed while scanning session file",
                     metadata: ["path": self.fileURL.path, "error": error.localizedDescription])
@@ -5931,6 +5953,13 @@ enum CostUsageScanner {
             if let turnTotal = record.turnTotal {
                 keys.append(self.mirrorKey(turnID: turnID, usage: usage, total: turnTotal, timestamp: timestamp))
             }
+            // Explicit exports retain contradictory owned observations before replay suppression.
+            let model = record.model
+                ?? turnID.flatMap { self.requestLedger.turnModels[$0] }
+                ?? (turnID == self.currentTurnID || turnID == self.requestLedger.activeTurnID
+                    ? CostUsageScanner.codexModelEvidence(self.currentModel) : nil)
+                ?? CostUsagePricing.codexUnattributedModel
+            self.ownedRequestObserver?(record, model)
             // Identity, rather than cumulative counters, proves that a reset is a new request.
             // Copied parent records fail the ownership check above even if the parent is unavailable.
             let isReplay = self.requestLedger.responseIDs.contains(responseID)
@@ -6014,11 +6043,6 @@ enum CostUsageScanner {
                 performance.reportedOutputTokens = record.turnTotal?.output
                 self.requestLedger.turnPerformance?[turnID] = performance
             }
-            let model = record.model
-                ?? turnID.flatMap { self.requestLedger.turnModels[$0] }
-                ?? (turnID == self.currentTurnID || turnID == self.requestLedger.activeTurnID
-                    ? CostUsageScanner.codexModelEvidence(self.currentModel) : nil)
-                ?? CostUsagePricing.codexUnattributedModel
             self.requestLedger.countedUsage = CostUsageScanner.codexAddTotals(base, usage)
             self.appendUsage(
                 usage,
@@ -6670,6 +6694,11 @@ enum CostUsageScanner {
                 performance.completion = completion
                 self.requestLedger.turnPerformance?[completion.turnID] = performance
             case let .invalidRequestUsage(record):
+                if !self.suppressUnownedCopiedPrefix, record.threadID == self.sessionId,
+                   record.sessionID == nil || record.sessionID == (self.requestLedger.sessionID ?? self.sessionId)
+                {
+                    self.rejectedRequestObserver?(record)
+                }
                 self.markRejectedPerformanceUsage(record)
             case let .tokenCount(record):
                 try self.handleTokenCount(record, sourceEndOffset: sourceEndOffset)
@@ -6791,8 +6820,16 @@ enum CostUsageScanner {
             }
             guard !line.bytes.isEmpty else { return }
             if line.wasTruncated {
+                self.scanIssueObserver?()
                 self.handleTruncatedJSONLLine(line, lineIndex: lineIndex)
                 return
+            }
+
+            if self.scanIssueObserver != nil {
+                let malformed = autoreleasepool {
+                    (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any] == nil
+                }
+                if malformed { self.scanIssueObserver?(); return }
             }
 
             if !line.bytes.containsAscii(#""token_usage_record""#), line.bytes.containsAscii(#""usage""#) {
@@ -6839,14 +6876,21 @@ enum CostUsageScanner {
                     return
                 }
                 if timestampValidity == false {
+                    self.scanIssueObserver?()
                     return
                 }
             }
 
             autoreleasepool {
-                guard let object = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
-                      let parsedLine = CostUsageScanner.codexLine(from: object)
-                else { return }
+                guard let object = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any]
+                else {
+                    self.scanIssueObserver?()
+                    return
+                }
+                guard let parsedLine = CostUsageScanner.codexLine(from: object) else {
+                    if object["type"] as? String == "token_usage_record" { self.scanIssueObserver?() }
+                    return
+                }
                 do {
                     try self.routeFastLine(
                         parsedLine,

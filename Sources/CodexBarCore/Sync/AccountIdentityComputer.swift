@@ -93,9 +93,9 @@ public enum AccountIdentityComputer {
              .fireworks, .ibmbob, .gitkraken, .v0, .coderabbit, .huggingface, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
              .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
-             // Provider-specific by design: these eight remain non-Tier-A until iOS has stable identity support
+             // Provider-specific by design: these providers remain non-Tier-A until iOS has stable identity support
              // and a cross-Mac merge need.
-             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya:
+             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS uses legacy email or provider-only
             // grouping. If a future provider needs account-specific merging, add

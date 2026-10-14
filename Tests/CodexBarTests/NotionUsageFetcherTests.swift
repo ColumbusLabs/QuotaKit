@@ -219,12 +219,9 @@ struct NotionUsageFetcherTests {
     }
 
     @Test
-    func `automatic import supports Chrome and Edge without probing other browsers`() {
-        #if os(macOS)
-        #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder == [.chrome, .edge])
-        #else
-        #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder == nil)
-        #endif
+    func `automatic import uses the shared browser catalog`() {
+        #expect(NotionProviderDescriptor.descriptor.metadata.browserCookieOrder
+            == ProviderBrowserCookieDefaults.defaultImportOrder)
     }
 
     @Test
