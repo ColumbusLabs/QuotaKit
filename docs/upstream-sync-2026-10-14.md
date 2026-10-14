@@ -35,7 +35,7 @@ The prior 62-commit checkpoint is accounted in [the Oct 13 ledger](upstream-sync
 
 ## Fork contracts and verification
 
-Keep the complete provider registry, existing identifiers/order, shared mobile payloads, CloudKit record types, secrets and three-state sync compatibility. Public branding and all release/build/signing/appcast inputs remain QuotaKit-owned. New balance providers are billing-only, never synthetic quota widgets or transition alerts.
+Keep the complete provider registry, existing identifiers/order, shared mobile payloads, CloudKit record types, secrets and three-state sync compatibility. Public branding and all release/build/signing/appcast inputs remain QuotaKit-owned. New balance providers are billing-only, never synthetic quota widgets or transition alerts. OpenCode Go retains QuotaKit’s mint tint on Mac and iPhone: upstream blue predates this range, and the fork’s existing palette/distinctness tests require the coordinated mint identity.
 
 The Oct 13 storage uncertainty is resolved by removing ordinary CI storage writes: the optional failed iOS `.xcresult` upload becomes a bounded textual job summary, and dependency caches are restored without uploading new caches. Test commands, assertions, runners, matrices, path gates, deadlines and the aggregate gate are unchanged. The full `xcodebuild` log remains available; full downloadable failure bundles and refreshed cache uploads are the deliberate diagnostic/performance tradeoff. Release workflows are untouched. [GitHub billing rules](https://docs.github.com/en/billing/concepts/product-billing/github-actions) confirm public standard-hosted execution is free and logs/summaries do not count toward artifact storage.
 

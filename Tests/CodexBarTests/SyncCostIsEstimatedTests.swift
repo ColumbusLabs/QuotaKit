@@ -348,12 +348,63 @@ struct SyncCostIsEstimatedTests {
         #expect(day.isEstimated == nil)
     }
 
+    @Test
+    func `SyncCoordinator: balance-only providers never mark model costs estimated`() async throws {
+        let providers: [UsageProvider] = [.fal, .flora, .parallel]
+        let settings = self.makeSettingsStore(suite: "SyncCoord-isEst-balance-only")
+        settings.iCloudSyncEnabled = true
+        for provider in providers {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderDefaults.metadata[provider]),
+                enabled: true)
+        }
+
+        let store = self.makeUsageStore(settings: settings)
+        let updatedAt = Date()
+        let costSnapshot = CostUsageTokenSnapshot(
+            sessionTokens: 1000,
+            sessionCostUSD: 0.25,
+            last30DaysTokens: 1000,
+            last30DaysCostUSD: 0.25,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-05-26",
+                    inputTokens: 500,
+                    outputTokens: 500,
+                    cacheReadTokens: 0,
+                    cacheCreationTokens: 0,
+                    totalTokens: 1000,
+                    costUSD: 0.25,
+                    modelsUsed: ["provider-native-model"],
+                    modelBreakdowns: [.init(modelName: "provider-native-model", costUSD: 0.25)]),
+            ],
+            updatedAt: updatedAt)
+        for provider in providers {
+            store._setTokenSnapshotForTesting(costSnapshot, provider: provider)
+        }
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        for provider in providers {
+            let syncedProvider = try #require(mock.lastSnapshot?.providers.first {
+                $0.providerID == provider.rawValue
+            })
+            let summary = try #require(syncedProvider.costSummary)
+            let day = try #require(summary.daily.first(where: { $0.dayKey == "2026-05-26" }))
+            let breakdown = try #require(day.modelBreakdowns.first)
+            #expect(breakdown.isEstimated == nil, "\(provider.rawValue) costs are not fallback estimates.")
+            #expect(day.isEstimated == nil)
+            #expect(summary.isEstimated == nil)
+        }
+    }
+
     // MARK: - Helpers (mirrored from SyncCoordinatorTests setup pattern)
 
     private func makeSettingsStore(suite: String) -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return SettingsStore(userDefaults: defaults)
+        testSettingsStore(suiteName: suite)
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {

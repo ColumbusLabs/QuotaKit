@@ -67,7 +67,7 @@ public enum OpenCodeGoProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .opencodego),
                 iconResourceName: "ProviderIcon-opencodego",
-                color: ProviderColor(red: 59 / 255, green: 130 / 255, blue: 246 / 255),
+                color: ProviderColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255),
                 confettiPalette: [
                     ProviderColor(hex: 0x211E1E),
                     ProviderColor(hex: 0xA3BE8C),
