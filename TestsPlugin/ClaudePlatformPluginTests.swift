@@ -390,10 +390,21 @@ struct ClaudePlatformPluginTests {
         func nextSession() -> ProviderPluginCookieSession? {
             self.sessions += 1
             guard self.sessions <= 2 else { return nil }
+            let value = "sk-ant-sid01-synthetic-\(self.sessions)"
             return .init(
-                header: "sessionKey=sk-ant-sid01-synthetic-\(self.sessions)",
+                header: "sessionKey=\(value)",
                 source: "Synthetic",
-                origin: "https://platform.claude.com")
+                origin: "https://platform.claude.com",
+                records: [
+                    ProviderPluginCookieRecord(
+                        name: "sessionKey",
+                        value: value,
+                        domain: "platform.claude.com",
+                        hostOnly: true,
+                        path: "/",
+                        secure: true,
+                        expires: nil),
+                ])
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
