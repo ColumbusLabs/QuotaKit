@@ -296,9 +296,12 @@ struct SyncCoordinatorMultiAccountTests {
         #expect(recordLabels.allSatisfy { $0.hasPrefix("Account 1 @ api.example.ghe.com (local ") })
     }
 
-    @Test
-    func `Delayed startup reconcile deletes legacy Copilot record after first push`() async throws {
-        let settings = self.makeSettingsStore(suite: "TokenMulti-Copilot-RestartReconcile")
+    @Test(arguments: [true, false])
+    func `Delayed startup reconcile deletes legacy Copilot record after first push`(
+        waiterStartsFirst: Bool) async throws
+    {
+        let settings = self.makeSettingsStore(
+            suite: "TokenMulti-Copilot-RestartReconcile-\(waiterStartsFirst)")
         settings.iCloudSyncEnabled = true
         settings.copilotEnterpriseHost = "example.ghe.com"
         settings.addTokenAccount(
@@ -316,9 +319,30 @@ struct SyncCoordinatorMultiAccountTests {
             provider: .copilot)
         let mock = MockSyncPusher()
         mock.shouldBlockNextRecordNameFetch = true
+        var recordNameFetchWasResumed = false
+        defer {
+            if !recordNameFetchWasResumed { mock.resumeBlockedRecordNameFetch() }
+        }
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
-        let reconcile = Task { await coordinator.reconcileLastPushedRecordNamesWithCloudKit() }
-        await mock.waitForBlockedRecordNameFetch()
+
+        let reconcile: Task<Void, Never>
+        if waiterStartsFirst {
+            let startWaiter = Task {
+                await mock.waitForBlockedRecordNameFetch(timeout: .seconds(2))
+            }
+            let observationStarted = await mock.waitForRecordNameFetchStartObservation()
+            #expect(observationStarted)
+            reconcile = Task { await coordinator.reconcileLastPushedRecordNamesWithCloudKit() }
+            let fetchStarted = await startWaiter.value
+            #expect(fetchStarted)
+        } else {
+            reconcile = Task { await coordinator.reconcileLastPushedRecordNamesWithCloudKit() }
+            let fetchEnteredBlock = await mock.waitForRecordNameFetchBlockEntry(timeout: .seconds(2))
+            #expect(fetchEnteredBlock)
+            let fetchStarted = await mock.waitForBlockedRecordNameFetch(timeout: .seconds(2))
+            #expect(fetchStarted)
+        }
+
         await coordinator.pushCurrentSnapshot()
         #expect(mock.deleteCallCount == 0)
         let deviceID = try #require(mock.fetchRecordNamesLastDeviceID)
@@ -327,10 +351,43 @@ struct SyncCoordinatorMultiAccountTests {
             providerID: "copilot",
             accountEmail: "same-login")]
         mock.resumeBlockedRecordNameFetch()
+        recordNameFetchWasResumed = true
         await reconcile.value
 
         #expect(mock.deleteCallCount == 1)
         #expect(mock.deletedRecordNamesAcrossCalls.last?.first?.hasSuffix("|copilot|same-login") == true)
+    }
+
+    @Test(arguments: [true, false])
+    func `record-name fetch latch handles either start order and immediate release`(
+        waiterStartsFirst: Bool) async
+    {
+        let mock = MockSyncPusher()
+        mock.shouldBlockNextRecordNameFetch = true
+
+        let fetch: Task<[String], Never>
+        if waiterStartsFirst {
+            let startWaiter = Task {
+                await mock.waitForBlockedRecordNameFetch(timeout: .seconds(2))
+            }
+            let observationStarted = await mock.waitForRecordNameFetchStartObservation()
+            #expect(observationStarted)
+            fetch = Task { await mock.fetchPerProviderRecordNames(forDeviceID: "fixture-device") }
+            let fetchStarted = await startWaiter.value
+            #expect(fetchStarted)
+        } else {
+            fetch = Task { await mock.fetchPerProviderRecordNames(forDeviceID: "fixture-device") }
+            let fetchEnteredBlock = await mock.waitForRecordNameFetchBlockEntry(timeout: .seconds(2))
+            #expect(fetchEnteredBlock)
+            let fetchStarted = await mock.waitForBlockedRecordNameFetch(timeout: .seconds(2))
+            #expect(fetchStarted)
+        }
+
+        // Release immediately after the start signal; the blocked continuation
+        // must already be published when the observer can see the start flag.
+        mock.resumeBlockedRecordNameFetch()
+        let result = await fetch.value
+        #expect(result.isEmpty)
     }
 
     @Test(arguments: [false, true])

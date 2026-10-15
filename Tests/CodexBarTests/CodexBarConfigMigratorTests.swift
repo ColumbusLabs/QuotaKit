@@ -72,7 +72,9 @@ struct CodexBarConfigMigratorTests {
         config.setProviderConfig(claude)
         config.setProviderConfig(ProviderConfig(id: .codex, hiddenUsageItemIDs: ["section:credits"]))
         try configStore.save(config)
-        let beforeIdentity = try JSONEncoder().encode(claude.fetchIdentityConfig)
+        let identityEncoder = JSONEncoder()
+        identityEncoder.outputFormatting = [.sortedKeys]
+        let beforeIdentity = try identityEncoder.encode(claude.fetchIdentityConfig)
 
         let stores = Self.legacyStores(
             secrets: CountingLegacySecretStore(),
@@ -85,7 +87,7 @@ struct CodexBarConfigMigratorTests {
         ])
         #expect(migratedClaude.claudeResetCreditsVisibilityMigrated == true)
         #expect(migrated.providerConfig(for: .codex)?.hiddenUsageItemIDs == ["section:credits"])
-        #expect(try JSONEncoder().encode(migratedClaude.fetchIdentityConfig) == beforeIdentity)
+        #expect(try identityEncoder.encode(migratedClaude.fetchIdentityConfig) == beforeIdentity)
 
         var explicitChoice = migratedClaude
         explicitChoice.hiddenUsageItemIDs = ["metric:secondary", "future:item"]
