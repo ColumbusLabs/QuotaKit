@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBarCLI
+@testable import CodexBarCore
 
 struct TokenAccountCLISelectionTests {
     @Test
