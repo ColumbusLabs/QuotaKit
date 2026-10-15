@@ -16,8 +16,13 @@ private final class MockRecordNameFetchLatch: @unchecked Sendable {
     private var releaseRequested = false
     private var blockedContinuation: CheckedContinuation<Void, Never>?
 
-    var hasEnteredBlockForTesting: Bool { self.lock.withLock { self.hasEnteredBlock } }
-    var hasStartedStartObservationForTesting: Bool { self.lock.withLock { self.hasStartedStartObservation } }
+    var hasEnteredBlockForTesting: Bool {
+        self.lock.withLock { self.hasEnteredBlock }
+    }
+
+    var hasStartedStartObservationForTesting: Bool {
+        self.lock.withLock { self.hasStartedStartObservation }
+    }
 
     func block() async {
         await withCheckedContinuation { continuation in
