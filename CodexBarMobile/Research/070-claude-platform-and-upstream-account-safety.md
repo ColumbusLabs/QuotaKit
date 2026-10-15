@@ -1,6 +1,6 @@
 # Claude Platform credits and upstream account safety
 
-Status: implementation in progress; hosted verification pending.
+Status: implementation complete. Hosted verification and the authoritative completion status are maintained in [integration PR #247](https://github.com/ColumbusLabs/QuotaKit/pull/247). The completion record is marked done only after the implemented behavior passes the required hosted checks.
 
 Integrate the nine upstream commits from `052ded413` through `a49c61c30` from current QuotaKit `origin/main`. Claude Platform is an independent prepaid API-credit provider, disabled by default. Add an append-only provider identifier and reuse compatible mobile quota and billing projections, icon and color conventions. Keep all 103 existing providers, notifications and widgets compatible; the wallet has no fabricated quota budget, while actual expiring API/purchased credit grants retain upstream usage lanes.
 

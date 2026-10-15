@@ -355,8 +355,9 @@ struct QuotaProviderListTests {
     @Test
     func `Tavily Cosmic AI and Aerostack keep their quota subscriptions`() {
         let providers = QuotaProviderList.providers
-        #expect(providers.dropLast(4).suffix(3).map(\.id) == ["tavily", "cosmic", "aerostack"])
-        #expect(providers.dropLast(4).suffix(3).map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])
+        let precedingQuotaProviders = providers.dropLast(1).suffix(3)
+        #expect(precedingQuotaProviders.map(\.id) == ["tavily", "cosmic", "aerostack"])
+        #expect(precedingQuotaProviders.map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])
         for id in ["linkup", "tinyapi", "exa", "sailresearch", "sofya", "fal", "flora"] {
             #expect(!providers.contains { $0.id == id }, "\(id) reports balance/spend without quota transitions")
         }

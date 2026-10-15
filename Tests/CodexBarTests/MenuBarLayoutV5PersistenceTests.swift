@@ -20,7 +20,7 @@ struct MenuBarLayoutV5PersistenceTests {
     }
 
     @Test
-    func `typography preferences preserve every saved layout generation`() throws {
+    func `typography preferences preserve every saved layout generation`() {
         let defaults = InMemoryUserDefaults()
         let settings = testSettingsStore(suiteName: "typography-generations", userDefaults: defaults)
         #expect(settings.menuBarLayoutSize == .regular)
