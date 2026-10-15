@@ -41,3 +41,5 @@ The candidate monitor cursor advances to `a49c61c30` only with this integration 
 
 
 Initial hosted qualification identified and repaired three fixture/formatting defects: one redundant `throws`, the Linux assumption that ordinary refreshes never fetch display profiles, and a mobile catalog-tail offset after appending Claude Platform. The Linux fixture now isolates its cache, gates only the synthetic profile timer, keeps independent real watchdogs, and asserts exact display-only versus verified identity behavior; production timeouts and suite deadlines are unchanged. Independent follow-up source review cleared timing and cleanup. A separate initial iOS UI test failed at app launch while XCUITest acquired a background assertion, before any UI assertion. Its cause is unproven; it must pass fresh hosted verification on the repaired head and is not waived or classified healthy.
+
+The next hosted lint pass cleared formatting and exposed the expanded sync test type's existing 800-line limit. The Claude Platform sync test moves unchanged into its own discovered, main-actor serialized suite; no assertion, lint limit or test gate is weakened.
