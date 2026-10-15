@@ -8,7 +8,7 @@ read_when:
 # Provider plugin conversion matrix
 
 This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
-catalog. The current checkout registers 102 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+catalog. The current checkout registers 104 `UsageProvider` cases. Notion remains in the audit because it was explicitly
 requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
 for the prototype context.
 
@@ -123,3 +123,6 @@ Langdock is a plugin-first addition beyond the historical audit. Its selected Ed
 X API is also plugin-first. It uses QuotaKit's existing host-owned cookie and CSRF-header-echo capabilities to fetch
 account-scoped prepaid USD credits on both plugin engines. The generic balance and safe detail rows sync to iPhone; no
 quota history or burn-down window is inferred.
+
+Claude Platform is plugin-first. Its browser-session cookie flow returns API-organization credit grants and safe
+month-to-date billing details on both plugin engines; actual expiring grant lanes remain available for quota alerts.

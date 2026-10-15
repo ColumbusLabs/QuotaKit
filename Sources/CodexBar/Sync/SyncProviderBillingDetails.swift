@@ -88,8 +88,8 @@ enum SyncProviderBillingDetails {
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
-        // Provider-specific by design: only JetBrains top-up, xAI estimates and fal/FLORA billing amounts
-        // are exported by these typed, display-only rules.
+        // Provider-specific by design: typed display-only rows retain JetBrains top-up, xAI's estimate,
+        // fal/FLORA and Parallel billing fields, and Claude Console's monthly spend details.
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         case .xai:
@@ -110,6 +110,11 @@ enum SyncProviderBillingDetails {
             [.init(title: "Account balance", rows: [
                 ("Balance", .currencyAmount(allowNegative: true, allowUnavailable: false)),
                 ("Pending debit", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+            ])]
+        case .claudeplatform:
+            [.init(title: "Billing", rows: [
+                ("This month (UTC)", .currencyAmount(allowNegative: false, allowUnavailable: false)),
+                ("Spend", .currencyAmount(allowNegative: false, allowUnavailable: true)),
             ])]
         default:
             nil

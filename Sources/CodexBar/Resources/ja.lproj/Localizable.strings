@@ -2627,3 +2627,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "ブラウザー セッション Cookie を自動で読み込み、次に API キーへフォールバックします。";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "%@ / %@ 用に ブラウザー セッションを読み込みます。Cloud を優先します。";
+
+"link_acknowledgements" = "謝辞";
+"acknowledgements_footer" = "QuotaKit は以下のオープンソースプロジェクトを利用しています。";
+"acknowledgements_others" = "他 %d 名";
+"acknowledgements_author" = "作者";
+"acknowledgements_authors" = "作者";
+"acknowledgements_license" = "ライセンス";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit は使用量を取得するために、macOS キーチェーンに %@ の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
+"menu_bar_layout_size_large" = "大";
+"menu_bar_layout_monospaced_digits" = "等幅数字";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "sessionKey を含む platform.claude.com の Cookie ヘッダーを貼り付けてください。";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit は Muse Code のサブスクリプション使用量を取得するために、macOS キーチェーンに Muse Code のログイン トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
+"API credit" = "API クレジット";
+"Purchased credit" = "購入済みクレジット";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform は、ローカルのトークンコスト履歴ではなく、Console のクレジット残高と月間支出を表示します。";

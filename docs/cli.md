@@ -47,6 +47,7 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
 
 ## Command
 - `quotakit` defaults to the `usage` command.
+  - Multi-provider usage fetches run up to three providers concurrently. Text, JSON, and diagnostics retain selection order; a failed provider does not prevent the others from finishing. Refreshed credentials share a command-scoped writer, while external credential changes remain protected.
   - `--format text|json|toon` (default: text).
   - JSON uses the generic `usage.details` array for provider-specific information. Each section contains an optional
     `title`, `rows` (`label`, `value`, and optional `secondaryValue`), and an optional `bars` or `line` chart. The same

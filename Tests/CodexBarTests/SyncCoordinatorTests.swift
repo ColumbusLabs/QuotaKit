@@ -7,6 +7,75 @@ import Testing
 // SyncCoordinator's CloudKit lifecycle fixtures share one mock and serialized suite.
 // swiftlint:disable file_length
 
+/// Coordinates only the mock's one-shot record-name fetch block. Tests poll
+/// the protected start flag, so no continuation is needed for the observer.
+private final class MockRecordNameFetchLatch: @unchecked Sendable {
+    private let lock = NSLock()
+    private var hasEnteredBlock = false
+    private var hasStartedStartObservation = false
+    private var releaseRequested = false
+    private var blockedContinuation: CheckedContinuation<Void, Never>?
+
+    var hasEnteredBlockForTesting: Bool {
+        self.lock.withLock { self.hasEnteredBlock }
+    }
+
+    var hasStartedStartObservationForTesting: Bool {
+        self.lock.withLock { self.hasStartedStartObservation }
+    }
+
+    func block() async {
+        await withCheckedContinuation { continuation in
+            let releaseImmediately = self.lock.withLock {
+                if self.releaseRequested {
+                    self.releaseRequested = false
+                    self.hasEnteredBlock = true
+                    return true
+                }
+                self.blockedContinuation = continuation
+                // Publish the continuation before a polling observer can see
+                // that the fetch entered its blocked state.
+                self.hasEnteredBlock = true
+                return false
+            }
+            if releaseImmediately { continuation.resume() }
+        }
+    }
+
+    func waitUntilBlocked(timeout: Duration) async -> Bool {
+        self.lock.withLock { self.hasStartedStartObservation = true }
+        return await self.waitForBlockEntry(timeout: timeout)
+    }
+
+    func waitForBlockEntry(timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while !self.hasEnteredBlockForTesting {
+            guard !Task.isCancelled, ContinuousClock.now < deadline else { return false }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return true
+    }
+
+    func waitForStartObservation(timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while !self.hasStartedStartObservationForTesting {
+            guard !Task.isCancelled, ContinuousClock.now < deadline else { return false }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return true
+    }
+
+    func resume() {
+        let continuation = self.lock.withLock {
+            let continuation = self.blockedContinuation
+            self.blockedContinuation = nil
+            if continuation == nil { self.releaseRequested = true }
+            return continuation
+        }
+        continuation?.resume()
+    }
+}
+
 /// Mock sync pusher that records push calls for testing.
 final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var pushCount = 0
@@ -31,9 +100,7 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var fetchRecordNamesLastDeviceID: String?
     var nextFetchRecordNamesResult: [String] = []
     var shouldBlockNextRecordNameFetch = false
-    var recordNameFetchIsBlocked = false
-    private var blockedRecordNameFetchContinuation: CheckedContinuation<Void, Never>?
-    private var recordNameFetchStartedContinuation: CheckedContinuation<Void, Never>?
+    private let recordNameFetchLatch = MockRecordNameFetchLatch()
 
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
@@ -75,27 +142,25 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         self.fetchRecordNamesLastDeviceID = deviceID
         if self.shouldBlockNextRecordNameFetch {
             self.shouldBlockNextRecordNameFetch = false
-            self.recordNameFetchIsBlocked = true
-            self.recordNameFetchStartedContinuation?.resume()
-            self.recordNameFetchStartedContinuation = nil
-            await withCheckedContinuation { continuation in
-                self.blockedRecordNameFetchContinuation = continuation
-            }
-            self.recordNameFetchIsBlocked = false
+            await self.recordNameFetchLatch.block()
         }
         return self.nextFetchRecordNamesResult
     }
 
     func resumeBlockedRecordNameFetch() {
-        self.blockedRecordNameFetchContinuation?.resume()
-        self.blockedRecordNameFetchContinuation = nil
+        self.recordNameFetchLatch.resume()
     }
 
-    func waitForBlockedRecordNameFetch() async {
-        if self.recordNameFetchIsBlocked { return }
-        await withCheckedContinuation { continuation in
-            self.recordNameFetchStartedContinuation = continuation
-        }
+    func waitForBlockedRecordNameFetch(timeout: Duration = .seconds(5)) async -> Bool {
+        await self.recordNameFetchLatch.waitUntilBlocked(timeout: timeout)
+    }
+
+    func waitForRecordNameFetchStartObservation(timeout: Duration = .seconds(1)) async -> Bool {
+        await self.recordNameFetchLatch.waitForStartObservation(timeout: timeout)
+    }
+
+    func waitForRecordNameFetchBlockEntry(timeout: Duration = .seconds(1)) async -> Bool {
+        await self.recordNameFetchLatch.waitForBlockEntry(timeout: timeout)
     }
 }
 
@@ -135,9 +200,34 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .fireworks, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .lithosai, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .xai, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .claudeplatform, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .codex, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+    }
+
+    @Test
+    func `Claude Platform wallet status preserves signed balances and valid currencies`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func status(currency: String, balance: Double) -> String? {
+            let wallet = ProviderCostSnapshot(
+                used: balance,
+                limit: 0,
+                currencyCode: currency,
+                balance: balance,
+                updatedAt: now)
+            return SyncCoordinator.syncedStatusMessage(
+                provider: .claudeplatform,
+                snapshot: nil,
+                providerCost: wallet,
+                error: nil,
+                rateWindows: [])
+        }
+
+        #expect(status(currency: "USD", balance: 0) == "Prepaid credits: USD 0.00")
+        #expect(status(currency: "EUR", balance: -2.5) == "Prepaid credits: EUR -2.50")
+        #expect(status(currency: "JPY", balance: 12.25) == "Prepaid credits: JPY 12.25")
+        #expect(status(currency: "U$D", balance: 10) == nil)
     }
 
     @Test

@@ -2631,3 +2631,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "کوکی جلسهٔ مرورگر را خودکار وارد می‌کند و سپس از کلید API استفاده می‌کند.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "جلسه‌های مرورگر را برای %@ / %@ وارد می‌کند؛ Cloud در اولویت است.";
+
+"link_acknowledgements" = "قدردانی";
+"acknowledgements_footer" = "QuotaKit با این پروژه‌های متن‌باز ساخته شده است.";
+"acknowledgements_others" = "%d نفر دیگر";
+"acknowledgements_author" = "نویسنده";
+"acknowledgements_authors" = "نویسندگان";
+"acknowledgements_license" = "مجوز";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit از macOS Keychain %@ هدر کوکی تان را می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
+"menu_bar_layout_size_large" = "بزرگ";
+"menu_bar_layout_monospaced_digits" = "ارقام هم‌عرض";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "سرآیند Cookie از platform.claude.com شامل sessionKey را جای‌گذاری کنید.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit از macOS Keychain توکن ورود Muse Code را درخواست می کند تا بتواند استفاده اشتراک Muse Code شما را دریافت کند. برای ادامه روی OK کلیک کنید.";
+"API credit" = "اعتبار API";
+"Purchased credit" = "اعتبار خریداری‌شده";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform موجودی اعتبار و هزینه ماهانه Console را نشان می‌دهد، نه تاریخچه هزینه محلی توکن‌ها.";

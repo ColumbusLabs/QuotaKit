@@ -2047,7 +2047,8 @@ final class SyncCoordinator {
              .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
-             .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .sailresearch, .sofya, .tavily, .tinyapi:
+             .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,
+             .tavily, .tinyapi:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

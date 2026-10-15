@@ -2626,3 +2626,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Importerar automatiskt en webbläsaren-sessionskaka och använder sedan en API-nyckel som reserv.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "Importerar webbläsaren-sessioner för %@ / %@; Cloud prioriteras.";
+
+"link_acknowledgements" = "Tack";
+"acknowledgements_footer" = "QuotaKit är byggt med dessa projekt med öppen källkod.";
+"acknowledgements_others" = "%d andra";
+"acknowledgements_author" = "Upphovsperson";
+"acknowledgements_authors" = "Upphovspersoner";
+"acknowledgements_license" = "Licens";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din %@-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
+"menu_bar_layout_size_large" = "Stor";
+"menu_bar_layout_monospaced_digits" = "Siffror med fast bredd";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "Klistra in en Cookie-header från platform.claude.com som innehåller sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om inloggningstoken för Muse Code så att din Muse Code-prenumerationsanvändning kan hämtas. Klicka på OK för att fortsätta.";
+"API credit" = "API-kredit";
+"Purchased credit" = "Köpt kredit";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform visar Console-kreditsaldo och månadsutgifter, inte lokal tokenkostnadshistorik.";

@@ -349,10 +349,10 @@ struct SyncCostIsEstimatedTests {
     }
 
     @Test
-    func `SyncCoordinator: balance-only providers never mark model costs estimated`() async throws {
-        let providers: [UsageProvider] = [.fal, .flora, .parallel]
+    func `SyncCoordinator: provider-native usage never marks model costs estimated`() async throws {
+        let providers: [UsageProvider] = [.fal, .flora, .parallel, .claudeplatform]
         let settings = self.makeSettingsStore(
-            suite: "SyncCoord-isEst-balance-only",
+            suite: "SyncCoord-isEst-provider-native",
             config: CodexBarConfig(providers: [
                 ProviderConfig(
                     id: UsageProvider.flora.instanceID,

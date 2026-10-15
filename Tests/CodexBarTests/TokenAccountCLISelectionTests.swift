@@ -1,9 +1,40 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBarCLI
+@testable import CodexBarCore
 
 struct TokenAccountCLISelectionTests {
+    @Test
+    func `parallel providers retain both refreshed account credentials`() async throws {
+        let providers: [UsageProvider] = [.antigravity, .stepfun]
+        let accounts = providers.map { _ in Self.account(token: "original-token") }
+        let config = CodexBarConfig(providers: zip(providers, accounts).map { provider, account in
+            ProviderConfig(
+                id: provider.instanceID,
+                tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+        })
+        let store = try Self.configStore()
+        defer { try? FileManager.default.removeItem(at: store.fileURL.deletingLastPathComponent()) }
+        try store.save(config)
+        let context = try Self.writebackContext(config: config, store: store)
+        // Keep the first atomic write open long enough for the other provider to request its writeback.
+        let beforePublish: @Sendable (URL) throws -> Void = { _ in Thread.sleep(forTimeInterval: 0.1) }
+        await withTaskGroup(of: Void.self) { group in
+            for (provider, account) in zip(providers, accounts) {
+                group.addTask {
+                    await CredentialFileWriter.$beforePublishForTesting.withValue(beforePublish) {
+                        await context.tokenUpdater(for: account)?(provider, account.id, "refreshed-token")
+                    }
+                }
+            }
+        }
+        let saved = try #require(try store.load())
+        for provider in providers {
+            #expect(saved.providerConfig(for: provider.instanceID)?.tokenAccounts?.accounts.first?.token
+                == "refreshed-token")
+        }
+    }
+
     @Test
     func `cli token updater writes refreshed credential when stored token is unchanged`() async throws {
         let account = Self.account(token: "original-token")

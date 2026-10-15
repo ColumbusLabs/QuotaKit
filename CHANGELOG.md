@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Claude Platform tracks prepaid API credits independently of Claude subscription usage, with billing details synced to iPhone.
+- Custom menu layouts offer large text and monospaced digits. Settings → About includes bundled open-source acknowledgements.
+
 - OpenAI live usage shows one-minute throughput, model utilization and a last-hour menu chart, with manual organization limits kept separately for each credential.
 - Parallel tracks prepaid balances and pending debits through its signed-in browser session; billing details sync to iPhone without quota alerts.
 - Claude credits, reset credits and plan dates can be shown independently. Spend-only Claude accounts have financial meters, pace and UTC monthly resets.
@@ -39,6 +42,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Claude preserves the requested OAuth profile email and shows the account identity on ordinary refreshes. Muse earns credential access only through a deliberate manual refresh.
+- Factory discovers sessions across supported Firefox channels, CLI provider fetches run concurrently with ordered output, and plugin workers release temporary and retired runtimes.
 
 - Browser imports use the supported catalog and explain Files & Folders denial; CommandCode can fetch usage with an API key.
 - Codex spend retains every bounded account result and keeps native detail tabs stable across replaced totals; CLI project reports disclose partial history.

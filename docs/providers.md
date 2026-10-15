@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 102 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 104 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -160,6 +160,7 @@ complete when the available scan window covers fewer days.
 | [Aerostack](aerostack.md) | Account JWT → monthly AI-token allowance (`api`). |
 | [Sail Research](sailresearch.md) | API key → organization credit balance and reported spend (`api`). |
 | [Sofya](sofya.md) | API key → account credit pools and provider-reported reset (`api`). |
+| [Claude Platform](claudeplatform.md) | Browser or manual platform.claude.com session → Console API credit balance, expiring grants, and month-to-date spend (`web`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -195,6 +196,11 @@ complete when the available scan window covers fewer days.
   local-agent JSONL files for the configured history window.
 - Status: Statuspage.io (Anthropic).
 - Details: `docs/claude.md`.
+
+## Claude Platform
+- Console browser session (`web`) → API-organization prepaid balance, actual expiring credit-grant lanes, and optional month-to-date spend.
+- No inference API key or Anthropic Admin API key is accepted for individual Console billing.
+- Details: `docs/claudeplatform.md`.
 
 ## z.ai
 - API token from `~/.quotakit/config.json` (`providers[].apiKey`) or `Z_AI_API_KEY` env var.

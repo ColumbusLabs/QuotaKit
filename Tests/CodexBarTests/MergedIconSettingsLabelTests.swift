@@ -68,7 +68,8 @@ struct MergedIconSettingsLabelTests {
                         MenuBarLayoutDisplayOptions(
                             size: .constant(.small),
                             gap: .constant(.tight),
-                            verticalAdjustment: .constant(0))
+                            verticalAdjustment: .constant(0),
+                            monospacedDigits: .constant(false))
                     }
                     .toggleStyle(.switch)
                     .padding(24)
@@ -85,6 +86,7 @@ struct MergedIconSettingsLabelTests {
                         "merge_icons_title", "merged_icon_style_title", "switcher_rows_title",
                         "merged_icon_source_title", "merged_icon_source_frontmost_app", "overview_tab_providers_title",
                         "menu_bar_layout_size", "menu_bar_layout_gap", "menu_bar_layout_vertical_adjustment",
+                        "menu_bar_layout_monospaced_digits",
                     ] {
                         #expect(text.contains(L(key)), "Missing accessible label: \(key) in \(mode)")
                     }

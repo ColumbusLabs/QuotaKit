@@ -306,6 +306,16 @@ struct MenuBarLayoutEditor: View {
             })
     }
 
+    private var monospacedDigitsBinding: Binding<Bool> {
+        Binding(
+            get: { self.settings.menuBarLayoutMonospacedDigits },
+            set: { enabled in
+                self.settings.menuBarLayoutMonospacedDigits = enabled
+                MenuBarLayoutEditorPersistence.activate(
+                    self.layout, for: self.persistenceProvider, settings: self.settings)
+            })
+    }
+
     private var gapBinding: Binding<MenuBarLayoutGap> {
         Binding(
             get: { self.settings.menuBarLayoutGap },
@@ -735,7 +745,8 @@ struct MenuBarLayoutEditor: View {
         MenuBarLayoutDisplayOptions(
             size: self.sizeBinding,
             gap: self.gapBinding,
-            verticalAdjustment: self.$settings.menuBarLayoutVerticalAdjustment)
+            verticalAdjustment: self.$settings.menuBarLayoutVerticalAdjustment,
+            monospacedDigits: self.monospacedDigitsBinding)
     }
 
     private func applyPreset(_ preset: MenuBarLayoutPreset) {
@@ -930,7 +941,8 @@ struct MenuBarLayoutPreview: View {
                 now: minute,
                 verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment,
                 colorPace: self.settings.menuBarColorPace,
-                colorByProvider: self.settings.menuBarColorByProvider))
+                colorByProvider: self.settings.menuBarColorByProvider,
+                monospacedDigits: self.settings.menuBarLayoutMonospacedDigits))
         MenuBarLayoutPreviewText(rendered: rendered)
     }
 
@@ -1038,45 +1050,50 @@ struct MenuBarLayoutDisplayOptions: View {
     @Binding var size: MenuBarLayoutSize
     @Binding var gap: MenuBarLayoutGap
     @Binding var verticalAdjustment: Int
+    @Binding var monospacedDigits: Bool
 
     var body: some View {
-        HStack(spacing: 18) {
-            Picker(L("menu_bar_layout_size"), selection: self.$size) {
-                ForEach(MenuBarLayoutSize.allCases) { size in
-                    Text(size.label).tag(size)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 18) {
+                Picker(L("menu_bar_layout_size"), selection: self.$size) {
+                    ForEach(MenuBarLayoutSize.allCases) { size in
+                        Text(size.label).tag(size)
+                    }
                 }
-            }
-            .pickerStyle(.menu)
+                .pickerStyle(.menu)
 
-            Picker(L("menu_bar_layout_gap"), selection: self.$gap) {
-                ForEach(MenuBarLayoutGap.allCases) { gap in
-                    Text(gap.label).tag(gap)
+                Picker(L("menu_bar_layout_gap"), selection: self.$gap) {
+                    ForEach(MenuBarLayoutGap.allCases) { gap in
+                        Text(gap.label).tag(gap)
+                    }
                 }
-            }
-            .pickerStyle(.menu)
+                .pickerStyle(.menu)
 
-            HStack(spacing: 8) {
-                Text(L("menu_bar_layout_vertical_adjustment"))
-                    .lineLimit(1)
-                    .fixedSize()
+                HStack(spacing: 8) {
+                    Text(L("menu_bar_layout_vertical_adjustment"))
+                        .lineLimit(1)
+                        .fixedSize()
 
-                TextField(
-                    "",
-                    value: self.$verticalAdjustment,
-                    format: .number)
+                    TextField(
+                        "",
+                        value: self.$verticalAdjustment,
+                        format: .number)
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
+                        .frame(width: 44)
+
+                    Stepper(value: self.$verticalAdjustment, in: -20...20, step: 1) {
+                        EmptyView()
+                    }
                     .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-                    .frame(width: 44)
-
-                Stepper(value: self.$verticalAdjustment, in: -20...20, step: 1) {
-                    EmptyView()
                 }
-                .labelsHidden()
-            }
 
-            Spacer()
+                Spacer()
+            }
+            Toggle(L("menu_bar_layout_monospaced_digits"), isOn: self.$monospacedDigits)
+                .toggleStyle(.checkbox)
         }
     }
 }
@@ -1140,6 +1157,7 @@ extension MenuBarLayoutSize {
         switch self {
         case .small: L("menu_bar_layout_size_small")
         case .regular: L("menu_bar_layout_size_regular")
+        case .large: L("menu_bar_layout_size_large")
         }
     }
 }

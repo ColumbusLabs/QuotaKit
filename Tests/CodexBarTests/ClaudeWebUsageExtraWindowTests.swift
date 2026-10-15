@@ -69,7 +69,7 @@ struct ClaudeWebUsageExtraWindowTests {
             balance: 100,
             updatedAt: now.addingTimeInterval(1))
 
-        let merged = try #require(ClaudeUsageFetcher._mergeProviderCostForTesting(
+        let merged = try #require(ClaudeUsageFetcher.mergeProviderCost(
             primary: primary,
             web: web))
 
@@ -97,7 +97,7 @@ struct ClaudeWebUsageExtraWindowTests {
             balance: 100,
             updatedAt: now)
 
-        let merged = try #require(ClaudeUsageFetcher._mergeProviderCostForTesting(
+        let merged = try #require(ClaudeUsageFetcher.mergeProviderCost(
             primary: primary,
             web: web))
 

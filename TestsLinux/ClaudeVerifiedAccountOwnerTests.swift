@@ -29,23 +29,74 @@ struct ClaudeVerifiedAccountOwnerTests {
     }
 
     @Test
-    func `profile is fetched only when requested and with the winning usage token`() async throws {
+    func `ordinary lookup stays nonblocking and display-only while requested profile verifies ownership`() async throws {
         let skipped = IdentityCalls()
-        let plain = try await self.fetch(includeIdentity: false, calls: skipped)
+        let displayProfileCache = ClaudeOAuthDisplayProfileCache()
+        let profileGate = IdentityProfileGate()
+        let plainTask = Task {
+            try await self.fetch(
+                includeIdentity: false,
+                calls: skipped,
+                displayProfileCache: displayProfileCache,
+                profileGate: profileGate)
+        }
+        let profileStartTask = Task<Void, Error> {
+            try await profileGate.waitUntilStarted()
+        }
+        let profileStart = await BoundedTaskJoin(sourceTask: profileStartTask).value(joinGrace: .seconds(5))
+        guard case .value = profileStart else {
+            await profileGate.release()
+            plainTask.cancel()
+            switch profileStart {
+            case let .failure(error): throw error
+            case .timedOut: Issue.record("Ordinary OAuth refresh did not start its display-only profile lookup")
+            case .value: break
+            }
+            return
+        }
+        let plainOutcome = await BoundedTaskJoin(sourceTask: plainTask).value(joinGrace: .seconds(5))
+        await profileGate.release()
+        let plain: ClaudeUsageSnapshot
+        switch plainOutcome {
+        case let .value(snapshot): plain = snapshot
+        case let .failure(error): throw error
+        case .timedOut:
+            Issue.record("Ordinary OAuth usage waited for the stalled display-only profile lookup")
+            return
+        }
+        let plainPrimary = try #require(plain.primary)
+        #expect(plainPrimary.usedPercent == 25)
         #expect(plain.accountID == nil)
-        #expect(await skipped.values == ["usage:fixture-access-token"])
+        await displayProfileCache.finishPendingForTesting()
+        #expect(await skipped.values.sorted() == [
+            "profile:fixture-access-token", "usage:fixture-access-token",
+        ])
+
+        let cachedPlain = try await self.fetch(
+            includeIdentity: false,
+            calls: skipped,
+            displayProfileCache: displayProfileCache)
+        #expect(cachedPlain.primary?.usedPercent == 25)
+        #expect(cachedPlain.accountEmail == "owner@example.com")
+        #expect(cachedPlain.accountID == nil)
+        #expect(await skipped.values.sorted() == [
+            "profile:fixture-access-token", "usage:fixture-access-token", "usage:fixture-access-token",
+        ])
 
         let requested = IdentityCalls()
-        let identified = try await self.fetch(includeIdentity: true, calls: requested)
+        let identified = try await self.fetch(
+            includeIdentity: true, calls: requested, displayProfileCache: ClaudeOAuthDisplayProfileCache())
         #expect(await requested.values == ["usage:fixture-access-token", "profile:fixture-access-token"])
-        let primary = try #require(identified.primary)
-        #expect(primary.usedPercent == 25)
+        let identifiedPrimary = try #require(identified.primary)
+        #expect(identifiedPrimary.usedPercent == 25)
         #expect(identified.accountID == ClaudeVerifiedAccountOwner.ownerID(
             accountUUID: "principal-a", email: "owner@example.com", organizationUUID: "org-a"))
-        #expect(identified.accountEmail == plain.accountEmail)
+        #expect(identified.accountEmail == "owner@example.com")
         let mapped = ClaudeOAuthFetchStrategy._snapshotForTesting(from: identified)
             .withAccountLabel("Work", for: .claude)
-        #expect(mapped.identity?.accountEmail == "Work")
+        #expect(mapped.identity?.accountEmail == "owner@example.com")
+        #expect(ClaudeOAuthFetchStrategy._snapshotForTesting(from: cachedPlain)
+            .withAccountLabel("Work", for: .claude).identity?.accountEmail == "owner@example.com")
         #expect(mapped.identity?.accountID == nil)
         #expect(mapped.identity?.widgetAccountOwnerID == identified.accountID)
         #expect(identified.replacingWebExtras(extraRateWindows: [], providerCost: nil).accountID == identified
@@ -74,7 +125,9 @@ struct ClaudeVerifiedAccountOwnerTests {
         includeIdentity: Bool,
         calls: IdentityCalls,
         profileFails: Bool = false,
-        cancelProfile: Bool = false) async throws -> ClaudeUsageSnapshot
+        cancelProfile: Bool = false,
+        displayProfileCache: ClaudeOAuthDisplayProfileCache = ClaudeOAuthDisplayProfileCache(),
+        profileGate: IdentityProfileGate? = nil) async throws -> ClaudeUsageSnapshot
     {
         let credentials = ClaudeOAuthCredentials(
             accessToken: "fixture-access-token", refreshToken: nil,
@@ -92,12 +145,23 @@ struct ClaudeVerifiedAccountOwnerTests {
             }) {
                 try await ClaudeUsageFetcher.$fetchOAuthProfileOverride.withValue({ token in
                     await calls.append("profile:\(token)")
+                    await profileGate?.waitUntilReleased()
                     if cancelProfile { throw CancellationError() }
                     if profileFails { throw IdentityFailure.unavailable }
                     return OAuthProfileResponse(
                         emailAddress: "owner@example.com", organizationUuid: "org-a", accountUuid: "principal-a")
                 }) {
-                    try await fetcher.loadLatestUsage(model: "sonnet")
+                    try await ClaudeUsageFetcher.$displayProfileCache.withValue(displayProfileCache) {
+                        if profileGate != nil {
+                            let controlledSleep: @Sendable (Duration) async throws -> Void = { _ in
+                                try await Task.sleep(for: .seconds(60))
+                            }
+                            return try await BoundedTaskJoinTiming.$sleep.withValue(controlledSleep) {
+                                try await fetcher.loadLatestUsage(model: "sonnet")
+                            }
+                        }
+                        return try await fetcher.loadLatestUsage(model: "sonnet")
+                    }
                 }
             }
         }
@@ -109,4 +173,34 @@ private enum IdentityFailure: Error { case unavailable }
 private actor IdentityCalls {
     var values: [String] = []
     func append(_ value: String) { self.values.append(value) }
+}
+
+private actor IdentityProfileGate {
+    private var isStarted = false
+    private var isReleased = false
+    private var startContinuation: CheckedContinuation<Void, any Error>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func waitUntilStarted() async throws {
+        guard !self.isStarted else { return }
+        try await withCheckedThrowingContinuation { self.startContinuation = $0 }
+    }
+
+    func waitUntilReleased() async {
+        self.isStarted = true
+        self.startContinuation?.resume(returning: ())
+        self.startContinuation = nil
+        guard !self.isReleased else { return }
+        await withCheckedContinuation { self.releaseContinuation = $0 }
+    }
+
+    func release() {
+        self.isReleased = true
+        if !self.isStarted {
+            self.startContinuation?.resume(throwing: CancellationError())
+            self.startContinuation = nil
+        }
+        self.releaseContinuation?.resume()
+        self.releaseContinuation = nil
+    }
 }

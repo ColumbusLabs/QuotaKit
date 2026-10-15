@@ -193,6 +193,17 @@ struct AccountIdentityComputerTests {
     }
 
     @Test
+    func `Claude Platform uses legacy grouping without stable identity`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claudeplatform,
+            accountEmail: "owner@example.com",
+            accountOrganization: "org_123",
+            loginMethod: "web")
+        #expect(AccountIdentityComputer.compute(provider: .claudeplatform, identity: identity) == nil)
+        #expect(AccountIdentityComputer.compute(provider: .claudeplatform, identity: nil) == nil)
+    }
+
+    @Test
     func `Non-Tier-A providers return nil for legacy iOS grouping`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
@@ -202,6 +213,7 @@ struct AccountIdentityComputerTests {
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
             .fireworks, .ibmbob, .huggingface, .museai, .lithosai, .langdock,
             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
+            .claudeplatform,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

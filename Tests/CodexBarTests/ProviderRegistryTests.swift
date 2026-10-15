@@ -230,6 +230,8 @@ struct ProviderRegistryTests {
             [.abacus, .commandcode],
             // Meta Muse and Muse Code intentionally share the Muse blue brand color.
             [.muse, .museai],
+            // Claude subscriptions and Claude Platform retain the same source-backed Claude brand accent.
+            [.claude, .claudeplatform],
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
             // New providers retain upstream violet/neutral accents, mirrored by the iPhone palette.
@@ -239,6 +241,9 @@ struct ProviderRegistryTests {
             [.v0, .flora],
             [.typesafe, .flora],
         ]
+
+        let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color
+        #expect(ClaudePlatformProviderDescriptor.descriptor.branding.color == claudeBrandColor)
 
         for leftIndex in descriptors.indices {
             for rightIndex in descriptors.index(after: leftIndex)..<descriptors.endIndex {

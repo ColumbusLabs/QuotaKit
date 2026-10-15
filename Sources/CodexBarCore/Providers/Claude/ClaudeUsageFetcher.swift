@@ -49,6 +49,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let includeSubscriptionMetadata: Bool
     private let keepCLISessionsAlive: Bool
     private let browserDetection: BrowserDetection
+    @TaskLocal static var displayProfileCache = ClaudeOAuthDisplayProfileCache()
     private static let log = CodexBarLog.logger(LogCategories.provider(.claude, scope: "usage"))
     private static var isClaudeOAuthFlowDebugEnabled: Bool {
         ProcessInfo.processInfo.environment["CODEXBAR_DEBUG_CLAUDE_OAUTH_FLOW"] == "1"
@@ -357,6 +358,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             let credentials = credentialRecord.credentials
 
             try self.validateRequiredOAuthScope(credentials)
+            if !self.fetcher.includeAccountIdentity {
+                _ = await ClaudeUsageFetcher.displayProfileCache.email(
+                    accessToken: credentials.accessToken, fetch: ClaudeUsageFetcher.fetchOAuthProfile)
+            }
             let usage = try await ClaudeUsageFetcher.fetchOAuthUsage(
                 accessToken: credentials.accessToken,
                 detectClaudeVersion: self.fetcher.runtime == .app,
@@ -626,12 +631,7 @@ extension ClaudeUsageFetcher {
         }
 
         func firstWindowDict(_ keys: [String]) -> [String: Any]? {
-            for key in keys {
-                if let dict = obj[key] as? [String: Any] {
-                    return dict
-                }
-            }
-            return nil
+            keys.lazy.compactMap { obj[$0] as? [String: Any] }.first
         }
 
         func makeWindow(_ dict: [String: Any]?, windowMinutes: Int) -> RateWindow? {
@@ -677,7 +677,6 @@ extension ClaudeUsageFetcher {
             primary: session,
             secondary: weekAll,
             opus: opusWindow,
-            providerCost: nil,
             updatedAt: now,
             accountEmail: email,
             accountOrganization: org,
@@ -807,6 +806,8 @@ extension ClaudeUsageFetcher {
         if let override = fetchOAuthProfileOverride {
             return try await override(accessToken)
         }
+        // Injected usage must never cause a real profile request in fixture tests.
+        if self.fetchOAuthUsageOverride != nil { throw ClaudeOAuthFetchError.invalidResponse }
         #endif
         return try await ClaudeOAuthUsageFetcher.fetchProfile(accessToken: accessToken)
     }
@@ -830,16 +831,18 @@ extension ClaudeUsageFetcher {
         to snapshot: ClaudeUsageSnapshot,
         accessToken: String) async throws -> ClaudeUsageSnapshot
     {
-        guard self.includeAccountIdentity else { return snapshot }
+        guard self.includeAccountIdentity else {
+            return await snapshot.withAccountIdentity(snapshot.accountID, email: Self.displayProfileCache.email(
+                accessToken: accessToken, fetch: Self.fetchOAuthProfile))
+        }
         do {
             let profile = try await Self.fetchOAuthProfile(accessToken: accessToken)
             try Task.checkCancellation()
-            guard let owner = ClaudeVerifiedAccountOwner.ownerID(
+            let owner = ClaudeVerifiedAccountOwner.ownerID(
                 accountUUID: profile.accountUuid,
                 email: profile.emailAddress,
                 organizationUUID: profile.organizationUuid)
-            else { return snapshot }
-            return snapshot.withAccountIdentity(owner)
+            return snapshot.withAccountIdentity(owner, email: profile.emailAddress)
         } catch {
             try Task.checkCancellation()
             if ClaudeOAuthFetchError.isCancellation(error) { throw error }
@@ -1164,8 +1167,7 @@ extension ClaudeUsageFetcher {
             standardInput: FileHandle.nullDevice,
             currentDirectoryURL: workingDirectory,
             label: "claude-direct-usage")
-        let snap = try ClaudeStatusProbe.parse(text: result.stdout)
-        return try Self.makeSnapshot(from: snap)
+        return try Self.makeSnapshot(from: ClaudeStatusProbe.parse(text: result.stdout))
     }
 
     static func makeSnapshot(
@@ -1268,6 +1270,8 @@ extension ClaudeUsageFetcher {
         switch await race.value(joinGrace: .seconds(self.webExtrasTimeout)) {
         case let .value(candidate):
             try Task.checkCancellation()
+            let snapshot = snapshot.withAccountIdentity(
+                snapshot.accountID, email: candidate.oauthProfile?.emailAddress)
             let webData = candidate.webData
             guard Self.webExtrasAccountMatches(
                 snapshot: snapshot,
@@ -1287,11 +1291,9 @@ extension ClaudeUsageFetcher {
                 primary: snapshot.providerCost,
                 web: webData.extraUsageCost,
                 includeUsageDetails: self.useWebExtras)
-            if mergedProviderCost != snapshot.providerCost || mergedExtraRateWindows != snapshot.extraRateWindows {
-                return snapshot.replacingWebExtras(
-                    extraRateWindows: mergedExtraRateWindows,
-                    providerCost: mergedProviderCost)
-            }
+            return snapshot.replacingWebExtras(
+                extraRateWindows: mergedExtraRateWindows,
+                providerCost: mergedProviderCost)
         case let .failure(error):
             if error is CancellationError ||
                 (error as? URLError)?.code == .cancelled ||
@@ -1338,36 +1340,30 @@ extension ClaudeUsageFetcher {
         return normalized.isEmpty ? nil : normalized
     }
 
-    private static func mergeProviderCost(
+    static func mergeProviderCost(
         primary: ProviderCostSnapshot?,
         web: ProviderCostSnapshot?,
         includeUsageDetails: Bool = true) -> ProviderCostSnapshot?
     {
-        if !includeUsageDetails {
-            guard let web, let balance = web.balance else { return primary }
-            guard let primary else {
-                return ProviderCostSnapshot(
-                    used: 0,
-                    limit: 0,
-                    currencyCode: web.currencyCode,
-                    period: web.period,
-                    balance: balance,
-                    updatedAt: web.updatedAt)
-            }
-            guard primary.currencyCode.caseInsensitiveCompare(web.currencyCode) == .orderedSame else {
-                return primary
-            }
-            return primary.replacing(balance: balance)
+        guard let web else { return primary }
+        guard let primary else {
+            if includeUsageDetails { return web }
+            guard let balance = web.balance else { return nil }
+            return ProviderCostSnapshot(
+                used: 0,
+                limit: 0,
+                currencyCode: web.currencyCode,
+                period: web.period,
+                balance: balance,
+                updatedAt: web.updatedAt)
         }
-        guard let primary else { return web }
-        guard let web,
-              let balance = web.balance,
+        guard let balance = web.balance,
               primary.currencyCode.caseInsensitiveCompare(web.currencyCode) == .orderedSame
         else { return primary }
         return primary.replacing(balance: balance)
     }
 
-    private static func mergeExtraRateWindows(
+    static func mergeExtraRateWindows(
         primary: [NamedRateWindow],
         web: [NamedRateWindow]) -> [NamedRateWindow]
     {
@@ -1442,20 +1438,6 @@ extension ClaudeUsageFetcher {
 
 #if DEBUG
 extension ClaudeUsageFetcher {
-    public static func _mergeProviderCostForTesting(
-        primary: ProviderCostSnapshot?,
-        web: ProviderCostSnapshot?) -> ProviderCostSnapshot?
-    {
-        self.mergeProviderCost(primary: primary, web: web)
-    }
-
-    public static func _mergeExtraRateWindowsForTesting(
-        primary: [NamedRateWindow],
-        web: [NamedRateWindow]) -> [NamedRateWindow]
-    {
-        self.mergeExtraRateWindows(primary: primary, web: web)
-    }
-
     public static func _mapOAuthUsageForTesting(
         _ data: Data,
         rateLimitTier: String? = nil,

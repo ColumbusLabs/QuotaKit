@@ -114,6 +114,9 @@ final class SettingsWindowController: NSWindowController {
         if let pane {
             self.selection.pane = pane
         }
+        if pane == .about {
+            self.selection.requestAboutRoot()
+        }
 
         self.prepareToPresent()
         let outcome: Outcome

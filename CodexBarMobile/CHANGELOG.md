@@ -5,11 +5,12 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
-## Unreleased — 2026-09-02 — Durable Codex spend history
+## Unreleased — 2026-10-15 — Provider billing and quota sync
 
 ### Added
 
 - Parallel prepaid balance and pending debit details sync from Mac to iPhone without quota widgets or alerts.
+- Claude Platform API credit grants and their quota alerts now sync from QuotaKit Mac to iPhone.
 
 - xAI estimated remaining credit syncs from Mac as a separate detail, preserving posted balance and adding no quota budget or alerts.
 - fal account balance and FLORA workspace balance, member limit, and month-to-date spend now sync from QuotaKit Mac to iPhone with provider branding; neither provider emits quota alerts.

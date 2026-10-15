@@ -113,6 +113,7 @@ enum ProviderColorPalette {
             (["openai", "chatgpt"], RawColor(red: 0.06, green: 0.51, blue: 0.43)),
             (["azureopenai"], RawColor(red: 0, green: 120 / 255, blue: 212 / 255)),
             (["claude", "anthropic"], RawColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
+            (["claudeplatform"], RawColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
             (["cursor"], RawColor(red: 245 / 255, green: 78 / 255, blue: 0)),
             (["opencode"], RawColor(red: 14 / 255, green: 165 / 255, blue: 233 / 255)),
             (["opencodego"], RawColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255)),

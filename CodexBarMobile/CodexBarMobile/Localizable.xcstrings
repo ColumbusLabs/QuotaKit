@@ -23093,7 +23093,149 @@
             }
           }
         }
+      },
+    "Claude Platform credit grants now sync from QuotaKit Mac to iPhone with branded cards and quota alerts.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة أرصدة منح Claude Platform من QuotaKit Mac إلى iPhone مع بطاقات تحمل العلامة التجارية وتنبيهات الحصص."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les subvencions de crèdit de Claude Platform ara se sincronitzen de QuotaKit per a Mac amb l’iPhone, amb targetes de marca i alertes de quota."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude-Platform-Guthaben werden jetzt mit gebrandeten Karten und Kontingentwarnungen von QuotaKit für Mac mit dem iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform credit grants now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las concesiones de crédito de Claude Platform ahora se sincronizan desde QuotaKit para Mac con el iPhone, con tarjetas de marca y alertas de cuota."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعتبارهای اعطاشده Claude Platform اکنون از QuotaKit مک با کارت‌های برنددار و هشدارهای سهمیه با iPhone همگام می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les crédits accordés par Claude Platform sont désormais synchronisés de QuotaKit pour Mac vers l’iPhone, avec des cartes aux couleurs du fournisseur et des alertes de quota."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As concesións de crédito de Claude Platform sincronízanse agora desde QuotaKit para Mac co iPhone, con tarxetas coa marca e alertas de cota."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kredit hibah Claude Platform kini disinkronkan dari QuotaKit Mac ke iPhone dengan kartu bermerek dan peringatan kuota."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I crediti concessi da Claude Platform ora si sincronizzano da QuotaKit per Mac a iPhone, con schede brandizzate e avvisi sulle quote."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform の付与クレジットが QuotaKit Mac から iPhone に同期され、ブランド付きカードとクォータ通知に表示されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform 크레딧 지급액이 이제 QuotaKit Mac에서 iPhone으로 동기화되어 브랜드 카드와 할당량 알림으로 표시됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform-tegoeden worden nu van QuotaKit voor Mac naar de iPhone gesynchroniseerd, met kaarten in de providerstijl en quotawaarschuwingen."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Przyznane środki Claude Platform są teraz synchronizowane z QuotaKit na Maca na iPhone’a i wyświetlane na markowych kartach z alertami o limitach."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os créditos concedidos pelo Claude Platform agora são sincronizados do QuotaKit para Mac com o iPhone, com cartões da marca e alertas de cota."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начисленные кредиты Claude Platform теперь синхронизируются из QuotaKit для Mac на iPhone и отображаются на фирменных карточках с уведомлениями о квотах."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platforms kreditanslag synkas nu från QuotaKit för Mac till iPhone med profilerade kort och kvotaviseringar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เครดิตที่ได้รับจาก Claude Platform ซิงค์จาก QuotaKit สำหรับ Mac ไปยัง iPhone แล้ว พร้อมการ์ดแบรนด์ผู้ให้บริการและการแจ้งเตือนโควตา"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform kredi bakiyeleri artık markalı kartlar ve kota uyarılarıyla QuotaKit Mac’ten iPhone’a eşitleniyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Надані кредити Claude Platform тепер синхронізуються з QuotaKit для Mac на iPhone і відображаються на брендованих картках із сповіщеннями про квоти."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Các khoản tín dụng Claude Platform được đồng bộ từ QuotaKit cho Mac sang iPhone, kèm thẻ thương hiệu và cảnh báo hạn mức."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform 的赠送额度现在会从 QuotaKit Mac 同步到 iPhone，并显示为品牌卡片和额度提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Platform 的贈送額度現在會從 QuotaKit Mac 同步到 iPhone，並顯示為品牌卡片和額度提醒。"
+          }
+        }
       }
+    }
   },
   "version": "1.0"
 }

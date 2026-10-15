@@ -781,3 +781,102 @@ struct SyncCoordinatorProviderDetailsTests {
         ])
     }
 }
+
+@MainActor
+@Suite(.serialized)
+struct SyncCoordinatorClaudePlatformDetailsTests {
+    @Test
+    func `Claude Platform sync keeps real expiring lanes and never budgets the wallet`() async throws {
+        let settings = testSettingsStore(
+            suiteName: "SyncCoordinatorClaudePlatformDetailsTests-\(UUID().uuidString)",
+            config: testConfigWithAllProvidersDisabled())
+        settings.iCloudSyncEnabled = true
+        settings.accountWidgetsEnabled = false
+        try settings.setProviderEnabled(
+            provider: .claudeplatform,
+            metadata: #require(ProviderDefaults.metadata[.claudeplatform]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
+        let balance = ProviderCostSnapshot(
+            used: 187.25,
+            limit: 0,
+            currencyCode: "USD",
+            period: "Prepaid credits",
+            balance: 187.25,
+            updatedAt: timestamp)
+        let apiCredit = RateWindow(
+            usedPercent: 37.625,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: "$124.75 of $200.00 left · Expires Oct 28 (UTC)")
+        let purchasedCredit = RateWindow(
+            usedPercent: 37.5,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: "$62.50 of $100.00 left · Expires May 1, 2027 (UTC)")
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: apiCredit,
+                secondary: purchasedCredit,
+                providerCost: balance,
+                details: [
+                    .makeSection(title: "Billing", rows: [
+                        .makeRow(label: "This month (UTC)", value: "$43.21", secondaryValue: "private"),
+                        .makeRow(label: "Account Email", value: "person@example.com"),
+                    ]),
+                    .makeSection(title: "Other credit grants", rows: [
+                        .makeRow(label: "User supplied grant name", value: "$2.00 remaining"),
+                    ]),
+                ],
+                updatedAt: timestamp),
+            provider: .claudeplatform)
+
+        let pusher = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+        await coordinator.pushCurrentSnapshot()
+        let exported = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "claudeplatform"
+        }?.provider)
+        #expect(exported.statusMessage == "Prepaid credits: USD 187.25")
+        #expect(exported.budget == nil)
+        #expect(exported.rateWindows.map(\.label) == ["API credit", "Purchased credit"])
+        #expect(exported.rateWindows.allSatisfy { $0.resetsAt == nil })
+        #expect(exported.rateWindows.map(\.resetDescription) == [
+            "$124.75 of $200.00 left · Expires Oct 28 (UTC)",
+            "$62.50 of $100.00 left · Expires May 1, 2027 (UTC)",
+        ])
+        #expect(exported.providerDetails == [SyncProviderDetailSection(title: "Billing", rows: [
+            .init(label: "This month (UTC)", value: "$43.21"),
+        ])])
+        let wire = try #require(String(bytes: JSONEncoder().encode(exported), encoding: .utf8))
+        #expect(!wire.contains("person@example.com"))
+        #expect(!wire.contains("private"))
+        #expect(!wire.contains("User supplied grant name"))
+
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                providerCost: balance,
+                details: [.makeSection(title: "Billing", rows: [
+                    .makeRow(label: "Spend", value: "Unavailable"),
+                ])],
+                updatedAt: timestamp),
+            provider: .claudeplatform)
+        await coordinator.pushCurrentSnapshot()
+        let walletOnly = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "claudeplatform"
+        }?.provider)
+        #expect(walletOnly.rateWindows.isEmpty)
+        #expect(walletOnly.budget == nil)
+        #expect(walletOnly.statusMessage == "Prepaid credits: USD 187.25")
+        #expect(walletOnly.providerDetails == [SyncProviderDetailSection(title: "Billing", rows: [
+            .init(label: "Spend", value: "Unavailable"),
+        ])])
+    }
+}

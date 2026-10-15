@@ -10,17 +10,17 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let primary: RateWindow?
     public let secondary: RateWindow?
     public let opus: RateWindow?
-    public let extraRateWindows: [NamedRateWindow]
-    public let providerCost: ProviderCostSnapshot?
+    public internal(set) var extraRateWindows: [NamedRateWindow]
+    public internal(set) var providerCost: ProviderCostSnapshot?
     /// Live-only resets returned by Claude Web's usage endpoint.
     public let resetCredits: ClaudeRateLimitResetCreditsSnapshot?
     /// Promotional cloud-session credits reported by Claude's OAuth and Web usage endpoints.
     public let cloudCredits: ClaudeCloudCreditsSnapshot?
     public let updatedAt: Date
-    public let accountEmail: String?
+    public internal(set) var accountEmail: String?
     public let accountOrganization: String?
     /// Verified principal and organization from the credential that produced this usage.
-    public let accountID: String?
+    public internal(set) var accountID: String?
     public internal(set) var subscriptionMetadata: ClaudeSubscriptionMetadata?
     public let loginMethod: String?
     public let rawText: String?

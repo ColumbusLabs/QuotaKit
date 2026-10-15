@@ -189,9 +189,6 @@ extension CodexBarCLI {
             Self.exit(code: .failure, message: "Error: \(error.localizedDescription)", output: output, kind: .config)
         }
 
-        var sections: [String] = []
-        var payload: [ProviderPayload] = []
-        var exitCode: ExitCode = .success
         let command = UsageCommandContext(
             format: format,
             includeCredits: includeCredits,
@@ -211,31 +208,65 @@ extension CodexBarCLI {
             browserDetection: browserDetection,
             providerRuntime: appAutoVerifier ? .app : .cli)
 
-        for p in providerList {
-            let status = includeStatus ? await Self.fetchStatus(for: p) : nil
-            // CLI usage should not clear Keychain cooldowns or attempt interactive Keychain prompts.
-            let output = await ProviderInteractionContext.$current.withValue(.background) {
-                await Self.fetchUsageOutputs(
-                    provider: p,
-                    status: status,
-                    tokenContext: tokenContext,
-                    command: command)
-            }
-            if output.exitCode != .success {
-                exitCode = output.exitCode
-            }
-            sections.append(contentsOf: output.sections)
-            payload.append(contentsOf: output.payload)
+        let result = await Self.collectUsageOutputs(providers: providerList) { provider in
+            let status = includeStatus ? await Self.fetchStatus(for: provider) : nil
+            return await Self.fetchUsageOutputs(
+                provider: provider,
+                status: status,
+                tokenContext: tokenContext,
+                command: command)
         }
 
         Self.printUsageOutput(
-            format: format,
+            format: command.format,
             toonRequested: output.toonRequested,
-            sections: sections,
-            payload: payload,
+            sections: result.sections,
+            payload: result.payload,
             pretty: output.pretty)
 
-        Self.exit(code: exitCode, output: output, kind: exitCode == .success ? .runtime : .provider)
+        Self.exit(
+            code: result.exitCode,
+            output: output,
+            kind: result.exitCode == .success ? .runtime : .provider)
+    }
+
+    /// Bound provider I/O while preserving selection-order output and failure precedence.
+    static func collectUsageOutputs(
+        providers: [UsageProvider],
+        fetch: @escaping @Sendable (UsageProvider) async -> UsageCommandOutput) async -> UsageCommandOutput
+    {
+        await withTaskGroup(of: (Int, UsageCommandOutput, String).self) { group in
+            func enqueue(_ index: Int) {
+                group.addTask {
+                    let diagnostics = CLIStderrBuffer()
+                    let output = await Self.$stderrBuffer.withValue(diagnostics) {
+                        // CLI fetching must not clear Keychain cooldowns or authorize prompts.
+                        await ProviderInteractionContext.$current.withValue(.background) {
+                            await fetch(providers[index])
+                        }
+                    }
+                    return (index, output, diagnostics.contents)
+                }
+            }
+            var next = min(providers.count, 3)
+            for index in 0..<next {
+                enqueue(index)
+            }
+            var results: [(Int, UsageCommandOutput, String)] = []
+            for await result in group {
+                results.append(result)
+                if next < providers.count {
+                    enqueue(next)
+                    next += 1
+                }
+            }
+            var output = UsageCommandOutput()
+            for (_, result, diagnostics) in results.sorted(by: { $0.0 < $1.0 }) {
+                Self.writeStderr(diagnostics)
+                output.merge(result)
+            }
+            return output
+        }
     }
 
     /// TOON piggybacks on the JSON fetch/render pipeline (same data, denser rendering at print time)

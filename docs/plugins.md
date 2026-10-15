@@ -63,6 +63,10 @@ periods; missing quotas and reset dates remain unavailable.
 the current account balance; FLORA reports one workspace's available balance and UTC month-to-date spend. Neither
 provider infers a quota or reset.
 
+Claude Platform uses a bundled cookie plugin for the platform.claude.com Console session. It reports the selected
+API organization's prepaid balance, real expiring credit grants, and optional month-to-date spend. The grants are
+real credit windows; the aggregate wallet remains balance detail, never a synthetic budget.
+
 ```js
 defineProvider({
   id: "acme-usage",
@@ -367,6 +371,10 @@ Treat a plugin like code you run locally, even though its host capabilities are 
 verify every origin, and avoid installing files from untrusted repositories. Approval grants the listed origin network
 authority; DNS changes after approval are outside QuotaKit's threat model. Secrets are never placed in URLs or logged,
 redirects cannot forward authentication, and undeclared settings/cookies/origins fail closed.
+
+QuickJS worker jobs drain autoreleased host objects when they finish, preventing refresh temporaries from accumulating
+across a plugin's lifetime. JavaScriptCore registration and completed-fetch callbacks do not keep retired runtimes or
+contexts alive; active evaluations and the existing fetch watchdog still determine when cleanup can finish.
 
 Plugins support the macOS app plus the macOS and Linux CLIs. They are excluded from widgets and all built-in-provider-only
 surfaces (status feeds, token accounts, OAuth, browser automation, storage probes, local cost scanners, and provider

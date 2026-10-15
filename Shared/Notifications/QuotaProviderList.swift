@@ -27,7 +27,7 @@ public enum QuotaProviderList {
     }
 
     /// Display names track `ProviderDescriptor.metadata.displayName` on Mac as
-    /// of 2026-04-22. If a Mac-side rename lands later, iOS subscriptions
+    /// of 2026-10-15. If a Mac-side rename lands later, iOS subscriptions
     /// still fire — the body just shows the stale name until the iOS app ships
     /// an update.
     public static let providers: [Provider] = [
@@ -164,6 +164,8 @@ public enum QuotaProviderList {
         Provider(id: "tavily", displayName: "Tavily"),
         Provider(id: "cosmic", displayName: "Cosmic AI"),
         Provider(id: "aerostack", displayName: "Aerostack"),
+        // Claude Platform publishes actual expiring API-credit grant lanes; expiry remains detail text.
+        Provider(id: "claudeplatform", displayName: "Claude Platform"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

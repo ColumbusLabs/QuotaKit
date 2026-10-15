@@ -49,6 +49,15 @@ extension SyncCoordinator {
             let amount = String(format: "%.2f", balance)
             return "Prepaid balance: USD \(amount)"
         }
+        if provider == .claudeplatform,
+           let providerCost,
+           providerCost.currencyCode.utf8.count == 3,
+           providerCost.currencyCode.utf8.allSatisfy({ (65...90).contains($0) }),
+           let balance = providerCost.balance,
+           balance.isFinite
+        {
+            return "Prepaid credits: \(providerCost.currencyCode) \(String(format: "%.2f", balance))"
+        }
         guard provider == .copilot,
               rateWindows.isEmpty,
               let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -72,7 +81,8 @@ extension SyncCoordinator {
               provider != .fireworks,
               provider != .lithosai,
               provider != .xapi,
-              provider != .xai
+              provider != .xai,
+              provider != .claudeplatform
         else {
             return nil
         }

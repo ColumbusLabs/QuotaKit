@@ -2631,3 +2631,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "يستورد ملف تعريف ارتباط جلسة المتصفح تلقائيًا، ثم يستخدم مفتاح API عند الحاجة.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "يستورد جلسات المتصفح لـ %@ / %@؛ السحابة هي الخيار المفضل.";
+
+"link_acknowledgements" = "شكر وتقدير";
+"acknowledgements_footer" = "تم بناء QuotaKit باستخدام هذه المشاريع مفتوحة المصدر.";
+"acknowledgements_others" = "%d آخرين";
+"acknowledgements_author" = "المؤلف";
+"acknowledgements_authors" = "المؤلفون";
+"acknowledgements_license" = "الترخيص";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit سيطلب macOS Keychain رأس الكوكيز %@ الخاص بك حتى يتمكن من استخدام الاستخدام. انقر موافقا للمتابعة.";
+"menu_bar_layout_size_large" = "كبير";
+"menu_bar_layout_monospaced_digits" = "أرقام متساوية العرض";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "الصق ترويسة Cookie من platform.claude.com تحتوي على sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "سيطلب QuotaKit macOS Keychain رمز تسجيل دخول Muse Code ليتمكن من جلب استخدام اشتراك Muse Code. انقر موافقا للمتابعة.";
+"API credit" = "رصيد API";
+"Purchased credit" = "رصيد مشترى";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "يعرض Claude Platform رصيد الائتمان في Console والإنفاق الشهري، وليس سجل تكلفة الرموز المحلي.";
