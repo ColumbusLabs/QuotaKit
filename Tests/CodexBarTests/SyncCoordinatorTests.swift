@@ -135,9 +135,34 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .fireworks, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .lithosai, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .xai, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .claudeplatform, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .codex, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+    }
+
+    @Test
+    func `Claude Platform wallet status preserves signed balances and valid currencies`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func status(currency: String, balance: Double) -> String? {
+            let wallet = ProviderCostSnapshot(
+                used: balance,
+                limit: 0,
+                currencyCode: currency,
+                balance: balance,
+                updatedAt: now)
+            return SyncCoordinator.syncedStatusMessage(
+                provider: .claudeplatform,
+                snapshot: nil,
+                providerCost: wallet,
+                error: nil,
+                rateWindows: [])
+        }
+
+        #expect(status(currency: "USD", balance: 0) == "Prepaid credits: USD 0.00")
+        #expect(status(currency: "EUR", balance: -2.5) == "Prepaid credits: EUR -2.50")
+        #expect(status(currency: "JPY", balance: 12.25) == "Prepaid credits: JPY 12.25")
+        #expect(status(currency: "U$D", balance: 10) == nil)
     }
 
     @Test

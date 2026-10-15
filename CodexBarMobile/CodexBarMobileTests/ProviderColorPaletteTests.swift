@@ -7,6 +7,7 @@ struct ProviderColorPaletteTests {
     func `Priority providers use QuotaKit-approved raw colors`() {
         expectColor("codex", red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor("claude", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
+        expectColor("claudeplatform", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("anthropic", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("cursor", red: 245 / 255, green: 78 / 255, blue: 0)
         expectColor("replicate", red: 160 / 255, green: 160 / 255, blue: 160 / 255)
@@ -18,6 +19,7 @@ struct ProviderColorPaletteTests {
             ("openai", 0.06, 0.51, 0.43),
             ("azureopenai", 0, 120 / 255, 212 / 255),
             ("cursor", 245 / 255, 78 / 255, 0),
+            ("claudeplatform", 204 / 255, 124 / 255, 94 / 255),
             ("opencode", 14 / 255, 165 / 255, 233 / 255),
             ("opencodego", 52 / 255, 211 / 255, 153 / 255),
             ("alibaba", 1, 106 / 255, 0),

@@ -2629,3 +2629,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Automatically imports browser cookies, then falls back to an API key.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "Imports browser sessions for %@ / %@; Cloud is preferred.";
+
+"link_acknowledgements" = "Acknowledgements";
+"acknowledgements_footer" = "QuotaKit is built with these open-source projects.";
+"acknowledgements_others" = "%d others";
+"acknowledgements_author" = "Author";
+"acknowledgements_authors" = "Authors";
+"acknowledgements_license" = "License";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue.";
+"menu_bar_layout_size_large" = "Large";
+"menu_bar_layout_monospaced_digits" = "Monospaced digits";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "Paste a platform.claude.com Cookie header containing sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue.";
+"API credit" = "API credit";
+"Purchased credit" = "Purchased credit";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform exposes Console credit balance and monthly spend, not local token cost history.";

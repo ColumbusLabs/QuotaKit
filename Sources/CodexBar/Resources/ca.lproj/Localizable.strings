@@ -2629,3 +2629,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Importa automàticament una galeta de sessió de navegador i, després, recorre a una clau d’API.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "Importa sessions de navegador per a %@ / %@; es prioritza Cloud.";
+
+"link_acknowledgements" = "Agraïments";
+"acknowledgements_footer" = "QuotaKit està construït amb aquests projectes de codi obert.";
+"acknowledgements_others" = "%d més";
+"acknowledgements_author" = "Autor";
+"acknowledgements_authors" = "Autors";
+"acknowledgements_license" = "Llicència";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit demanarà a Clauer de macOS la capçalera Cookie corresponent a %@ per obtenir l'ús. Premeu D'acord per continuar.";
+"menu_bar_layout_size_large" = "Gran";
+"menu_bar_layout_monospaced_digits" = "Dígits monoespaiats";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "Enganxa una capçalera Cookie de platform.claude.com que contingui sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit demanarà a Clauer de macOS el token d'inici de sessió de Muse Code per obtenir l'ús de la teva subscripció a Muse Code. Premeu D'acord per continuar.";
+"API credit" = "Crèdit d'API";
+"Purchased credit" = "Crèdit comprat";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform mostra el saldo de crèdit i la despesa mensual de la Console, no l'historial de costos local de tokens.";

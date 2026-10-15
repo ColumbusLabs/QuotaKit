@@ -2630,3 +2630,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Mengimpor cookie sesi browser secara otomatis, lalu menggunakan kunci API sebagai cadangan.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "Mengimpor sesi browser untuk %@ / %@; Cloud diprioritaskan.";
+
+"link_acknowledgements" = "Ucapan Terima Kasih";
+"acknowledgements_footer" = "QuotaKit dibangun dengan proyek sumber terbuka ini.";
+"acknowledgements_others" = "%d lainnya";
+"acknowledgements_author" = "Penulis";
+"acknowledgements_authors" = "Penulis";
+"acknowledgements_license" = "Lisensi";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie %@ Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
+"menu_bar_layout_size_large" = "Besar";
+"menu_bar_layout_monospaced_digits" = "Digit lebar tetap";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "Tempel header Cookie dari platform.claude.com yang berisi sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit akan meminta token login Muse Code dari Keychain macOS agar dapat mengambil penggunaan langganan Muse Code Anda. Klik OK untuk melanjutkan.";
+"API credit" = "Kredit API";
+"Purchased credit" = "Kredit yang dibeli";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform menampilkan saldo kredit dan pembelanjaan bulanan Console, bukan riwayat biaya token lokal.";

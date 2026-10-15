@@ -95,7 +95,8 @@ public enum AccountIdentityComputer {
              .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
              // Provider-specific by design: these providers remain non-Tier-A until iOS has stable identity support
              // and a cross-Mac merge need.
-             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel:
+             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
+             .claudeplatform:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS uses legacy email or provider-only
             // grouping. If a future provider needs account-specific merging, add

@@ -9,6 +9,7 @@ struct ProviderBrandAssetTests {
     func `Known providers resolve to provider icon assets`() {
         #expect(ProviderBrandAsset.assetName(for: "codex") == "ProviderIcon-codex")
         #expect(ProviderBrandAsset.assetName(for: "claude") == "ProviderIcon-claude")
+        #expect(ProviderBrandAsset.assetName(for: "claudeplatform") == "ProviderIcon-claudeplatform")
         #expect(ProviderBrandAsset.assetName(for: "cursor") == "ProviderIcon-cursor")
         #expect(ProviderBrandAsset.assetName(for: "openrouter") == "ProviderIcon-openrouter")
         #expect(ProviderBrandAsset.assetName(for: "sakana") == "ProviderIcon-sakana")

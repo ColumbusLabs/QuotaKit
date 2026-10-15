@@ -253,6 +253,8 @@ check_ci_build_cache() {
 }
 
 run_portable_checks() {
+  python3 "${ROOT_DIR}/Scripts/acknowledgements.py"
+  python3 "${ROOT_DIR}/Scripts/test_acknowledgements.py"
   check_package_resolved
   check_codex_parser_hash
   check_provider_manifests

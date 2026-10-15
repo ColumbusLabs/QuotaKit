@@ -9,6 +9,7 @@ Artwork adopted from the reviewed steipete/CodexBar source range retains its doc
 | Codex | [OpenAI Codex](https://openai.com/codex/) product artwork |
 | Antigravity | [Google Antigravity homepage PNG](https://antigravity.google/assets/image/antigravity-logo.png), retained unchanged |
 | Claude | Existing bundled silhouette with Anthropic’s documented accent `#D97757`; upstream records this as a palette-backed variant |
+| Claude Platform | Same Anthropic silhouette under its own provider asset mapping; uses the Console provider accent `#CC7C5E` |
 | Mistral | [Mistral brand resources](https://mistral.ai/brand/) |
 | Muse / Meta | [Meta developer artwork](https://dev.meta.ai/logo/meta-logo-with-text.svg), symbol retained without wordmark |
 | Bedrock | [AWS architecture icons](https://aws.amazon.com/architecture/icons/), padded square view box |
@@ -27,6 +28,7 @@ The retained assets are provider marks, not QuotaKit application icons. Source t
 | `Brand-ProviderIcon-antigravity.png` | `193ba1805de11c23cd0c7a1df92aa0a886708e57350f6f7766100afe5befed73` |
 | `Brand-ProviderIcon-bedrock.svg` | `6a0f3817d771064f3d4cb8687e415417c9abccb3930b049bb8c2643f787ec224` |
 | `Brand-ProviderIcon-claude.svg` | `4cd39a3832c842390c21a6598dba20d4db91632a978cb34e39aa1659fe88fe5c` |
+| `ProviderIcon-claudeplatform.svg` | `497a88a780831512317b6dd061285e2ec2608abf09a94a5f24ee9019a4d3ef8b` |
 | `Brand-ProviderIcon-codex.png` | `8e82b26c98a10e45798ce48124515720657f7735fb8d0853b3f087eaa8a6b74e` |
 | `Brand-ProviderIcon-mistral.svg` | `13e29ba8fa7a2a01a3086b1cf6601e72fd389ffaac3139ccd95f046cc6f53524` |
 | `Brand-ProviderIcon-muse.svg` | `b49f20f0738c318be02177b1823bc702c6007fe9c0ec20bba8641454cff20bd3` |

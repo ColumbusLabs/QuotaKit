@@ -1,10 +1,69 @@
 import CodexBarCore
 import Foundation
+import Observation
 import Testing
 @testable import CodexBar
 
 @MainActor
 struct MenuBarLayoutV5PersistenceTests {
+    @Test
+    func `monospaced digit preference refreshes menu observation`() async {
+        let settings = testSettingsStore(suiteName: "layout-digit-observation", userDefaults: InMemoryUserDefaults())
+        await confirmation { changed in
+            withObservationTracking {
+                _ = settings.menuObservationToken
+            } onChange: {
+                changed()
+            }
+            settings.menuBarLayoutMonospacedDigits = true
+        }
+    }
+
+    @Test
+    func `typography preferences preserve every saved layout generation`() throws {
+        let defaults = InMemoryUserDefaults()
+        let settings = testSettingsStore(suiteName: "typography-generations", userDefaults: defaults)
+        #expect(settings.menuBarLayoutSize == .regular)
+        #expect(!settings.menuBarLayoutMonospacedDigits)
+        #expect(defaults.object(forKey: "menuBarLayoutMonospacedDigits") == nil)
+
+        let layout = MenuBarLayout(lines: [[.icon, .progressBar(window: .session)]])
+        var rule = MenuBarLayoutConditional.makeDefault()
+        rule.thenToken = .progressBar(window: .session)
+        settings.setMenuBarLayout(layout, for: nil)
+        settings.setMenuBarLayout(layout, for: .codex)
+        settings.menuBarLayoutConditionals = [rule]
+        let keys = [
+            MenuBarLayoutUserDefaultsKey.layoutCurrent,
+            MenuBarLayoutUserDefaultsKey.layoutV4,
+            MenuBarLayoutUserDefaultsKey.layoutV3,
+            MenuBarLayoutUserDefaultsKey.layoutReleased,
+            MenuBarLayoutUserDefaultsKey.layout,
+            MenuBarLayoutUserDefaultsKey.overridesCurrent,
+            MenuBarLayoutUserDefaultsKey.overridesV4,
+            MenuBarLayoutUserDefaultsKey.overridesV3,
+            MenuBarLayoutUserDefaultsKey.overridesReleased,
+            MenuBarLayoutUserDefaultsKey.overrides,
+            MenuBarLayoutUserDefaultsKey.conditionalsCurrent,
+            MenuBarLayoutUserDefaultsKey.conditionalsV4,
+            MenuBarLayoutUserDefaultsKey.conditionalsV3,
+            MenuBarLayoutUserDefaultsKey.conditionalsReleased,
+            MenuBarLayoutUserDefaultsKey.conditionals,
+        ]
+        let before = keys.map { defaults.data(forKey: $0) }
+        #expect(before.allSatisfy { $0 != nil })
+
+        settings.menuBarLayoutSize = .large
+        settings.menuBarLayoutMonospacedDigits = true
+        #expect(keys.map { defaults.data(forKey: $0) } == before)
+
+        let returned = testSettingsStore(suiteName: "typography-generations-return", userDefaults: defaults)
+        #expect(returned.menuBarLayout == layout)
+        #expect(returned.menuBarLayoutOverrides[.codex] == layout)
+        #expect(returned.menuBarLayoutSize == .large)
+        #expect(returned.menuBarLayoutMonospacedDigits)
+    }
+
     @Test
     func `V4 downgrade and reupgrade preserve bars while older edits win`() throws {
         let defaults = InMemoryUserDefaults()

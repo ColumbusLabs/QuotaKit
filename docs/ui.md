@@ -49,8 +49,11 @@ read_when:
 - A single leading provider icon can sit beside both rows in a two-line layout. Separate row icons, icon-only first rows, high-contrast rendering, and provider-colored rendering keep icons inline.
 - Palette chips retain their natural label widths and wrap to the next row instead of squeezing longer names into
   equal-width columns.
-- Small/Regular controls the token font scale. Tight/Regular controls status-item padding. Compact stacked uses two
-  tightly spaced lines sized to fit the menu bar.
+- Small/Regular/Large controls the token font scale; Regular remains the default. Large uses 14-point single-line text
+  and 10-point stacked text. Monospaced digits is an independent optional setting that defaults off; labels remain
+  proportional. These display preferences stay outside saved layout tokens, preserving V5 layouts and their V4, V3,
+  V2, and legacy projections. Tight/Regular controls status-item padding. Compact stacked uses two tightly spaced lines
+  sized to fit the menu bar.
 
 ### Layout tokens
 

@@ -2619,3 +2619,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "自动导入 浏览器 会话 Cookie，之后回退到 API 密钥。";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "为 %@ / %@ 导入 浏览器 会话；优先使用 Cloud。";
+
+"link_acknowledgements" = "致谢";
+"acknowledgements_footer" = "QuotaKit 使用了以下开源项目构建。";
+"acknowledgements_others" = "其他 %d 人";
+"acknowledgements_author" = "作者";
+"acknowledgements_authors" = "作者";
+"acknowledgements_license" = "许可证";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 将向 macOS 钥匙串请求你的 %@ Cookie 标头，以获取用量。点击“确定”继续。";
+"menu_bar_layout_size_large" = "大";
+"menu_bar_layout_monospaced_digits" = "等宽数字";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "粘贴包含 sessionKey 的 platform.claude.com Cookie 请求头。";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit 将向 macOS 钥匙串请求 Muse Code 登录 token，以获取你的 Muse Code 订阅用量。点击“确定”继续。";
+"API credit" = "API 额度";
+"Purchased credit" = "已购买额度";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform 显示 Console 额度余额和每月支出，而不是本地 token 成本历史记录。";

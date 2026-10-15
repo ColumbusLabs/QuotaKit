@@ -12,6 +12,11 @@ QuotaKit can trigger macOS Keychain prompts when an enabled provider imports bro
 OAuth item, or uses a QuotaKit-owned cache entry. Chromium browser cookie import commonly asks for the browser's
 Safe Storage item, such as "Chrome Safe Storage", "Brave Safe Storage", or "Microsoft Edge Safe Storage".
 
+Muse Code subscription usage reads the Muse CLI's `ai.meta.dev.credentials` item. Background refreshes and the
+`quotakit` CLI never prompt for it; a manual app refresh may ask once, after an explanation, so **Always Allow** can
+grant later silent reads. This shares the action's one interactive read with browser imports; a denial suppresses
+another Muse prompt for six hours.
+
 QuotaKit does not need your browser password. macOS owns the prompt, and the prompt should identify the app or binary
 that is requesting access. For support reports, include that requesting app/path when possible and do not paste
 passwords, cookie headers, OAuth tokens, API keys, or Keychain item values.

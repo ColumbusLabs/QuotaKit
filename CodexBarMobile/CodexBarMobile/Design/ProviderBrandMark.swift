@@ -15,6 +15,7 @@ enum ProviderBrandAsset {
         "chutes",
         "clinepass",
         "claude",
+        "claudeplatform",
         "codebuff",
         "cosmic",
         "coderabbit",

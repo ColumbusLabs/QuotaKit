@@ -2629,3 +2629,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Bir tarayıcı oturum çerezini otomatik olarak içe aktarır, ardından yedek olarak API anahtarını kullanır.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "%@ / %@ için tarayıcı oturumlarını içe aktarır; Cloud önceliklidir.";
+
+"link_acknowledgements" = "Teşekkürler";
+"acknowledgements_footer" = "QuotaKit bu açık kaynak projelerle geliştirildi.";
+"acknowledgements_others" = "%d diğer kişi";
+"acknowledgements_author" = "Yazar";
+"acknowledgements_authors" = "Yazarlar";
+"acknowledgements_license" = "Lisans";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı almak için macOS Anahtar Zinciri'nden %@ çerez başlığınızı isteyecek. Devam etmek için Tamam'a tıklayın.";
+"menu_bar_layout_size_large" = "Büyük";
+"menu_bar_layout_monospaced_digits" = "Eş aralıklı rakamlar";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "sessionKey içeren bir platform.claude.com Cookie başlığı yapıştırın.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit, Muse Code abonelik kullanımınızı almak için macOS Anahtar Zinciri'nden Muse Code giriş tokenını isteyecek. Devam etmek için Tamam'a tıklayın.";
+"API credit" = "API kredisi";
+"Purchased credit" = "Satın alınan kredi";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform, yerel token maliyet geçmişini değil, Console kredi bakiyesini ve aylık harcamayı gösterir.";

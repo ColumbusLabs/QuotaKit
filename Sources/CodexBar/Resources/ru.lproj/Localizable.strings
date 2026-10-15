@@ -2628,3 +2628,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "Автоматически импортирует файл cookie сеанса браузера, затем использует ключ API.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "Импортирует сеансы браузера для %@ / %@; Cloud имеет приоритет.";
+
+"link_acknowledgements" = "Благодарности";
+"acknowledgements_footer" = "QuotaKit создан с использованием этих проектов с открытым исходным кодом.";
+"acknowledgements_others" = "ещё %d";
+"acknowledgements_author" = "Автор";
+"acknowledgements_authors" = "Авторы";
+"acknowledgements_license" = "Лицензия";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit запросит у macOS Keychain Cookie-заголовок %@, чтобы получить данные об использовании. Нажмите OK, чтобы продолжить.";
+"menu_bar_layout_size_large" = "Большой";
+"menu_bar_layout_monospaced_digits" = "Моноширинные цифры";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "Вставьте заголовок Cookie с platform.claude.com, содержащий sessionKey.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit запросит у macOS Keychain токен входа Muse Code, чтобы получить данные об использовании вашей подписки Muse Code. Нажмите OK, чтобы продолжить.";
+"API credit" = "Кредит API";
+"Purchased credit" = "Купленный кредит";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform показывает баланс кредитов и ежемесячные расходы в Console, а не локальную историю затрат на токены.";

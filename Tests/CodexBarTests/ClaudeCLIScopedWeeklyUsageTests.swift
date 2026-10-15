@@ -277,7 +277,7 @@ struct ClaudeCLIScopedWeeklyUsageTests {
                 resetsAt: nil,
                 resetDescription: nil))
 
-        let merged = ClaudeUsageFetcher._mergeExtraRateWindowsForTesting(
+        let merged = ClaudeUsageFetcher.mergeExtraRateWindows(
             primary: [fable],
             web: [webFable, routines])
 
@@ -300,7 +300,7 @@ struct ClaudeCLIScopedWeeklyUsageTests {
                     resetDescription: nil))
         }
 
-        let merged = ClaudeUsageFetcher._mergeExtraRateWindowsForTesting(
+        let merged = ClaudeUsageFetcher.mergeExtraRateWindows(
             primary: [],
             web: webLimits)
 
@@ -331,7 +331,7 @@ struct ClaudeCLIScopedWeeklyUsageTests {
                     resetDescription: nil))
         }
 
-        let merged = ClaudeUsageFetcher._mergeExtraRateWindowsForTesting(
+        let merged = ClaudeUsageFetcher.mergeExtraRateWindows(
             primary: [cli],
             web: webLimits)
 

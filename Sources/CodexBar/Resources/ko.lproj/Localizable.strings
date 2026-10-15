@@ -2595,3 +2595,18 @@
 /* Shared browser session discovery */
 "Automatically imports browser cookies, then falls back to an API key." = "브라우저 세션 쿠키를 자동으로 가져온 다음 API 키를 대체 수단으로 사용합니다.";
 "Imports browser sessions for %@ / %@; Cloud is preferred." = "%@ / %@용 브라우저 세션을 가져옵니다. Cloud를 우선합니다.";
+
+"link_acknowledgements" = "감사의 말";
+"acknowledgements_footer" = "QuotaKit는 다음 오픈 소스 프로젝트로 만들어졌습니다.";
+"acknowledgements_others" = "외 %d명";
+"acknowledgements_author" = "작성자";
+"acknowledgements_authors" = "작성자";
+"acknowledgements_license" = "라이선스";
+"CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 %@ 쿠키 헤더를 요청합니다. 계속하려면 확인을 클릭하세요.";
+"menu_bar_layout_size_large" = "크게";
+"menu_bar_layout_monospaced_digits" = "고정폭 숫자";
+"Paste a platform.claude.com Cookie header containing sessionKey." = "sessionKey가 포함된 platform.claude.com의 Cookie 헤더를 붙여넣으세요.";
+"CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit가 Muse Code 구독 사용량을 가져올 수 있도록 macOS 키체인에 Muse Code 로그인 토큰을 요청합니다. 계속하려면 확인을 클릭하세요.";
+"API credit" = "API 크레딧";
+"Purchased credit" = "구매한 크레딧";
+"Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform은 로컬 토큰 비용 내역이 아닌 Console 크레딧 잔액과 월간 지출을 표시합니다.";

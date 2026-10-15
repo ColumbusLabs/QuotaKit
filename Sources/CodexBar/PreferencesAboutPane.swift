@@ -4,6 +4,8 @@ import SwiftUI
 @MainActor
 struct AboutPane: View {
     let updater: UpdaterProviding
+    var rootRequests = 0
+    @State private var path: [AboutRoute] = []
     @State private var iconHover = false
     @AppStorage("autoUpdateEnabled") private var autoUpdateEnabled: Bool = true
     @AppStorage(UpdateChannel.userDefaultsKey)
@@ -35,6 +37,23 @@ struct AboutPane: View {
     }
 
     var body: some View {
+        NavigationStack(path: self.$path) {
+            // Pushed pages retitle the window; the root title restores it when they pop.
+            self.form
+                .navigationTitle(SettingsPane.about.title)
+                .navigationDestination(for: AboutRoute.self) { route in
+                    switch route {
+                    case .acknowledgements:
+                        AcknowledgementsView(acknowledgements: Acknowledgement.load())
+                    }
+                }
+        }
+        .onChange(of: self.rootRequests) { _, _ in
+            self.path = []
+        }
+    }
+
+    private var form: some View {
         Form {
             Section {
                 self.hero
@@ -75,6 +94,15 @@ struct AboutPane: View {
                     url: "https://github.com/ColumbusLabs/QuotaKit")
                 AboutLinkRow(icon: "globe", title: L("link_website"), url: "https://columbus-labs.com/quotakit/mac")
                 AboutLinkRow(icon: "building.2", title: "Columbus Labs", url: "https://columbus-labs.com")
+                NavigationLink(value: AboutRoute.acknowledgements) {
+                    Label {
+                        Text(L("link_acknowledgements"))
+                    } icon: {
+                        Image(systemName: "heart.text.square")
+                            .frame(width: 18)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } header: {
                 Text(L("section_links"))
             } footer: {
@@ -156,6 +184,10 @@ struct AboutPane: View {
         guard let url = URL(string: "https://github.com/ColumbusLabs/QuotaKit") else { return }
         NSWorkspace.shared.open(url)
     }
+}
+
+enum AboutRoute: Hashable {
+    case acknowledgements
 }
 
 @MainActor

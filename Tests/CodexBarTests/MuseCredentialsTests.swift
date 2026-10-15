@@ -54,6 +54,22 @@ struct MuseCredentialsTests {
     }
 
     @Test
+    func `transient Keychain error stays distinct from the disabled-access toggle`() throws {
+        let message = try #require(MuseUsageError.keychainUnavailable.errorDescription)
+        #expect(message.contains("unlock"))
+        #expect(!message.contains("Disable Keychain access"))
+    }
+
+    @Test
+    func `not-granted Keychain error names the Access Control recovery`() throws {
+        let message = try #require(MuseUsageError.keychainAccessNotGranted.errorDescription)
+        #expect(message.contains("Keychain Access"))
+        #expect(message.contains(MuseCredentials.keychainService))
+        #expect(message.contains("QuotaKitCLI"))
+        #expect(!message.contains("Disable Keychain access"))
+    }
+
+    @Test
     func `descriptor exposes subscription OAuth without an API-key override`() {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .muse)
         #expect(!descriptor.metadata.defaultEnabled)
