@@ -265,7 +265,7 @@ reset_case shard-0
 export FAKE_SWIFT_MODE=success
 run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 2 > "${TEMP_DIR}/shard-0.log"
 grep -Fq '| Shard | `1/2` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `6` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `7` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-1
@@ -289,7 +289,7 @@ grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 reset_case shard-4-2
 run_harness --group-size 4 --timeout 10 --shard-index 2 --shard-count 4 > "${TEMP_DIR}/shard-4-2.log"
 grep -Fq '| Shard | `3/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `2` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `3` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-4-3
