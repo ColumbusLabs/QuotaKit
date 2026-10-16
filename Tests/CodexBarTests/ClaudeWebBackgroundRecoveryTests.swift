@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBarCore
 
@@ -314,10 +315,9 @@ struct ClaudeWebBackgroundRecoveryTests {
                 directoryContents: { _ in nil },
                 applicationURLs: { _ in [] },
                 profileAccessIssue: { _ in nil })
+            let missingSession: @Sendable (Browser) throws -> ClaudeWebAPIFetcher.SessionKeyInfo? = { _ in nil }
             try await ClaudeWebSessionKeyImport.$desktopApp.withValue(true) {
-                try await ClaudeWebSessionKeyImport.$browserOverrideForTesting.withValue {
-                    _ in nil
-                } operation: {
+                try await ClaudeWebSessionKeyImport.$browserOverrideForTesting.withValue(missingSession) {
                     let importError = try #require(await Self.desktopImportError(
                         browserDetection: detection))
                     #expect(importError.localizedDescription
