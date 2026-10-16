@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.OpenRefresh {
     @Test
     func `groq cost details follow submenu only display style`() throws {
         StatusItemController.menuCardRenderingEnabled = true

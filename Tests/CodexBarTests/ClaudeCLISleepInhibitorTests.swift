@@ -44,12 +44,14 @@ struct ClaudeCLISleepInhibitorTests {
         do {
             var previousGroup: pid_t?
             for _ in 0..<2 {
-                let output = try await session.capture(
-                    subcommand: "/status",
-                    binary: script.path,
-                    timeout: 8,
-                    environment: ["PATH": "/usr/bin:/bin", "HOME": directory.path],
-                    stopOnSubstrings: ["Probe ready:"])
+                let output = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                    try await session.capture(
+                        subcommand: "/status",
+                        binary: script.path,
+                        timeout: 8,
+                        environment: ["PATH": "/usr/bin:/bin", "HOME": directory.path],
+                        stopOnSubstrings: ["Probe ready:"])
+                }
                 let line = try #require(output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") })
                 let pids = line.split(separator: " ")
                     .compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }

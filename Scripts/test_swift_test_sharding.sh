@@ -51,6 +51,8 @@ if [[ "$*" == "test list"* ]]; then
     "CodexBarTests.Zeta/test_six" \
     "CodexBarTests.Eta/test_seven" \
     "CodexBarTests.Theta/test_eight" \
+    "CodexBarTests.StatusMenuTests/Presentation/test_nested()" \
+    'CodexBarTests.StatusMenuTests/Presentation/`nested/slash method`' \
     'CodexBarTests.`top level works`()' \
     'CodexBarTests.`top/level slash works`()'
   exit 0
@@ -184,8 +186,8 @@ export FAKE_SWIFT_MODE=group_fail_once
 run_harness --group-size 4 --timeout 10 > "${TEMP_DIR}/retry.log"
 grep -Fq "failed with exit code 1; retrying group once" "${TEMP_DIR}/retry.log"
 grep -Fq "Swift test timing summary:" "${TEMP_DIR}/retry.log"
-grep -Fq '| Discovered selections | `10` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `10` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Discovered selections | `11` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `11` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `3` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| First-pass successful groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
@@ -196,6 +198,7 @@ grep -Fq "CodexBarTests\\.Alpha" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\.Beta" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top\\ level\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
+grep -Fq '^CodexBarTests\.StatusMenuTests/Presentation/' "${FAKE_SWIFT_LOG}"
 [[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 5 ]]
 
 reset_case private-home

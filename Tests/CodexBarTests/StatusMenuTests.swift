@@ -5,8 +5,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite(.serialized, CodexCredentialFixtures())
-struct StatusMenuTests {
+protocol StatusMenuTestSupport {}
+
+extension StatusMenuTestSupport {
     func disableMenuCardsForTesting() {
         StatusItemController.menuCardRenderingEnabled = false
         StatusItemController.setMenuRefreshEnabledForTesting(false)
@@ -70,17 +71,35 @@ struct StatusMenuTests {
         return store
     }
 
-    private func switcherButtons(in menu: NSMenu) -> [NSButton] {
+    func switcherButtons(in menu: NSMenu) -> [NSButton] {
         guard let switcherView = menu.items.first?.view as? ProviderSwitcherView else { return [] }
         return switcherView.subviews
             .compactMap { $0 as? NSButton }
             .sorted { $0.tag < $1.tag }
     }
 
-    private func representedIDs(in menu: NSMenu) -> [String] {
+    func representedIDs(in menu: NSMenu) -> [String] {
         menu.items.compactMap { $0.representedObject as? String }
     }
+}
 
+@MainActor
+@Suite(.serialized, CodexCredentialFixtures())
+struct StatusMenuTests {
+    @MainActor
+    @Suite
+    struct Presentation: StatusMenuTestSupport {}
+
+    @MainActor
+    @Suite
+    struct OpenRefresh: StatusMenuTestSupport {}
+
+    @MainActor
+    @Suite
+    struct Overview: StatusMenuTestSupport {}
+}
+
+extension StatusMenuTests.Presentation {
     @Test
     func `alibaba dashboard action follows selected region`() {
         self.disableMenuCardsForTesting()
@@ -837,7 +856,7 @@ struct StatusMenuTests {
 }
 
 @MainActor
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     @Test
     func `status blurb uses wrapped view-backed menu item`() {
         self.disableMenuCardsForTesting()
@@ -1555,7 +1574,7 @@ extension StatusMenuTests {
     }
 }
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `overview tab renders overview rows for six active providers`() {
         self.disableMenuCardsForTesting()

@@ -285,6 +285,54 @@ def repair_sparkle_test_runtime(swift_command: list[str], environment: dict[str,
         return sparkle_runtime_matches_source(destination, source)
 
 
+def split_test_identifier_components(line: str) -> list[str] | None:
+    """Split a Swift Testing identifier on slashes outside backtick identifiers."""
+    components: list[str] = []
+    current: list[str] = []
+    in_backticks = False
+    for character in line:
+        if character == "`":
+            in_backticks = not in_backticks
+        if character == "/" and not in_backticks:
+            component = "".join(current)
+            if not component:
+                return None
+            components.append(component)
+            current = []
+        else:
+            current.append(character)
+    if in_backticks:
+        return None
+    component = "".join(current)
+    if not component:
+        return None
+    components.append(component)
+    return components
+
+
+def non_overlapping_suite_selections(selections: Iterable[TestSelection]) -> list[TestSelection]:
+    selections = list(selections)
+    suite_paths: dict[TestSelection, tuple[str, ...]] = {}
+    direct_suite_paths: set[tuple[str, ...]] = set()
+    for selection in selections:
+        if selection.suite_name is None:
+            continue
+        components = split_test_identifier_components(selection.suite_name)
+        if components is None:
+            continue
+        path = tuple(components)
+        suite_paths[selection] = path
+        direct_suite_paths.add(path)
+
+    non_overlapping: list[TestSelection] = []
+    for selection in selections:
+        path = suite_paths.get(selection)
+        if path is not None and any(path[:length] in direct_suite_paths for length in range(1, len(path))):
+            continue
+        non_overlapping.append(selection)
+    return non_overlapping
+
+
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
     command = [*swift_command, "test", "list", *swiftpm_path_arguments()]
     # Test listing loads native test products, so isolate it from the caller's app caches.
@@ -327,9 +375,10 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
             )
             continue
 
-        if "/" in line:
-            suite = line.split("/", 1)[0]
-            if "." in suite:
+        components = split_test_identifier_components(line)
+        if components is not None and len(components) >= 2:
+            suite = "/".join(components[:-1])
+            if "." in components[0]:
                 selections.add(
                     TestSelection(
                         name=suite,
@@ -344,7 +393,7 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
     if unknown:
         rendered = "\n".join(f"- {line}" for line in unknown)
         raise RuntimeError(f"Unrecognized `swift test list` output:\n{rendered}")
-    return sorted(selections, key=lambda selection: selection.name)
+    return sorted(non_overlapping_suite_selections(selections), key=lambda selection: selection.name)
 
 
 def append_github_summary(stats: RunStats) -> None:
@@ -419,12 +468,33 @@ def filtered_suites_for_request(suites: list[TestSelection], requested: list[str
         return suites
 
     requested_set = set(requested)
-    selected = [suite for suite in suites if suite.name in requested_set]
-    found = {suite.name for suite in selected}
+    selected_names = {suite.name for suite in suites if suite.name in requested_set}
+    found = selected_names & requested_set
+
+    descendants_by_ancestor: dict[tuple[str, ...], set[str]] = {}
+    for suite in suites:
+        if suite.suite_name is None:
+            continue
+        components = split_test_identifier_components(suite.suite_name)
+        if components is None:
+            continue
+        path = tuple(components)
+        for length in range(1, len(path)):
+            descendants_by_ancestor.setdefault(path[:length], set()).add(suite.name)
+
+    for request in requested_set - found:
+        components = split_test_identifier_components(request)
+        if components is None:
+            continue
+        descendants = descendants_by_ancestor.get(tuple(components))
+        if descendants:
+            selected_names.update(descendants)
+            found.add(request)
+
     missing = sorted(requested_set - found)
     if missing:
         raise ValueError(f"Unknown test suite/selection: {', '.join(missing)}")
-    return selected
+    return [suite for suite in suites if suite.name in selected_names]
 
 
 def filter_for(suites: list[TestSelection]) -> str:

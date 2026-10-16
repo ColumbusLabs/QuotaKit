@@ -29,7 +29,7 @@ private final class ClosedMenuManualRefreshGate {
     }
 }
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `stale data refresh suppresses icon attached closed menu preparation`() async {
         self.disableMenuCardsForTesting()

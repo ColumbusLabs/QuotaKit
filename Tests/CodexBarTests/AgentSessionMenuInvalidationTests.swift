@@ -11,7 +11,7 @@ import Testing
 /// menu in place instead of deferring like the store-observation path. On the Overview tab the
 /// in-place rebuild is structural, so it replaced the hovered row and force-closed its hosted
 /// chart submenu; the reopen triggered another rescan, closing the loop.
-extension StatusMenuTests {
+extension StatusMenuTests.OpenRefresh {
     private func makeSession(
         id: String = "session-1",
         lastActivityAt: Date? = Date(timeIntervalSince1970: 1_700_000_000)) -> AgentSession

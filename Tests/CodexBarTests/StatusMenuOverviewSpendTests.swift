@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `overview spend uses the configured dashboard bucket calendar`() throws {
         let settings = self.makeSettings()

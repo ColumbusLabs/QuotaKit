@@ -11,6 +11,7 @@ struct WidgetDetailSnapshotTests {
         let settings = testSettingsStore(
             suiteName: "WidgetDetailSnapshotTests",
             config: testConfigWithAllProvidersDisabled())
+        enableTestProviders([.claude, .codex], settings: settings)
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(homeDirectory: root.path, fileExists: { _ in false }),
