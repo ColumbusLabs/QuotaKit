@@ -38,3 +38,7 @@ boundary between device-local estimates and account quota. Keep those details th
 ```bash
 codexbar usage --provider opencodego --format json --pretty
 ```
+
+Local cost history supports OpenCode v2 session records and the prior message layout. Assistant records
+with a valid timestamp and numeric nonnegative cost contribute; incomplete token counts leave token totals
+unknown. Missing history remains distinct from an explicit zero cost.

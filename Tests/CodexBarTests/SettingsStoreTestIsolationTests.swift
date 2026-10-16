@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct SettingsStoreTestIsolationTests {
@@ -30,5 +31,21 @@ struct SettingsStoreTestIsolationTests {
         store.debugDisableKeychainAccess = true
         #expect(setValues.first == false)
         #expect(setValues.last == true)
+    }
+
+    @Test
+    func `ordinary settings fixtures own their keychain policy`() {
+        KeychainAccessGate.withTaskOverrideForTesting(true) {
+            let first = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+            let second = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+
+            #expect(!first.keychainAccessPolicy.isExplicitlyDisabled())
+            first.debugDisableKeychainAccess = true
+            #expect(first.keychainAccessPolicy.isExplicitlyDisabled())
+            #expect(!second.keychainAccessPolicy.isExplicitlyDisabled())
+            first.debugDisableKeychainAccess = false
+            #expect(!first.keychainAccessPolicy.isExplicitlyDisabled())
+            #expect(KeychainAccessGate.isDisabled)
+        }
     }
 }

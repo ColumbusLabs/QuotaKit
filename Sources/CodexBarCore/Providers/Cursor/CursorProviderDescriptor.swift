@@ -173,7 +173,7 @@ public enum CursorProviderDescriptor {
         if let layout = snapshot.cursorRateWindowLayout {
             return switch layout {
             case .autoAPI:
-                .resolved(Self.mostConstrainedCursorWindow(
+                .automaticCandidates(Self.automaticQuotaCandidates(
                     total: nil,
                     auto: snapshot.primary,
                     api: snapshot.secondary,
@@ -181,19 +181,19 @@ public enum CursorProviderDescriptor {
             case .requests:
                 .resolved(snapshot.primary)
             case .autoOnly:
-                .resolved(Self.mostConstrainedCursorWindow(
+                .automaticCandidates(Self.automaticQuotaCandidates(
                     total: nil,
                     auto: snapshot.primary,
                     api: nil,
                     grokBot: grokBot))
             case .apiOnly:
-                .resolved(Self.mostConstrainedCursorWindow(
+                .automaticCandidates(Self.automaticQuotaCandidates(
                     total: nil,
                     auto: nil,
                     api: snapshot.primary,
                     grokBot: grokBot))
             case .plan:
-                .resolved(Self.mostConstrainedCursorWindow(
+                .automaticCandidates(Self.automaticQuotaCandidates(
                     total: snapshot.primary,
                     auto: nil,
                     api: nil,
@@ -203,35 +203,34 @@ public enum CursorProviderDescriptor {
         if snapshot.tertiary == nil {
             // Backward compatibility for snapshots written before Cursor's explicit layout
             // discriminator: the two stored lanes were Auto and API, not Total and Auto.
-            return .resolved(Self.mostConstrainedCursorWindow(
+            return .automaticCandidates(Self.automaticQuotaCandidates(
                 total: nil,
                 auto: snapshot.primary,
                 api: snapshot.secondary,
                 grokBot: grokBot))
         }
-        return .resolved(Self.mostConstrainedCursorWindow(
+        return .automaticCandidates(Self.automaticQuotaCandidates(
             total: snapshot.primary,
             auto: snapshot.secondary,
             api: snapshot.tertiary,
             grokBot: grokBot))
     }
 
-    private static func mostConstrainedCursorWindow(
+    private static func automaticQuotaCandidates(
         total: RateWindow?,
         auto: RateWindow?,
         api: RateWindow?,
-        grokBot: RateWindow?) -> RateWindow?
+        grokBot: RateWindow?) -> [RateWindow]
     {
         let subquotas = [auto, api, grokBot].compactMap(\.self)
         let usableSubquotas = subquotas.filter { $0.remainingPercent > 0 }
         if let total, total.remainingPercent <= 0 {
-            return total
+            return [total]
         }
         if !subquotas.isEmpty, usableSubquotas.isEmpty {
-            return subquotas.max(by: { $0.usedPercent < $1.usedPercent })
+            return subquotas
         }
-        return ([total].compactMap(\.self) + usableSubquotas)
-            .max(by: { $0.usedPercent < $1.usedPercent })
+        return [total].compactMap(\.self) + usableSubquotas
     }
 
     private static var supportsTokenSnapshot: Bool {

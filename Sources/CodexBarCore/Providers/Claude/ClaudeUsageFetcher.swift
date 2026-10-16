@@ -40,6 +40,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let safeCredentialSourcesOnly: Bool
     private let preserveInvalidOAuthCache: Bool
     private let allowBackgroundDelegatedRefresh: Bool
+    private let useDesktopCookies: Bool
     private let useWebExtras: Bool
     private let manualCookieHeader: String?
     private let webOrganizationID: String?
@@ -150,6 +151,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         oauthSafeCredentialSourcesOnly: Bool = false,
         preserveInvalidOAuthCache: Bool = false,
         allowBackgroundDelegatedRefresh: Bool = false,
+        useDesktopCookies: Bool = false,
         useWebExtras: Bool = false,
         manualCookieHeader: String? = nil,
         webOrganizationID: String? = nil,
@@ -166,6 +168,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         self.safeCredentialSourcesOnly = oauthSafeCredentialSourcesOnly
         self.preserveInvalidOAuthCache = preserveInvalidOAuthCache
         self.allowBackgroundDelegatedRefresh = allowBackgroundDelegatedRefresh
+        self.useDesktopCookies = useDesktopCookies
         self.useWebExtras = useWebExtras
         self.manualCookieHeader = manualCookieHeader
         self.webOrganizationID = webOrganizationID
@@ -714,8 +717,10 @@ extension ClaudeUsageFetcher {
     }
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
-        try await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: self.runtime) {
-            try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
+        try await ClaudeWebSessionKeyImport.$desktopApp.withValue(self.useDesktopCookies) {
+            try await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: self.runtime) {
+                try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
+            }
         }
     }
 

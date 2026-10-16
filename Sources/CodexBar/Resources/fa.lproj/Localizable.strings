@@ -1773,7 +1773,7 @@
 "%@m" = "%@د";
 "%d CONNECTED" = "%d متصل است";
 "%d DAYS" = "%d روز";
-"%d days" = "روز %d";
+"%d days" = "%d روز";
 "%d percent" = "درصد %d";
 "%d subscriptions" = "%d اشتراک";
 "%d-DAY SPEND" = "هزینه در %d روز";
@@ -2646,3 +2646,11 @@
 "API credit" = "اعتبار API";
 "Purchased credit" = "اعتبار خریداری‌شده";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform موجودی اعتبار و هزینه ماهانه Console را نشان می‌دهد، نه تاریخچه هزینه محلی توکن‌ها.";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "تمدید طرح: %@";
+"Back" = "بازگشت";
+"Forward" = "جلو";
+"Claude desktop app" = "برنامهٔ دسکتاپ Claude";
+"Use Claude desktop app cookies" = "استفاده از کوکی‌های برنامهٔ دسکتاپ Claude";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "برای مصرف وب، از حساب واردشده در Claude.app به‌جای حساب مرورگر استفاده کنید.";

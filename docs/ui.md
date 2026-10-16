@@ -175,3 +175,18 @@ In Icon and Percent mode, the provider's **Menu bar metric** picker offers Auto,
 Token activity uses appearance-aware colors and a slashed outline for unavailable history. Narrow annual grids scroll with labeled earlier/recent controls; keyboard navigation reveals the active date. Calendar columns retain chronological left-to-right order within right-to-left interfaces.
 
 Usage & Spend preserves known daily request counts when another source cannot count requests, marking the subtotal with `≥`. Missing request counts do not make known token or cost totals partial. Incomplete imported model history retains known subtotals and does not produce misleading share rankings.
+
+## Settings navigation and quota risk
+
+Settings retains independent back/forward selection history and sidebar selections. Native header controls
+share the detail header on macOS 26; macOS 14/15 retain the window title and put navigation above pane content.
+The native title remains available to accessibility and the Window menu.
+
+Automatic quota selection compares depletion risk using valid remaining usage and reset timing. Explicit
+window choices remain pinned. Six work days uses Monday through Saturday and excludes Sunday in weekly
+pace and session-forecast capacity. A corrected older session reset discards the earlier history segment;
+three valid later completed samples can restore forecasting.
+
+Fresh monochrome stacked text can use template rendering for native inactive-display dimming. Colored,
+stale and high-contrast content keeps its appropriate rendering path. Dock updates follow startup and actual
+window transitions; reset confetti stays click-through while particles finish falling.

@@ -6,6 +6,37 @@ import Testing
 @Suite(.serialized)
 struct CodexBarConfigMigratorTests {
     @Test
+    func `corrupt config is preserved without reading or clearing legacy stores`() throws {
+        let suite = "CodexBarConfigMigratorTests-corrupt-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let configStore = testConfigStore(suiteName: suite)
+        let directory = configStore.fileURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let corrupt = Data(#"{"version":1,"providers":["#.utf8)
+        try corrupt.write(to: configStore.fileURL)
+
+        let secrets = CountingLegacySecretStore(token: "fixture-legacy-token")
+        let accounts = CountingTokenAccountStore()
+        let stores = Self.legacyStores(secrets: secrets, accountStore: accounts)
+        #expect(throws: (any Error).self) {
+            try CodexBarConfigMigrator.loadOrMigrate(
+                configStore: configStore,
+                userDefaults: defaults,
+                stores: stores)
+        }
+
+        #expect(try Data(contentsOf: configStore.fileURL) == corrupt)
+        #expect(secrets.loadCount == 0)
+        #expect(secrets.clearAttempts == 0)
+        #expect(accounts.loadCount == 0)
+        #expect(!defaults.bool(forKey: Self.legacyMigrationCompletedKey))
+    }
+
+    @Test
     func `legacy Moonshot key is bound to its selected region`() throws {
         let suite = "CodexBarConfigMigratorTests-moonshot-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -19,7 +50,7 @@ struct CodexBarConfigMigratorTests {
             region: MoonshotRegion.china.rawValue))
         try configStore.save(config)
 
-        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+        let migrated = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: Self.legacyStores(
@@ -44,7 +75,7 @@ struct CodexBarConfigMigratorTests {
         config.setProviderConfig(ProviderConfig(id: .codex, hiddenUsageItemIDs: []))
         try configStore.save(config)
 
-        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+        let migrated = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: Self.legacyStores(
@@ -79,7 +110,7 @@ struct CodexBarConfigMigratorTests {
         let stores = Self.legacyStores(
             secrets: CountingLegacySecretStore(),
             accountStore: CountingTokenAccountStore())
-        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+        let migrated = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore, userDefaults: defaults, stores: stores)
         let migratedClaude = try #require(migrated.providerConfig(for: .claude))
         #expect(Set(migratedClaude.hiddenUsageItemIDs ?? []) == [
@@ -95,7 +126,7 @@ struct CodexBarConfigMigratorTests {
         updated.setProviderConfig(explicitChoice)
         try configStore.save(updated)
         defaults.set(false, forKey: "showOptionalCreditsAndExtraUsage")
-        let relaunched = CodexBarConfigMigrator.loadOrMigrate(
+        let relaunched = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore, userDefaults: defaults, stores: stores)
         #expect(relaunched.providerConfig(for: .claude)?.hiddenUsageItemIDs == [
             "metric:secondary", "future:item",
@@ -115,7 +146,7 @@ struct CodexBarConfigMigratorTests {
         let stores = Self.legacyStores(secrets: secrets, accountStore: accountStore)
         let configStore = testConfigStore(suiteName: suite)
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         let firstSecretLoads = secrets.loadCount
         let firstAccountLoads = accountStore.loadCount
@@ -123,7 +154,7 @@ struct CodexBarConfigMigratorTests {
         #expect(firstAccountLoads == 1)
         #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == true)
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         #expect(secrets.loadCount == firstSecretLoads)
         #expect(accountStore.loadCount == firstAccountLoads)
@@ -141,7 +172,7 @@ struct CodexBarConfigMigratorTests {
         let stores = Self.legacyStores(secrets: secrets, accountStore: accountStore)
         let configStore = testConfigStore(suiteName: suite)
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(
+        _ = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             keychainAccessDisabled: true,
@@ -153,7 +184,7 @@ struct CodexBarConfigMigratorTests {
         #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == false)
 
         try secrets.storeToken("legacy-token")
-        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+        let migrated = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             keychainAccessDisabled: false,
@@ -177,7 +208,7 @@ struct CodexBarConfigMigratorTests {
         let stores = Self.legacyStores(secrets: secrets, accountStore: accountStore)
         let configStore = testConfigStore(suiteName: suite)
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         let firstSecretLoads = secrets.loadCount
         #expect(firstSecretLoads > 0)
@@ -185,7 +216,7 @@ struct CodexBarConfigMigratorTests {
         #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == false)
 
         secrets.throwOnStore = false
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         #expect(secrets.loadCount > firstSecretLoads)
         #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == true)
@@ -213,14 +244,14 @@ struct CodexBarConfigMigratorTests {
         let configStore = CodexBarConfigStore(
             fileURL: blockedDirectory.appendingPathComponent("config.json"))
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         #expect(secrets.clearAttempts == 0)
         #expect(try secrets.loadToken() == "legacy-token")
         #expect(defaults.bool(forKey: Self.legacyMigrationCompletedKey) == false)
 
         try FileManager.default.removeItem(at: blockedDirectory)
-        _ = CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
+        _ = try CodexBarConfigMigrator.loadOrMigrate(configStore: configStore, userDefaults: defaults, stores: stores)
 
         #expect(secrets.clearAttempts > 0)
         #expect(try secrets.loadToken() == nil)
@@ -239,7 +270,7 @@ struct CodexBarConfigMigratorTests {
         let stores = Self.legacyStores(secrets: secrets, accountStore: accountStore)
         let configStore = testConfigStore(suiteName: suite)
 
-        _ = CodexBarConfigMigrator.loadOrMigrate(
+        _ = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: stores)
@@ -253,7 +284,7 @@ struct CodexBarConfigMigratorTests {
 
         secrets.throwOnLoad = false
         accountStore.throwOnLoad = false
-        _ = CodexBarConfigMigrator.loadOrMigrate(
+        _ = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: stores)
@@ -279,7 +310,7 @@ struct CodexBarConfigMigratorTests {
             syntheticTokenStore: unreadableSecrets)
         let configStore = testConfigStore(suiteName: suite)
 
-        let first = CodexBarConfigMigrator.loadOrMigrate(
+        let first = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: stores)
@@ -292,7 +323,7 @@ struct CodexBarConfigMigratorTests {
 
         let firstUnreadableLoadCount = unreadableSecrets.loadCount
         unreadableSecrets.throwOnLoad = false
-        _ = CodexBarConfigMigrator.loadOrMigrate(
+        _ = try CodexBarConfigMigrator.loadOrMigrate(
             configStore: configStore,
             userDefaults: defaults,
             stores: stores)

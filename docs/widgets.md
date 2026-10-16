@@ -149,6 +149,27 @@ installed across an in-place signed bundle upgrade, then check Devin/Cursor choi
 When widgets do not appear in the gallery at all, the issue is almost always
 registration, signing, or daemon caching (not SwiftUI code).
 
+### After an app update
+
+QuotaKit publishes a normal startup snapshot and requests a timeline reload after the save attempt.
+It does not automatically restart the extension or compare a running extension executable with the
+installed replacement. Snapshot fields remain backward compatible; a saved snapshot and successful
+reload request do not prove that WidgetKit accepted a timeline or is running the current extension.
+
+For stale-extension timeline rejections, first collect app/extension versions, the failing snapshot's
+size and sanitized content, and extension/`chronod` logs. Distinguish the installed bundle from the
+executable mapped by the running process. Historical [upstream recovery evidence](https://github.com/steipete/CodexBar/issues/2838#issuecomment-6160909047)
+supports terminating only the stale widget extension after diagnostics:
+
+```sh
+killall -TERM QuotaKitWidget
+```
+
+This manual workaround ends every process with that name. macOS can launch the installed extension
+on a later timeline request. Verify `chronod` reload success, updated timeline files and current visible
+values afterward. It is not an automatic recovery policy or a guarantee, and cannot restore removed
+widget placements. A later snapshot cannot establish the failing payload's size or contents.
+
 ### 1) Verify the extension bundle exists where macOS expects it
 ```
 APP="/Applications/QuotaKit.app"

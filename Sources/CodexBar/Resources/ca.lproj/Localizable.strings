@@ -2644,3 +2644,11 @@
 "API credit" = "Crèdit d'API";
 "Purchased credit" = "Crèdit comprat";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform mostra el saldo de crèdit i la despesa mensual de la Console, no l'historial de costos local de tokens.";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "El pla es renova: %@";
+"Back" = "Enrere";
+"Forward" = "Endavant";
+"Claude desktop app" = "Aplicació d’escriptori de Claude";
+"Use Claude desktop app cookies" = "Utilitza les galetes de l’aplicació d’escriptori de Claude";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "Per a l’ús web, fes servir el compte que ha iniciat sessió a Claude.app en lloc del navegador.";

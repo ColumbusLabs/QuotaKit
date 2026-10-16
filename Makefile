@@ -44,8 +44,9 @@ test-affected:
 	./Scripts/test_tier.sh affected
 
 test-tty:
-	source ./Scripts/test_environment.sh && CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --filter TTYIntegrationTests
+	source ./Scripts/test_environment.sh && CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 codexbar_run_swift_test_with_private_home swift test --filter TTYIntegrationTests
 
+# Live account tests may resolve auth from the caller's default ~/.codex directory.
 test-live:
 	export CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS=1 && source ./Scripts/test_environment.sh && LIVE_TEST=1 swift test --filter LiveAccountTests
 

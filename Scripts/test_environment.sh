@@ -27,3 +27,60 @@ export CODEXBAR_TEST_SESSION_FILE_ISOLATION=1
 if [[ "${CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS:-}" != "1" ]]; then
   export CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1
 fi
+
+# Run direct SwiftPM test entrypoints away from the caller's app caches. Keep the
+# caller's other toolchain and package-resolution settings intact.
+codexbar_run_swift_test_with_private_home() {
+  local test_home status tool_home platform
+  local -a command swiftpm_arguments
+  command=("$@")
+  if [[ "${command[0]:-}" != "swift" || "${command[1]:-}" != "test" ]]; then
+    echo "codexbar_run_swift_test_with_private_home expects a swift test command" >&2
+    return 2
+  fi
+
+  # SwiftPM reads mirrors, registry configuration and fingerprints from its shared
+  # user paths. Keep existing tool state reachable while HOME is private to tests.
+  tool_home="${HOME:-}"
+  platform="$(uname -s)"
+  if [[ -n "${tool_home}" && "${SWIFTPM_CACHE_PATH:-}" == "" ]]; then
+    if [[ "${platform}" == "Darwin" ]]; then
+      if [[ -d "${tool_home}/Library/Caches/org.swift.swiftpm" ]]; then
+        swiftpm_arguments+=(--cache-path "${tool_home}/Library/Caches/org.swift.swiftpm")
+      fi
+    elif [[ "${platform}" == "Linux" ]]; then
+      if [[ -d "${tool_home}/.cache/org.swift.swiftpm" ]]; then
+        swiftpm_arguments+=(--cache-path "${tool_home}/.cache/org.swift.swiftpm")
+      fi
+    fi
+  fi
+  if [[ -n "${tool_home}" ]]; then
+    if [[ "${platform}" == "Darwin" ]]; then
+      if [[ -d "${tool_home}/Library/org.swift.swiftpm/configuration" ]]; then
+        swiftpm_arguments+=(--config-path "${tool_home}/Library/org.swift.swiftpm/configuration")
+      fi
+      if [[ -d "${tool_home}/Library/org.swift.swiftpm/security" ]]; then
+        swiftpm_arguments+=(--security-path "${tool_home}/Library/org.swift.swiftpm/security")
+      fi
+    elif [[ "${platform}" == "Linux" ]]; then
+      if [[ -d "${tool_home}/.swiftpm/configuration" ]]; then
+        swiftpm_arguments+=(--config-path "${tool_home}/.swiftpm/configuration")
+      fi
+      if [[ -d "${tool_home}/.swiftpm/security" ]]; then
+        swiftpm_arguments+=(--security-path "${tool_home}/.swiftpm/security")
+      fi
+    fi
+  fi
+  if [[ -n "${swiftpm_arguments[0]:-}" ]]; then
+    command=("${command[@]:0:2}" "${swiftpm_arguments[@]}" "${command[@]:2}")
+  fi
+
+  test_home="$(mktemp -d "${TMPDIR:-/tmp}/quotakit-test-home.XXXXXX")"
+  if HOME="${test_home}" CFFIXED_USER_HOME="${test_home}" "${command[@]}"; then
+    status=0
+  else
+    status=$?
+  fi
+  rm -rf "${test_home}"
+  return "${status}"
+}

@@ -455,3 +455,7 @@ The print-report usage probe opts into a fresh per-launch ownership marker. Clea
 ## Local pricing aliases
 
 Local history retains recorded model IDs in breakdowns. Pricing first checks that exact model ID, then resolves the Gemini 3.1 Pro product aliases to the public preview model and `gemini-3.7-flash-safety-le` to `gemini-3.7-flash`. These are API-equivalent estimates, not measured subscription charges.
+
+OAuth plan labels prefer explicit paid-tier evidence over a generic Cloud Code tier. An enabled, measured
+five-hour quota suppresses a contradictory Free label; weekly-only Starter quotas retain their plan label.
+No extra identity request is required.

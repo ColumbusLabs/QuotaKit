@@ -185,6 +185,15 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
                 accountPlan: plan,
                 source: .remote)
             if summary.hasKnownQuotaSummary {
+                let measuredFiveHourQuota = try summary.toUsageSnapshot().extraRateWindows?.contains(where: {
+                    $0.usageKnown && $0.window.windowMinutes == 300
+                }) == true
+                if plan?.lowercased() == "free", measuredFiveHourQuota {
+                    return try AntigravityStatusProbe.parseQuotaSummaryResponse(
+                        data,
+                        accountEmail: claims.email,
+                        source: .remote)
+                }
                 return summary
             }
         } catch {
@@ -542,6 +551,11 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     }
 
     private static func resolvePlan(response: CodeAssistResponse, claims: TokenClaims) -> String? {
+        if let tier = response.paidTier,
+           tier.name?.trimmedNonEmpty != nil || tier.id?.trimmedNonEmpty != nil
+        {
+            return tier.name?.trimmedNonEmpty ?? "Paid"
+        }
         if let planType = response.planInfo?.planType?.trimmedNonEmpty {
             return planType
         }

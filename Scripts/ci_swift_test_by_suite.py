@@ -151,9 +151,10 @@ def run_command(
     cleanup_process_group: bool = False,
     cleanup_grace_seconds: float = 10,
     process_started_callback: Callable[[subprocess.Popen | None], None] | None = None,
+    environment: dict[str, str] | None = None,
 ) -> int:
     print(f"+ {' '.join(command)}", flush=True)
-    process = subprocess.Popen(command, start_new_session=True)
+    process = subprocess.Popen(command, start_new_session=True, env=environment)
     try:
         if process_started_callback is not None:
             process_started_callback(process)
@@ -195,6 +196,36 @@ def is_missing_sparkle_runtime_failure(result: subprocess.CompletedProcess[str])
     )
 
 
+def swiftpm_path_arguments() -> list[str]:
+    """Keep existing user-level SwiftPM state while tests use a private HOME."""
+    home_value = os.environ.get("HOME")
+    if not home_value:
+        return []
+    home = Path(home_value).expanduser()
+    if sys.platform == "darwin":
+        paths = (
+            ("--cache-path", home / "Library" / "Caches" / "org.swift.swiftpm"),
+            ("--config-path", home / "Library" / "org.swift.swiftpm" / "configuration"),
+            ("--security-path", home / "Library" / "org.swift.swiftpm" / "security"),
+        )
+    elif sys.platform.startswith("linux"):
+        paths = (
+            ("--cache-path", home / ".cache" / "org.swift.swiftpm"),
+            ("--config-path", home / ".swiftpm" / "configuration"),
+            ("--security-path", home / ".swiftpm" / "security"),
+        )
+    else:
+        return []
+
+    arguments: list[str] = []
+    if os.environ.get("SWIFTPM_CACHE_PATH"):
+        paths = tuple((option, path) for option, path in paths if option != "--cache-path")
+    for option, path in paths:
+        if path.is_dir():
+            arguments.extend((option, str(path)))
+    return arguments
+
+
 def valid_sparkle_runtime(path: Path) -> bool:
     return path.is_dir() and any(
         (path / "Versions" / version / "Sparkle").is_file()
@@ -211,11 +242,12 @@ def sparkle_runtime_matches_source(destination: Path, source: Path) -> bool:
         return False
 
 
-def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
+def repair_sparkle_test_runtime(swift_command: list[str], environment: dict[str, str] | None = None) -> bool:
     result = subprocess.run(
-        [*swift_command, "build", "--show-bin-path"],
+        [*swift_command, "build", "--show-bin-path", *swiftpm_path_arguments()],
         capture_output=True,
         text=True,
+        env=environment,
     )
     if result.returncode != 0:
         return False
@@ -254,12 +286,16 @@ def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
 
 
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
-    command = [*swift_command, "test", "list"]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
-        if repair_sparkle_test_runtime(swift_command):
-            print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
-            result = subprocess.run(command, capture_output=True, text=True)
+    command = [*swift_command, "test", "list", *swiftpm_path_arguments()]
+    # Test listing loads native test products, so isolate it from the caller's app caches.
+    with tempfile.TemporaryDirectory(prefix="quotakit-test-discovery-") as home:
+        environment = os.environ.copy()
+        environment.update({"HOME": home, "CFFIXED_USER_HOME": home})
+        result = subprocess.run(command, capture_output=True, text=True, env=environment)
+        if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
+            if repair_sparkle_test_runtime(swift_command, environment=environment):
+                print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
+                result = subprocess.run(command, capture_output=True, text=True, env=environment)
     if result.returncode != 0:
         print(f"+ {swift_command[0]} test list", flush=True)
         if result.stdout:
@@ -391,10 +427,23 @@ def filter_for(suites: list[TestSelection]) -> str:
 
 
 def run_group(suites: list[TestSelection], timeout: int, swift_command: list[str]) -> int:
-    return run_command(
-        [*swift_command, "test", "--skip-build", "--no-parallel", "--filter", filter_for(suites)],
-        timeout=timeout,
-    )
+    # Every serial group gets its own temporary HOME, including isolated timeout retries.
+    with tempfile.TemporaryDirectory(prefix="quotakit-test-group-") as home:
+        environment = os.environ.copy()
+        environment.update({"HOME": home, "CFFIXED_USER_HOME": home})
+        return run_command(
+            [
+                *swift_command,
+                "test",
+                "--skip-build",
+                "--no-parallel",
+                "--filter",
+                filter_for(suites),
+                *swiftpm_path_arguments(),
+            ],
+            timeout=timeout,
+            environment=environment,
+        )
 
 
 def retry_selections_individually(

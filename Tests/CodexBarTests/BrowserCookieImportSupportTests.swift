@@ -13,6 +13,12 @@ struct BrowserCookieImportSupportTests {
         }
     }
 
+    @Test
+    func `automatic plugin import excludes opt in desktop cookies`() {
+        #expect(!BrowserCookieImportSupport.importOrder(for: .claude).contains(.claudeDesktop))
+        #expect(!BrowserCookieImportSupport.browserNames(for: .claude).contains("Claude desktop app"))
+    }
+
     @Test(arguments: ["Aside", "Opera", "Opera Neon"])
     func `catalog browsers participate in Muse automatic import`(name: String) throws {
         let browser = try #require(Browser.allCases.first { $0.displayName == name })
@@ -85,7 +91,9 @@ struct BrowserCookieImportSupportTests {
                   descriptor.settingsSection.selectedProfileBrowsers == nil,
                   let order = descriptor.metadata.browserCookieOrder
             else { continue }
-            #expect(Set(order) == Set(Browser.defaultImportOrder), "\(descriptor.id) restricts automatic cookie import")
+            #expect(
+                Set(order.filter { $0 != .claudeDesktop }) == Set(Browser.defaultImportOrder),
+                "\(descriptor.id) restricts automatic cookie import")
         }
     }
 

@@ -2643,3 +2643,11 @@
 "API credit" = "Кредит API";
 "Purchased credit" = "Купленный кредит";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform показывает баланс кредитов и ежемесячные расходы в Console, а не локальную историю затрат на токены.";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "Продление плана: %@";
+"Back" = "Назад";
+"Forward" = "Вперед";
+"Claude desktop app" = "Приложение Claude для компьютера";
+"Use Claude desktop app cookies" = "Использовать файлы cookie приложения Claude";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "Для веб-статистики использовать учётную запись в Claude.app вместо учётной записи браузера.";
