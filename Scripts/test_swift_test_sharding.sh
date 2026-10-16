@@ -17,7 +17,9 @@ if [[ -n "${FAKE_SWIFT_TEST_HOMES:-}" ]]; then
       if [[ -d "${HOME}" ]]; then
         home_state=present
       fi
-      printf '%s\t%s\t%s\t%s\n' "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${home_state}" >> "${FAKE_SWIFT_TEST_HOMES}"
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${CODEX_HOME:-<unset>}" \
+        "${CODEX_SQLITE_HOME-<unset>}" "${home_state}" >> "${FAKE_SWIFT_TEST_HOMES}"
       ;;
   esac
 fi
@@ -199,12 +201,15 @@ grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
 reset_case private-home
 export FAKE_SWIFT_MODE=success
 export FAKE_SWIFT_TEST_HOMES="${TEMP_DIR}/private-test-homes.txt"
-run_harness --group-size 4 --limit-groups 2 --timeout 10 > "${TEMP_DIR}/private-home.log"
+CODEX_HOME="${TEMP_DIR}/inherited-codex-home" \
+  CODEX_SQLITE_HOME="${TEMP_DIR}/inherited-codex-sqlite" \
+  run_harness --group-size 4 --limit-groups 2 --timeout 10 > "${TEMP_DIR}/private-home.log"
 # Discovery and each serial group use a distinct temporary home removed on return.
 [[ "$(wc -l < "${FAKE_SWIFT_TEST_HOMES}")" -eq 3 ]]
 [[ "$(cut -f2 "${FAKE_SWIFT_TEST_HOMES}" | sort -u | wc -l)" -eq 3 ]]
-while IFS=$'\t' read -r command test_home fixed_home home_state; do
+while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state; do
   [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${HOME}" ]] || exit 1
+  [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
   [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
 done < "${FAKE_SWIFT_TEST_HOMES}"
 unset FAKE_SWIFT_TEST_HOMES
@@ -397,8 +402,9 @@ discovery_home="$(sed -n '1p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)"
 [[ "$(sed -n '2p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" == "${discovery_home}" ]]
 [[ "$(sed -n '3p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" == "${discovery_home}" ]]
 [[ "$(sed -n '4p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" != "${discovery_home}" ]]
-while IFS=$'\t' read -r command test_home fixed_home home_state; do
+while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state; do
   [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${HOME}" ]] || exit 1
+  [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
   [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
 done < "${FAKE_SWIFT_TEST_HOMES}"
 unset FAKE_SWIFT_TEST_HOMES
@@ -413,8 +419,9 @@ home_state=missing
 if [[ -d "${HOME}" ]]; then
   home_state=present
 fi
-printf '%s\t%s\t%s\t%s\t%s\n' \
-  "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${home_state}" "${CODEXBAR_PLUGIN_ENGINE:-<unset>}" \
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${CODEX_HOME:-<unset>}" \
+  "${CODEX_SQLITE_HOME-<unset>}" "${home_state}" "${CODEXBAR_PLUGIN_ENGINE:-<unset>}" \
   >> "${FAKE_SWIFT_NATIVE_HOME_LOG}"
 EOF
 cat > "${TEMP_DIR}/fake-bin/uname" <<'EOF'
@@ -441,16 +448,19 @@ run_plugin_engine_private_home_case() {
   fi
   mkdir -p "${cache_path}" "${config_path}" "${security_path}"
   PATH="${TEMP_DIR}/fake-bin:${PATH}" HOME="${tool_home}" \
+    CODEX_HOME="${tool_home}/inherited-codex-home" \
+    CODEX_SQLITE_HOME="${tool_home}/inherited-codex-sqlite" \
     FAKE_UNAME_PLATFORM="${platform}" FAKE_SWIFT_NATIVE_HOME_LOG="${log}" \
     "${ROOT_DIR}/Scripts/test-plugin-engines.sh" > "${TEMP_DIR}/plugin-engine-private-home-${platform}.log"
   [[ "$(wc -l < "${log}")" -eq 2 ]]
   [[ "$(cut -f2 "${log}" | sort -u | wc -l)" -eq 2 ]]
-  while IFS=$'\t' read -r command test_home fixed_home home_state engine; do
+  while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state engine; do
     [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${tool_home}" ]] || exit 1
+    [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
     [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
   done < "${log}"
-  [[ "$(cut -f5 "${log}" | sed -n '1p')" == "<unset>" ]]
-  [[ "$(cut -f5 "${log}" | sed -n '2p')" == "quickjs" ]]
+  [[ "$(cut -f7 "${log}" | sed -n '1p')" == "<unset>" ]]
+  [[ "$(cut -f7 "${log}" | sed -n '2p')" == "quickjs" ]]
   for swiftpm_path in \
     "--cache-path ${cache_path}" \
     "--config-path ${config_path}" \

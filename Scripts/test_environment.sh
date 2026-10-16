@@ -76,7 +76,13 @@ codexbar_run_swift_test_with_private_home() {
   fi
 
   test_home="$(mktemp -d "${TMPDIR:-/tmp}/quotakit-test-home.XXXXXX")"
-  if HOME="${test_home}" CFFIXED_USER_HOME="${test_home}" "${command[@]}"; then
+  if (
+    export HOME="${test_home}"
+    export CFFIXED_USER_HOME="${test_home}"
+    export CODEX_HOME="${test_home}/.codex"
+    unset CODEX_SQLITE_HOME
+    "${command[@]}"
+  ); then
     status=0
   else
     status=$?

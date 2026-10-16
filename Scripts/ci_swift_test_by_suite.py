@@ -290,7 +290,12 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
     # Test listing loads native test products, so isolate it from the caller's app caches.
     with tempfile.TemporaryDirectory(prefix="quotakit-test-discovery-") as home:
         environment = os.environ.copy()
-        environment.update({"HOME": home, "CFFIXED_USER_HOME": home})
+        environment.update({
+            "HOME": home,
+            "CFFIXED_USER_HOME": home,
+            "CODEX_HOME": str(Path(home) / ".codex"),
+        })
+        environment.pop("CODEX_SQLITE_HOME", None)
         result = subprocess.run(command, capture_output=True, text=True, env=environment)
         if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
             if repair_sparkle_test_runtime(swift_command, environment=environment):
@@ -430,7 +435,12 @@ def run_group(suites: list[TestSelection], timeout: int, swift_command: list[str
     # Every serial group gets its own temporary HOME, including isolated timeout retries.
     with tempfile.TemporaryDirectory(prefix="quotakit-test-group-") as home:
         environment = os.environ.copy()
-        environment.update({"HOME": home, "CFFIXED_USER_HOME": home})
+        environment.update({
+            "HOME": home,
+            "CFFIXED_USER_HOME": home,
+            "CODEX_HOME": str(Path(home) / ".codex"),
+        })
+        environment.pop("CODEX_SQLITE_HOME", None)
         return run_command(
             [
                 *swift_command,
