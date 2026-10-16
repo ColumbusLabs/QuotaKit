@@ -66,3 +66,5 @@ The identical-tree preceding main CI run `38742480574` failed a StatusMenuTests 
 Implementation covers all classified intents. Independent review and exact-head CI/merge receipts are maintained on the tracking issue. Candidate cursor advancement to the reviewed head becomes effective on main only after all adopted work passes qualification and merges.
 
 Twenty-four architecture-test anchors were moved only after exact old/new source equality was established; occurrence fingerprints, scanner behavior, tolerances and waiver rules remain intact. Final hosted source checks must qualify the complete diff.
+
+The initial hosted lint gate identified the cache-helper file length limit and one test closure syntax violation. Extract the exact byte-marker helper into its own source file, preserving its implementation, then regenerate the parser hash; retain the actual preceding QuotaKit cache producer. The test uses an explicit operation argument. No lint limit or test gate is relaxed.

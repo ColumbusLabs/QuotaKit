@@ -314,7 +314,9 @@ struct ClaudeWebBackgroundRecoveryTests {
                 applicationURLs: { _ in [] },
                 profileAccessIssue: { _ in nil })
             try await ClaudeWebSessionKeyImport.$desktopApp.withValue(true) {
-                try await ClaudeWebSessionKeyImport.$browserOverrideForTesting.withValue({ _ in nil }) {
+                try await ClaudeWebSessionKeyImport.$browserOverrideForTesting.withValue {
+                    _ in nil
+                } operation: {
                     let importError = try #require(await Self.desktopImportError(
                         browserDetection: detection))
                     #expect(importError.localizedDescription
