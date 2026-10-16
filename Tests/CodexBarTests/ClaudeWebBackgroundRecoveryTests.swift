@@ -309,6 +309,7 @@ struct ClaudeWebBackgroundRecoveryTests {
             let detection = BrowserDetection(
                 homeDirectory: "/synthetic-no-desktop-cookie-home",
                 cacheTTL: 0,
+                now: { Date(timeIntervalSince1970: 0) },
                 fileExists: { _ in false },
                 directoryContents: { _ in nil },
                 applicationURLs: { _ in [] },
