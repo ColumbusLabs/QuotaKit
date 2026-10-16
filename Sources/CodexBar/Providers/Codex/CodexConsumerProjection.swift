@@ -271,7 +271,7 @@ struct CodexConsumerProjection {
     let hasCreditsHistory: Bool
     let extraUsageCost: ProviderCostSnapshot?
 
-    private let rateWindowsByLane: [RateLane: RateWindow]
+    private let rateCandidatesByLane: [RateLane: AutomaticQuotaSelection.Candidate]
     private let codeReviewRemainingPercent: Double?
     private let codeReviewLimit: RateWindow?
     private let evaluationTime: Date
@@ -281,9 +281,10 @@ struct CodexConsumerProjection {
         let dashboardVisibility = self.dashboardVisibility(surface: surface, context: context)
         let dashboard = allowsLiveAdjuncts && dashboardVisibility != .hidden ? context.liveDashboard : nil
 
-        let rateWindowsByLane = self.rateWindowsByLane(
+        let rateCandidatesByLane = self.rateCandidatesByLane(
             snapshot: context.snapshot,
             monthlyCreditLimit: self.monthlyCreditLimit(surface: surface, context: context))
+        let rateWindowsByLane = rateCandidatesByLane.mapValues(\.window)
         let visibleRateLanes = self.visibleRateLanes(from: rateWindowsByLane, snapshot: context.snapshot)
         let planUtilizationLanes = self.planUtilizationLanes(from: rateWindowsByLane)
 
@@ -342,7 +343,7 @@ struct CodexConsumerProjection {
             hasUsageBreakdown: hasUsageBreakdown,
             hasCreditsHistory: hasCreditsHistory,
             extraUsageCost: extraUsageCost,
-            rateWindowsByLane: rateWindowsByLane,
+            rateCandidatesByLane: rateCandidatesByLane,
             codeReviewRemainingPercent: dashboardVisibility == .attached ? dashboard?.codeReviewRemainingPercent : nil,
             codeReviewLimit: dashboardVisibility == .attached ? dashboard?.codeReviewLimit : nil,
             evaluationTime: context.now)
@@ -356,12 +357,12 @@ struct CodexConsumerProjection {
     }
 
     func rateWindow(for lane: RateLane) -> RateWindow? {
-        guard let window = self.rateWindowsByLane[lane] else { return nil }
+        guard let window = self.rateCandidatesByLane[lane]?.window else { return nil }
         switch lane {
         case .session:
             return Self.sessionDisplayWindow(
                 session: window,
-                weekly: self.rateWindowsByLane[.weekly],
+                weekly: self.rateCandidatesByLane[.weekly]?.window,
                 evaluationTime: self.evaluationTime)
         case .weekly, .monthly:
             return window
@@ -369,11 +370,11 @@ struct CodexConsumerProjection {
     }
 
     func sourceRateWindow(for lane: RateLane) -> RateWindow? {
-        self.rateWindowsByLane[lane]
+        self.rateCandidatesByLane[lane]?.window
     }
 
     static func sourceRateWindow(for lane: RateLane, snapshot: UsageSnapshot?) -> RateWindow? {
-        self.rateWindowsByLane(snapshot: snapshot)[lane]
+        self.rateCandidatesByLane(snapshot: snapshot)[lane]?.window
     }
 
     func menuBarSelectableRateWindow(for lane: RateLane) -> RateWindow? {
@@ -387,20 +388,31 @@ struct CodexConsumerProjection {
         return nil
     }
 
-    /// Automatic keeps the standard session window unless a longer window (e.g. a 30-day
-    /// primary) would hide a genuine weekly quota from the menu bar.
+    /// Rank quota lanes without letting optional credits hide a genuine weekly quota.
+    func automaticMenuBarSelection() -> AutomaticQuotaSelection.Selection? {
+        let quotaLanes = self.displayedRateLanes(showOptionalCreditsAndExtraUsage: false)
+        let candidates = (quotaLanes.isEmpty ? self.visibleRateLanes : quotaLanes).compactMap { lane in
+            self.menuBarSelectableRateWindow(for: lane).map { window in
+                AutomaticQuotaSelection.Candidate(
+                    window: window,
+                    paceSlot: self.rateCandidatesByLane[lane]?.paceSlot)
+            }
+        }
+        let eligible = if let weekly = candidates.first(where: {
+            $0.window == self.menuBarSelectableRateWindow(for: .weekly)
+        }), candidates.contains(where: { $0.window.windowMinutes.map { $0 > Self.weeklyWindowMinutes } ?? false }) {
+            [weekly]
+        } else {
+            candidates
+        }
+        return AutomaticQuotaSelection.select(
+            candidates: eligible,
+            provider: .codex,
+            now: self.evaluationTime)
+    }
+
     func automaticMenuBarWindow() -> RateWindow? {
-        let windows = self.visibleRateLanes.compactMap {
-            self.menuBarSelectableRateWindow(for: $0)
-        }
-        guard let weekly = self.menuBarSelectableRateWindow(for: .weekly),
-              windows.contains(where: {
-                  $0.windowMinutes.map { $0 > Self.weeklyWindowMinutes } ?? false
-              })
-        else {
-            return windows.first
-        }
-        return weekly
+        self.automaticMenuBarSelection()?.window
     }
 
     static func rateTitle(
@@ -429,7 +441,8 @@ struct CodexConsumerProjection {
     }
 
     var nextMenuBarStateChangeAt: Date? {
-        self.rateWindowsByLane.values.compactMap { window in
+        self.rateCandidatesByLane.values.compactMap { candidate in
+            let window = candidate.window
             guard window.remainingPercent <= 0,
                   let resetAt = window.resetsAt,
                   resetAt > self.evaluationTime
@@ -442,7 +455,7 @@ struct CodexConsumerProjection {
 
     var hasBindingWeeklyCap: Bool {
         Self.weeklyCapsSession(
-            weekly: self.rateWindowsByLane[.weekly],
+            weekly: self.rateCandidatesByLane[.weekly]?.window,
             evaluationTime: self.evaluationTime)
     }
 
@@ -492,31 +505,33 @@ struct CodexConsumerProjection {
         }
     }
 
-    private static func rateWindowsByLane(
+    private static func rateCandidatesByLane(
         snapshot: UsageSnapshot?,
-        monthlyCreditLimit: CodexCreditLimitSnapshot? = nil) -> [RateLane: RateWindow]
+        monthlyCreditLimit: CodexCreditLimitSnapshot? = nil) -> [RateLane: AutomaticQuotaSelection.Candidate]
     {
-        var windowsByLane: [RateLane: RateWindow] = [:]
+        var candidatesByLane: [RateLane: AutomaticQuotaSelection.Candidate] = [:]
         if let snapshot {
-            let slottedWindows: [(RateLane, RateWindow)] = [
-                self.classifyRateWindow(snapshot.primary, slot: .primary),
-                self.classifyRateWindow(snapshot.secondary, slot: .secondary),
-            ].compactMap(\.self)
-
-            for (lane, window) in slottedWindows {
-                windowsByLane[lane] = window
+            let sourceWindows: [(RateWindow?, SnapshotSlot, ProviderPaceSlot)] = [
+                (snapshot.primary, .primary, .primary),
+                (snapshot.secondary, .secondary, .secondary),
+            ]
+            for (window, slot, paceSlot) in sourceWindows {
+                guard let (lane, window) = self.classifyRateWindow(window, slot: slot) else { continue }
+                candidatesByLane[lane] = .init(window: window, paceSlot: paceSlot)
             }
-            guard windowsByLane.isEmpty, !snapshot.hasRateLimitWindows else {
-                return windowsByLane
+            guard candidatesByLane.isEmpty, !snapshot.hasRateLimitWindows else {
+                return candidatesByLane
             }
         }
-        guard let monthlyCreditLimit else { return windowsByLane }
-        windowsByLane[.monthly] = RateWindow(
-            usedPercent: monthlyCreditLimit.usedPercent,
-            windowMinutes: nil,
-            resetsAt: monthlyCreditLimit.resetsAt,
-            resetDescription: nil)
-        return windowsByLane
+        guard let monthlyCreditLimit else { return candidatesByLane }
+        candidatesByLane[.monthly] = .init(
+            window: RateWindow(
+                usedPercent: monthlyCreditLimit.usedPercent,
+                windowMinutes: nil,
+                resetsAt: monthlyCreditLimit.resetsAt,
+                resetDescription: nil),
+            paceSlot: nil)
+        return candidatesByLane
     }
 
     private static func visibleRateLanes(
@@ -562,7 +577,7 @@ struct CodexConsumerProjection {
     }
 
     static func planUtilizationSeriesNames(snapshot: UsageSnapshot) -> Set<PlanUtilizationSeriesName> {
-        Set(self.rateWindowsByLane(snapshot: snapshot).keys.map { self.planUtilizationRole(for: $0) })
+        Set(self.rateCandidatesByLane(snapshot: snapshot).keys.map { self.planUtilizationRole(for: $0) })
     }
 
     private enum SnapshotSlot {
@@ -655,8 +670,8 @@ struct CodexConsumerProjection {
     }
 
     var hasExhaustedRateLane: Bool {
-        self.rateWindowsByLane.values.contains {
-            $0.remainingPercent <= 0 && ($0.resetsAt.map { $0 > self.evaluationTime } ?? true)
+        self.rateCandidatesByLane.values.contains {
+            $0.window.remainingPercent <= 0 && ($0.window.resetsAt.map { $0 > self.evaluationTime } ?? true)
         }
     }
 }

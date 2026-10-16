@@ -412,3 +412,7 @@ Older app versions show matching percentages in place of graphical bars. Returni
 **Surprise me** is disabled while brand icons are selected, and static brand layouts do not run the blink timer. Your animation preference is kept for switching back to critters. If a brand image is unavailable and the legacy layout falls back to a critter, that visible critter can still animate; stored layouts remain static.
 
 App settings writes are coalesced. Normal quit finishes any pending configuration write in the background before exiting. A failed final write is logged and does not prevent quitting.
+
+Unreadable or malformed configuration is preserved for recovery. QuotaKit must not replace it with defaults,
+run legacy migration over it, or save termination/credential changes over it. After the file is repaired, the
+normal load/save path can resume. Credential migrations and test fixtures preserve their scoped no-UI policy.

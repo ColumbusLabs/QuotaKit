@@ -5,8 +5,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite(.serialized, CodexCredentialFixtures())
-struct StatusMenuTests {
+protocol StatusMenuTestSupport {}
+
+extension StatusMenuTestSupport {
     func disableMenuCardsForTesting() {
         StatusItemController.menuCardRenderingEnabled = false
         StatusItemController.setMenuRefreshEnabledForTesting(false)
@@ -70,17 +71,35 @@ struct StatusMenuTests {
         return store
     }
 
-    private func switcherButtons(in menu: NSMenu) -> [NSButton] {
+    func switcherButtons(in menu: NSMenu) -> [NSButton] {
         guard let switcherView = menu.items.first?.view as? ProviderSwitcherView else { return [] }
         return switcherView.subviews
             .compactMap { $0 as? NSButton }
             .sorted { $0.tag < $1.tag }
     }
 
-    private func representedIDs(in menu: NSMenu) -> [String] {
+    func representedIDs(in menu: NSMenu) -> [String] {
         menu.items.compactMap { $0.representedObject as? String }
     }
+}
 
+@MainActor
+@Suite(.serialized, CodexCredentialFixtures())
+struct StatusMenuTests {
+    @MainActor
+    @Suite
+    struct Presentation: StatusMenuTestSupport {}
+
+    @MainActor
+    @Suite
+    struct OpenRefresh: StatusMenuTestSupport {}
+
+    @MainActor
+    @Suite
+    struct Overview: StatusMenuTestSupport {}
+}
+
+extension StatusMenuTests.Presentation {
     @Test
     func `alibaba dashboard action follows selected region`() {
         self.disableMenuCardsForTesting()
@@ -172,8 +191,17 @@ struct StatusMenuTests {
     }
 
     @Test
-    func `claude subscription dashboard action opens usage page`() {
-        for plan in ["Claude Pro", "Claude Team"] {
+    func `claude dashboard action opens usage page for account type`() {
+        let cases: [(String?, String)] = [
+            (nil, "https://platform.claude.com/usage"),
+            ("API", "https://platform.claude.com/usage"),
+            ("Claude Enterprise", "https://platform.claude.com/usage"),
+            ("Claude Pro", "https://claude.ai/settings/usage"),
+            ("Claude Max", "https://claude.ai/settings/usage"),
+            ("Claude Team", "https://claude.ai/settings/usage"),
+            ("Claude Ultra", "https://claude.ai/settings/usage"),
+        ]
+        for (plan, expectedURL) in cases {
             self.disableMenuCardsForTesting()
             let settings = self.makeSettings()
             settings.statusChecksEnabled = false
@@ -208,7 +236,7 @@ struct StatusMenuTests {
                 preferencesSelection: PreferencesSelection(),
                 statusBar: self.makeStatusBarForTesting())
 
-            #expect(controller.dashboardURL(for: .claude)?.absoluteString == "https://claude.ai/settings/usage")
+            #expect(controller.dashboardURL(for: .claude)?.absoluteString == expectedURL)
         }
     }
 
@@ -828,7 +856,7 @@ struct StatusMenuTests {
 }
 
 @MainActor
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     @Test
     func `status blurb uses wrapped view-backed menu item`() {
         self.disableMenuCardsForTesting()
@@ -1546,7 +1574,7 @@ extension StatusMenuTests {
     }
 }
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `overview tab renders overview rows for six active providers`() {
         self.disableMenuCardsForTesting()

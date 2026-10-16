@@ -140,8 +140,8 @@ struct BrowserCookiePromptContractTests {
         }
     }
 
-    @Test
-    func `prompt free reads preserve the allowance and nested imports share it`() throws {
+    @Test(arguments: [Browser.brave, .claudeDesktop])
+    func `prompt free reads preserve the allowance and nested imports share it`(browser: Browser) throws {
         let keychain = FakeKeychain(promptFreeBrowser: .chrome)
         try self.withFakeKeychain {
             try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
@@ -150,7 +150,7 @@ struct BrowserCookiePromptContractTests {
                         _ = try Self.readKey(for: .chrome, keychain: keychain)
                         #expect(keychain.interactiveQueries == 0)
                         try BrowserCookieAccessGate.withExplicitRetry {
-                            _ = try Self.readKey(for: .brave, keychain: keychain)
+                            _ = try Self.readKey(for: browser, keychain: keychain)
                         }
                         #expect(keychain.interactiveQueries == 1)
                         #expect(throws: BrowserCookieError.self) { try Self.readKey(for: .arc, keychain: keychain) }
@@ -250,20 +250,20 @@ struct BrowserCookiePromptContractTests {
         #expect(keychain.interactiveQueries == 1)
     }
 
-    @Test
-    func `an actual interactive denial blocks the next manual action`() {
+    @Test(arguments: [Browser.chrome, .claudeDesktop])
+    func `an actual interactive denial blocks the next manual action`(browser: Browser) {
         let keychain = FakeKeychain(deniesInteraction: true)
         self.withFakeKeychain {
             KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
                 ProviderInteractionContext.$current.withValue(.userInitiated) {
                     BrowserCookieAccessGate.withExplicitRetry {
-                        _ = try? Self.readKey(for: .chrome, keychain: keychain)
+                        _ = try? Self.readKey(for: browser, keychain: keychain)
                     }
-                    #expect(BrowserCookieAccessGate.hasActiveDenial(for: .chrome))
+                    #expect(BrowserCookieAccessGate.hasActiveDenial(for: browser))
                     BrowserCookieAccessGate.withExplicitRetry {
-                        #expect(!BrowserCookieAccessGate.shouldAttempt(.chrome))
+                        #expect(!BrowserCookieAccessGate.shouldAttempt(browser))
                         #expect(!BrowserCookieAccessGate.shouldAttempt(.brave))
-                        _ = try? Self.readKey(for: .chrome, keychain: keychain)
+                        _ = try? Self.readKey(for: browser, keychain: keychain)
                     }
                 }
             }

@@ -2641,3 +2641,11 @@
 "API credit" = "API-tegoed";
 "Purchased credit" = "Gekocht tegoed";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform toont het Console-tegoed en de maandelijkse uitgaven, niet de lokale tokenkostengeschiedenis.";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "Abonnement wordt verlengd: %@";
+"Back" = "Terug";
+"Forward" = "Vooruit";
+"Claude desktop app" = "Claude-desktopapp";
+"Use Claude desktop app cookies" = "Cookies van de Claude-desktopapp gebruiken";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "Gebruik voor webverbruik het account dat bij Claude.app is aangemeld in plaats van het browseraccount.";

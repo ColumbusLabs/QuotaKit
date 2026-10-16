@@ -1,11 +1,6 @@
 import CodexBarCore
 import Foundation
 import Testing
-#if canImport(Darwin)
-import Darwin
-#else
-import Glibc
-#endif
 
 @Suite(.serialized)
 struct GeminiConsumerTierMigrationTests {
@@ -118,16 +113,6 @@ struct GeminiConsumerTierMigrationTests {
             idToken: nil)
 
         let binURL = try env.writeFakeGeminiCLI()
-        let previousValue = ProcessInfo.processInfo.environment["GEMINI_CLI_PATH"]
-        setenv("GEMINI_CLI_PATH", binURL.path, 1)
-        defer {
-            if let previousValue {
-                setenv("GEMINI_CLI_PATH", previousValue, 1)
-            } else {
-                unsetenv("GEMINI_CLI_PATH")
-            }
-        }
-
         let dataLoader = GeminiAPITestHelpers.dataLoader { request in
             guard let url = request.url, let host = url.host else {
                 throw URLError(.badURL)
@@ -144,8 +129,10 @@ struct GeminiConsumerTierMigrationTests {
         }
 
         let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path, dataLoader: dataLoader)
-        await Self.expectError(.consumerTierDeprecated) {
-            _ = try await probe.fetch()
+        await BinaryLocator.$geminiBinaryPathOverrideForTesting.withValue(binURL.path) {
+            await Self.expectError(.consumerTierDeprecated) {
+                _ = try await probe.fetch()
+            }
         }
     }
 

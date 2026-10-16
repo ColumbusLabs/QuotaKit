@@ -2646,3 +2646,11 @@
 "API credit" = "เครดิต API";
 "Purchased credit" = "เครดิตที่ซื้อ";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform แสดงยอดเครดิตและการใช้จ่ายรายเดือนของ Console ไม่ใช่ประวัติต้นทุนโทเค็นในเครื่อง";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "ต่ออายุแผน: %@";
+"Back" = "ย้อนกลับ";
+"Forward" = "ไปข้างหน้า";
+"Claude desktop app" = "แอป Claude บนเดสก์ท็อป";
+"Use Claude desktop app cookies" = "ใช้คุกกี้จากแอป Claude บนเดสก์ท็อป";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "สำหรับการใช้งานเว็บ ให้ใช้บัญชีที่ลงชื่อเข้าใช้ใน Claude.app แทนบัญชีในเบราว์เซอร์";

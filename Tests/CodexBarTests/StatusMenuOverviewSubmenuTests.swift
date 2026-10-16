@@ -3,7 +3,7 @@ import CodexBarCore
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `overview rows expose provider detail submenus`() throws {
         self.disableMenuCardsForTesting()

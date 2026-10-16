@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     @Test
     func `overview card model follows usage display preference`() throws {
         let settings = self.makeSettings()

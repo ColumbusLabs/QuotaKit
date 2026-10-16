@@ -4,7 +4,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.OpenRefresh {
     @Test
     func `store observation marks open menu stale without rebuilding during tracking`() async {
         self.disableMenuCardsForTesting()

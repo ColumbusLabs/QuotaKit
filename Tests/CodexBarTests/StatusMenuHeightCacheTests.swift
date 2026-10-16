@@ -4,7 +4,7 @@ import SwiftUI
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     @Test
     func `menu card sizing uses displayed hosting view`() throws {
         let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled

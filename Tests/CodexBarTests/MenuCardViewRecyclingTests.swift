@@ -32,7 +32,7 @@ private struct CardActionProbeView: View {
     }
 }
 
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     private func makeRecyclingController(settings: SettingsStore) -> StatusItemController {
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         return StatusItemController(

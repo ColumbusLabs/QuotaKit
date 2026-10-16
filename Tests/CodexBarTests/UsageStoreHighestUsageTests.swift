@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct UsageStoreHighestUsageTests {
@@ -45,6 +45,69 @@ struct UsageStoreHighestUsageTests {
         #expect(overviewHighest?.provider == .codex)
         #expect(overviewHighest?.usedPercent == 25)
         #expect(store.providerWithHighestUsage(candidateProviders: []) == nil)
+    }
+
+    @Test
+    func `automatic highest usage ignores pace unsupported OpenCode lane`() {
+        let settings = testSettingsStore(
+            suiteName: "UsageStoreHighestUsageTests-opencode-lane-pace",
+            userDefaults: InMemoryUserDefaults(),
+            keychainAccessPolicy: .init(setDisabled: { _ in }, isExplicitlyDisabled: { true }))
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.setMenuBarMetricPreference(.automatic, for: .claude)
+        settings.setMenuBarMetricPreference(.automatic, for: .opencode)
+
+        let registry = ProviderRegistry.shared
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
+        }
+        if let opencodeMeta = registry.metadata[.opencode] {
+            settings.setProviderEnabled(provider: .opencode, metadata: opencodeMeta, enabled: true)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(
+                homeDirectory: "/synthetic-opencode-lane-pace",
+                cacheTTL: 0,
+                now: { now },
+                fileExists: { _ in false },
+                directoryContents: { _ in [] },
+                applicationURLs: { _ in [] },
+                profileAccessIssue: { _ in nil }),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+
+        let claude = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 99,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(1800),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now)
+        let opencode = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 99.5,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(1800),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 95,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(86400),
+                resetDescription: nil),
+            updatedAt: now)
+
+        store._setSnapshotForTesting(claude, provider: .claude)
+        store._setSnapshotForTesting(opencode, provider: .opencode)
+
+        let highest = store.providerWithHighestUsage(now: now)
+        #expect(highest?.provider == .claude)
+        #expect(highest?.usedPercent == 99)
     }
 
     @Test

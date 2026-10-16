@@ -233,3 +233,21 @@ See `docs/RELEASING-MOBILE.md` and `docs/RELEASE-CHECKLIST.md` before publishing
 Retained process-environment dictionaries use `@ProcessEnvironment`, including optional dictionaries. Its getter and setter preserve execution values, while automatic descriptions, reflection, dumps, and Swift Testing diagnostics expose only an entry count. Computed accessors and function-local dictionaries are not retained properties. Avoid explicit logging of the unwrapped dictionary.
 
 `ProcessEnvironmentTests` exercises dictionary access and diagnostics with synthetic values; `ProcessEnvironmentStorageTests` checks declaration scopes in shipped source. Do not use real credentials or live provider imports to test redaction.
+
+## Native test cache isolation
+
+The sharded runner gives SwiftPM discovery and each serial execution group a private temporary `HOME`
+and `CFFIXED_USER_HOME`, removed afterward. Direct-runtime workers retain the same isolation. Plugin-engine
+and TTY wrappers use the private-home helper while preserving existing SwiftPM package cache, configuration
+and security directories through explicit tool options. Test timeouts, inventory equality, retries and child
+containment remain unchanged. Ordinary settings fixtures own their Keychain access policy; tests of the
+process-wide gate inject `.live` explicitly and restore it.
+
+The explicitly requested `test-live` target retains caller home/account discovery. It is excluded from the
+non-live isolation wrapper and must never be run as ordinary CI/source-integration validation. Direct `swift test`
+callers must provide appropriate private homes unless they intentionally request live-account validation.
+
+Native cost marker searches compare exact bytes within borrowed buffers using bounded `memchr`/`memcmp`.
+The candidate range stops where a full pattern still fits; empty-pattern behavior matches Foundation.
+The existing QuotaKit parser producer `65175f55d6bacbca` remains a tested compatible predecessor, so this
+semantics-preserving optimization does not force a history rescan. No cache schema or revision changes.

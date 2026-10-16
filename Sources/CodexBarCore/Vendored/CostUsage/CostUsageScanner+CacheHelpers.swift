@@ -1589,13 +1589,6 @@ extension CostUsageScanner {
     }
 }
 
-extension Data {
-    func containsAscii(_ needle: String) -> Bool {
-        guard let n = needle.data(using: .utf8) else { return false }
-        return self.range(of: n) != nil
-    }
-}
-
 extension [Int] {
     subscript(safe index: Int) -> Int? {
         if index < 0 {

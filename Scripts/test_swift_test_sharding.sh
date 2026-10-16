@@ -10,11 +10,24 @@ IFS= read -r -d '' FAKE_SWIFT_SCRIPT <<'EOF' || true
 set -euo pipefail
 
 printf '%s\n' "$*" >> "${FAKE_SWIFT_LOG}"
-if [[ "$*" == "build --show-bin-path" ]]; then
+if [[ -n "${FAKE_SWIFT_TEST_HOMES:-}" ]]; then
+  case "$*" in
+    "test list"*|"build --show-bin-path"*|"test --skip-build --no-parallel"*)
+      home_state=missing
+      if [[ -d "${HOME}" ]]; then
+        home_state=present
+      fi
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${CODEX_HOME:-<unset>}" \
+        "${CODEX_SQLITE_HOME-<unset>}" "${home_state}" >> "${FAKE_SWIFT_TEST_HOMES}"
+      ;;
+  esac
+fi
+if [[ "$*" == "build --show-bin-path"* ]]; then
   printf '%s\n' "${FAKE_SWIFT_BIN_PATH:?}"
   exit 0
 fi
-if [[ "$*" == "test list" ]]; then
+if [[ "$*" == "test list"* ]]; then
   if [[ "${FAKE_SWIFT_MODE:-success}" == "list_fail" ]]; then
     sleep "${FAKE_SWIFT_LIST_DELAY:?}"
     printf 'test-list stdout marker\n'
@@ -38,6 +51,8 @@ if [[ "$*" == "test list" ]]; then
     "CodexBarTests.Zeta/test_six" \
     "CodexBarTests.Eta/test_seven" \
     "CodexBarTests.Theta/test_eight" \
+    "CodexBarTests.StatusMenuTests/Presentation/test_nested()" \
+    'CodexBarTests.StatusMenuTests/Presentation/`nested/slash method`' \
     'CodexBarTests.`top level works`()' \
     'CodexBarTests.`top/level slash works`()'
   exit 0
@@ -171,8 +186,8 @@ export FAKE_SWIFT_MODE=group_fail_once
 run_harness --group-size 4 --timeout 10 > "${TEMP_DIR}/retry.log"
 grep -Fq "failed with exit code 1; retrying group once" "${TEMP_DIR}/retry.log"
 grep -Fq "Swift test timing summary:" "${TEMP_DIR}/retry.log"
-grep -Fq '| Discovered selections | `10` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `10` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Discovered selections | `11` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `11` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `3` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| First-pass successful groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
@@ -183,7 +198,24 @@ grep -Fq "CodexBarTests\\.Alpha" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\.Beta" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top\\ level\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
+grep -Fq '^CodexBarTests\.StatusMenuTests/Presentation/' "${FAKE_SWIFT_LOG}"
 [[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 5 ]]
+
+reset_case private-home
+export FAKE_SWIFT_MODE=success
+export FAKE_SWIFT_TEST_HOMES="${TEMP_DIR}/private-test-homes.txt"
+CODEX_HOME="${TEMP_DIR}/inherited-codex-home" \
+  CODEX_SQLITE_HOME="${TEMP_DIR}/inherited-codex-sqlite" \
+  run_harness --group-size 4 --limit-groups 2 --timeout 10 > "${TEMP_DIR}/private-home.log"
+# Discovery and each serial group use a distinct temporary home removed on return.
+[[ "$(wc -l < "${FAKE_SWIFT_TEST_HOMES}")" -eq 3 ]]
+[[ "$(cut -f2 "${FAKE_SWIFT_TEST_HOMES}" | sort -u | wc -l)" -eq 3 ]]
+while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state; do
+  [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${HOME}" ]] || exit 1
+  [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
+  [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
+done < "${FAKE_SWIFT_TEST_HOMES}"
+unset FAKE_SWIFT_TEST_HOMES
 
 reset_case strict
 export FAKE_SWIFT_MODE=group_fail_once
@@ -233,7 +265,7 @@ reset_case shard-0
 export FAKE_SWIFT_MODE=success
 run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 2 > "${TEMP_DIR}/shard-0.log"
 grep -Fq '| Shard | `1/2` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `6` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `7` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-1
@@ -257,7 +289,7 @@ grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 reset_case shard-4-2
 run_harness --group-size 4 --timeout 10 --shard-index 2 --shard-count 4 > "${TEMP_DIR}/shard-4-2.log"
 grep -Fq '| Shard | `3/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `2` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `3` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-4-3
@@ -352,6 +384,7 @@ unset FAKE_SWIFT_LIST_DELAY
 reset_case sparkle-recovery
 export FAKE_SWIFT_MODE=list_sparkle_fail_once
 export FAKE_SWIFT_BIN_PATH="${TEMP_DIR}/sparkle-bin"
+export FAKE_SWIFT_TEST_HOMES="${TEMP_DIR}/sparkle-test-homes.txt"
 mkdir -p \
   "${FAKE_SWIFT_BIN_PATH}/Sparkle.framework/Versions/B" \
   "${FAKE_SWIFT_BIN_PATH}/Wrong.framework" \
@@ -360,11 +393,86 @@ touch "${FAKE_SWIFT_BIN_PATH}/Sparkle.framework/Versions/B/Sparkle"
 ln -s ../Wrong.framework "${FAKE_SWIFT_BIN_PATH}/PackageFrameworks/Sparkle.framework"
 run_harness --group-size 1 --limit-groups 1 --timeout 10 > "${TEMP_DIR}/sparkle-recovery.log"
 [[ "$(readlink "${FAKE_SWIFT_BIN_PATH}/PackageFrameworks/Sparkle.framework")" == "../Sparkle.framework" ]]
-[[ "$(grep -c '^test list$' "${FAKE_SWIFT_LOG}")" -eq 2 ]]
-[[ "$(grep -c '^build --show-bin-path$' "${FAKE_SWIFT_LOG}")" -eq 1 ]]
+[[ "$(grep -c '^test list' "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+[[ "$(grep -c '^build --show-bin-path' "${FAKE_SWIFT_LOG}")" -eq 1 ]]
 grep -Fq "Recovered SwiftPM Sparkle test runtime; retrying discovery once." \
   "${TEMP_DIR}/sparkle-recovery.log"
+[[ "$(wc -l < "${FAKE_SWIFT_TEST_HOMES}")" -eq 4 ]]
+[[ "$(cut -f1 "${FAKE_SWIFT_TEST_HOMES}" | grep -c '^test list')" -eq 2 ]]
+[[ "$(cut -f1 "${FAKE_SWIFT_TEST_HOMES}" | grep -c '^build --show-bin-path')" -eq 1 ]]
+[[ "$(cut -f2 "${FAKE_SWIFT_TEST_HOMES}" | sort -u | wc -l)" -eq 2 ]]
+discovery_home="$(sed -n '1p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)"
+[[ "$(sed -n '2p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" == "${discovery_home}" ]]
+[[ "$(sed -n '3p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" == "${discovery_home}" ]]
+[[ "$(sed -n '4p' "${FAKE_SWIFT_TEST_HOMES}" | cut -f2)" != "${discovery_home}" ]]
+while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state; do
+  [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${HOME}" ]] || exit 1
+  [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
+  [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
+done < "${FAKE_SWIFT_TEST_HOMES}"
+unset FAKE_SWIFT_TEST_HOMES
 unset FAKE_SWIFT_BIN_PATH
+
+reset_case plugin-engine-private-home
+mkdir -p "${TEMP_DIR}/fake-bin"
+cat > "${TEMP_DIR}/fake-bin/swift" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+home_state=missing
+if [[ -d "${HOME}" ]]; then
+  home_state=present
+fi
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  "$*" "${HOME}" "${CFFIXED_USER_HOME:-}" "${CODEX_HOME:-<unset>}" \
+  "${CODEX_SQLITE_HOME-<unset>}" "${home_state}" "${CODEXBAR_PLUGIN_ENGINE:-<unset>}" \
+  >> "${FAKE_SWIFT_NATIVE_HOME_LOG}"
+EOF
+cat > "${TEMP_DIR}/fake-bin/uname" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == "-s" ]]
+printf '%s\n' "${FAKE_UNAME_PLATFORM:?}"
+EOF
+chmod +x "${TEMP_DIR}/fake-bin/swift"
+chmod +x "${TEMP_DIR}/fake-bin/uname"
+run_plugin_engine_private_home_case() {
+  local platform tool_home log cache_path config_path security_path swiftpm_path
+  platform="$1"
+  tool_home="${TEMP_DIR}/tool-home-${platform}"
+  log="${TEMP_DIR}/plugin-engine-homes-${platform}.txt"
+  if [[ "${platform}" == "Darwin" ]]; then
+    cache_path="${tool_home}/Library/Caches/org.swift.swiftpm"
+    config_path="${tool_home}/Library/org.swift.swiftpm/configuration"
+    security_path="${tool_home}/Library/org.swift.swiftpm/security"
+  else
+    cache_path="${tool_home}/.cache/org.swift.swiftpm"
+    config_path="${tool_home}/.swiftpm/configuration"
+    security_path="${tool_home}/.swiftpm/security"
+  fi
+  mkdir -p "${cache_path}" "${config_path}" "${security_path}"
+  PATH="${TEMP_DIR}/fake-bin:${PATH}" HOME="${tool_home}" \
+    CODEX_HOME="${tool_home}/inherited-codex-home" \
+    CODEX_SQLITE_HOME="${tool_home}/inherited-codex-sqlite" \
+    FAKE_UNAME_PLATFORM="${platform}" FAKE_SWIFT_NATIVE_HOME_LOG="${log}" \
+    "${ROOT_DIR}/Scripts/test-plugin-engines.sh" > "${TEMP_DIR}/plugin-engine-private-home-${platform}.log"
+  [[ "$(wc -l < "${log}")" -eq 2 ]]
+  [[ "$(cut -f2 "${log}" | sort -u | wc -l)" -eq 2 ]]
+  while IFS=$'\t' read -r command test_home fixed_home codex_home sqlite_home home_state engine; do
+    [[ "${test_home}" == "${fixed_home}" && "${test_home}" != "${tool_home}" ]] || exit 1
+    [[ "${codex_home}" == "${test_home}/.codex" && "${sqlite_home}" == "<unset>" ]] || exit 1
+    [[ "${home_state}" == "present" && ! -e "${test_home}" ]] || exit 1
+  done < "${log}"
+  [[ "$(cut -f7 "${log}" | sed -n '1p')" == "<unset>" ]]
+  [[ "$(cut -f7 "${log}" | sed -n '2p')" == "quickjs" ]]
+  for swiftpm_path in \
+    "--cache-path ${cache_path}" \
+    "--config-path ${config_path}" \
+    "--security-path ${security_path}"; do
+    grep -Fq -- "${swiftpm_path}" "${log}"
+  done
+}
+run_plugin_engine_private_home_case Darwin
+run_plugin_engine_private_home_case Linux
 
 python3 "${ROOT_DIR}/Scripts/test_swift_test_process_cleanup.py"
 

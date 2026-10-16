@@ -23,6 +23,12 @@ enum MenuBarMetricWindowResolver {
         {
         case let .resolved(window):
             return window
+        case let .automaticCandidates(windows):
+            return AutomaticQuotaSelection.select(
+                candidates: AutomaticQuotaSelection.candidates(windows: windows, snapshot: snapshot),
+                provider: provider,
+                now: now,
+                dataConfidence: snapshot.dataConfidence)?.window
         case .unhandled:
             break
         }
@@ -57,10 +63,11 @@ enum MenuBarMetricWindowResolver {
         case .average:
             return Self.averageWindow(snapshot: snapshot, supportsAverage: supportsAverage)
         case .automatic:
-            return Self.automaticWindow(
-                presentation: presentation,
-                snapshot: snapshot,
-                now: now)
+            return AutomaticQuotaSelection.select(
+                candidates: AutomaticQuotaSelection.candidates(snapshot: snapshot),
+                provider: provider,
+                now: now,
+                dataConfidence: snapshot.dataConfidence)?.window
         }
     }
 
@@ -86,24 +93,6 @@ enum MenuBarMetricWindowResolver {
 
         let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
         return RateWindow(usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-    }
-
-    private static func automaticWindow(
-        presentation: ProviderUsagePresentation,
-        snapshot: UsageSnapshot,
-        now: Date)
-        -> RateWindow?
-    {
-        _ = now
-        if presentation.automaticSelectionPrioritizesExhaustedWindow,
-           let exhausted = exhaustedWindow(
-               primary: snapshot.primary?.measured,
-               secondary: snapshot.secondary?.measured,
-               tertiary: snapshot.tertiary?.measured)
-        {
-            return exhausted
-        }
-        return snapshot.primary?.measured ?? snapshot.secondary?.measured ?? snapshot.tertiary?.measured
     }
 
     private static func providerMetric(_ preference: MenuBarMetricPreference) -> ProviderMenuBarMetric {
@@ -229,18 +218,6 @@ enum MenuBarMetricWindowResolver {
         let windows = [primary, secondary, tertiary].compactMap(\.self).compactMap(\.measured)
         guard !windows.isEmpty else { return nil }
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
-    }
-
-    private static func exhaustedWindow(
-        primary: RateWindow?,
-        secondary: RateWindow?,
-        tertiary: RateWindow?)
-        -> RateWindow?
-    {
-        [primary, secondary, tertiary]
-            .compactMap(\.self)
-            .compactMap(\.measured)
-            .first { $0.usedPercent >= 100 }
     }
 
     /// The Claude spend-limit window when the account only exposes an enterprise/extra-usage spend limit

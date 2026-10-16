@@ -164,6 +164,8 @@ final class DockIconController: NSObject {
     static let shared = DockIconController()
     private static let settingsPresentationTimeout: Duration = .seconds(2)
 
+    var windowProvider: @MainActor () -> [NSWindow] = { NSApp.windows }
+    private(set) var isReevaluationScheduled = false
     private var isStarted = false
     private var isManagingRegularPolicy = false
     private var presentationAttemptTracker = DockIconPresentationAttemptTracker()
@@ -178,28 +180,24 @@ final class DockIconController: NSObject {
         self.isStarted = true
 
         let center = NotificationCenter.default
-        center.addObserver(
-            self,
-            selector: #selector(self.windowStateDidChange(_:)),
-            name: NSApplication.didUpdateNotification,
-            object: nil)
+        // didUpdate fires every event-loop pass; only real transitions need a scan.
         for name in [
             NSWindow.didBecomeKeyNotification,
             NSWindow.didBecomeMainNotification,
-            NSWindow.didUpdateNotification,
+            NSWindow.didChangeOcclusionStateNotification,
             NSWindow.didMiniaturizeNotification,
+            NSWindow.didDeminiaturizeNotification,
+            NSWindow.willCloseNotification,
+            NSApplication.didHideNotification,
+            NSApplication.didUnhideNotification,
         ] {
             center.addObserver(
                 self,
-                selector: #selector(self.windowStateDidChange(_:)),
+                selector: #selector(self.windowsMayHaveChanged(_:)),
                 name: name,
                 object: nil)
         }
-        center.addObserver(
-            self,
-            selector: #selector(self.windowWillClose(_:)),
-            name: NSWindow.willCloseNotification,
-            object: nil)
+        self.windowsMayHaveChanged()
     }
 
     @discardableResult
@@ -247,23 +245,21 @@ final class DockIconController: NSObject {
         self.reevaluatePolicy()
     }
 
-    @objc private func windowStateDidChange(_ notification: Notification) {
-        _ = notification
-        self.reevaluatePolicy()
-    }
-
-    @objc private func windowWillClose(_ notification: Notification) {
-        _ = notification
+    @objc func windowsMayHaveChanged(_: Notification? = nil) {
+        guard !self.isReevaluationScheduled else { return }
+        self.isReevaluationScheduled = true
         Task { @MainActor [weak self] in
             await Task.yield()
-            self?.reevaluatePolicy()
+            guard let self else { return }
+            self.isReevaluationScheduled = false
+            self.reevaluatePolicy()
         }
     }
 
     private func reevaluatePolicy(
         presentationDeadlineExpiredFor attemptID: DockIconPresentationAttemptID? = nil)
     {
-        let describedWindows = NSApp.windows.map { window in
+        let describedWindows = self.windowProvider().map { window in
             (
                 window: window,
                 descriptor: DockIconWindowDescriptor.describe(

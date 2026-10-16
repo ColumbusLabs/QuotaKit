@@ -158,8 +158,7 @@ func testSettingsStore(
     config: CodexBarConfig? = nil,
     userDefaults: UserDefaults? = nil,
     prepareDefaults: ((UserDefaults) -> Void)? = nil,
-    keychainAccessPolicy: SettingsStoreKeychainAccessPolicy = .init(
-        setDisabled: { _ in }, isExplicitlyDisabled: { false })) -> SettingsStore
+    keychainAccessPolicy: SettingsStoreKeychainAccessPolicy = .defaultPolicy) -> SettingsStore
 {
     let isolatedSuiteName = "\(suiteName)-\(UUID().uuidString)"
     guard let defaults = userDefaults ?? UserDefaults(suiteName: isolatedSuiteName) else {

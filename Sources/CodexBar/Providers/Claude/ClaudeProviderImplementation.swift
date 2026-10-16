@@ -23,6 +23,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         _ = settings.claudeModelScopedWeeklyUsageVisible
         _ = settings.claudeAdminAPIKey
         _ = settings.claudeCookieSource
+        _ = settings.claudeDesktopCookiesEnabled
         _ = settings.claudeCookieHeader
         _ = settings.claudeOAuthKeychainPromptMode
         _ = settings.claudeOAuthDirectKeychainReadAllowed
@@ -95,6 +96,18 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             set: { context.settings.claudeSwapShowSingleAccount = $0 })
 
         return [
+            ProviderSettingsToggleDescriptor(
+                id: "claude-desktop-cookies",
+                title: "Use Claude desktop app cookies",
+                subtitle: "For Web usage, follow the account signed into Claude.app instead of a browser.",
+                binding: context.boolBinding(\.claudeDesktopCookiesEnabled),
+                statusText: nil,
+                actions: [],
+                isVisible: { context.settings.claudeCookieSource == .auto },
+                isEnabled: nil,
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
                 id: "claude-workspace-spend",
                 title: "Show workspace spend",
@@ -289,7 +302,10 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 isVisible: nil,
                 onChange: nil,
                 trailingText: {
-                    ProviderCookieSourceUI.cachedTrailingText(provider: .claude)
+                    if context.settings.claudeDesktopCookiesEnabled, context.settings.claudeCookieSource == .auto {
+                        return L("Claude desktop app")
+                    }
+                    return ProviderCookieSourceUI.cachedTrailingText(provider: .claude)
                 }),
         ]
     }
@@ -381,6 +397,9 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             return ("Open Claude Settings…", .providerSettings(.claude))
         }
         if self.shouldOpenBrowserForWebSessionError(context: context) {
+            if context.settings.claudeDesktopCookiesEnabled {
+                return ("Open Claude Settings…", .providerSettings(.claude))
+            }
             return ("Re-login at claude.ai", .loginToProvider(url: "https://claude.ai/"))
         }
         if self.shouldOpenTerminalForOAuthError(store: context.store) {
@@ -422,6 +441,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let sessionErrors = [
             ClaudeWebAPIFetcher.FetchError.unauthorized.localizedDescription,
             ClaudeWebAPIFetcher.FetchError.noSessionKeyFound.localizedDescription,
+            ClaudeWebAPIFetcher.FetchError.noDesktopSessionKeyFound.localizedDescription,
             ClaudeWebAPIFetcher.FetchError.invalidSessionKey.localizedDescription,
         ]
         if sessionErrors.contains(error) {

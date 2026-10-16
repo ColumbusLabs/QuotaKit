@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.OpenRefresh {
     @Test
     func `open AI API primary dashboard follows cost summary toggle`() throws {
         self.disableMenuCardsForTesting()

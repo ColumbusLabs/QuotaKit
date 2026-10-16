@@ -1769,7 +1769,7 @@
 "%@m" = "%@分";
 "%d CONNECTED" = "接続済み：%d 件";
 "%d DAYS" = "%d 日";
-"%d days" = "%d 日";
+"%d days" = "%d日間";
 "%d percent" = "%d パーセント";
 "%d subscriptions" = "%d 件のサブスクリプション";
 "%d-DAY SPEND" = "%d 日の支出";
@@ -2642,3 +2642,11 @@
 "API credit" = "API クレジット";
 "Purchased credit" = "購入済みクレジット";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform は、ローカルのトークンコスト履歴ではなく、Console のクレジット残高と月間支出を表示します。";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "プラン更新日: %@";
+"Back" = "戻る";
+"Forward" = "進む";
+"Claude desktop app" = "Claudeデスクトップアプリ";
+"Use Claude desktop app cookies" = "ClaudeデスクトップアプリのCookieを使用";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "Webの使用量には、ブラウザではなくClaude.appにログイン中のアカウントを使用します。";

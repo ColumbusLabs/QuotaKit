@@ -2610,3 +2610,11 @@
 "API credit" = "API 크레딧";
 "Purchased credit" = "구매한 크레딧";
 "Claude Platform exposes Console credit balance and monthly spend, not local token cost history." = "Claude Platform은 로컬 토큰 비용 내역이 아닌 Console 크레딧 잔액과 월간 지출을 표시합니다.";
+
+/* Upstream settings and provider labels */
+"Plan renews: %@" = "요금제 갱신: %@";
+"Back" = "뒤로";
+"Forward" = "앞으로";
+"Claude desktop app" = "Claude 데스크톱 앱";
+"Use Claude desktop app cookies" = "Claude 데스크톱 앱 쿠키 사용";
+"For Web usage, follow the account signed into Claude.app instead of a browser." = "웹 사용량에는 브라우저 대신 Claude.app에 로그인한 계정을 사용합니다.";

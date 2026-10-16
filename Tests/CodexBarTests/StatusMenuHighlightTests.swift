@@ -4,7 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     final class HighlightProbeView: NSView, MenuCardHighlighting {
         private(set) var states: [Bool] = []
 

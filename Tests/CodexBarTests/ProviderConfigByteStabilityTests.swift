@@ -42,11 +42,22 @@ struct ProviderConfigByteStabilityTests {
         var before = ProviderConfig(id: .claude, apiKey: "fictitious-test-key")
         var after = before
         after.claudeResetCreditsVisibilityMigrated = true
-        #expect(try JSONEncoder().encode(before.fetchIdentityConfig) ==
-            JSONEncoder().encode(after.fetchIdentityConfig))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        #expect(try encoder.encode(before.fetchIdentityConfig) == encoder.encode(after.fetchIdentityConfig))
         before.claudeResetCreditsVisibilityMigrated = false
-        #expect(try JSONEncoder().encode(before.fetchIdentityConfig) ==
-            JSONEncoder().encode(after.fetchIdentityConfig))
+        #expect(try encoder.encode(before.fetchIdentityConfig) == encoder.encode(after.fetchIdentityConfig))
+    }
+
+    @Test
+    func `Claude desktop cookie opt-in remains part of fetch identity`() throws {
+        let disabled = ProviderConfig(id: .claude, apiKey: "fictitious-test-key")
+        var enabled = disabled
+        enabled.claudeDesktopCookiesEnabled = true
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        #expect(try encoder.encode(disabled.fetchIdentityConfig) != encoder.encode(enabled.fetchIdentityConfig))
     }
 
     @Test

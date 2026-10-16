@@ -33,6 +33,96 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                            "filter_pattern": r"CodexBarTests\..*top\ level\ test"})
         self.assertEqual(selected_tests(inventory, selections), [inventory[0], inventory[2]])
 
+    def test_swift_test_list_keeps_nested_suite_and_quoted_method_slash(self):
+        output = "\n".join([
+            "CodexBarTests.StatusMenuTests/Presentation/test_nested()",
+            "CodexBarTests.StatusMenuTests/Presentation/`nested/slash method`",
+            "CodexBarTests.`top/level slash works`()",
+        ])
+        with patch("ci_swift_test_by_suite.subprocess.run", return_value=SimpleNamespace(
+            returncode=0, stdout=output, stderr="",
+        )):
+            selections = runner.swift_test_list(["swift"])
+
+        nested = next(selection for selection in selections if selection.suite_name is not None)
+        self.assertEqual(nested.name, "CodexBarTests.StatusMenuTests/Presentation")
+        self.assertEqual(nested.suite_name, nested.name)
+        self.assertEqual(nested.filter_pattern, r"^CodexBarTests\.StatusMenuTests/Presentation/")
+        self.assertEqual(len([selection for selection in selections if selection.suite_name is not None]), 1)
+        top_level = next(selection for selection in selections if selection.suite_name is None)
+        self.assertEqual(top_level.name, "CodexBarTests.`top/level slash works`()")
+        selected = selected_tests(output.splitlines() + [
+            "CodexBarTests.StatusMenuTests/Overview/other()",
+        ], [selection.__dict__ for selection in selections])
+        self.assertEqual(selected, output.splitlines())
+
+    def test_parent_suite_request_expands_to_exact_descendants(self):
+        suites = [
+            runner.TestSelection(
+                "CodexBarTests.StatusMenuTests/Presentation",
+                r"^CodexBarTests\.StatusMenuTests/Presentation/",
+                "CodexBarTests.StatusMenuTests/Presentation",
+            ),
+            runner.TestSelection(
+                "CodexBarTests.StatusMenuTests/Overview",
+                r"^CodexBarTests\.StatusMenuTests/Overview/",
+                "CodexBarTests.StatusMenuTests/Overview",
+            ),
+            runner.TestSelection(
+                "CodexBarTests.StatusMenuTests/`Child/WithSlash`",
+                r"^CodexBarTests\.StatusMenuTests/`Child/WithSlash`/",
+                "CodexBarTests.StatusMenuTests/`Child/WithSlash`",
+            ),
+            runner.TestSelection(
+                "CodexBarTests.StatusMenuTestsSibling/Overview",
+                r"^CodexBarTests\.StatusMenuTestsSibling/Overview/",
+                "CodexBarTests.StatusMenuTestsSibling/Overview",
+            ),
+            runner.TestSelection(
+                "CodexBarTests.UnrelatedTests",
+                r"^CodexBarTests\.UnrelatedTests/",
+                "CodexBarTests.UnrelatedTests",
+            ),
+        ]
+
+        selected = runner.filtered_suites_for_request(suites, ["CodexBarTests.StatusMenuTests"])
+        self.assertEqual(selected, suites[:3])
+        with self.assertRaisesRegex(ValueError, "Unknown test suite/selection"):
+            runner.filtered_suites_for_request(suites, ["CodexBarTests.StatusMenuTest"])
+
+    def test_suite_discovery_drops_descendants_of_direct_method_suites(self):
+        output = "\n".join([
+            "CodexBarTests.StatusMenuTests/test_direct()",
+            "CodexBarTests.StatusMenuTests/Presentation/test_child()",
+            "CodexBarTests.StatusMenuTests/`Child/WithSlash`/test_nested()",
+            "CodexBarTests.StatusMenuTestsSibling/Presentation/test_sibling()",
+        ])
+        with patch("ci_swift_test_by_suite.subprocess.run", return_value=SimpleNamespace(
+            returncode=0, stdout=output, stderr="",
+        )):
+            selections = runner.swift_test_list(["swift"])
+
+        self.assertEqual(
+            [selection.name for selection in selections],
+            ["CodexBarTests.StatusMenuTests", "CodexBarTests.StatusMenuTestsSibling/Presentation"],
+        )
+        self.assertEqual(
+            [selection.filter_pattern for selection in selections],
+            [
+                r"^CodexBarTests\.StatusMenuTests/",
+                r"^CodexBarTests\.StatusMenuTestsSibling/Presentation/",
+            ],
+        )
+
+    def test_swift_test_list_rejects_malformed_nested_identifiers(self):
+        with patch("ci_swift_test_by_suite.subprocess.run", return_value=SimpleNamespace(
+            returncode=0,
+            stdout="CodexBarTests.StatusMenuTests/`unterminated child/test_method()",
+            stderr="",
+        )):
+            with self.assertRaisesRegex(RuntimeError, "Unrecognized `swift test list` output"):
+                runner.swift_test_list(["swift"])
+
     def test_worker_environment_isolates_home_and_suppresses_keychain(self):
         developer = Path("/synthetic/Xcode/Contents/Developer")
         sdk = developer / "Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"

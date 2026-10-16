@@ -151,9 +151,10 @@ def run_command(
     cleanup_process_group: bool = False,
     cleanup_grace_seconds: float = 10,
     process_started_callback: Callable[[subprocess.Popen | None], None] | None = None,
+    environment: dict[str, str] | None = None,
 ) -> int:
     print(f"+ {' '.join(command)}", flush=True)
-    process = subprocess.Popen(command, start_new_session=True)
+    process = subprocess.Popen(command, start_new_session=True, env=environment)
     try:
         if process_started_callback is not None:
             process_started_callback(process)
@@ -195,6 +196,36 @@ def is_missing_sparkle_runtime_failure(result: subprocess.CompletedProcess[str])
     )
 
 
+def swiftpm_path_arguments() -> list[str]:
+    """Keep existing user-level SwiftPM state while tests use a private HOME."""
+    home_value = os.environ.get("HOME")
+    if not home_value:
+        return []
+    home = Path(home_value).expanduser()
+    if sys.platform == "darwin":
+        paths = (
+            ("--cache-path", home / "Library" / "Caches" / "org.swift.swiftpm"),
+            ("--config-path", home / "Library" / "org.swift.swiftpm" / "configuration"),
+            ("--security-path", home / "Library" / "org.swift.swiftpm" / "security"),
+        )
+    elif sys.platform.startswith("linux"):
+        paths = (
+            ("--cache-path", home / ".cache" / "org.swift.swiftpm"),
+            ("--config-path", home / ".swiftpm" / "configuration"),
+            ("--security-path", home / ".swiftpm" / "security"),
+        )
+    else:
+        return []
+
+    arguments: list[str] = []
+    if os.environ.get("SWIFTPM_CACHE_PATH"):
+        paths = tuple((option, path) for option, path in paths if option != "--cache-path")
+    for option, path in paths:
+        if path.is_dir():
+            arguments.extend((option, str(path)))
+    return arguments
+
+
 def valid_sparkle_runtime(path: Path) -> bool:
     return path.is_dir() and any(
         (path / "Versions" / version / "Sparkle").is_file()
@@ -211,11 +242,12 @@ def sparkle_runtime_matches_source(destination: Path, source: Path) -> bool:
         return False
 
 
-def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
+def repair_sparkle_test_runtime(swift_command: list[str], environment: dict[str, str] | None = None) -> bool:
     result = subprocess.run(
-        [*swift_command, "build", "--show-bin-path"],
+        [*swift_command, "build", "--show-bin-path", *swiftpm_path_arguments()],
         capture_output=True,
         text=True,
+        env=environment,
     )
     if result.returncode != 0:
         return False
@@ -253,13 +285,70 @@ def repair_sparkle_test_runtime(swift_command: list[str]) -> bool:
         return sparkle_runtime_matches_source(destination, source)
 
 
+def split_test_identifier_components(line: str) -> list[str] | None:
+    """Split a Swift Testing identifier on slashes outside backtick identifiers."""
+    components: list[str] = []
+    current: list[str] = []
+    in_backticks = False
+    for character in line:
+        if character == "`":
+            in_backticks = not in_backticks
+        if character == "/" and not in_backticks:
+            component = "".join(current)
+            if not component:
+                return None
+            components.append(component)
+            current = []
+        else:
+            current.append(character)
+    if in_backticks:
+        return None
+    component = "".join(current)
+    if not component:
+        return None
+    components.append(component)
+    return components
+
+
+def non_overlapping_suite_selections(selections: Iterable[TestSelection]) -> list[TestSelection]:
+    selections = list(selections)
+    suite_paths: dict[TestSelection, tuple[str, ...]] = {}
+    direct_suite_paths: set[tuple[str, ...]] = set()
+    for selection in selections:
+        if selection.suite_name is None:
+            continue
+        components = split_test_identifier_components(selection.suite_name)
+        if components is None:
+            continue
+        path = tuple(components)
+        suite_paths[selection] = path
+        direct_suite_paths.add(path)
+
+    non_overlapping: list[TestSelection] = []
+    for selection in selections:
+        path = suite_paths.get(selection)
+        if path is not None and any(path[:length] in direct_suite_paths for length in range(1, len(path))):
+            continue
+        non_overlapping.append(selection)
+    return non_overlapping
+
+
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
-    command = [*swift_command, "test", "list"]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
-        if repair_sparkle_test_runtime(swift_command):
-            print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
-            result = subprocess.run(command, capture_output=True, text=True)
+    command = [*swift_command, "test", "list", *swiftpm_path_arguments()]
+    # Test listing loads native test products, so isolate it from the caller's app caches.
+    with tempfile.TemporaryDirectory(prefix="quotakit-test-discovery-") as home:
+        environment = os.environ.copy()
+        environment.update({
+            "HOME": home,
+            "CFFIXED_USER_HOME": home,
+            "CODEX_HOME": str(Path(home) / ".codex"),
+        })
+        environment.pop("CODEX_SQLITE_HOME", None)
+        result = subprocess.run(command, capture_output=True, text=True, env=environment)
+        if result.returncode != 0 and is_missing_sparkle_runtime_failure(result):
+            if repair_sparkle_test_runtime(swift_command, environment=environment):
+                print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
+                result = subprocess.run(command, capture_output=True, text=True, env=environment)
     if result.returncode != 0:
         print(f"+ {swift_command[0]} test list", flush=True)
         if result.stdout:
@@ -286,9 +375,10 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
             )
             continue
 
-        if "/" in line:
-            suite = line.split("/", 1)[0]
-            if "." in suite:
+        components = split_test_identifier_components(line)
+        if components is not None and len(components) >= 2:
+            suite = "/".join(components[:-1])
+            if "." in components[0]:
                 selections.add(
                     TestSelection(
                         name=suite,
@@ -303,7 +393,7 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
     if unknown:
         rendered = "\n".join(f"- {line}" for line in unknown)
         raise RuntimeError(f"Unrecognized `swift test list` output:\n{rendered}")
-    return sorted(selections, key=lambda selection: selection.name)
+    return sorted(non_overlapping_suite_selections(selections), key=lambda selection: selection.name)
 
 
 def append_github_summary(stats: RunStats) -> None:
@@ -378,12 +468,33 @@ def filtered_suites_for_request(suites: list[TestSelection], requested: list[str
         return suites
 
     requested_set = set(requested)
-    selected = [suite for suite in suites if suite.name in requested_set]
-    found = {suite.name for suite in selected}
+    selected_names = {suite.name for suite in suites if suite.name in requested_set}
+    found = selected_names & requested_set
+
+    descendants_by_ancestor: dict[tuple[str, ...], set[str]] = {}
+    for suite in suites:
+        if suite.suite_name is None:
+            continue
+        components = split_test_identifier_components(suite.suite_name)
+        if components is None:
+            continue
+        path = tuple(components)
+        for length in range(1, len(path)):
+            descendants_by_ancestor.setdefault(path[:length], set()).add(suite.name)
+
+    for request in requested_set - found:
+        components = split_test_identifier_components(request)
+        if components is None:
+            continue
+        descendants = descendants_by_ancestor.get(tuple(components))
+        if descendants:
+            selected_names.update(descendants)
+            found.add(request)
+
     missing = sorted(requested_set - found)
     if missing:
         raise ValueError(f"Unknown test suite/selection: {', '.join(missing)}")
-    return selected
+    return [suite for suite in suites if suite.name in selected_names]
 
 
 def filter_for(suites: list[TestSelection]) -> str:
@@ -391,10 +502,28 @@ def filter_for(suites: list[TestSelection]) -> str:
 
 
 def run_group(suites: list[TestSelection], timeout: int, swift_command: list[str]) -> int:
-    return run_command(
-        [*swift_command, "test", "--skip-build", "--no-parallel", "--filter", filter_for(suites)],
-        timeout=timeout,
-    )
+    # Every serial group gets its own temporary HOME, including isolated timeout retries.
+    with tempfile.TemporaryDirectory(prefix="quotakit-test-group-") as home:
+        environment = os.environ.copy()
+        environment.update({
+            "HOME": home,
+            "CFFIXED_USER_HOME": home,
+            "CODEX_HOME": str(Path(home) / ".codex"),
+        })
+        environment.pop("CODEX_SQLITE_HOME", None)
+        return run_command(
+            [
+                *swift_command,
+                "test",
+                "--skip-build",
+                "--no-parallel",
+                "--filter",
+                filter_for(suites),
+                *swiftpm_path_arguments(),
+            ],
+            timeout=timeout,
+            environment=environment,
+        )
 
 
 def retry_selections_individually(

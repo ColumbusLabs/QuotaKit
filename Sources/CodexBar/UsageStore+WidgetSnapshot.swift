@@ -222,7 +222,8 @@ extension UsageStore {
                 tokenUsage: entry.tokenUsage,
                 dailyUsage: entry.dailyUsage,
                 providerCost: entry.providerCost,
-                quotaOwnerKey: preservedUsage.quotaOwnerKey)
+                quotaOwnerKey: preservedUsage.quotaOwnerKey,
+                details: entry.details)
         }
         return WidgetSnapshot(
             entries: entries,
@@ -596,7 +597,8 @@ extension UsageStore {
             dailyUsage: dailyUsage,
             providerCost: providerCost,
             quotaOwnerKey: quotaOwnerKey,
-            balanceText: balanceText)
+            balanceText: balanceText,
+            details: snapshot.flatMap { $0.details.isEmpty ? nil : $0.details })
     }
 
     private struct PreservedClaudeWidgetUsage {
@@ -981,7 +983,8 @@ extension UsageStore {
             WidgetSnapshot.WidgetUsageRowSnapshot(
                 id: namedWindow.id,
                 title: namedWindow.title,
-                percentLeft: namedWindow.usageKnown ? namedWindow.window.remainingPercent : nil)
+                percentLeft: namedWindow.usageKnown ? namedWindow.window.remainingPercent : nil,
+                window: namedWindow.usageKnown ? namedWindow.window : nil)
         }
     }
 
@@ -995,7 +998,8 @@ extension UsageStore {
             WidgetSnapshot.WidgetUsageRowSnapshot(
                 id: namedWindow.id,
                 title: namedWindow.title,
-                percentLeft: namedWindow.window.remainingPercent)
+                percentLeft: namedWindow.window.remainingPercent,
+                window: namedWindow.window)
         }
     }
 
@@ -1020,6 +1024,7 @@ extension UsageStore {
             dailyUsage: entry.dailyUsage,
             providerCost: entry.providerCost,
             quotaOwnerKey: entry.quotaOwnerKey,
-            balanceText: entry.balanceText)
+            balanceText: entry.balanceText,
+            details: entry.details)
     }
 }

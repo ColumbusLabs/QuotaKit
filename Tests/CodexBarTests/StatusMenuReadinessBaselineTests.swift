@@ -4,7 +4,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-extension StatusMenuTests {
+extension StatusMenuTests.Overview {
     @Test
     func `reopening root menu resyncs readiness baseline so reverted store data still refreshes`() {
         // Regression for the readiness-signature optimization (#1351): the baseline is no longer

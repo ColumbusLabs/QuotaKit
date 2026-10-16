@@ -4,7 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-extension StatusMenuTests {
+extension StatusMenuTests.Presentation {
     @Test
     func `cost summary display style controls codex menu presentation`() throws {
         self.disableMenuCardsForTesting()

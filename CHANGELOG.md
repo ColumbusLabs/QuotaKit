@@ -9,6 +9,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Automatic quota selection ranks depletion risk; weekly pace supports six work days. Settings adds native back/forward navigation.
+- Claude can optionally import the account signed in to the desktop app through its provider-specific cookie source.
 - Claude Platform tracks prepaid API credits independently of Claude subscription usage, with billing details synced to iPhone.
 - Custom menu layouts offer large text and monospaced digits. Settings → About includes bundled open-source acknowledgements.
 
@@ -43,6 +45,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Unreadable configuration files are preserved. Browser permission guidance and rejected Codex cookie cleanup retain the correct account and browser scope.
+- Fast-exiting commands retain buffered output; native cost history uses bounded metadata and faster marker searches, including OpenCode v2 sessions.
+- Dock updates, reset confetti, session forecasts, inactive-display titles are more reliable. Qwen Team and Antigravity plan labels reflect available evidence; widgets retain provider details and quota reset times.
 - Claude preserves the requested OAuth profile email and shows the account identity on ordinary refreshes. Muse earns credential access only through a deliberate manual refresh.
 - Factory discovers sessions across supported Firefox channels, CLI provider fetches run concurrently with ordered output, and plugin workers release temporary and retired runtimes.
 

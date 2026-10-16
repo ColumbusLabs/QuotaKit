@@ -222,6 +222,27 @@ struct SettingsWindowAppearanceTests {
     }
 
     @Test
+    func `settings toolbar keeps navigation controls in the titlebar on macOS 26`() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false)
+
+        SettingsWindowToolbar.configure(window)
+
+        if #available(macOS 26.0, *) {
+            #expect(window.titleVisibility == .hidden)
+            #expect(window.toolbar?.identifier == SettingsWindowToolbar.identifier)
+            #expect(window.toolbar?.allowsUserCustomization == false)
+            #expect(window.toolbarStyle == .unified)
+        } else {
+            #expect(window.titleVisibility == .visible)
+            #expect(window.toolbar == nil)
+        }
+    }
+
+    @Test
     func `settings titlebar inset matches the window content boundary`() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: SettingsPane.windowWidth, height: SettingsPane.windowHeight),

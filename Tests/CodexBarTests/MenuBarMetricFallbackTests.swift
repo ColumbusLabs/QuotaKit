@@ -38,23 +38,29 @@ struct MenuBarMetricFallbackTests {
     }
 
     @Test
-    func `shared fallback preserves preferred lanes and two-window average`() {
+    func `shared automatic ranking preserves explicit lane fallbacks and two-window average`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
         let primary = RateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let secondary = RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let tertiary = RateWindow(usedPercent: 70, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let snapshot = UsageSnapshot(
             primary: primary, secondary: secondary, tertiary: tertiary, updatedAt: .distantPast)
         let expectations: [(MenuBarMetricPreference, Double)] = [
-            (.automatic, 30), (.primary, 30), (.secondary, 50), (.tertiary, 30), (.average, 40),
+            (.automatic, 70), (.primary, 30), (.secondary, 50), (.tertiary, 30), (.average, 40),
         ]
         for (preference, expected) in expectations {
             #expect(MenuBarMetricWindowResolver.rateWindow(
                 preference: preference,
                 provider: .opencode,
                 snapshot: snapshot,
-                supportsAverage: true)?.usedPercent == expected)
+                supportsAverage: true,
+                now: now)?.usedPercent == expected)
         }
         #expect(MenuBarMetricWindowResolver.rateWindow(
-            preference: .average, provider: .opencode, snapshot: snapshot, supportsAverage: false) == primary)
+            preference: .average,
+            provider: .opencode,
+            snapshot: snapshot,
+            supportsAverage: false,
+            now: now) == primary)
     }
 }

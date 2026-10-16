@@ -5,6 +5,78 @@ import Testing
 
 @MainActor
 struct WidgetEmptyProjectionTests {
+    @Test
+    func `Antigravity summary rows publish their reset window for the widget caption`() {
+        let (store, _) = self.makeStore()
+        let reset = Date(timeIntervalSince1970: 1_800_003_600)
+        let summaryID = "antigravity-quota-summary-gemini-5h"
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [NamedRateWindow(
+                id: summaryID,
+                title: "Gemini 5-hour",
+                window: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: 300,
+                    resetsAt: reset,
+                    resetDescription: "Resets in 5 hours"))],
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let rows = store.widgetUsageRows(provider: .antigravity, snapshot: snapshot, now: snapshot.updatedAt)
+        #expect(rows.map(\.id) == [summaryID])
+        // The widget caption reads the row's own window, so dropping it loses the measured reset.
+        #expect(rows.first?.window?.resetsAt == reset)
+        #expect(rows.first?.window?.windowMinutes == 300)
+        #expect(rows.first?.window?.resetDescription == "Resets in 5 hours")
+    }
+
+    @Test
+    func `Antigravity summary rows keep their window only when usage is known`() {
+        let (store, _) = self.makeStore()
+        let unknownID = "antigravity-quota-summary-3p-5h"
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [NamedRateWindow(
+                id: unknownID,
+                title: "Claude/GPT 5-hour",
+                window: RateWindow(
+                    usedPercent: 0,
+                    windowMinutes: 300,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_003_600),
+                    resetDescription: nil),
+                usageKnown: false)],
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let rows = store.widgetUsageRows(provider: .antigravity, snapshot: snapshot, now: snapshot.updatedAt)
+        #expect(rows.map(\.id) == [unknownID])
+        // Unknown buckets have placeholder capacity, so the widget must get neither a percent nor a window.
+        #expect(rows.first?.percentLeft == nil)
+        #expect(rows.first?.window == nil)
+    }
+
+    @Test
+    func `Antigravity compact fallback rows retain measured reset windows`() {
+        let (store, _) = self.makeStore()
+        let reset = Date(timeIntervalSince1970: 1_800_003_600)
+        let window = RateWindow(
+            usedPercent: 40,
+            windowMinutes: 300,
+            resetsAt: reset,
+            resetDescription: "Resets in 5 hours")
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [NamedRateWindow(
+                id: "antigravity-compact-fallback-gemini-5h",
+                title: "Gemini 5-hour",
+                window: window)],
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+
+        let rows = store.widgetUsageRows(provider: .antigravity, snapshot: snapshot, now: snapshot.updatedAt)
+        #expect(rows.first?.window == window)
+        #expect(rows.first?.percentLeft == 60)
+    }
+
     @Test(arguments: [false, true])
     func `all failed providers retain published entries and original ages`(queued: Bool) async throws {
         let (store, settings) = self.makeStore()

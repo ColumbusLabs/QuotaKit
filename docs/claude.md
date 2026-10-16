@@ -434,3 +434,29 @@ Linux supports an explicitly configured manual `sessionKey` cookie using the sam
 OAuth Plan Usage history binds to a stable account/profile identity after two stable credential observations corroborate it. Verified token rotations retain that history. Unbound or conflicting fragments remain separate; a previously merged ambiguous fragment is preserved but hidden, and new samples start a fresh scope. The quarantine survives empty responses and restarts. Explicit OAuth tokens without account evidence remain credential-scoped.
 
 Compact Overview retains Enterprise extra-spend details when quota bars are unavailable. Auto stops at the first successful source and does not import billing caps from a different session. Select Web API for browser-only billing details. An insights-only CLI fallback retains the original PTY failure rather than claiming the subscription lacks quotas.
+
+## Desktop cookie source and usage dashboard
+
+For an explicit desktop session, select **Web**, **Automatic** cookies and **Use Claude desktop app cookies**.
+The setting is off by default (`claudeDesktopCookiesEnabled`). It follows the account signed into Claude.app
+and does not fall back to another browser account if the desktop session is missing or unreadable. Selected
+token accounts keep their own credentials. Auto source selection keeps its existing source ordering.
+
+Desktop imports read Claude's Electron cookie store through pinned SweetCookieKit support and the shared
+access gate. Refreshes reimport the desktop session without storing it in the browser cookie cache. Background
+and settings work must remain noninteractive; only explicit manual actions can earn the existing scoped
+Keychain prompt. This option does not change OAuth or Claude Code credentials.
+
+The default/API account Usage Dashboard opens [Platform usage](https://platform.claude.com/usage).
+Recognized Claude subscriptions open [subscription usage](https://claude.ai/settings/usage). This link does
+not change the configured usage source.
+
+Reusable passive Claude CLI sessions release only `/usr/bin/caffeinate` sleep inhibitors in their own
+process group after requests and on closure. Other processes and groups are left alone; there is no
+recurring process scan or change to the separate one-shot commands.
+
+Widget snapshots preserve optional provider detail sections, including Claude cloud-credit remaining amount,
+grant total and expiry. These values are not added to local cost history or fabricated quota windows.
+Local Claude cost coverage remains limited to usage-bearing local transcripts: cloud-backed Code Projects
+running remotely do not appear unless supported local JSONL records contain their token usage. Changing
+the quota fetch source does not expand that history coverage.

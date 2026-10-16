@@ -15,6 +15,7 @@ struct WidgetSnapshotCompatibilityTests {
         #expect(claude.secondary?.remainingPercent == 60)
         #expect(claude.usageRows?.map(\.id) == ["session", "weekly"])
         #expect(claude.quotaOwnerKey == "fixture-claude-owner")
+        #expect(claude.details == nil)
         #expect(claude.updatedAt == snapshot.generatedAt)
         let codex = try #require(snapshot.entries.first { $0.provider == .codex })
         #expect(codex.primary?.remainingPercent == 90)
@@ -41,12 +42,13 @@ struct WidgetSnapshotCompatibilityTests {
         #expect(snapshot.enabledProviders == [.claude])
         #expect(!snapshot.usageBarsShowUsed)
         #expect(snapshot.entries.first?.primary?.remainingPercent == 75)
+        #expect(snapshot.entries.first?.details == nil)
     }
 
     @Test
     func `legacy reader ignores account additions and a rollback write remains readable`() throws {
         let old = try self.decoder().decode(WidgetSnapshot.self, from: Data(Self.legacyJSON.utf8))
-        let accountUsage = WidgetSnapshot.ProviderEntry(
+        let accountUsage = try WidgetSnapshot.ProviderEntry(
             provider: .claude,
             updatedAt: old.generatedAt,
             primary: RateWindow(usedPercent: 80, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
@@ -55,7 +57,8 @@ struct WidgetSnapshotCompatibilityTests {
             creditsRemaining: nil,
             codeReviewRemainingPercent: nil,
             tokenUsage: nil,
-            dailyUsage: [])
+            dailyUsage: [],
+            details: [ProviderDetailSection(title: "Credits", rows: [])])
         let snapshot = WidgetSnapshot(
             entries: [accountUsage] + old.entries.filter { $0.provider == .codex },
             accounts: [
