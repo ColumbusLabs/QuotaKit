@@ -166,7 +166,7 @@ struct ClaudeSwapTcrConsumerTests {
         settings.claudeSwapExecutablePath = executable.path
         store.claudeSwapTransientState.versionProbedPath = executable.path
         let refresh = Task {
-            await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            await ClaudeOpaqueOperationContext.withExplicitCLIAccess { @Sendable in
                 await store.refreshClaudeSwapAccounts()
             }
         }
