@@ -608,9 +608,11 @@ struct SpendDashboardLoadLivenessTests {
                 request: Self.request(revisionB, mode: .refreshMissing, historyDays: 30)),
         ])
         let loader = SpendDashboardLivenessLoaderGate()
+        let publicationGate = SpendDashboardLivenessModelPublicationGate()
         let controller = SpendDashboardController(
             requestBuilder: { mode in await builder.next(mode) },
-            loader: { request in await loader.load(request) })
+            loader: { request in await loader.load(request) },
+            publicationHandler: { publicationGate.observe($0) })
 
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
@@ -619,13 +621,15 @@ struct SpendDashboardLoadLivenessTests {
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
-        await Self.waitForModelDerivation(controller)
+        await publicationGate.waitForTotalCost(5)
         #expect(controller.model.groups.first?.totalCost == 5)
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await publicationGate.waitForTotalCost(9)
 
+        #expect(!controller.isRefreshing)
+        #expect(!controller.isModelDerivationInFlight)
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(builder.modes == [.refreshMissing, .refreshMissing])
         #expect(await loader.historyDays == [30, 30])
@@ -747,6 +751,30 @@ struct SpendDashboardLoadLivenessTests {
 
     private static func waitForModelDerivation(_ controller: SpendDashboardController) async {
         await self.waitUntil { !controller.isModelDerivationInFlight }
+    }
+}
+
+@MainActor
+private final class SpendDashboardLivenessModelPublicationGate {
+    private var observedTotalCosts: Set<Double> = []
+    private var waiters: [Double: [CheckedContinuation<Void, Never>]] = [:]
+
+    func observe(_ publication: SpendDashboardPublication) {
+        guard let totalCost = publication.controllerModel?.groups.first?.totalCost else { return }
+        self.observedTotalCosts.insert(totalCost)
+        let waiters = self.waiters.removeValue(forKey: totalCost) ?? []
+        waiters.forEach { $0.resume() }
+    }
+
+    func waitForTotalCost(_ totalCost: Double) async {
+        guard !self.observedTotalCosts.contains(totalCost) else { return }
+        await withCheckedContinuation { continuation in
+            if self.observedTotalCosts.contains(totalCost) {
+                continuation.resume()
+            } else {
+                self.waiters[totalCost, default: []].append(continuation)
+            }
+        }
     }
 }
 

@@ -32,9 +32,17 @@ extension ProviderSettingsDescriptorTests {
         let config = try #require(fixture.settings.providerConfig(for: provider))
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let credentials = try #require(descriptor.credentials)
-        let environment = credentials.applyConfig(base: [:], config: config)
+        let environment = credentials.applyConfig(
+            base: ["MUNITO_ADMIN_KEY": "environment-admin-key"],
+            config: config)
         #expect(environment["MUNITO_API_KEY"] == "fixture-admin-key")
         #expect(environment["MUNITO_ADMIN_KEY"] == "fixture-admin-key")
+        #expect(MunitoProviderDescriptor.spec.apiKey(environment: ["MUNITO_ADMIN_KEY": "environment-admin-key"]) ==
+            "environment-admin-key")
+        #expect(MunitoProviderDescriptor.spec.apiKey(environment: [
+            "MUNITO_API_KEY": "environment-api-key",
+            "MUNITO_ADMIN_KEY": "environment-admin-key",
+        ]) == "environment-api-key")
         #expect(!descriptor.metadata.defaultEnabled)
     }
 

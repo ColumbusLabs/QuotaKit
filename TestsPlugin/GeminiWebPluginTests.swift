@@ -130,10 +130,19 @@ struct GeminiWebPluginTests {
         func nextSession() -> ProviderPluginCookieSession? {
             guard self.sessions < self.responses.count else { return nil }
             self.sessions += 1
+            let cookie = ProviderPluginCookieRecord(
+                name: "SID",
+                value: "fixture-\(self.sessions)",
+                domain: "gemini.google.com",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil)
             return .init(
-                header: "SID=fixture-\(self.sessions)",
+                header: "",
                 source: "Synthetic",
-                origin: "https://gemini.google.com")
+                origin: "https://gemini.google.com",
+                records: [cookie])
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
