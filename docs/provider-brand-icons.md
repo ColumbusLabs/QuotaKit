@@ -18,6 +18,7 @@ Artwork adopted from the reviewed steipete/CodexBar source range retains its doc
 | Pi | [Official Pi favicon](https://pi.dev/favicon.svg), verified 2026-10-08 | Preserved the three block paths and `560×560` viewBox; use `currentColor` for adaptive template rendering across Mac, iPhone, and the CLI dashboard. |
 | fal (monochrome) | [fal.ai](https://fal.ai/) site header mark, verified 2026-10-11 | Kept the evenodd mark path without the wordmark; `currentColor` and a padded square view box support adaptive template rendering. |
 | FLORA (monochrome) | [Standalone Flower mark](https://www.flora.ai/marketing/brand/flower-display.svg) linked from the [FLORA brand page](https://www.flora.ai/brand), verified 2026-10-11 | Preserved the four-petal mark and replaced white fill with `currentColor` for adaptive template rendering. |
+| Munito (monochrome) | [Official docs favicon](https://docs.munito.ai/favicon.svg), verified 2026-10-14 | Preserved the pixel-cube row paths and `32×32` geometry; dropped the lime eye pixels so the eyes read as template holes, replaced the face fills with `currentColor`, and kept the three faces readable through opacity. Square viewBox `-11.8 -11.8 55.6 55.6` pads the mark for the provider icon. |
 
 The colored Pi website logo is not bundled because its redistribution terms were not established. The monochrome official favicon is used consistently by QuotaKit's Mac, iPhone, and embedded CLI dashboard.
 

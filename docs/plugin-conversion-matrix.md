@@ -8,7 +8,7 @@ read_when:
 # Provider plugin conversion matrix
 
 This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
-catalog. The current checkout registers 104 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+catalog. The current checkout registers 106 `UsageProvider` cases. Notion remains in the audit because it was explicitly
 requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
 for the prototype context.
 
@@ -60,7 +60,7 @@ classifications or registry count below.
 | alibabatokenplan | `needs-host-extension` | No | Form POST is available in host-caps-3. Cookie-jar lane host-caps-4 must preserve domain/path metadata through redirects and define legacy-header migration before cutover. |
 | qwencloud | `needs-host-extension` | No | Form POST is available in host-caps-3. Cookie-jar lane host-caps-4 owns declared-origin redirects, dashboard/API domain/path routing, final-URL proof, and migration of the native paired-header cache; no cutover here. |
 | factory | `needs-files/subprocess/oauth-broker` | No | The canonical fallback recovers WorkOS tokens from browser localStorage and persists sessions; cookie headers cover only part of auth. |
-| gemini | `needs-files/subprocess/oauth-broker` | No | Gemini CLI credential/config files, Google OAuth refresh, and a curl fallback own the current flow. |
+| gemini | `needs-files/subprocess/oauth-broker` | Web only | The opt-in Gemini app source uses `gemini-web` on both engines with opaque, nonpersistent cookie sessions. CLI credentials, Google OAuth refresh, and its curl fallback remain native. |
 | antigravity | `needs-pty/webview/native` | No | Process/port discovery, localhost IDE RPC, OAuth files, and a persistent PTY make this a native integration. |
 | copilot | `needs-files/subprocess/oauth-broker` | No | Full parity includes stored token discovery and interactive device authorization with form-encoded POST; billing cookies alone are insufficient. |
 | devin | `needs-files/subprocess/oauth-broker` | No | Full auth discovery reads Chromium localStorage and organization state; manual bearer alone is partial. |
@@ -126,3 +126,9 @@ quota history or burn-down window is inferred.
 
 Claude Platform is plugin-first. Its browser-session cookie flow returns API-organization credit grants and safe
 month-to-date billing details on both plugin engines; actual expiring grant lanes remain available for quota alerts.
+
+Future AGI is plugin-first. Its API-key pair reads billing-period usage and reported allowances on both plugin engines,
+with estimated cost derived from the provider's billing dates and usage meters.
+
+Munito is plugin-first. Its Admin API bearer key reads organization spend limits and account details on both plugin
+engines; it does not infer a reset time.

@@ -166,6 +166,48 @@ extension SyncCoordinatorTests {
     }
 
     @Test
+    func `gemini sync uses source specific labels and rate window identities`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let webProvider = try await self.syncedProvider(
+            .gemini,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 71,
+                    windowMinutes: 5 * 60,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 4,
+                    windowMinutes: 7 * 24 * 60,
+                    resetsAt: now.addingTimeInterval(86400),
+                    resetDescription: nil),
+                updatedAt: now),
+            suite: "SyncCoord-gemini-web-rate-window-labels")
+
+        #expect(webProvider.rateWindows.map(\.label) == ["5-hour", "Weekly"])
+        #expect(webProvider.rateWindows[0].identity == .session)
+        #expect(webProvider.rateWindows[1].identity == .weekly)
+
+        let cliProvider = try await self.syncedProvider(
+            .gemini,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 24 * 60,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 3,
+                    windowMinutes: 24 * 60,
+                    resetsAt: now.addingTimeInterval(86400),
+                    resetDescription: nil),
+                updatedAt: now),
+            suite: "SyncCoord-gemini-cli-rate-window-labels")
+
+        #expect(cliProvider.rateWindows.map(\.label) == ["Pro", "Flash"])
+    }
+
+    @Test
     func `qwen cloud monthly window syncs as Monthly`() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let provider = try await self.syncedProvider(

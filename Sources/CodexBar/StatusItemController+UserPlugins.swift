@@ -35,10 +35,17 @@ extension StatusItemController {
         return providerIDs.contains(fallbackProviderID) ? fallbackProviderID : providerIDs.first ?? fallbackProviderID
     }
 
+    func overviewProviderIDs(enabledProviders: [UsageProvider]) -> [ProviderInstanceID] {
+        let enabled = Set(enabledProviders)
+        return self.store.enabledProvidersForDisplay().filter {
+            $0.firstPartyProvider.map(enabled.contains) ?? true
+        }
+    }
+
     func includesOverviewTab(enabledProviders: [UsageProvider]) -> Bool {
-        enabledProviders.count > 1 &&
+        self.switcherProviderIDs(enabledFirstPartyProviders: enabledProviders).count > 1 &&
             !self.settings.resolvedMergedOverviewProviders(
-                activeProviders: enabledProviders,
+                activeProviders: self.overviewProviderIDs(enabledProviders: enabledProviders),
                 maxVisibleProviders: SettingsStore.mergedOverviewProviderLimit).isEmpty
     }
 
@@ -84,9 +91,24 @@ extension StatusItemController {
             menu.addItem(.separator())
         }
         for (index, plugin) in plugins.enumerated() {
-            let snapshot = self.store.snapshots[plugin.manifest.id]
-            let error = self.store.errors[plugin.manifest.id]
-            let view = UserPluginMenuCardView(
+            menu.addItem(self.makeUserPluginMenuCardItem(plugin, width: width))
+            if index < plugins.count - 1 {
+                menu.addItem(.separator())
+            }
+        }
+        menu.addItem(.separator())
+    }
+
+    func makeUserPluginMenuCardItem(
+        _ plugin: UserProviderPlugin,
+        width: CGFloat,
+        id: String? = nil,
+        onClick: (() -> Void)? = nil) -> NSMenuItem
+    {
+        let snapshot = self.store.snapshots[plugin.manifest.id]
+        let error = self.store.errors[plugin.manifest.id]
+        return self.makeMenuCardItem(
+            UserPluginMenuCardView(
                 plugin: plugin,
                 snapshot: snapshot,
                 error: error,
@@ -98,19 +120,13 @@ extension StatusItemController {
                         for: plugin.manifest.id,
                         originatingMenuID: nil,
                         originatingMenuInteractionGeneration: nil)
-                })
-            menu.addItem(self.makeMenuCardItem(
-                view,
-                id: "pluginCard:\(plugin.manifest.id.rawValue)",
-                width: width,
-                heightCacheScope: plugin.manifest.id.rawValue,
-                heightCacheFingerprint: UserPluginMenuCardView.fingerprint(snapshot: snapshot, error: error),
-                containsInteractiveControls: true))
-            if index < plugins.count - 1 {
-                menu.addItem(.separator())
-            }
-        }
-        menu.addItem(.separator())
+                }),
+            id: id ?? "pluginCard:\(plugin.manifest.id.rawValue)",
+            width: width,
+            heightCacheScope: plugin.manifest.id.rawValue,
+            heightCacheFingerprint: UserPluginMenuCardView.fingerprint(snapshot: snapshot, error: error),
+            containsInteractiveControls: true,
+            onClick: onClick)
     }
 
     func refreshOpenMenusAfterUserPluginRefresh(_ instanceID: ProviderInstanceID) {
@@ -118,10 +134,15 @@ extension StatusItemController {
         guard self.isMenuRefreshEnabled else { return }
         let cardID = "pluginCard:\(instanceID.rawValue)"
         // Plugin cards capture snapshots, so their visible payload needs the guarded rebuild path.
-        for menu in self.openMenus.values
-            where menu.items.contains(where: { $0.representedObject as? String == cardID })
-        {
-            self.scheduleOpenMenuRebuildIfStillVisible(menu, provider: self.menuProvider(for: menu))
+        let overviewID = "\(Self.overviewRowIdentifierPrefix)\(instanceID.rawValue)"
+        for menu in self.openMenus.values {
+            (menu.items.first?.view as? ProviderSwitcherView)?.updateQuotaIndicators()
+            if menu.items.contains(where: {
+                let id = $0.representedObject as? String
+                return id == cardID || id == overviewID
+            }) {
+                self.scheduleOpenMenuRebuildIfStillVisible(menu, provider: self.menuProvider(for: menu))
+            }
         }
     }
 

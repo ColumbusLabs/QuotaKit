@@ -148,6 +148,7 @@ struct DashboardSnapshotProducer: Sendable {
                 }
                 guard provider == .claude, CodexBarCLI.dashboardClaudeSwapIsEligible(config: config) else { return nil }
                 let path = config.providerConfig(for: .claude)?.sanitizedClaudeSwapExecutablePath ?? ""
+                let source = config.providerConfig(for: .claude)?.resolvedClaudeSwapSource ?? .claudeSwap
                 let timeout = min(
                     ClaudeSwapAccountReader.defaultTimeout,
                     context.usage.providerTimeout ?? ClaudeSwapAccountReader.defaultTimeout)
@@ -155,10 +156,12 @@ struct DashboardSnapshotProducer: Sendable {
                     let list = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
                         try await ClaudeSwapAccountReader.readAccountList(
                             executablePath: path,
+                            source: source,
                             timeout: timeout)
                     }
                     let accounts = ClaudeSwapAccountProjection.accountSnapshots(
                         from: list,
+                        source: source,
                         previousAccounts: ClaudeSwapRetainedUsageStore.load())
                     ClaudeSwapRetainedUsageStore.save(accounts)
                     return DashboardAccountsInput(
@@ -169,7 +172,7 @@ struct DashboardSnapshotProducer: Sendable {
                     let diagnostic = CLIClaudeSwapText.sanitizeDiagnostic(error.localizedDescription)
                     return DashboardAccountsInput(
                         accounts: nil,
-                        adapterError: diagnostic.isEmpty ? "claude-swap list failed." : diagnostic,
+                        adapterError: diagnostic.isEmpty ? "\(source.label) list failed." : diagnostic,
                         weeklyWorkDays: nil)
                 }
             },

@@ -2652,3 +2652,85 @@
 "Claude desktop app" = "Aplicació d’escriptori de Claude";
 "Use Claude desktop app cookies" = "Utilitza les galetes de l’aplicació d’escriptori de Claude";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Per a l’ús web, fes servir el compte que ha iniciat sessió a Claude.app en lloc del navegador.";
+
+"Secret key" = "Clau secreta";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Obligatòria amb la clau API. Es desa al fitxer de configuració local. També pots definir FI_SECRET_KEY.";
+
+"Paste secret key…" = "Enganxa la clau secreta…";
+
+"AI credits" = "Crèdits d’IA";
+
+"Gateway requests" = "Sol·licituds a la passarel·la";
+
+"Future AGI cost history is not available." = "L’historial de costos de Future AGI no està disponible.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Es desa al fitxer de configuració local de QuotaKit. També pots definir FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "Despesa %";
+
+"menu_bar_layout_token_spend_pace" = "Ritme de despesa";
+
+"menu_bar_layout_token_spend_budget" = "Despesa / pressupost";
+
+"menu_bar_layout_conditional_default_spend_high" = "Despesa per damunt del 90% utilitzada";
+
+"Gemini app" = "Aplicació Gemini";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Els límits de l’aplicació Gemini corresponen al vostre compte del navegador i són independents de les quotes de Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Camí a l'executable tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Definiu a continuació el camí de l'executable cswap.";
+
+"Set the tcr executable path below." = "Definiu a continuació el camí de l'executable tcr.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Mostra l'ús des de `tcr`; no canvia de compte, perquè tcr tria el compte per a cada sol·licitud. Les credencials romanen gestionades per tcr; QuotaKit mai les llegeix.";
+
+"Claude accounts in tcr" = "Comptes de Claude a tcr";
+
+"tcr executable" = "Executable tcr";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Directori de configuració de Claude";
+
+"http_server_title" = "Servidor HTTP";
+
+"http_server_enable" = "Activa el servidor HTTP";
+
+"http_server_bind" = "Adreça IPv4 d’escolta";
+
+"http_server_port" = "Port";
+
+"http_server_token" = "Testimoni del servidor";
+
+"http_server_show" = "Mostra";
+
+"http_server_generate" = "Genera";
+
+"http_server_cache" = "Interval de memòria cau (segons)";
+
+"http_server_timeout" = "Temps límit de petició (segons; 0 el desactiva)";
+
+"http_server_all_accounts" = "Inclou tots els comptes a les instantànies";
+
+"http_server_identity" = "Identitat al tauler";
+
+"http_server_redacted" = "Oculta";
+
+"http_server_warning" = "Exposa ús, costos i informació de comptes i projectes, mai credencials dels proveïdors. HTTP envia el testimoni del servidor sense xifrar. Fes-lo servir només amb una connexió VPN o Tailscale de confiança.";
+
+"http_server_plain_http" = "Permet HTTP sense xifrar fora d’aquest Mac";
+
+"http_server_dashboard" = "Tauler";
+
+"http_server_wildcard" = "Als altres dispositius, substitueix 0.0.0.0 per l’adreça IPv4 de VPN o Tailscale d’aquest Mac.";
+
+"http_server_footer" = "Desactivat per defecte. S’inicia amb QuotaKit i s’atura en tancar-lo. La configuració i el testimoni es queden en aquest Mac i s’exclouen de la sincronització i les exportacions. Mantén el Mac despert per a l’accés remot.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Clau amb permís de lectura de dades del compte (Admin API). O defineix MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito informa de la despesa i els límits de l'Admin API, no de l'historial de costos de fitxes local.";

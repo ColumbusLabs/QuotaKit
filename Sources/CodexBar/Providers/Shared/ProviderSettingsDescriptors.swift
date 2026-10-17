@@ -252,7 +252,8 @@ struct ProviderSettingsTokenAccountsDescriptor: Identifiable {
         _ token: String,
         _ usageScope: String?,
         _ organizationID: String?,
-        _ workspaceID: String?) -> Void
+        _ workspaceID: String?,
+        _ claudeConfigDirectory: String?) -> Void
     let updateAccount: (
         _ accountID: UUID,
         _ usageScope: String?,
@@ -263,6 +264,7 @@ struct ProviderSettingsTokenAccountsDescriptor: Identifiable {
     let primaryAddAction: (() async -> Void)?
     let openConfigFile: () -> Void
     let reloadFromDisk: () -> Void
+    var claudeConfigDirectory: ((UUID) -> Binding<String?>)?
 }
 
 /// Shared organizations descriptor rendered in the Providers settings pane.

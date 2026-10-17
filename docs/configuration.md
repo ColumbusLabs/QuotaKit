@@ -55,6 +55,33 @@ decode error and is protected from automatic replacement.
 }
 ```
 
+## CLI usage cache
+
+The optional top-level `shareUsageWithCLI` setting defaults to `false` and is omitted while disabled. Set it to `true`
+when a non-GUI CLI session needs the Mac app's recent quota figures while the login Keychain is locked. QuotaKit writes
+a private, same-user cache at
+`~/Library/Application Support/QuotaKit/CLIUsageCache/usage.json` (file mode `0600`, directory mode `0700`). It contains
+rate-window figures and fetch times,
+including provider-supplied window titles and reset descriptions, but no credentials, balances, costs, or account
+identity. Entries older than one hour are ignored.
+
+`quotakit usage` and `quotakit cards` use an entry only in a non-GUI session when a default-account fetch without
+`--source` observed a locked-Keychain read and ended with a missing-credential or cookie-access error. Other errors,
+explicit source or account selections, and managed or profile-home Codex accounts keep their normal behavior. Turning
+the setting off removes the cache file.
+
+To use Gemini's 5-hour and weekly limits from the Gemini app, set its source to `web`. The default `auto` source keeps
+the Gemini CLI OAuth quota flow. For example, configure its provider entry as:
+
+```json
+{
+  "id": "gemini",
+  "enabled": true,
+  "source": "web",
+  "cookieSource": "auto"
+}
+```
+
 ## External event hooks
 
 Hooks are local, explicit opt-in automation. Configure them in Settings > Hooks or in this local config file; no

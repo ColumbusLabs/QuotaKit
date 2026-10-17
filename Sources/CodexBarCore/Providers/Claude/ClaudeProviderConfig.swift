@@ -35,4 +35,15 @@ extension ProviderConfig {
     public var sanitizedClaudeSwapExecutablePath: String? {
         SettingsValue.cleaned(self.claudeSwapExecutablePath)
     }
+
+    /// The external account source selected for the configured Claude adapter executable.
+    /// Unset or unknown values preserve the original claude-swap behavior.
+    public var claudeSwapSource: String? {
+        get { self.extensionValue(forKey: "claudeSwapSource") }
+        set { self.setExtensionValue(newValue, forKey: "claudeSwapSource") }
+    }
+
+    public var resolvedClaudeSwapSource: ClaudeSwapAccountSource {
+        SettingsValue.cleaned(self.claudeSwapSource).flatMap(ClaudeSwapAccountSource.init(rawValue:)) ?? .claudeSwap
+    }
 }

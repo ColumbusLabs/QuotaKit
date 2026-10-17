@@ -487,6 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             missingItemRetriesRemaining: Self.settingsMenuReadinessRetryCount,
             fallbackVerificationRetriesRemaining: Self.settingsMenuFallbackVerificationRetryCount)
         self.cloudSyncCoordinator?.start()
+        Task { await self.settings?.httpServer.startSaved() }
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let settings = self?.settings else { return }
@@ -526,10 +527,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !self.isWaitingForConfigPersistence else { return .terminateLater }
-        guard let save = self.settings?.persistPendingConfigForTermination() else { return .terminateNow }
+        let serverStop = self.settings?.httpServer.stopForTermination()
+        let save = self.settings?.persistPendingConfigForTermination()
+        guard save != nil || serverStop != nil else { return .terminateNow }
         self.isWaitingForConfigPersistence = true
         Task.detached {
-            await save.value
+            await save?.value
+            await serverStop?.value
             // NSApplication may be inside a modal loop entered from the main dispatch queue.
             // A MainActor task cannot reliably resume there; deliver the reply on that run loop.
             RunLoop.main.perform(inModes: [.default, .modalPanel]) {

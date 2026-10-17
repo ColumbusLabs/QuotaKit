@@ -2649,3 +2649,85 @@
 "Claude desktop app" = "Claude-desktopapp";
 "Use Claude desktop app cookies" = "Cookies van de Claude-desktopapp gebruiken";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Gebruik voor webverbruik het account dat bij Claude.app is aangemeld in plaats van het browseraccount.";
+
+"Secret key" = "Geheime sleutel";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Vereist samen met de API-sleutel. Opgeslagen in het lokale configuratiebestand. Of stel FI_SECRET_KEY in.";
+
+"Paste secret key…" = "Plak de geheime sleutel…";
+
+"AI credits" = "AI-tegoed";
+
+"Gateway requests" = "Gatewayverzoeken";
+
+"Future AGI cost history is not available." = "De kostengeschiedenis van Future AGI is niet beschikbaar.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Opgeslagen in het lokale configuratiebestand van QuotaKit. Of stel FI_API_KEY in.";
+
+"menu_bar_layout_token_spend" = "Uitgaven %";
+
+"menu_bar_layout_token_spend_pace" = "Uitgaventempo";
+
+"menu_bar_layout_token_spend_budget" = "Uitgaven / begroting";
+
+"menu_bar_layout_conditional_default_spend_high" = "Uitgaven boven 90% gebruikt";
+
+"Gemini app" = "Gemini-app";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "De limieten van de Gemini-app gelden voor je browseraccount en staan los van de quota van Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Pad naar het uitvoerbare bestand tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Stel hieronder het pad naar het uitvoerbare bestand cswap in.";
+
+"Set the tcr executable path below." = "Stel hieronder het pad naar het uitvoerbare bestand tcr in.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Toont het gebruik uit `tcr`; wisselt niet van account, omdat tcr voor elk verzoek het account kiest. Inloggegevens blijven beheerd door tcr; QuotaKit leest ze nooit.";
+
+"Claude accounts in tcr" = "Claude-accounts in tcr";
+
+"tcr executable" = "tcr uitvoerbaar bestand";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Claude-configuratiemap";
+
+"http_server_title" = "HTTP-server";
+
+"http_server_enable" = "HTTP-server inschakelen";
+
+"http_server_bind" = "IPv4-luisteradres";
+
+"http_server_port" = "Poort";
+
+"http_server_token" = "Servertoken";
+
+"http_server_show" = "Tonen";
+
+"http_server_generate" = "Genereren";
+
+"http_server_cache" = "Cache-interval (seconden)";
+
+"http_server_timeout" = "Time-out voor verzoeken (seconden; 0 schakelt uit)";
+
+"http_server_all_accounts" = "Alle accounts in momentopnamen opnemen";
+
+"http_server_identity" = "Identiteit op dashboard";
+
+"http_server_redacted" = "Afgeschermd";
+
+"http_server_warning" = "Deelt gebruik, kosten en account- en projectinformatie, nooit inloggegevens van providers. HTTP verstuurt het servertoken onversleuteld. Gebruik alleen een vertrouwde VPN- of Tailscale-verbinding.";
+
+"http_server_plain_http" = "Onversleutelde HTTP buiten deze Mac toestaan";
+
+"http_server_dashboard" = "Dashboard";
+
+"http_server_wildcard" = "Vervang op andere apparaten 0.0.0.0 door het VPN- of Tailscale-IPv4-adres van deze Mac.";
+
+"http_server_footer" = "Standaard uit. Start met QuotaKit en stopt wanneer het afsluit. Instellingen en token blijven op deze Mac en worden niet gesynchroniseerd of geëxporteerd. Houd de Mac wakker voor externe toegang.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Sleutel met machtiging Accountgegevens lezen (Admin API). Of stel MUNITO_API_KEY in.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito meldt uitgaven en limieten van de Admin API, niet de lokale tokenkostenhistorie.";

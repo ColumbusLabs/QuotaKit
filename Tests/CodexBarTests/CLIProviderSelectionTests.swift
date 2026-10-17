@@ -37,6 +37,10 @@ struct CLIProviderSelectionTests {
             "|sofya|",
             "|fal|",
             "|flora|",
+            "|futureagi|",
+            "|parallel|",
+            "|claudeplatform|",
+            "|munito|",
             "|both|",
             "|all]",
         ]

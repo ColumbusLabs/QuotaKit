@@ -203,7 +203,97 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .claudeplatform, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .codex, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .futureagi, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .munito, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+
+        let configuredBudget = ProviderCostSnapshot(
+            used: 2.5,
+            limit: 10,
+            currencyCode: "USD",
+            period: "This month",
+            updatedAt: Date())
+        for provider in [UsageProvider.futureagi, .munito] {
+            #expect(SyncCoordinator.syncBudgetSnapshot(provider: provider, providerCost: configuredBudget) ==
+                SyncBudgetSnapshot(
+                    usedAmount: 2.5,
+                    limitAmount: 10,
+                    currencyCode: "USD",
+                    period: "This month",
+                    resetsAt: nil))
+        }
+    }
+
+    @Test
+    func `Future AGI and Munito details sync without inventing budget or status`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let futureAGIDetails = try [
+            ProviderDetailSection(
+                title: "Used / free allowance",
+                rows: [ProviderDetailSection.Row(label: "AI credits", value: "0 / 0 credits")]),
+            ProviderDetailSection(
+                title: "Billing period",
+                rows: [ProviderDetailSection.Row(label: "Estimated usage cost", value: "$0.00")]),
+        ]
+        let futureAGISnapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: futureAGIDetails,
+            updatedAt: now)
+        #expect(SyncCoordinator.mapProviderDetails(provider: .futureagi, snapshot: futureAGISnapshot) == [
+            SyncProviderDetailSection(
+                title: "Used / free allowance",
+                rows: [.init(label: "AI credits", value: "0 / 0 credits")]),
+            SyncProviderDetailSection(
+                title: "Billing period",
+                rows: [.init(label: "Estimated usage cost", value: "$0.00")]),
+        ])
+        #expect(SyncCoordinator.syncBudgetSnapshot(
+            provider: .futureagi,
+            providerCost: futureAGISnapshot.providerCost) == nil)
+        #expect(SyncCoordinator.syncedStatusMessage(
+            provider: .futureagi,
+            snapshot: futureAGISnapshot,
+            providerCost: futureAGISnapshot.providerCost,
+            error: nil,
+            rateWindows: []) == nil)
+
+        let munitoDetails = try [
+            ProviderDetailSection(
+                title: "Spend limits",
+                rows: [ProviderDetailSection.Row(label: "Today", value: "$4.50", usageValue: 4.5)]),
+            ProviderDetailSection(
+                title: "Organization",
+                rows: [ProviderDetailSection.Row(label: "Data region", value: "us-west")]),
+        ]
+        let munitoSnapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 4.5,
+                limit: 0,
+                currencyCode: "USD",
+                period: "Today",
+                updatedAt: now),
+            details: munitoDetails,
+            updatedAt: now)
+        #expect(SyncCoordinator.mapProviderDetails(provider: .munito, snapshot: munitoSnapshot) == [
+            SyncProviderDetailSection(
+                title: "Spend limits",
+                rows: [.init(label: "Today", value: "$4.50")]),
+            SyncProviderDetailSection(
+                title: "Organization",
+                rows: [.init(label: "Data region", value: "us-west")]),
+        ])
+        #expect(SyncCoordinator.syncBudgetSnapshot(
+            provider: .munito,
+            providerCost: munitoSnapshot.providerCost) == nil)
+        #expect(SyncCoordinator.syncedStatusMessage(
+            provider: .munito,
+            snapshot: munitoSnapshot,
+            providerCost: munitoSnapshot.providerCost,
+            error: nil,
+            rateWindows: []) == nil)
     }
 
     @Test

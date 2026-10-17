@@ -755,7 +755,7 @@ extension StatusMenuTests.Presentation {
             settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
         }
 
-        let activeProviders: [UsageProvider] = [.codex, .claude]
+        let activeProviders: [ProviderInstanceID] = [.codex, .claude]
         _ = settings.setMergedOverviewProviderSelection(
             provider: .codex,
             isSelected: false,

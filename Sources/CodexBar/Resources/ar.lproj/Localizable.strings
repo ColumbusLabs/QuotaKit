@@ -2654,3 +2654,85 @@
 "Claude desktop app" = "تطبيق Claude لسطح المكتب";
 "Use Claude desktop app cookies" = "استخدام ملفات تعريف الارتباط لتطبيق Claude لسطح المكتب";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "لاستخدام الويب، اتبع الحساب المسجّل الدخول في Claude.app بدلاً من المتصفح.";
+
+"Secret key" = "المفتاح السري";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "مطلوب مع مفتاح API. يُحفظ في ملف الإعدادات المحلي. أو اضبط FI_SECRET_KEY.";
+
+"Paste secret key…" = "الصق المفتاح السري…";
+
+"AI credits" = "أرصدة الذكاء الاصطناعي";
+
+"Gateway requests" = "طلبات البوابة";
+
+"Future AGI cost history is not available." = "سجل تكاليف Future AGI غير متاح.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "يُحفظ في ملف إعدادات QuotaKit المحلي. أو اضبط FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "الإنفاق %";
+
+"menu_bar_layout_token_spend_pace" = "وتيرة الإنفاق";
+
+"menu_bar_layout_token_spend_budget" = "الإنفاق / الميزانية";
+
+"menu_bar_layout_conditional_default_spend_high" = "استُخدم أكثر من 90٪ من الإنفاق";
+
+"Gemini app" = "تطبيق Gemini";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "تنطبق حدود تطبيق Gemini على حسابك في المتصفح، وهي منفصلة عن حصص Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "المسار إلى الملف القابل للتنفيذ tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "عيّن مسار الملف القابل للتنفيذ cswap أدناه.";
+
+"Set the tcr executable path below." = "عيّن مسار الملف القابل للتنفيذ tcr أدناه.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "يعرض الاستخدام من `tcr`؛ ولا يبدّل الحسابات، لأن tcr يختار الحساب لكل طلب. تظل بيانات الاعتماد مُدارة بواسطة tcr؛ QuotaKit لا يقرأها أبدًا.";
+
+"Claude accounts in tcr" = "حسابات Claude في tcr";
+
+"tcr executable" = "tcr قابل للتنفيذ";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "مجلد إعدادات Claude";
+
+"http_server_title" = "خادم HTTP";
+
+"http_server_enable" = "تفعيل خادم HTTP";
+
+"http_server_bind" = "عنوان IPv4 للاستماع";
+
+"http_server_port" = "المنفذ";
+
+"http_server_token" = "رمز الخادم";
+
+"http_server_show" = "إظهار";
+
+"http_server_generate" = "إنشاء";
+
+"http_server_cache" = "فاصل التخزين المؤقت (ثوانٍ)";
+
+"http_server_timeout" = "مهلة الطلب (ثوانٍ؛ 0 يعطّلها)";
+
+"http_server_all_accounts" = "تضمين جميع الحسابات في اللقطات";
+
+"http_server_identity" = "الهوية في لوحة المعلومات";
+
+"http_server_redacted" = "محجوبة";
+
+"http_server_warning" = "يتيح بيانات الاستخدام والتكاليف والحسابات والمشروعات، ولا يتيح بيانات اعتماد المزوّدين مطلقًا. يرسل HTTP رمز الخادم دون تشفير. استخدم اتصال VPN أو Tailscale موثوقًا فقط.";
+
+"http_server_plain_http" = "السماح باتصال HTTP غير مشفّر من خارج هذا الـ Mac";
+
+"http_server_dashboard" = "لوحة المعلومات";
+
+"http_server_wildcard" = "على الأجهزة الأخرى، استبدل 0.0.0.0 بعنوان IPv4 لاتصال VPN أو Tailscale على هذا الـ Mac.";
+
+"http_server_footer" = "معطّل افتراضيًا. يبدأ مع QuotaKit ويتوقف عند إغلاقه. تبقى الإعدادات والرمز على هذا الـ Mac ولا تشملها المزامنة أو التصدير. أبقِ جهاز Mac مستيقظًا للوصول عن بُعد.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "مفتاح بصلاحية قراءة بيانات الحساب (Admin API). أو اضبط MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "تُبلغ Munito عن الإنفاق والحدود عبر Admin API، لا عن سجل تكاليف الرموز المحلي.";

@@ -13,7 +13,7 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 
 ## Highlights
 
-- Quota tracking for Codex, Claude, Cursor, Gemini, OpenAI, and many more. See the [provider catalog and setup notes](docs/providers.md) for supported sources and requirements.
+- Quota tracking for Codex, Claude, Cursor, Gemini, Future AGI, Munito, OpenAI, and many more. See the [provider catalog and setup notes](docs/providers.md) for supported sources and requirements.
 - iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
 - iPhone alerts when a provider runs out of quota or becomes available again.
 - Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.

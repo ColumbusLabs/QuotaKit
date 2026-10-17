@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 104 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 106 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -79,7 +79,7 @@ complete when the available scan window covers fewer days.
 | OpenAI | Admin API key (`api`) for organization spend/usage; legacy API-key balance fallback. |
 | Azure OpenAI | API key + endpoint + deployment probe (`api`) for deployment status validation. |
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
-| Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
+| Gemini | Gemini CLI OAuth quotas (`auto`/`api`, default), or opt-in Gemini app 5-hour/weekly limits via cookies (`web`). |
 | GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
 | Helmcode | Supported-browser or manual tenant cookies → Cloud/NaN model quotas and eligible premium tiers (`web`). |
 | TypeSafe | Browser or manual console session → billing spend and credit balance (`web`). |
@@ -161,6 +161,8 @@ complete when the available scan window covers fewer days.
 | [Sail Research](sailresearch.md) | API key → organization credit balance and reported spend (`api`). |
 | [Sofya](sofya.md) | API key → account credit pools and provider-reported reset (`api`). |
 | [Claude Platform](claudeplatform.md) | Browser or manual platform.claude.com session → Console API credit balance, expiring grants, and month-to-date spend (`web`). |
+| [Future AGI](futureagi.md) | API key and secret key → billing-period usage, allowances, and estimated cost (`api`). |
+| [Munito](munito.md) | Admin API key with Read account data permission → organization spend limits, daily/monthly spend, and account details (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -254,7 +256,8 @@ complete when the available scan window covers fewer days.
 - Details: `docs/kilo.md`.
 
 ## Gemini
-- OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.
+- Default Gemini CLI source: OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.
+- Explicit Gemini app source: bundled cookie plugin for `gemini.google.com/usage` 5-hour and weekly limits.
 - Token refresh via Google OAuth if expired.
 - Tier detection via `loadCodeAssist`.
 - Status: Google Workspace incidents (Gemini product).

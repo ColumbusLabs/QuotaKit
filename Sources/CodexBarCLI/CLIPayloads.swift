@@ -20,6 +20,8 @@ struct ProviderPayload: Encodable {
     let diagnostic: String?
     let error: ProviderErrorPayload?
     let pace: ProviderPacePayload?
+    /// Seconds since QuotaKit fetched this usage; set only when `source` is `quotakit-app`.
+    var ageSeconds: Int?
     /// Dashboard-only account association; excluded from the public usage JSON contract.
     var dashboardAccount: DashboardUsageAccount?
     var dashboardAccountsIncomplete = false
@@ -39,6 +41,7 @@ struct ProviderPayload: Encodable {
         case diagnostic
         case error
         case pace
+        case ageSeconds
     }
 
     init(

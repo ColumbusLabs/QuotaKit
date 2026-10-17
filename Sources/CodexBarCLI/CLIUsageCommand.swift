@@ -27,6 +27,15 @@ struct UsageCommandContext {
     var persistCLISessions: Bool = false
     var persistentCLISessionIdleWindow: TimeInterval?
     var cardsLayout: Bool = false
+    /// Uses the app cache only after a locked-keychain credential failure in a non-GUI session.
+    var usageCacheFallback: (@Sendable (UsageProvider, _ lockedKeychainObserved: Bool, _ terminalError: Error)
+        -> CLIUsageCache.Hit?)?
+
+    func withUsageCacheFallback(config: CodexBarConfig) -> UsageCommandContext {
+        var context = self
+        context.usageCacheFallback = CLIUsageCache.fallbackReader(config: config)
+        return context
+    }
 }
 
 struct UsageCommandOutput {
@@ -78,6 +87,7 @@ private struct UsageSuccessRenderInput {
     let command: UsageCommandContext
     let diagnostic: String?
     let notes: [String]
+    var ageSeconds: Int?
 }
 
 extension UsageCommandOutput {
@@ -207,6 +217,7 @@ extension CodexBarCLI {
             claudeFetcher: claudeFetcher,
             browserDetection: browserDetection,
             providerRuntime: appAutoVerifier ? .app : .cli)
+            .withUsageCacheFallback(config: config)
 
         let result = await Self.collectUsageOutputs(providers: providerList) { provider in
             let status = includeStatus ? await Self.fetchStatus(for: provider) : nil
@@ -491,7 +502,7 @@ extension CodexBarCLI {
                 output.sections.append(text)
             }
         case .json:
-            output.payload.append(self.makeUsagePayload(
+            var payload = self.makeUsagePayload(
                 provider: input.provider,
                 accountLabel: input.accountLabel,
                 cacheAccountKey: input.cacheAccountKey,
@@ -503,7 +514,9 @@ extension CodexBarCLI {
                 antigravityPlanInfo: input.antigravityPlanInfo,
                 dashboard: input.dashboard,
                 diagnostic: input.diagnostic,
-                weeklyWorkDays: input.command.weeklyWorkDays))
+                weeklyWorkDays: input.command.weeklyWorkDays)
+            payload.ageSeconds = input.ageSeconds
+            output.payload.append(payload)
         }
     }
 
@@ -579,7 +592,9 @@ extension CodexBarCLI {
             persistsCLISessions: Self.persistsCLISessions(provider: provider, command: command),
             persistentCLISessionIdleWindow: command.persistentCLISessionIdleWindow,
             resolvedCLIVersion: resolvedCLIVersion)
-        let outcome = await Self.fetchProviderUsage(provider: provider, context: fetchContext)
+        let (outcome, lockedKeychainObserved) = await CLIUsageCache.observingLockedKeychain {
+            await Self.fetchProviderUsage(provider: provider, context: fetchContext)
+        }
         if command.verbose, !command.jsonOnly {
             Self.printFetchAttempts(
                 provider: provider,
@@ -641,6 +656,39 @@ extension CodexBarCLI {
                     notes: notes),
                 output: &output)
         case let .failure(error):
+            // Cache fallback is only for the default account when --source was not explicitly selected.
+            if command.sourceModeOverride == nil, !tokenContext.selection.usesOverride,
+               account == nil, codexVisibleAccount == nil,
+               let hit = command.usageCacheFallback?(provider, lockedKeychainObserved, error)
+            {
+                let usage = hit.entry.usage.scoped(to: provider)
+                let source = "quotakit-app"
+                let appNote = "Cached by the QuotaKit app (the keychain was unavailable here). "
+                    + UsageFormatter.updatedString(from: usage.updatedAt)
+                Self.appendSuccessRenderOutput(
+                    UsageSuccessRenderInput(
+                        provider: provider,
+                        accountLabel: nil,
+                        cacheAccountKey: nil,
+                        version: nil,
+                        source: source,
+                        status: status,
+                        usage: usage,
+                        credits: nil,
+                        antigravityPlanInfo: nil,
+                        dashboard: nil,
+                        effectiveSourceMode: effectiveSourceMode,
+                        command: command,
+                        diagnostic: nil,
+                        notes: Self.usageTextNotes(
+                            provider: provider,
+                            sourceMode: effectiveSourceMode,
+                            resolvedSourceLabel: source,
+                            dataConfidence: usage.dataConfidence) + [appNote],
+                        ageSeconds: hit.ageSeconds),
+                    output: &output)
+                break
+            }
             output.exitCode = Self.mapError(error)
             if command.format == .json {
                 output.payload.append(Self.makeProviderErrorPayload(

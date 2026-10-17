@@ -90,9 +90,11 @@ enum ProviderColorPalette {
             (["cursor"], RawColor(red: 0, green: 0, blue: 0)),
             (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
             (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
+            (["futureagi"], RawColor(red: 120 / 255, green: 87 / 255, blue: 252 / 255)),
             (["kiro"], RawColor(red: 217 / 255, green: 119 / 255, blue: 6 / 255)),
             (["longcat"], RawColor(red: 1, green: 209 / 255, blue: 0)),
             (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
+            (["munito"], RawColor(red: 112 / 255, green: 44 / 255, blue: 246 / 255)),
             (["neuralwatt"], RawColor(red: 0.12, green: 0.72, blue: 0.38)),
             (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
             (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
@@ -219,6 +221,8 @@ enum ProviderColorPalette {
             (["fal"], RawColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255)),
             (["flora"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),
             (["parallel"], RawColor(red: 29 / 255, green: 28 / 255, blue: 26 / 255)),
+            (["futureagi"], RawColor(red: 120 / 255, green: 87 / 255, blue: 252 / 255)),
+            (["munito"], RawColor(red: 112 / 255, green: 44 / 255, blue: 246 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

@@ -103,7 +103,9 @@
     "fal",
     "flora",
     "parallel",
-    "claudeplatform"
+    "claudeplatform",
+    "futureagi",
+    "munito"
   ],
   "order": [
     "codex",
@@ -209,7 +211,9 @@
     "fal",
     "flora",
     "parallel",
-    "claudeplatform"
+    "claudeplatform",
+    "futureagi",
+    "munito"
   ],
   "providers": [
     {

@@ -1073,13 +1073,34 @@ struct SnapshotCacheTests {
 
     @Test(arguments: [
         "atlascloud", "tavily", "exa", "linkup", "tinyapi", "cosmic", "aerostack", "sailresearch", "sofya",
-        "ollama", "jetbrains",
+        "ollama", "jetbrains", "futureagi", "munito",
     ])
     func `Detail-only billing snapshots survive ingestion and reach generic details`(providerID: String) throws {
         var cache = SnapshotCache()
-        let details = [SyncProviderDetailSection(
-            title: "Account balance",
-            rows: [.init(label: "Available balance", value: "$95.50")])]
+        let details: [SyncProviderDetailSection] = switch providerID {
+        case "futureagi":
+            [
+                SyncProviderDetailSection(
+                    title: "Used / free allowance",
+                    rows: [.init(label: "AI credits", value: "0 / 0 credits")]),
+                SyncProviderDetailSection(
+                    title: "Billing period",
+                    rows: [.init(label: "Estimated usage cost", value: "$0.00")]),
+            ]
+        case "munito":
+            [
+                SyncProviderDetailSection(
+                    title: "Spend limits",
+                    rows: [.init(label: "Today", value: "$4.50")]),
+                SyncProviderDetailSection(
+                    title: "Organization",
+                    rows: [.init(label: "Data region", value: "us-west")]),
+            ]
+        default:
+            [SyncProviderDetailSection(
+                title: "Account balance",
+                rows: [.init(label: "Available balance", value: "$95.50")])]
+        }
         let provider = ProviderUsageSnapshot(
             providerID: providerID,
             providerName: providerID,

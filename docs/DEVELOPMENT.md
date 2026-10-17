@@ -251,3 +251,7 @@ Native cost marker searches compare exact bytes within borrowed buffers using bo
 The candidate range stops where a full pattern still fits; empty-pattern behavior matches Foundation.
 The existing QuotaKit parser producer `65175f55d6bacbca` remains a tested compatible predecessor, so this
 semantics-preserving optimization does not force a history rescan. No cache schema or revision changes.
+
+Detached SIGTERM-ignoring test fixtures watch the owning test process with kqueue `NOTE_EXIT`,
+with a 120-second backstop. Heartbeat loops also retain an absolute deadline, so interruption
+cannot leave an indefinite detached fixture behind.

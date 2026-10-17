@@ -80,6 +80,7 @@ extension UsageStore {
     #endif
 
     func persistWidgetSnapshot(reason: String) {
+        self.persistCLIUsageCache()
         guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
@@ -613,8 +614,7 @@ extension UsageStore {
     private nonisolated static func claudeSwapWidgetQuotaOwnerKey(
         _ account: ProviderAccountUsageSnapshot) -> String?
     {
-        ClaudeSwapRetainedUsageStore.ownershipFingerprint(for: account)
-            .map { "claude/swap:\(account.id.opaqueID):\($0)" }
+        claudeSwapWidgetOwnerKey(for: account)
     }
 
     private func expectedClaudeWidgetQuotaOwnerKeyForCurrentPresentation() -> String? {
@@ -797,7 +797,10 @@ extension UsageStore {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ??
                 metadata?.weeklyLabel ?? "Weekly"
         } else {
-            metadata?.weeklyLabel ?? "Weekly"
+            metadata.map {
+                ProviderDescriptorRegistry.descriptor(for: provider).presentation
+                    .rateWindowLabels(metadata: $0, snapshot: snapshot, now: now).secondary
+            } ?? "Weekly"
         }
 
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = [

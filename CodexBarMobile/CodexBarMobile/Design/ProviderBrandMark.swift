@@ -101,6 +101,8 @@ enum ProviderBrandAsset {
         "zoommate",
         "fal",
         "flora",
+        "futureagi",
+        "munito",
         "aiand",
     ]
 

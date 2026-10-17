@@ -32,6 +32,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         _ = settings.claudeSwapEnabled
         _ = settings.claudeSwapShowSingleAccount
         _ = settings.claudeSwapExecutablePath
+        _ = settings.claudeSwapSource
     }
 
     @MainActor
@@ -94,6 +95,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let claudeSwapShowSingleAccountBinding = Binding(
             get: { context.settings.claudeSwapShowSingleAccount },
             set: { context.settings.claudeSwapShowSingleAccount = $0 })
+        let source = context.settings.claudeSwapSource
+        let setup = ClaudeSwapSetupText(source: source)
 
         return [
             ProviderSettingsToggleDescriptor(
@@ -164,13 +167,12 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
                 id: "claude-swap-accounts",
-                title: "Read accounts from claude-swap",
-                subtitle: "Shows usage and lets you switch accounts through `cswap`. " +
-                    "Credentials stay managed by claude-swap; QuotaKit never reads them.",
+                title: setup.toggleTitle,
+                subtitle: setup.toggleSubtitle,
                 binding: claudeSwapBinding,
                 statusText: { Self.claudeSwapStatusText(store: context.store, settings: context.settings) },
                 actions: [],
-                inlineFields: [Self.claudeSwapExecutableField(context: context)],
+                inlineFields: [Self.claudeSwapExecutableField(context: context, source: source)],
                 isVisible: nil,
                 isEnabled: nil,
                 onChange: { _ in
@@ -197,11 +199,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     private static func claudeSwapStatusText(store: UsageStore, settings: SettingsStore) -> String? {
         guard settings.claudeSwapEnabled else { return nil }
         if settings.claudeSwapExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "Set the cswap executable path below."
+            return ClaudeSwapSetupText(source: settings.claudeSwapSource).missingPathStatus
         }
         var parts: [String] = []
         if let version = store.claudeSwapDetectedVersion {
-            parts.append("claude-swap \(version)")
+            parts.append("\(settings.claudeSwapSource.label) \(version)")
         }
         if let error = store.claudeSwapLastError {
             parts.append(error)
@@ -224,6 +226,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             get: { context.settings.claudeCookieSource.rawValue },
             set: { raw in
                 context.settings.claudeCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+        let sourceBinding = Binding(
+            get: { context.settings.claudeSwapSource.rawValue },
+            set: { raw in
+                context.settings.claudeSwapSource = ClaudeSwapAccountSource(rawValue: raw) ?? .claudeSwap
             })
         let keychainPromptPolicyBinding = Binding(
             get: { context.settings.claudeOAuthKeychainPromptMode.rawValue },
@@ -267,6 +274,18 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         }
 
         return [
+            ProviderSettingsPickerDescriptor(
+                id: "claude-swap-source",
+                title: "Source",
+                subtitle: "",
+                binding: sourceBinding,
+                options: ClaudeSwapAccountSource.allCases.map {
+                    ProviderSettingsPickerOption(id: $0.rawValue, title: $0.label)
+                },
+                isVisible: { context.settings.claudeSwapEnabled },
+                onChange: { _ in
+                    Self.refreshClaudeSwapAfterSettingsChange(context: context)
+                }),
             ProviderSettingsPickerDescriptor(
                 id: "claude-usage-source",
                 title: "Usage source",
@@ -327,13 +346,17 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
-    private static func claudeSwapExecutableField(context: ProviderSettingsContext) -> ProviderSettingsFieldDescriptor {
-        ProviderSettingsFieldDescriptor(
+    private static func claudeSwapExecutableField(
+        context: ProviderSettingsContext,
+        source: ClaudeSwapAccountSource) -> ProviderSettingsFieldDescriptor
+    {
+        let setup = ClaudeSwapSetupText(source: source)
+        return ProviderSettingsFieldDescriptor(
             id: "claude-swap-executable-path",
-            title: "claude-swap executable",
-            subtitle: "Path to the cswap executable (github.com/realiti4/claude-swap).",
+            title: setup.title,
+            subtitle: setup.subtitle,
             kind: .plain,
-            placeholder: "~/.local/bin/cswap",
+            placeholder: setup.placeholder,
             binding: context.stringBinding(\.claudeSwapExecutablePath),
             actions: [],
             isVisible: nil,
@@ -465,5 +488,35 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             return true
         }
         return false
+    }
+}
+
+private struct ClaudeSwapSetupText {
+    let title: String
+    let subtitle: String
+    let placeholder: String
+    let toggleTitle: String
+    let toggleSubtitle: String
+    let missingPathStatus: String
+
+    init(source: ClaudeSwapAccountSource) {
+        switch source {
+        case .claudeSwap:
+            self.title = "claude-swap executable"
+            self.subtitle = "Path to the cswap executable (github.com/realiti4/claude-swap)."
+            self.placeholder = "~/.local/bin/cswap"
+            self.toggleTitle = "Read accounts from claude-swap"
+            self.toggleSubtitle = "Shows usage and lets you switch accounts through `cswap`. " +
+                "Credentials stay managed by claude-swap; QuotaKit never reads them."
+            self.missingPathStatus = L("Set the cswap executable path below.")
+        case .tcr:
+            self.title = "tcr executable"
+            self.subtitle = "Path to the tcr executable (github.com/dhkts1/teamclaude-rs)."
+            self.placeholder = "/Applications/TcrBar.app/Contents/MacOS/tcr"
+            self.toggleTitle = "Read accounts from tcr"
+            self.toggleSubtitle = "Shows usage from `tcr`; it does not switch accounts, because tcr picks " +
+                "the account for each request. Credentials stay managed by tcr; QuotaKit never reads them."
+            self.missingPathStatus = L("Set the tcr executable path below.")
+        }
     }
 }

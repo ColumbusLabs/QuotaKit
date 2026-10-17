@@ -141,6 +141,7 @@ extension UsageStore {
     func shouldIncludePiSessionsInTokenSnapshot(for provider: UsageProvider) -> Bool {
         guard provider == .claude || provider == .codex else { return true }
         if provider == .codex, self.tokenCostScope(for: provider).codexHomePath != nil { return false }
+        if provider == .claude, self.claudeTokenCostConfigDirectory != nil { return false }
         let piIsCostSource = self.settings.isProviderEnabledCached(
             provider: .pi,
             metadataByProvider: self.providerMetadata) &&
@@ -175,7 +176,9 @@ extension UsageStore {
 
         let fetcher = self.costUsageFetcher
         let timeoutSeconds = self.tokenFetchTimeout
-        let effectiveIncludePiSessions = includePiSessions
+        // Provider-specific by design: mapped Claude history excludes ambient Claude and Pi roots.
+        let claudeDirectory = provider == .claude ? self.claudeTokenCostConfigDirectory : nil
+        let effectiveIncludePiSessions = includePiSessions && claudeDirectory == nil
         // Provider-specific by design: the Codex ledger owns pricing refresh while Bedrock resolves AWS environment.
         let allowPricingRefresh = provider != .codex || !self.settings.codexLocalSessionCostLedgerEnabled
         let environment = provider == .bedrock
@@ -203,6 +206,7 @@ extension UsageStore {
             group.addTask(priority: .utility) {
                 try await fetcher.loadTokenResult(
                     provider: provider,
+                    claudeConfigDirectory: claudeDirectory,
                     environment: environment,
                     antigravityAdditionalProfileHomes: antigravityProfileHomes,
                     now: now,
@@ -230,7 +234,13 @@ extension UsageStore {
     }
 
     func tokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
-        self.accountScopedTokenSnapshot(for: provider)
+        if provider == .claude,
+           self.claudeTokenCostConfigDirectory != nil ||
+           self.tokenSnapshotPublications[provider.instanceID]?.scopeSignature.hasPrefix("claude:directory:") == true
+        {
+            return self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
+        }
+        return self.accountScopedTokenSnapshot(for: provider)
     }
 
     func tokenSnapshotForCurrentProviderConfig(
@@ -571,6 +581,9 @@ extension UsageStore {
         }
         if provider == .vertexai {
             return (nil, "vertexai:allow-claude-fallback=\(!self.isEnabled(.claude))")
+        }
+        if provider == .claude, let directory = self.claudeTokenCostConfigDirectory {
+            return (nil, "claude:directory:\(directory)")
         }
         guard provider == .codex else {
             return (nil, provider.rawValue)

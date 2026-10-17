@@ -18,11 +18,16 @@ public enum ClaudeConfigPaths {
 
     /// Local cost sources only; never reads claude-swap metadata or credentials.
     public static func costProjectsRoots(
+        accountConfigDirectory: String? = nil,
         environment: [String: String],
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         fileManager: FileManager = .default,
         workingDirectory: URL? = nil) -> [URL]
     {
+        if let directory = self.nonemptyLiteral(accountConfigDirectory) {
+            return [self.directoryURL(directory, workingDirectory: workingDirectory)
+                .appendingPathComponent("projects", isDirectory: true)]
+        }
         var pathEnvironment = environment
         if pathEnvironment["HOME"]?.isEmpty ?? true {
             pathEnvironment["HOME"] = homeDirectory.path

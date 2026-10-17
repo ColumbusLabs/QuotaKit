@@ -9,6 +9,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Future AGI reports billing-period credits and gateway usage; Munito tracks organization spend limits. Gemini offers separate browser-account app quotas alongside CLI usage.
+- User plugins appear in Overview and switcher gauges; menu layouts support spend percentages, budgets, pace, and conditions.
+- Advanced settings can manage the bundled local HTTP usage server. SSH users can explicitly opt in to the app's saved usage cache when Keychain is locked.
+- Claude account pools support tcr, session forecasts, and local config-directory mappings for saved token accounts.
+
 - Automatic quota selection ranks depletion risk; weekly pace supports six work days. Settings adds native back/forward navigation.
 - Claude can optionally import the account signed in to the desktop app through its provider-specific cookie source.
 - Claude Platform tracks prepaid API credits independently of Claude subscription usage, with billing details synced to iPhone.

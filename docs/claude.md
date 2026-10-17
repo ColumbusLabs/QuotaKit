@@ -336,6 +336,20 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 | --- | --- |
 | ![claude-swap stacked multi-account cards](screenshots/claude-multi-account-stacked-before.png) | ![claude-swap compact multi-account rows](screenshots/claude-multi-account-compact-after.png) |
 
+## tcr account pool (opt-in)
+
+In Preferences → Providers → Claude, enable **Read accounts from claude-swap**, select **tcr** as the account
+source, and set the path to the `tcr` executable (for example,
+`/Applications/TcrBar.app/Contents/MacOS/tcr`). QuotaKit runs `tcr list --json` with fixed arguments and reads its
+versioned account-list response. The external tool continues to own its credentials; QuotaKit never reads its
+credential storage.
+
+The pool uses source-scoped identities such as `tcr:1`. It reports no active slot and does not support account
+switching because tcr routes each request to an account. Cards can show each listed account's reported quota, but
+QuotaKit does not add switch or re-authenticate actions. Forecast history is kept per account only when the source
+provides both an email and an organization UUID; those identifiers are hashed before persistence, so slot moves keep
+history without storing the raw values.
+
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
 - The PTY and replay screen share a 160-column, 200-row viewport so tall inline `/usage` panels retain session, weekly, and model-specific quotas alongside session statistics and usage insights. Erased content remains discarded.
@@ -369,7 +383,15 @@ Compact multi-account layout proof (synthetic accounts and usage data):
     re-authenticating.
 
 ## Cost usage (local log scan)
-- Claude Swap account cards accept `usageFetchedAt`, source-reported `spend`, `disabled`, and
+
+For a selected Claude token account, the optional **Claude config directory** field scopes local cost scanning to
+`<directory>/projects`. That account scan excludes ambient Claude roots, embedded Desktop projects, claude-swap
+profiles, and Pi sessions, so usage from another profile cannot be attributed to the selected token account. The
+directory mapping is local to each device and is not sent in sync; a receiving device can keep its own path for the
+same account. If the selected directory is missing or unreadable, QuotaKit clears that scoped cost snapshot instead
+of retaining values from another profile.
+
+- Claude account-pool cards accept `usageFetchedAt`, source-reported `spend`, `disabled`, and
   `lastGoodUsage`/`lastGoodFetchedAt` from the opt-in adapter. Failed account readings can show
   last-known quota with its capture age and an explicit diagnostic. Active foreign-credential
   slots offer a manual re-authentication action when switching is supported. Historical quota

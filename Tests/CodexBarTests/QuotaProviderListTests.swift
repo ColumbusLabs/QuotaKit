@@ -26,7 +26,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Provider list has expected count (77 after Tavily, Cosmic AI, Aerostack, and Claude Platform)`() {
+    func `Provider list has expected count (79 after Future AGI and Munito)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -41,12 +41,13 @@ struct QuotaProviderListTests {
         // 63 after v0 billing, 64 after Hugging Face ZeroGPU quota,
         // 72 after Nous and Muse, then 71 after Crof retirement and 72
         // after appending MuseAI. WorkBuddy was the 73rd; Tavily, Cosmic AI,
-        // Aerostack, and Claude Platform add four quota providers.
+        // Aerostack, and Claude Platform added four quota providers, then
+        // Future AGI and Munito added two more.
         // Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 77)
+        #expect(QuotaProviderList.providers.count == 79)
     }
 
     @Test
@@ -107,7 +108,7 @@ struct QuotaProviderListTests {
         #expect(Array(ids.dropFirst(Self.providerIDsBeforeV0.count)) == [
             "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
             "xkiro", "raycast", "helmcode", "nous", "muse", "museai", "workbuddy",
-            "tavily", "cosmic", "aerostack", "claudeplatform",
+            "tavily", "cosmic", "aerostack", "claudeplatform", "futureagi", "munito",
         ])
     }
 
@@ -139,7 +140,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 77 × 3 = 231 (depleted + restored + warning)`() {
+    func `iOS subscription count is 79 × 3 = 237 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -153,14 +154,15 @@ struct QuotaProviderListTests {
         // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate,
         // reaching 216 after MuseAI was appended after the Crof retirement,
         // then 219 after appending WorkBuddy, 228 after Tavily, Cosmic AI,
-        // and Aerostack, then 231 after Claude Platform.
+        // and Aerostack, then 231 after Claude Platform, and 237 after
+        // Future AGI and Munito.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 231)
+        #expect(subscriptionCount == 237)
     }
 
     @Test
@@ -209,10 +211,27 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `Tavily, Cosmic AI, Aerostack, and Claude Platform append stable quota notification zones`() {
-        let providers = QuotaProviderList.providers.suffix(4)
-        #expect(providers.map(\.id) == ["tavily", "cosmic", "aerostack", "claudeplatform"])
-        #expect(providers.map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack", "Claude Platform"])
+    func `Tavily, Cosmic AI, Aerostack, and Claude Platform retain stable quota notification zones`() {
+        let expected = [
+            ("tavily", "Tavily"),
+            ("cosmic", "Cosmic AI"),
+            ("aerostack", "Aerostack"),
+            ("claudeplatform", "Claude Platform"),
+        ]
+        for (id, displayName) in expected {
+            #expect(QuotaProviderList.providers.first { $0.id == id }?.displayName == displayName)
+            for state in ["depleted", "restored", "warning"] {
+                #expect(QuotaProviderList.quotaZoneName(providerID: id, state: state)
+                    == "Quota-\(id)-\(state)Zone")
+            }
+        }
+    }
+
+    @Test
+    func `Future AGI and Munito append stable quota notification zones`() {
+        let providers = QuotaProviderList.providers.suffix(2)
+        #expect(providers.map(\.id) == ["futureagi", "munito"])
+        #expect(providers.map(\.displayName) == ["Future AGI", "Munito"])
         for provider in providers {
             for state in ["depleted", "restored", "warning"] {
                 #expect(QuotaProviderList.quotaZoneName(providerID: provider.id, state: state)

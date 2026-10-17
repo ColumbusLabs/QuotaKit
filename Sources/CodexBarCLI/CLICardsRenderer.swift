@@ -185,6 +185,7 @@ enum CLICardsRenderer {
         account: ProviderAccountUsageSnapshot,
         renderOptions: CLIClaudeSwapCardsRenderOptions) -> CLICardModel
     {
+        let sourceLabel = account.sourceLabel ?? ClaudeSwapAccountProjection.sourceLabel
         let sanitizedLabel = CLIClaudeSwapText.sanitizeLabel(account.displayLabel)
         let label = sanitizedLabel.isEmpty
             ? CLIClaudeSwapText.sanitizeLabel("Account \(account.id.opaqueID)")
@@ -201,7 +202,7 @@ enum CLICardsRenderer {
                 provider: .claude,
                 snapshot: snapshot,
                 credits: nil,
-                source: ClaudeSwapAccountProjection.sourceLabel,
+                source: sourceLabel,
                 status: renderOptions.status,
                 notes: notes,
                 useColor: renderOptions.useColor,
@@ -234,7 +235,7 @@ enum CLICardsRenderer {
         return CLICardModel(
             provider: .claude,
             title: ProviderDescriptorRegistry.descriptor(for: .claude).metadata.displayName,
-            sourceLabel: ClaudeSwapAccountProjection.sourceLabel,
+            sourceLabel: sourceLabel,
             planBadge: nil,
             accountLine: label,
             isActive: account.isActive,
