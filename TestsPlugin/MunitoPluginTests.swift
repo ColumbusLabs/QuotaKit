@@ -19,7 +19,9 @@ struct MunitoPluginTests {
 
     @Test(arguments: BundledPluginTestSupport.engines)
     func `spend windows, cost, details, and organization are parsed`(engine: ProviderPluginEngineKind) async throws {
-        // Model a fixture delayed past the production optional collection budget.
+        // The fixture exceeds production's 200 ms budget; extend only the test collection window
+        // so this parser test can still assert the organization payload. Deadline behavior has
+        // dedicated coverage in ProviderPluginOptionalRequestTests.
         let snapshot = try await Self.fetch(engine: engine, organizationDelay: .milliseconds(300))
         let primary = try #require(snapshot.primary)
         let secondary = try #require(snapshot.secondary)
@@ -242,13 +244,7 @@ struct MunitoPluginTests {
             },
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
-                waitForOptionalDeadline: { _, _ in
-                    // Parser fixtures must not race the production 200 ms collection deadline.
-                    let (pending, release) = AsyncStream<Void>.makeStream()
-                    defer { release.finish() }
-                    for await _ in pending {}
-                    try Task.checkCancellation()
-                }))
+                optionalCollectionBudget: .seconds(2)))
         return try await runtime.fetchUsage(secrets: ["MUNITO_API_KEY": "fixture-key"])
     }
 }
