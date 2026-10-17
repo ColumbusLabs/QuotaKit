@@ -65,8 +65,8 @@ struct UsageStoreCLIUsageCacheTests {
         config.shareUsageWithCLI = shareUsage
         let settings = testSettingsStore(
             suiteName: "UsageStoreCLIUsageCacheTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: config)
+            config: config,
+            userDefaults: InMemoryUserDefaults())
         enableTestProviders(providers, settings: settings)
         return UsageStore(
             fetcher: UsageFetcher(environment: [:]),

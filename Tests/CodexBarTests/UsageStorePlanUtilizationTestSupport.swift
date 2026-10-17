@@ -65,6 +65,6 @@ extension UsageStore {
     nonisolated static func _codexLegacyPlanUtilizationEmailHashKeyForTesting(
         normalizedEmail: String) -> String
     {
-        CodexOwnershipContext.codexLegacyPlanUtilizationEmailHashKey(for: normalizedEmail)
+        UsageStore.codexLegacyPlanUtilizationEmailHashKey(for: normalizedEmail)
     }
 }

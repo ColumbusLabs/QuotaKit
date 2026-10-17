@@ -797,7 +797,10 @@ extension UsageStore {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ??
                 metadata?.weeklyLabel ?? "Weekly"
         } else {
-            metadata?.weeklyLabel ?? "Weekly"
+            metadata.map {
+                ProviderDescriptorRegistry.descriptor(for: provider).presentation
+                    .rateWindowLabels(metadata: $0, snapshot: snapshot, now: now).secondary
+            } ?? "Weekly"
         }
 
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = [

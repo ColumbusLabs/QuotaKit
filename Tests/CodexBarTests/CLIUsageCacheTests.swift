@@ -258,7 +258,7 @@ struct CLIUsageCacheTests {
             to: url)
         let reader = try #require(CLIUsageCache.fallbackReader(
             config: Self.enabledConfig, url: url, hasGraphicSession: { false }))
-        var command = try Self.command(provider: .claude)
+        var command = Self.command()
         command.sourceModeOverride = sourceOverride
         command.usageCacheFallback = reader
         let context = try TokenAccountCLIContext(
@@ -334,13 +334,25 @@ struct CLIUsageCacheTests {
     }
     #endif
 
-    private static func command(provider: UsageProvider = .zai) throws -> UsageCommandContext {
-        let values = try Program(descriptors: CodexBarCLI.commandDescriptors())
-            .resolve(argv: ["usage", "--no-color", "--json"]).parsedValues
-        return try CLIUsageFetchSetup(
-            values: values,
-            providers: [provider],
-            output: CLIOutputPreferences.from(values: values, allowsToon: true)).command
+    private static func command() -> UsageCommandContext {
+        let browserDetection = BrowserDetection()
+        return UsageCommandContext(
+            format: .json,
+            includeCredits: true,
+            sourceModeOverride: nil,
+            antigravityPlanDebug: false,
+            augmentDebug: false,
+            webDebugDumpHTML: false,
+            webTimeout: 60,
+            verbose: false,
+            useColor: false,
+            resetStyle: CodexBarCLI.resetTimeDisplayStyleFromDefaults(),
+            weeklyWorkDays: CodexBarCLI.weeklyProgressWorkDaysFromDefaults(),
+            jsonOnly: true,
+            includeAllCodexAccounts: false,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
     }
 
     private static func cache(_ provider: UsageProvider = .claude, _ usage: UsageSnapshot? = nil) -> CLIUsageCache {

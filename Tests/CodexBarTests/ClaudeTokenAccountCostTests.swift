@@ -51,8 +51,8 @@ struct ClaudeTokenAccountCostTests {
             cacheRoot: env.cacheRoot))
         let settings = testSettingsStore(
             suiteName: "ClaudeTokenAccountCostTests",
-            userDefaults: InMemoryUserDefaults(),
             config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults(),
             keychainAccessPolicy: .init(setDisabled: { _ in }, isExplicitlyDisabled: { false }))
         enableTestProviders([.claude], settings: settings)
         settings.costUsageEnabled = true

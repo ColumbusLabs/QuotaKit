@@ -647,7 +647,7 @@ extension UsageMenuCardView.Model {
         } else if input.provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ?? input.metadata.weeklyLabel
         } else {
-            input.metadata.weeklyLabel
+            presentation.rateWindowLabels(metadata: input.metadata, snapshot: snapshot, now: input.now).secondary
         }
         return (
             localizedSessionQuotaLabel(primaryLabel, windowMinutes: snapshot.primary?.windowMinutes),

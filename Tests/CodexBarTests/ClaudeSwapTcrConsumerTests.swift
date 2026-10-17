@@ -218,8 +218,8 @@ struct ClaudeSwapTcrConsumerTests {
     private func makeStore() -> (SettingsStore, UsageStore) {
         let settings = testSettingsStore(
             suiteName: "ClaudeSwapTcrConsumerTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         enableTestProviders([.claude], settings: settings)
         settings.claudeSwapEnabled = true
         let store = UsageStore(
