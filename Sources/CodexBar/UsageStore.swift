@@ -1655,6 +1655,7 @@ extension UsageStore {
             let durationText = String(format: "%.2f", duration)
             let message = "cost usage failed provider=\(provider.rawValue) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error(message)
+            // Provider-specific by design: failed mapped Claude reads must clear a previous account scope.
             if provider == .claude, self.claudeTokenCostConfigDirectory != nil {
                 self.clearTokenSnapshot(for: provider)
             }

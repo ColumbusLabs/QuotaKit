@@ -176,6 +176,7 @@ extension UsageStore {
 
         let fetcher = self.costUsageFetcher
         let timeoutSeconds = self.tokenFetchTimeout
+        // Provider-specific by design: mapped Claude history excludes ambient Claude and Pi roots.
         let claudeDirectory = provider == .claude ? self.claudeTokenCostConfigDirectory : nil
         let effectiveIncludePiSessions = includePiSessions && claudeDirectory == nil
         // Provider-specific by design: the Codex ledger owns pricing refresh while Bedrock resolves AWS environment.
