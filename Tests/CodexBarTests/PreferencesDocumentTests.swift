@@ -172,7 +172,7 @@ struct PreferencesDocumentTests {
         var document = PreferencesDocument()
         try document.set("mergedOverviewSelectedProviders", [String]())
         try settings.importPreferences(document)
-        #expect(settings.resolvedMergedOverviewProviders(activeProviders: active.map(\.instanceID)).isEmpty)
+        #expect(settings.resolvedMergedOverviewProviders(activeProviders: active).isEmpty)
         #expect(settings.userDefaults.stringArray(forKey: SettingsStore.mergedOverviewSelectionEditedActiveProvidersKey)
             == active.map(\.rawValue).sorted())
     }

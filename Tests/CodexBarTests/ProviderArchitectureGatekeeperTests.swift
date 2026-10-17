@@ -5764,13 +5764,13 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: ["codex@0"],
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
-            path: "Sources/CodexBar/PreferencesProviderDetailView.swift",
-            line: 394,
-            anchor: "if self.provider != .antigravity {",
+            path: "Sources/CodexBar/Providers/Shared/ProviderPresentation.swift",
+            line: 17,
+            anchor: "provider != .antigravity && presentation.showsVersionInSettings",
             expectedProviderIDs: ["antigravity"],
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["antigravity@0"],
-            reason: "Antigravity's CLI descriptor has no version detector, so this detail pane omits the unavailable Version row."),
+            reason: "Antigravity's CLI descriptor has no version detector, so its detail pane omits the unavailable Version row."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+QuotaWarnings.swift",
             line: 262,

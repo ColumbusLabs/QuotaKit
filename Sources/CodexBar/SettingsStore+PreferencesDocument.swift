@@ -18,7 +18,7 @@ extension SettingsStore {
             let active = self.orderedProviders().filter { self.providerEnablement[$0] ?? false }
             try document.set(
                 "mergedOverviewSelectedProviders",
-                self.resolvedMergedOverviewProviders(activeProviders: active.map(\.instanceID))
+                self.resolvedMergedOverviewProviders(activeProviders: active)
                     .map(\.rawValue))
         }
         try document.set("switcherShortcuts", self.providerSwitcherShortcuts)

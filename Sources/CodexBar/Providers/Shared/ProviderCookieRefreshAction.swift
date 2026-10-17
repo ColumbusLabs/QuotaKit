@@ -12,7 +12,8 @@ enum ProviderCookieRefreshAction {
         provider: UsageProvider,
         cookieSource: @escaping () -> ProviderCookieSource,
         additionalVisibility: @escaping () -> Bool = { true },
-        context: ProviderSettingsContext) -> ProviderSettingsActionDescriptor
+        context: ProviderSettingsContext,
+        expectedSourceLabel: String = "web") -> ProviderSettingsActionDescriptor
     {
         ProviderSettingsActionDescriptor(
             id: "\(provider.rawValue)-reimport-cookie",
@@ -20,7 +21,10 @@ enum ProviderCookieRefreshAction {
             style: .bordered,
             isVisible: { cookieSource() == .auto && additionalVisibility() },
             perform: {
-                await self.perform(provider: provider, context: context)
+                await self.perform(
+                    provider: provider,
+                    expectedSourceLabel: expectedSourceLabel,
+                    context: context)
             })
     }
 
@@ -55,13 +59,17 @@ enum ProviderCookieRefreshAction {
         }
     }
 
-    private static func perform(provider: UsageProvider, context: ProviderSettingsContext) async {
+    private static func perform(
+        provider: UsageProvider,
+        expectedSourceLabel: String,
+        context: ProviderSettingsContext) async
+    {
         context.setStatusText(self.statusID(provider), L("Refreshing"))
         let previousUpdatedAt = context.store.snapshot(for: provider.instanceID)?.updatedAt
         let outcome = await self.refresh(provider: provider) {
             await context.store.refreshProvider(provider, allowDisabled: true)
             guard context.store.error(for: provider) == nil,
-                  context.store.lastSourceLabels[provider.instanceID] == "web",
+                  context.store.lastSourceLabels[provider.instanceID] == expectedSourceLabel,
                   let updatedAt = context.store.snapshot(for: provider.instanceID)?.updatedAt
             else { return false }
             return previousUpdatedAt.map { updatedAt != $0 } ?? true

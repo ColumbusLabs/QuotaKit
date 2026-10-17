@@ -120,6 +120,16 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         self.settingsPickers.filter { $0.placement == .connection }
     }
 
+    private var providerPresentation: ProviderPresentation {
+        let context = ProviderPresentationContext(
+            provider: self.provider,
+            settings: self.store.settings,
+            store: self.store,
+            metadata: self.store.metadata(for: self.provider))
+        return ProviderCatalog.implementation(for: self.provider)?.presentation(context: context)
+            ?? ProviderPresentation(detailLine: ProviderPresentation.standardDetailLine)
+    }
+
     var body: some View {
         Form {
             Section {
@@ -135,7 +145,10 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                     store: self.store,
                     isEnabled: self.isEnabled,
                     model: self.model,
-                    showsAccountInfo: self.accountUsageOverview == nil)
+                    showsAccountInfo: self.accountUsageOverview == nil,
+                    showsVersionRow: ProviderPresentation.showsVersionRow(
+                        provider: self.provider,
+                        presentation: self.providerPresentation))
             }
 
             if let overview = self.accountUsageOverview {
@@ -386,12 +399,13 @@ private struct ProviderDetailInfoRows: View {
     let isEnabled: Bool
     let model: UsageMenuCardView.Model
     var showsAccountInfo: Bool = true
+    let showsVersionRow: Bool
 
     var body: some View {
         if self.showsAccountInfo {
             ProviderDetailInfoRow(label: L("Source"), value: self.store.sourceLabel(for: self.provider))
         }
-        if self.provider != .antigravity {
+        if self.showsVersionRow {
             ProviderDetailInfoRow(
                 label: L("Version"),
                 value: self.store.version(for: self.provider) ?? L("not detected"))

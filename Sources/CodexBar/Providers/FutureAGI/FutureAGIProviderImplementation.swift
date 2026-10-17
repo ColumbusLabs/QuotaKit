@@ -15,7 +15,8 @@ struct FutureAGIProviderImplementation: ProviderImplementation {
                 placeholder: "Paste secret key…",
                 binding: context.providerConfigSecretBinding(key: "FI_SECRET_KEY", logField: "secretKey"),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
         ]
     }
 

@@ -56,11 +56,15 @@ struct GeminiWebSourceTests {
             settings: fixture.settings,
             store: fixture.store,
             metadata: GeminiProviderDescriptor.descriptor.metadata)
-        #expect(implementation.presentation(context: presentation).showsVersionInSettings == false)
-        #expect(implementation.presentation(context: presentation).detailLine(presentation) == "Gemini app")
+        let webPresentation = implementation.presentation(context: presentation)
+        #expect(!ProviderPresentation.showsVersionRow(provider: .gemini, presentation: webPresentation))
+        #expect(webPresentation.detailLine(presentation) == "Gemini app")
         picker.binding.wrappedValue = "api"
         #expect(field.isVisible?() == false)
-        #expect(implementation.presentation(context: presentation).showsVersionInSettings)
+        let apiPresentation = implementation.presentation(context: presentation)
+        #expect(ProviderPresentation.showsVersionRow(provider: .gemini, presentation: apiPresentation))
+        #expect(apiPresentation.detailLine(presentation)
+            == ProviderPresentation.standardDetailLine(context: presentation))
     }
 
     @Test
