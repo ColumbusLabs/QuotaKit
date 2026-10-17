@@ -1,10 +1,4 @@
-import CryptoKit
 import Foundation
-#if canImport(CryptoKit)
-import CryptoKit
-#else
-import Crypto
-#endif
 
 /// Projects parsed `cswap --list --json` rows into the provider-neutral
 /// account snapshot consumed by menus. Identity uses the source-issued numeric
@@ -318,7 +312,7 @@ public enum ClaudeSwapAccountProjection {
         let organization = row.organizationUuid.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !email.isEmpty, source == .claudeSwap || !organization.isEmpty else { return nil }
         let pair = try? JSONEncoder().encode([email, organization])
-        return pair.map { "__claude_swap__:" + SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+        return pair.map { "__claude_swap__:" + CanonicalSyncJSON.hash(data: $0) }
     }
 
     private static func identitySnapshot(

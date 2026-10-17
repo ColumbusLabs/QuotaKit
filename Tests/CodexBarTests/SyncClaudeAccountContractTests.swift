@@ -80,8 +80,12 @@ struct SyncClaudeAccountContractTests {
 
     private static func account(directory: String) -> ProviderTokenAccount {
         ProviderTokenAccount(
-            id: UUID(), label: "Fixture", token: "fixture-token", addedAt: 1,
-            lastUsed: nil, claudeConfigDirectory: directory)
+            id: UUID(),
+            label: "Fixture",
+            token: "fixture-token",
+            addedAt: 1,
+            lastUsed: nil,
+            claudeConfigDirectory: directory)
     }
 
     private static func snapshot(source: ClaudeSwapAccountSource, accountID: String) -> AccountSnapshotSyncPayload {
@@ -90,10 +94,16 @@ struct SyncClaudeAccountContractTests {
             secondary: nil,
             updatedAt: Date(timeIntervalSince1970: 100),
             identity: ProviderIdentitySnapshot(
-                providerID: .claude, accountEmail: "Owner@Example.com", accountOrganization: nil,
-                loginMethod: source.label, accountID: accountID))
+                providerID: .claude,
+                accountEmail: "Owner@Example.com",
+                accountOrganization: nil,
+                loginMethod: source.label,
+                accountID: accountID))
         return AccountSnapshotSyncPayload(
-            provider: .claude, deviceID: "device-id", accountIdentity: accountID,
-            displayLabel: "Owner@Example.com", usage: usage)
+            provider: .claude,
+            deviceID: "device-id",
+            accountIdentity: accountID,
+            displayLabel: "Owner@Example.com",
+            usage: usage)
     }
 }

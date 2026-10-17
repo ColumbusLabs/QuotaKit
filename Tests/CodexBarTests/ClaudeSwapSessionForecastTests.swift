@@ -6,6 +6,16 @@ import Testing
 @MainActor
 struct ClaudeSwapSessionForecastTests {
     @Test
+    func `workspace history key keeps its existing digest`() throws {
+        let account = try #require(Self.accounts([
+            Self.row(number: 1, email: " Alice@example.com ", organizationUuid: "WORKSPACE-A", sessionUsed: 30),
+        ]).first)
+
+        #expect(account.historyAccountKey ==
+            "__claude_swap__:62bc67702335a0409581abb2145aa76ea098a7ce30e1be93a94c2571b331ae43")
+    }
+
+    @Test
     func `fresh measurements record history under each account fingerprint`() async throws {
         let fixture = try CodexWorkspacesNavigationFixture(userDefaults: InMemoryUserDefaults())
         defer { fixture.cleanup() }
