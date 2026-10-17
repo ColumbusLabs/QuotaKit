@@ -166,6 +166,9 @@ public enum QuotaProviderList {
         Provider(id: "aerostack", displayName: "Aerostack"),
         // Claude Platform publishes actual expiring API-credit grant lanes; expiry remains detail text.
         Provider(id: "claudeplatform", displayName: "Claude Platform"),
+        // Append-only to preserve existing CloudKit subscription identifiers.
+        Provider(id: "futureagi", displayName: "Future AGI"),
+        Provider(id: "munito", displayName: "Munito"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

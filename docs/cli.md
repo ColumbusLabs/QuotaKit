@@ -178,7 +178,7 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
     - `oauth`: OAuth-backed source where supported (Codex, Claude, Vertex AI).
     - `api`: API-backed flow where supported; credentials may be API keys or existing tokens. See the [provider source table](providers.md#fetch-strategies-current) and each provider guide for supported modes.
     - v0: set `V0_API_KEY`; optional project scope is `V0_SCOPE`. Both values can also be set in provider config.
-    - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label).
+    - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label; `quotakit-app` with `ageSeconds` when a non-GUI session uses the app cache, see [SSH sessions](#ssh-sessions-macos)).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
@@ -253,6 +253,35 @@ payloads include the visible account label in `account`.
 - Codex only: `projects[]`: `name`, `path`, `totalTokens`, `totalCost`, `daily[]`, `modelBreakdowns[]`, `sources[]`
 - `totals`: `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`
 - `error`: structured provider error when a fetch fails (for example Cursor requested while its cookie source is Off).
+
+## Manage the HTTP server from the Mac app
+
+In **Settings → Advanced → HTTP server**, enable the server, generate a token, and click **Apply**. Defaults are off,
+`127.0.0.1:8080`, a 60-second cache, a 30-second request timeout, and redacted dashboard identity. Apply saves the
+settings and restarts the app's bundled `QuotaKitCLI` helper. A separately started `quotakit serve` process is
+independent; a port conflict appears as a startup failure in Settings.
+
+For a phone or another device, bind to the Mac's VPN/Tailscale IPv4 address, or `0.0.0.0` to listen on every IPv4
+interface. Non-loopback listening requires a token and explicit acceptance of unencrypted HTTP. On non-loopback
+binds, the token gates `/usage`, `/cost`, and `/dashboard/v1/snapshot`; on the default loopback bind, `/usage` and
+`/cost` remain unauthenticated. The server exposes usage, cost, account, and project information, never provider
+credentials. Anyone with the token can read the protected routes. Use an encrypted VPN or Tailscale connection; do
+not expose this HTTP listener directly to the internet. When binding `0.0.0.0`, replace that address in the copied
+URL with the Mac's actual VPN/Tailscale address on the remote device.
+
+Open the copied dashboard URL in the phone's browser and enter the token. API clients send
+`Authorization: Bearer <token>` to protected endpoints; no provider login is needed on the remote device. The Mac
+must remain awake with QuotaKit running. Quitting the app stops its managed server; reopening starts it again if
+enabled. **Show**, **Generate**, and **Copy** manage the token locally. After generating a replacement, click Apply
+and update your clients. The token and server settings live in owner-only `http-server.json` beside the resolved
+provider config, outside QuotaKit sync and settings exports.
+
+The built-in server speaks HTTP, not HTTPS. An iOS app may need an explicit App Transport Security policy for a
+trusted VPN HTTP endpoint. For HTTPS, use a separately configured TLS reverse proxy and a certificate trusted by the
+device. Keep bearer authentication enabled through that proxy. A proxy forwarding to loopback must expose only
+token-gated dashboard routes, or enforce its own authentication for `/usage` and `/cost`, which are unauthenticated
+on loopback. This setting does not install certificates, configure a proxy, or change a separate `quotakit serve`
+command.
 
 ## Example usage
 ```
@@ -404,7 +433,23 @@ Note: Using CLI fallback
 - OpenAI web requires a signed-in `chatgpt.com` session in a supported browser or a manual cookie header. No passwords are stored; QuotaKit reuses cookies.
 - Safari cookie import may require granting QuotaKit Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
 - The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--source auto|web` refreshes it live via WebKit using a per-account cookie store.
-- Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).
+- For SSH sessions where the login keychain is locked, opt in to a private app usage cache; see [SSH sessions](#ssh-sessions-macos).
+
+## SSH sessions (macOS)
+
+When the login keychain is locked, keychain-backed providers can fail over SSH while the app has fresh numbers. Set
+`"shareUsageWithCLI": true` in the resolved config file (off by default). QuotaKit writes
+`~/Library/Application Support/QuotaKit/CLIUsageCache/usage.json` as a `0600` file in a `0700` directory. The cache
+contains rate windows (including extra quota rows) and fetch times, without credentials, costs, or account identity.
+Provider-supplied window titles and reset descriptions are stored with those figures.
+
+In a non-GUI session, `quotakit usage` and `quotakit cards` use the cache only when a default-account fetch without
+`--source` observed a locked-keychain read and then ended with a missing-credential or typed browser cookie-access
+error. Hits are at most one hour old and report `"source": "quotakit-app"` with `"ageSeconds"` (whole seconds since
+the app fetched the data). Timeouts, parse errors, HTTP rejections, explicit account selections, token accounts, managed or
+profile-home Codex accounts, and GUI sessions keep their normal behavior. Corrupt, future-dated, incorrectly owned,
+non-private, and symlinked cache files are ignored. Turning sharing off removes the file; providers without an
+eligible default-account snapshot are withdrawn on the next publication.
 
 ## Managed Codex accounts (macOS)
 

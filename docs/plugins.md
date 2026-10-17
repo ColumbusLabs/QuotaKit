@@ -391,12 +391,16 @@ choice, independent of installation, enablement and capability approval.
 
 Set `topLevel: true` in the manifest to give an enabled plugin its own tab when **Merge Icons** is enabled. The tab uses
 the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins using the original
-appended-card placement. With Merge Icons disabled, plugins retain appended-card placement.
+appended-card placement. Plugin tabs also show a quota gauge from the most constrained reported seven-day window,
+otherwise the first available primary, secondary, tertiary, or extra window. The gauge follows the used/remaining
+display preference; unknown usage stays unavailable. With Merge Icons disabled, plugins retain appended-card placement.
 
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
 refreshes update visible plugin cards, and repeated requests for the same plugin share its in-flight refresh.
-Overview continues to summarize built-in providers. This setting changes placement only: it grants no additional host
+Enabled plugins can also be selected in **Settings → Menu Bar → Overview**. They share the six-provider limit and render
+their existing usage card. Overview selections keep the same string-array format, so older builds still read built-in
+providers while ignoring unknown plugin IDs. This setting changes placement only: it grants no additional host
 capabilities and does not change network approval.
 
 ## Selected browser profiles

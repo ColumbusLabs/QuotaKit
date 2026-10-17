@@ -24,6 +24,7 @@ struct MenuBarPane: View {
                 L("menu_bar_layout_token_session_pace"),
                 L("menu_bar_layout_token_weekly_pace"),
                 L("menu_bar_layout_token_auto_pace"),
+                L("menu_bar_layout_token_spend_pace"),
             ].joined(separator: ", ")
 
         Form {
@@ -219,8 +220,8 @@ struct MenuBarPane: View {
         .frame(width: 280)
     }
 
-    private var activeProvidersInOrder: [UsageProvider] {
-        self.store.enabledFirstPartyProviders()
+    private var activeProvidersInOrder: [ProviderInstanceID] {
+        self.store.enabledProvidersForDisplay()
     }
 
     private var mergedIconPresentation: MergedIconPresentation {
@@ -243,7 +244,7 @@ struct MenuBarPane: View {
             })
     }
 
-    private var overviewSelectedProviders: [UsageProvider] {
+    private var overviewSelectedProviders: [ProviderInstanceID] {
         self.settings.resolvedMergedOverviewProviders(
             activeProviders: self.activeProvidersInOrder,
             maxVisibleProviders: Self.maxOverviewProviders)
@@ -259,11 +260,16 @@ struct MenuBarPane: View {
         return selectedNames.joined(separator: ", ")
     }
 
+    private func providerDisplayName(_ instanceID: ProviderInstanceID) -> String {
+        if let provider = instanceID.firstPartyProvider { return self.providerDisplayName(provider) }
+        return UserProviderPluginRegistry.plugin(for: instanceID)?.manifest.name ?? instanceID.rawValue
+    }
+
     private func providerDisplayName(_ provider: UsageProvider) -> String {
         ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
     }
 
-    private func setOverviewProviderSelection(provider: UsageProvider, isSelected: Bool) {
+    private func setOverviewProviderSelection(provider: ProviderInstanceID, isSelected: Bool) {
         _ = self.settings.setMergedOverviewProviderSelection(
             provider: provider,
             isSelected: isSelected,

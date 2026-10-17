@@ -171,7 +171,7 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
         }
         return MenuBarLayout(lines: layout.lines.map { line in
             line.map { token in
-                if case .percent = token { return self.layoutToken }
+                if case let .percent(window) = token, window != .spend { return self.layoutToken }
                 if !hasOrdinaryPercent, token == .lanePercent(lane: .tertiary) { return self.layoutToken }
                 if !hasOrdinaryPercent, !hasTertiary, case .extraPercent = token { return self.layoutToken }
                 return token
@@ -198,7 +198,8 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
 
     private static func percentWindows(in layout: MenuBarLayout) -> [PercentWindow] {
         layout.lines.flatMap(\.self).compactMap { token in
-            guard case let .percent(window) = token else { return nil }
+            // Spend % is a provider budget, not a quota window: the picker never selects, rewrites or removes it.
+            guard case let .percent(window) = token, window != .spend else { return nil }
             return window
         }
     }

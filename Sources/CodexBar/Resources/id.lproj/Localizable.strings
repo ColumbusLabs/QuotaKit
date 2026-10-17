@@ -1166,7 +1166,7 @@
 "QuotaKit could not save the current system account before switching." = "QuotaKit tidak dapat menyimpan akun sistem saat ini sebelum beralih.";
 "QuotaKit could not update managed account storage." = "QuotaKit tidak dapat memperbarui penyimpanan akun terkelola.";
 "QuotaKit found another managed account that already uses the current system account. Resolve the duplicate account before switching." = "QuotaKit menemukan akun terkelola lain yang sudah menggunakan akun sistem saat ini. Selesaikan akun duplikat sebelum beralih.";
-"QuotaKit will ask macOS Keychain for “%@” so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk \U201c%@\U201d agar dapat mendekripsi cookie browser dan mengautentikasi akun Anda. Klik OK untuk melanjutkan.";
+"QuotaKit will ask macOS Keychain for “%@” so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "QuotaKit akan meminta Rantai Kunci macOS untuk “%@” agar dapat mendekripsi cookie browser dan mengautentikasi akun Anda. Klik OK untuk melanjutkan.";
 "QuotaKit will ask macOS Keychain for the Claude Code OAuth token so it can fetch your Claude usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk token OAuth Claude Code agar dapat mengambil penggunaan Claude Anda. Klik OK untuk melanjutkan.";
 "QuotaKit will ask macOS Keychain for your Amp cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Amp Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "QuotaKit will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Augment Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
@@ -2653,3 +2653,85 @@
 "Claude desktop app" = "Aplikasi desktop Claude";
 "Use Claude desktop app cookies" = "Gunakan cookie aplikasi desktop Claude";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Untuk penggunaan web, ikuti akun yang masuk di Claude.app, bukan akun di browser.";
+
+"Secret key" = "Kunci rahasia";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Diperlukan bersama kunci API. Disimpan dalam file konfigurasi lokal. Atau atur FI_SECRET_KEY.";
+
+"Paste secret key…" = "Tempel kunci rahasia…";
+
+"AI credits" = "Kredit AI";
+
+"Gateway requests" = "Permintaan gateway";
+
+"Future AGI cost history is not available." = "Riwayat biaya Future AGI tidak tersedia.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Disimpan dalam file konfigurasi lokal QuotaKit. Atau atur FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "Pengeluaran %";
+
+"menu_bar_layout_token_spend_pace" = "Laju pengeluaran";
+
+"menu_bar_layout_token_spend_budget" = "Pengeluaran / anggaran";
+
+"menu_bar_layout_conditional_default_spend_high" = "Pengeluaran di atas 90% terpakai";
+
+"Gemini app" = "Aplikasi Gemini";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Batas aplikasi Gemini berlaku untuk akun peramban Anda dan terpisah dari kuota Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Jalur ke tcr yang dapat dieksekusi (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Atur jalur cswap yang dapat dieksekusi di bawah.";
+
+"Set the tcr executable path below." = "Atur jalur tcr yang dapat dieksekusi di bawah.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Menunjukkan penggunaan dari `tcr`; tidak berpindah akun, karena tcr memilih akun untuk setiap permintaan. Kredensial tetap dikelola oleh tcr; QuotaKit tidak pernah membacanya.";
+
+"Claude accounts in tcr" = "Akun Claude di tcr";
+
+"tcr executable" = "tcr dapat dieksekusi";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Direktori konfigurasi Claude";
+
+"http_server_title" = "Server HTTP";
+
+"http_server_enable" = "Aktifkan server HTTP";
+
+"http_server_bind" = "Alamat IPv4 pengikatan";
+
+"http_server_port" = "Port";
+
+"http_server_token" = "Token server";
+
+"http_server_show" = "Tampilkan";
+
+"http_server_generate" = "Buat";
+
+"http_server_cache" = "Interval cache (detik)";
+
+"http_server_timeout" = "Batas waktu permintaan (detik; 0 menonaktifkan)";
+
+"http_server_all_accounts" = "Sertakan semua akun dalam snapshot";
+
+"http_server_identity" = "Identitas dasbor";
+
+"http_server_redacted" = "Disamarkan";
+
+"http_server_warning" = "Membagikan penggunaan, biaya, serta informasi akun dan proyek, bukan kredensial penyedia. HTTP mengirim token server tanpa enkripsi. Gunakan hanya koneksi VPN atau Tailscale tepercaya.";
+
+"http_server_plain_http" = "Izinkan HTTP tanpa enkripsi di luar Mac ini";
+
+"http_server_dashboard" = "Dasbor";
+
+"http_server_wildcard" = "Pada perangkat lain, ganti 0.0.0.0 dengan alamat IPv4 VPN atau Tailscale Mac ini.";
+
+"http_server_footer" = "Nonaktif secara default. Dimulai bersama QuotaKit dan berhenti saat ditutup. Pengaturan dan token tetap di Mac ini, tanpa sinkronisasi atau ekspor. Biarkan Mac tetap terjaga untuk akses jarak jauh.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Kunci dengan izin Baca data akun (Admin API). Atau setel MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito melaporkan pengeluaran dan batasan Admin API, bukan riwayat biaya token lokal.";

@@ -170,7 +170,8 @@ extension StatusItemController {
                 adapterError: self.store.claudeSwapLastError,
                 switchError: self.store.claudeSwapTransientState.lastErrorAccountID == account.id
                     ? self.store.claudeSwapTransientState.lastError
-                    : nil))
+                    : nil,
+                historySelection: self.store.claudeSwapPlanUtilizationHistorySelection(for: account)))
     }
 
     private func claudeSwapAccountActionLabel(_ account: ProviderAccountUsageSnapshot) -> String? {

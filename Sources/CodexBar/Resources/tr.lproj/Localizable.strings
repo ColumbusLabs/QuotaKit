@@ -2652,3 +2652,85 @@
 "Claude desktop app" = "Claude masaüstü uygulaması";
 "Use Claude desktop app cookies" = "Claude masaüstü uygulamasının çerezlerini kullan";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Web kullanımı için tarayıcı hesabı yerine Claude.app içinde oturum açılan hesabı kullan.";
+
+"Secret key" = "Gizli anahtar";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "API anahtarıyla birlikte gereklidir. Yerel yapılandırma dosyasına kaydedilir. Alternatif olarak FI_SECRET_KEY ayarlayın.";
+
+"Paste secret key…" = "Gizli anahtarı yapıştırın…";
+
+"AI credits" = "Yapay zekâ kredileri";
+
+"Gateway requests" = "Ağ geçidi istekleri";
+
+"Future AGI cost history is not available." = "Future AGI maliyet geçmişi kullanılamıyor.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "QuotaKit’ın yerel yapılandırma dosyasına kaydedilir. Alternatif olarak FI_API_KEY ayarlayın.";
+
+"menu_bar_layout_token_spend" = "Harcama %";
+
+"menu_bar_layout_token_spend_pace" = "Harcama temposu";
+
+"menu_bar_layout_token_spend_budget" = "Harcama / bütçe";
+
+"menu_bar_layout_conditional_default_spend_high" = "Harcamanın %90'ından fazlası kullanıldı";
+
+"Gemini app" = "Gemini uygulaması";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Gemini uygulamasının sınırları tarayıcı hesabınız için geçerlidir ve Gemini CLI kotalarından ayrıdır.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "tcr yürütülebilir dosyasının yolu (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "cswap yürütülebilir dosyasının yolunu aşağıda ayarlayın.";
+
+"Set the tcr executable path below." = "tcr yürütülebilir dosyasının yolunu aşağıda ayarlayın.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Kullanımı `tcr` üzerinden gösterir; hesaplar arasında geçiş yapmaz, çünkü tcr her istek için hesabı kendisi seçer. Kimlik bilgileri tcr tarafından yönetilmeye devam eder; QuotaKit bunları asla okumaz.";
+
+"Claude accounts in tcr" = "tcr içindeki Claude hesapları";
+
+"tcr executable" = "tcr çalıştırılabilir";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Claude yapılandırma dizini";
+
+"http_server_title" = "HTTP sunucusu";
+
+"http_server_enable" = "HTTP sunucusunu etkinleştir";
+
+"http_server_bind" = "Bağlanılacak IPv4 adresi";
+
+"http_server_port" = "Bağlantı noktası";
+
+"http_server_token" = "Sunucu belirteci";
+
+"http_server_show" = "Göster";
+
+"http_server_generate" = "Oluştur";
+
+"http_server_cache" = "Önbellek aralığı (saniye)";
+
+"http_server_timeout" = "İstek zaman aşımı (saniye; 0 devre dışı bırakır)";
+
+"http_server_all_accounts" = "Anlık görüntülere tüm hesapları dahil et";
+
+"http_server_identity" = "Panodaki kimlik";
+
+"http_server_redacted" = "Gizlenmiş";
+
+"http_server_warning" = "Kullanım, maliyet, hesap ve proje bilgilerini paylaşır; sağlayıcı kimlik bilgilerini asla paylaşmaz. HTTP sunucu belirtecini şifrelemeden gönderir. Yalnızca güvenilir bir VPN veya Tailscale bağlantısı kullanın.";
+
+"http_server_plain_http" = "Bu Mac dışında şifrelenmemiş HTTP’ye izin ver";
+
+"http_server_dashboard" = "Pano";
+
+"http_server_wildcard" = "Diğer cihazlarda 0.0.0.0 yerine bu Mac’in VPN veya Tailscale IPv4 adresini kullanın.";
+
+"http_server_footer" = "Varsayılan olarak kapalıdır. QuotaKit ile başlar ve kapatıldığında durur. Ayarlar ve belirteç bu Mac’te kalır; eşitleme ve dışa aktarmaya dahil edilmez. Uzaktan erişim için Mac’i uyanık tutun.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Hesap verilerini okuma (Admin API) iznine sahip anahtar. Ya da MUNITO_API_KEY ayarlayın.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito, Admin API harcamalarını ve limitlerini raporlar; yerel token maliyet geçmişini raporlamaz.";

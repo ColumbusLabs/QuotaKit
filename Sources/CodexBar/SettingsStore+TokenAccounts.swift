@@ -67,7 +67,8 @@ extension SettingsStore {
         externalIdentifier: String? = nil,
         usageScope: String? = nil,
         organizationID: String? = nil,
-        workspaceID: String? = nil)
+        workspaceID: String? = nil,
+        claudeConfigDirectory: String? = nil)
     {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return }
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -101,7 +102,8 @@ extension SettingsStore {
             externalIdentifier: normalisedIdentifier,
             usageScope: normalisedUsageScope,
             organizationID: normalisedOrganizationID,
-            workspaceID: normalisedWorkspaceID)
+            workspaceID: normalisedWorkspaceID,
+            claudeConfigDirectory: Self.normalizedConfigField(claudeConfigDirectory))
         let updated = ProviderTokenAccountData(
             version: existing?.version ?? 1,
             accounts: accounts + [account],
@@ -130,6 +132,7 @@ extension SettingsStore {
         usageScope: String?? = nil,
         organizationID: String?? = nil,
         workspaceID: String?? = nil,
+        claudeConfigDirectory: String?? = nil,
         seatCreditEntitlement: String?? = nil)
     {
         guard let data = self.tokenAccountsData(for: provider), !data.accounts.isEmpty else { return }
@@ -170,6 +173,13 @@ extension SettingsStore {
         } else {
             resolvedWorkspaceID = existing.workspaceID
         }
+        let resolvedClaudeConfigDirectory: String?
+        if let claudeConfigDirectory {
+            let trimmed = claudeConfigDirectory?.trimmingCharacters(in: .whitespacesAndNewlines)
+            resolvedClaudeConfigDirectory = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        } else {
+            resolvedClaudeConfigDirectory = existing.claudeConfigDirectory
+        }
         let resolvedSeatCreditEntitlement: String?
         if let seatCreditEntitlement {
             let trimmed = seatCreditEntitlement?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -195,6 +205,7 @@ extension SettingsStore {
             usageScope: resolvedUsageScope,
             organizationID: resolvedOrganizationID,
             workspaceID: resolvedWorkspaceID,
+            claudeConfigDirectory: resolvedClaudeConfigDirectory,
             seatCreditEntitlement: resolvedSeatCreditEntitlement,
             modelRateLimits: existing.modelRateLimits)
 

@@ -2650,3 +2650,85 @@
 "Claude desktop app" = "Claudeデスクトップアプリ";
 "Use Claude desktop app cookies" = "ClaudeデスクトップアプリのCookieを使用";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Webの使用量には、ブラウザではなくClaude.appにログイン中のアカウントを使用します。";
+
+"Secret key" = "シークレットキー";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "API キーと併せて必要です。ローカル設定ファイルに保存されます。または FI_SECRET_KEY を設定してください。";
+
+"Paste secret key…" = "シークレットキーを貼り付け…";
+
+"AI credits" = "AI クレジット";
+
+"Gateway requests" = "ゲートウェイリクエスト";
+
+"Future AGI cost history is not available." = "Future AGI の費用履歴は利用できません。";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "QuotaKit のローカル設定ファイルに保存されます。または FI_API_KEY を設定してください。";
+
+"menu_bar_layout_token_spend" = "支出 %";
+
+"menu_bar_layout_token_spend_pace" = "支出ペース";
+
+"menu_bar_layout_token_spend_budget" = "支出 / 予算";
+
+"menu_bar_layout_conditional_default_spend_high" = "支出使用率 90% 超";
+
+"Gemini app" = "Gemini アプリ";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Gemini アプリの上限はブラウザのアカウントに適用され、Gemini CLI のクォータとは別です。";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "tcr 実行可能ファイルへのパス (github.com/dhkts1/teamclaude-rs)。";
+
+"Set the cswap executable path below." = "下に cswap 実行可能ファイルのパスを設定してください。";
+
+"Set the tcr executable path below." = "下に tcr 実行可能ファイルのパスを設定してください。";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "`tcr` から使用状況を表示します。tcr がリクエストごとにアカウントを選ぶため、アカウントは切り替えません。資格情報は tcr によって管理されます。 QuotaKit はそれらを決して読みません。";
+
+"Claude accounts in tcr" = "tcr の Claude アカウント";
+
+"tcr executable" = "tcr 実行可能ファイル";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Claude の設定ディレクトリ";
+
+"http_server_title" = "HTTPサーバー";
+
+"http_server_enable" = "HTTPサーバーを有効にする";
+
+"http_server_bind" = "バインドするIPv4アドレス";
+
+"http_server_port" = "ポート";
+
+"http_server_token" = "サーバートークン";
+
+"http_server_show" = "表示";
+
+"http_server_generate" = "生成";
+
+"http_server_cache" = "キャッシュ間隔（秒）";
+
+"http_server_timeout" = "リクエストのタイムアウト（秒、0で無効）";
+
+"http_server_all_accounts" = "スナップショットにすべてのアカウントを含める";
+
+"http_server_identity" = "ダッシュボードの識別情報";
+
+"http_server_redacted" = "伏せ字";
+
+"http_server_warning" = "使用量、費用、アカウント、プロジェクトの情報を公開します。プロバイダーの認証情報は公開しません。HTTPはサーバートークンを暗号化せず送信します。信頼できるVPNまたはTailscale接続でのみ使用してください。";
+
+"http_server_plain_http" = "このMac以外からの暗号化されていないHTTPを許可";
+
+"http_server_dashboard" = "ダッシュボード";
+
+"http_server_wildcard" = "他のデバイスでは、0.0.0.0をこのMacのVPNまたはTailscaleのIPv4アドレスに置き換えてください。";
+
+"http_server_footer" = "デフォルトではオフです。QuotaKitと共に起動し、終了時に停止します。設定とトークンはこのMacに保存され、同期や書き出しの対象外です。リモートアクセス中はMacをスリープさせないでください。";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "アカウントデータの読み取り（Admin API）権限を持つキー。または MUNITO_API_KEY を設定してください。";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito は Admin API の支出と上限を報告します。ローカルのトークンコスト履歴ではありません。";

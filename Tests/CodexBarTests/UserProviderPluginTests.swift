@@ -265,6 +265,14 @@ struct UserProviderPluginTests {
         settings.selectedMenuProvider = secondID
         controller.populateMenu(menu, provider: nil)
         #expect(Self.pluginCardIDs(in: menu) == ["pluginCard:second-meter", "pluginCard:legacy-meter"])
+
+        settings.mergedMenuLastSelectedWasOverview = true
+        controller.populateMenu(menu, provider: nil)
+        #expect(controller.includesOverviewTab(enabledProviders: []))
+        let overviewIDs = menu.items.compactMap { $0.representedObject as? String }
+            .filter { $0.hasPrefix("overviewRow-") }
+        #expect(Set(overviewIDs) == Set(plugins.map { "overviewRow-\($0.manifest.id.rawValue)" }))
+        #expect(Self.pluginCardIDs(in: menu).isEmpty)
     }
 
     @MainActor
@@ -367,6 +375,8 @@ struct UserProviderPluginTests {
             metadata: #require(ProviderRegistry.shared.metadata[.codex]),
             enabled: true)
         settings.mergedMenuLastSelectedWasOverview = true
+        #expect(controller.isMergedOverviewSelected(in: menu))
+        settings.mergedMenuLastSelectedWasOverview = false
         #expect(!controller.isMergedOverviewSelected(in: menu))
         store.refreshingProviders.insert(plugins[0].manifest.id)
         #expect(!controller.isRefreshActionInFlight(for: menu))
@@ -896,4 +906,5 @@ private struct Fixture {
         try? FileManager.default.removeItem(at: self.root)
     }
 }
+
 #endif

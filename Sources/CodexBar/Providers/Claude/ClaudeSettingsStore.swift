@@ -112,6 +112,16 @@ extension SettingsStore {
                 value: newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "cleared" : "set")
         }
     }
+
+    var claudeSwapSource: ClaudeSwapAccountSource {
+        get { self.configSnapshot.providerConfig(for: .claude)?.resolvedClaudeSwapSource ?? .claudeSwap }
+        set {
+            self.updateProviderConfig(provider: .claude) { entry in
+                entry.claudeSwapSource = newValue.rawValue
+            }
+            self.logProviderModeChange(provider: .claude, field: "claudeSwapSource", value: newValue.rawValue)
+        }
+    }
 }
 
 extension SettingsStore {
@@ -211,5 +221,17 @@ extension SettingsStore {
             provider: .claude,
             settings: self,
             override: tokenOverride)
+    }
+}
+
+extension UsageStore {
+    var claudeTokenCostConfigDirectory: String? {
+        guard !self.settings.claudeSwapEnabled || !ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+            provider: .claude,
+            accountCount: self.claudeSwapAccountSnapshots.count,
+            showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        else { return nil }
+        return self.settings.effectiveSelectedTokenAccount(for: .claude)?.claudeConfigDirectory
+            .flatMap { $0.isEmpty ? nil : $0 }
     }
 }

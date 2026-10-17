@@ -621,6 +621,9 @@ struct LocalizationLanguageCatalogTests {
         #expect(italian["metric_mistral_monthly_plan"] == "Piano mensile")
 
         let intentionallyUnchanged: Set = [
+            "/Applications/TcrBar.app/Contents/MacOS/tcr",
+            "Gemini CLI",
+            "Gemini app",
             "%.0f%% %@",
             "%@ %@",
             "%@: %@",
@@ -678,6 +681,7 @@ struct LocalizationLanguageCatalogTests {
             "gsk_...",
             "hooks_executable_placeholder",
             "hooks_threshold_placeholder",
+            "http_server_dashboard",
             "https://api.aixy-gateway.com",
             "https://bifrost.example.com",
             "https://litellm.example.com",
@@ -957,6 +961,24 @@ extension LocalizationLanguageCatalogTests {
                     #expect(resolvedValue.contains(expectedPrice), "Missing localized AWS request price for \(locale)")
                 }
             }
+        }
+    }
+}
+
+extension LocalizationLanguageCatalogTests {
+    @Test
+    func `Gemini app quota guidance is translated in every catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let key = "Gemini app limits use your browser account and are separate from Gemini CLI quotas."
+        for language in AppLanguage.allCases where language != .system && language != .english {
+            let url = resources.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
+            let phrase = try #require(catalog[key], "Missing \(language.rawValue): \(key)")
+            #expect(!phrase.isEmpty)
+            #expect(phrase != key, "Untranslated \(language.rawValue): \(key)")
+            #expect(catalog["Gemini CLI"] == "Gemini CLI")
         }
     }
 }

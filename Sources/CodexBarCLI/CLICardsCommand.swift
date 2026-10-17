@@ -183,6 +183,7 @@ extension CodexBarCLI {
             let result = await CLIClaudeSwapCards.fetch(
                 eligible: claudeSwapEligible,
                 executablePath: CLIClaudeSwapCards.executablePath(from: claudeConfig),
+                source: claudeConfig?.resolvedClaudeSwapSource ?? .claudeSwap,
                 showSingleAccount: claudeConfig?.claudeSwapShowSingleAccount == true,
                 renderOptions: CLIClaudeSwapCardsRenderOptions(
                     status: status,

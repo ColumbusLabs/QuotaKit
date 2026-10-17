@@ -41,6 +41,10 @@ struct MenuBarLayoutRenderMetrics: Hashable {
     let balanceUsedUSD: Double?
     let costTodayUSD: Double?
     let cost30dUSD: Double?
+    var spendPaceDelta: Double?
+    /// USD-only like the cost amounts: nil for credit-denominated caps and currencies with no exchange rate.
+    var spendUsedUSD: Double?
+    var spendRemainingUSD: Double?
 
     static let unavailable = MenuBarLayoutRenderMetrics(
         sessionPaceDelta: nil,
@@ -87,6 +91,12 @@ struct MenuBarLayoutRenderData: Hashable {
     let cost30d: String?
     /// Numeric twins of the display strings above, for conditional predicates.
     let metrics: MenuBarLayoutRenderMetrics
+    /// Provider-reported extra-usage budget, distinct from the user's overall spend history.
+    var spend: MenuBarLayoutRenderWindow?
+    var spendPace: String?
+    var spendAmount: String?
+    var spendBudget: String?
+    var spendCurrencySymbol: String = "$"
 
     func extraTitle(_ id: String) -> String? {
         guard let provider else { return nil }
@@ -290,6 +300,7 @@ final class MenuBarLayoutTitleCache {
 }
 
 @MainActor
+// swiftlint:disable:next type_body_length
 final class MenuBarLayoutRenderer {
     private static let missingValue = "–"
     private static let stackedBaselineOffset: CGFloat = -3 // Center multi-line NSStatusBarButton titles.
@@ -799,8 +810,10 @@ final class MenuBarLayoutRenderer {
                 data: data,
                 showUsed: options.showUsed,
                 attributes: style.attributes)
-        case .providerName, .accountLabel, .lanePercent, .tokensPerMinute, .tokensSparkline, .usageBar, .progressBar:
-            preconditionFailure("Provider, throughput, and usage-meter tokens should render before the main switch")
+        case .providerName, .accountLabel, .lanePercent, .tokensPerMinute, .tokensSparkline,
+             .spendAmount, .spendBudget, .usageBar, .progressBar:
+            preconditionFailure(
+                "Provider, throughput, spend, and usage-meter tokens should render before the main switch")
         }
     }
 
@@ -846,6 +859,8 @@ final class MenuBarLayoutRenderer {
             data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
         case .automatic:
             ""
+        case .spend:
+            data.spendCurrencySymbol
         }
     }
 
@@ -858,6 +873,7 @@ final class MenuBarLayoutRenderer {
         case .weekly: data.laneLabels.secondary
         case .scopedWeekly: data.scopedWeeklyTitle ?? L("Scoped weekly")
         case .automatic: L("Usage")
+        case .spend: L("Spend")
         }
     }
 
@@ -1023,6 +1039,7 @@ final class MenuBarLayoutRenderer {
         case .weekly: data.weekly
         case .scopedWeekly: data.scopedWeekly
         case .automatic: data.automatic
+        case .spend: data.spend
         }
     }
 
@@ -1048,6 +1065,7 @@ final class MenuBarLayoutRenderer {
         case .weekly: data.weeklyPace
         case .scopedWeekly: nil
         case .automatic: data.automaticPace
+        case .spend: data.spendPace
         }
     }
 
@@ -1056,6 +1074,7 @@ final class MenuBarLayoutRenderer {
         case .session: data.metrics.sessionPaceDelta
         case .weekly: data.metrics.weeklyPaceDelta
         case .automatic: data.metrics.automaticPaceDelta
+        case .spend: data.metrics.spendPaceDelta
         case .scopedWeekly: nil
         }
     }
@@ -1069,6 +1088,7 @@ final class MenuBarLayoutRenderer {
         case .weekly: L("%@ %@", data.laneLabels.secondary, L("display_mode_pace").lowercased())
         case .scopedWeekly: L("menu_bar_layout_token_weekly_pace")
         case .automatic: L("menu_bar_layout_token_auto_pace")
+        case .spend: L("menu_bar_layout_token_spend_pace")
         }
     }
 
@@ -1151,6 +1171,8 @@ extension MenuBarLayoutRenderer {
                 tokenAttributes[.foregroundColor] = providerTintColor
             }
             return self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: tokenAttributes)
+        case .spendAmount, .spendBudget:
+            return self.spendMoneyToken(item, data: data, attributes: attributes)
         default:
             return nil
         }
@@ -1375,6 +1397,7 @@ extension MenuBarLayoutConditional {
         return predicate.comparison.evaluate(value, predicate.threshold)
     }
 
+    // swiftlint:disable cyclomatic_complexity
     /// nil == the datum is unavailable, so the predicate evaluates false instead of comparing a
     /// fabricated zero. Percent and reset readings come from the render windows; pace, run-out, balance
     /// and cost come from `data.metrics`, whose display strings cannot be compared numerically.
@@ -1389,6 +1412,7 @@ extension MenuBarLayoutConditional {
         case .weekly: self.percent(data.weekly, predicate.direction)
         case .scopedWeekly: self.percent(data.scopedWeekly, predicate.direction)
         case .automatic: self.percent(data.automatic, predicate.direction)
+        case .spend: self.percent(data.spend, predicate.direction)
         case .primaryLane: self.percent(data.primary, predicate.direction)
         case .secondaryLane: self.percent(data.secondary, predicate.direction)
         case .tertiaryLane: self.percent(data.tertiary, predicate.direction)
@@ -1396,17 +1420,24 @@ extension MenuBarLayoutConditional {
         case .weeklyResetsIn: self.hoursUntilReset(data.weekly, now: now)
         case .scopedWeeklyResetsIn: self.hoursUntilReset(data.scopedWeekly, now: now)
         case .automaticResetsIn: self.hoursUntilReset(data.automatic, now: now)
+        case .spendResetsIn: self.hoursUntilReset(data.spend, now: now)
         case .sessionPace: data.metrics.sessionPaceDelta
         case .weeklyPace: data.metrics.weeklyPaceDelta
         case .automaticPace: data.metrics.automaticPaceDelta
+        case .spendPace: data.metrics.spendPaceDelta
         case .runsOutIn: data.metrics.runsOutMinutes.map { Double($0) / 60 }
         case .balance: predicate.direction == .used
             ? data.metrics.balanceUsedUSD
             : data.metrics.balanceRemainingUSD
         case .costToday: data.metrics.costTodayUSD
         case .costWindow: data.metrics.cost30dUSD
+        case .spendAmount: predicate.direction == .used
+            ? data.metrics.spendUsedUSD
+            : data.metrics.spendRemainingUSD
         }
     }
+
+    // swiftlint:enable cyclomatic_complexity
 
     private static func percent(
         _ window: MenuBarLayoutRenderWindow?,
@@ -1448,6 +1479,19 @@ extension MenuBarLayoutRenderer {
         default:
             nil
         }
+    }
+
+    private static func spendMoneyToken(
+        _ item: MenuBarLayoutToken,
+        data: MenuBarLayoutRenderData,
+        attributes: [NSAttributedString.Key: Any])
+        -> (value: NSAttributedString, accessibilityText: String?)
+    {
+        self.optionalTextToken(
+            item == .spendBudget ? data.spendBudget : data.spendAmount,
+            unavailableLabel: L("%@ unavailable", item.editorLabel(provider: data.provider)),
+            accessibilityPrefix: L("Spend"),
+            attributes: attributes)
     }
 
     private static func sparklineToken(

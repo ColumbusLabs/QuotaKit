@@ -2648,3 +2648,85 @@
 "Claude desktop app" = "Aplicación de escritorio de Claude";
 "Use Claude desktop app cookies" = "Usar las cookies de la aplicación de escritorio de Claude";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Para el uso web, usa la cuenta con la sesión iniciada en Claude.app en lugar de la del navegador.";
+
+"Secret key" = "Clave secreta";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Se requiere junto con la clave API. Se guarda en el archivo de configuración local. También puedes definir FI_SECRET_KEY.";
+
+"Paste secret key…" = "Pega la clave secreta…";
+
+"AI credits" = "Créditos de IA";
+
+"Gateway requests" = "Solicitudes a la pasarela";
+
+"Future AGI cost history is not available." = "El historial de costes de Future AGI no está disponible.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Se guarda en el archivo de configuración local de QuotaKit. También puedes definir FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "Gasto %";
+
+"menu_bar_layout_token_spend_pace" = "Ritmo de gasto";
+
+"menu_bar_layout_token_spend_budget" = "Gasto / presupuesto";
+
+"menu_bar_layout_conditional_default_spend_high" = "Gasto por encima del 90 % usado";
+
+"Gemini app" = "Aplicación Gemini";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Los límites de la aplicación Gemini corresponden a tu cuenta del navegador y son independientes de las cuotas de Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Ruta al ejecutable tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Configure abajo la ruta del ejecutable cswap.";
+
+"Set the tcr executable path below." = "Configure abajo la ruta del ejecutable tcr.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Muestra el uso desde `tcr`; no cambia de cuenta, porque tcr elige la cuenta para cada solicitud. Las credenciales permanecen administradas por tcr; QuotaKit nunca las lee.";
+
+"Claude accounts in tcr" = "Cuentas de Claude en tcr";
+
+"tcr executable" = "Ejecutable tcr";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Carpeta de configuración de Claude";
+
+"http_server_title" = "Servidor HTTP";
+
+"http_server_enable" = "Activar servidor HTTP";
+
+"http_server_bind" = "Dirección IPv4 de escucha";
+
+"http_server_port" = "Puerto";
+
+"http_server_token" = "Token del servidor";
+
+"http_server_show" = "Mostrar";
+
+"http_server_generate" = "Generar";
+
+"http_server_cache" = "Intervalo de caché (segundos)";
+
+"http_server_timeout" = "Tiempo límite de solicitud (segundos; 0 lo desactiva)";
+
+"http_server_all_accounts" = "Incluir todas las cuentas en las instantáneas";
+
+"http_server_identity" = "Identidad en el panel";
+
+"http_server_redacted" = "Oculta";
+
+"http_server_warning" = "Expone uso, costes e información de cuentas y proyectos; nunca credenciales de proveedores. HTTP envía el token del servidor sin cifrar. Úsalo solo mediante una conexión VPN o Tailscale de confianza.";
+
+"http_server_plain_http" = "Permitir HTTP sin cifrar fuera de este Mac";
+
+"http_server_dashboard" = "Panel";
+
+"http_server_wildcard" = "En otros dispositivos, sustituye 0.0.0.0 por la dirección IPv4 de VPN o Tailscale de este Mac.";
+
+"http_server_footer" = "Desactivado por defecto. Se inicia con QuotaKit y se detiene al cerrarlo. La configuración y el token permanecen en este Mac y se excluyen de la sincronización y las exportaciones. Mantén el Mac activo para el acceso remoto.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Clave con permiso de lectura de datos de la cuenta (Admin API). O define MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito informa del gasto y los límites de la Admin API, no del historial de costos de tokens local.";

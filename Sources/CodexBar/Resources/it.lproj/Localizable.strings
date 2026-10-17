@@ -2653,3 +2653,85 @@
 "Claude desktop app" = "App desktop Claude";
 "Use Claude desktop app cookies" = "Usa i cookie dell’app desktop Claude";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Per l’utilizzo web, usa l’account connesso a Claude.app anziché quello del browser.";
+
+"Secret key" = "Chiave segreta";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Richiesta insieme alla chiave API. Salvata nel file di configurazione locale. In alternativa, imposta FI_SECRET_KEY.";
+
+"Paste secret key…" = "Incolla la chiave segreta…";
+
+"AI credits" = "Crediti IA";
+
+"Gateway requests" = "Richieste al gateway";
+
+"Future AGI cost history is not available." = "La cronologia dei costi di Future AGI non è disponibile.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Salvata nel file di configurazione locale di QuotaKit. In alternativa, imposta FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "Spesa %";
+
+"menu_bar_layout_token_spend_pace" = "Ritmo spesa";
+
+"menu_bar_layout_token_spend_budget" = "Spesa / bilancio";
+
+"menu_bar_layout_conditional_default_spend_high" = "Spesa oltre il 90% usata";
+
+"Gemini app" = "Gemini app";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "I limiti dell’app Gemini si riferiscono al tuo account nel browser e sono separati dalle quote di Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Percorso dell'eseguibile tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Imposta qui sotto il percorso dell'eseguibile cswap.";
+
+"Set the tcr executable path below." = "Imposta qui sotto il percorso dell'eseguibile tcr.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Mostra l'utilizzo da `tcr`; non cambia account, perché tcr sceglie l'account per ogni richiesta. Le credenziali rimangono gestite da tcr; QuotaKit non le legge mai.";
+
+"Claude accounts in tcr" = "Account Claude in tcr";
+
+"tcr executable" = "Eseguibile tcr";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Cartella di configurazione di Claude";
+
+"http_server_title" = "Server HTTP";
+
+"http_server_enable" = "Abilita server HTTP";
+
+"http_server_bind" = "Indirizzo IPv4 di ascolto";
+
+"http_server_port" = "Porta";
+
+"http_server_token" = "Token del server";
+
+"http_server_show" = "Mostra";
+
+"http_server_generate" = "Genera";
+
+"http_server_cache" = "Intervallo cache (secondi)";
+
+"http_server_timeout" = "Timeout richieste (secondi; 0 disabilita)";
+
+"http_server_all_accounts" = "Includi tutti gli account nelle istantanee";
+
+"http_server_identity" = "Identità nella dashboard";
+
+"http_server_redacted" = "Oscurata";
+
+"http_server_warning" = "Espone utilizzo, costi e informazioni su account e progetti, mai le credenziali dei provider. HTTP invia il token del server senza crittografia. Usa solo una connessione VPN o Tailscale attendibile.";
+
+"http_server_plain_http" = "Consenti HTTP non crittografato fuori da questo Mac";
+
+"http_server_dashboard" = "Dashboard";
+
+"http_server_wildcard" = "Sugli altri dispositivi, sostituisci 0.0.0.0 con l’indirizzo IPv4 VPN o Tailscale di questo Mac.";
+
+"http_server_footer" = "Disattivato per impostazione predefinita. Si avvia con QuotaKit e si arresta alla chiusura. Impostazioni e token restano su questo Mac e sono esclusi da sincronizzazione ed esportazioni. Mantieni il Mac attivo per l’accesso remoto.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Chiave con permesso di lettura dei dati dell'account (Admin API). Oppure imposta MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito riporta spesa e limiti dell'Admin API, non la cronologia locale dei costi dei token.";

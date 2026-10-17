@@ -2630,3 +2630,85 @@
 "Claude desktop app" = "Claude 桌面應用程式";
 "Use Claude desktop app cookies" = "使用 Claude 桌面應用程式的 Cookie";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "查詢網頁用量時，使用 Claude.app 中登入的帳號，而非瀏覽器帳號。";
+
+"Secret key" = "密鑰";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "需與 API 金鑰搭配使用。儲存在本機設定檔中。也可設定 FI_SECRET_KEY。";
+
+"Paste secret key…" = "貼上密鑰…";
+
+"AI credits" = "AI 額度";
+
+"Gateway requests" = "閘道請求";
+
+"Future AGI cost history is not available." = "無法查看 Future AGI 的費用歷史。";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "儲存在 QuotaKit 的本機設定檔中。也可設定 FI_API_KEY。";
+
+"menu_bar_layout_token_spend" = "支出 %";
+
+"menu_bar_layout_token_spend_pace" = "支出節奏";
+
+"menu_bar_layout_token_spend_budget" = "支出 / 預算";
+
+"menu_bar_layout_conditional_default_spend_high" = "支出已用超過 90%";
+
+"Gemini app" = "Gemini 應用程式";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Gemini 應用程式的限額適用於你在瀏覽器中登入的帳號，與 Gemini CLI 配額相互獨立。";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "tcr 執行檔的路徑 (github.com/dhkts1/teamclaude-rs)。";
+
+"Set the cswap executable path below." = "請在下方設定 cswap 執行檔的路徑。";
+
+"Set the tcr executable path below." = "請在下方設定 tcr 執行檔的路徑。";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "顯示來自 `tcr` 的用量；不會切換帳戶，因為 tcr 會為每個請求選擇帳戶。憑據由 tcr 管理，QuotaKit 不會讀取。";
+
+"Claude accounts in tcr" = "tcr 中的 Claude 帳戶";
+
+"tcr executable" = "tcr 執行檔";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Claude 設定目錄";
+
+"http_server_title" = "HTTP 伺服器";
+
+"http_server_enable" = "啟用 HTTP 伺服器";
+
+"http_server_bind" = "綁定 IPv4 位址";
+
+"http_server_port" = "連接埠";
+
+"http_server_token" = "伺服器權杖";
+
+"http_server_show" = "顯示";
+
+"http_server_generate" = "產生";
+
+"http_server_cache" = "快取間隔（秒）";
+
+"http_server_timeout" = "要求逾時（秒；0 表示停用）";
+
+"http_server_all_accounts" = "在快照中包含所有帳號";
+
+"http_server_identity" = "儀表板身分資訊";
+
+"http_server_redacted" = "已遮蔽";
+
+"http_server_warning" = "公開用量、費用、帳號和專案資訊，但絕不公開供應商憑證。HTTP 會以未加密方式傳送伺服器權杖。請僅透過受信任的 VPN 或 Tailscale 連線使用。";
+
+"http_server_plain_http" = "允許此 Mac 以外的未加密 HTTP 存取";
+
+"http_server_dashboard" = "儀表板";
+
+"http_server_wildcard" = "在其他裝置上，請將 0.0.0.0 替換為此 Mac 的 VPN 或 Tailscale IPv4 位址。";
+
+"http_server_footer" = "預設關閉。隨 QuotaKit 啟動，並在結束時停止。設定和權杖僅保存在此 Mac 上，不會同步或匯出。遠端存取時請保持 Mac 喚醒。";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "具備讀取帳戶資料（Admin API）權限的金鑰。或設定 MUNITO_API_KEY。";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito 回報 Admin API 的支出與上限，而非本機 token 成本歷史。";

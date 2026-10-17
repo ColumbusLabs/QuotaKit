@@ -132,10 +132,14 @@ public struct ProviderIntentPayload: Codable, Sendable {
             } else {
                 let incoming = try CanonicalSyncJSON.decode(ProviderTokenAccountData.self, from: value)
                 let accounts = incoming.accounts.map { account in
+                    // Claude config directories are device-local paths. Ignore any path sent by a peer and
+                    // retain this device's existing mapping for the same account UUID.
+                    let localAccount = local.tokenAccounts?.accounts.first(where: { $0.id == account.id })
+                    let localDirectory = localAccount?.claudeConfigDirectory
+                    let account = account.withClaudeConfigDirectory(localDirectory)
                     // Older senders cannot encode per-account limits; nil means unknown, [] is an explicit clear.
                     guard account.modelRateLimits == nil,
-                          let limits = local.tokenAccounts?.accounts.first(where: { $0.id == account.id })?
-                              .modelRateLimits
+                          let limits = localAccount?.modelRateLimits
                     else { return account }
                     return account.withModelRateLimits(limits)
                 }
@@ -163,7 +167,13 @@ public struct ProviderIntentPayload: Codable, Sendable {
         set(.apiKey, value: config.apiKey)
         set(.secretKey, value: config.secretKey)
         set(.cookieHeader, value: config.cookieHeader)
-        let accounts = try config.tokenAccounts.map(CanonicalSyncJSON.string)
+        let syncTokenAccounts = config.tokenAccounts.map { tokenAccounts in
+            ProviderTokenAccountData(
+                version: tokenAccounts.version,
+                accounts: tokenAccounts.accounts.map { $0.withClaudeConfigDirectory(nil) },
+                activeIndex: tokenAccounts.activeIndex)
+        }
+        let accounts = try syncTokenAccounts.map(CanonicalSyncJSON.string)
         set(.tokenAccounts, value: accounts)
         return fields
     }
@@ -257,17 +267,17 @@ public struct AccountSnapshotSyncPayload: Codable, Sendable {
         return CanonicalSyncJSON.hash(data: Data(identity.lowercased().utf8))
     }
 
-    /// CloudKit record IDs cannot be renamed. Claude Swap snapshots keyed by
-    /// `claude-swap:<slot>` replace a same-device email-keyed record; that
+    /// CloudKit record IDs cannot be renamed. Claude account-source snapshots keyed by
+    /// `<source>:<slot>` replace a same-device email-keyed record; that
     /// predecessor is deleted only after the slot-keyed replacement is saved.
     /// Other providers must not classify an email-to-durable-ID change as obsolete.
     public func emailKeyedPredecessorRecordName() -> String? {
-        // Provider-specific by design: only Claude Swap slot keys retire leftover email-keyed CloudKit snapshots.
+        // Provider-specific by design: only known Claude account-source slot keys retire predecessor records.
         guard self.provider == .claude,
-              self.usage.identity?.loginMethod == ClaudeSwapAccountProjection.sourceLabel
+              let source = self.usage.identity?.loginMethod.flatMap(ClaudeSwapAccountSource.init(identitySource:))
         else { return nil }
         let accountID = self.usage.identity?.accountID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard accountID.hasPrefix("\(ClaudeSwapAccountProjection.sourceName):") else { return nil }
+        guard accountID.hasPrefix("\(source.label):") else { return nil }
         let emailKey = Self.accountKey(for: self.usage.identity?.accountEmail)
         guard emailKey != "default",
               Self.accountKey(for: accountID) == self.accountKey,

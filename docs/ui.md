@@ -51,7 +51,7 @@ read_when:
   equal-width columns.
 - Small/Regular/Large controls the token font scale; Regular remains the default. Large uses 14-point single-line text
   and 10-point stacked text. Monospaced digits is an independent optional setting that defaults off; labels remain
-  proportional. These display preferences stay outside saved layout tokens, preserving V5 layouts and their V4, V3,
+  proportional. These display preferences stay outside saved layout tokens, preserving V6 layouts and V5, V4, V3,
   V2, and legacy projections. Tight/Regular controls status-item padding. Compact stacked uses two tightly spaced lines
   sized to fit the menu bar.
 
@@ -60,26 +60,31 @@ read_when:
 | Group | Tokens | Behavior |
 | --- | --- | --- |
 | Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
-| Usage | Session %, Weekly %, Auto %, provider-specific %, Usage bar, graphical progress bars | Window percentage, compact three-glyph usage bar, or graphical bar; named Cursor and Antigravity allowances retain their own labels and show a dash when unavailable |
-| Usage | Session pace, Weekly pace, Auto pace | Signed pace delta for that window |
-| Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
-| Money | Balance, Cost today, Cost (History window) | OpenRouter credit balance or local cost estimate. Cost (History window) is the total for the selected [History window](cost-reporting-periods.md), and cost thresholds compare that window's total |
+| Usage | Session %, Weekly %, Auto %, Spend %, provider-specific %, Usage bar, graphical progress bars | Window percentage, compact three-glyph usage bar, or graphical bar; named Cursor and Antigravity allowances retain their own labels and show a dash when unavailable |
+| Usage | Session pace, Weekly pace, Auto pace, Spend pace | Signed pace delta for that window |
+| Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate; explicit Session, Weekly, and Spend reset tokens are also available |
+| Money | Balance, Cost today, Cost (History window), Spend, Spend / budget | Provider balance or remaining credits, local cost estimate, or provider-reported spend and budget. Cost (History window) is the total for the selected [History window](cost-reporting-periods.md), and cost thresholds compare that window's total |
 | Structure | Separator dot, Space, Line break | Spacing and optional two-line composition |
+
+Spend tokens use the provider-reported budget behind the Extra usage metric and honor **Show optional credits, spending & billing details**. They do not use prepaid balances or local cost estimates. Spend % carries the budget's currency symbol; credit-denominated caps have no currency prefix and no monetary amount. Spend pace requires a reported period and becomes available after 1% of that period. Existing layouts are unchanged; new installs include a **Spend over 90% used** conditional rule.
+
+Layouts, overrides, and rules are stored in V6. Older builds read the V5 projection without Spend tokens or rules; V4 and earlier projections keep their existing compatibility behavior. Returning restores the full layout when its older copy is unchanged. Edits in an older build take precedence, while untouched overrides and Spend rules survive; clearing the older rule library deliberately clears all rules.
 
 The pace tokens render the same delta the menu card shows as "in deficit"/"in reserve", in the compact signed form the
 pre-0.45 **Both** display mode used: `+11%` means usage runs that far ahead of the sustainable rate, `-8%` that far
 behind it, `0%` on pace. Each pace token reads its own window, so `Weekly pace` never borrows the session delta — unlike
-`Runs out`, which always estimates from the weekly (or automatic) lane. A pace token renders an en dash while pace is
-unavailable, including the first 3% of a window; see [Pace tracking](#pace-tracking).
+`Runs out`, which always estimates from the weekly (or automatic) lane. Weekly and Spend pace can appear after 1% of
+their periods has elapsed; Session, Auto, and Runs out keep the 3% threshold. A pace token renders an en dash while
+unavailable; see [Pace tracking](#pace-tracking).
 
 Enable **Color Pace Indicator** under **Menu Bar → Icon** to show usage behind pace in green and usage ahead of pace
-in red. The setting defaults off and colors Session, Weekly, and Auto pace in both the menu bar and layout preview.
+in red. The setting defaults off and colors Session, Weekly, Auto, and Spend pace in both the menu bar and layout preview.
 Zero and unavailable pace stay neutral. Stale colors dim, and high-contrast rendering uses the system label color.
 
 The Time palette also offers explicit Session and Weekly reset countdowns and clocks. The existing Resets in and Reset
 at tokens retain automatic-window behavior. Conditional branches can use the same explicit reset tokens. Layouts save
-V4 data and older-readable V3, V2, and legacy projections that omit explicit reset tokens so older app versions can
-still load supported tokens.
+V6 data with a Spend-free V5 projection, plus V4, V3, V2, and legacy projections that preserve the older reset-token
+compatibility rules.
 
 Balance uses provider-reported amounts where available, including OpenRouter remaining credits and LithosAI prepaid
 balance. Auto %

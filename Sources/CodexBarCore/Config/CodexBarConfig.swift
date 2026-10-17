@@ -7,6 +7,7 @@ public struct CodexBarConfig: Codable, Sendable {
         case version
         case providers
         case hooks
+        case shareUsageWithCLI
     }
 
     private enum ProviderCodingKeys: String, CodingKey {
@@ -24,15 +25,19 @@ public struct CodexBarConfig: Codable, Sendable {
     public var providers: [ProviderConfig]
     /// Optional external event hooks. Absent (nil) or disabled means no hooks run.
     public var hooks: HooksConfig?
+    /// Opt-in to a private, rate-window-only cache for CLI use when a non-GUI session cannot access the keychain.
+    public var shareUsageWithCLI: Bool
 
     public init(
         version: Int = Self.currentVersion,
         providers: [ProviderConfig],
-        hooks: HooksConfig? = nil)
+        hooks: HooksConfig? = nil,
+        shareUsageWithCLI: Bool = false)
     {
         self.version = version
         self.providers = providers
         self.hooks = hooks
+        self.shareUsageWithCLI = shareUsageWithCLI
     }
 
     public init(from decoder: any Decoder) throws {
@@ -69,12 +74,14 @@ public struct CodexBarConfig: Codable, Sendable {
         }
         self.providers = providers
         self.hooks = try container.decodeIfPresent(HooksConfig.self, forKey: .hooks)
+        self.shareUsageWithCLI = try container.decodeIfPresent(Bool.self, forKey: .shareUsageWithCLI) ?? false
     }
 
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.version, forKey: .version)
         try container.encodeIfPresent(self.hooks, forKey: .hooks)
+        if self.shareUsageWithCLI { try container.encode(true, forKey: .shareUsageWithCLI) }
         var entries = container.nestedUnkeyedContainer(forKey: .providers)
         var providers = self.providers.makeIterator()
         for unknown in self.unknownProviders {

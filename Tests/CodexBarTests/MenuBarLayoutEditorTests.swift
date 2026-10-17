@@ -14,6 +14,8 @@ struct MenuBarLayoutEditorTests {
         #expect(MenuBarLayoutPaletteTokens.time.contains(weekly))
         #expect(MenuBarLayoutPaletteTokens.conditionalBranch.contains(session))
         #expect(MenuBarLayoutPaletteTokens.conditionalBranch.contains(weekly))
+        #expect(MenuBarLayoutPaletteTokens.time.contains(.windowResetCountdown(window: .spend)))
+        #expect(MenuBarLayoutPaletteTokens.conditionalBranch.contains(.windowResetAbsolute(window: .spend)))
         #expect(session.resetWindow == .session)
         #expect(weekly.resetWindow == .weekly)
         #expect(weekly.resetIsAbsolute)
@@ -75,6 +77,19 @@ struct MenuBarLayoutEditorTests {
         #expect(!MenuBarLayoutPaletteTokens.usage(provider: .cursor, snapshot: nil).contains(extra))
         #expect(!MenuBarLayoutPaletteTokens.usage(provider: .codex, snapshot: snapshot).contains(extra))
         #expect(extra.editorLabel(provider: .cursor) == "Grok Bot %")
+    }
+
+    @Test
+    func `spend tokens are in the layout and conditional palettes`() {
+        let spendUsage: [MenuBarLayoutToken] = [.percent(window: .spend), .pace(window: .spend)]
+        let spendTime: [MenuBarLayoutToken] = [
+            .windowResetCountdown(window: .spend), .windowResetAbsolute(window: .spend),
+        ]
+        let spendMoney: [MenuBarLayoutToken] = [.spendAmount, .spendBudget]
+        #expect(spendUsage.allSatisfy(MenuBarLayoutPaletteTokens.usage(provider: .codex, snapshot: nil).contains))
+        #expect(spendTime.allSatisfy(MenuBarLayoutPaletteTokens.time.contains))
+        #expect((spendUsage + spendTime + spendMoney).allSatisfy(
+            MenuBarLayoutPaletteTokens.conditionalBranch.contains))
     }
 
     @Test

@@ -110,5 +110,7 @@ enum ProviderImplementationManifest {
         { PluginAPIKeyProviderImplementation(spec: FloraProviderDescriptor.spec) },
         { PluginCookieProviderImplementation(spec: ParallelProviderDescriptor.spec) },
         { PluginCookieProviderImplementation(spec: ClaudePlatformProviderDescriptor.spec) },
+        { FutureAGIProviderImplementation() },
+        { PluginAPIKeyProviderImplementation(spec: MunitoProviderDescriptor.spec) },
     ]
 }

@@ -981,7 +981,7 @@ final class SyncCoordinator {
         // DevPass and Poe can have details without a rate window or cost summary.
         let supported: Set<UsageProvider> = [
             .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot, .lithosai,
-            .xapi,
+            .xapi, .futureagi, .munito,
         ]
         guard supported.contains(provider),
               let details = snapshot?.details,
@@ -2048,7 +2048,7 @@ final class SyncCoordinator {
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,
-             .tavily, .tinyapi:
+             .tavily, .tinyapi, .futureagi, .munito:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

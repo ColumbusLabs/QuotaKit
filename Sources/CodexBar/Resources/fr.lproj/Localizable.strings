@@ -2649,3 +2649,85 @@
 "Claude desktop app" = "Application de bureau Claude";
 "Use Claude desktop app cookies" = "Utiliser les cookies de l’application de bureau Claude";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Pour l’utilisation web, suivre le compte connecté à Claude.app plutôt que celui du navigateur.";
+
+"Secret key" = "Clé secrète";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Requise avec la clé API. Enregistrée dans le fichier de configuration local. Vous pouvez aussi définir FI_SECRET_KEY.";
+
+"Paste secret key…" = "Collez la clé secrète…";
+
+"AI credits" = "Crédits IA";
+
+"Gateway requests" = "Requêtes de passerelle";
+
+"Future AGI cost history is not available." = "L’historique des coûts de Future AGI n’est pas disponible.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "Enregistrée dans le fichier de configuration local de QuotaKit. Vous pouvez aussi définir FI_API_KEY.";
+
+"menu_bar_layout_token_spend" = "% de dépenses";
+
+"menu_bar_layout_token_spend_pace" = "Rythme de dépenses";
+
+"menu_bar_layout_token_spend_budget" = "Dépenses / budget";
+
+"menu_bar_layout_conditional_default_spend_high" = "Dépenses au-delà de 90 % utilisées";
+
+"Gemini app" = "Application Gemini";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Les limites de l’application Gemini concernent votre compte dans le navigateur et sont distinctes des quotas de Gemini CLI.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Chemin d'accès à l'exécutable tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Définissez ci-dessous le chemin de l'exécutable cswap.";
+
+"Set the tcr executable path below." = "Définissez ci-dessous le chemin de l'exécutable tcr.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Affiche l'utilisation depuis `tcr` ; ne change pas de compte, car tcr choisit le compte pour chaque requête. Les informations d'identification restent gérées par tcr ; QuotaKit ne les lit jamais.";
+
+"Claude accounts in tcr" = "Comptes Claude dans tcr";
+
+"tcr executable" = "Exécutable tcr";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Dossier de configuration de Claude";
+
+"http_server_title" = "Serveur HTTP";
+
+"http_server_enable" = "Activer le serveur HTTP";
+
+"http_server_bind" = "Adresse IPv4 d’écoute";
+
+"http_server_port" = "Port";
+
+"http_server_token" = "Jeton du serveur";
+
+"http_server_show" = "Afficher";
+
+"http_server_generate" = "Générer";
+
+"http_server_cache" = "Intervalle du cache (secondes)";
+
+"http_server_timeout" = "Délai des requêtes (secondes ; 0 désactive)";
+
+"http_server_all_accounts" = "Inclure tous les comptes dans les instantanés";
+
+"http_server_identity" = "Identité dans le tableau de bord";
+
+"http_server_redacted" = "Masquée";
+
+"http_server_warning" = "Expose les informations d’utilisation, de coûts, de comptes et de projets, jamais les identifiants des fournisseurs. HTTP transmet le jeton du serveur sans chiffrement. Utilisez uniquement une connexion VPN ou Tailscale de confiance.";
+
+"http_server_plain_http" = "Autoriser HTTP non chiffré en dehors de ce Mac";
+
+"http_server_dashboard" = "Tableau de bord";
+
+"http_server_wildcard" = "Sur les autres appareils, remplacez 0.0.0.0 par l’adresse IPv4 VPN ou Tailscale de ce Mac.";
+
+"http_server_footer" = "Désactivé par défaut. Démarre avec QuotaKit et s’arrête à sa fermeture. Les réglages et le jeton restent sur ce Mac et sont exclus de la synchronisation et des exports. Gardez le Mac éveillé pour l’accès à distance.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Clé avec la permission Lecture des données du compte (Admin API). Ou définissez MUNITO_API_KEY.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito signale les dépenses et limites de l'API Admin, pas l'historique local des coûts de jetons.";

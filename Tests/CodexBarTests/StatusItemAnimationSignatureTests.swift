@@ -692,7 +692,7 @@ struct StatusItemAnimationSignatureTests {
         settings.setMergedOverviewProviderSelection(
             provider: .claude,
             isSelected: false,
-            activeProviders: store.enabledFirstPartyProvidersForDisplay())
+            activeProviders: store.enabledProvidersForDisplay())
         let controller = StatusItemController(
             store: store,
             settings: settings,
@@ -746,7 +746,7 @@ struct StatusItemAnimationSignatureTests {
         settings.setMergedOverviewProviderSelection(
             provider: .claude,
             isSelected: false,
-            activeProviders: store.enabledFirstPartyProvidersForDisplay())
+            activeProviders: store.enabledProvidersForDisplay())
         let controller = StatusItemController(
             store: store,
             settings: settings,
@@ -800,7 +800,7 @@ struct StatusItemAnimationSignatureTests {
             fetcher: fetcher,
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        let activeProviders = store.enabledFirstPartyProvidersForDisplay()
+        let activeProviders = store.enabledProvidersForDisplay()
         settings.setMergedOverviewProviderSelection(
             provider: .codex,
             isSelected: false,
@@ -819,7 +819,7 @@ struct StatusItemAnimationSignatureTests {
         defer { controller.releaseStatusItemsForTesting() }
 
         #expect(settings.resolvedMergedOverviewProviders(
-            activeProviders: store.enabledFirstPartyProvidersForDisplay()) == [])
+            activeProviders: store.enabledProvidersForDisplay()) == [])
         #expect(controller.primaryProviderForUnifiedIcon() == .claude)
     }
 
@@ -865,13 +865,13 @@ struct StatusItemAnimationSignatureTests {
         store._setSnapshotForTesting(snapshot, provider: .claude)
 
         #expect(store.enabledProvidersForDisplay().prefix(3) == [.cursor, .codex, .claude])
-        let expectedProviders: [UsageProvider] = [
+        let expectedProviders: [ProviderInstanceID] = [
             .cursor,
             .codex,
             .claude,
         ]
         #expect(settings.resolvedMergedOverviewProviders(
-            activeProviders: store.enabledFirstPartyProvidersForDisplay()) == expectedProviders)
+            activeProviders: store.enabledProvidersForDisplay()) == expectedProviders)
 
         controller.applyIcon(phase: nil)
 

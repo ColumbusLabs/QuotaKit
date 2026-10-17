@@ -23236,6 +23236,149 @@
         }
       }
     }
+,
+    "Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة مخصصات Future AGI وحدود الإنفاق في Munito ونوافذ الحصة في تطبيق Gemini من QuotaKit على Mac إلى iPhone مع هوية المزوّد وتنبيهات الحصة."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les assignacions de Future AGI, els límits de despesa de Munito i les finestres de quota de l’app Gemini ara se sincronitzen de QuotaKit per a Mac a l’iPhone amb la marca dels proveïdors i alertes de quota."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future-AGI-Kontingente, Munito-Ausgabenlimits und Gemini-App-Kontingentfenster werden jetzt mit Anbieterbranding und Kontingentwarnungen von QuotaKit auf dem Mac zum iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las asignaciones de Future AGI, los límites de gasto de Munito y las cuotas de la app Gemini ahora se sincronizan desde QuotaKit para Mac al iPhone con la marca del proveedor y alertas de cuota."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سهمیه‌های Future AGI، محدودیت‌های هزینهٔ Munito و پنجره‌های سهمیهٔ برنامهٔ Gemini اکنون با نشان تجاری ارائه‌دهنده و هشدارهای سهمیه از QuotaKit روی Mac به iPhone همگام‌سازی می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les allocations de Future AGI, les limites de dépenses de Munito et les fenêtres de quota de l’app Gemini sont désormais synchronisées de QuotaKit sur Mac vers l’iPhone, avec la marque des fournisseurs et des alertes de quota."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As asignacións de Future AGI, os límites de gasto de Munito e as cotas da app Gemini sincronízanse agora desde QuotaKit para Mac co iPhone, coa marca dos provedores e alertas de cota."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jatah Future AGI, batas pengeluaran Munito, dan jendela kuota aplikasi Gemini kini disinkronkan dari QuotaKit di Mac ke iPhone dengan identitas penyedia dan peringatan kuota."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le quote di Future AGI, i limiti di spesa di Munito e le finestre di quota dell’app Gemini ora si sincronizzano da QuotaKit su Mac a iPhone, con il marchio dei provider e gli avvisi sulle quote."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI の利用枠、Munito の支出上限、Gemini アプリのクォータ期間が、プロバイダーのブランド表示とクォータ通知付きで QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI 할당량, Munito 지출 한도, Gemini 앱 할당량 기간이 이제 제공업체 브랜딩 및 할당량 알림과 함께 QuotaKit Mac에서 iPhone으로 동기화됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI-tegoeden, Munito-uitgavenlimieten en Gemini-appquotavensters worden nu met providerbranding en quotawaarschuwingen van QuotaKit op de Mac naar de iPhone gesynchroniseerd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limity Future AGI, limity wydatków Munito i okna limitów aplikacji Gemini są teraz synchronizowane z QuotaKit na Macu na iPhone’a wraz z oznaczeniami dostawców i alertami o limitach."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As cotas do Future AGI, os limites de gastos do Munito e as janelas de cota do app Gemini agora são sincronizados do QuotaKit no Mac para o iPhone com a identidade visual dos provedores e alertas de cota."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квоты Future AGI, лимиты расходов Munito и периоды квот приложения Gemini теперь синхронизируются из QuotaKit на Mac на iPhone с оформлением провайдеров и уведомлениями о квотах."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI-kvoter, Munito-utgiftsgränser och Gemini-appens kvotperioder synkas nu från QuotaKit på Mac till iPhone med leverantörsprofilering och kvotaviseringar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โควตาของ Future AGI ขีดจำกัดการใช้จ่ายของ Munito และช่วงโควตาในแอป Gemini ซิงค์จาก QuotaKit บน Mac ไปยัง iPhone พร้อมการแสดงแบรนด์ผู้ให้บริการและการแจ้งเตือนโควตาแล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI kotaları, Munito harcama limitleri ve Gemini uygulaması kota dönemleri artık sağlayıcı markaları ve kota uyarılarıyla QuotaKit Mac’ten iPhone’a eşzamanlanıyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квоти Future AGI, ліміти витрат Munito та періоди квот у застосунку Gemini тепер синхронізуються з QuotaKit на Mac на iPhone з брендуванням провайдерів і сповіщеннями про квоти."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hạn mức Future AGI, giới hạn chi tiêu Munito và chu kỳ hạn mức của ứng dụng Gemini hiện được đồng bộ từ QuotaKit trên Mac sang iPhone kèm thương hiệu nhà cung cấp và cảnh báo hạn mức."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI 配额、Munito 支出限额和 Gemini 应用的配额周期现可从 Mac 上的 QuotaKit 同步到 iPhone，并显示提供商品牌和配额提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future AGI 配額、Munito 支出上限和 Gemini 應用的配額週期現可從 Mac 上的 QuotaKit 同步到 iPhone，並顯示供應商品牌和配額提醒。"
+          }
+        }
+      }
+    }
   },
   "version": "1.0"
 }

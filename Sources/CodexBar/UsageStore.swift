@@ -341,10 +341,12 @@ final class UsageStore {
     @ObservationIgnored var _test_startupConnectivityRetrySleepOverride: (@MainActor (
         TimeInterval) async throws -> Void)?
     @ObservationIgnored var widgetSnapshotPersistTask: Task<Void, Never>?
+    @ObservationIgnored var cliUsageCachePersistTask: Task<Void, Never>?
     @ObservationIgnored var widgetSnapshotPersistenceState: (token: UUID?, pendingColdLoad: Bool) = (nil, false)
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
     @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
+    @ObservationIgnored let cliUsageCacheURL: URL?
     @ObservationIgnored var widgetUsagePreservationBlockedProviders: Set<ProviderInstanceID> = []
 
     @ObservationIgnored let codexFetcher: UsageFetcher
@@ -531,6 +533,7 @@ final class UsageStore {
         environmentBase: [String: String] = ProcessInfo.processInfo.environment,
         pluginApprovalStore: ProviderPluginApprovalStore = ProviderPluginApprovalStore(),
         widgetSnapshotURL: URL? = nil,
+        cliUsageCacheURL: URL? = nil,
         widgetAccountSnapshotStore: (any WidgetAccountSnapshotStoring)? = nil,
         widgetTimelineReloader: @escaping @MainActor () -> Void = UsageStore.reloadWidgetTimelines,
         planUtilizationHistoryLoadGateForTesting: PlanUtilizationHistoryLoadGate? = nil)
@@ -543,6 +546,7 @@ final class UsageStore {
         self.environmentBase = environmentBase
         self.pluginApprovalStore = pluginApprovalStore
         self.widgetSnapshotURL = widgetSnapshotURL
+        self.cliUsageCacheURL = cliUsageCacheURL
         self.historicalUsageHistoryStore = historicalUsageHistoryStore
         self.startupBehavior = startupBehavior.resolved(isRunningTests: Self.isRunningTestsProcess())
         let planHistoryStore = Self.resolvedPlanHistoryStore(planUtilizationHistoryStore, startup: self.startupBehavior)
@@ -1651,6 +1655,9 @@ extension UsageStore {
             let durationText = String(format: "%.2f", duration)
             let message = "cost usage failed provider=\(provider.rawValue) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error(message)
+            if provider == .claude, self.claudeTokenCostConfigDirectory != nil {
+                self.clearTokenSnapshot(for: provider)
+            }
             let hadPriorData = self.tokenSnapshots[provider.instanceID] != nil
             let shouldSurface = self.tokenFailureGates[provider.instanceID]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true

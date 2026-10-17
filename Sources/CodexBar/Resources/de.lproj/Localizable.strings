@@ -2650,3 +2650,85 @@
 "Claude desktop app" = "Claude-Desktop-App";
 "Use Claude desktop app cookies" = "Cookies der Claude-Desktop-App verwenden";
 "For Web usage, follow the account signed into Claude.app instead of a browser." = "Für die Web-Nutzung das in Claude.app angemeldete Konto statt des Browserkontos verwenden.";
+
+"Secret key" = "Geheimer Schlüssel";
+
+"Required with the API key. Saved in the local config file. Or set FI_SECRET_KEY." = "Zusammen mit dem API-Schlüssel erforderlich. Wird in der lokalen Konfigurationsdatei gespeichert. Alternativ FI_SECRET_KEY setzen.";
+
+"Paste secret key…" = "Geheimen Schlüssel einfügen…";
+
+"AI credits" = "KI-Guthaben";
+
+"Gateway requests" = "Gateway-Anfragen";
+
+"Future AGI cost history is not available." = "Der Kostenverlauf von Future AGI ist nicht verfügbar.";
+
+"Saved in QuotaKit's local config file. Or set FI_API_KEY." = "In der lokalen Konfigurationsdatei von QuotaKit gespeichert. Alternativ FI_API_KEY setzen.";
+
+"menu_bar_layout_token_spend" = "Ausgaben %";
+
+"menu_bar_layout_token_spend_pace" = "Ausgabentempo";
+
+"menu_bar_layout_token_spend_budget" = "Ausgaben / Budget";
+
+"menu_bar_layout_conditional_default_spend_high" = "Ausgaben über 90 % genutzt";
+
+"Gemini app" = "Gemini-App";
+
+"Gemini CLI" = "Gemini CLI";
+
+"Gemini app limits use your browser account and are separate from Gemini CLI quotas." = "Die Limits der Gemini-App beziehen sich auf Ihr Konto im Browser und sind von den Kontingenten von Gemini CLI getrennt.";
+
+"Path to the tcr executable (github.com/dhkts1/teamclaude-rs)." = "Pfad zur ausführbaren Datei tcr (github.com/dhkts1/teamclaude-rs).";
+
+"Set the cswap executable path below." = "Legen Sie unten den Pfad zur ausführbaren Datei cswap fest.";
+
+"Set the tcr executable path below." = "Legen Sie unten den Pfad zur ausführbaren Datei tcr fest.";
+
+"Shows usage from `tcr`; it does not switch accounts, because tcr picks the account for each request. Credentials stay managed by tcr; QuotaKit never reads them." = "Zeigt die Nutzung aus `tcr` an; Konten werden nicht gewechselt, weil tcr das Konto für jede Anfrage selbst wählt. Anmeldeinformationen werden weiterhin von tcr verwaltet. QuotaKit liest sie nie.";
+
+"Claude accounts in tcr" = "Claude-Konten in tcr";
+
+"tcr executable" = "tcr ausführbare Datei";
+
+"/Applications/TcrBar.app/Contents/MacOS/tcr" = "/Applications/TcrBar.app/Contents/MacOS/tcr";
+
+"Claude config directory" = "Claude-Konfigurationsordner";
+
+"http_server_title" = "HTTP-Server";
+
+"http_server_enable" = "HTTP-Server aktivieren";
+
+"http_server_bind" = "IPv4-Bindungsadresse";
+
+"http_server_port" = "Port";
+
+"http_server_token" = "Server-Token";
+
+"http_server_show" = "Anzeigen";
+
+"http_server_generate" = "Erzeugen";
+
+"http_server_cache" = "Cache-Intervall (Sekunden)";
+
+"http_server_timeout" = "Zeitlimit für Anfragen (Sekunden; 0 deaktiviert)";
+
+"http_server_all_accounts" = "Alle Konten in Snapshots einschließen";
+
+"http_server_identity" = "Identität im Dashboard";
+
+"http_server_redacted" = "Anonymisiert";
+
+"http_server_warning" = "Gibt Nutzungs-, Kosten-, Konto- und Projektinformationen frei — niemals Zugangsdaten der Anbieter. HTTP überträgt das Server-Token unverschlüsselt. Nur über eine vertrauenswürdige VPN- oder Tailscale-Verbindung verwenden.";
+
+"http_server_plain_http" = "Unverschlüsseltes HTTP außerhalb dieses Mac erlauben";
+
+"http_server_dashboard" = "Dashboard";
+
+"http_server_wildcard" = "Auf anderen Geräten 0.0.0.0 durch die VPN- oder Tailscale-IPv4-Adresse dieses Mac ersetzen.";
+
+"http_server_footer" = "Standardmäßig aus. Startet mit QuotaKit und endet beim Beenden. Einstellungen und Token bleiben auf diesem Mac und werden weder synchronisiert noch exportiert. Für Fernzugriff muss der Mac wach bleiben.";
+
+"Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Schlüssel mit Berechtigung Kontodaten lesen (Admin API). Oder MUNITO_API_KEY setzen.";
+
+"Munito reports Admin API spend and limits, not local token cost history." = "Munito meldet Ausgaben und Limits der Admin API, nicht den lokalen Token-Kostenverlauf.";

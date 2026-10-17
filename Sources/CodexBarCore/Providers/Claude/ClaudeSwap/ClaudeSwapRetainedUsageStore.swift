@@ -21,7 +21,9 @@ public enum ClaudeSwapRetainedUsageStore {
 
     static func decode(_ data: Data) -> [ProviderAccountUsageSnapshot] {
         guard let records = try? JSONDecoder().decode([Record].self, from: data) else { return [] }
-        return records.map(\.account)
+        return records
+            .filter { $0.source.map { ClaudeSwapAccountSource(identitySource: $0) != nil } ?? true }
+            .map(\.account)
     }
 
     static func encode(_ accounts: [ProviderAccountUsageSnapshot]) -> Data? {
@@ -56,7 +58,7 @@ public enum ClaudeSwapRetainedUsageStore {
     /// Opaque ownership guard for persisted references to a reusable source-issued slot.
     /// Uses the same fingerprint as retained quota data; never persists the display identity.
     public static func ownershipFingerprint(for account: ProviderAccountUsageSnapshot) -> String? {
-        guard account.id.source == ClaudeSwapAccountProjection.sourceName else { return nil }
+        guard ClaudeSwapAccountSource(identitySource: account.id.source) != nil else { return nil }
         return self.fingerprint(from: account)
     }
 
@@ -85,25 +87,16 @@ public enum ClaudeSwapRetainedUsageStore {
     }
 
     private static func resolvedFileURL() -> URL? {
-        if self.isRunningTests { return nil }
+        if TestProcessSafety.isRunningUnderTests() { return nil }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         return base?
             .appendingPathComponent("QuotaKit", isDirectory: true)
             .appendingPathComponent("claude-swap-retained-usage.json")
     }
 
-    private static var isRunningTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil {
-            return true
-        }
-        if ProcessInfo.processInfo.processName.lowercased().contains("xctest") {
-            return true
-        }
-        return CommandLine.arguments.contains { $0.lowercased().contains(".xctest") }
-    }
-
     private struct Record: Codable {
+        /// Missing means the original source, claude-swap.
+        var source: String?
         var opaqueID: String
         var accountFingerprint: String
         var primary: RateWindow?
@@ -114,9 +107,10 @@ public enum ClaudeSwapRetainedUsageStore {
         var usesLastKnownUsage: Bool?
 
         init?(account: ProviderAccountUsageSnapshot) {
-            guard account.id.source == ClaudeSwapAccountProjection.sourceName,
+            guard let source = ClaudeSwapAccountSource(identitySource: account.id.source),
                   let snapshot = account.snapshot
             else { return nil }
+            self.source = source == .claudeSwap ? nil : source.rawValue
             self.opaqueID = account.id.opaqueID
             guard let email = snapshot.identity?.accountEmail ?? account.accountEmail,
                   let fingerprint = ClaudeSwapRetainedUsageStore.fingerprint(
@@ -134,9 +128,10 @@ public enum ClaudeSwapRetainedUsageStore {
         }
 
         var account: ProviderAccountUsageSnapshot {
-            ProviderAccountUsageSnapshot(
+            let source = self.source.flatMap(ClaudeSwapAccountSource.init(identitySource:)) ?? .claudeSwap
+            return ProviderAccountUsageSnapshot(
                 id: ProviderAccountIdentity(
-                    source: ClaudeSwapAccountProjection.sourceName,
+                    source: source.label,
                     opaqueID: self.opaqueID),
                 provider: .claude,
                 displayLabel: "",
@@ -151,10 +146,10 @@ public enum ClaudeSwapRetainedUsageStore {
                         providerID: .claude,
                         accountEmail: nil,
                         accountOrganization: nil,
-                        loginMethod: ClaudeSwapAccountProjection.sourceLabel,
+                        loginMethod: source.label,
                         accountID: ClaudeSwapRetainedUsageStore.fingerprintAccountID(self.accountFingerprint))),
                 error: nil,
-                sourceLabel: ClaudeSwapAccountProjection.sourceLabel)
+                sourceLabel: source.label)
         }
     }
 }

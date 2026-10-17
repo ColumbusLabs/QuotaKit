@@ -86,6 +86,14 @@ extension SyncCoordinator {
         else {
             return nil
         }
+        if provider == .futureagi || provider == .munito,
+           let providerCost,
+           providerCost.limit <= 0
+        {
+            // Future AGI can report a zero free allowance and Munito can report spend without a
+            // configured limit. Neither is a meaningful $0 budget for the iPhone card.
+            return nil
+        }
         if provider == .claude,
            let providerCost,
            providerCost.limit <= 0,
