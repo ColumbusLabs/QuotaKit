@@ -7,6 +7,88 @@ import Testing
 
 struct OpenCodeGoLocalUsageReaderTests {
     @Test
+    func `cost fetcher exposes existing local daily history`() async throws {
+        let env = try Self.makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: env.root) }
+        try Self.createDatabase(at: env.databaseURL)
+        let now = Date(timeIntervalSince1970: 1_772_798_400)
+        try Self.insertMessage(databaseURL: env.databaseURL, createdMs: Self.ms(now) - 1000, cost: 1)
+        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .opencodego,
+            environment: ["HOME": env.root.path],
+            now: now,
+            allowPricingRefresh: false)
+        #expect(snapshot.last30DaysCostUSD == 1)
+        #expect(snapshot.daily.count == 1)
+        #expect(snapshot.daily.first?.modelBreakdowns?.first?.costUSD == 1)
+        #expect(OpenCodeGoProviderDescriptor.descriptor.cli.supportsCostCommand)
+    }
+
+    @Test
+    func `cost fetcher follows QuotaKit All history window`() async throws {
+        let env = try Self.makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: env.root) }
+        try Self.createDatabase(at: env.databaseURL)
+        let now = Date(timeIntervalSince1970: 1_772_798_400)
+        try Self.insertMessage(databaseURL: env.databaseURL, createdMs: Self.ms(now) - 1000, cost: 1)
+        try Self.insertMessage(
+            databaseURL: env.databaseURL, createdMs: Self.ms("2025-05-01T12:00:00.000Z"), cost: 2)
+        try Self.insertMessage(
+            databaseURL: env.databaseURL, createdMs: Self.ms("2024-12-01T12:00:00.000Z"), cost: 4)
+        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .opencodego,
+            environment: ["HOME": env.root.path],
+            now: now,
+            historyDays: CostReportingPeriod.allTime.days(now: now),
+            allowPricingRefresh: false)
+        #expect(snapshot.last30DaysCostUSD == 3)
+        #expect(snapshot.daily.count == 2)
+    }
+
+    @Test
+    func `cost fetcher honors explicit history windows beyond one year`() async throws {
+        let env = try Self.makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: env.root) }
+        try Self.createDatabase(at: env.databaseURL)
+        let now = Date(timeIntervalSince1970: 1_772_798_400)
+        try Self.insertMessage(databaseURL: env.databaseURL, createdMs: Self.ms(now) - 1000, cost: 1)
+        try Self.insertMessage(
+            databaseURL: env.databaseURL, createdMs: Self.ms("2025-02-01T12:00:00.000Z"), cost: 2)
+        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .opencodego,
+            environment: ["HOME": env.root.path],
+            now: now,
+            historyDays: 400,
+            allowPricingRefresh: false)
+        #expect(snapshot.last30DaysCostUSD == 3)
+        #expect(snapshot.daily.count == 2)
+    }
+
+    @Test
+    func `cost fetcher honors the selected bucket calendar`() async throws {
+        let env = try Self.makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: env.root) }
+        try Self.createDatabase(at: env.databaseURL)
+        let now = Date(timeIntervalSince1970: 1_772_798_400)
+        let rowDate = now.addingTimeInterval(-30 * 60)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: -12 * 3600))
+        try Self.insertMessage(databaseURL: env.databaseURL, createdMs: Self.ms(rowDate), cost: 1)
+        let snapshot = try await CostUsageFetcher(calendar: calendar).loadTokenSnapshot(
+            provider: .opencodego,
+            environment: ["HOME": env.root.path],
+            now: now,
+            historyDays: 2,
+            allowPricingRefresh: false)
+        let selectedDay = CostUsageScanner.CostUsageDayRange.dayKey(from: rowDate, calendar: calendar)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = .gmt
+        #expect(selectedDay != CostUsageScanner.CostUsageDayRange.dayKey(from: rowDate, calendar: utc))
+        #expect(snapshot.daily.map(\.date) == [selectedDay])
+        #expect(snapshot.sessionCostUSD == 0)
+    }
+
+    @Test
     func `database writes and WAL checkpoints invalidate the cached scan`() throws {
         let env = try Self.makeEnvironment()
         defer { try? FileManager.default.removeItem(at: env.root) }
@@ -103,12 +185,13 @@ struct OpenCodeGoLocalUsageReaderTests {
     }
 
     @Test
-    func `concurrent fetches share one complete database scan`() async throws {
+    func `concurrent copies of one reader share one complete database scan`() async throws {
         let env = try Self.makeEnvironment()
         defer { try? FileManager.default.removeItem(at: env.root) }
         try Self.createDatabase(at: env.databaseURL)
         try Self.insertMessage(databaseURL: env.databaseURL, createdMs: Self.ms("2026-03-06T11:00:00.000Z"), cost: 3)
-        let reader = OpenCodeGoLocalUsageReader(homeDirectory: env.root)
+        // Other fixtures can replace the process-wide single-entry cache. Keep this cache fixture-owned.
+        let reader = OpenCodeGoLocalUsageReader(authURL: env.authURL, databaseURL: env.databaseURL)
         let scans = LockIsolated(0)
         let observer: @Sendable () -> Void = { scans.setValue(scans.value + 1) }
         try await OpenCodeGoLocalUsageReader.$scanObserverForTesting.withValue(observer) {
@@ -123,8 +206,7 @@ struct OpenCodeGoLocalUsageReaderTests {
                     #expect(percent == 25)
                 }
             }
-            #expect(try OpenCodeGoLocalUsageReader(homeDirectory: env.root)
-                .fetch(now: Date(timeIntervalSince1970: 1_772_798_400)).rollingUsagePercent == 25)
+            #expect(try reader.fetch(now: Date(timeIntervalSince1970: 1_772_798_400)).rollingUsagePercent == 25)
         }
         #expect(scans.value == 1)
     }

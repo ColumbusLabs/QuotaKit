@@ -9,6 +9,10 @@ read_when:
 
 # Codex provider
 
+Enable **Settings → Menu Bar → Show all accounts in Overview** to include this provider’s cached account
+cards in Overview. The existing account source and provider selection remain unchanged; see
+[Overview account rows](configuration.md#menu-bar-controls).
+
 Codex reads account usage through PAT, OAuth, CLI RPC, or an explicitly selected web source. Local token/cost history is scanned separately; the CLI PTY parser is a manual diagnostic tool.
 
 ## Data sources + fallback order
@@ -123,7 +127,8 @@ is limited, using additional rows when needed.
 - OpenAI web battery saver is a separate toggle. When enabled, routine background/settings-driven refreshes are reduced, but explicit manual refreshes still run.
 - OpenAI web battery saver currently defaults to off.
 - Preferences → Providers → Codex → OpenAI cookies (Automatic or Manual).
-- URL: `https://chatgpt.com/codex/cloud/settings/analytics#usage`.
+- Scraper URL: `https://chatgpt.com/codex/cloud/settings/analytics#usage`.
+- The app's **Usage Dashboard** action opens `https://chatgpt.com/settings/usage?tab=overview`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.

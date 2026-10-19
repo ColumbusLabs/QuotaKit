@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 /// Resolves Claude-owned files from the fetch environment, matching Claude Code's profile boundary.
 public enum ClaudeConfigPaths {
@@ -22,7 +29,8 @@ public enum ClaudeConfigPaths {
         environment: [String: String],
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         fileManager: FileManager = .default,
-        workingDirectory: URL? = nil) -> [URL]
+        workingDirectory: URL? = nil,
+        onDesktopDiscoveryError: ((Error) -> Void)? = nil) -> [URL]
     {
         if let directory = self.nonemptyLiteral(accountConfigDirectory) {
             return [self.directoryURL(directory, workingDirectory: workingDirectory)
@@ -38,7 +46,10 @@ public enum ClaudeConfigPaths {
         if environment[self.configDirectoryEnvironmentKey]?.isEmpty ?? true {
             roots.insert(ownerHome.appendingPathComponent(".config/claude/projects", isDirectory: true), at: 0)
             roots.append(contentsOf: ClaudeDesktopProjectsLocator.roots(
-                homeDirectory: ownerHome, fileManager: fileManager))
+                homeDirectory: ownerHome,
+                fileManager: fileManager,
+                includeAuditFiles: true,
+                onDiscoveryError: onDesktopDiscoveryError))
         }
 
         let legacy = ownerHome.appendingPathComponent(".claude-swap-backup/sessions", isDirectory: true)
@@ -51,20 +62,46 @@ public enum ClaudeConfigPaths {
         #endif
         // cswap stores each profile beneath sessions; shared-history projects may be symlinks.
         for root in swapRoots {
-            let slots = (try? fileManager.contentsOfDirectory(
-                at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+            let slots: [URL]
+            do {
+                slots = try fileManager.contentsOfDirectory(
+                    at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+            } catch {
+                if !self.isMissingPathError(error) { onDesktopDiscoveryError?(error) }
+                continue
+            }
             for slot in slots.sorted(by: { $0.path < $1.path }) {
                 let parts = slot.lastPathComponent.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
                 guard parts.count == 2, let number = Int(parts[0]), number > 0 else { continue }
                 let projects = slot.appendingPathComponent("projects", isDirectory: true)
-                var isDirectory: ObjCBool = false
-                if fileManager.fileExists(atPath: projects.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                    roots.append(projects)
+                do {
+                    // Resolve before reading attributes so shared-history symlinks to directory roots remain valid.
+                    let resolvedProjects = projects.resolvingSymlinksInPath()
+                    let attributes = try fileManager.attributesOfItem(atPath: resolvedProjects.path)
+                    if attributes[.type] as? FileAttributeType == .typeDirectory {
+                        roots.append(projects)
+                    }
+                } catch {
+                    if !self.isMissingPathError(error) { onDesktopDiscoveryError?(error) }
                 }
             }
         }
         var seen: Set<String> = []
         return roots.map(\.standardizedFileURL).filter { seen.insert($0.resolvingSymlinksInPath().path).inserted }
+    }
+
+    private static func isMissingPathError(_ error: Error) -> Bool {
+        let error = error as NSError
+        if error.domain == NSPOSIXErrorDomain {
+            return error.code == Int(ENOENT) || error.code == Int(ENOTDIR)
+        }
+        if error.domain == NSCocoaErrorDomain,
+           error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError
+        {
+            return true
+        }
+        guard let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error else { return false }
+        return self.isMissingPathError(underlying)
     }
 
     public static func accountConfigURL(

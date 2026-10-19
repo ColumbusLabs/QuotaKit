@@ -40,7 +40,9 @@ extension StatusItemController {
             return false
         }
         if self.shouldMergeIcons {
-            let primaryProvider = self.primaryProviderForUnifiedIcon()
+            guard let primaryProvider = self.primaryProviderInstanceForUnifiedIcon().firstPartyProvider else {
+                return false
+            }
             return self.shouldAnimate(provider: primaryProvider)
         }
         return UsageProvider.allCases.contains { self.shouldAnimate(provider: $0) }
@@ -80,7 +82,9 @@ extension StatusItemController {
     private func blinkingProviders() -> [UsageProvider] {
         guard self.stackedMergeIconProvidersIfActive() == nil else { return [] }
         let merged = self.shouldMergeIcons
-        let providers = merged ? [self.primaryProviderForUnifiedIcon()] : UsageProvider.allCases.filter(self.isVisible)
+        let providers = merged
+            ? [self.primaryProviderInstanceForUnifiedIcon()].compactMap(\.firstPartyProvider)
+            : UsageProvider.allCases.filter(self.isVisible)
         return providers.filter { provider in
             guard !merged || self.isEnabled(provider),
                   !self.shouldAnimate(provider: provider, mergeIcons: merged) else { return false }
@@ -277,17 +281,41 @@ extension StatusItemController {
         let style = self.store.iconStyle
         let showUsed = self.settings.usageBarsShowUsed
         let showBrandPercent = self.settings.menuBarShowsBrandIconWithPercent
-        let primaryProvider = self.primaryProviderForUnifiedIcon()
-        let providerTint = self.providerTintColor(for: primaryProvider, button: button)
-        let resolverStyle = self.store.style(for: primaryProvider)
-        let snapshot = self.store.menuBarSnapshot(for: primaryProvider.instanceID)
-        let warningFlash = self.quotaWarningFlashActive(provider: primaryProvider)
 
         if let rows = self.stackedMergeIconProvidersIfActive(),
            let stackedResult = self.applyStoredStackedMenuBarLayoutIfNeeded(top: rows.top, bottom: rows.bottom)
         {
             return stackedResult
         }
+
+        let selected = self.primaryProviderInstanceForUnifiedIcon()
+        guard let primaryProvider = selected.firstPartyProvider else {
+            guard let plugin = UserProviderPluginRegistry.plugin(for: selected) else { return false }
+            let percent = Self.pluginSwitcherMetricPercent(
+                snapshot: self.store.menuBarSnapshot(for: selected), showUsed: showUsed)
+            // Returning to a built-in provider must redraw even when its last quota is unchanged.
+            self.lastAppliedMergedIconRenderSignature = nil
+            let image = showBrandPercent ? self.userPluginSwitcherIcon(for: plugin) : IconRenderer.makeIcon(
+                primaryRemaining: percent,
+                weeklyRemaining: nil,
+                creditsRemaining: nil,
+                stale: self.store.errors[selected] != nil,
+                style: .combined,
+                hideCritters: true)
+            self.statusItem.length = NSStatusItem.variableLength
+            self.setButtonContent(
+                image: image,
+                title: showBrandPercent ? percent.map(UsageFormatter.percentString) ?? "—" : nil,
+                tint: nil,
+                for: button)
+            self.noteIconPerfRender(skipped: false)
+            return false
+        }
+
+        let providerTint = self.providerTintColor(for: primaryProvider, button: button)
+        let resolverStyle = self.store.style(for: primaryProvider)
+        let snapshot = self.store.menuBarSnapshot(for: primaryProvider.instanceID)
+        let warningFlash = self.quotaWarningFlashActive(provider: primaryProvider)
 
         if let layoutResult = self.applyStoredUnifiedMenuBarLayoutIfNeeded(
             provider: primaryProvider,
@@ -1564,6 +1592,20 @@ extension StatusItemController {
                 fallback: fallback,
                 mergeIcons: self.shouldMergeIcons,
                 enabledProviders: Set(self.store.enabledFirstPartyProvidersForDisplay()))
+    }
+
+    func primaryProviderInstanceForUnifiedIcon() -> ProviderInstanceID {
+        let fallback = self.primaryProviderForUnifiedIcon().instanceID
+        guard self.shouldMergeIcons,
+              self.stackedMergeIconProvidersIfActive() == nil,
+              self.settings.unifiedIconSource == .currentSelection,
+              !self.settings.mergedMenuLastSelectedWasOverview,
+              let selected = UnifiedIconContext.currentSelectionProvider(
+                  selected: self.selectedMenuProvider,
+                  enabled: Set(self.store.enabledProviders())),
+              selected.firstPartyProvider == nil
+        else { return fallback }
+        return selected
     }
 
     private func defaultProviderForUnifiedIcon() -> UsageProvider {

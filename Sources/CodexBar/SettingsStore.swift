@@ -632,6 +632,7 @@ extension SettingsStore {
         let mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         let mergedOverviewLayoutRaw = userDefaults.string(forKey: "mergedOverviewLayout")
             ?? MergedOverviewLayout.detailed.rawValue
+        let mergedOverviewAllAccounts = userDefaults.bool(forKey: "mergedOverviewAllAccounts")
         let switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         let mergeIconsStacked = userDefaults.object(forKey: "mergeIconsStacked") as? Bool ?? false
         let mergeIconStackedTopProviderRaw = userDefaults.string(forKey: "mergeIconStackedTopProvider")
@@ -759,6 +760,7 @@ extension SettingsStore {
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
             mergedOverviewLayoutRaw: mergedOverviewLayoutRaw,
+            mergedOverviewAllAccounts: mergedOverviewAllAccounts,
             switcherShowsIcons: switcherShowsIcons,
             mergeIconsStacked: mergeIconsStacked,
             mergeIconStackedTopProviderRaw: mergeIconStackedTopProviderRaw,

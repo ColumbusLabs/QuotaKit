@@ -38,6 +38,8 @@ Current Claude behavior is defined by several active owners, not one central pla
   owns app-side token-account routing into cookie or OAuth behavior.
 - `Sources/CodexBarCLI/TokenAccountCLI.swift`
   owns CLI-side token-account routing and effective source-mode overrides.
+- `Sources/CodexBarCLI/CLIUsageCommand.swift`
+  adds one-shot Claude CLI Auto precedence for the configured claude-swap active slot before the generic pipeline.
 - `Sources/CodexBarCore/TokenAccountSupport.swift`
   owns the current string heuristics that distinguish Claude OAuth access tokens from cookie/session-key inputs.
 
@@ -53,7 +55,8 @@ The generic provider pipeline currently resolves Claude strategies in this order
 | app | oauth | `oauth` | No fallback. |
 | app | cli | `cli` | No fallback. |
 | app | web | `web` | No fallback. |
-| cli | auto | `web -> cli` | Web can fall through to CLI. CLI is terminal. |
+| cli (macOS) | auto | `web -> cli` | Web can fall through to CLI. CLI is terminal. |
+| cli (Linux) | auto | `web -> oauth -> cli` | OAuth is attempted when available after Web; Web/OAuth can fall through to CLI. CLI is terminal. |
 | cli | oauth | `oauth` | No fallback. |
 | cli | cli | `cli` | No fallback. |
 | cli | web | `web` | No fallback. |
@@ -61,17 +64,30 @@ The generic provider pipeline currently resolves Claude strategies in this order
 This behavior is owned by `Sources/CodexBarCore/Providers/Claude/ClaudeProviderDescriptor.swift`
 through `ProviderFetchPlan` and `ProviderFetchPipeline`.
 
+On Linux CLI Auto, OAuth is a fallback between Web and the Claude PTY. macOS CLI Auto keeps Web before CLI and does
+not add the OAuth step.
+
+### One-shot CLI active-slot behavior
+
+For `quotakit usage --provider claude`, enabled claude-swap takes precedence only in Auto mode when there is no
+explicit token-account selection. QuotaKit reads the active slot's projected snapshot, including its measurement
+time and stale retained usage where available. If listing fails or the active slot has no usable snapshot, the
+ordinary configured source continues and its label includes `(claude-swap fallback)`; adapter cancellation stops
+the command. Explicit non-auto sources and account selection bypass this path. Cards, dashboard, app-auto verification,
+and long-lived serve usage keep their own existing routes.
+
 ### Other active `.auto` decision sites
 
 The codebase still contains multiple active `.auto` decision sites:
 
 | Owner | Current behavior |
 | --- | --- |
-| `ClaudeProviderDescriptor.resolveUsageStrategy(...)` | Chooses `oauth`, then `cli`, then `web`, with final `cli` fallback when none are available. |
+| `ClaudeProviderDescriptor.resolveUsageStrategy(...)` | Compatibility helper builds the app Auto plan: `oauth`, then `cli`, then `web`; if none are available it returns `.auto` for the caller to resolve. |
 | `ClaudeUsageFetcher.loadLatestUsage(.auto)` | Chooses `oauth`, then `web`, then `cli`, with final `oauth` fallback. |
 
-This inconsistency is intentional to record here. RAT-107 directly characterizes the active direct-fetcher branches it
-can reach cleanly in tests and records the remaining current-state behavior without reconciling it.
+The compatibility helper does not represent the runtime-specific provider pipeline above. The separate direct-fetcher
+order remains intentionally recorded here. RAT-107 directly characterizes the active direct-fetcher branches it can
+reach cleanly in tests and records the remaining current-state behavior without reconciling it.
 
 ## Prompt and cooldown baseline
 

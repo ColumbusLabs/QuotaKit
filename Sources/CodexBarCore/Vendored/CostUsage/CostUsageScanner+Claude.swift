@@ -95,13 +95,15 @@ extension CostUsageScanner {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         fileManager: FileManager = .default,
-        workingDirectory: URL? = nil) -> [URL]
+        workingDirectory: URL? = nil,
+        onDesktopDiscoveryError: ((Error) -> Void)? = nil) -> [URL]
     {
         options.claudeProjectsRoots ?? ClaudeConfigPaths.costProjectsRoots(
             environment: environment,
             homeDirectory: homeDirectory,
             fileManager: fileManager,
-            workingDirectory: workingDirectory)
+            workingDirectory: workingDirectory,
+            onDesktopDiscoveryError: onDesktopDiscoveryError)
     }
 
     static func parseClaudeFile(
@@ -593,6 +595,16 @@ extension CostUsageScanner {
         return [rootPath]
     }
 
+    private static func claudeRootExists(atPath path: String) throws -> Bool {
+        var info = stat()
+        guard path.withCString({ fstatat(AT_FDCWD, $0, &info, 0) }) == 0 else {
+            let code = errno
+            if code == ENOENT || code == ENOTDIR { return false }
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
+        }
+        return true
+    }
+
     private struct ClaudeSourceFile {
         let url: URL
         let stamp: CostUsageClaudeFileStamp
@@ -728,21 +740,41 @@ extension CostUsageScanner {
             try checkCancellation?()
             let rootPath = root.path
             let rootCandidates = Self.claudeRootCandidates(for: rootPath)
-            guard let existingRootPath = rootCandidates.first(where: { FileManager.default.fileExists(atPath: $0) })
+            guard let existingRootPath = try rootCandidates.first(where: { try Self.claudeRootExists(atPath: $0) })
             else { continue }
             let existingRoot = existingRootPath == rootPath ? root : URL(fileURLWithPath: existingRootPath)
+            if existingRoot.pathExtension.lowercased() == "jsonl",
+               let stamp = try CostUsageClaudeFileStamp.readIfPresent(at: existingRoot)
+            {
+                inventory.files[existingRoot.path] = ClaudeSourceFile(url: existingRoot, stamp: stamp)
+                continue
+            }
+            var enumerationError: Error?
             guard let enumerator = FileManager.default.enumerator(
                 at: existingRoot,
                 includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles, .skipsPackageDescendants])
-            else { continue }
+                options: [.skipsHiddenFiles, .skipsPackageDescendants],
+                errorHandler: { _, error in
+                    // Files removed during a walk are ordinary churn; unreadable directories undercount history.
+                    if CostUsageClaudeFileStamp.isMissingFileError(error) { return true }
+                    enumerationError = error
+                    return false
+                })
+            else {
+                guard try Self.claudeRootExists(atPath: existingRootPath) else { continue }
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: NSFileReadUnknownError,
+                    userInfo: [NSFilePathErrorKey: existingRootPath])
+            }
 
             for case let url as URL in enumerator {
                 try checkCancellation?()
                 guard url.pathExtension.lowercased() == "jsonl" else { continue }
-                guard let stamp = CostUsageClaudeFileStamp.read(at: url), stamp.size > 0 else { continue }
+                guard let stamp = try CostUsageClaudeFileStamp.readIfPresent(at: url), stamp.size > 0 else { continue }
                 inventory.files[url.path] = ClaudeSourceFile(url: url, stamp: stamp)
             }
+            if let enumerationError { throw enumerationError }
         }
         return inventory
     }
@@ -755,7 +787,11 @@ extension CostUsageScanner {
         reportContext: CostUsageReportContext? = nil,
         checkCancellation: CancellationCheck?) throws -> CostUsageDailyReport
     {
-        let roots = self.defaultClaudeProjectsRoots(options: options)
+        var desktopDiscoveryError: Error?
+        let roots = self.defaultClaudeProjectsRoots(options: options) { error in
+            desktopDiscoveryError = error
+        }
+        if let desktopDiscoveryError { throw desktopDiscoveryError }
         let inventory = try Self.inventoryClaudeRoots(roots, checkCancellation: checkCancellation)
         try checkCancellation?()
 

@@ -9,6 +9,10 @@ read_when:
 
 # Claude provider
 
+Enable **Settings → Menu Bar → Show all accounts in Overview** to include this provider’s cached account
+cards in Overview. The existing account source and provider selection remain unchanged; see
+[Overview account rows](configuration.md#menu-bar-controls).
+
 Optional subscription renewal and paid-access expiration dates use an existing manual or cached Claude web session. OAuth enrichment verifies the OAuth account and organization against that cookie session before and after billing. Billing has a separate two-second total budget after quota succeeds; unavailable dates or changed authority preserve successful quota without delayed writes. Cookie source Off disables enrichment. It performs no cookie discovery, credential repair, sign-in, or new Keychain access. Calendar-only dates remain calendar-only; expiration takes precedence over renewal.
 
 Claude Web distinguishes Cloudflare challenges from expired sessions. The menu directs a
@@ -30,7 +34,8 @@ same inline dashboard pattern used by the OpenAI API provider.
 ### Default selection (debug menu disabled)
 - If an Admin API key is configured, the Admin API strategy is used for Claude API spend/usage.
 - App runtime main pipeline: OAuth API → CLI PTY → Web API.
-- CLI runtime main pipeline: Web API → CLI PTY.
+- CLI runtime on macOS: Web API → CLI PTY.
+- CLI runtime on Linux Auto: Web API → OAuth API (when available) → CLI PTY.
 - Explicit picker modes (OAuth/Web/CLI) bypass automatic fallback.
 - A lower-level direct Claude fetcher still contains a separate `.auto` order. That inconsistency is tracked in
   [docs/refactor/claude-current-baseline.md](refactor/claude-current-baseline.md).
@@ -202,6 +207,12 @@ Anthropic's USD cents to dollars. A single workspace keeps the existing organiza
 - Manual mode accepts a `Cookie:` header from a claude.ai request.
 - Multi-account manual tokens: add entries to `~/.quotakit/config.json` (`tokenAccounts`) and set Claude cookies to
   Manual. The menu can show all accounts stacked or a switcher bar (Preferences → Advanced → Display).
+- In Settings → Providers → Claude, **Edit** changes a saved account’s label and credential in place.
+  The credential field is masked and starts empty; leave it blank to keep the saved credential, or enter a
+  replacement and choose **Save**. **Cancel** discards the draft. Up/down controls persist account order in
+  the existing config file and menu switcher. Edits and moves preserve the selected account and account ID,
+  including its Claude config directory. Other providers with manual token accounts share the editor; editing
+  a dormant account does not select it.
 - Claude token accounts accept either `sessionKey` cookies or OAuth access tokens (`sk-ant-oat...`). OAuth-token
   accounts route to the OAuth path and disable cookie mode; session-key or cookie-header accounts stay in manual
   cookie mode. The exact edge-routing rules are documented in
@@ -286,13 +297,15 @@ The accepted multi-account design in
   `~/.config/quotakit/config.json`; legacy installs may use `~/.quotakit/config.json`). The option defaults off,
   zero accounts still use the ambient presentation, and account identity is `claude-swap:<slot>`, never the display
   email.
-- Terminal scope: this automatic precedence is cards-only and works on every supported CLI platform. An explicit
-  Claude provider or `--source auto` remains eligible, while `--account`, `--account-index`, `--all-accounts`, and
-  explicit non-auto source flags bypass the adapter. `quotakit usage` and serve `/usage`/`/cost` remain unchanged,
-  while `quotakit dashboard` and `GET /dashboard/v1/snapshot` additionally nest one entry per swap account in the
-  Claude provider row. Identity is redacted by default and appears in full only after the explicit `--identity full`
-  opt-in. When claude-swap reports an email for an account whose usage fetch failed, the dashboard retains that
-  identity in the selected redacted or full mode instead of falling back to a slot number.
+- Terminal scope: `quotakit cards` and serve `/usage`/`/cost` retain their existing behavior. For one-shot
+  `quotakit usage --provider claude`, Auto follows the active swap slot and reports its identity and measurement
+  time. An explicit Claude provider or `--source auto` remains eligible, while `--account`, `--account-index`,
+  `--all-accounts`, and explicit non-auto source flags bypass the adapter. If listing fails or the active slot has
+  no usage, ordinary source selection continues and the source label identifies the `claude-swap` fallback. Adapter
+  cancellation is terminal. `quotakit dashboard` and `GET /dashboard/v1/snapshot` additionally nest one entry per
+  swap account in the Claude provider row. Identity is redacted by default and appears in full only after the
+  explicit `--identity full` opt-in. When claude-swap reports an email for an account whose usage fetch failed, the
+  dashboard retains that identity in the selected redacted or full mode instead of falling back to a slot number.
 - Isolation: QuotaKit never reads claude-swap or Claude Code credential storage for this feature; the
   subprocess handles its own credential access. In the app, adapter failures keep the last successful accounts as
   stale data, surface the error in provider settings, and never affect the ambient Claude usage card. In terminal
@@ -400,23 +413,33 @@ of retaining values from another profile.
   - Native Claude logs:
     - `$CLAUDE_CONFIG_DIR` selects one literal directory and uses `<root>/projects`; commas are part of its path.
     - claude-swap session profiles at `~/.claude-swap-backup/sessions/<slot>-<label>/projects`. On Linux, also checks `$XDG_DATA_HOME/claude-swap/sessions` (default `~/.local/share/claude-swap/sessions`). Discovery examines only immediate positive-numbered slot directories and their `projects` child; it does not read credentials or run cswap.
+      Shared-history `projects` symlinks are scanned when they resolve to directories; descendant symlink directories are not traversed.
     - Fallback roots:
       - `~/.config/claude/projects`
       - `~/.claude/projects` (Claude Code and current Claude Desktop Code/Cowork CLI sessions)
       - Additional embedded Claude Desktop project stores, when present:
         - `~/Library/Application Support/Claude/local-agent-mode-sessions/**/.claude/projects`
         - `~/Library/Application Support/Claude/claude-code-sessions/**/.claude/projects`
+    - Cowork audit logs under `~/Library/Application Support/Claude/local-agent-mode-sessions/**/audit.jsonl` are
+      included as direct cost-scan inputs. They use the Claude assistant-usage parser; `result` totals are ignored,
+      and duplicate responses are reconciled by `message.id` with `requestId` or, when absent, `session_id`.
     - Current Claude Desktop metadata under `claude-code-sessions` points to shared CLI session JSONL by
       `cliSessionId`; metadata-only directories are not treated as usage sources.
   - Supported pi-compatible sessions:
     - `~/.pi/agent/sessions/**/*.jsonl`
     - `~/.omp/agent/sessions/**/*.jsonl`
-- Files: `**/*.jsonl` under the native project roots, discovered Claude Desktop project roots,
-  plus supported pi-compatible session files.
+- Files: `**/*.jsonl` under the native project roots, discovered Claude Desktop project roots, direct Desktop Cowork
+  audit files, plus supported pi-compatible session files.
+- Default-root scans ignore paths that have disappeared, but fail closed when an existing root, descendant, or direct
+  Cowork audit file cannot be inventoried. An incomplete scan does not replace the existing Claude cost history with
+  partial totals. The explicitly selected Claude config directory remains isolated and follows its scoped missing or
+  unreadable-directory behavior described above.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
   - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).
+  - When no `requestId` is present, deduplicates responses by `session_id + message.id`, including across Cowork audit
+    logs and mirrored project transcripts.
   - pi and OMP sessions attribute `anthropic` assistant usage to Claude and bucket it by assistant-turn timestamp, so a
     single pi-compatible session can contribute to multiple models/days.
   - Matching assistant entry IDs within the same session are counted once across roots; distinct turns are retained.
@@ -426,7 +449,7 @@ of retaining values from another profile.
   - Claude and Vertex cache saves retain a bounded set of file-stamped content identities independently of decoded-cache eviction. Unchanged artifacts avoid re-encoding; byte-identical reconstructed content preserves its file stamp. Changed artifacts and report memos use atomic replacement, with full file identity checks rejecting externally replaced data.
   - If the pricing catalog changes during a refresh, QuotaKit preserves the parsed transcript-window certificate. The next refresh applies the new prices to cached rows without reparsing unchanged transcripts, including after a restart; an externally replaced transcript cache still requires window certification again.
   - Raw-line prechecks skip impossible Vertex-only transcript records before decoding or recursively visiting metadata; escaped marker forms still receive full classification.
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v17.json`. The parser refactor conservatively rebuilds regular and dashboard artifacts from transcripts, leaving prior v16 files and report memos intact.
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v18.json`. The Cowork/history discovery update rebuilds regular and dashboard artifacts from transcripts while retaining prior v17 files and report memos.
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Quota warnings

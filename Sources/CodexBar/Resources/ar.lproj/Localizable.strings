@@ -2537,7 +2537,7 @@
 "Clear filters" = "مسح عوامل التصفية";
 "Change provider order" = "تغيير ترتيب المزوّدين";
 "Provider sorting" = "ترتيب المزوّدين";
-"Only enabled providers" = "المزوّدون المفعّلون فقط";
+"Only show enabled providers" = "عرض المزوّدين المفعّلين فقط";
 "Restore default order" = "استعادة الترتيب الافتراضي";
 "Also restores the provider order in the menu bar. Can be undone." = "يستعيد أيضاً ترتيب المزوّدين في شريط القوائم. يمكن التراجع عن هذا الإجراء.";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "مفتاح بصلاحية قراءة الفوترة (الإعداد المسبق BILLING أو READONLY). أو اضبط FAL_KEY.";
@@ -2736,3 +2736,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "مفتاح بصلاحية قراءة بيانات الحساب (Admin API). أو اضبط MUNITO_API_KEY.";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "تُبلغ Munito عن الإنفاق والحدود عبر Admin API، لا عن سجل تكاليف الرموز المحلي.";
+
+"Show all accounts in Overview" = "إظهار جميع الحسابات في النظرة العامة";
+
+"Expand cached account usage. The six-provider limit still applies." = "توسيع المزوّدين المحددين باستخدام بيانات الاستخدام المخزنة مؤقتًا للحسابات. يبقى الحد الأقصى ستة مزوّدين.";
+"Edit" = "تعديل";
+"Move up" = "نقل لأعلى";
+"Move down" = "نقل لأسفل";
+"Leave blank to keep the saved credential." = "اتركه فارغًا للاحتفاظ ببيانات الاعتماد المحفوظة.";

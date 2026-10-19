@@ -20,6 +20,11 @@ App refreshes are scoped to the installed plugin runtime and its fetch settings.
 reconfiguring a plugin prevents an older refresh from publishing usage or errors. A replacement refresh waits for retired
 work to finish and reads the current configuration when its fetch starts. Display-only preferences do not invalidate usage.
 
+When icons are merged and the source is **Current selection**, selecting a user plugin also selects its menu-bar quota.
+It uses the same quota as the switcher gauge: the most-used seven-day window, or the first available window. Before
+usage arrives, the plugin stays selected with unavailable usage. Other merged-icon sources retain their built-in
+provider behavior.
+
 ## Bundled API-key provider registration
 
 For a bundled plugin with a simple API-key configuration, declare a public `PluginProviderSpec` named `spec` in its
@@ -101,8 +106,16 @@ defineProvider({
 - `id`: 1–64 lowercase ASCII letters, digits, or hyphens. It must not match a built-in provider or another installed
   plugin.
 - `name`: trimmed display name, 1–80 UTF-8 bytes.
-- `icon` (optional): `{monogram, tint}`. `monogram` is 1–3 characters; `tint` is `#RRGGBB`. The fallback is the first
-  letter of `name` with a neutral tint. File/SVG icons are not supported.
+- `icon` (optional): `{monogram, tint, svg}`. `monogram` is 1–3 characters; `tint` is `#RRGGBB`. The fallback is the
+  first letter of `name` with a neutral tint. `svg` (optional) is an inline monochrome SVG string of at most 8 KB,
+  drawn as a template image like built-in provider icons. Only `svg`, `g`, `path`, `circle`, `ellipse`, `rect`, `line`,
+  `polyline`, `polygon`, `title`, and `desc` elements with plain geometry/fill/stroke attributes are accepted: no
+  scripts, styles, links, `url(...)` references, raster images, `foreignObject`, or DOCTYPE/entities. Attribute values
+  may use only letters, digits, spaces and `.,#%+-()` (no CSS escapes, comments or declarations); `fill`/`stroke` must
+  be a colour keyword, `#hex`, or numeric `rgb()`/`rgba()`; `xmlns` must be the SVG namespace. An SVG that fails these
+  checks is ignored and the monogram is shown. The host rasterizes accepted icons into a 32×32 bitmap before display;
+  canvas sizes are checked before native decoding and limited to 4096×4096. Include a finite `viewBox` or paired
+  positive `width`/`height` (numbers or `px`); partial dimensions and other canvas units fall back to the monogram.
 - `topLevel` (optional): set to `true` to give an enabled plugin its own provider-switcher tab. The default is `false`.
 - `endpoints`: 1–16 declared network origins. A fixed endpoint is a normalized HTTPS origin such as
   `https://api.example.com` (no path, query, fragment, or user info). A settings-derived endpoint is
@@ -305,8 +318,11 @@ always scoped to the manifest's instance ID. Data confidence defaults to `unknow
 and 120 characters per detail string. Wrong types and limit violations fail the whole fetch instead of truncating it.
 Named extra windows accept an optional `usageKnown` boolean (default `true`). Set it to `false` for reset-only limits:
 the window remains visible as **Unavailable**, and its placeholder `usedPercent` is not presented as measured usage.
-Detail rows accept optional `progress` (a finite consumed fraction from 0 through 1) and `usageValue` (finite raw usage).
-The host maps the fraction to native progress with `used: progress, total: 1`; `usageValue` is preserved independently.
+Detail rows accept optional `progress` (a finite consumed fraction from 0 through 1), `usageValue` (finite raw usage),
+and `severity: "normal" | "warning" | "critical"`. The host maps the fraction to native progress with
+`used: progress, total: 1`; `usageValue` is preserved independently. Severity colours the progress bar green, orange,
+or red independently from usage, and adds a warning symbol for warning and critical rows. Rows without severity keep the
+existing provider tint.
 Absent or null numeric fields leave existing text-only rows unchanged. A supplied `usageKnown` must be a boolean,
 including when the window uses the nested `window` form; null is invalid.
 An identity-only snapshot is useful for balance-only or zero-usage provider states and renders its available account,

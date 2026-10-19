@@ -2536,7 +2536,7 @@
 "Clear filters" = "Wyczyść filtry";
 "Change provider order" = "Zmień kolejność dostawców";
 "Provider sorting" = "Sortowanie dostawców";
-"Only enabled providers" = "Tylko aktywni dostawcy";
+"Only show enabled providers" = "Pokaż tylko aktywnych dostawców";
 "Restore default order" = "Przywróć domyślną kolejność";
 "Also restores the provider order in the menu bar. Can be undone." = "Przywraca również kolejność dostawców na pasku menu. Można cofnąć.";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Klucz z dostępem do odczytu rozliczeń (preset BILLING lub READONLY). Lub ustaw FAL_KEY.";
@@ -2735,3 +2735,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Klucz z uprawnieniem odczytu danych konta (Admin API). Albo ustaw MUNITO_API_KEY.";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "Munito raportuje wydatki i limity Admin API, a nie lokalną historię kosztów tokenów.";
+
+"Show all accounts in Overview" = "Pokaż wszystkie konta w przeglądzie";
+
+"Expand cached account usage. The six-provider limit still applies." = "Rozwiń wybranych dostawców, korzystając z danych użycia kont w pamięci podręcznej. Nadal obowiązuje limit sześciu dostawców.";
+"Edit" = "Edytuj";
+"Move up" = "Przenieś w górę";
+"Move down" = "Przenieś w dół";
+"Leave blank to keep the saved credential." = "Pozostaw puste, aby zachować zapisane dane uwierzytelniające.";

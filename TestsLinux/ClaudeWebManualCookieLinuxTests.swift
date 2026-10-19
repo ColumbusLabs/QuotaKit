@@ -153,8 +153,9 @@ struct ClaudeWebManualCookieLinuxTests {
                 await ProviderDescriptorRegistry.descriptor(for: .claude).fetchOutcome(context: context)
             }
         }
-        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.cli"])
-        #expect(outcome.attempts.map(\.wasAvailable) == [true, true])
+        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.oauth", "claude.cli"])
+        #expect(outcome.attempts.map(\.wasAvailable) == [true, false, true])
+        #expect(outcome.attempts.first { $0.strategyID == "claude.oauth" }?.wasAvailable == false)
         #expect(outcome.attempts.first?.errorDescription != nil)
         let result = try outcome.result.get()
         #expect(result.strategyID == "claude.cli")
@@ -253,6 +254,11 @@ struct ClaudeWebManualCookieLinuxTests {
         environment: [String: String] = [:]) -> ProviderFetchContext
     {
         let browserDetection = BrowserDetection(cacheTTL: 0)
+        var environment = environment
+        if environment["HOME"] == nil {
+            environment["HOME"] = FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-web-test-home-\(UUID().uuidString)", isDirectory: true).path
+        }
         return ProviderFetchContext(
             runtime: .cli,
             sourceMode: sourceMode,

@@ -2535,7 +2535,7 @@
 "Clear filters" = "Filtreleri temizle";
 "Change provider order" = "Sağlayıcı sırasını değiştir";
 "Provider sorting" = "Sağlayıcı sıralaması";
-"Only enabled providers" = "Yalnızca etkin sağlayıcılar";
+"Only show enabled providers" = "Yalnızca etkin sağlayıcıları göster";
 "Restore default order" = "Varsayılan sırayı geri yükle";
 "Also restores the provider order in the menu bar. Can be undone." = "Menü çubuğundaki sağlayıcı sırasını da geri yükler. Geri alınabilir.";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Faturalama okuma erişimi olan anahtar (BILLING veya READONLY ön ayarı). Ya da FAL_KEY değerini ayarlayın.";
@@ -2734,3 +2734,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Hesap verilerini okuma (Admin API) iznine sahip anahtar. Ya da MUNITO_API_KEY ayarlayın.";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "Munito, Admin API harcamalarını ve limitlerini raporlar; yerel token maliyet geçmişini raporlamaz.";
+
+"Show all accounts in Overview" = "Genel bakışta tüm hesapları göster";
+
+"Expand cached account usage. The six-provider limit still applies." = "Önbellekteki hesap kullanımını kullanarak seçili sağlayıcıları genişletir. Altı sağlayıcı sınırı geçerli kalır.";
+"Edit" = "Düzenle";
+"Move up" = "Yukarı taşı";
+"Move down" = "Aşağı taşı";
+"Leave blank to keep the saved credential." = "Kayıtlı kimlik bilgisini korumak için boş bırakın.";

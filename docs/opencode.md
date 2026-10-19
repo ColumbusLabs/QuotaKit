@@ -79,6 +79,8 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
   overlays authoritative API windows when an API key is configured, then falls back through the API and legacy web
   sources when local history is unavailable. A selected API-key account uses API mode. Auto stays web-first when a
   cookie token account, manual cookie, or workspace override scopes the request, because local history is device-wide.
+- The app honors an explicit API or Web source even when a manual Cookie is configured. Its source label shows the
+  configured source before a successful fetch, then the source that supplied the latest result.
 - The local monthly window is an estimate anchored at the earliest local row and can drift from the real billing
   cycle. The local strategy prefers API-reported rolling/weekly/monthly percentages and reset timestamps. When no API
   key is configured, a cached or manual session cookie can still overlay the legacy web values (plus Zen balance).
@@ -99,3 +101,7 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
   Missing, malformed, negative, or overflowing counts remain unknown rather than becoming zero. A day containing
   a row without usable tokens has no complete token total. These device-local counts add history detail only:
   they do not change account quota, and costs still come from the recorded `cost` field, never token pricing.
+- `quotakit cost --provider opencodego --format json` exports the same device-local daily and per-model history;
+  `--format text --breakdown` adds daily and per-model tables. The command follows the selected cost period and
+  bucket time zone, with All covering the last 365 days. It reads local history independently of the app's quota
+  source and preserves missing recorded costs as unknown.

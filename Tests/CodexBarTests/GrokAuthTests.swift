@@ -198,7 +198,7 @@ struct GrokAuthTests {
         #expect(GrokStatusProbe.isBillingMethodUnavailable(
             GrokRPCError.requestFailed("Method not found", code: -32601)))
         #expect(GrokStatusProbe.isBillingMethodUnavailable(
-            GrokRPCError.requestFailed("Unsupported RPC method: x.ai/billing", code: -32601)))
+            GrokRPCError.requestFailed("Unsupported RPC method: _x.ai/billing", code: -32601)))
         #expect(!GrokStatusProbe.isBillingMethodUnavailable(
             GrokRPCError.requestFailed("Method not found", code: -32001)))
         #expect(!GrokStatusProbe.isBillingMethodUnavailable(

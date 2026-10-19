@@ -51,7 +51,7 @@ extension StatusItemController {
                 cardModel: { [weak self] projectedAccount in
                     guard let self,
                           let accountSnapshot = snapshotsByID[projectedAccount.id.opaqueID] else { return nil }
-                    return self.tokenAccountMenuCardModel(for: provider, accountSnapshot: accountSnapshot)
+                    return self.store.tokenAccountMenuCardModel(for: provider, accountSnapshot: accountSnapshot)
                 },
                 planAction: nil),
             to: menu,
@@ -88,18 +88,7 @@ extension StatusItemController {
                     guard let self,
                           let account = accountsByID[projectedAccount.id.opaqueID] else { return nil }
                     let accountSnapshot = snapshotsByAccountID[account.id]
-                    let health = CodexAccountHealth.status(for: account, error: accountSnapshot?.error)
-                    return self.menuCardModel(
-                        for: .codex,
-                        snapshotOverride: accountSnapshot?.snapshot,
-                        errorOverride: health.label,
-                        forceOverrideCard: accountSnapshot == nil,
-                        accountOverride: self.accountInfo(for: account),
-                        historySelectionOverride: self.store.codexPlanUtilizationHistorySelection(
-                            forVisibleAccount: account),
-                        creditsOverride: accountSnapshot?.credits,
-                        codexPublicationHoldOverride: UsageStore.codexQuotaPublicationHoldMessage(
-                            evidence: accountSnapshot?.weeklyBoundaryEvidence))
+                    return self.store.codexAccountMenuCardModel(for: account, accountSnapshot: accountSnapshot)
                 },
                 planAction: nil),
             to: menu,

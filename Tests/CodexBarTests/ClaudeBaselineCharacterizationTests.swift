@@ -52,6 +52,11 @@ struct ClaudeBaselineCharacterizationTests {
         settings: ProviderSettingsSnapshot? = nil,
         claudeOwnerCLIRecoveryOnly: Bool = false) -> ProviderFetchContext
     {
+        var environment = env
+        if environment["HOME"] == nil {
+            environment["HOME"] = FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-baseline-test-home-\(UUID().uuidString)", isDirectory: true).path
+        }
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
             runtime: runtime,
@@ -60,10 +65,10 @@ struct ClaudeBaselineCharacterizationTests {
             webTimeout: 1,
             webDebugDumpHTML: false,
             verbose: false,
-            env: env,
+            env: environment,
             settings: settings,
-            fetcher: UsageFetcher(environment: env),
-            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            fetcher: UsageFetcher(environment: environment),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection, environment: environment),
             browserDetection: browserDetection,
             claudeOwnerCLIRecoveryOnly: claudeOwnerCLIRecoveryOnly)
     }
@@ -206,7 +211,25 @@ struct ClaudeBaselineCharacterizationTests {
             "CLAUDE_CLI_PATH": "/usr/bin/true",
         ]
         let strategyIDs = await self.strategyIDs(runtime: .cli, sourceMode: .auto, env: env, settings: settings)
+        #if os(Linux)
+        #expect(strategyIDs == ["claude.web", "claude.oauth", "claude.cli"])
+        #else
         #expect(strategyIDs == ["claude.web", "claude.cli"])
+        #endif
+    }
+
+    @Test
+    func `CLI auto keeps web then CLI on macOS when OAuth credentials are readable`() async {
+        #if os(macOS)
+        let env = [
+            "CLAUDE_CLI_PATH": "/usr/bin/true",
+            ClaudeOAuthCredentialsStore.environmentTokenKey: "sk-ant-oat01-characterization",
+        ]
+        let strategyIDs = await self.strategyIDs(runtime: .cli, sourceMode: .auto, env: env)
+        #expect(strategyIDs == ["claude.web", "claude.cli"])
+        #else
+        #expect(Bool(true))
+        #endif
     }
 
     @Test
@@ -275,8 +298,13 @@ struct ClaudeBaselineCharacterizationTests {
         }
         let result = try outcome.result.get()
 
+        #if os(Linux)
+        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.oauth", "claude.cli"])
+        #expect(outcome.attempts.map(\.wasAvailable) == [false, false, true])
+        #else
         #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.cli"])
         #expect(outcome.attempts.map(\.wasAvailable) == [true, true])
+        #endif
         #expect(result.strategyID == "claude.cli")
         #expect(result.usage.dataConfidence == .percentOnly)
         #expect(try String(contentsOf: invocationLog, encoding: .utf8) == "auth status --json\n")

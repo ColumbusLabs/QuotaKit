@@ -96,8 +96,7 @@ extension CodexBarCLI {
           - Codex: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
             Auto falls back to Codex CLI only when cookies are missing.
           - Claude: claude.ai API.
-            Auto falls back to Claude CLI only when cookies are missing.
-          - Kilo: app.kilo.ai API.
+            - Kilo: app.kilo.ai API.
             Auto falls back to Kilo CLI when API credentials are missing or unauthorized.
           Token accounts are loaded from the resolved QuotaKit config file.
           Use --account or --account-index to select a specific token account.
@@ -140,14 +139,16 @@ extension CodexBarCLI {
                        [--identified-only [--identified-end <unix-ms>]]
 
         Description:
-          Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.
+          Print local token cost usage from Claude/Codex native logs, supported pi and OMP sessions,
+          and OpenCode Go's device-local history.
           Antigravity token history is read locally, with API-price estimates for known models;
           Muse Code remains token-only.
           Local readers need no web or provider CLI access; Cursor uses its authenticated dashboard API.
           Use --refresh to bypass cached scan results.
           Experimental: use --provider-native-only to exclude pi and OMP session mirrors.
-          --breakdown adds Claude daily and top-model details using the latest seven calendar days
+          --breakdown adds Claude and OpenCode Go daily and top-model details using the latest seven calendar days
           or shorter requested interval. Stale history is labeled as recorded days; partial attribution is marked.
+          --period all selects the existing 365-day history window.
           Use --provider codex --remote <host> for separate local and SSH-host summaries.
           --summary-only emits versioned Codex JSON totals without account or session details.
           --identified-only requires --provider codex and JSON. It exports strong native request identities
@@ -160,6 +161,7 @@ extension CodexBarCLI {
           quotakit cost
           quotakit cost --provider codex --group-by project
           quotakit cost --provider claude --breakdown
+          quotakit cost --provider opencodego --format json
           quotakit cost --provider claude --format json --pretty
           quotakit cost --period month-to-date --format json
           quotakit cost --provider codex --remote build-host --format json
