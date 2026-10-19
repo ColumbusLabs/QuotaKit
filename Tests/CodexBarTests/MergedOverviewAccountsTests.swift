@@ -9,17 +9,21 @@ struct MergedOverviewAccountsTests {
     func `all accounts defaults off and persists without changing provider selection`() {
         let defaults = InMemoryUserDefaults()
         let config = testConfigStore(suiteName: "MergedOverviewAccountsTests")
-        let settings = ProviderUsageItemVisibilityTests.settings(defaults: defaults, configStore: config)
+        let settings = Self.settings(defaults: defaults, configStore: config)
         #expect(!settings.mergedOverviewAllAccounts)
         let providers: [ProviderInstanceID] = [.claude, .codex, .gemini, .cursor, .zai, .copilot, .kiro]
         let before = settings.resolvedMergedOverviewProviders(activeProviders: providers)
         settings.mergedOverviewAllAccounts = true
-        #expect(ProviderUsageItemVisibilityTests.settings(defaults: defaults, configStore: config)
-            .mergedOverviewAllAccounts)
+        let reopened = Self.settings(defaults: defaults, configStore: config)
+        #expect(reopened.mergedOverviewAllAccounts)
         #expect(before.count == SettingsStore.mergedOverviewProviderLimit)
         #expect(settings.resolvedMergedOverviewProviders(activeProviders: providers) == before)
-        settings.setMergedOverviewProviderSelection(provider: .codex, isSelected: false, activeProviders: providers)
-        #expect(!settings.resolvedMergedOverviewProviders(activeProviders: providers).contains(.codex))
+        #expect(reopened.resolvedMergedOverviewProviders(activeProviders: providers) == before)
+        reopened.setMergedOverviewProviderSelection(
+            provider: .codex,
+            isSelected: false,
+            activeProviders: providers)
+        #expect(!reopened.resolvedMergedOverviewProviders(activeProviders: providers).contains(.codex))
     }
 
     @Test
@@ -98,6 +102,31 @@ struct MergedOverviewAccountsTests {
             #expect(tcrRows.count == fixture.accounts.count)
             #expect(tcrRows.allSatisfy { $0.accountID?.hasPrefix("tcr:") == true })
         }
+    }
+
+    private static func settings(
+        defaults: InMemoryUserDefaults,
+        configStore: CodexBarConfigStore) -> SettingsStore
+    {
+        SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore(),
+            keychainAccessPolicy: .init(setDisabled: { _ in }, isExplicitlyDisabled: { false }),
+            performInitialProviderDetection: false)
     }
 }
 

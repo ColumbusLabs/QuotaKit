@@ -9,8 +9,8 @@ struct TokenAccountEditingTests {
     func `editing and reordering preserve identity metadata selection and persisted order`() throws {
         let settings = testSettingsStore(
             suiteName: "TokenAccountEditingTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.addTokenAccount(
             provider: .claude,
             label: "First",
@@ -52,8 +52,8 @@ struct TokenAccountEditingTests {
     func `editing a dormant account does not activate it`() throws {
         let settings = testSettingsStore(
             suiteName: "TokenAccountEditingTests-dormant",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.addTokenAccount(
             provider: .cursor,
             label: "Saved",
@@ -82,8 +82,8 @@ struct TokenAccountEditingTests {
     func `invalid moves and blank replacement tokens leave accounts unchanged`() throws {
         let settings = testSettingsStore(
             suiteName: "TokenAccountEditingTests-invalid",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.addTokenAccount(provider: .claude, label: "First", token: "fixture-first")
         let account = try #require(settings.selectedTokenAccount(for: .claude))
         settings.moveTokenAccount(provider: .claude, accountID: account.id, to: -1)
