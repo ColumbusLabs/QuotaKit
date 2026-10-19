@@ -96,15 +96,17 @@ extension UsageStore {
            let projection = self.settings.codexVisibleAccountProjectionForMenuDisplay,
            projection.visibleAccounts.count > 1
         {
-            let labels = CodexAccountSwitcherLabeling.labels(
-                for: projection.visibleAccounts,
-                hidePersonalInfo: self.settings.hidePersonalInfo)
+            let privacyOrdinals = CodexProviderImplementation.systemAccountPrivacyOrdinals(
+                for: projection.visibleAccounts)
             return projection.visibleAccounts.map { account in
                 let record = self.codexAccountSnapshots.first {
                     $0.id == account.id && Self.codexPriorSnapshotAccountMatches($0.account, account: account)
                 }
                 var model = self.codexAccountMenuCardModel(for: account, accountSnapshot: record)
-                if let label = labels[account.id] { model?.email = label }
+                model?.email = PersonalInfoRedactor.redactAccountLabel(
+                    account.menuDisplayName,
+                    isEnabled: self.settings.hidePersonalInfo,
+                    ordinal: privacyOrdinals[account.id])
                 return MergedOverviewRow(provider: provider.instanceID, accountID: account.id, model: model)
             }
         }

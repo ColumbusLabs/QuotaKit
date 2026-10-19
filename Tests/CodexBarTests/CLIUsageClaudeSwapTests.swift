@@ -168,9 +168,8 @@ struct CLIUsageClaudeSwapTests {
                 loginMethod: "web",
                 rawText: nil)
         }
-        return await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue {
-            _, _ in true
-        } operation: {
+        let availability: @Sendable (ProviderFetchContext, BrowserDetection) -> Bool = { _, _ in true }
+        return await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue(availability) {
             await ClaudeWebFetchStrategy.$usageLoaderOverrideForTesting.withValue(
                 browserLoader,
                 operation: {
