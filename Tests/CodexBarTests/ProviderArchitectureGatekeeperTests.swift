@@ -1586,7 +1586,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1700,
+            line: 1677,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific core branch passes its already-selected identity to a shared helper."),
@@ -5323,7 +5323,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/PiSessionCostScanner.swift",
-            line: 1082,
+            line: 1085,
             anchor: "guard !backend.isEmpty, let model, !model.isEmpty else { return nil }",
             expectedProviderIDs: ["pi"],
             expectedReferenceCount: 1,
@@ -5331,7 +5331,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Unsupported backend tokens remain in Pi's aggregate history without inheriting Codex or Claude pricing."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/PiSessionCostScanner.swift",
-            line: 1123,
+            line: 1126,
             anchor: "case .codex:",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 2,

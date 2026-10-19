@@ -933,18 +933,21 @@ enum PiSessionCostScanner {
                             guard CostUsageScanner.CostUsageDayRange.isInRange(
                                 dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
                             else { return }
-                            if let usage = self.extractUsage(
+                            if let extractedUsage = self.extractUsage(
                                 provider: identity.pricingProvider,
                                 modelName: identity.modelName,
                                 message: message,
                                 pricingDate: date,
                                 pricingContext: pricingContext)
                             {
+                                if identity.pricingProvider == nil, extractedUsage.hasInvalidCounter {
+                                    unsupportedAssistantDayKeys.insert(dayKey)
+                                }
                                 add(
                                     provider: identity.provider,
                                     dayKey: dayKey,
                                     modelName: identity.modelName,
-                                    usage: usage,
+                                    usage: extractedUsage.usage,
                                     entryID: self.entryIdentifier(from: object))
                                 return
                             }
@@ -1156,7 +1159,7 @@ enum PiSessionCostScanner {
         modelName: String,
         message: [String: Any],
         pricingDate: Date? = nil,
-        pricingContext: ModelsDevPricingContext? = nil) -> PiPackedUsage?
+        pricingContext: ModelsDevPricingContext? = nil) -> (usage: PiPackedUsage, hasInvalidCounter: Bool)?
     {
         guard let usage = message["usage"] as? [String: Any] else { return nil }
         var hasValidCounter = false
@@ -1246,15 +1249,17 @@ enum PiSessionCostScanner {
             return Int64(exactly: (value * self.costScale).rounded())
         }
 
-        return PiPackedUsage(
-            inputTokens: rawUsage.inputTokens,
-            cacheReadTokens: rawUsage.cacheReadTokens,
-            cacheWriteTokens: rawUsage.cacheWriteTokens,
-            outputTokens: rawUsage.outputTokens,
-            totalTokens: rawUsage.totalTokens,
-            costNanos: costNanos ?? 0,
-            costSampleCount: costNanos == nil ? 0 : 1,
-            usageSampleCount: 1)
+        return (
+            usage: PiPackedUsage(
+                inputTokens: rawUsage.inputTokens,
+                cacheReadTokens: rawUsage.cacheReadTokens,
+                cacheWriteTokens: rawUsage.cacheWriteTokens,
+                outputTokens: rawUsage.outputTokens,
+                totalTokens: rawUsage.totalTokens,
+                costNanos: costNanos ?? 0,
+                costSampleCount: costNanos == nil ? 0 : 1,
+                usageSampleCount: 1),
+            hasInvalidCounter: hasInvalidCounter)
     }
 
     private static func computedCostUSD(
