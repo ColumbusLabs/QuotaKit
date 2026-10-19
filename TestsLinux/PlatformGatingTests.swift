@@ -30,7 +30,11 @@ struct PlatformGatingTests {
         #if os(Linux)
         let binaryURL = try Self.makeClaudeCLI(loggedIn: true)
         defer { try? FileManager.default.removeItem(at: binaryURL) }
-        let context = self.makeClaudeAutoContext(env: ["CLAUDE_CLI_PATH": binaryURL.path])
+        let context = self.makeClaudeAutoContext(env: [
+            "HOME": FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-platform-test-home-\(UUID().uuidString)", isDirectory: true).path,
+            "CLAUDE_CLI_PATH": binaryURL.path,
+        ])
         let cliFetchOverride: ClaudeStatusProbe.FetchOverride = { _, _, _ in
             Self.makeClaudeStatus()
         }
@@ -46,8 +50,8 @@ struct PlatformGatingTests {
         let result = try outcome.result.get()
 
         #expect(result.strategyID == "claude.cli")
-        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.cli"])
-        #expect(outcome.attempts.map(\.wasAvailable) == [false, true])
+        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.oauth", "claude.cli"])
+        #expect(outcome.attempts.map(\.wasAvailable) == [false, false, true])
         #else
         #expect(Bool(true))
         #endif
@@ -56,7 +60,10 @@ struct PlatformGatingTests {
     @Test
     func claudeAutoPipeline_withoutCLIReportsNoAvailableStrategy() async {
         #if os(Linux)
-        let context = self.makeClaudeAutoContext()
+        let context = self.makeClaudeAutoContext(env: [
+            "HOME": FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-platform-test-home-\(UUID().uuidString)", isDirectory: true).path,
+        ])
         let outcome = await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(
             "/definitely/missing/claude")
         {
@@ -78,8 +85,8 @@ struct PlatformGatingTests {
                 #expect(provider == .claude)
             }
         }
-        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.cli"])
-        #expect(outcome.attempts.map(\.wasAvailable) == [false, false])
+        #expect(outcome.attempts.map(\.strategyID) == ["claude.web", "claude.oauth", "claude.cli"])
+        #expect(outcome.attempts.map(\.wasAvailable) == [false, false, false])
         #else
         #expect(Bool(true))
         #endif
@@ -216,6 +223,7 @@ struct PlatformGatingTests {
         #expect(Bool(true))
         #endif
     }
+
     private func makeClaudeAutoContext(env: [String: String] = [:]) -> ProviderFetchContext {
         self.makeClaudeContext(sourceMode: .auto, env: env)
     }
@@ -233,7 +241,7 @@ struct PlatformGatingTests {
             webTimeout: 1,
             webDebugDumpHTML: false,
             verbose: false,
-            env: env,
+            env: Self.withIsolatedClaudeHome(env),
             settings: ProviderSettingsSnapshot.make(claude: .init(
                 usageDataSource: usageDataSource,
                 webExtrasEnabled: false,
@@ -242,6 +250,15 @@ struct PlatformGatingTests {
             fetcher: UsageFetcher(environment: env),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
             browserDetection: browserDetection)
+    }
+
+    private static func withIsolatedClaudeHome(_ environment: [String: String]) -> [String: String] {
+        var environment = environment
+        if environment["HOME"] == nil {
+            environment["HOME"] = FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-platform-test-home-\(UUID().uuidString)", isDirectory: true).path
+        }
+        return environment
     }
 
     private static func makeClaudeCLI(loggedIn: Bool?, invocationLog: URL? = nil) throws -> URL {

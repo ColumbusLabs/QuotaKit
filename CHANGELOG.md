@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Saved token accounts can be renamed, updated and reordered while retaining their account identity and selection. Overview can optionally show every cached account for selected providers.
+- User plugins can supply validated monochrome SVG icons and per-row severity; selected plugin quotas remain stable during refreshes.
+
 - Future AGI reports billing-period credits and gateway usage; Munito tracks organization spend limits. Gemini offers separate browser-account app quotas alongside CLI usage.
 - User plugins appear in Overview and switcher gauges; menu layouts support spend percentages, budgets, pace, and conditions.
 - Advanced settings can manage the bundled local HTTP usage server. SSH users can explicitly opt in to the app's saved usage cache when Keychain is locked.
@@ -49,6 +52,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Claude local history includes Desktop Cowork sessions and survives unreadable source roots. CLI Auto follows the active claude-swap account, and OAuth/Web extra limits use the same parser.
+- Pi retains token history for unsupported backends with stable source discovery; OpenCode Go honors the chosen source and exposes local history in the cost command.
+- Grok CLI billing uses the current billing method, Codex opens the usage overview, and provider-order restore is disabled when already at its default.
 
 - Unreadable configuration files are preserved. Browser permission guidance and rejected Codex cookie cleanup retain the correct account and browser scope.
 - Fast-exiting commands retain buffered output; native cost history uses bounded metadata and faster marker searches, including OpenCode v2 sessions.

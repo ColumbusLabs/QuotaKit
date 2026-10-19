@@ -81,23 +81,6 @@ extension StatusItemController {
         return accounts.compactMap { snapshotsByID[$0.id] }
     }
 
-    func tokenAccountMenuCardModel(
-        for provider: UsageProvider,
-        accountSnapshot: TokenAccountUsageSnapshot) -> UsageMenuCardView.Model?
-    {
-        let label = accountSnapshot.account.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return self.menuCardModel(
-            for: provider,
-            snapshotOverride: accountSnapshot.snapshot,
-            errorOverride: accountSnapshot.error,
-            forceOverrideCard: true,
-            accountOverride: AccountInfo(email: label.isEmpty ? nil : label, plan: nil),
-            historySelectionOverride: self.store.planUtilizationHistorySelection(
-                for: provider,
-                account: accountSnapshot.account),
-            tokenAccountIDOverride: accountSnapshot.account.id)
-    }
-
     func codexAccountMenuDisplay(for provider: UsageProvider) -> CodexAccountMenuDisplay? {
         // Provider-specific by design: managed Codex profiles use reconciled visible-account projection state.
         guard provider == .codex else { return nil }

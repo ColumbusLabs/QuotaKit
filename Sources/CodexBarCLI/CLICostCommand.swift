@@ -255,8 +255,8 @@ extension CodexBarCLI {
             monthLine + (incomplete > 0 ? " · Incomplete" : ""),
             meteredLine,
         ]
-        if includeBreakdown, provider == .claude {
-            lines.append(contentsOf: Self.claudeTokenDetailLines(
+        if includeBreakdown, provider == .claude || provider == .opencodego, !snapshot.daily.isEmpty {
+            lines.append(contentsOf: Self.tokenDetailLines(
                 snapshot: snapshot,
                 calendar: calendar,
                 useColor: useColor))
@@ -273,25 +273,25 @@ extension CodexBarCLI {
         return lines.compactMap(\.self).joined(separator: "\n")
     }
 
-    private static func claudeTokenDetailLines(
+    private static func tokenDetailLines(
         snapshot: CostUsageTokenSnapshot,
         calendar: Calendar,
         useColor: Bool) -> [String]
     {
-        let selection = Self.claudeRecentEntries(snapshot: snapshot, calendar: calendar)
+        let selection = Self.recentCostEntries(snapshot: snapshot, calendar: calendar)
         guard !selection.entries.isEmpty else { return [] }
-        return Self.claudeDailyLines(
+        return Self.dailyCostLines(
             entries: selection.entries,
             snapshot: snapshot,
             periodLabel: selection.periodLabel,
-            useColor: useColor) + Self.claudeTopModelsLines(
+            useColor: useColor) + Self.topCostModelLines(
             entries: selection.entries,
             snapshot: snapshot,
             periodLabel: selection.periodLabel,
             useColor: useColor)
     }
 
-    private static func claudeRecentEntries(
+    private static func recentCostEntries(
         snapshot: CostUsageTokenSnapshot,
         calendar: Calendar) -> (entries: [CostUsageDailyReport.Entry], periodLabel: String)
     {
@@ -320,7 +320,7 @@ extension CodexBarCLI {
         return (Array(recorded), label)
     }
 
-    private static func claudeDailyLines(
+    private static func dailyCostLines(
         entries: [CostUsageDailyReport.Entry],
         snapshot: CostUsageTokenSnapshot,
         periodLabel: String,
@@ -356,7 +356,7 @@ extension CodexBarCLI {
         return lines
     }
 
-    private static func claudeTopModelsLines(
+    private static func topCostModelLines(
         entries: [CostUsageDailyReport.Entry],
         snapshot: CostUsageTokenSnapshot,
         periodLabel: String,

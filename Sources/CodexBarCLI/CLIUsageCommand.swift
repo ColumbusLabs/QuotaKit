@@ -27,6 +27,8 @@ struct UsageCommandContext {
     var persistCLISessions: Bool = false
     var persistentCLISessionIdleWindow: TimeInterval?
     var cardsLayout: Bool = false
+    var followsClaudeSwapActiveSlot = false
+    var sourceLabelSuffix = ""
     /// Uses the app cache only after a locked-keychain credential failure in a non-GUI session.
     var usageCacheFallback: (@Sendable (UsageProvider, _ lockedKeychainObserved: Bool, _ terminalError: Error)
         -> CLIUsageCache.Hit?)?
@@ -216,7 +218,8 @@ extension CodexBarCLI {
             fetcher: fetcher,
             claudeFetcher: claudeFetcher,
             browserDetection: browserDetection,
-            providerRuntime: appAutoVerifier ? .app : .cli)
+            providerRuntime: appAutoVerifier ? .app : .cli,
+            followsClaudeSwapActiveSlot: !appAutoVerifier)
             .withUsageCacheFallback(config: config)
 
         let result = await Self.collectUsageOutputs(providers: providerList) { provider in
@@ -335,7 +338,8 @@ extension CodexBarCLI {
         tokenContext: TokenAccountCLIContext,
         command: UsageCommandContext,
         publishPartial: CLIServeOperationCoordinator<UsageCommandOutput>
-            .PublishPartial? = nil) async -> UsageCommandOutput
+            .PublishPartial? = nil,
+        claudeSwapAccountListReader: CLIClaudeSwapCards.AccountListReader? = nil) async -> UsageCommandOutput
     {
         // Provider-specific by design: Codex can enumerate reconciled live, managed, and profile-home accounts.
         if provider == .codex, command.includeAllCodexAccounts {
@@ -359,6 +363,81 @@ extension CodexBarCLI {
                     tokenContext: tokenContext,
                     command: command)
             }
+        }
+
+        var command = command
+        // Provider-specific by design: one-shot CLI Auto usage follows claude-swap's active slot.
+        let claudeConfig = tokenContext.config.providerConfig(for: .claude)
+        if command.followsClaudeSwapActiveSlot,
+           command.providerRuntime == .cli,
+           !command.cardsLayout,
+           publishPartial == nil,
+           CLIClaudeSwapCards.isEligible(
+               provider: provider,
+               integrationEnabled: claudeConfig?.claudeSwapEnabled == true,
+               hasExplicitAccountSelection: tokenContext.selection.usesOverride,
+               sourceModeOverride: command.sourceModeOverride ?? tokenContext.preferredSourceMode(for: provider))
+        {
+            let source = claudeConfig?.resolvedClaudeSwapSource ?? .claudeSwap
+            do {
+                let reader: CLIClaudeSwapCards.AccountListReader = claudeSwapAccountListReader ?? { path in
+                    try await ClaudeSwapAccountReader.readAccountList(executablePath: path, source: source)
+                }
+                let list = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                    try await reader(CLIClaudeSwapCards.executablePath(from: claudeConfig))
+                }
+                try Task.checkCancellation()
+                let accounts = ClaudeSwapAccountProjection.accountSnapshots(
+                    from: list,
+                    source: source,
+                    previousAccounts: ClaudeSwapRetainedUsageStore.load())
+                ClaudeSwapRetainedUsageStore.save(accounts)
+                if let active = accounts.first(where: \.isActive), let usage = active.snapshot {
+                    let diagnostic = active.error.map(CLIClaudeSwapText.sanitizeDiagnostic)
+                    var result = UsageCommandOutput()
+                    Self.appendSuccessRenderOutput(
+                        UsageSuccessRenderInput(
+                            provider: provider,
+                            accountLabel: CLIClaudeSwapText.sanitizeLabel(active.displayLabel),
+                            cacheAccountKey: nil,
+                            version: nil,
+                            source: source.label,
+                            status: status,
+                            usage: usage,
+                            credits: nil,
+                            antigravityPlanInfo: nil,
+                            dashboard: nil,
+                            effectiveSourceMode: .auto,
+                            command: command,
+                            diagnostic: diagnostic,
+                            notes: diagnostic.map { [$0] } ?? []),
+                        output: &result)
+                    return await Self.finishUsageOutput(result, provider: provider, command: command)
+                }
+            } catch {
+                if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                    let cancellationError = NSError(
+                        domain: "CodexBarCLI",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "Usage cancelled."])
+                    var result = UsageCommandOutput()
+                    result.exitCode = .failure
+                    if command.format == .json {
+                        result.payload.append(Self.makeProviderErrorPayload(
+                            provider: provider,
+                            account: nil,
+                            source: source.label,
+                            status: status,
+                            error: cancellationError,
+                            kind: .runtime))
+                    } else if !command.jsonOnly {
+                        Self.writeStderr("Error: \(cancellationError.localizedDescription)\n")
+                    }
+                    return await Self.finishUsageOutput(result, provider: provider, command: command)
+                }
+                // The ordinary configured source remains the fallback when the adapter is unavailable.
+            }
+            command.sourceLabelSuffix = " (\(source.label) fallback)"
         }
 
         let accounts: [ProviderTokenAccount]
@@ -416,7 +495,7 @@ extension CodexBarCLI {
             output.payload.append(Self.makeProviderErrorPayload(
                 provider: provider,
                 account: nil,
-                source: command.sourceModeOverride?.rawValue ?? "auto",
+                source: (command.sourceModeOverride?.rawValue ?? "auto") + command.sourceLabelSuffix,
                 status: status,
                 error: error,
                 kind: .provider))
@@ -562,7 +641,7 @@ extension CodexBarCLI {
                 account: (
                     label: account?.label ?? codexVisibleAccount?.menuDisplayName,
                     cacheKey: cacheAccountKey),
-                source: effectiveSourceMode.rawValue,
+                source: effectiveSourceMode.rawValue + command.sourceLabelSuffix,
                 status: status,
                 command: command)
         }
@@ -631,7 +710,7 @@ extension CodexBarCLI {
                     ? (resolvedCLIVersion
                         ?? Self.detectVersion(for: provider, browserDetection: command.browserDetection))
                     : nil)
-            let source = result.sourceLabel
+            let source = result.sourceLabel + command.sourceLabelSuffix
             let notes = Self.usageTextNotes(
                 provider: provider,
                 sourceMode: effectiveSourceMode,
@@ -662,7 +741,7 @@ extension CodexBarCLI {
                let hit = command.usageCacheFallback?(provider, lockedKeychainObserved, error)
             {
                 let usage = hit.entry.usage.scoped(to: provider)
-                let source = "quotakit-app"
+                let source = "quotakit-app" + command.sourceLabelSuffix
                 let appNote = "Cached by the QuotaKit app (the keychain was unavailable here). "
                     + UsageFormatter.updatedString(from: usage.updatedAt)
                 Self.appendSuccessRenderOutput(
@@ -695,7 +774,7 @@ extension CodexBarCLI {
                     provider: provider,
                     account: account?.label ?? codexVisibleAccount?.menuDisplayName,
                     cacheAccountKey: cacheAccountKey,
-                    source: effectiveSourceMode.rawValue,
+                    source: effectiveSourceMode.rawValue + command.sourceLabelSuffix,
                     status: status,
                     error: error,
                     kind: .provider,

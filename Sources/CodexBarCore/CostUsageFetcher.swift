@@ -645,7 +645,9 @@ public struct CostUsageFetcher: Sendable {
             throw CostUsageError.unsupportedProvider(provider)
         }
 
-        let clampedHistoryDays = max(1, min(365, historyDays))
+        let clampedHistoryDays = provider == .opencodego
+            ? max(1, historyDays)
+            : max(1, min(365, historyDays))
 
         var remoteSnapshot: CostUsageTokenSnapshot?
         var remoteError: Error?
@@ -704,6 +706,17 @@ public struct CostUsageFetcher: Sendable {
             provider: provider,
             codexHomePath: codexHomePath)
         let fallbackCalendar = fallbackOptions.calendar
+        // OpenCode Go shares the app's device-local reader and recorded-cost projection.
+        if provider == .opencodego {
+            let home = environment["HOME"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+                ?? FileManager.default.homeDirectoryForCurrentUser
+            return try await CostUsageScanExecutor.run { _ in
+                let usage = try OpenCodeGoLocalUsageReader(homeDirectory: home).fetch(
+                    now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
+                return CostUsageTokenResult(snapshot: usage.toCostUsageTokenSnapshot(
+                    historyDays: clampedHistoryDays, calendar: fallbackCalendar))
+            }
+        }
         if provider == .muse {
             let snapshot = try await Self.loadMuseLocalSnapshot(
                 environment: environment,

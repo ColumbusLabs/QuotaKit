@@ -2532,7 +2532,7 @@
 "Clear filters" = "Rensa filter";
 "Change provider order" = "Ändra leverantörsordning";
 "Provider sorting" = "Sortera leverantörer";
-"Only enabled providers" = "Endast aktiverade leverantörer";
+"Only show enabled providers" = "Visa endast aktiverade leverantörer";
 "Restore default order" = "Återställ standardordning";
 "Also restores the provider order in the menu bar. Can be undone." = "Återställer även leverantörsordningen i menyraden. Kan ångras.";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Nyckel med läsåtkomst till fakturering (förinställning BILLING eller READONLY). Eller ange FAL_KEY.";
@@ -2731,3 +2731,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Nyckel med behörighet att läsa kontodata (Admin API). Eller sätt MUNITO_API_KEY.";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "Munito rapporterar Admin API:ts utgifter och gränser, inte den lokala token-kostnadshistoriken.";
+
+"Show all accounts in Overview" = "Visa alla konton i översikten";
+
+"Expand cached account usage. The six-provider limit still applies." = "Expandera valda leverantörer med cachad kontoanvändning. Gränsen på sex leverantörer gäller fortfarande.";
+"Edit" = "Redigera";
+"Move up" = "Flytta upp";
+"Move down" = "Flytta ned";
+"Leave blank to keep the saved credential." = "Lämna tomt för att behålla de sparade inloggningsuppgifterna.";

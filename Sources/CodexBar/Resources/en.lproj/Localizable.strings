@@ -2535,7 +2535,7 @@
 "Clear filters" = "Clear filters";
 "Change provider order" = "Change provider order";
 "Provider sorting" = "Provider sorting";
-"Only enabled providers" = "Only enabled providers";
+"Only show enabled providers" = "Only show enabled providers";
 "Restore default order" = "Restore default order";
 "Also restores the provider order in the menu bar. Can be undone." = "Also restores the provider order in the menu bar. Can be undone.";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY.";
@@ -2734,3 +2734,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY.";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "Munito reports Admin API spend and limits, not local token cost history.";
+
+"Show all accounts in Overview" = "Show all accounts in Overview";
+
+"Expand cached account usage. The six-provider limit still applies." = "Expand cached account usage. The six-provider limit still applies.";
+"Edit" = "Edit";
+"Move up" = "Move up";
+"Move down" = "Move down";
+"Leave blank to keep the saved credential." = "Leave blank to keep the saved credential.";

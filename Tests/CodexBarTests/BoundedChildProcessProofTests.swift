@@ -72,11 +72,13 @@ struct BoundedChildProcessProofTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let scriptURL = directory.appendingPathComponent("grok-proof.sh")
+        let requestURL = directory.appendingPathComponent("billing-request.json")
         let script = """
         #!/bin/sh
         IFS= read -r initialize_request
         printf '%s\\n' '{"jsonrpc":"2.0","id":1,"result":{}}'
         IFS= read -r billing_request
+        printf '%s\\n' "$billing_request" > "$GROK_PROOF_BILLING_REQUEST"
         printf '%s\\n' '{"jsonrpc":"2.0","id":2,"result":{"monthlyLimit":{"val":100},"usage":{"totalUsed":{"val":25}}}}'
         """
         try script.write(to: scriptURL, atomically: true, encoding: .utf8)
@@ -88,17 +90,66 @@ struct BoundedChildProcessProofTests {
             environment: [
                 "PATH": "/usr/bin:/bin",
                 "GROK_CLI_PATH": scriptURL.path,
+                "GROK_PROOF_BILLING_REQUEST": requestURL.path,
             ],
             initializeTimeoutSeconds: 2,
             requestTimeoutSeconds: 2)
         defer { client.shutdown() }
 
         try await client.initialize()
-        let billing = try await client.fetchBilling()
+        guard case let .legacy(billing) = try await client.fetchBilling() else {
+            Issue.record("Expected legacy billing response")
+            return
+        }
 
         #expect(billing.monthlyLimit?.val == 100)
         #expect(billing.usage?.totalUsed?.val == 25)
         #expect(billing.monthlyUsedPercent == 25)
+        let rawRequest = try String(contentsOf: requestURL, encoding: .utf8)
+        let request = try #require(JSONSerialization.jsonObject(
+            with: Data(contentsOf: requestURL)) as? [String: Any])
+        #expect(request["method"] as? String == "_x.ai/billing")
+        #expect(!rawRequest.contains(#"_x.ai\/billing"#))
+    }
+
+    @Test
+    func `synthetic Grok ACP child maps current nested credits into usage`() async throws {
+        let result = #"{"config":{"creditUsagePercent":5,"#
+            + #""currentPeriod":{"start":"2026-10-15T17:24:18Z","end":"2026-10-22T17:24:18Z"},"#
+            + #""billingPeriodEnd":"2026-11-15T17:24:18Z"},"subscription_tier":"SuperGrok Heavy"}"#
+        let snapshot = try await Self.fetchSnapshot(result: result)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(snapshot.billing == nil)
+        #expect(snapshot.webBilling?.usedPercent == 5)
+        #expect(snapshot.webBilling?.subscriptionTier == "SuperGrok Heavy")
+        #expect(usage.primary?.usedPercent == 5)
+        #expect(usage.primary?.resetsAt == ISO8601DateParser.parse("2026-10-22T17:24:18Z"))
+        #expect(usage.loginMethod(for: .grok) == "SuperGrok Heavy")
+    }
+
+    @Test
+    func `prepaid-only ACP billing remains useful without inventing a quota`() async throws {
+        let snapshot = try await Self.fetchSnapshot(
+            result: #"{"config":{"prepaidBalance":{"val":123}},"subscription_tier":"SuperGrok Heavy"}"#)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(snapshot.webBilling?.usedPercent == nil)
+        #expect(usage.primary == nil)
+        #expect(usage.providerCost?.balance == 1.23)
+        #expect(usage.loginMethod(for: .grok) == "SuperGrok Heavy")
+    }
+
+    @Test
+    func `ACP billing with no usage or prepaid balance remains unavailable`() async throws {
+        do {
+            _ = try await Self.fetchSnapshot(result: #"{"config":{},"subscription_tier":"SuperGrok"}"#)
+            Issue.record("Expected an unknown-only billing response to remain unavailable")
+        } catch let GrokRPCError.malformed(message) {
+            #expect(message == GrokStatusProbe.usageUnavailableMessage)
+        } catch {
+            Issue.record("Unexpected Grok RPC error: \(error)")
+        }
     }
 
     @Test
@@ -154,5 +205,44 @@ struct BoundedChildProcessProofTests {
         }
         #expect(kill(pid, 0) == -1)
         #expect(errno == ESRCH)
+    }
+
+    private static func fetchSnapshot(result: String) async throws -> GrokUsageSnapshot {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexBarGrokNestedRPCProof-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let scriptURL = directory.appendingPathComponent("grok-nested-proof.sh")
+        let requestURL = directory.appendingPathComponent("billing-request.json")
+        let script = """
+        #!/bin/sh
+        if [ "$1" = "--version" ]; then
+            printf 'grok 0.1.210\\n'
+            exit 0
+        fi
+        IFS= read -r initialize_request
+        printf '%s\\n' '{"jsonrpc":"2.0","id":1,"result":{}}'
+        IFS= read -r billing_request
+        printf '%s\\n' "$billing_request" > "$GROK_PROOF_BILLING_REQUEST"
+        printf '%s\\n' '{"jsonrpc":"2.0","id":2,"result":\(result)}'
+        """
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        var probe = GrokStatusProbe()
+        probe.localSummary = { _ in nil }
+        let snapshot = try await probe.fetch(env: [
+            "PATH": "/usr/bin:/bin",
+            "GROK_HOME": directory.path,
+            "GROK_CLI_PATH": scriptURL.path,
+            "GROK_PROOF_BILLING_REQUEST": requestURL.path,
+        ])
+        let rawRequest = try String(contentsOf: requestURL, encoding: .utf8)
+        let request = try #require(JSONSerialization.jsonObject(
+            with: Data(contentsOf: requestURL)) as? [String: Any])
+        #expect(request["method"] as? String == "_x.ai/billing")
+        #expect(!rawRequest.contains(#"_x.ai\/billing"#))
+        return snapshot
     }
 }

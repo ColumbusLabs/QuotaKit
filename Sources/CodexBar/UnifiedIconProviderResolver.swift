@@ -20,4 +20,12 @@ struct UnifiedIconContext: Equatable, Sendable {
         else { return fallback }
         return focusedProvider
     }
+
+    static func currentSelectionProvider(
+        selected: ProviderInstanceID?,
+        enabled: Set<ProviderInstanceID>) -> ProviderInstanceID?
+    {
+        guard let selected, enabled.contains(selected) else { return nil }
+        return selected
+    }
 }

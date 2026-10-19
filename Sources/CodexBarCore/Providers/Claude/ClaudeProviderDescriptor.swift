@@ -374,8 +374,13 @@ public enum ClaudeProviderDescriptor {
         ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: context.runtime) {
             let webExtrasEnabled = context.settings?.claude?.webExtrasEnabled ?? false
             let hasWebSession = Self.hasPlausibleWebSession(context: context)
+            #if os(Linux)
+            let shouldAttemptOAuth = context.sourceMode == .auto ||
+                (context.runtime == .app && context.sourceMode == .oauth)
+            #else
             let shouldAttemptOAuth = context.runtime == .app &&
                 (context.sourceMode == .auto || context.sourceMode == .oauth)
+            #endif
 
             return ClaudeSourcePlanningInput(
                 runtime: context.runtime,
@@ -383,7 +388,7 @@ public enum ClaudeProviderDescriptor {
                 webExtrasEnabled: webExtrasEnabled,
                 hasWebSession: hasWebSession,
                 hasCLI: ClaudeCLIResolver.isAvailable(environment: context.env),
-                // App Auto and explicit OAuth perform one real, noninteractive OAuth attempt. Do not preflight here:
+                // App Auto, Linux CLI Auto, and explicit OAuth plan a noninteractive attempt. Do not preflight here:
                 // a preflight can mutate cache state and make the real fetch misclassify a typed error.
                 hasOAuthCredentials: shouldAttemptOAuth)
         }
@@ -530,7 +535,8 @@ private struct ClaudePlannedFetchStrategy: ProviderFetchStrategy {
         }
         guard self.plannedStep.isPlausiblyAvailable else { return false }
         if self.plannedStep.dataSource == .cli ||
-            (context.runtime == .app && self.plannedStep.dataSource == .web)
+            (context.runtime == .app && self.plannedStep.dataSource == .web) ||
+            (context.runtime == .cli && self.plannedStep.dataSource == .oauth)
         {
             return await self.base.isAvailable(context)
         }
@@ -803,7 +809,11 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         }
         // In Auto mode, fall back to the next strategy (cli/web) when safe credentials are absent or OAuth fails.
         // Cancellation itself is always terminal.
+        #if os(Linux)
+        return context.sourceMode == .auto
+        #else
         return context.runtime == .app && context.sourceMode == .auto
+        #endif
     }
 
     fileprivate static func snapshot(

@@ -64,8 +64,16 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
     no denormalization — intended for agents that want a token-cheaper alternative to parsing JSON. `usage --format
     toon` is the only command that supports it; every other command still advertises and accepts only
      `--format text|json`, and treats `toon` like any other unrecognized value.
-- `quotakit cost` prints token cost usage for Claude, Codex, and Cursor.
+  - Claude usage in Auto follows the active claude-swap slot when integration is enabled, including a single
+    configured slot regardless of the single-account display preference. The result remains one payload; its source
+    and account identity name the selected adapter slot, preserving measurement timestamps and usage diagnostics.
+  - Explicit non-auto sources and `--account`, `--account-index`, or `--all-accounts` bypass this precedence.
+    If the adapter fails, has no active slot, or lacks usable usage, the ordinary source order applies with a
+    ` (claude-swap fallback)` or ` (tcr fallback)` source suffix. Another slot is never substituted, and the
+    fallback retains its actual account identity. Pooled tcr adapters normally use this labeled fallback.
+- `quotakit cost` prints token cost usage for Claude, Codex, Cursor, Antigravity, Muse Code, Pi, and OpenCode Go.
   - Claude and Codex are scanned from local session logs without web/CLI access.
+  - [OpenCode Go](opencode.md) reads its local database/history, including model and daily reports, without provider authentication.
   - [Pi](pi.md) reads supported Pi/OMP local assistant history. Selecting Pi alongside Claude/Codex keeps those providers native-only so combined totals count each source once.
   - Muse Code reads bounded local session logs and reports recorded token history without credentials, provider requests, or invented dollar costs. Partial and unavailable history remain distinct from measured zero (see [Muse Code](muse.md)).
   - Antigravity reads supported local token history without provider CLI or credential access. Known models receive API-price estimates from the pricing catalog, which may be refreshed from public models.dev data over the network; unknown models remain unpriced. These estimates are not Antigravity charges or credit deductions. Unsupported timestamps leave history unavailable. An incomplete scan still reports the rows it decoded, with every total marked a lower bound (see `docs/antigravity.md`). The same provider selection applies to `serve /cost` and dashboard cost collection.
@@ -113,7 +121,8 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   - claude-swap sentinel accounts remain successful cards with their problem text and no fabricated usage metrics.
     A list adapter, parser, or timeout failure retains useful ambient Claude output, adds a distinct
     `Claude (claude-swap)` failure footer entry, and makes the command exit non-zero.
-  - This precedence is cards-only: `quotakit usage` and `quotakit serve` keep their existing output cardinality.
+  - Cards expands swap accounts; `quotakit usage` returns the active slot as described above.
+    `quotakit serve` keeps its existing `/usage` behavior.
   - Honors `$COLUMNS` for layout; falls back to 80 columns. Use `--no-color` for plain output.
   - Kitty, Ghostty, WezTerm, and other truecolor terminals auto-enable enhanced gradients/outlines.
   - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
@@ -178,13 +187,14 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
     - `oauth`: OAuth-backed source where supported (Codex, Claude, Vertex AI).
     - `api`: API-backed flow where supported; credentials may be API keys or existing tokens. See the [provider source table](providers.md#fetch-strategies-current) and each provider guide for supported modes.
     - v0: set `V0_API_KEY`; optional project scope is `V0_SCOPE`. Both values can also be set in provider config.
-    - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label; `quotakit-app` with `ageSeconds` when a non-GUI session uses the app cache, see [SSH sessions](#ssh-sessions-macos)).
+    - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, `claude-swap`, `tcr`, or provider CLI label; `quotakit-app` with `ageSeconds` when a non-GUI session uses the app cache, see [SSH sessions](#ssh-sessions-macos)).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
     - Claude web: claude.ai API (session + weekly usage, account metadata, and prepaid Usage credits balance when
       available).
-      CLI Auto falls back to the installed Claude executable when web credentials are unavailable. This foreground
+      CLI Auto falls back to the installed Claude executable when web credentials are unavailable (on Linux, readable
+      Claude Code OAuth credentials are tried first). This foreground
       command delegates authentication to Claude Code; the app keeps its stricter prompt-free background availability
       gate for scheduled refreshes.
     - Command Code web: commandcode.ai browser session cookies on macOS, or a configured manual cookie on Linux, for monthly credit usage.

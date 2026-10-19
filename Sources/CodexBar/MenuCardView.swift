@@ -143,7 +143,7 @@ struct UsageMenuCardView: View {
 
         let provider: UsageProvider
         let providerName: String
-        let email: String
+        var email: String
         var accountIdentityFingerprint: String?
         let subtitleText: String
         let subtitleStyle: SubtitleStyle
@@ -1085,6 +1085,7 @@ extension UsageMenuCardView.Model {
                         in: row.secondaryValue,
                         isEnabled: true),
                     progress: row.progress,
+                    severity: row.severity,
                     usageValue: row.usageValue)
             }
             let chart = section.chart.flatMap { chart in

@@ -253,6 +253,11 @@ struct ClaudeWebManualCookieLinuxTests {
         environment: [String: String] = [:]) -> ProviderFetchContext
     {
         let browserDetection = BrowserDetection(cacheTTL: 0)
+        var environment = environment
+        if environment["HOME"] == nil {
+            environment["HOME"] = FileManager.default.temporaryDirectory
+                .appendingPathComponent("claude-web-test-home-\(UUID().uuidString)", isDirectory: true).path
+        }
         return ProviderFetchContext(
             runtime: .cli,
             sourceMode: sourceMode,

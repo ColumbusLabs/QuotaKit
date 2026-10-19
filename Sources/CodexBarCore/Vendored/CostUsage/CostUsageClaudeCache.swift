@@ -16,8 +16,17 @@ struct CostUsageClaudeFileStamp: Equatable, Sendable, Codable {
     }
 
     static func read(at url: URL) -> Self? {
+        try? self.readIfPresent(at: url)
+    }
+
+    /// Returns nil for a missing path and throws when an existing source cannot be inspected.
+    static func readIfPresent(at url: URL) throws -> Self? {
         var info = stat()
-        guard url.path.withCString({ fstatat(AT_FDCWD, $0, &info, 0) }) == 0 else { return nil }
+        guard url.path.withCString({ fstatat(AT_FDCWD, $0, &info, 0) }) == 0 else {
+            let code = errno
+            if code == ENOENT || code == ENOTDIR { return nil }
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: url.path])
+        }
         guard info.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) else { return nil }
         #if os(Linux)
         let modifiedSeconds = Int64(info.st_mtim.tv_sec)
@@ -31,6 +40,20 @@ struct CostUsageClaudeFileStamp: Equatable, Sendable, Codable {
             size: Int64(info.st_size),
             modifiedSeconds: modifiedSeconds,
             modifiedNanoseconds: modifiedNanoseconds)
+    }
+
+    static func isMissingFileError(_ error: Error) -> Bool {
+        let error = error as NSError
+        if error.domain == NSPOSIXErrorDomain {
+            return error.code == Int(ENOENT) || error.code == Int(ENOTDIR)
+        }
+        if error.domain == NSCocoaErrorDomain,
+           error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError
+        {
+            return true
+        }
+        guard let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error else { return false }
+        return self.isMissingFileError(underlying)
     }
 }
 
@@ -412,7 +435,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 17
+        case .claude: 18
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }

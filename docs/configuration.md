@@ -361,6 +361,18 @@ Atomic replacements by CLI tools or editors remain observable during watcher sta
 - Keep the file private; it contains secrets.
 - Validate the file with `quotakit config validate` (JSON output available with `--format json`).
 
+### Menu bar controls
+
+**Settings → Menu Bar → Show all accounts in Overview** is off by default. When enabled, each selected
+multi-account provider expands into account rows labeled with its account name or email. The provider’s
+current account source stays in use: claude-swap/tcr, managed Codex accounts, or saved token accounts,
+independently of the provider tab’s stacked/segmented layout. The six-provider cap, provider order, and
+Overview selection still apply to providers before expansion; account rows do not use extra provider
+slots. Rows keep each account’s cached usage and errors; missing usage stays unavailable instead of
+borrowing another account’s quota. The setting adds no fetches and does not change refresh limits.
+Clicking a row opens its provider tab without selecting another credential. The local additive defaults
+key is `mergedOverviewAllAccounts`; older versions ignore it.
+
 ## Portable UI preferences
 
 On macOS, **Settings → General → Portable preferences** exports or imports a versioned `preferences.json`

@@ -1024,30 +1024,16 @@ extension ClaudeUsageFetcher {
     }
 
     private static func oauthScopedWeeklyLimitWindows(from usage: OAuthUsageResponse) -> [NamedRateWindow] {
-        let limits = Self.oauthScopedWeeklyLimits(from: usage)
         // `is_active` is intentionally not a filter: observed enforceable scoped limits report false.
-        return ClaudeScopedWeeklyLimitMapper.extraRateWindows(
-            from: limits,
-            resetDescription: Self.formatResetDate)
+        ClaudeScopedWeeklyLimitMapper.extraRateWindows(
+            from: usage.limits,
+            resetDescription: self.formatResetDate)
     }
 
     private static func oauthAllModelsRateWindow(from usage: OAuthUsageResponse) -> RateWindow? {
         ClaudeScopedWeeklyLimitMapper.allModelsRateWindow(
-            from: self.oauthScopedWeeklyLimits(from: usage),
+            from: usage.limits,
             resetDescription: self.formatResetDate)
-    }
-
-    private static func oauthScopedWeeklyLimits(from usage: OAuthUsageResponse)
-    -> [ClaudeScopedWeeklyLimitMapper.Limit]? {
-        usage.limits?.map { entry in
-            ClaudeScopedWeeklyLimitMapper.Limit(
-                kind: entry.kind,
-                group: entry.group,
-                percent: entry.percent,
-                resetsAt: ClaudeOAuthUsageFetcher.parseISO8601Date(entry.resetsAt),
-                modelID: entry.scope?.model?.id,
-                modelName: entry.scope?.model?.displayName)
-        }
     }
 
     // MARK: - Web API path (uses browser cookies)

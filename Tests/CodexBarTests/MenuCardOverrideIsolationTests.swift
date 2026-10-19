@@ -153,15 +153,7 @@ struct MenuCardOverrideIsolationTests {
                 accountEmail: "bob@example.com",
                 accountOrganization: nil,
                 loginMethod: "max"))
-        let controller = StatusItemController(
-            store: store,
-            settings: store.settings,
-            account: AccountInfo(email: nil, plan: nil),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: .system)
-
-        let model = try #require(controller.tokenAccountMenuCardModel(
+        let model = try #require(store.tokenAccountMenuCardModel(
             for: .claude,
             accountSnapshot: TokenAccountUsageSnapshot(
                 account: bob,
@@ -188,13 +180,6 @@ struct MenuCardOverrideIsolationTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: .system)
         let account = ProviderTokenAccount(
             id: UUID(),
             label: "Rejected group",
@@ -208,7 +193,7 @@ struct MenuCardOverrideIsolationTests {
             sourceLabel: nil,
             cacheKey: "fixture-cache")
 
-        let model = try #require(controller.tokenAccountMenuCardModel(
+        let model = try #require(store.tokenAccountMenuCardModel(
             for: .sub2api,
             accountSnapshot: accountSnapshot))
 
@@ -228,13 +213,6 @@ struct MenuCardOverrideIsolationTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: .system)
         let account = ProviderTokenAccount(
             id: UUID(),
             label: "Configured group",
@@ -257,7 +235,7 @@ struct MenuCardOverrideIsolationTests {
             sourceLabel: "api",
             cacheKey: "fixture-cache")
 
-        let model = try #require(controller.tokenAccountMenuCardModel(
+        let model = try #require(store.tokenAccountMenuCardModel(
             for: .sub2api,
             accountSnapshot: accountSnapshot))
 

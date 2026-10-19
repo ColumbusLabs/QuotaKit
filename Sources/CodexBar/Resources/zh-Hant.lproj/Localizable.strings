@@ -2513,7 +2513,7 @@
 "Clear filters" = "清除篩選";
 "Change provider order" = "更改供應商順序";
 "Provider sorting" = "供應商排序";
-"Only enabled providers" = "只顯示已啟用";
+"Only show enabled providers" = "只顯示已啟用";
 "Restore default order" = "恢復預設順序";
 "Also restores the provider order in the menu bar. Can be undone." = "同時恢復選單列中的供應商順序。可以復原。";
 "Key with billing read access (BILLING or READONLY preset). Or set FAL_KEY." = "具有帳單讀取權限的金鑰（BILLING 或 READONLY 預設）。或設定 FAL_KEY。";
@@ -2712,3 +2712,11 @@
 "Key with Read account data (Admin API) permission. Or set MUNITO_API_KEY." = "具備讀取帳戶資料（Admin API）權限的金鑰。或設定 MUNITO_API_KEY。";
 
 "Munito reports Admin API spend and limits, not local token cost history." = "Munito 回報 Admin API 的支出與上限，而非本機 token 成本歷史。";
+
+"Show all accounts in Overview" = "在總覽中顯示所有帳戶";
+
+"Expand cached account usage. The six-provider limit still applies." = "使用快取的帳戶用量展開所選供應商。仍最多顯示六個供應商。";
+"Edit" = "編輯";
+"Move up" = "上移";
+"Move down" = "下移";
+"Leave blank to keep the saved credential." = "留空以保留已儲存的憑證。";
