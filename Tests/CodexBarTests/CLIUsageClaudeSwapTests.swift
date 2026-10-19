@@ -168,17 +168,23 @@ struct CLIUsageClaudeSwapTests {
                 loginMethod: "web",
                 rawText: nil)
         }
-        return await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue({ _, _ in true }) {
-            await ClaudeWebFetchStrategy.$usageLoaderOverrideForTesting.withValue(browserLoader) {
-                await ProviderInteractionContext.$current.withValue(.background) {
-                    await CodexBarCLI.fetchUsageOutputs(
-                        provider: .claude,
-                        status: nil,
-                        tokenContext: tokenContext,
-                        command: command,
-                        claudeSwapAccountListReader: reader)
-                }
-            }
+        return await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue {
+            _, _ in true
+        } operation: {
+            await ClaudeWebFetchStrategy.$usageLoaderOverrideForTesting.withValue(
+                browserLoader,
+                operation: {
+                    await ProviderInteractionContext.$current.withValue(
+                        .background,
+                        operation: {
+                            await CodexBarCLI.fetchUsageOutputs(
+                                provider: .claude,
+                                status: nil,
+                                tokenContext: tokenContext,
+                                command: command,
+                                claudeSwapAccountListReader: reader)
+                        })
+                })
         }
     }
 

@@ -466,7 +466,7 @@ extension CodexBarCLI {
             },
             minimumDelay: TokenAccountSupportCatalog.support(for: provider)?.minimumDelayBetweenAccountRefreshes,
             publishPartial: publishPartial)
-        { index in
+        { [command] index in
             await Self.fetchUsageOutput(
                 provider: provider,
                 account: selections[index],

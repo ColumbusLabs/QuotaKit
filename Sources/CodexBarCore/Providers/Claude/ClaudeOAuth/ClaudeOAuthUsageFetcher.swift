@@ -310,7 +310,7 @@ struct OAuthUsageResponse: Decodable {
     /// windows): a flat list of limit entries, each optionally naming the model it scopes
     /// to via `scope.model.display_name` (e.g. "Fable" during a promotional access window).
     /// Parsed entry-by-entry by `ClaudeOAuthUsageFetcher.decodeUsageResponse`, shared with Web.
-    fileprivate(set) var limits: [ClaudeScopedWeeklyLimitMapper.Limit]? = nil
+    fileprivate(set) var limits: [ClaudeScopedWeeklyLimitMapper.Limit]?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKey.self)

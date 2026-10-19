@@ -61,3 +61,9 @@ Final exact-head checks and independent review must pass before merge; earlier h
 - Cost-only Desktop discovery and budgeted live-session discovery share one walker; cost error reporting preserves cached history while finite metadata budgets remain enforced. Existing symlink-backed projects stay admitted, with fixtures for link targets and unreadable dynamic roots.
 
 The Claude cache generation advances from 17 to 18 for changed history discovery. QuotaKit retains its existing internal core cache-report helper overloads used by Mac/Linux fixtures, so upstream test-only wrapper relocation is unnecessary; the unreadable-root behavior and its regression coverage are integrated.
+
+## Hosted qualification repairs
+
+Initial exact head `903d3a9d9` in run `39230743161` exposed a Swift strict-concurrency capture error in the ordinary usage account-fetch closure. Capture the final command context by immutable value after resolving the adapter fallback suffix; existing parallel-account and active-slot fixtures retain their behavior. This is a source repair, so a complete fresh exact-head hosted cycle is required; earlier head results do not qualify the repaired source.
+
+The initial hosted lint also identified an obsolete Pi function-length suppression, explicit optional nil initialization, a multi-closure fixture call, and two test types just above the unchanged 800-line limit. Remove the obsolete annotation/initialization, label fixture closures, and move the added related tests into same-file extensions while retaining discovery names, assertions, actor/serialization semantics and all original lint thresholds.

@@ -829,7 +829,6 @@ enum PiSessionCostScanner {
         return true
     }
 
-    // swiftlint:disable:next function_body_length
     private static func parsePiSessionFile(
         fileURL: URL,
         range: CostUsageScanner.CostUsageDayRange,

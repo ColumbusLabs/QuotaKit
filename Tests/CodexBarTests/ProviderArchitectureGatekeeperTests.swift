@@ -5323,7 +5323,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact cost scanner dispatch selects a provider-owned transcript, cache, or pricing format."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/PiSessionCostScanner.swift",
-            line: 1083,
+            line: 1082,
             anchor: "guard !backend.isEmpty, let model, !model.isEmpty else { return nil }",
             expectedProviderIDs: ["pi"],
             expectedReferenceCount: 1,
@@ -5331,7 +5331,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Unsupported backend tokens remain in Pi's aggregate history without inheriting Codex or Claude pricing."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/PiSessionCostScanner.swift",
-            line: 1124,
+            line: 1123,
             anchor: "case .codex:",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 2,
