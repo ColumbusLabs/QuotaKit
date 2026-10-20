@@ -42,7 +42,12 @@ struct VercelBudgetStrategySelectionTests {
             case "/v2/user":
                 body = #"{"user":{"id":"fixtureUser","email":"fixture@example.com"}}"#
             case "/ai-gateway/budgets/list":
-                body = #"{"budgets":[{"scopeType":"user","scopeId":"usr_fixtureUser","currentSpend":30,"limitAmount":120,"refreshPeriod":"monthly","active":true,"archived":false}]}"#
+                body = #"""
+                {"budgets":[
+                  {"scopeType":"user","scopeId":"usr_fixtureUser","currentSpend":30,
+                   "limitAmount":120,"refreshPeriod":"monthly","active":true,"archived":false}
+                ]}
+                """#
             default:
                 Issue.record("Unexpected Vercel request path: \(url.path)")
                 body = "{}"

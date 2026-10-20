@@ -1583,7 +1583,11 @@ public struct CursorStatusProbe: Sendable {
         if isUnified,
            let timeout = self.optionalRequestTimeout(deadline: deadline, budget: Self.unifiedUsageTimeout)
         {
-            unifiedUsage = try? await self.fetchUnifiedUsageStatus(cookieHeader: cookieHeader, timeout: timeout)
+            unifiedUsage = try? await CursorUnifiedUsageStatus.fetch(
+                urlSession: self.urlSession,
+                baseURL: self.baseURL,
+                cookieHeader: cookieHeader,
+                timeout: timeout)
         }
 
         // Fetch legacy request usage only if user has a sub ID.
@@ -1662,24 +1666,6 @@ public struct CursorStatusProbe: Sendable {
             throw CursorStatusProbeError
                 .parseFailed("JSON decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
         }
-    }
-
-    private func fetchUnifiedUsageStatus(
-        cookieHeader: String,
-        timeout: TimeInterval) async throws -> CursorUnifiedUsageStatus
-    {
-        let url = self.baseURL.appendingPathComponent(CursorUnifiedUsageStatus.endpointPath)
-            .appending(queryItems: [URLQueryItem(name: "scope", value: "user")])
-        var request = URLRequest(url: url)
-        request.timeoutInterval = timeout
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-
-        let (data, response) = try await self.urlSession.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("Unified additional spend is unavailable")
-        }
-        return try JSONDecoder().decode(CursorUnifiedUsageStatus.self, from: data)
     }
 
     func requestTimeout(deadline: Date?) throws -> TimeInterval {

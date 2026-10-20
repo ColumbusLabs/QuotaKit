@@ -1003,10 +1003,10 @@ struct OpenAIDashboardWebViewDeadlineTests {
 struct OpenAIDashboardDeadlineSchedulerTests {
     @MainActor
     private final class CallbackCounter {
-        private(set) var count = 0
+        private(set) var callCount = 0
 
         func increment() {
-            self.count += 1
+            self.callCount += 1
         }
     }
 
@@ -1020,7 +1020,7 @@ struct OpenAIDashboardDeadlineSchedulerTests {
 
         await task.value
 
-        #expect(callback.count == 1)
+        #expect(callback.callCount == 1)
     }
 
     @Test
@@ -1034,7 +1034,7 @@ struct OpenAIDashboardDeadlineSchedulerTests {
         task.cancel()
         await task.value
 
-        #expect(callback.count == 0)
+        #expect(callback.callCount == 0)
     }
 }
 

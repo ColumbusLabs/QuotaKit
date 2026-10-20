@@ -48,6 +48,7 @@ struct BurnDownCapabilityTests {
 
     @Test
     func `Vercel personal budget never enables a quota burndown`() {
+        #expect(!VercelProviderDescriptor.descriptor.metadata.burnDownWidgetSelectable)
         let snapshot = Self.snapshot(provider: .vercel, primary: Self.window(minutes: 43200))
         #expect(BurnDownState(snapshot: snapshot, provider: .vercel, selection: .primary) == nil)
         #expect(BurnProviderOptions.choices(in: snapshot).isEmpty)

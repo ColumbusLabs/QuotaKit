@@ -23,8 +23,6 @@ public enum VercelProviderDescriptor {
         confetti: [0xFFFFFF, 0xA3A3A3],
         progressColorStyle: .label,
         noDataMessage: "Vercel AI Gateway cost history is not available.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: "AI_GATEWAY_API_KEY",
         missingCredentialMessage: { _ in
             "Set a Vercel AI Gateway API key, or a Vercel access token and Team ID for your personal budget."
@@ -32,6 +30,8 @@ public enum VercelProviderDescriptor {
         additionalProjections: [.init(key: Self.tokenKey, value: { $0.pluginSecrets?[Self.tokenKey] })],
         config: ProviderConfigCapabilities(workspaceIDValidationOrder: 9),
         presentation: ProviderUsagePresentation(menuBarBalanceDetailLabels: ["Available balance"]),
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         apiKeyField: .init(
             id: "vercel-api-key",
             title: "Vercel AI Gateway API key",

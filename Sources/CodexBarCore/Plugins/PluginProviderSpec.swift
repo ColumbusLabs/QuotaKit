@@ -57,6 +57,7 @@ public struct PluginProviderSpec: Sendable {
     public var menuBarMetrics: ProviderMenuBarMetricCapabilities?
     public var presentation = ProviderUsagePresentation()
     public var history = ProviderHistoryCapability.optIn
+    public var burnDownWidgetSelectable = true
     public var snapshotExport = ProviderSnapshotExportPolicy.standard
     public var aliases: [String] = []
     public var timeout = ProviderPluginRuntime.defaultTimeout
@@ -115,6 +116,7 @@ public struct PluginProviderSpec: Sendable {
                 cliName: self.id.rawValue,
                 defaultEnabled: false,
                 widgetSelectable: false,
+                burnDownWidgetSelectable: self.burnDownWidgetSelectable,
                 sharePlanLabels: self.sharePlanLabels,
                 debugLogUnavailableMessage: self.debugLogUnavailableMessage,
                 balanceOnly: self.balanceOnly,
