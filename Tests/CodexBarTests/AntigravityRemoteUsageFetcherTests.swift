@@ -212,19 +212,10 @@ struct AntigravityRemoteUsageFetcherTests {
             guard let url = request.url, let host = url.host else {
                 throw URLError(.badURL)
             }
-            guard host == "cloudcode-pa.googleapis.com" else {
-                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
-            }
-            if url.path == "/v1internal:loadCodeAssist" {
-                return GeminiAPITestHelpers.response(
-                    url: url.absoluteString,
-                    status: 200,
-                    body: GeminiAPITestHelpers.jsonData([
-                        "currentTier": ["id": "standard-tier", "name": "standard"],
-                        "cloudaicompanionProject": "managed-project-123",
-                    ]))
-            }
             if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                guard host == "daily-cloudcode-pa.googleapis.com" else {
+                    throw URLError(.badURL)
+                }
                 let body = try #require(request.httpBody)
                 let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
                 #expect(json["project"] as? String == "managed-project-123")
@@ -242,6 +233,18 @@ struct AntigravityRemoteUsageFetcherTests {
                                 "remaining": ["remainingFraction": 0.75],
                             ]],
                         ]],
+                    ]))
+            }
+            guard host == "cloudcode-pa.googleapis.com" else {
+                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+            }
+            if url.path == "/v1internal:loadCodeAssist" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.jsonData([
+                        "currentTier": ["id": "standard-tier", "name": "standard"],
+                        "cloudaicompanionProject": "managed-project-123",
                     ]))
             }
             if url.path == "/v1internal:fetchAvailableModels" {
@@ -276,19 +279,20 @@ struct AntigravityRemoteUsageFetcherTests {
             idToken: GeminiAPITestHelpers.makeIDToken(email: "user@example.com"),
             email: "user@example.com")
 
+        actor SummaryRequestCapture {
+            private var urls: [String] = []
+            func append(_ url: String) { self.urls.append(url) }
+            func values() -> [String] { self.urls }
+        }
+        let summaryRequests = SummaryRequestCapture()
+
         let dataLoader = GeminiAPITestHelpers.dataLoader { request in
-            guard let url = request.url, url.host == "cloudcode-pa.googleapis.com" else {
+            guard let url = request.url, let host = url.host else {
                 throw URLError(.badURL)
             }
-            if url.path == "/v1internal:loadCodeAssist" {
-                return GeminiAPITestHelpers.response(
-                    url: url.absoluteString,
-                    status: 200,
-                    body: GeminiAPITestHelpers.loadCodeAssistResponse(
-                        tierId: "standard-tier",
-                        projectId: "managed-project-123"))
-            }
             if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                guard host == "daily-cloudcode-pa.googleapis.com" else { throw URLError(.badURL) }
+                await summaryRequests.append(url.absoluteString)
                 return GeminiAPITestHelpers.response(
                     url: url.absoluteString,
                     status: 200,
@@ -298,6 +302,15 @@ struct AntigravityRemoteUsageFetcherTests {
                             "buckets": [["bucketId": "unknown-capacity"]],
                         ]],
                     ]))
+            }
+            guard host == "cloudcode-pa.googleapis.com" else { throw URLError(.badURL) }
+            if url.path == "/v1internal:loadCodeAssist" {
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.loadCodeAssistResponse(
+                        tierId: "standard-tier",
+                        projectId: "managed-project-123"))
             }
             if url.path == "/v1internal:fetchAvailableModels" {
                 return GeminiAPITestHelpers.response(
@@ -315,6 +328,9 @@ struct AntigravityRemoteUsageFetcherTests {
 
         #expect(!snapshot.modelQuotas.isEmpty)
         #expect(snapshot.accountEmail == "user@example.com")
+        #expect(await summaryRequests.values() == [
+            "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+        ])
     }
 
     @Test
@@ -329,9 +345,12 @@ struct AntigravityRemoteUsageFetcherTests {
             email: "user@example.com")
 
         let dataLoader = GeminiAPITestHelpers.dataLoader { request in
-            guard let url = request.url, url.host == "cloudcode-pa.googleapis.com" else {
-                throw URLError(.badURL)
+            guard let url = request.url, let host = url.host else { throw URLError(.badURL) }
+            if url.path == "/v1internal:retrieveUserQuotaSummary" {
+                guard host == "daily-cloudcode-pa.googleapis.com" else { throw URLError(.badURL) }
+                throw CancellationError()
             }
+            guard host == "cloudcode-pa.googleapis.com" else { throw URLError(.badURL) }
             if url.path == "/v1internal:loadCodeAssist" {
                 return GeminiAPITestHelpers.response(
                     url: url.absoluteString,
@@ -339,9 +358,6 @@ struct AntigravityRemoteUsageFetcherTests {
                     body: GeminiAPITestHelpers.loadCodeAssistResponse(
                         tierId: "standard-tier",
                         projectId: "managed-project-123"))
-            }
-            if url.path == "/v1internal:retrieveUserQuotaSummary" {
-                throw CancellationError()
             }
             Issue.record("Cancellation must stop before the legacy model-quota route")
             return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
