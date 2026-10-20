@@ -472,6 +472,27 @@
           "secure": true,
           "subtitle": "Saved in QuotaKit's local config file. Or set AI_GATEWAY_API_KEY.",
           "title": "Vercel AI Gateway API key"
+        },
+        {
+          "actions": [
+            {
+              "id": "vercel-open-tokens",
+              "title": "Open Vercel tokens"
+            }
+          ],
+          "id": "vercel-access-token",
+          "placeholder": null,
+          "secure": true,
+          "subtitle": "Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. Or set VERCEL_ACCESS_TOKEN.",
+          "title": "Vercel access token"
+        },
+        {
+          "actions": [],
+          "id": "vercel-team-id",
+          "placeholder": null,
+          "secure": false,
+          "subtitle": "Required with a Vercel access token. Or set VERCEL_TEAM_ID.",
+          "title": "Team ID"
         }
       ],
       "flags": [
@@ -487,16 +508,17 @@
       "icon": "ProviderIcon-vercel",
       "id": "vercel",
       "labels": [
-        "Balance",
+        "Personal budget",
         "Balance",
         ""
       ],
       "name": "Vercel AI Gateway",
       "noData": "Vercel AI Gateway cost history is not available.",
       "planLabels": {},
-      "progressColor": "brand",
+      "progressColor": "label",
       "projections": {
-        "AI_GATEWAY_API_KEY": "fixture-key"
+        "AI_GATEWAY_API_KEY": "fixture-key",
+        "VERCEL_TEAM_ID": "fixture-project"
       },
       "projectToken": "",
       "status": [
@@ -511,7 +533,7 @@
         1,
         1
       ],
-      "workspaceOrder": null
+      "workspaceOrder": 9
     },
     {
       "apiKeyDebugLabel": "",

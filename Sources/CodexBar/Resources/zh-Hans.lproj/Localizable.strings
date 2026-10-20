@@ -640,6 +640,8 @@
 "overview_rows_follow_order" = "概览行始终遵循提供商顺序。";
 "overview_no_providers_selected" = "未选择提供商";
 "agent_sessions_title" = "智能体会话";
+"agent_sessions_remote_title" = "远程会话（Tailscale / SSH）";
+"agent_sessions_remote_subtitle" = "发现并连接远程主机。关闭后仅监控此 Mac。";
 "agent_sessions_subtitle" = "在菜单中显示本地及通过 SSH 发现的 Codex 和 Claude Code 会话。";
 "agent_sessions_hosts_title" = "其他 SSH 主机";
 "agent_sessions_footer" = "系统会自动发现 tailnet 上的 Mac。本地会话每 30 秒刷新一次；远程主机每 60 秒以及打开菜单时刷新。";
@@ -2306,6 +2308,10 @@
 "TOP MODELS" = "最常用模型";
 "TRACKED TOKENS · %@" = "已记录 token · %@";
 "Team ID" = "团队 ID";
+"Vercel access token" = "Vercel 访问令牌";
+"Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. Or set VERCEL_ACCESS_TOKEN." = "可选。显示你的个人预算，而不是团队额度。保存在 QuotaKit 的本地配置文件中。或设置 VERCEL_ACCESS_TOKEN。";
+"Open Vercel tokens" = "打开 Vercel 令牌";
+"Required with a Vercel access token. Or set VERCEL_TEAM_ID." = "使用 Vercel 访问令牌时必填。或设置 VERCEL_TEAM_ID。";
 "Team budget" = "团队预算";
 "That managed account uses a workspace that differs from its saved Codex auth default. Keep it as a managed account; QuotaKit will not rewrite Codex-owned auth to promote it." = "此托管账户的工作区与保存的 Codex 默认认证工作区不同。请继续将其作为托管账户使用；QuotaKit 不会修改 Codex 管理的认证信息来将其设为系统账户。";
 "The pasted header is sent only to this tenant." = "粘贴的标头仅发送给该租户。";
@@ -2629,6 +2635,7 @@
 "CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 将向 macOS 钥匙串请求你的 %@ Cookie 标头，以获取用量。点击“确定”继续。";
 "menu_bar_layout_size_large" = "大";
 "menu_bar_layout_monospaced_digits" = "等宽数字";
+"menu_bar_layout_show_window_labels" = "显示时段标签";
 "Paste a platform.claude.com Cookie header containing sessionKey." = "粘贴包含 sessionKey 的 platform.claude.com Cookie 请求头。";
 "CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit 将向 macOS 钥匙串请求 Muse Code 登录 token，以获取你的 Muse Code 订阅用量。点击“确定”继续。";
 "API credit" = "API 额度";
@@ -2732,3 +2739,5 @@
 "Move up" = "上移";
 "Move down" = "下移";
 "Leave blank to keep the saved credential." = "留空以保留已保存的凭据。";
+
+"No personal budget configured" = "尚未配置个人预算";

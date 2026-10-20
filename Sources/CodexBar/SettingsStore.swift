@@ -648,6 +648,10 @@ extension SettingsStore {
         let providersEnabledOnly = userDefaults.bool(forKey: "providersEnabledOnly")
         let appLanguageRaw = userDefaults.string(forKey: "appLanguage")
         let agentSessionsEnabled = userDefaults.object(forKey: "agentSessionsEnabled") as? Bool ?? false
+        if userDefaults.object(forKey: "agentSessionsRemoteEnabled") == nil {
+            // Preserve remote monitoring for existing Agent Sessions users; new users start local-only.
+            userDefaults.set(agentSessionsEnabled, forKey: "agentSessionsRemoteEnabled")
+        }
         let agentSessionLabelStyleRaw = userDefaults.string(forKey: "agentSessionLabelStyle")
             ?? AgentSessionLabelStyle.project.rawValue
         let agentSessionsManualHosts = userDefaults.string(forKey: "agentSessionsManualHosts") ?? ""
@@ -719,6 +723,8 @@ extension SettingsStore {
             menuBarLayoutConditionals: menuBarLayoutConditionals,
             menuBarLayoutOverridesRaw: menuBarLayoutOverridesRaw,
             menuBarLayoutMonospacedDigits: userDefaults.bool(forKey: "menuBarLayoutMonospacedDigits"),
+            menuBarLayoutShowWindowLabels: userDefaults.object(
+                forKey: "menuBarLayoutShowWindowLabels") as? Bool ?? true,
             menuBarLayoutSizeRaw: userDefaults.string(forKey: "menuBarLayoutSize")
                 ?? MenuBarLayoutSize.regular.rawValue,
             menuBarLayoutGapRaw: userDefaults.string(forKey: "menuBarLayoutGap")
@@ -774,6 +780,7 @@ extension SettingsStore {
             appLanguageRaw: appLanguageRaw,
             terminalAppRaw: userDefaults.string(forKey: "terminalApp"),
             agentSessionsEnabled: agentSessionsEnabled,
+            agentSessionsRemoteEnabled: userDefaults.bool(forKey: "agentSessionsRemoteEnabled"),
             agentSessionLabelStyleRaw: agentSessionLabelStyleRaw,
             agentSessionsManualHosts: agentSessionsManualHosts,
             agentSessionsHideUnreachableHosts: agentSessionsHideUnreachableHosts,

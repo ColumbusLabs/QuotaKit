@@ -132,6 +132,7 @@ is limited, using additional rows when needed.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
+- Page preparation and JavaScript extraction share the refresh deadline. At expiry, QuotaKit asks WebKit to terminate the page and marks it for eviction once active work unwinds. A verified API snapshot can be returned when page work times out. Timeout diagnostics do not start more JavaScript.
 - Cookie import (Automatic mode, when WebKit store has no matching session or login required):
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`

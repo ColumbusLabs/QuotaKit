@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 import WebKit
@@ -879,6 +880,161 @@ extension OpenAIDashboardWebViewCacheTests {
         newLease.release()
         fixture.expectCleanup(firstPreparation.webView)
         fixture.expectCleanup(secondPreparation.webView)
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct OpenAIDashboardWebViewDeadlineTests {
+    @MainActor
+    private final class AsyncSignal {
+        private var continuation: CheckedContinuation<Void, Never>?
+        private var isSignalled = false
+
+        func wait() async {
+            guard !self.isSignalled else { return }
+            await withCheckedContinuation { self.continuation = $0 }
+        }
+
+        func signal() {
+            self.isSignalled = true
+            self.continuation?.resume()
+            self.continuation = nil
+        }
+    }
+
+    private func shouldSkipOnCI() -> Bool {
+        let env = ProcessInfo.processInfo.environment
+        return env["GITHUB_ACTIONS"] == "true" || env["CI"] == "true"
+    }
+
+    @Test
+    func `deadline stops a page preparation and preserves single-flight ownership until unwind`() async throws {
+        if self.shouldSkipOnCI() { return }
+        _ = NSApplication.shared
+        let preparationStarted = AsyncSignal()
+        let finishPreparation = AsyncSignal()
+        let terminationStarted = AsyncSignal()
+        var terminationCount = 0
+        var createdHost: AnyObject?
+        let cache = OpenAIDashboardWebViewCache(terminateWebContent: { _ in
+            terminationCount += 1
+            terminationStarted.signal()
+            return false
+        })
+        cache.didCreateWebViewForTesting = { _, host in createdHost = host }
+        cache.prepareForTesting = { _, _, _ in
+            preparationStarted.signal()
+            await finishPreparation.wait()
+        }
+
+        let store = WKWebsiteDataStore.nonPersistent()
+        let usageURL = try #require(URL(string: "about:blank"))
+        let task = Task { @MainActor in
+            try await cache.acquire(
+                websiteDataStore: store,
+                usageURL: usageURL,
+                logger: nil,
+                navigationTimeout: 0.1,
+                allowTimeoutRetry: false)
+        }
+
+        await preparationStarted.wait()
+        await terminationStarted.wait()
+
+        #expect(terminationCount == 1)
+        #expect(cache.hasCachedEntry(for: store), "The busy entry remains owned until its waiter unwinds")
+        #expect(cache.activeAcquisitionCountForTesting == 1)
+        let host = try #require(createdHost)
+        #expect(OpenAIDashboardWebViewCache.cleanupRequestCountForTesting(host) == 1)
+
+        finishPreparation.signal()
+        switch await task.result {
+        case let .failure(error as URLError):
+            #expect(error.code == .timedOut)
+        case let .failure(error):
+            Issue.record("Unexpected acquisition error: \(error)")
+        case let .success(lease):
+            lease.release()
+            Issue.record("Expected the expired acquisition to fail")
+        }
+
+        #expect(!cache.hasCachedEntry(for: store))
+        #expect(cache.activeAcquisitionCountForTesting == 0)
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `deadline terminates and discards a leased page`() async throws {
+        if self.shouldSkipOnCI() { return }
+        _ = NSApplication.shared
+        let terminationStarted = AsyncSignal()
+        var createdHost: AnyObject?
+        let cache = OpenAIDashboardWebViewCache(terminateWebContent: { _ in
+            terminationStarted.signal()
+            return true
+        })
+        cache.didCreateWebViewForTesting = { _, host in createdHost = host }
+        cache.prepareForTesting = { _, _, _ in }
+
+        let store = WKWebsiteDataStore.nonPersistent()
+        let usageURL = try #require(URL(string: "about:blank"))
+        let lease = try await cache.acquire(
+            websiteDataStore: store,
+            usageURL: usageURL,
+            logger: nil,
+            navigationTimeout: 0.1,
+            allowTimeoutRetry: false)
+        await terminationStarted.wait()
+
+        #expect(cache.hasCachedEntry(for: store), "An expired page stays owned until its lease releases")
+        let host = try #require(createdHost)
+        #expect(OpenAIDashboardWebViewCache.cleanupRequestCountForTesting(host) == 1)
+
+        lease.release()
+
+        #expect(!cache.hasCachedEntry(for: store))
+        cache.clearAllForTesting()
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct OpenAIDashboardDeadlineSchedulerTests {
+    @MainActor
+    private final class CallbackCounter {
+        private(set) var count = 0
+
+        func increment() {
+            self.count += 1
+        }
+    }
+
+    @Test
+    func `scheduled deadline invokes its expiry callback`() async {
+        let callback = CallbackCounter()
+        let onExpire: @MainActor () -> Void = { callback.increment() }
+        let task = OpenAIDashboardDeadlineScheduler.schedule(
+            until: Date().addingTimeInterval(0.01),
+            onExpire: onExpire)
+
+        await task.value
+
+        #expect(callback.count == 1)
+    }
+
+    @Test
+    func `cancelling a scheduled deadline suppresses its callback`() async {
+        let callback = CallbackCounter()
+        let onExpire: @MainActor () -> Void = { callback.increment() }
+        let task = OpenAIDashboardDeadlineScheduler.schedule(
+            until: Date().addingTimeInterval(60),
+            onExpire: onExpire)
+
+        task.cancel()
+        await task.value
+
+        #expect(callback.count == 0)
     }
 }
 

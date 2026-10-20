@@ -423,8 +423,13 @@ struct ConfigValidationTests {
         let issue = issues.first { $0.provider == .gemini && $0.code == "workspace_unused" }
         let expectedMessage =
             "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, " +
-            "xai, gitkraken, v0, and muse support workspaceID."
+            "xai, gitkraken, v0, muse, and vercel support workspaceID."
         #expect(issue?.message == expectedMessage)
+
+        var vercelConfig = CodexBarConfig.makeDefault()
+        vercelConfig.setProviderConfig(ProviderConfig(id: .vercel, workspaceID: "team_fixture"))
+        let vercelIssues = CodexBarConfigValidator.validate(vercelConfig)
+        #expect(!vercelIssues.contains(where: { $0.provider == .vercel && $0.code == "workspace_unused" }))
     }
 
     @Test

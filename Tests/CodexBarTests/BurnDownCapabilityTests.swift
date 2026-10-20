@@ -47,6 +47,13 @@ struct BurnDownCapabilityTests {
     }
 
     @Test
+    func `Vercel personal budget never enables a quota burndown`() {
+        let snapshot = Self.snapshot(provider: .vercel, primary: Self.window(minutes: 43200))
+        #expect(BurnDownState(snapshot: snapshot, provider: .vercel, selection: .primary) == nil)
+        #expect(BurnProviderOptions.choices(in: snapshot).isEmpty)
+    }
+
+    @Test
     func `Langdock has a stable intent case but local-only snapshots are neither offered nor rendered`() {
         let snapshot = Self.snapshot(provider: .langdock, primary: Self.window(minutes: 300))
         #expect(BurnProviderOptions.choices(in: snapshot).isEmpty)

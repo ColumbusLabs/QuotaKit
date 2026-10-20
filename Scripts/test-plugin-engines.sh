@@ -5,7 +5,7 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 source "$ROOT_DIR/Scripts/test_environment.sh"
 
-FILTER='ProviderPluginRuntimeTests|ProviderPluginParityTests|ProviderPluginDetailsParityTests|ProviderPluginExtensionParityTests|ProviderPluginCurrencyTests|ProviderPluginMemoryTests|ClaudePlatformPluginTests|Sub2APIPluginGoldenTests|ParallelPluginTests|GitKrakenPluginTests|V0PluginTests|UserProviderPluginPortableTests'
+FILTER='ProviderPluginRuntimeTests|ProviderPluginParityTests|ProviderPluginDetailsParityTests|ProviderPluginExtensionParityTests|ProviderPluginCurrencyTests|ProviderPluginMemoryTests|ClaudePlatformPluginTests|Sub2APIPluginGoldenTests|ParallelPluginTests|GitKrakenPluginTests|V0PluginTests|TypeSafePluginTests|VercelBudgetPluginTests|UserProviderPluginPortableTests'
 
 echo "plugin engine A/B: JavaScriptCore"
 (

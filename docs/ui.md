@@ -13,6 +13,7 @@ read_when:
 - Codex settings show saved accounts with separate quota snapshots. Viewing or refreshing an account does not switch the active account; local usage remains tied to the current Codex profile.
 - The provider sidebar keeps saved order and the one-click alphabetical toggle (enabled first). Its adjacent menu offers Only show enabled providers and Restore default order. Restore is disabled when the saved order is already the default and alphabetical sorting is off. Search matches service names, provider IDs, CLI names, and CLI aliases, ignoring case and accents. Browsing filters do not rewrite provider configuration or menu bar order; dragging is available only in the unfiltered saved-order view and retains hidden plugin positions. Restore resets built-in service positions to catalog order while preserving plugins. Undo reverses the latest sidebar order change without reverting later credential edits.
 - Usage & Spend keeps Refresh beside the title and places the period picker on its own bounded row so narrow preference panes retain readable controls.
+- General → Preferred Currency supports Turkish lira (`TRY`, `₺`), New Zealand dollar (`NZD`), `SEK`, `NOK`, `DKK`, `PLN`, `BRL`, `MXN`, `ZAR`, `THB`, `IDR`, `VND`, `UAH`, and Israeli new shekel (`ILS`, `₪`) alongside the existing currencies, using the shared daily exchange rates and offline fallback for cost estimates.
 - Hooks fields expose distinct threshold, executable, and argument accessibility labels.
 - Agent session menus can hide unreachable hosts; the option defaults off.
 - Compact account expansion choices persist locally across menu closes; temporary tail expansion does not.
@@ -46,14 +47,23 @@ read_when:
 - Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
   palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
   per provider. Manual edits select the Custom preset.
+- Turn off **Show window labels** beside **Monospaced digits** to hide Session, Weekly, and Scoped weekly percentage
+  prefixes such as `5h` and `W`. It defaults on and applies to all layouts. Percentages keep their full VoiceOver
+  descriptions; named provider lanes, named allowances, Spend currency symbols, and progress-bar labels remain visible.
+- For a provider-specific bare Session percentage, select Codex or Claude in Layout, remove the existing percentage,
+  and add the **second Session %** chip from Usage (the provider's primary lane). This works with window labels enabled.
+- For Codex or Claude weekly usage without a `W` prefix, select that provider in Layout, remove the existing percentage,
+  and add the **second Weekly %** chip from Usage (the provider's secondary lane). The first **Weekly %** is a semantic
+  window token and keeps its prefix; lane tokens omit it.
 - The **Progress bars stacked** preset places Session and Weekly graphical bars beside their reset countdowns. Graphical bars follow the used/remaining preference; automatic balance values remain text, and older layout generations keep the matching percentage.
 - A single leading provider icon can sit beside both rows in a two-line layout. Separate row icons, icon-only first rows, high-contrast rendering, and provider-colored rendering keep icons inline.
 - Palette chips retain their natural label widths and wrap to the next row instead of squeezing longer names into
   equal-width columns.
 - Small/Regular/Large controls the token font scale; Regular remains the default. Large uses 14-point single-line text
   and 10-point stacked text. Monospaced digits is an independent optional setting that defaults off; labels remain
-  proportional. These display preferences stay outside saved layout tokens, preserving V6 layouts and V5, V4, V3,
-  V2, and legacy projections. Tight/Regular controls status-item padding. Compact stacked uses two tightly spaced lines
+  proportional. Show window labels is a separate optional setting that defaults on. These display preferences stay
+  outside saved layout tokens, preserving V6 layouts and V5, V4, V3, V2, and legacy projections. Tight/Regular controls
+  status-item padding. Compact stacked uses two tightly spaced lines
   sized to fit the menu bar.
 
 ### Layout tokens

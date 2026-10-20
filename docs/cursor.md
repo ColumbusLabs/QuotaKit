@@ -71,6 +71,8 @@ Manual option:
   - Stable user ID, email, and name.
 - `GET https://cursor.com/api/usage?user=ID`
   - Legacy request-based plan usage (request counts + limits).
+- `GET https://cursor.com/api/dashboard/v2/usage-status?scope=user`
+  - Optional monthly additional spend for unified personal memberships; failures retain usage-summary data.
 - `POST https://cursor.com/api/dashboard/get-sand-usage-status`
   - Grok Bot weekly included usage (`usagePercent`, `nextResetTimestampUtc`). Same session cookie;
     requires `Origin: https://cursor.com`. Best-effort: a failure leaves Cursor's monthly bars intact.
@@ -132,6 +134,19 @@ When Cursor rejects a cost request with HTTP 403, ordinary menu and spend-dashbo
 - Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout; unknown or synthetic placeholder windows are not offered as tokens.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
 - Reset: billing cycle end date for monthly bars; paid Grok Bot uses `nextResetTimestampUtc`, even if a trial-expiry field is also present. Trial-only allowances have no recurring reset or duration because trial expiration does not replenish quota.
+
+## Unified Cursor/Grok additional spend
+
+Unified personal memberships with `limitType: "user"` read monthly additional spend from
+`GET /api/dashboard/v2/usage-status?scope=user`, using the existing Cursor session. The legacy usage summary can
+report zero after account unification. A valid, available monthly response supplies `usedCents`, `limitCents`,
+`periodStart`, and `resetsAt`; amounts convert from cents to USD. Separate `creditsUsedCents` consumption is not
+added to additional spend. See the [affected-account response](https://github.com/steipete/CodexBar/pull/4593#issuecomment-6261700483).
+
+The optional lookup replaces the legacy request-quota lookup for these personal memberships and has a five-second
+request budget. Unavailable, failed, incomplete, malformed, or out-of-period responses retain the summary's spend,
+cap, and reset. Valid zero spend remains zero. Team budgets, legacy plans, weekly Grok allowance, account identity,
+and the normal refresh scheduler retain their existing behavior.
 
 ## Key files
 - `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe.swift`

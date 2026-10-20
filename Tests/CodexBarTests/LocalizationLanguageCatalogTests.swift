@@ -63,6 +63,33 @@ struct LocalizationLanguageCatalogTests {
         }
     }
 
+    @Test
+    func `window label remote session and Vercel budget controls are localized`() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let keys = [
+            "menu_bar_layout_show_window_labels",
+            "agent_sessions_remote_title",
+            "agent_sessions_remote_subtitle",
+            "Vercel access token",
+            "Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. " +
+                "Or set VERCEL_ACCESS_TOKEN.",
+            "Open Vercel tokens",
+            "Required with a Vercel access token. Or set VERCEL_TEAM_ID.",
+            "No personal budget configured",
+        ]
+        for language in AppLanguage.allCases where language != .system {
+            let url = resources.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
+            for key in keys {
+                let phrase = try #require(catalog[key], "Missing \(key) in \(language.rawValue)")
+                #expect(!phrase.isEmpty)
+                if language != .english { #expect(phrase != key, "Untranslated \(language.rawValue): \(key)") }
+            }
+        }
+    }
+
     private let languageKeys = [
         "language_system",
         "language_english",

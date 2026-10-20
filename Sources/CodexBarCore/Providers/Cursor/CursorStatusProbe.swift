@@ -414,6 +414,9 @@ public struct CursorStatusSnapshot: Sendable {
     /// Grok Bot weekly included usage from `/api/dashboard/get-sand-usage-status`.
     public let sandUsage: CursorSandUsageStatus?
 
+    /// Authoritative monthly additional spend for unified Cursor/Grok accounts.
+    public let unifiedUsage: CursorUnifiedUsageStatus?
+
     // MARK: - Legacy Plan (Request-Based) Fields
 
     /// Requests used this billing cycle (legacy plans only)
@@ -444,6 +447,7 @@ public struct CursorStatusSnapshot: Sendable {
         accountName: String?,
         rawJSON: String?,
         sandUsage: CursorSandUsageStatus? = nil,
+        unifiedUsage: CursorUnifiedUsageStatus? = nil,
         requestsUsed: Int? = nil,
         requestsLimit: Int? = nil)
     {
@@ -464,6 +468,7 @@ public struct CursorStatusSnapshot: Sendable {
         self.accountName = accountName
         self.rawJSON = rawJSON
         self.sandUsage = sandUsage
+        self.unifiedUsage = unifiedUsage
         self.requestsUsed = requestsUsed
         self.requestsLimit = requestsLimit
     }
@@ -539,10 +544,14 @@ public struct CursorStatusSnapshot: Sendable {
             self.sandUsage?.extraRateWindow(now: now, resetDescription: Self.formatResetDate).map { [$0] }
         }
 
-        // Prefer a personal cap. Team accounts with no user cap expose only the shared on-demand budget.
+        // Prefer authoritative personal billing, then a personal cap or the shared team budget.
+        let monthly = self.unifiedUsage?.currentMonthlyUsage(at: now)
         let resolvedOnDemandUsed: Double
         let resolvedOnDemandLimit: Double?
-        if (self.onDemandLimitUSD ?? 0) > 0 {
+        if let monthly {
+            resolvedOnDemandUsed = monthly.usedCents / 100
+            resolvedOnDemandLimit = monthly.limitCents / 100
+        } else if (self.onDemandLimitUSD ?? 0) > 0 {
             resolvedOnDemandUsed = self.onDemandUsedUSD
             resolvedOnDemandLimit = self.onDemandLimitUSD
         } else if (self.teamOnDemandLimitUSD ?? 0) > 0 {
@@ -554,7 +563,7 @@ public struct CursorStatusSnapshot: Sendable {
         }
 
         // Your own on-demand spend to surface alongside a shared team pool (nil when the budget is personal).
-        let personalOnDemandUsed: Double? = if (self.onDemandLimitUSD ?? 0) > 0 {
+        let personalOnDemandUsed: Double? = if monthly != nil || (self.onDemandLimitUSD ?? 0) > 0 {
             nil
         } else if (self.teamOnDemandLimitUSD ?? 0) > 0 {
             self.onDemandUsedUSD > 0 ? self.onDemandUsedUSD : nil
@@ -563,7 +572,7 @@ public struct CursorStatusSnapshot: Sendable {
         }
 
         // Provider cost snapshot for on-demand usage (include budget before first spend)
-        let providerCost: ProviderCostSnapshot? = if resolvedOnDemandUsed > 0
+        let providerCost: ProviderCostSnapshot? = if monthly != nil || resolvedOnDemandUsed > 0
             || (resolvedOnDemandLimit ?? 0) > 0
         {
             ProviderCostSnapshot(
@@ -571,7 +580,7 @@ public struct CursorStatusSnapshot: Sendable {
                 limit: resolvedOnDemandLimit ?? 0,
                 currencyCode: "USD",
                 period: "Monthly",
-                resetsAt: self.billingCycleEnd,
+                resetsAt: monthly.flatMap { ISO8601DateParser.parse($0.resetsAt) } ?? self.billingCycleEnd,
                 personalUsed: personalOnDemandUsed,
                 updatedAt: now)
         } else {
@@ -1567,11 +1576,21 @@ public struct CursorStatusProbe: Sendable {
         }
         try Task.checkCancellation()
 
+        // Unified accounts replace the irrelevant legacy request-quota lookup with their billing read.
+        // If optional billing is unavailable or invalid, preserve the existing summary spend and cap.
+        var unifiedUsage: CursorUnifiedUsageStatus?
+        let isUnified = usageSummary.usesUnifiedPersonalBilling
+        if isUnified,
+           let timeout = self.optionalRequestTimeout(deadline: deadline, budget: Self.unifiedUsageTimeout)
+        {
+            unifiedUsage = try? await self.fetchUnifiedUsageStatus(cookieHeader: cookieHeader, timeout: timeout)
+        }
+
         // Fetch legacy request usage only if user has a sub ID.
         // Uses try? to avoid breaking the flow for users where this endpoint fails or returns unexpected data.
         var requestUsage: CursorUsageResponse?
         var requestUsageRawJSON: String?
-        if teamBudget == nil, !teamBudgetLookupFailed,
+        if !isUnified, teamBudget == nil, !teamBudgetLookupFailed,
            let userId = userInfo?.sub ?? identityFallback?.requestUsageUserID
         {
             do {
@@ -1603,6 +1622,7 @@ public struct CursorStatusProbe: Sendable {
             rawJSON: combinedRawJSON,
             requestUsage: requestUsage,
             sandUsage: sandUsage,
+            unifiedUsage: unifiedUsage,
             identityFallback: identityFallback,
             teamBudget: teamBudget,
             teamBudgetLookupFailed: teamBudgetLookupFailed)
@@ -1644,6 +1664,24 @@ public struct CursorStatusProbe: Sendable {
         }
     }
 
+    private func fetchUnifiedUsageStatus(
+        cookieHeader: String,
+        timeout: TimeInterval) async throws -> CursorUnifiedUsageStatus
+    {
+        let url = self.baseURL.appendingPathComponent(CursorUnifiedUsageStatus.endpointPath)
+            .appending(queryItems: [URLQueryItem(name: "scope", value: "user")])
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        let (data, response) = try await self.urlSession.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw CursorStatusProbeError.networkError("Unified additional spend is unavailable")
+        }
+        return try JSONDecoder().decode(CursorUnifiedUsageStatus.self, from: data)
+    }
+
     func requestTimeout(deadline: Date?) throws -> TimeInterval {
         guard let deadline else { return self.timeout }
         let remainingTime = deadline.timeIntervalSinceNow
@@ -1658,6 +1696,8 @@ public struct CursorStatusProbe: Sendable {
         guard remainingTime > 0 else { return nil }
         return min(capped, remainingTime)
     }
+
+    private static let unifiedUsageTimeout: TimeInterval = 5
 
     private static func checkBrowserLoginDeadline(_ deadline: Date?) throws {
         guard let deadline else { return }

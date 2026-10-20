@@ -286,29 +286,47 @@ public struct OpenAIDashboardFetcher {
                 previous: previousSnapshot)
         }
 
-        let remainingTimeout = try Self.requiredRemainingTimeout(until: deadline)
-        logLine("dashboard phase=webview_acquire")
-        let lease = try await self.makeWebView(
-            websiteDataStore: websiteDataStore,
-            logger: logger,
-            timeout: remainingTimeout,
-            allowNavigationTimeoutRetry: allowNavigationTimeoutRetry)
-        defer {
-            lease.setPreserveLoadedPageOnRelease(false)
-            lease.release()
-            logLine("dashboard phase=webview_released elapsed=\(Self.phaseElapsed(since: startedAt))")
+        do {
+            let remainingTimeout = try Self.requiredRemainingTimeout(until: deadline)
+            logLine("dashboard phase=webview_acquire")
+            let lease = try await self.makeWebView(
+                websiteDataStore: websiteDataStore,
+                logger: logger,
+                timeout: remainingTimeout,
+                allowNavigationTimeoutRetry: allowNavigationTimeoutRetry)
+            defer {
+                lease.setPreserveLoadedPageOnRelease(false)
+                lease.release()
+                logLine("dashboard phase=webview_released elapsed=\(Self.phaseElapsed(since: startedAt))")
+            }
+            logLine("dashboard phase=hydrate elapsed=\(Self.phaseElapsed(since: startedAt))")
+            return try await self.collectPageSnapshot(.init(
+                webView: lease.webView,
+                apiData: apiData,
+                verifiedSignedInEmail: verifiedSignedInEmail,
+                subscriptionResult: .unavailable,
+                previousSnapshot: previousSnapshot,
+                deadline: deadline,
+                startedAt: startedAt,
+                debugDumpHTML: debugDumpHTML,
+                log: lease.log))
+        } catch {
+            try Task.checkCancellation()
+            guard !(error is CancellationError),
+                  (error as? URLError)?.code != .cancelled,
+                  Date() >= deadline,
+                  let apiData,
+                  apiData.hasUsageData,
+                  let verifiedSignedInEmail
+            else {
+                throw error
+            }
+            logLine("dashboard page deadline reached; returning verified API snapshot")
+            return try Self.verifiedAPISnapshot(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previousSnapshot)
         }
-        logLine("dashboard phase=hydrate elapsed=\(Self.phaseElapsed(since: startedAt))")
-        return try await self.collectPageSnapshot(.init(
-            webView: lease.webView,
-            apiData: apiData,
-            verifiedSignedInEmail: verifiedSignedInEmail,
-            subscriptionResult: .unavailable,
-            previousSnapshot: previousSnapshot,
-            deadline: deadline,
-            startedAt: startedAt,
-            debugDumpHTML: debugDumpHTML,
-            log: lease.log))
     }
 
     /// Fetches optional subscription metadata independently of the dashboard result.
@@ -1252,11 +1270,13 @@ extension OpenAIDashboardFetcher {
     func handleBlockingReadinessState(
         _ probe: ReadinessProbe,
         webView: WKWebView,
+        deadline: Date,
         debugDumpHTML: Bool,
         logger: (String) -> Void) async throws
     {
         if debugDumpHTML,
            probe.loginRequired || probe.cloudflareInterstitial,
+           Date() < deadline,
            let html = try? await self.fetchDebugHTML(webView: webView)
         {
             Self.writeDebugArtifacts(html: html, bodyText: nil, logger: logger)

@@ -172,6 +172,7 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
   acknowledgment. Output never includes cookie values. See [Langdock](langdock.md) for browser-profile setup.
 - `quotakit plugins` lists installed user-provider plugins and their approval/runtime state. Plugin manifests can describe settings, detail rows, and charts; see `docs/plugins.md` for install paths, permissions, and the JavaScript/TypeScript sandbox.
 - `--provider <id|both|all>` (default: enabled providers in config; falls back to defaults when missing).
+  - Accepts raw IDs from `quotakit config providers --format json` as well as CLI names and aliases. For example, `alibabatokenplan` and `alibaba-token-plan` select the same provider; existing CLI names and aliases take precedence if names overlap.
   - Provider IDs live in the config file (see `docs/configuration.md`).
   - With three or more providers enabled, the default stays scoped to enabled providers; use `--provider all` to query
     every registered provider.

@@ -1030,6 +1030,10 @@ struct SettingsStoreCoverageTests {
         reloaded.preferredCurrencyCode = "AED"
         let reloadedAED = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
         #expect(reloadedAED.preferredCurrencyCode == "AED")
+
+        reloadedAED.preferredCurrencyCode = "ILS"
+        let reloadedILS = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(reloadedILS.preferredCurrencyCode == "ILS")
     }
 
     @Test
@@ -1040,6 +1044,7 @@ struct SettingsStoreCoverageTests {
         #expect(PreferredCurrencyOption.label(for: "AED") == "AED (د.إ)")
         #expect(PreferredCurrencyOption.label(for: "TRY") == "TRY (₺)")
         #expect(PreferredCurrencyOption.label(for: "UAH") == "UAH (₴)")
+        #expect(PreferredCurrencyOption.label(for: "ILS") == "ILS (₪)")
     }
 
     private static func makeSettingsStore(

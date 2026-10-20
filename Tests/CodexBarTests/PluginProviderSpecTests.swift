@@ -119,8 +119,15 @@ struct PluginProviderSpecTests {
                     environment: [:]))
             }
             for field in fields where field.kind == .secure {
-                field.binding.wrappedValue = "bound-key"
-                #expect(fixture.settings[providerConfig: provider, field: .apiKey] == "bound-key")
+                let value = field.id == "vercel-access-token" ? "bound-token" : "bound-key"
+                field.binding.wrappedValue = value
+                if provider == .vercel, field.id == "vercel-access-token" {
+                    let config = fixture.settings.providerConfig(for: provider)
+                    #expect(config?.apiKey == "bound-key")
+                    #expect(config?.pluginSecrets?["VERCEL_ACCESS_TOKEN"] == "bound-token")
+                } else {
+                    #expect(fixture.settings[providerConfig: provider, field: .apiKey] == "bound-key")
+                }
             }
             fixture.settings[providerConfig: provider, field: .apiKey] = ""
             var config = ProviderConfig(id: provider.instanceID, apiKey: "fixture-key", workspaceID: "fixture-project")

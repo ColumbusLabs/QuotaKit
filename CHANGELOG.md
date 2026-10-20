@@ -9,6 +9,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Vercel can optionally track personal AI Gateway budgets. Menu percentage labels can be hidden, session discovery can stay local, and cost estimates support Israeli shekels.
+
 - Saved token accounts can be renamed, updated and reordered while retaining their account identity and selection. Overview can optionally show every cached account for selected providers.
 - User plugins can supply validated monochrome SVG icons and per-row severity; selected plugin quotas remain stable during refreshes.
 
@@ -52,6 +54,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend supports grouped charts, day/hour inspection, source isolation, and precise reporting-calendar navigation.
 
 ### Fixed
+
+- Claude cost history saves incremental changes with less disk rewriting. Hidden Codex dashboard work stops at refresh deadlines while retaining verified API usage.
+- Cursor Ultra monthly usage and Antigravity quotas/history follow their current sources. TypeSafe retains its icon proportions and sends browser-compatible requests; the CLI accepts catalog provider IDs and avoids a Linux XML-library dependency.
 
 - Claude local history includes Desktop Cowork sessions and survives unreadable source roots. CLI Auto follows the active claude-swap account, and OAuth/Web extra limits use the same parser.
 - Pi retains token history for unsupported backends with stable source discovery; OpenCode Go honors the chosen source and exposes local history in the cost command.

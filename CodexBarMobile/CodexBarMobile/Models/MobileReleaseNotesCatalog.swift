@@ -31,6 +31,7 @@ enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
+                        String(localized: "Vercel personal budgets now sync from Mac to iPhone."),
                         String(
                             localized: "Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."),
                         String(localized: "Claude cloud credits now sync from Mac to iPhone."),

@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Optional Vercel personal budgets sync from Mac to iPhone through the existing quota and detail payloads.
+
 - Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.
 - Parallel prepaid balance and pending debit details sync from Mac to iPhone without quota widgets or alerts.
 - Claude Platform API credit grants and their quota alerts now sync from QuotaKit Mac to iPhone.

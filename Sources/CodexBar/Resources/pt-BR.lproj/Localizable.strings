@@ -661,6 +661,8 @@
 "overview_rows_follow_order" = "As linhas da Visão geral sempre seguem a ordem dos provedores.";
 "overview_no_providers_selected" = "Nenhum provedor selecionado";
 "agent_sessions_title" = "Sessões de agentes";
+"agent_sessions_remote_title" = "Sessões remotas (Tailscale / SSH)";
+"agent_sessions_remote_subtitle" = "Descubra hosts remotos e conecte-se a eles. Desative para monitorar apenas este Mac.";
 "agent_sessions_subtitle" = "Mostra no menu sessões locais e descobertas via SSH do Codex e Claude Code.";
 "agent_sessions_hosts_title" = "Hosts SSH adicionais";
 "agent_sessions_footer" = "Macs na sua tailnet são descobertos automaticamente. As sessões locais são atualizadas a cada 30 segundos; os hosts remotos, a cada 60 segundos e quando o menu é aberto.";
@@ -2305,6 +2307,10 @@
 "TOP MODELS" = "PRINCIPAIS MODELOS";
 "TRACKED TOKENS · %@" = "Tokens registrados · %@";
 "Team ID" = "Equipe ID";
+"Vercel access token" = "Token de acesso da Vercel";
+"Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. Or set VERCEL_ACCESS_TOKEN." = "Opcional. Mostra seu orçamento pessoal em vez dos créditos da equipe. Salvo no arquivo de configuração local do QuotaKit. Ou defina VERCEL_ACCESS_TOKEN.";
+"Open Vercel tokens" = "Abrir tokens da Vercel";
+"Required with a Vercel access token. Or set VERCEL_TEAM_ID." = "Obrigatório com um token de acesso da Vercel. Ou defina VERCEL_TEAM_ID.";
 "Team budget" = "Orçamento da equipe";
 "That managed account uses a workspace that differs from its saved Codex auth default. Keep it as a managed account; QuotaKit will not rewrite Codex-owned auth to promote it." = "Essa conta gerenciada usa um espaço de trabalho diferente do padrão de autenticação Codex salvo. Mantenha-a como uma conta gerenciada; QuotaKit não reescreverá a autenticação de propriedade de Codex para promovê-la.";
 "The pasted header is sent only to this tenant." = "O cabeçalho colado é enviado somente para este locatário.";
@@ -2637,6 +2643,7 @@
 "CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o cabeçalho Cookie do %@ para buscar uso. Clique em OK para continuar.";
 "menu_bar_layout_size_large" = "Grande";
 "menu_bar_layout_monospaced_digits" = "Dígitos monoespaçados";
+"menu_bar_layout_show_window_labels" = "Mostrar rótulos dos períodos";
 "Paste a platform.claude.com Cookie header containing sessionKey." = "Cole um cabeçalho Cookie de platform.claude.com contendo sessionKey.";
 "CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o token de login do Muse Code para buscar o uso da sua assinatura do Muse Code. Clique em OK para continuar.";
 "API credit" = "Crédito de API";
@@ -2740,3 +2747,5 @@
 "Move up" = "Mover para cima";
 "Move down" = "Mover para baixo";
 "Leave blank to keep the saved credential." = "Deixe em branco para manter a credencial salva.";
+
+"No personal budget configured" = "Nenhum orçamento pessoal configurado";

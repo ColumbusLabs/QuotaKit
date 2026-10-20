@@ -268,6 +268,7 @@ run_portable_checks() {
   check_ios_testflight_release_lane
   check_release_feed_url
   check_ci_path_gate
+  python3 "${ROOT_DIR}/Scripts/test_linux_cli_linkage.py"
   check_ci_build_cache
   check_repository_size
   check_shell_scripts

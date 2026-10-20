@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 @testable import CodexBar
 
@@ -23,6 +24,56 @@ struct MenuBarLayoutV6PersistenceTests {
         .extraPercent(id: "cursor-grok-bot"),
         .windowResetCountdown(window: .weekly),
     ]])
+
+    @Test
+    func `window label preference persists without changing any saved layout projection`() async {
+        let defaults = InMemoryUserDefaults()
+        let settings = testSettingsStore(suiteName: "window-labels", userDefaults: defaults)
+        #expect(settings.menuBarLayoutShowWindowLabels)
+        #expect(defaults.object(forKey: "menuBarLayoutShowWindowLabels") == nil)
+        settings.setMenuBarLayout(Self.spendLayout, for: nil)
+        settings.setMenuBarLayout(Self.spendLayout, for: .claude)
+        settings.menuBarLayoutConditionals = [.makeDefault()]
+        let keys = [
+            MenuBarLayoutUserDefaultsKey.layoutCurrent,
+            MenuBarLayoutUserDefaultsKey.layoutV5,
+            MenuBarLayoutUserDefaultsKey.layoutV4,
+            MenuBarLayoutUserDefaultsKey.layoutV3,
+            MenuBarLayoutUserDefaultsKey.layoutReleased,
+            MenuBarLayoutUserDefaultsKey.layout,
+            MenuBarLayoutUserDefaultsKey.overridesCurrent,
+            MenuBarLayoutUserDefaultsKey.overridesV5,
+            MenuBarLayoutUserDefaultsKey.overridesV4,
+            MenuBarLayoutUserDefaultsKey.overridesV3,
+            MenuBarLayoutUserDefaultsKey.overridesReleased,
+            MenuBarLayoutUserDefaultsKey.overrides,
+            MenuBarLayoutUserDefaultsKey.conditionalsCurrent,
+            MenuBarLayoutUserDefaultsKey.conditionalsV5,
+            MenuBarLayoutUserDefaultsKey.conditionalsV4,
+            MenuBarLayoutUserDefaultsKey.conditionalsV3,
+            MenuBarLayoutUserDefaultsKey.conditionalsReleased,
+            MenuBarLayoutUserDefaultsKey.conditionals,
+        ]
+        let before = keys.map { defaults.data(forKey: $0) }
+        #expect(before.allSatisfy { $0 != nil })
+        await confirmation { changed in
+            withObservationTracking {
+                _ = settings.menuObservationToken
+            } onChange: {
+                changed()
+            }
+            settings.menuBarLayoutShowWindowLabels = false
+        }
+        #expect(keys.map { defaults.data(forKey: $0) } == before)
+        let reloaded = testSettingsStore(suiteName: "window-labels-reloaded", userDefaults: defaults)
+        #expect(!reloaded.menuBarLayoutShowWindowLabels)
+        #expect(reloaded.menuBarLayout == Self.spendLayout)
+        #expect(reloaded.menuBarLayoutOverrides[.claude] == Self.spendLayout)
+        reloaded.menuBarLayoutShowWindowLabels = true
+        #expect(testSettingsStore(suiteName: "window-labels-restored", userDefaults: defaults)
+            .menuBarLayoutShowWindowLabels)
+        #expect(keys.map { defaults.data(forKey: $0) } == before)
+    }
 
     @Test
     func `spend token discriminators stay stable and round trip`() throws {
