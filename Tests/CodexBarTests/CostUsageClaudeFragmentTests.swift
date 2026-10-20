@@ -208,11 +208,12 @@ struct CostUsageClaudeFragmentTests {
             replacement.usage.timeZoneIdentifier = Calendar.current.timeZone.identifier
             let legacyReplacement = try self.encoder.encode(replacement)
             let replaced = LockedValue(false)
-            let firstLoad = try CostUsageClaudeFragments.$afterShardReadForTesting.withValue { readURL in
+            let replaceDuringRead: @Sendable (URL) throws -> Void = { readURL in
                 guard readURL == url, !replaced.withLock({ $0 }) else { return }
                 try legacyReplacement.write(to: readURL, options: .atomic)
                 replaced.withLock { $0 = true }
-            } operation: {
+            }
+            let firstLoad = try CostUsageClaudeFragments.$afterShardReadForTesting.withValue(replaceDuringRead) {
                 CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: root)
             }
             #expect(Set(firstLoad.usage.files.keys) == ["initial"])
@@ -246,12 +247,12 @@ struct CostUsageClaudeFragmentTests {
             let legacyReplacement = try self.encoder.encode(replacement)
             let replaced = LockedValue(false)
 
-            let committed = try CostUsageClaudeFragments.$afterManifestWriteForTesting.withValue { writeURL in
+            let replaceAfterWrite: @Sendable (URL) throws -> Void = { writeURL in
                 guard writeURL == url, !replaced.withLock({ $0 }) else { return }
                 try legacyReplacement.write(to: writeURL, options: .atomic)
                 replaced.withLock { $0 = true }
             }
-            operation: {
+            let committed = try CostUsageClaudeFragments.$afterManifestWriteForTesting.withValue(replaceAfterWrite) {
                 try CostUsageClaudeCacheIO.save(provider: .claude, cache: updated, cacheRoot: root)
             }
             let authoredStamp = try #require(committed)
