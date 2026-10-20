@@ -220,9 +220,17 @@ struct CostUsageScannerClaudeMemoTests {
 
         var replacement = warmArtifact
         replacement.usage.lastScanUnixMs += 1
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        try encoder.encode(replacement).write(to: cacheURL, options: .atomic)
+        let replacementRoot = env.root.appendingPathComponent("replacement-cache", isDirectory: true)
+        let replacementURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: replacementRoot)
+        let replacementData = try CostUsageClaudeFragments.$shared.withValue(
+            CostUsageClaudeFragments(),
+            operation: {
+                _ = try CostUsageClaudeCacheIO.save(
+                    provider: .claude, cache: replacement, cacheRoot: replacementRoot)
+                return try Data(contentsOf: replacementURL)
+            })
+        #expect(Int64(replacementData.count) == originalStamp.size)
+        try replacementData.write(to: cacheURL, options: .atomic)
         try FileManager.default.setAttributes([.modificationDate: originalMtime], ofItemAtPath: cacheURL.path)
         let replacementStamp = try #require(CostUsageClaudeFileStamp.read(at: cacheURL))
         #expect(replacementStamp.fileID != originalStamp.fileID)

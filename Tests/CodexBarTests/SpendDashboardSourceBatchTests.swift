@@ -189,7 +189,20 @@ private enum SpendDashboardSyntheticError: Error {
 
 @MainActor
 private final class SpendDashboardBatchPendingLoads<Value: Sendable> {
+    @MainActor
+    private final class PendingCountWaiter {
+        let expectedCount: Int
+        let continuation: CheckedContinuation<Void, any Error>
+        var timeoutTask: Task<Void, Never>?
+
+        init(expectedCount: Int, continuation: CheckedContinuation<Void, any Error>) {
+            self.expectedCount = expectedCount
+            self.continuation = continuation
+        }
+    }
+
     private var pending: [CheckedContinuation<Value, any Error>] = []
+    private var pendingCountWaiters: [UUID: PendingCountWaiter] = [:]
 
     var pendingCount: Int {
         self.pending.count
@@ -198,21 +211,56 @@ private final class SpendDashboardBatchPendingLoads<Value: Sendable> {
     func load() async throws -> Value {
         try await withCheckedThrowingContinuation { continuation in
             self.pending.append(continuation)
+            self.resumePendingCountWaiters()
         }
     }
 
-    func waitForPendingCount(_ expected: Int) async throws {
-        for _ in 0..<1000 {
-            if self.pending.count == expected { return }
-            await Task.yield()
+    func waitForPendingCount(_ expected: Int, timeout: Duration = .seconds(5)) async throws {
+        guard self.pending.count != expected else { return }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            let id = UUID()
+            let waiter = PendingCountWaiter(expectedCount: expected, continuation: continuation)
+            self.pendingCountWaiters[id] = waiter
+            waiter.timeoutTask = Task { @MainActor [weak self, weak waiter] in
+                do {
+                    try await Task.sleep(for: timeout)
+                } catch {
+                    return
+                }
+                guard let self,
+                      let waiter,
+                      self.pendingCountWaiters[id] === waiter
+                else {
+                    return
+                }
+                self.pendingCountWaiters.removeValue(forKey: id)
+                waiter.timeoutTask = nil
+                waiter.continuation.resume(throwing: NSError(domain: "SpendDashboardBatchPendingLoads", code: 1))
+            }
         }
-        throw NSError(domain: "SpendDashboardBatchPendingLoads", code: 1)
     }
 
     func close() {
+        for waiter in self.pendingCountWaiters.values {
+            waiter.timeoutTask?.cancel()
+            waiter.continuation.resume(throwing: CancellationError())
+        }
+        self.pendingCountWaiters.removeAll()
         for continuation in self.pending {
             continuation.resume(throwing: CancellationError())
         }
         self.pending.removeAll()
+    }
+
+    private func resumePendingCountWaiters() {
+        let readyIDs = self.pendingCountWaiters.compactMap { id, waiter in
+            waiter.expectedCount == self.pending.count ? id : nil
+        }
+        for id in readyIDs {
+            guard let waiter = self.pendingCountWaiters.removeValue(forKey: id) else { continue }
+            waiter.timeoutTask?.cancel()
+            waiter.timeoutTask = nil
+            waiter.continuation.resume()
+        }
     }
 }
