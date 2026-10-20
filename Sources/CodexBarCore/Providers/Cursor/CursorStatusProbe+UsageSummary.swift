@@ -8,6 +8,7 @@ extension CursorStatusProbe {
         rawJSON: String?,
         requestUsage: CursorUsageResponse? = nil,
         sandUsage: CursorSandUsageStatus? = nil,
+        unifiedUsage: CursorUnifiedUsageStatus? = nil,
         identityFallback: CursorSessionIdentity? = nil,
         teamBudget: CursorTeamSpend.Budget? = nil,
         teamBudgetLookupFailed: Bool = false) -> CursorStatusSnapshot
@@ -122,6 +123,7 @@ extension CursorStatusProbe {
             accountName: userInfo?.name,
             rawJSON: rawJSON,
             sandUsage: sandUsage,
+            unifiedUsage: summary.usesUnifiedPersonalBilling ? unifiedUsage : nil,
             requestsUsed: requestsUsed,
             requestsLimit: requestsLimit)
     }

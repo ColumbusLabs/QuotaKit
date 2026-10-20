@@ -56,7 +56,8 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
     private static let onboardUserEndpoint = "\(baseURL)/v1internal:onboardUser"
     private static let fetchAvailableModelsEndpoint = "\(baseURL)/v1internal:fetchAvailableModels"
     private static let retrieveUserQuotaEndpoint = "\(baseURL)/v1internal:retrieveUserQuota"
-    private static let retrieveUserQuotaSummaryEndpoint = "\(baseURL)/v1internal:retrieveUserQuotaSummary"
+    private static let retrieveUserQuotaSummaryEndpoint =
+        "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary"
     private static let refreshSafetyWindow: TimeInterval = 60
     private static let clientMetadata = [
         "ideType": "ANTIGRAVITY",

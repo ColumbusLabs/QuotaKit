@@ -220,9 +220,17 @@ struct CostUsageScannerClaudeMemoTests {
 
         var replacement = warmArtifact
         replacement.usage.lastScanUnixMs += 1
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        try encoder.encode(replacement).write(to: cacheURL, options: .atomic)
+        let replacementRoot = env.root.appendingPathComponent("replacement-cache", isDirectory: true)
+        let replacementURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: replacementRoot)
+        let replacementData = try CostUsageClaudeFragments.$shared.withValue(
+            CostUsageClaudeFragments(),
+            operation: {
+                _ = try CostUsageClaudeCacheIO.save(
+                    provider: .claude, cache: replacement, cacheRoot: replacementRoot)
+                return try Data(contentsOf: replacementURL)
+            })
+        #expect(Int64(replacementData.count) == originalStamp.size)
+        try replacementData.write(to: cacheURL, options: .atomic)
         try FileManager.default.setAttributes([.modificationDate: originalMtime], ofItemAtPath: cacheURL.path)
         let replacementStamp = try #require(CostUsageClaudeFileStamp.read(at: cacheURL))
         #expect(replacementStamp.fileID != originalStamp.fileID)
@@ -252,9 +260,10 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(initial.data.count == 2)
 
         let cacheURL = self.cacheURL(env: env)
-        var legacy = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: cacheURL)) as? [String: Any])
-        legacy["version"] = 2
-        try JSONSerialization.data(withJSONObject: legacy).write(to: cacheURL, options: .atomic)
+        var legacy = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
+        legacy.usage.version = 2
+        try JSONEncoder().encode(legacy).write(to: cacheURL, options: .atomic)
+        CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: cacheURL)
 
         let (upgraded, work) = self.recordedLoad(
             since: previousDay, until: day, now: day, options: options)
@@ -376,7 +385,7 @@ struct CostUsageScannerClaudeMemoTests {
         let initial = self.load(day: day, options: options)
         let sourceStamp = CostUsageClaudeFileStamp.read(at: sourceURL)
         let memoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: self.cacheURL(env: env))
-        var envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: memoURL)) as? [String: Any])
+        var envelope = try claudeMemoObjectForTesting(at: memoURL)
         envelope["reportSemanticsVersion"] = revision
         envelope["report"] = [
             "type": "codexbar-claude-report-memo", "data": [],
@@ -394,7 +403,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(restarted.quotaSlices == initial.quotaSlices)
         #expect(metrics.transcriptParses == 0)
         #expect(CostUsageClaudeFileStamp.read(at: sourceURL) == sourceStamp)
-        let rewritten = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: memoURL)) as? [String: Any])
+        let rewritten = try claudeMemoObjectForTesting(at: memoURL)
         #expect(rewritten["reportSemanticsVersion"] as? Int == CostUsageClaudeReportMemo.reportSemanticsVersion)
     }
 

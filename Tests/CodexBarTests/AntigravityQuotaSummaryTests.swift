@@ -439,7 +439,7 @@ struct AntigravityQuotaSummaryTests {
     }
 }
 
-private func antigravityQuotaSummaryJSON() -> String {
+func antigravityQuotaSummaryJSON(geminiSession: Double = 0.91, geminiWeekly: Double = 0.82) -> String {
     """
     {
       "response": {
@@ -452,14 +452,14 @@ private func antigravityQuotaSummaryJSON() -> String {
               {
                 "bucketId": "gemini-weekly",
                 "displayName": "Weekly Limit",
-                "remaining": { "remainingFraction": 0.82 },
+                "remaining": { "remainingFraction": \(geminiWeekly) },
                 "description": "You have used some of your weekly limit, it will fully refresh in 5 days, 11 hours.",
                 "resetTime": "2026-06-19T08:45:39Z"
               },
               {
                 "bucketId": "gemini-5h",
                 "displayName": "Five Hour Limit",
-                "remaining": { "remainingFraction": 0.91 },
+                "remaining": { "remainingFraction": \(geminiSession) },
                 "description": "You have used some of your 5-hour limit, it will fully refresh in 4 hours.",
                 "resetTime": "2026-06-15T11:39:34Z"
               }

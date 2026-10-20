@@ -661,6 +661,8 @@
 "overview_rows_follow_order" = "概要の行は常にプロバイダの並び順に従います。";
 "overview_no_providers_selected" = "プロバイダが選択されていません";
 "agent_sessions_title" = "エージェントセッション";
+"agent_sessions_remote_title" = "リモートセッション（Tailscale / SSH）";
+"agent_sessions_remote_subtitle" = "リモートホストを検出して接続します。このMacのみを監視するにはオフにしてください。";
 "agent_sessions_subtitle" = "ローカルおよび SSH で検出された Codex と Claude Code のセッションをメニューに表示します。";
 "agent_sessions_hosts_title" = "追加の SSH ホスト";
 "agent_sessions_footer" = "tailnet 上の Mac は自動的に検出されます。ローカルセッションは 30 秒ごと、リモートホストは 60 秒ごと、およびメニューを開いたときに更新されます。";
@@ -2305,6 +2307,10 @@
 "TOP MODELS" = "トップモデル";
 "TRACKED TOKENS · %@" = "記録済みトークン · %@";
 "Team ID" = "チームID";
+"Vercel access token" = "Vercel アクセストークン";
+"Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. Or set VERCEL_ACCESS_TOKEN." = "任意。チームのクレジットの代わりに個人予算を表示します。QuotaKit のローカル設定ファイルに保存されます。または VERCEL_ACCESS_TOKEN を設定してください。";
+"Open Vercel tokens" = "Vercel トークンを開く";
+"Required with a Vercel access token. Or set VERCEL_TEAM_ID." = "Vercel アクセストークンと併せて必要です。または VERCEL_TEAM_ID を設定してください。";
 "Team budget" = "チームの予算";
 "That managed account uses a workspace that differs from its saved Codex auth default. Keep it as a managed account; QuotaKit will not rewrite Codex-owned auth to promote it." = "その管理対象アカウントは、保存されている Codex 認証のデフォルトとは異なるワークスペースを使用します。管理アカウントとして保持します。 QuotaKit は、Codex が所有する認証をプロモートするために書き換えません。";
 "The pasted header is sent only to this tenant." = "貼り付けられたヘッダーは、このテナントにのみ送信されます。";
@@ -2637,6 +2643,7 @@
 "CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit は使用量を取得するために、macOS キーチェーンに %@ の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "menu_bar_layout_size_large" = "大";
 "menu_bar_layout_monospaced_digits" = "等幅数字";
+"menu_bar_layout_show_window_labels" = "期間ラベルを表示";
 "Paste a platform.claude.com Cookie header containing sessionKey." = "sessionKey を含む platform.claude.com の Cookie ヘッダーを貼り付けてください。";
 "CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit は Muse Code のサブスクリプション使用量を取得するために、macOS キーチェーンに Muse Code のログイン トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
 "API credit" = "API クレジット";
@@ -2740,3 +2747,5 @@
 "Move up" = "上へ移動";
 "Move down" = "下へ移動";
 "Leave blank to keep the saved credential." = "保存済みの認証情報を維持するには空欄にしてください。";
+
+"No personal budget configured" = "個人予算が設定されていません";

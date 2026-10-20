@@ -29,7 +29,7 @@ struct CostUsageClaudeReportContextTests {
         if cold {
             let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: fixture.env.cacheRoot)
             let memoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: cacheURL)
-            var memo = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: memoURL)) as? [String: Any])
+            var memo = try claudeMemoObjectForTesting(at: memoURL)
             memo.removeValue(forKey: "hasWindowScopedRows")
             try JSONSerialization.data(withJSONObject: memo).write(to: memoURL, options: .atomic)
         }
@@ -67,11 +67,9 @@ struct CostUsageClaudeReportContextTests {
         _ = fixture.loadLegacy(days: 365, cacheRoot: legacyRoot)
         _ = try fixture.write(path: "changed.jsonl", day: fixture.now, id: "changed", input: 3)
         _ = fixture.loadLegacy(days: 30, cacheRoot: legacyRoot)
-        let replacement = try Data(contentsOf: CostUsageClaudeCacheIO.cacheFileURL(
-            provider: .claude, cacheRoot: legacyRoot))
-        try replacement.write(
-            to: CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: fixture.env.cacheRoot),
-            options: .atomic)
+        let replacementURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: legacyRoot)
+        let currentURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: fixture.env.cacheRoot)
+        try installClaudeCacheSnapshotForTesting(from: replacementURL, to: currentURL)
         let (report, work) = try fixture.load(context: .regular, days: 30, cold: cold)
         #expect(report.summary?.totalInputTokens == 13)
         #expect(work.transcriptParses == 2)

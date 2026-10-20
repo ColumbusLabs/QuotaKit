@@ -105,31 +105,33 @@ struct CostUsageClaudeWriteAmplificationTests {
         #expect(restoredTime == 0)
         #expect(CostUsageClaudeFileStamp.read(at: source) == sourceStamp)
         _ = try fixture.load(context: context, cycle: 1, forceRescan: true)
-        let stored = try JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: Data(contentsOf: cacheURL))
+        let stored = CostUsageClaudeCacheIO.loadArtifact(
+            provider: .claude, cacheRoot: fixture.env.cacheRoot, reportContext: context)
         let row = try #require(stored.usage.files.values.first?.claudeRows?.first)
         #expect(row.model.utf8.elementsEqual(decomposed.utf8))
         #expect(CostUsageClaudeFileStamp.read(at: cacheURL) != initialCacheStamp)
     }
 
     @Test
-    func `unchanged saves survive decoded artifact eviction without encoding`() throws {
+    func `evicted snapshots rebuild once then reuse unchanged saves`() throws {
         let fixture = try Fixture(rowCount: 128)
         defer { fixture.env.cleanup() }
         _ = try fixture.load(context: .regular)
         let url = fixture.cacheURL(context: .regular)
         let cache = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: fixture.env.cacheRoot)
-        let before = try fixture.stamps(context: .regular)
+        CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: url)
         let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
         try CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) {
             for _ in 0..<3 {
-                CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: url)
                 _ = try CostUsageClaudeCacheIO.save(provider: .claude, cache: cache, cacheRoot: fixture.env.cacheRoot)
             }
         }
-        #expect(recorder.snapshot().cacheEncodes == 0)
+        #expect(recorder.snapshot().cacheEncodes == 1)
         #expect(recorder.persistenceSnapshot().reads == 0)
-        #expect(recorder.persistenceSnapshot().writes == 0)
-        #expect(try fixture.stamps(context: .regular) == before)
+        #expect(recorder.persistenceSnapshot().writes == 1)
+        let restored = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: fixture.env.cacheRoot)
+        #expect(restored.usage == cache.usage)
+        #expect(restored.sourceFileIDs == cache.sourceFileIDs)
     }
 
     @Test
@@ -149,7 +151,7 @@ struct CostUsageClaudeWriteAmplificationTests {
         #expect(recorder.snapshot().cacheEncodes == 1)
         #expect(recorder.persistenceSnapshot().writes == 1)
         #expect(recorder.persistenceSnapshot().reads == 0)
-        let decoded = try JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: Data(contentsOf: url))
+        let decoded = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: fixture.env.cacheRoot)
         #expect(decoded.usage == cache.usage)
         #expect(decoded.sourceFileIDs == cache.sourceFileIDs)
 
@@ -221,7 +223,7 @@ struct CostUsageClaudeWriteAmplificationTests {
     }
 
     @Test
-    func `legacy sorted JSON loads and rebuilt identical content preserves stamps`() throws {
+    func `legacy sorted JSON migrates once without changing decoded content`() throws {
         let fixture = try Fixture(rowCount: 2)
         defer { fixture.env.cleanup() }
         _ = try fixture.load(context: .regular)
@@ -249,10 +251,11 @@ struct CostUsageClaudeWriteAmplificationTests {
             }
         }
         #expect(recorder.snapshot().cacheEncodes == 1)
-        #expect(recorder.persistenceSnapshot().writes == 0)
+        #expect(recorder.persistenceSnapshot().writes == 1)
         #expect(recorder.persistenceSnapshot().reads == 0)
-        #expect(CostUsageClaudeFileStamp.read(at: url) == before)
-        #expect(try Data(contentsOf: url) == legacyBytes)
+        #expect(CostUsageClaudeFileStamp.read(at: url) != before)
+        #expect(try encoder.encode(CostUsageClaudeCacheIO.loadArtifact(
+            provider: .claude, cacheRoot: fixture.env.cacheRoot)) == legacyBytes)
     }
 
     @Test
@@ -275,7 +278,7 @@ struct CostUsageClaudeWriteAmplificationTests {
         let url = fixture.cacheURL(context: .regular)
         try JSONEncoder().encode(replacement).write(to: url, options: .atomic)
         _ = try CostUsageClaudeCacheIO.save(provider: .claude, cache: cache, cacheRoot: fixture.env.cacheRoot)
-        let restored = try JSONDecoder().decode(CostUsageClaudeCacheArtifact.self, from: Data(contentsOf: url))
+        let restored = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: fixture.env.cacheRoot)
         #expect(restored.usage == cache.usage)
         #expect(restored.sourceFileIDs == cache.sourceFileIDs)
     }
@@ -298,8 +301,7 @@ struct CostUsageClaudeWriteAmplificationTests {
                 CostUsageScanner.ClaudeUsageRow.self,
                 from: data)]
             _ = try CostUsageClaudeCacheIO.save(provider: .claude, cache: cache, cacheRoot: fixture.env.cacheRoot)
-            let stored = try JSONDecoder().decode(
-                CostUsageClaudeCacheArtifact.self, from: Data(contentsOf: fixture.cacheURL(context: .regular)))
+            let stored = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: fixture.env.cacheRoot)
             #expect(stored.usage.files[path]?.claudeRows?.first?.model.utf8.elementsEqual(model.utf8) == true)
         }
     }

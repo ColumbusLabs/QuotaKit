@@ -491,7 +491,7 @@ public enum ProviderDescriptorRegistry {
 
     public static var cliNameMap: [String: UsageProvider] {
         self.ensureBootstrapped()
-        var map: [String: UsageProvider] = [:]
+        var map = Dictionary(uniqueKeysWithValues: self.all.map { ($0.id.rawValue, $0.id) })
         for descriptor in self.all {
             map[descriptor.cli.name] = descriptor.id
             for alias in descriptor.cli.aliases {

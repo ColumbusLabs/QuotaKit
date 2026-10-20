@@ -255,3 +255,11 @@ semantics-preserving optimization does not force a history rescan. No cache sche
 Detached SIGTERM-ignoring test fixtures watch the owning test process with kqueue `NOTE_EXIT`,
 with a 120-second backstop. Heartbeat loops also retain an absolute deadline, so interruption
 cannot leave an indefinite detached fixture behind.
+
+## Linux CLI linkage
+
+The glibc CLI must not depend on `libxml2`: newer distributions use an incompatible SONAME.
+Keep `FoundationXML` imports and XML parsing under `#if os(macOS)`. Plugin SVG icons use
+the existing monogram fallback on Linux. CI and glibc release builds inspect ELF dependencies
+with `bash Scripts/check-linux-cli-linkage.sh <CodexBarCLI>`. Static musl binaries have no
+dynamic dependency table.

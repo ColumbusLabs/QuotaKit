@@ -506,9 +506,13 @@ struct UsageFormatterTests {
         let gbp = UsageFormatter.currencyString(54.72, currencyCode: "GBP")
         #expect(gbp == "£54.72")
 
+        let ils = UsageFormatter.currencyString(1234.56, currencyCode: "ILS")
+        #expect(ils == "₪1,234.56")
+
         // Negative non-USD
         let negEur = UsageFormatter.currencyString(-1234.56, currencyCode: "EUR")
         #expect(negEur == "-€1,234.56")
+        #expect(UsageFormatter.currencyString(-54.72, currencyCode: "ILS") == "-₪54.72")
     }
 
     @Test
@@ -632,7 +636,7 @@ struct UsageFormatterTests {
         #expect(explicitAED.hasPrefix("AED"))
         #expect(explicitAED.range(of: #"\.\d{2}$"#, options: .regularExpression) != nil)
 
-        for code in ["TRY", "NZD", "SEK", "NOK", "DKK", "PLN", "BRL", "MXN", "ZAR", "THB", "IDR", "VND", "UAH"] {
+        for code in ["TRY", "NZD", "SEK", "NOK", "DKK", "PLN", "BRL", "MXN", "ZAR", "THB", "IDR", "VND", "UAH", "ILS"] {
             let rate = try #require(exchange.rate(for: code))
             #expect(rate > 0)
             #expect(abs((exchange.convert(usdAmount: 10, to: code) ?? 0) - 10 * rate) < epsilon)
@@ -667,6 +671,7 @@ struct UsageFormatterTests {
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "CZK"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "AED"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " aed "))
+        #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "ILS"))
     }
 
     @Test

@@ -35,6 +35,8 @@ read_when:
 
 Vertex AI Claude usage is logged to the same local files as direct Anthropic API usage (`~/.claude/projects/`). CodexBar identifies Vertex AI entries using two methods:
 
+Vertex's `vertexai-v7.json` and `vertexai-history-v7.json` cache manifests and their report memos use the same incremental project-shard storage as [Claude](claude.md#cost-usage-local-log-scan), with separate Vertex shard directories. Existing single-file JSON caches migrate on their next save without a migration-only transcript rescan.
+
 ### Detection Methods
 
 1. **Model name format** (primary): Vertex AI uses `@` as version separator

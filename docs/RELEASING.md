@@ -164,3 +164,11 @@ profile.
 - **App won’t launch**: ensure Sparkle.framework is embedded under `Contents/Frameworks` and rpath added; codesign deep.
 - **App “damaged” dialog after unzip**: re-extract with `ditto -x -k`, removing any `._*` files, then re-verify with `spctl`.
 - **Update download fails (404)**: ensure the release asset referenced in appcast exists and is published in the corresponding GitHub release; verify with `curl -I <enclosure-url>`.
+
+## CLI workflow toolchain
+
+The manually dispatched CLI packaging workflow uses standard Apple Silicon
+`xcode-27` runners with Xcode 27 and retains macOS 14 as its deployment target.
+It cross-builds the x86_64 CLI and runs configuration, version, resource, and
+symlink smoke checks through Rosetta. This does not change the QuotaKit-owned
+Mac app signing, notarization, appcast, or publication workflow above.

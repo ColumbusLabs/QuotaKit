@@ -664,6 +664,8 @@
 "overview_rows_follow_order" = "概覽列一律依提供者順序排列。";
 "overview_no_providers_selected" = "未選擇提供者";
 "agent_sessions_title" = "Agent 工作階段";
+"agent_sessions_remote_title" = "遠端工作階段（Tailscale / SSH）";
+"agent_sessions_remote_subtitle" = "探索並連線至遠端主機。關閉後僅監控此 Mac。";
 "agent_sessions_subtitle" = "在選單中顯示本機及透過 SSH 發現的 Codex 和 Claude Code 工作階段。";
 "agent_sessions_hosts_title" = "其他 SSH 主機";
 "agent_sessions_footer" = "系統會自動發現 tailnet 上的 Mac。本機工作階段每 30 秒重新整理一次；遠端主機每 60 秒以及開啟選單時重新整理。";
@@ -2292,6 +2294,10 @@
 "TOP MODELS" = "最常用模型";
 "TRACKED TOKENS · %@" = "已記錄 token · %@";
 "Team ID" = "團隊 ID";
+"Vercel access token" = "Vercel 存取權杖";
+"Optional. Shows your personal budget instead of team credits. Saved in QuotaKit's local config file. Or set VERCEL_ACCESS_TOKEN." = "選用。顯示你的個人預算，而非團隊額度。儲存在 QuotaKit 的本機設定檔中。或設定 VERCEL_ACCESS_TOKEN。";
+"Open Vercel tokens" = "開啟 Vercel 權杖";
+"Required with a Vercel access token. Or set VERCEL_TEAM_ID." = "使用 Vercel 存取權杖時必填。或設定 VERCEL_TEAM_ID。";
 "Team budget" = "團隊預算";
 "That managed account uses a workspace that differs from its saved Codex auth default. Keep it as a managed account; QuotaKit will not rewrite Codex-owned auth to promote it." = "此托管帳戶的工作區與保存的 Codex 默認認證工作區不同。請繼續將其作為托管帳戶使用；QuotaKit 不會修改 Codex 管理的認證信息來將其設為系統帳戶。";
 "The pasted header is sent only to this tenant." = "貼上的標頭僅發送給該租戶。";
@@ -2617,6 +2623,7 @@
 "CodexBar will ask macOS Keychain for your %@ cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 %@ Cookie 標頭，以取得使用量。按一下「確定」繼續。";
 "menu_bar_layout_size_large" = "大";
 "menu_bar_layout_monospaced_digits" = "等寬數字";
+"menu_bar_layout_show_window_labels" = "顯示時段標籤";
 "Paste a platform.claude.com Cookie header containing sessionKey." = "貼上包含 sessionKey 的 platform.claude.com Cookie 標頭。";
 "CodexBar will ask macOS Keychain for the Muse Code login token so it can fetch your Muse Code subscription usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求 Muse Code 登入 token，以取得你的 Muse Code 訂閱使用量。按一下「確定」繼續。";
 "API credit" = "API 額度";
@@ -2720,3 +2727,5 @@
 "Move up" = "上移";
 "Move down" = "下移";
 "Leave blank to keep the saved credential." = "留空以保留已儲存的憑證。";
+
+"No personal budget configured" = "尚未設定個人預算";

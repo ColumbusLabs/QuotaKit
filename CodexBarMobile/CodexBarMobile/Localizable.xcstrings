@@ -1,6 +1,148 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Vercel personal budgets now sync from Mac to iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة ميزانيات Vercel الشخصية من Mac إلى iPhone."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Els pressupostos personals de Vercel ara se sincronitzen del Mac a l’iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Persönliche Vercel-Budgets werden jetzt vom Mac mit dem iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vercel personal budgets now sync from Mac to iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los presupuestos personales de Vercel ahora se sincronizan del Mac al iPhone."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بودجه‌های شخصی Vercel اکنون از Mac به iPhone همگام‌سازی می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les budgets personnels Vercel se synchronisent désormais du Mac vers l’iPhone."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os orzamentos persoais de Vercel agora sincronízanse do Mac ao iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anggaran pribadi Vercel kini disinkronkan dari Mac ke iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I budget personali di Vercel ora si sincronizzano dal Mac all’iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vercel の個人予算が Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이제 Vercel 개인 예산이 Mac에서 iPhone으로 동기화됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Persoonlijke Vercel-budgetten worden nu van Mac naar iPhone gesynchroniseerd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Budżety osobiste Vercel są teraz synchronizowane z Maca na iPhone’a."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os orçamentos pessoais do Vercel agora são sincronizados do Mac para o iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Личные бюджеты Vercel теперь синхронизируются с Mac на iPhone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personliga Vercel-budgetar synkroniseras nu från Mac till iPhone."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขณะนี้งบประมาณส่วนตัวของ Vercel ซิงค์จาก Mac ไปยัง iPhone แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vercel kişisel bütçeleri artık Mac’ten iPhone’a eşzamanlanıyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Особисті бюджети Vercel тепер синхронізуються з Mac на iPhone."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ngân sách cá nhân Vercel nay được đồng bộ từ Mac sang iPhone."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vercel 个人预算现可从 Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vercel 個人預算現在可從 Mac 同步至 iPhone。"
+          }
+        }
+      }
+    },
     "xAI estimated remaining credit now syncs from Mac to iPhone.": {
       "localizations": {
         "ar": {

@@ -265,7 +265,10 @@ public enum CodexBarConfigValidator {
                 guard let order = descriptor.config.workspaceIDValidationOrder else { return nil }
                 return (descriptor.id, order)
             }
-            .sorted { $0.1 < $1.1 }
+            .sorted {
+                if $0.1 == $1.1 { return $0.0.rawValue < $1.0.rawValue }
+                return $0.1 < $1.1
+            }
             .map(\.0)
         return self.formattedProviderList(providers)
     }

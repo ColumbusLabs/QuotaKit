@@ -2,6 +2,9 @@ type TypeSafeRecord = Record<string, unknown>;
 
 const billingURL = "https://console.typesafe.ai/settings/billing";
 const billingOrigin = "https://console.typesafe.ai";
+// Cloudflare blocks the Linux default UA (it contains "curl/"), so send a browser-style one.
+const userAgent =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
 const actionCacheKey = "typesafe.billing.next-action";
 const actionCacheTTL = 12 * 60 * 60;
 const maximumChunkCount = 60;
@@ -45,7 +48,7 @@ defineProvider({
     const actionIDPattern = /"([0-9a-f]{40,})"[^)]{0,150}"getBillingOverviewResult"/i;
     const discoverActionID = async (cookie: string): Promise<string> => {
       const page = await ctx.http.get(billingURL, {
-        headers: { Cookie: cookie, Accept: "text/html" },
+        headers: { Cookie: cookie, Accept: "text/html", "User-Agent": userAgent },
         timeoutSeconds: 6,
       });
       validateBody(page);
@@ -61,7 +64,7 @@ defineProvider({
       let discoveryFailure: unknown;
       for (const url of chunkURLs) {
         try {
-          const chunk = await ctx.http.get(url, { timeoutSeconds: 2 });
+          const chunk = await ctx.http.get(url, { headers: { "User-Agent": userAgent }, timeoutSeconds: 2 });
           if (chunk.status === 429 || chunk.status === 408 || chunk.status >= 500) validate(chunk);
           if (chunk.status < 200 || chunk.status >= 300) continue;
           const action = actionIDPattern.exec(chunk.bodyText)?.[1];
@@ -87,6 +90,7 @@ defineProvider({
           "Next-Action": id,
           Accept: "text/x-component",
           "Content-Type": "application/json",
+          "User-Agent": userAgent,
         },
         body: [],
         timeoutSeconds: 6,

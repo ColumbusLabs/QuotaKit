@@ -1,5 +1,5 @@
 import Foundation
-#if canImport(FoundationXML)
+#if os(macOS) && canImport(FoundationXML)
 import FoundationXML
 #endif
 
@@ -61,6 +61,7 @@ public enum ProviderPluginIconSVG {
     }
 
     public static func isValid(_ svg: String) -> Bool {
+        #if os(macOS)
         guard !svg.isEmpty, svg.utf8.count <= self.maximumBytes,
               svg.range(of: "<!DOCTYPE", options: .caseInsensitive) == nil,
               svg.range(of: "<!ENTITY", options: .caseInsensitive) == nil,
@@ -71,8 +72,12 @@ public enum ProviderPluginIconSVG {
         parser.shouldResolveExternalEntities = false
         parser.delegate = delegate
         return parser.parse() && delegate.isValid && delegate.sawRoot
+        #else
+        return false
+        #endif
     }
 
+    #if os(macOS)
     private final class AllowlistDelegate: NSObject, XMLParserDelegate {
         var isValid = true
         var sawRoot = false
@@ -123,4 +128,5 @@ public enum ProviderPluginIconSVG {
             parser.abortParsing()
         }
     }
+    #endif
 }

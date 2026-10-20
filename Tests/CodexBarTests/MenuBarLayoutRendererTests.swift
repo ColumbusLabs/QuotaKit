@@ -13,6 +13,70 @@ struct MenuBarLayoutRendererTests {
     private let now = Date(timeIntervalSince1970: 1_752_768_000)
 
     @Test
+    func `window label preference hides percentage prefixes without changing accessibility or cached defaults`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[
+            .percent(window: .session), .percent(window: .weekly), .percent(window: .scopedWeekly),
+            .percent(window: .automatic), .percent(window: .spend),
+        ]])
+        let visible = renderer.render(layout: layout, data: self.data(), icon: nil, options: self.options())
+        let hidden = renderer.render(
+            layout: layout, data: self.data(), icon: nil, options: self.options(showWindowLabels: false))
+        #expect(visible.attributedTitle.string == "5h 25%\u{2009}W 60%\u{2009}F 80%\u{2009}50%\u{2009}$ 46%")
+        #expect(hidden.attributedTitle.string == "25%\u{2009}60%\u{2009}80%\u{2009}50%\u{2009}$ 46%")
+        #expect(hidden.accessibilityLabel == visible.accessibilityLabel)
+        #expect(hidden.attributedTitle !== visible.attributedTitle)
+        let restored = renderer.render(layout: layout, data: self.data(), icon: nil, options: self.options())
+        #expect(restored.attributedTitle === visible.attributedTitle)
+    }
+
+    @Test
+    func `window label preference handles short unknown and unavailable sessions`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.percent(window: .session)]])
+        for minutes in [30, nil] {
+            let data = self.data(sessionWindowMinutes: minutes)
+            let visible = renderer.render(layout: layout, data: data, icon: nil, options: self.options())
+            let hidden = renderer.render(
+                layout: layout,
+                data: data,
+                icon: nil,
+                options: self.options(showUsed: false, showWindowLabels: false))
+            #expect(visible.attributedTitle.string == (minutes == nil ? "S 25%" : "30m 25%"))
+            #expect(hidden.attributedTitle.string == "75%")
+            #expect(hidden.accessibilityLabel == L("%@ %@", L("Session"), "75%"))
+        }
+        let unavailable = renderer.render(
+            layout: layout,
+            data: self.data(omitsSession: true),
+            icon: nil,
+            options: self.options(showWindowLabels: false))
+        #expect(unavailable.attributedTitle.string == "–")
+        #expect(unavailable.accessibilityLabel == L("%@ unavailable", L("Session")))
+    }
+
+    @Test
+    func `window label preference preserves named provider labels and progress bars`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[
+            .percent(window: .session), .percent(window: .weekly), .lanePercent(lane: .tertiary),
+            .extraPercent(id: "cursor-grok-bot"), .progressBar(window: .session),
+        ]])
+        let data = self.data(provider: .cursor)
+        let visible = renderer.render(layout: layout, data: data, icon: nil, options: self.options())
+        let hidden = renderer.render(
+            layout: layout, data: data, icon: nil, options: self.options(showWindowLabels: false))
+        #expect(hidden.attributedTitle.string == visible.attributedTitle.string)
+        #expect(hidden.accessibilityLabel == visible.accessibilityLabel)
+        let bar = renderer.render(
+            layout: MenuBarLayout(lines: [[.progressBar(window: .session)]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options(showWindowLabels: false))
+        #expect(bar.attributedTitle.string == "5h \u{FFFC}")
+    }
+
+    @Test
     func `explicit reset tokens read their selected windows`() {
         let renderer = MenuBarLayoutRenderer()
         let data = self.data()
@@ -2206,6 +2270,7 @@ struct MenuBarLayoutRendererTests {
         accountLabel: String? = "user@example.com",
         metrics: MenuBarLayoutRenderMetrics? = nil,
         omitsSession: Bool = false,
+        sessionWindowMinutes: Int? = 300,
         weeklyUsedPercent: Double = 60)
         -> MenuBarLayoutRenderData
     {
@@ -2233,7 +2298,7 @@ struct MenuBarLayoutRendererTests {
             extraRateWindows: extraRateWindows,
             session: omitsSession ? nil : MenuBarLayoutRenderWindow(RateWindow(
                 usedPercent: 25,
-                windowMinutes: 300,
+                windowMinutes: sessionWindowMinutes,
                 resetsAt: self.now.addingTimeInterval(60 * 60),
                 resetDescription: nil)),
             weekly: MenuBarLayoutRenderWindow(RateWindow(
@@ -2322,7 +2387,8 @@ struct MenuBarLayoutRendererTests {
         highContrast: Bool = false,
         appearanceName: String = "aqua",
         forceStackedStyle: Bool = false,
-        monospacedDigits: Bool = false) -> MenuBarLayoutRenderOptions
+        monospacedDigits: Bool = false,
+        showWindowLabels: Bool = true) -> MenuBarLayoutRenderOptions
     {
         MenuBarLayoutRenderOptions(
             size: size,
@@ -2337,7 +2403,8 @@ struct MenuBarLayoutRendererTests {
             forceStackedStyle: forceStackedStyle,
             colorPace: colorPace,
             colorByProvider: colorByProvider,
-            monospacedDigits: monospacedDigits)
+            monospacedDigits: monospacedDigits,
+            showWindowLabels: showWindowLabels)
     }
 
     private func averageBrightness(

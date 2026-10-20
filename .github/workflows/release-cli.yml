@@ -30,13 +30,13 @@ jobs:
             build-arch: ""
             static-swift-stdlib: true
           - name: macos-arm64
-            runs-on: macos-15
+            runs-on: xcode-27
             platform: macos
             asset-arch: arm64
             build-arch: arm64
             static-swift-stdlib: false
           - name: macos-x86_64
-            runs-on: macos-15-intel
+            runs-on: xcode-27
             platform: macos
             asset-arch: x86_64
             build-arch: x86_64
@@ -52,20 +52,23 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Select Xcode 26.3 or 26.2
+      - name: Select Xcode 27
         if: matrix.platform == 'macos'
         run: |
           set -euo pipefail
-          # Both versions are part of the official macOS 15 runner image.
-          for candidate in /Applications/Xcode_26.3.app /Applications/Xcode_26.2.app; do
-            if [[ -d "$candidate" ]]; then
-              sudo xcode-select -s "${candidate}/Contents/Developer"
-              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.* ]]
+          sudo xcode-select -s /Applications/Xcode_27.0.app/Contents/Developer
+          echo "DEVELOPER_DIR=/Applications/Xcode_27.0.app/Contents/Developer" >> "$GITHUB_ENV"
+          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> "$GITHUB_ENV"
+          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 27* ]]
           /usr/bin/xcodebuild -version
+
+      - name: Ensure Rosetta for x86_64 execution
+        if: matrix.platform == 'macos' && matrix.asset-arch == 'x86_64'
+        run: |
+          if ! arch -x86_64 /usr/bin/true; then
+            sudo softwareupdate --install-rosetta --agree-to-license
+          fi
+          arch -x86_64 /usr/bin/true
 
       - name: Runner info
         run: |
@@ -160,6 +163,13 @@ jobs:
 
           echo "bin_dir=$("${SHOW_BIN_ARGS[@]}")" >> "$GITHUB_OUTPUT"
 
+      - name: Verify Linux CLI does not link libxml2
+        if: ${{ matrix.platform == 'linux' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash Scripts/check-linux-cli-linkage.sh "${{ steps.build.outputs.bin_dir }}/CodexBarCLI"
+
       - name: Smoke test QuotaKitCLI
         timeout-minutes: 5
         shell: bash
@@ -168,6 +178,10 @@ jobs:
 
           BIN_DIR="${{ steps.build.outputs.bin_dir }}"
           BIN="$BIN_DIR/CodexBarCLI"
+          CLI_COMMAND=("$BIN")
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then
+            CLI_COMMAND=(arch "-${{ matrix.asset-arch }}" "$BIN")
+          fi
           run_with_timeout() {
             local output="$1"
             shift
@@ -200,14 +214,14 @@ jobs:
           file "$BIN"
           if [[ "${{ matrix.platform }}" == "macos" ]]; then
             lipo -archs "$BIN" | tr ' ' '\n' | grep -Fx "${{ matrix.asset-arch }}"
-            run_with_timeout "$RUNNER_TEMP/quotakit-cli-smoke-${{ matrix.name }}.txt" "$BIN" config validate --format json
+            run_with_timeout "$RUNNER_TEMP/quotakit-cli-smoke-${{ matrix.name }}.txt" "${CLI_COMMAND[@]}" config validate --format json
           else
-            run_with_timeout "$RUNNER_TEMP/quotakit-cli-help-${{ matrix.name }}.txt" "$BIN" --help
+            run_with_timeout "$RUNNER_TEMP/quotakit-cli-help-${{ matrix.name }}.txt" "${CLI_COMMAND[@]}" --help
             file "$BIN" | grep -q "${{ matrix.asset-arch }}"
           fi
           printf '%s\n' "${RELEASE_TAG#v}" > "$BIN_DIR/VERSION"
           VERSION_OUTPUT="$RUNNER_TEMP/quotakit-cli-version-${{ matrix.name }}.txt"
-          run_with_timeout "$VERSION_OUTPUT" "$BIN" --version
+          run_with_timeout "$VERSION_OUTPUT" "${CLI_COMMAND[@]}" --version
           grep -Fx "QuotaKit ${RELEASE_TAG#v}" "$VERSION_OUTPUT"
           rm "$BIN_DIR/VERSION"
 
@@ -246,9 +260,21 @@ jobs:
             exit 1
           fi
           cp -R "$CORE_RESOURCE_SOURCE" "$OUT_DIR/CodexBar_CodexBarCore.bundle"
-          RESOURCE_SMOKE_OUTPUT="$RUNNER_TEMP/quotakit-cli-resource-smoke-${{ matrix.name }}.txt"
-          CODEXBAR_RESOURCE_SMOKE=1 "$OUT_DIR/QuotaKitCLI" > "$RESOURCE_SMOKE_OUTPUT"
-          grep -Fx "CODEXBAR_RESOURCE_SMOKE_OK" "$RESOURCE_SMOKE_OUTPUT"
+          CLI_COMMAND=("$OUT_DIR/QuotaKitCLI")
+          SYMLINK_COMMAND=("$OUT_DIR/quotakit")
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then
+            CLI_COMMAND=(arch "-${{ matrix.asset-arch }}" "$OUT_DIR/QuotaKitCLI")
+            SYMLINK_COMMAND=(arch "-${{ matrix.asset-arch }}" "$OUT_DIR/quotakit")
+          fi
+          for smoke in direct symlink; do
+            RESOURCE_SMOKE_OUTPUT="$RUNNER_TEMP/quotakit-cli-resource-smoke-${smoke}-${{ matrix.name }}.txt"
+            if [[ "$smoke" == direct ]]; then
+              CODEXBAR_RESOURCE_SMOKE=1 "${CLI_COMMAND[@]}" > "$RESOURCE_SMOKE_OUTPUT"
+            else
+              CODEXBAR_RESOURCE_SMOKE=1 "${SYMLINK_COMMAND[@]}" > "$RESOURCE_SMOKE_OUTPUT"
+            fi
+            grep -Fx "CODEXBAR_RESOURCE_SMOKE_OK" "$RESOURCE_SMOKE_OUTPUT"
+          done
 
           ASSET="QuotaKitCLI-${SAFE_REF_NAME}-${{ matrix.platform }}-${{ matrix.asset-arch }}.tar.gz"
           (cd "$OUT_DIR" && tar czf "$ASSET" \

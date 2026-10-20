@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 @testable import CodexBarCore
 
 /// Keep metrics and fixture orchestration in the test target; core only emits work events.
@@ -10,7 +11,6 @@ extension CostUsageScanner {
         var reconciliations = 0
         var cacheEncodes = 0
         var fragmentEncodes = 0
-        var fragmentFallbacks = 0
         var repricedRows = 0
         var normalizationCacheMisses = 0
         var vertexMetadataWalks = 0
@@ -37,7 +37,6 @@ extension CostUsageScanner {
             case .reconcile: self.metrics.reconciliations += 1
             case .cacheEncode: self.metrics.cacheEncodes += 1
             case .fragmentEncode: self.metrics.fragmentEncodes += 1
-            case .fragmentFallback: self.metrics.fragmentFallbacks += 1
             case .artifactRead: self.artifactIO.reads += 1
             case .artifactWrite: self.artifactIO.writes += 1
             case .reprice: self.metrics.repricedRows += 1
@@ -91,17 +90,47 @@ extension CostUsageScanner {
 
 extension CostUsageClaudeCacheIO {
     static func withIsolatedCachesForTesting(operation: @Sendable () async throws -> Void) async throws {
-        try await ArtifactMemo.$shared.withValue(ArtifactMemo()) {
-            try await CostUsageClaudeReportMemo.$shared.withValue(CostUsageClaudeReportMemo()) {
-                try await CostUsageClaudeFragments.$shared.withValue(CostUsageClaudeFragments()) {
-                    try await operation()
-                }
+        try await CostUsageClaudeReportMemo.$shared.withValue(CostUsageClaudeReportMemo()) {
+            try await CostUsageClaudeFragments.$shared.withValue(CostUsageClaudeFragments()) {
+                try await operation()
             }
         }
     }
 
     static func evictArtifactMemoForTesting(at url: URL) {
-        let key = url.standardizedFileURL.resolvingSymlinksInPath() as NSURL
-        ArtifactMemo.shared.entries.removeObject(forKey: key)
+        CostUsageClaudeFragments.shared.evict(at: url.standardizedFileURL.resolvingSymlinksInPath())
     }
+}
+
+/// Reconstitute the legacy memo envelope for schema-mutation regression fixtures.
+func claudeMemoObjectForTesting(at url: URL) throws -> [String: Any] {
+    let raw = try Data(contentsOf: url)
+    let object = try #require(JSONSerialization.jsonObject(with: raw) as? [String: Any])
+    guard let encoded = object["header"] as? String, let header = Data(base64Encoded: encoded) else { return object }
+    var envelope = try #require(JSONSerialization.jsonObject(with: header) as? [String: Any])
+    let shards = object["shards"] as? [String: [String: Any]] ?? [:]
+    var inventory: [String: Any] = [:]
+    for shard in shards.values {
+        let digest = try #require(shard["digest"] as? String)
+        let data = try Data(contentsOf: url.appendingPathExtension("fragments")
+            .appendingPathComponent(digest + ".json"))
+        let entries = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        inventory.merge(entries) { _, new in new }
+    }
+    envelope["sourceInventory"] = inventory
+    return envelope
+}
+
+func installClaudeCacheSnapshotForTesting(from sourceURL: URL, to targetURL: URL) throws {
+    let sourceDirectory = sourceURL.appendingPathExtension("fragments")
+    let targetDirectory = targetURL.appendingPathExtension("fragments")
+    try FileManager.default.createDirectory(at: targetDirectory, withIntermediateDirectories: true)
+    for name in try FileManager.default.contentsOfDirectory(atPath: sourceDirectory.path)
+        where name.count == 69 && name.hasSuffix(".json") && name.dropLast(5).allSatisfy(\.isHexDigit)
+    {
+        let data = try Data(contentsOf: sourceDirectory.appendingPathComponent(name))
+        try data.write(to: targetDirectory.appendingPathComponent(name), options: .atomic)
+    }
+    try Data(contentsOf: sourceURL).write(to: targetURL, options: .atomic)
+    CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: targetURL)
 }

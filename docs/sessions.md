@@ -9,7 +9,7 @@ read_when:
 
 QuotaKit can list live Codex, Claude Code, pi, and OMP sessions on this Mac and other Macs or Linux hosts reachable over SSH.
 
-Enable **Settings → Menu → Agent sessions**. Local sessions refresh every 30 seconds. Remote sessions refresh every 60 seconds and whenever the menu opens. Tailscale discovery includes online macOS and Linux peers; add extra SSH destinations as a comma-separated list, such as `user@host`.
+Enable **Settings → Menu → Agent sessions**. Local sessions refresh every 30 seconds. **Remote sessions (Tailscale / SSH)** independently controls discovery and SSH polling; it starts off for new users and preserves remote monitoring for users who already enabled Agent Sessions. Turning it off clears remote rows and stops discovery, polling, and SSH while local monitoring and Stay Awake continue. When enabled, remote sessions refresh every 60 seconds and whenever the menu opens. Tailscale discovery includes online macOS and Linux peers; add extra SSH destinations as a comma-separated list, such as `user@host`.
 
 On macOS, sessions remain discoverable from their running process arguments after a CLI update removes the old executable.
 This does not relax ChatGPT app-server trust: that check still requires the exact executable path and signed running code.
@@ -38,5 +38,7 @@ quotakit sessions focus <session-id>
 `--json` preserves the legacy v1 array restricted to Codex and Claude. `--json-v2` includes Pi-family rows and their dialect. Remote fetching negotiates v2 first and falls back to v1 for mixed-version hosts.
 
 Remote hosts need key-based, non-interactive SSH and either `quotakit` on `PATH` or QuotaKit installed in `/Applications`.
+
+Tailscale discovery runs `tailscale status --json` only through a standalone compiled CLI found on PATH, `/usr/local/bin`, or `/opt/homebrew/bin`. It never executes an app-bundle binary, a symlink into a bundle, or a launcher script: those can start the VPN even for a status query. With only the App Store app or its CLI wrapper installed, discovery is skipped with a diagnostic in the debug log; explicitly configured SSH hosts still work when remote sessions are enabled. The standalone CLI's [status command](https://github.com/tailscale/tailscale/blob/v1.104.1/cmd/tailscale/cli/status.go) reads the daemon's [status endpoint](https://github.com/tailscale/tailscale/blob/v1.104.1/client/local/local.go#L805) without requesting a tunnel start.
 
 SSH destination deduplication preserves usernames exactly and compares only hostnames without case. `User@host` and `user@host` remain distinct destinations; `user@HOST` and `user@host` share one destination. Input order and option, whitespace, and control-character rejection are preserved.

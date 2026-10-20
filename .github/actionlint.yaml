@@ -1,0 +1,4 @@
+self-hosted-runner:
+  labels:
+    # Standard public runner label; listed here for the pinned actionlint catalog.
+    - xcode-27
