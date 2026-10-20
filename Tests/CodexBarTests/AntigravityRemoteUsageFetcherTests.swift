@@ -279,10 +279,17 @@ struct AntigravityRemoteUsageFetcherTests {
             idToken: GeminiAPITestHelpers.makeIDToken(email: "user@example.com"),
             email: "user@example.com")
 
-        actor SummaryRequestCapture {
+        final class SummaryRequestCapture: @unchecked Sendable {
+            private let lock = NSLock()
             private var urls: [String] = []
-            func append(_ url: String) { self.urls.append(url) }
-            func values() -> [String] { self.urls }
+
+            func append(_ url: String) {
+                self.lock.withLock { self.urls.append(url) }
+            }
+
+            func values() -> [String] {
+                self.lock.withLock { self.urls }
+            }
         }
         let summaryRequests = SummaryRequestCapture()
 
@@ -292,7 +299,7 @@ struct AntigravityRemoteUsageFetcherTests {
             }
             if url.path == "/v1internal:retrieveUserQuotaSummary" {
                 guard host == "daily-cloudcode-pa.googleapis.com" else { throw URLError(.badURL) }
-                await summaryRequests.append(url.absoluteString)
+                summaryRequests.append(url.absoluteString)
                 return GeminiAPITestHelpers.response(
                     url: url.absoluteString,
                     status: 200,
@@ -328,7 +335,7 @@ struct AntigravityRemoteUsageFetcherTests {
 
         #expect(!snapshot.modelQuotas.isEmpty)
         #expect(snapshot.accountEmail == "user@example.com")
-        #expect(await summaryRequests.values() == [
+        #expect(summaryRequests.values() == [
             "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
         ])
     }
