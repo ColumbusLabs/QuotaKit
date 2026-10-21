@@ -205,10 +205,10 @@ public struct AntigravityStatusSnapshot: Sendable {
         }
 
         let primary = Self.quotaSummaryRepresentative(
-            matching: { $0.lowercased().contains("gemini") },
+            matching: .gemini,
             in: namedWindows)
         let secondary = Self.quotaSummaryRepresentative(
-            matching: { $0.lowercased().contains("claude") || $0.lowercased().contains("gpt") },
+            matching: .claudeGPT,
             in: namedWindows)
 
         let identity = ProviderIdentitySnapshot(
@@ -226,11 +226,23 @@ public struct AntigravityStatusSnapshot: Sendable {
     }
 
     private static func quotaSummaryRepresentative(
-        matching predicate: (String) -> Bool,
+        matching family: AntigravityQuotaFamilyVisibility.KnownFamily,
         in windows: [NamedRateWindow]) -> RateWindow?
     {
-        windows
-            .filter { $0.usageKnown && predicate($0.title) }
+        let known = windows.filter {
+            $0.usageKnown && AntigravityQuotaFamilyVisibility.knownFamily(windowID: $0.id, title: $0.title) == family
+        }
+        let ordinaryIDs = Set(Self.sessionCadenceAliases.union(["weekly"]).map {
+            Self.quotaSummaryWindowIDPrefix + "gemini-" + $0
+        })
+        let ordinary = known.filter { window in
+            var id = window.id.lowercased().replacingOccurrences(of: "_", with: "-")
+            if id.hasSuffix(" limit") {
+                id.removeLast(" limit".count)
+            }
+            return ordinaryIDs.contains(id)
+        }
+        return (ordinary.isEmpty ? known : ordinary)
             .max { lhs, rhs in
                 if lhs.window.usedPercent != rhs.window.usedPercent {
                     return lhs.window.usedPercent < rhs.window.usedPercent

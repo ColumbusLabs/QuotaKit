@@ -7,6 +7,27 @@ struct CostUsageClaudeIncrementalPersistenceTests {
     private typealias Fixture = CostUsageClaudeWriteAmplificationTests.Fixture
 
     @Test
+    func `changed refresh reuses unchanged immutable file records`() throws {
+        var cache = CostUsageClaudeCacheArtifact()
+        for path in ["/synthetic/changed", "/synthetic/unchanged"] {
+            cache.usage.files[path] = CostUsageFileUsage(mtimeUnixMs: 1, size: 1, days: [:])
+            cache.sourceFileIDs[path] = path
+        }
+        cache.sourceFileIDs["/synthetic/identity-only"] = "identity"
+        let initial = try cache.split()
+        let unchanged = try #require(initial.1["/synthetic/unchanged"])
+        let identityOnly = try #require(initial.1["/synthetic/identity-only"])
+        cache = initial.0
+        cache.join(initial.1)
+        cache.usage.files["/synthetic/changed"]?.size = 2
+        let refreshed = try cache.split()
+        #expect(refreshed.1["/synthetic/unchanged"] === unchanged)
+        #expect(refreshed.1["/synthetic/identity-only"] === identityOnly)
+        #expect(refreshed.1["/synthetic/changed"] !== initial.1["/synthetic/changed"])
+        #expect(refreshed.1["/synthetic/changed"]?.usage?.size == 2)
+    }
+
+    @Test
     func `one changed project keeps other shards and writes bounded bytes`() throws {
         let fixture = try Fixture(rowCount: 1)
         defer { fixture.env.cleanup() }

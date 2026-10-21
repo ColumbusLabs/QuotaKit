@@ -151,24 +151,35 @@ registration, signing, or daemon caching (not SwiftUI code).
 
 ### After an app update
 
-QuotaKit publishes a normal startup snapshot and requests a timeline reload after the save attempt.
-It does not automatically restart the extension or compare a running extension executable with the
-installed replacement. Snapshot fields remain backward compatible; a saved snapshot and successful
-reload request do not prove that WidgetKit accepted a timeline or is running the current extension.
+On the first launch after QuotaKit's build number changes, the app checks current-user widget
+extension processes for the installed QuotaKit widget bundle ID and signing team. It sends SIGTERM
+only when the process started before the installed extension executable's latest modification or
+change time, or its executable path has disappeared. Immediately before signaling, QuotaKit checks
+that the PID still has the same start time, executable path, user, and designated signing
+requirement. Other users' processes, current extensions, and processes with a different or unreadable
+requirement are left alone. QuotaKit records one attempt per build and requests a timeline reload
+afterward. Later launches of that build skip the recovery scan.
+
+The normal startup path still publishes a snapshot and requests a timeline reload after the save
+attempt. Recovery does not change the shared snapshot schema, App Group, CloudKit configuration,
+widget bundle ID, extension product name, or signing setup. A saved snapshot and reload request do
+not prove that WidgetKit accepted a timeline or is running the current extension.
 
 For stale-extension timeline rejections, first collect app/extension versions, the failing snapshot's
 size and sanitized content, and extension/`chronod` logs. Distinguish the installed bundle from the
-executable mapped by the running process. Historical [upstream recovery evidence](https://github.com/steipete/CodexBar/issues/2838#issuecomment-6160909047)
-supports terminating only the stale widget extension after diagnostics:
+executable mapped by the running process. If automatic recovery does not resolve the issue, the
+manual fallback supported by historical [upstream recovery evidence](https://github.com/steipete/CodexBar/issues/2838#issuecomment-6160909047)
+is:
 
 ```sh
 killall -TERM QuotaKitWidget
 ```
 
-This manual workaround ends every process with that name. macOS can launch the installed extension
-on a later timeline request. Verify `chronod` reload success, updated timeline files and current visible
-values afterward. It is not an automatic recovery policy or a guarantee, and cannot restore removed
-widget placements. A later snapshot cannot establish the failing payload's size or contents.
+This manual workaround ends every process with that name, including another QuotaKit installation's
+widget process. macOS can launch the installed extension on a later timeline request. Verify
+`chronod` reload success, updated timeline files and current visible values afterward. Neither
+recovery path guarantees success for every error 1050 or restores removed widget placements. A later
+snapshot cannot establish the failing payload's size or contents.
 
 ### 1) Verify the extension bundle exists where macOS expects it
 ```

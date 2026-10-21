@@ -1238,13 +1238,13 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This provider-specific app branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 635,
+            line: 626,
             anchor: "return self.tokenAccountSnapshotCacheKey(provider: .claude, account: account)",
             expectedProviderIDs: ["claude"],
             reason: "Claude widget quota ownership uses the selected Claude account's isolated snapshot key."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 642,
+            line: 633,
             anchor: "return self.tokenAccountSnapshotCacheKey(provider: .claude, account: account)",
             expectedProviderIDs: ["claude"],
             reason: "Claude widget quota ownership uses the selected Claude account's isolated snapshot key."),
@@ -1467,36 +1467,30 @@ struct ProviderArchitectureGatekeeperTests {
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
             line: 208,
-            anchor: "matching: { $0.lowercased().contains(\"gemini\") },",
+            anchor: "matching: .gemini,",
             expectedProviderIDs: ["gemini"],
             reason: "Antigravity quota payloads use this token to identify a model family, not a CodexBar provider."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 211,
-            anchor: "matching: { $0.lowercased().contains(\"claude\") || $0.lowercased().contains(\"gpt\") },",
-            expectedProviderIDs: ["claude"],
-            reason: "Antigravity quota payloads use this token to identify a model family, not a CodexBar provider."),
-        SuppressedProviderReference(
-            path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 300,
+            line: 312,
             anchor: "if lowercasedTitle.contains(\"gemini\") {",
             expectedProviderIDs: ["gemini"],
             reason: "Antigravity quota titles use this token to identify a model family for display."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 303,
+            line: 315,
             anchor: "if lowercasedTitle.contains(\"claude\") || lowercasedTitle.contains(\"gpt\") {",
             expectedProviderIDs: ["claude"],
             reason: "Antigravity quota titles use this token to identify a model family for display."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 339,
+            line: 351,
             anchor: "if title.contains(\"gemini\") {",
             expectedProviderIDs: ["gemini"],
             reason: "Antigravity quota titles use this token to rank a model family."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 342,
+            line: 354,
             anchor: "if title.contains(\"claude\") || title.contains(\"gpt\") {",
             expectedProviderIDs: ["claude"],
             reason: "Antigravity quota titles use this token to rank a model family."),
@@ -3077,7 +3071,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "The widget projection passes Codex credits, Devin cost, Claude owner state, and DeepSeek/OpenRouter balance-only text into provider entries."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 634,
+            line: 625,
             anchor: "if let account = self.settings.effectiveSelectedTokenAccount(for: .claude) {",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 5,
@@ -3085,7 +3079,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 710,
+            line: 698,
             anchor: "let sessionLabel = if provider == .bedrock || provider == .mistral {",
             expectedProviderIDs: ["bedrock", "codex", "mistral"],
             expectedReferenceCount: 4,
@@ -3093,7 +3087,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 740,
+            line: 728,
             anchor: "if provider == .codex {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -3101,7 +3095,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 759,
+            line: 747,
             anchor: "if provider == .claude,",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
@@ -3109,7 +3103,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 794,
+            line: 782,
             anchor: "let secondaryTitle = if provider == .amp {",
             expectedProviderIDs: ["alibabatokenplan", "amp", "antigravity", "cursor"],
             expectedReferenceCount: 5,
@@ -3119,7 +3113,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact widget projection preserves QuotaKit's provider-specific secondary-window labels."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 822,
+            line: 810,
             anchor: "if provider == .kimi {",
             expectedProviderIDs: ["claude", "kimi"],
             expectedReferenceCount: 2,
@@ -3979,7 +3973,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This curated set is limited to provider feeds whose live components are trusted for native submenu rendering."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 923,
+            line: 911,
             anchor: "if provider == .cursor {",
             expectedProviderIDs: ["cursor"],
             expectedReferenceCount: 1,
@@ -3987,7 +3981,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Cursor's widget primary label follows its persisted request, plan, or API-only rate-window layout."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 937,
+            line: 925,
             anchor: "if provider == .grok,",
             expectedProviderIDs: ["alibabatokenplan", "amp", "doubao", "grok", "opencode", "qwencloud"],
             expectedReferenceCount: 6,
@@ -5363,7 +5357,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "CLI home path is a fixed external contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Providers/Antigravity/AntigravityStatusProbe.swift",
-            line: 752,
+            line: 764,
             anchor: "if text.contains(\"claude\") {",
             expectedProviderIDs: ["claude", "gemini", "openai"],
             expectedReferenceCount: 4,
@@ -5548,8 +5542,8 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 663,
-            anchor: "guard let entry, entry.provider == .claude else { return nil }",
+            line: 654,
+            anchor: "guard var entry, entry.provider == .claude else { return nil }",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["claude@0"],

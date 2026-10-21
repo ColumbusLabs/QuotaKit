@@ -77,6 +77,8 @@ current Columbus Labs product surface and recent release history.
   30- or 365-day publications cannot replace established iPhone cost history.
 - Today's spend refreshes independently from quota usage and reports delayed or
   missing Mac data as unavailable or partial rather than a false `$0.00`.
+- Antigravity now uses the standard Gemini quota as its primary allowance, while
+  model-specific limits remain available.
 - Fireworks and IBM Bob now receive restored provider presentation and synced-card
   support, with quota-alert coverage for IBM Bob.
 - GitKraken AI weekly usage synced from QuotaKit Mac now appears on iPhone with

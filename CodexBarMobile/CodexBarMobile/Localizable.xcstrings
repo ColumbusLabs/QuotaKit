@@ -23520,6 +23520,148 @@
           }
         }
       }
+    },
+    "Antigravity now uses standard Gemini quota as its primary allowance, with model-specific limits still available.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخدم Antigravity الآن حصة Gemini العادية بوصفها الحصة الأساسية، مع بقاء الحدود الخاصة بكل نموذج متاحة."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity ara fa servir la quota estàndard de Gemini com a quota principal, i manté disponibles els límits específics de cada model."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity verwendet jetzt das reguläre Gemini-Kontingent als Hauptkontingent; modellbezogene Limits bleiben verfügbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity now uses standard Gemini quota as its primary allowance, with model-specific limits still available."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity ahora usa la cuota estándar de Gemini como cuota principal y mantiene disponibles los límites específicos de cada modelo."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اکنون Antigravity از سهمیهٔ استاندارد Gemini به‌عنوان سهمیهٔ اصلی استفاده می‌کند و محدودیت‌های ویژهٔ هر مدل را نیز در دسترس نگه می‌دارد."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity utilise désormais le quota standard de Gemini comme quota principal, tout en gardant disponibles les limites propres à chaque modèle."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity usa agora a cota estándar de Gemini como cota principal e mantén dispoñibles os límites específicos de cada modelo."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity kini menggunakan kuota Gemini standar sebagai kuota utama, sementara batas khusus tiap model tetap tersedia."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity ora usa la quota standard di Gemini come quota principale, mantenendo disponibili i limiti specifici di ogni modello."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity では、標準の Gemini クォータが主な利用枠として使われ、モデル別の制限も引き続き確認できます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity에서 이제 표준 Gemini 할당량을 기본 한도로 사용하며, 모델별 제한도 계속 사용할 수 있습니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity gebruikt nu het standaard Gemini-quotum als hoofdquotum, terwijl limieten per model beschikbaar blijven."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity używa teraz standardowego limitu Gemini jako głównego, a limity dla poszczególnych modeli pozostają dostępne."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Antigravity agora usa a cota padrão do Gemini como principal, mantendo disponíveis os limites específicos de cada modelo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Теперь Antigravity использует стандартную квоту Gemini как основную, сохраняя доступность лимитов для отдельных моделей."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity använder nu Geminis standardkvot som huvudkvot, samtidigt som modellspecifika gränser finns kvar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตอนนี้ Antigravity ใช้โควตา Gemini มาตรฐานเป็นโควตาหลัก โดยยังคงมีขีดจำกัดเฉพาะรุ่นให้ใช้งาน"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity artık standart Gemini kotasını ana kota olarak kullanırken modele özel limitleri de kullanılabilir tutuyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тепер Antigravity використовує стандартну квоту Gemini як основну, зберігаючи доступність лімітів для окремих моделей."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity hiện dùng hạn mức Gemini tiêu chuẩn làm hạn mức chính, đồng thời vẫn giữ các giới hạn riêng cho từng mô hình."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity 现在将标准 Gemini 配额用作主要配额，同时仍提供各模型的专属限额。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity 現在將標準 Gemini 配額作為主要配額，同時仍提供各模型的專屬限額。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
