@@ -17,8 +17,9 @@ The Devin provider tracks included daily and weekly usage quotas from
 2. Open the organization Usage & Limits page once.
 3. Enable **Devin** in **Settings → Providers**.
 
-Automatic mode reads only the Devin session and organization metadata from supported Chromium browser localStorage. It does not import other sites' sessions. Current decoded session values take precedence over raw storage fallback
-data. QuotaKit sends the session token only to `https://app.devin.ai`.
+Automatic mode uses an origin-filtered streaming reader for Chromium browser localStorage, decoding only Devin values and
+avoiding retention of unrelated sites' data. Current values and deletions determine the session. QuotaKit sends the
+session token only to `https://app.devin.ai`.
 
 For accounts with multiple organizations, set **Organization** to select one explicitly. An internal `org-...` or
 `org_...` ID takes precedence over the browser's cached organization metadata. A slug uses only its matching cached ID;

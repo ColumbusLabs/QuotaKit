@@ -55,6 +55,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Mac widgets recover from a verified stale extension after an app update. Devin browser import and incremental Claude cost refreshes use less memory. Antigravity represents Gemini with its ordinary quota while retaining model-specific limits.
+
 - Claude cost history saves incremental changes with less disk rewriting. Hidden Codex dashboard work stops at refresh deadlines while retaining verified API usage.
 - Cursor Ultra monthly usage and Antigravity quotas/history follow their current sources. TypeSafe retains its icon proportions and sends browser-compatible requests; the CLI accepts catalog provider IDs and avoids a Linux XML-library dependency.
 

@@ -114,6 +114,62 @@ extension SyncCoordinatorTests {
     }
 
     @Test
+    func `antigravity sync projects ordinary Gemini representative and keeps model quota rows`() async throws {
+        let quota: [String: Any] = ["groups": [
+            ["name": "General models", "buckets": [
+                [
+                    "id": "gemini-weekly",
+                    "name": "Weekly",
+                    "window": "weekly",
+                    "disabled": false,
+                    "remaining_fraction": 0.9996,
+                    "reset_time": "2030-03-17T17:46:40Z",
+                ],
+                [
+                    "id": "gemini-synthetic-limited-weekly",
+                    "name": "Weekly",
+                    "window": "weekly",
+                    "disabled": false,
+                    "remaining_fraction": 0,
+                    "reset_time": "2030-03-17T17:46:40Z",
+                ],
+            ]],
+            ["name": "Third party models", "buckets": [
+                [
+                    "id": "3p-weekly",
+                    "name": "Weekly",
+                    "window": "weekly",
+                    "disabled": false,
+                    "remaining_fraction": 0.7,
+                    "reset_time": "2030-03-17T17:46:40Z",
+                ],
+            ]],
+        ]]
+        let report: [String: Any] = [
+            "status": "SUCCESS",
+            "command": ["name": "usage", "data": quota],
+        ]
+        let snapshot = try AntigravityStatusProbe.parseCLIUsageReport(
+            JSONSerialization.data(withJSONObject: report)).toUsageSnapshot()
+        let provider = try await self.syncedProvider(
+            .antigravity,
+            snapshot: snapshot,
+            suite: "SyncCoord-antigravity-ordinary-gemini-projection")
+
+        let primary = try #require(provider.rateWindows.first)
+        #expect(primary.label == "Gemini Models")
+        #expect(abs(primary.usedPercent - 0.04) < 0.000001)
+        let secondary = try #require(provider.rateWindows.dropFirst().first)
+        #expect(secondary.label == "Claude and GPT")
+        #expect(abs(secondary.usedPercent - 30) < 0.000001)
+        let geminiDetails = provider.rateWindows.filter { $0.label == "General models weekly" }
+        #expect(geminiDetails.map(\.usedPercent) == [primary.usedPercent, 100])
+        let thirdPartyDetails = try #require(
+            provider.rateWindows.first { $0.label == "Third party models weekly" })
+        #expect(abs(thirdPartyDetails.usedPercent - 30) < 0.000001)
+    }
+
+    @Test
     func `opencode pay as you go sync labels its limit as monthly`() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let snapshot = OpenCodeUsageSnapshot.payAsYouGo(

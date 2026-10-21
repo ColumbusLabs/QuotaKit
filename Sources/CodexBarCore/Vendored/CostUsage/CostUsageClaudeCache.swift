@@ -163,7 +163,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     private var entries: [String: StoredEntry] = [:]
 
     func entry(provider: UsageProvider, canonicalCachePath: String) -> Entry? {
-        let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
+        let key = "\(provider.rawValue)|\(canonicalCachePath)"
         self.lock.lock()
         if let memory = self.entries[key]?.entry {
             self.lock.unlock()
@@ -187,7 +187,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         report: CostUsageDailyReport,
         hasWindowScopedRows: Bool = false)
     {
-        let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
+        let key = "\(provider.rawValue)|\(canonicalCachePath)"
         let entry = Entry(
             sourceInventory: sourceInventory,
             reportKey: reportKey,
@@ -213,16 +213,12 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
 
     #if DEBUG
     func evict(provider: UsageProvider, canonicalCachePath: String) {
-        let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
+        let key = "\(provider.rawValue)|\(canonicalCachePath)"
         self.lock.lock()
         defer { self.lock.unlock() }
         self.entries.removeValue(forKey: key)
     }
     #endif
-
-    private static func key(provider: UsageProvider, canonicalCachePath: String) -> String {
-        "\(provider.rawValue)|\(canonicalCachePath)"
-    }
 
     static func reportMemoFileURL(cacheFileURL: URL) -> URL {
         let stem = cacheFileURL.deletingPathExtension().lastPathComponent
@@ -338,6 +334,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
         }
 
         static func == (lhs: File, rhs: File) -> Bool {
+            if lhs === rhs { return true }
             guard lhs.metadata == rhs.metadata, self.sameString(lhs.sourceID, rhs.sourceID),
                   self.sameString(lhs.sourceKey, rhs.sourceKey) else { return false }
             let left = lhs.usage?.claudeRows, right = rhs.usage?.claudeRows
@@ -373,34 +370,35 @@ struct CostUsageClaudeCacheArtifact: Codable {
     func split() throws -> (Self, [String: File]) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        var files: [String: File] = [:]
-        for path in self.usage.files.keys {
+        var files: [String: File] = .init(minimumCapacity: self.usage.files.count)
+        for path in Array(self.usage.files.keys) + self.sourceFileIDs.keys.filter({ self.usage.files[$0] == nil }) {
             let sourceKey = self.sourceFileIDs.index(forKey: path).map { self.sourceFileIDs[$0].key }
-            files[path] = try File(
+            let file = try File(
                 usage: self.usage.files[path],
                 sourceID: self.sourceFileIDs[path],
                 sourceKey: sourceKey,
                 encoder: encoder)
-        }
-        for (path, identity) in self.sourceFileIDs where self.usage.files[path] == nil {
-            files[path] = try File(usage: nil, sourceID: identity, sourceKey: path, encoder: encoder)
+            files[path] = self.fileRecords[path].flatMap { $0 == file ? $0 : nil } ?? file
         }
         var header = self
         header.usage.files = [:]
         header.sourceFileIDs = [:]
+        header.fileRecords = [:]
         header.contentID = self.contentID
         return (header, files)
     }
 
     mutating func join(_ files: [String: File]) {
         let contentID = self.contentID
-        self.usage.files = files.compactMapValues(\.usage)
-        self.sourceFileIDs = files.reduce(into: [:]) { identities, entry in
+        self.usage.files = files.reduce(into: .init(minimumCapacity: files.count)) { $0[$1.key] = $1.value.usage }
+        self.sourceFileIDs = files.reduce(into: .init(minimumCapacity: files.count)) { identities, entry in
             if let identity = entry.value.sourceID { identities[entry.value.sourceKey ?? entry.key] = identity }
         }
+        self.fileRecords = files
         self.contentID = contentID
     }
 
+    private var fileRecords: [String: File] = [:]
     mutating func updateUsageIfChanged(to usage: CostUsageCache) {
         if self.usage != usage {
             self.usage = usage

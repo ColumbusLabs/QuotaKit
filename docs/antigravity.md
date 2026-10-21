@@ -252,8 +252,12 @@ shared OAuth file can still be used as a fallback credential source.
   - `Gemini` groups Gemini Pro and Gemini Flash text models.
   - `Claude + GPT` groups Claude text models and GPT/GPT-OSS text models.
 - Representative selection:
+  - The Gemini summary prefers measured ordinary quota buckets (`gemini-5h` and `gemini-weekly`, including supported
+    cadence aliases) over model-specific Gemini allowances. Stable bucket IDs determine this preference independently
+    of display labels. Model-specific quotas remain the fallback when ordinary quota is absent, unknown, or disabled.
+    Every returned bucket retains its percentage and reset metadata in `extraRateWindows`.
   - Hidden model rows such as Lite, autocomplete, and image variants do not drive summary bars.
-  - For each group, CodexBar uses the lowest remaining known quota row and preserves that row's reset metadata.
+  - For each group, CodexBar uses the lowest remaining known candidate and preserves that row's reset metadata.
   - Rows with reset metadata but no remaining fraction stay visible as unavailable reset context only when their group
     has no known usage row.
 - `resetTime` parsing:
