@@ -365,8 +365,9 @@ final class MenuBarLayoutRenderer {
         let resetTokens = tokens.filter { $0.resetWindow != nil }
         let countdownWindows = Set(resetTokens.filter { !$0.resetIsAbsolute }.compactMap(\.resetWindow))
         let absoluteWindows = Set(resetTokens.filter(\.resetIsAbsolute).compactMap(\.resetWindow))
-        let resetKey: MenuBarLayoutResetKey? = if resetTokens.isEmpty {
-            nil
+        let resetKey: MenuBarLayoutResetKey?
+        if resetTokens.isEmpty {
+            resetKey = nil
         } else {
             let countdowns = PercentWindow.allCases
                 .filter(countdownWindows.contains)
@@ -380,7 +381,7 @@ final class MenuBarLayoutRenderer {
                 Self.window($0, data: data)?.resetsAt != nil
             }
             let calendar = hasAbsoluteResetDate ? Calendar.current : nil
-            MenuBarLayoutResetKey(
+            resetKey = MenuBarLayoutResetKey(
                 countdowns: countdowns,
                 absoluteDayStart: calendar?.startOfDay(for: options.now),
                 calendarIdentifier: calendar.map { String(describing: $0.identifier) },
