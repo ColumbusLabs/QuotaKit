@@ -13,7 +13,7 @@ struct MenuBarWindowAlignmentTests {
             layout: .init(lines: [first, [.progressBar(window: .weekly)]]),
             data: fixture.data(sessionWindowMinutes: 30),
             icon: promotedIcon ? NSImage(size: NSSize(width: 16, height: 16)) : nil,
-            options: fixture.options())
+            options: self.options())
         let origins = Self.origins(of: "\u{FFFC}", in: output.attributedTitle)
         #expect(origins.count == 2)
         #expect(try abs(#require(origins.first) - #require(origins.last)) < 0.1)
@@ -28,12 +28,12 @@ struct MenuBarWindowAlignmentTests {
             layout: .init(lines: [[.progressBar(window: .session)]]),
             data: fixture.data(sessionWindowMinutes: 30),
             icon: nil,
-            options: fixture.options(forceStackedStyle: true))
+            options: self.options(forceStackedStyle: true))
         let bottom = renderer.render(
             layout: .init(lines: [[.progressBar(window: .weekly)]]),
             data: fixture.data(provider: .claude),
             icon: nil,
-            options: fixture.options(forceStackedStyle: true))
+            options: self.options(forceStackedStyle: true))
         let output = MenuBarLayoutRenderer.composeStackedProviderRows(
             top: top, bottom: bottom, topProviderName: "Codex", bottomProviderName: "Claude")
         let origins = Self.origins(of: "\u{FFFC}", in: output.attributedTitle)
@@ -49,12 +49,12 @@ struct MenuBarWindowAlignmentTests {
             layout: .init(lines: [[.progressBar(window: .session)]]),
             data: fixture.data(sessionWindowMinutes: 30),
             icon: nil,
-            options: fixture.options(forceStackedStyle: true))
+            options: self.options(forceStackedStyle: true))
         let bottom = renderer.render(
             layout: .init(lines: [[.providerName, .progressBar(window: .weekly)]]),
             data: fixture.data(provider: .claude),
             icon: nil,
-            options: fixture.options(forceStackedStyle: true))
+            options: self.options(forceStackedStyle: true))
         let output = MenuBarLayoutRenderer.composeStackedProviderRows(
             top: top, bottom: bottom, topProviderName: "Codex", bottomProviderName: "Claude")
         let natural = Self.origins(of: "\u{FFFC}", in: top.attributedTitle)
@@ -72,7 +72,7 @@ struct MenuBarWindowAlignmentTests {
             layout: .init(lines: [[.percent(window: .session)], [.progressBar(window: .weekly)]]),
             data: fixture.data(sessionWindowMinutes: 30),
             icon: nil,
-            options: fixture.options())
+            options: self.options())
         let percent = try #require(Self.origins(of: "25%", in: output.attributedTitle).first)
         let meter = try #require(Self.origins(of: "\u{FFFC}", in: output.attributedTitle).first)
         #expect(abs(percent - meter) < 0.1)
@@ -86,7 +86,7 @@ struct MenuBarWindowAlignmentTests {
             layout: .init(lines: [[.percent(window: .session)], [.percent(window: .weekly)]]),
             data: fixture.data(),
             icon: nil,
-            options: fixture.options(showWindowLabels: false))
+            options: self.options(showWindowLabels: false))
         #expect(hidden.attributedTitle.string == "25%\n60%")
         let layouts: [[MenuBarLayoutToken]] = [
             [.providerName, .progressBar(window: .session)],
@@ -98,7 +98,7 @@ struct MenuBarWindowAlignmentTests {
                 layout: .init(lines: [first, [.progressBar(window: .weekly)]]),
                 data: fixture.data(),
                 icon: NSImage(size: NSSize(width: 16, height: 16)),
-                options: fixture.options())
+                options: self.options())
             if first.first == .icon {
                 #expect(output.leadingIcon != nil)
             }
@@ -106,12 +106,12 @@ struct MenuBarWindowAlignmentTests {
                 layout: .init(lines: [first, [.providerName]]),
                 data: fixture.data(),
                 icon: NSImage(size: NSSize(width: 16, height: 16)),
-                options: fixture.options())
+                options: self.options())
             let lastOnly = renderer.render(
                 layout: .init(lines: [[.providerName], [.progressBar(window: .weekly)]]),
                 data: fixture.data(),
                 icon: NSImage(size: NSSize(width: 16, height: 16)),
-                options: fixture.options())
+                options: self.options())
             let natural = Self.origins(of: "\u{FFFC}", in: firstOnly.attributedTitle)
                 + Self.origins(of: "\u{FFFC}", in: lastOnly.attributedTitle)
             let actual = Self.origins(of: "\u{FFFC}", in: output.attributedTitle)
@@ -141,5 +141,21 @@ struct MenuBarWindowAlignmentTests {
             range = NSRange(location: NSMaxRange(match), length: text.length - NSMaxRange(match))
         }
         return origins
+    }
+
+    private func options(
+        forceStackedStyle: Bool = false,
+        showWindowLabels: Bool = true) -> MenuBarLayoutRenderOptions
+    {
+        MenuBarLayoutRenderOptions(
+            size: .regular,
+            highContrast: false,
+            showUsed: true,
+            conditionals: [],
+            appearanceName: "aqua",
+            isDebugApp: false,
+            now: Date(timeIntervalSince1970: 1_752_768_000),
+            forceStackedStyle: forceStackedStyle,
+            showWindowLabels: showWindowLabels)
     }
 }

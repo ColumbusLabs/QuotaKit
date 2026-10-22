@@ -76,18 +76,21 @@ extension UsageFormatterTests {
             resetDescription: nil,
             nextRegenPercent: 10)
         let credits = GrokRateLimitResetCreditsSnapshot(expirations: [reset], updatedAt: now)
-        for (language, expectedRegen, expectedExpiry) in [
-            ("zh-Hans", "2 小时后恢复", "2 小时后 到期"),
-            ("ja", "2時間後に再生成", "2時間後に期限切れ"),
-            ("ko", "2시간 후에 재생성", "2시간 후에 만료"),
+        for (language, expectedRegen, expectedCountdown) in [
+            ("zh-Hans", "2 小时后恢复", "2 小时后"),
+            ("ja", "2時間後に再生成", "2時間後"),
+            ("ko", "2시간 후에 재생성", "2시간 후"),
         ] {
             try CodexBarLocalizationOverride.$appLanguage.withValue(language) {
                 let detail = try #require(UsageMenuCardView.Model.syntheticRollingRegenDetail(
                     window: window, now: now, showUsed: true))
                 #expect(detail.resetText == expectedRegen)
-                let presentation = try #require(LimitResetCreditsPresentation.make(
+                let presentation = try #require(CodexResetCreditsPresentation.make(
                     snapshot: credits, resetStyle: .countdown, now: now))
-                #expect(presentation.items.map(\.expiryText) == [expectedExpiry])
+                #expect(presentation.items.map(\.relativeExpiryText) == [expectedCountdown])
+                let exact = CodexResetCreditsPresentation.exactExpiryTimeText(reset)
+                #expect(presentation.items.map(\.exactTimeText) == [exact])
+                #expect(presentation.items.map(\.expiryText) == [String(format: L("Expires %@"), exact)])
             }
         }
     }

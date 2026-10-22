@@ -180,6 +180,7 @@ struct MonthlyPacingTargetTests {
             snapshot: snapshot ?? UsageSnapshot(primary: nil, secondary: window, providerCost: cost, updatedAt: now),
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
