@@ -1,6 +1,148 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Pi now uses its official blue accent across the iPhone app and widgets.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخدم Pi الآن لونه الأزرق الرسمي في تطبيق iPhone والأدوات."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi ara fa servir el seu blau oficial a l’app per a iPhone i als ginys."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi verwendet jetzt seinen offiziellen blauen Akzent in der iPhone-App und in Widgets."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi now uses its official blue accent across the iPhone app and widgets."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi ahora usa su azul oficial en la app para iPhone y los widgets."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi اکنون در برنامهٔ iPhone و ابزارک‌ها از رنگ آبی رسمی خود استفاده می‌کند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi utilise désormais son bleu officiel dans l’app iPhone et les widgets."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi agora usa o seu azul oficial na app para iPhone e nos widgets."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi kini menggunakan aksen biru resminya di aplikasi iPhone dan widget."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi ora usa il suo blu ufficiale nell’app per iPhone e nei widget."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi の公式ブルーが iPhone アプリとウィジェットに適用されました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이제 iPhone 앱과 위젯에서 Pi의 공식 파란색을 사용합니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi gebruikt nu zijn officiële blauwe accent in de iPhone-app en widgets."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi używa teraz oficjalnego niebieskiego koloru w aplikacji na iPhone’a i widżetach."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi agora usa seu azul oficial no app para iPhone e nos widgets."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi теперь использует свой официальный синий цвет в приложении для iPhone и виджетах."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi använder nu sin officiella blå accent i iPhone-appen och widgetar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi ใช้สีฟ้าอย่างเป็นทางการในแอป iPhone และวิดเจ็ตแล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi artık iPhone uygulamasında ve araç takımlarında resmî mavi rengini kullanıyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi тепер використовує свій офіційний синій колір у програмі для iPhone та віджетах."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi hiện dùng màu xanh chính thức trong ứng dụng iPhone và các tiện ích."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi 现在在 iPhone App 和小组件中使用其官方蓝色。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pi 現在於 iPhone App 和小工具中使用其官方藍色。"
+          }
+        }
+      }
+    },
     "Vercel personal budgets now sync from Mac to iPhone.": {
       "localizations": {
         "ar": {

@@ -220,6 +220,7 @@ is limited, using additional rows when needed.
 4) Last imported browser cookie email (cached).
 
 ## Credits
+- Monthly caps with a reported reset show a daily target using the remaining allowance and local calendar days. The target follows pace visibility; prepaid balances without a monthly cap do not get a target.
 - Web dashboard fills credits only when OAuth/CLI do not provide them. Account-matched extra usage reconciles monthly caps and purchased balances separately.
 - When usage reports workspace credits without an amount, an optional authenticated `remaining_balance` read uses the selected account's OAuth or browser session. Missing permission leaves usage and monthly-limit data available.
 - A workspace balance attaches and persists only when the response account ID matches the selected account. An explicit unavailable observation suppresses an older cached balance; a later positive or zero read restores visibility. Usage-only refreshes preserve the account's prior observation. An account-scoped API result omits page-only history, plan detail, and code-review fields because the page exposes an email but no workspace ID.
@@ -363,6 +364,9 @@ These account rows intentionally exclude pi sessions because pi history is machi
 Codex account. The normal Codex cost menu and CLI scan continue to include supported pi history. The dashboard labels
 its values as local estimates and keeps currencies separate.
 
+The static musl Linux CLI reserves an 8 MiB thread stack so scanning non-empty Codex session logs does not exhaust
+musl's smaller default stack. The scanner and cache format remain shared with glibc and macOS.
+
 ## Managed account promotion and background tasks
 
 After a managed account is promoted to the system Codex home, QuotaKit restarts an already running Codex app-server daemon for that same home. It first checks a recognized daemon PID and the CLI's `version` response against the resolved control socket, including socket and home symlinks. If the CLI probe or restart fails, the account switch remains complete and the app displays a manual-restart note. Credits and plan-history background tasks keep ownership tokens so an older cancelled task cannot clear a replacement task's handle.
@@ -389,6 +393,8 @@ Codex `gpt-reserve` telemetry falls back to GPT-5.6 Luna pricing after an exact 
 ## Incremental cost history and recovery
 
 QuotaKit preserves original-owned ledger pricing across compatible parser upgrades, including timestamp-shifted mirrors. A priced/unpriced key conflict cannot donate dollars to a different request. Near mirrors and deferred forks retain their progress until ownership and drift settle. Persistent session Priority settings and documented long-context thresholds participate in pricing and cache invalidation.
+
+Priority-turn history reads Codex's local SQLite trace database read-only. If a cleanly closed WAL database has no sidecars, QuotaKit can inspect its unchanged main file through SQLite's immutable mode; an unavailable or changing database leaves the last validated priority cursor published until a stable read succeeds.
 
 Known request subtotals may remain visible alongside incomplete pricing. Unpriced or incomplete requests keep completeness false; rolling-window totals require complete coverage. Legacy partial aggregates require a current-parser rebuild before their subtotal is published, and retained verified partial dollars must match safe current aggregates. Raw rows, checkpoints and fully priced legacy amounts remain available.
 

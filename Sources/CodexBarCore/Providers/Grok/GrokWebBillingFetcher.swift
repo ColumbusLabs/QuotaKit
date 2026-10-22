@@ -27,6 +27,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     /// reported as 0 for the surface's own no-usage-yet contract. A caller that merges two billing
     /// surfaces must not promote such a value to a published percent.
     public let usedPercentIsWirePublished: Bool
+    /// The parser validated an active current period with an omitted proto3 usage scalar.
+    public let usedPercentIsImplicitZero: Bool
     /// Shares compose this payload's credit usage percentage; empty when the composition is unverified.
     public let productUsage: [GrokProductUsage]
     /// Purchased credits from the CLI proxy, denominated in USD separately from included quota.
@@ -39,6 +41,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         allowsCadenceFallback: Bool = true,
         subscriptionTier: String? = nil,
         usedPercentIsWirePublished: Bool = true,
+        usedPercentIsImplicitZero: Bool = false,
         productUsage: [GrokProductUsage] = [],
         prepaidBalanceUSD: Double? = nil)
     {
@@ -48,6 +51,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         self.allowsCadenceFallback = allowsCadenceFallback
         self.subscriptionTier = subscriptionTier
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
+        self.usedPercentIsImplicitZero = usedPercentIsImplicitZero
         self.productUsage = productUsage
         self.prepaidBalanceUSD = prepaidBalanceUSD
     }
@@ -61,6 +65,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             allowsCadenceFallback: self.allowsCadenceFallback,
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
+            usedPercentIsImplicitZero: self.usedPercentIsImplicitZero,
             productUsage: self.productUsage,
             prepaidBalanceUSD: self.prepaidBalanceUSD)
     }
@@ -76,6 +81,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             allowsCadenceFallback: other.resetsAt == nil ? self.allowsCadenceFallback : other.allowsCadenceFallback,
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
+            usedPercentIsImplicitZero: self.usedPercentIsImplicitZero,
             productUsage: self.productUsage,
             prepaidBalanceUSD: self.prepaidBalanceUSD ?? other.prepaidBalanceUSD)
     }
@@ -351,6 +357,11 @@ public enum GrokWebBillingFetcher {
         }
         let noUsageYet =
             scan.isComplete && parsedPercent == nil && scan.fixed32Fields.isEmpty && reset != nil && hasUsagePeriod
+        let currentPeriodStart = resetFields.first { $0.path == [1, 8, 2, 1] }?.date
+        let currentPeriodEnd = resetFields.first { $0.path == [1, 8, 3, 1] }?.date
+        let hasActiveCurrentPeriod = scan.varintFields.contains {
+            $0.path == [1, 8, 1] && ($0.value == 1 || $0.value == 2)
+        } && currentPeriodStart.map { $0 <= now } == true && currentPeriodEnd.map { $0 > now } == true
         guard let percent = parsedPercent ?? (noUsageYet ? 0 : nil) else {
             throw GrokWebBillingError.parseFailed
         }
@@ -361,6 +372,7 @@ public enum GrokWebBillingFetcher {
             usedPercent: percent,
             resetsAt: reset,
             usedPercentIsWirePublished: parsedPercent != nil,
+            usedPercentIsImplicitZero: noUsageYet && payloads.count == 1 && scan.isComplete && hasActiveCurrentPeriod,
             productUsage: productUsage)
     }
 

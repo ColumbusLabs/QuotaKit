@@ -153,8 +153,8 @@ struct MenuBarLayoutRenderOptions: Hashable {
     let isStale: Bool
     /// Whether the status item is currently highlighted (e.g. tracking an open menu).
     let isHighlighted: Bool
-    /// Exact display clock. The cache keys on the resulting reset strings, so animation ticks that keep
-    /// the same visible countdown still reuse the cached title.
+    /// Exact display clock. The cache keys on reset state at the displayed precision, so animation ticks
+    /// that keep the same visible countdown still reuse the cached title.
     let now: Date
     /// User-tunable vertical nudge for the whole title, applied on top of the optical baseline
     /// offset. Positive moves content up, negative moves it down.
@@ -217,11 +217,42 @@ struct MenuBarLayoutRenderKey: Hashable {
     let verticalAdjustment: Int
     let forceStackedStyle: Bool
     let providerAccentColor: String?
-    let resetText: [MenuBarLayoutResetText]
+    let localizationSignature: String
+    let formatterLocalizationSignature: String
+    let resetKey: MenuBarLayoutResetKey?
     /// Truth value per conditional id. Predicates can read the clock (time to reset), so two renders
-    /// with identical data and reset text can still need different branches; keying on the outcomes
-    /// keeps the cache correct without putting `now` — which ticks constantly — into the key.
+    /// with identical data and reset display state can still need different branches; keying on the
+    /// outcomes keeps the cache correct without putting `now` — which ticks constantly — into the key.
     let conditionalOutcomes: [UUID: Bool]
+}
+
+struct MenuBarLayoutResetCountdownKey: Hashable {
+    let window: PercentWindow
+    let minutes: Int?
+    /// Unrepresentable countdowns have the localized value "Unknown" until they enter Int's range.
+    /// These are exceptionally rare, so key them on the exact clock to keep that transition correct.
+    let nowWhenUnrepresentable: Date?
+
+    init(window: PercentWindow, resetsAt: Date?, now: Date) {
+        self.window = window
+        guard let resetsAt else {
+            self.minutes = nil
+            self.nowWhenUnrepresentable = nil
+            return
+        }
+        let minutes = UsageFormatter.resetCountdownMinutes(from: resetsAt, now: now)
+        self.minutes = minutes
+        self.nowWhenUnrepresentable = minutes == nil ? now : nil
+    }
+}
+
+/// Clock-derived reset state used for cache invalidation. The render key already contains `data`,
+/// which retains each selected window's raw reset date/description and provider identity.
+struct MenuBarLayoutResetKey: Hashable {
+    let countdowns: [MenuBarLayoutResetCountdownKey]
+    let absoluteDayStart: Date?
+    let calendarIdentifier: String?
+    let timeZoneIdentifier: String?
 }
 
 struct MenuBarLayoutResetText: Hashable {
@@ -273,6 +304,10 @@ struct MenuBarLayoutRenderedTitle {
 final class MenuBarLayoutTitleCache {
     private let capacity: Int
     private var storage: [MenuBarLayoutRenderKey: MenuBarLayoutRenderedTitle] = [:]
+    /// Most menu-bar renders repeat the exact same inputs on consecutive timer ticks. Keep the
+    /// newest key separately so those hits can use value equality without hashing the full key
+    /// before consulting the bounded dictionary.
+    private var mostRecent: (key: MenuBarLayoutRenderKey, value: MenuBarLayoutRenderedTitle)?
 
     init(capacity: Int = 64) {
         self.capacity = max(1, capacity)
@@ -283,7 +318,11 @@ final class MenuBarLayoutTitleCache {
         make: () -> MenuBarLayoutRenderedTitle)
         -> MenuBarLayoutRenderedTitle
     {
+        if let mostRecent, mostRecent.key == key {
+            return mostRecent.value
+        }
         if let cached = self.storage[key] {
+            self.mostRecent = (key, cached)
             return cached
         }
         let value = make()
@@ -291,11 +330,13 @@ final class MenuBarLayoutTitleCache {
             self.storage.removeValue(forKey: oldest)
         }
         self.storage[key] = value
+        self.mostRecent = (key, value)
         return value
     }
 
     func removeAll() {
         self.storage.removeAll(keepingCapacity: true)
+        self.mostRecent = nil
     }
 
     var count: Int {
@@ -307,6 +348,7 @@ final class MenuBarLayoutTitleCache {
 final class MenuBarLayoutRenderer {
     private static let missingValue = "–"
     private static let stackedBaselineOffset: CGFloat = -3 // Center multi-line NSStatusBarButton titles.
+    private static let windowPrefixKey = NSAttributedString.Key("CodexBarWindowPrefix")
     private static let singleLineBaselineOffset: CGFloat = -1 // Drop single-line titles slightly for optical centering.
 
     private struct TokenStyle {
@@ -329,15 +371,32 @@ final class MenuBarLayoutRenderer {
         options: MenuBarLayoutRenderOptions)
         -> MenuBarLayoutRenderedTitle
     {
-        let resetWindows = Set(layout.flattenedTokens(conditionals: options.conditionals).compactMap(\.resetWindow))
-        let resetText = PercentWindow.allCases
-            .filter { $0 == .automatic || resetWindows.contains($0) }
-            .map { selection in
-                MenuBarLayoutResetText(
-                    window: Self.window(selection, data: data),
-                    provider: selection == .automatic ? data.provider : nil,
-                    now: options.now)
+        let tokens = layout.flattenedTokens(conditionals: options.conditionals)
+        let resetTokens = tokens.filter { $0.resetWindow != nil }
+        let countdownWindows = Set(resetTokens.filter { !$0.resetIsAbsolute }.compactMap(\.resetWindow))
+        let absoluteWindows = Set(resetTokens.filter(\.resetIsAbsolute).compactMap(\.resetWindow))
+        let resetKey: MenuBarLayoutResetKey?
+        if resetTokens.isEmpty {
+            resetKey = nil
+        } else {
+            let countdowns = PercentWindow.allCases
+                .filter(countdownWindows.contains)
+                .map { selection in
+                    MenuBarLayoutResetCountdownKey(
+                        window: selection,
+                        resetsAt: Self.window(selection, data: data)?.resetsAt,
+                        now: options.now)
+                }
+            let hasAbsoluteResetDate = absoluteWindows.contains {
+                Self.window($0, data: data)?.resetsAt != nil
             }
+            let calendar = hasAbsoluteResetDate ? Calendar.current : nil
+            resetKey = MenuBarLayoutResetKey(
+                countdowns: countdowns,
+                absoluteDayStart: calendar?.startOfDay(for: options.now),
+                calendarIdentifier: calendar.map { String(describing: $0.identifier) },
+                timeZoneIdentifier: calendar?.timeZone.identifier)
+        }
         // Evaluate each conditional exactly once per render: the outcome is both a cache-key component
         // and what the token resolver needs, so re-testing per placement would only duplicate work.
         let outcomes = Dictionary(
@@ -364,7 +423,9 @@ final class MenuBarLayoutRenderer {
             verticalAdjustment: options.verticalAdjustment,
             forceStackedStyle: options.forceStackedStyle,
             providerAccentColor: accentColor,
-            resetText: resetText,
+            localizationSignature: codexBarLocalizationSignature(),
+            formatterLocalizationSignature: UsageFormatter.localizationSignature(),
+            resetKey: resetKey,
             conditionalOutcomes: outcomes)
         return self.cache.value(for: key) {
             Self.renderUncached(
@@ -407,6 +468,7 @@ final class MenuBarLayoutRenderer {
         let breakAttributes = top.attributedTitle.attributes(at: top.attributedTitle.length - 1, effectiveRange: nil)
         result.append(NSAttributedString(string: "\n", attributes: breakAttributes))
         result.append(bottom.attributedTitle)
+        self.alignWindowPrefixes(in: result)
         let secondLineLabel = L("menu_bar_layout_line", 2)
         let accessibilityLabel = "\(topProviderName), \(top.accessibilityLabel), " +
             "\(secondLineLabel), \(bottomProviderName), \(bottom.accessibilityLabel)"
@@ -551,6 +613,9 @@ final class MenuBarLayoutRenderer {
             accessibilityLines.append(accessibilityParts.joined(separator: ", "))
         }
 
+        if isStacked {
+            Self.alignWindowPrefixes(in: result, promotedIcon: leadingIcon != nil)
+        }
         if options.isDebugApp {
             result.append(NSAttributedString(string: " D", attributes: attributes))
             // Every line can collapse when a conditional hides the only token in the layout.
@@ -838,7 +903,6 @@ final class MenuBarLayoutRenderer {
             showUsed: options.showUsed)
         let prefix = self.windowPrefix(window, data: data, showWindowLabels: options.showWindowLabels)
         let accessibilityPrefix = Self.windowAccessibilityLabel(window, data: data)
-        let display = prefix.isEmpty ? resolvedValue.text : "\(prefix) \(resolvedValue.text)"
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", accessibilityPrefix, resolvedValue.text)
             : L("%@ unavailable", accessibilityPrefix)
@@ -846,7 +910,12 @@ final class MenuBarLayoutRenderer {
         if let providerTintColor {
             attributes[.foregroundColor] = providerTintColor
         }
-        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
+        return (
+            self.prefixedValue(
+                prefix,
+                value: NSAttributedString(string: resolvedValue.text, attributes: attributes),
+                attributes: attributes),
+            accessibility)
     }
 
     private static func windowPrefix(
@@ -1309,11 +1378,10 @@ extension MenuBarLayoutRenderer {
             height: barSize.height)
 
         let prefix = self.windowPrefix(window, data: data)
-        let result = NSMutableAttributedString()
-        if !prefix.isEmpty {
-            result.append(NSAttributedString(string: "\(prefix) ", attributes: style.attributes))
-        }
-        result.append(self.attachmentText(attachment, style: style))
+        let result = self.prefixedValue(
+            prefix,
+            value: self.attachmentText(attachment, style: style),
+            attributes: style.attributes)
 
         let percentText = self.percentValue(
             window: window,
@@ -1322,6 +1390,44 @@ extension MenuBarLayoutRenderer {
             estimated: data.quotaIsEstimated,
             showUsed: options.showUsed).text
         return (result, L("%@ %@", accessibilityPrefix, percentText))
+    }
+
+    private static func prefixedValue(
+        _ prefix: String,
+        value: NSAttributedString,
+        attributes: [NSAttributedString.Key: Any]) -> NSAttributedString
+    {
+        guard !prefix.isEmpty else { return value }
+        let result = NSMutableAttributedString(string: "\(prefix) ", attributes: attributes)
+        result.addAttribute(self.windowPrefixKey, value: true, range: NSRange(location: 0, length: result.length))
+        result.append(value)
+        return result
+    }
+
+    private static func alignWindowPrefixes(in title: NSMutableAttributedString, promotedIcon: Bool = false) {
+        let text = title.string as NSString
+        var prefixes: [(range: NSRange, width: CGFloat)] = []
+        let inspectPrefix: (Any?, NSRange, UnsafeMutablePointer<ObjCBool>) -> Void = { value, range, _ in
+            guard value != nil else { return }
+            let line = text.lineRange(for: range)
+            let leading = text.substring(with: NSRange(location: line.location, length: range.location - line.location))
+            guard leading.isEmpty || (promotedIcon && line.location == 0 && leading == "\u{2009}") else { return }
+            let prefix = NSMutableAttributedString(attributedString: title.attributedSubstring(from: NSRange(
+                location: line.location, length: NSMaxRange(range) - line.location)))
+            // Include glyph advances and spaces, but ignore previously applied kerning during composition.
+            prefix.removeAttribute(.kern, range: NSRange(location: 0, length: prefix.length))
+            let width = CTLineGetTypographicBounds(CTLineCreateWithAttributedString(prefix), nil, nil, nil)
+            prefixes.append((NSRange(location: NSMaxRange(range) - 1, length: 1), CGFloat(width)))
+        }
+        title.enumerateAttribute(
+            self.windowPrefixKey,
+            in: NSRange(location: 0, length: title.length),
+            using: inspectPrefix)
+        guard prefixes.count == text.components(separatedBy: "\n").count,
+              let width = prefixes.map(\.width).max() else { return }
+        for prefix in prefixes {
+            title.addAttribute(.kern, value: width - prefix.width, range: prefix.range)
+        }
     }
 
     private static func progressBarSize(size: MenuBarLayoutSize, font: NSFont) -> NSSize {

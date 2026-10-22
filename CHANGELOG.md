@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-10-22)
+
+- Preserve Grok weekly credit windows on validated zero-usage weeks, named Antigravity model quotas, and Pi’s official blue accent.
+- Keep priced Claude spend when some history is unpriced, read OpenCode Go v2 history, and scan idle Codex WAL databases without modifying their files.
+- Show monthly allowance daily targets, aligned stacked menu meters, accurate zero-day charts, named unavailable widget providers, and clearer layout/Keychain guidance.
+- Keep About and Acknowledgements in Settings history, localize countdowns and Ukrainian copy, and show existing iCloud fleet usage in the menu bar without a local login.
+- Release plugin network sessions after each request and reserve sufficient Linux CLI stack for Codex cost scans.
+
 ## 0.32.4.35 — Unreleased
 
 ### Added

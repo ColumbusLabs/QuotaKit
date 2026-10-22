@@ -163,7 +163,6 @@
 "Local token history is unavailable or incomplete." = "本地 Token 历史不可用或不完整。";
 "Could not add Codex account" = "无法添加 Codex 账户";
 "Could not open Terminal for Gemini" = "无法为 Gemini 打开终端";
-"Could not start claude /login" = "无法启动 claude /login";
 "Could not start codex login" = "无法启动 codex login";
 "Could not switch system account" = "无法切换系统账户";
 "Credits" = "额度";
@@ -955,7 +954,7 @@
 "%@ / %@ (%@ remaining)" = "%@ / %@（剩余 %@）";
 "%@/%@ left" = "剩余 %@ / %@";
 "Gemini Flash" = "Gemini Flash";
-"Regenerates %@" = "%@后恢复";
+"Regenerates %@" = "%@恢复";
 "used after next regen" = "下次恢复后已使用";
 "after next regen" = "下次恢复后";
 "Near full" = "接近全满";
@@ -1251,7 +1250,6 @@
 "Windsurf session JSON bundle" = "Windsurf 会话 JSON 包";
 "Workspace ID" = "工作区 ID";
 "Your StepFun platform password. Used to login and obtain a session token." = "你的 StepFun 平台密码。用于登录并获取会话 token。";
-"claude /login exited with status %d." = "claude /login 以状态 %d 结束。";
 "codex login exited with status %d." = "codex login 以状态 %d 结束。";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\n或粘贴 Abacus AI 仪表盘的 cURL 捕获内容";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\n或粘贴 __Secure-next-auth.session-token 值";
@@ -1747,7 +1745,7 @@
 "Models for this day" = "查看当天模型";
 "Click a bar to explore. Use the menu below for exact amounts." = "点击柱形逐层查看，下方菜单可查询具体金额。";
 "merged_icon_source_title" = "合并图标来源";
-"merged_icon_source_subtitle" = "选择折叠后的合并图标显示哪个服务提供方。";
+"merged_icon_source_subtitle" = "“最高用量”仅比较配额。对于没有配额的服务提供方，请使用“当前选择”。";
 "merged_icon_source_current_selection" = "当前选择";
 "merged_icon_source_highest_usage" = "最高用量";
 "merged_icon_source_frontmost_app" = "最前台的服务提供方应用";
@@ -2741,3 +2739,13 @@
 "Leave blank to keep the saved credential." = "留空以保留已保存的凭据。";
 
 "No personal budget configured" = "尚未配置个人预算";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "无法读取 Claude OAuth 凭据：QuotaKit 的 Claude OAuth 缓存在 macOS 钥匙串中暂时不可用。请在“钥匙串访问”中确认登录钥匙串已解锁，然后重试刷新。";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ 不可用。编辑小组件以选择提供商。";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "布局仅适用于“%@”菜单栏样式。请在上方选择该样式以进行编辑。";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "在 QuotaKit → 设置 → 提供商中启用一个提供商。";
+
+"monthly_daily_target_format" = "每天约 %@，可用至重置";

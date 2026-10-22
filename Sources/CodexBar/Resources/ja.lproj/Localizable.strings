@@ -160,7 +160,6 @@
 "Local token history is unavailable or incomplete." = "ローカルトークン履歴を取得できないか、履歴が不完全です。";
 "Could not add Codex account" = "Codex アカウントを追加できませんでした";
 "Could not open Terminal for Gemini" = "Gemini 用のターミナルを開けませんでした";
-"Could not start claude /login" = "claude /login を開始できませんでした";
 "Could not start codex login" = "codex login を開始できませんでした";
 "Could not switch system account" = "システムアカウントを切り替えられませんでした";
 "Credits" = "クレジット";
@@ -985,7 +984,7 @@
 "%@ / %@ (%@ remaining)" = "%@ / %@（残り %@）";
 "%@/%@ left" = "残り %@/%@";
 "Gemini Flash" = "Gemini Flash";
-"Regenerates %@" = "%@ に再生成";
+"Regenerates %@" = "%@に再生成";
 "used after next regen" = "次回再生成後の使用率";
 "after next regen" = "次回再生成後";
 "Near full" = "ほぼ満タン";
@@ -1273,7 +1272,6 @@
 "Windsurf session JSON bundle" = "Windsurf セッション JSON バンドル";
 "Workspace ID" = "ワークスペース ID";
 "Your StepFun platform password. Used to login and obtain a session token." = "StepFun プラットフォームのパスワード。ログインしてセッショントークンを取得するために使用されます。";
-"claude /login exited with status %d." = "claude /login がステータス %d で終了しました。";
 "codex login exited with status %d." = "codex login がステータス %d で終了しました。";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\nまたは Abacus AI ダッシュボードからの cURL キャプチャを貼り付けてください";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\nまたは __Secure-next-auth.session-token の値を貼り付けてください";
@@ -1295,7 +1293,7 @@
 "%d available" = "%d件利用可能";
 "Expiry times: %d of %d" = "有効期限: %d/%d";
 "Next expires %@" = "次回の有効期限：%@";
-"Expires %@" = "%@ に期限切れ";
+"Expires %@" = "%@に期限切れ";
 "No expiry" = "有効期限なし";
 "Other (%d items)" = "その他（%d項目）";
 "Expand" = "展開";
@@ -1736,7 +1734,7 @@
 "Models for this day" = "この日のモデル";
 "Click a bar to explore. Use the menu below for exact amounts." = "棒をクリックして詳しく確認できます。下のメニューで正確な金額を確認できます。";
 "merged_icon_source_title" = "結合アイコンの表示元";
-"merged_icon_source_subtitle" = "折りたたまれた結合アイコンに表示するプロバイダーを選択します。";
+"merged_icon_source_subtitle" = "「使用率が最も高いプロバイダー」はクォータのみを比較します。クォータのないプロバイダーには「現在の選択」を使用してください。";
 "merged_icon_source_current_selection" = "現在の選択";
 "merged_icon_source_highest_usage" = "使用率が最も高いプロバイダー";
 "merged_icon_source_frontmost_app" = "最前面のプロバイダーアプリ";
@@ -2417,12 +2415,12 @@
 "https://proxy.example.com" = "https://proxy.example.com";
 "https://resource.openai.azure.com" = "https://resource.openai.azure.com";
 "https://sub2api.example.com" = "https://sub2api.example.com";
-"in %@d" = "%@日で";
-"in %@d %@h" = "%1$@日 %2$@時間 で";
-"in %@d %@m" = "%1$@日 %2$@分 で";
-"in %@h" = "%@hで";
-"in %@h %@m" = "%1$@時間 %2$@分";
-"in %@m" = "%@mで";
+"in %@d" = "%@日後";
+"in %@d %@h" = "%1$@日%2$@時間後";
+"in %@d %@m" = "%1$@日%2$@分後";
+"in %@h" = "%@時間後";
+"in %@h %@m" = "%1$@時間%2$@分後";
+"in %@m" = "%@分後";
 "kilo_..." = "kilo_...";
 "kimi-auth token or Cookie: …" = "kimi-auth トークン または Cookie: …";
 "left" = "残り";
@@ -2749,3 +2747,13 @@
 "Leave blank to keep the saved credential." = "保存済みの認証情報を維持するには空欄にしてください。";
 
 "No personal budget configured" = "個人予算が設定されていません";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Claude OAuth 認証情報を読み取れませんでした。QuotaKit の Claude OAuth キャッシュは、macOS キーチェーンで一時的に利用できません。キーチェーンアクセスでログインキーチェーンのロックが解除されていることを確認し、もう一度更新してください。";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ は利用できません。ウィジェットを編集してプロバイダーを選択してください。";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "レイアウトは「%@」メニューバーのスタイルにのみ適用されます。編集するには、上でそのスタイルを選択してください。";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "QuotaKit → 設定 → プロバイダーでプロバイダーを有効にしてください。";
+
+"monthly_daily_target_format" = "リセットまで持たせる目安：1日あたり約 %@";

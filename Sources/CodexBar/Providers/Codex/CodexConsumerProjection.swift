@@ -529,7 +529,9 @@ struct CodexConsumerProjection {
                 usedPercent: monthlyCreditLimit.usedPercent,
                 windowMinutes: nil,
                 resetsAt: monthlyCreditLimit.resetsAt,
-                resetDescription: nil),
+                resetDescription: nil,
+                quotaLimit: monthlyCreditLimit.limit,
+                quotaUnit: "credits"),
             paceSlot: nil)
         return candidatesByLane
     }
@@ -632,6 +634,8 @@ struct CodexConsumerProjection {
             windowMinutes: session.windowMinutes,
             resetsAt: reset.date,
             resetDescription: reset.description,
+            quotaLimit: session.quotaLimit,
+            quotaUnit: session.quotaUnit,
             nextRegenPercent: session.nextRegenPercent,
             isSyntheticPlaceholder: session.isSyntheticPlaceholder)
     }

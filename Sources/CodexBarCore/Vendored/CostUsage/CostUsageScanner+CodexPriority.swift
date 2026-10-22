@@ -35,6 +35,11 @@ extension CostUsageScanner {
         var completedTurnIDInsertionOrderStartIndex: Int
     }
 
+    struct CodexPriorityTurnsResolution {
+        var turns: [String: CodexPriorityTurnMetadata]
+        var validationPending: Bool
+    }
+
     private static let requestMarker = "websocket request:"
 
     static func defaultCodexPriorityDatabaseURL() -> URL {
@@ -65,8 +70,10 @@ extension CostUsageScanner {
     }
 
     /// Drops process-local accumulated state so the next scan rebuilds from row 0.
-    static func dropCodexPriorityTurnsMemo(databaseURL: URL) {
+    static func dropCodexPriorityTurnsMemo(databaseURL: URL, through observationID: UInt64? = nil) {
         self.codexPriorityTurnsMemo.withLock { memo in
+            if let observationID, let existing = memo[databaseURL.path],
+               existing.observationID > observationID { return }
             _ = memo.removeValue(forKey: databaseURL.path)
         }
     }
@@ -147,6 +154,12 @@ extension CostUsageScanner {
     private static let codexPriorityTurnsMemo =
         CostUsageScanExecutor.LockedState<[String: CodexPriorityTurnsMemoState]>([:])
     private static let codexPriorityTurnsObservationCounter = CostUsageScanExecutor.LockedState<UInt64>(0)
+    #if DEBUG
+    private static let codexPriorityBeforeImmutableReadHook =
+        CostUsageScanExecutor.LockedState<[String: (OpaquePointer?) -> Void]>([:])
+    private static let codexPriorityForceImmutableFallbackPaths =
+        CostUsageScanExecutor.LockedState<Set<String>>([])
+    #endif
 
     private static func nextCodexPriorityTurnsObservationID() -> UInt64 {
         self.codexPriorityTurnsObservationCounter.withLock {
@@ -180,40 +193,39 @@ extension CostUsageScanner {
         }
     }
 
-    static func _test_resetCodexPriorityTurnsMemo() {
-        self.codexPriorityTurnsMemo.withLock { $0.removeAll() }
-        self.codexPriorityTurnsObservationCounter.withLock { $0 = 0 }
-    }
-
-    static func _test_resetCodexPriorityTurnsMemo(forPath path: String) {
-        self.dropCodexPriorityTurnsMemo(databaseURL: URL(fileURLWithPath: path))
-    }
-
-    static func _test_codexPriorityTurnsMemoState(forPath path: String) -> CodexPriorityTurnsMemoState? {
+    static func codexPriorityTurnsMemoState(forPath path: String) -> CodexPriorityTurnsMemoState? {
         self.codexPriorityTurnsMemo.withLock { $0[path] }
     }
 
-    static func _test_codexPriorityDatabaseFileIdentity(at url: URL) -> UInt64? {
-        self.codexPriorityDatabaseFileIdentity(at: url)
+    #if DEBUG
+    static func _test_forceCodexPriorityImmutableFallback(databaseURL: URL, _ force: Bool) {
+        self.codexPriorityForceImmutableFallbackPaths.withLock { paths in
+            if force {
+                paths.insert(databaseURL.path)
+            } else {
+                paths.remove(databaseURL.path)
+            }
+        }
     }
 
-    static func _test_accumulateCodexPriorityTurns(
-        _ db: OpaquePointer?,
-        into state: inout CodexPriorityTurnsMemoState) -> Bool
+    static func _test_setCodexPriorityBeforeImmutableReadHook(
+        databaseURL: URL,
+        _ hook: ((OpaquePointer?) -> Void)?)
     {
-        self.accumulateCodexPriorityTurns(db, into: &state)
+        self.codexPriorityBeforeImmutableReadHook.withLock { hooks in
+            if let hook {
+                hooks[databaseURL.path] = hook
+            } else {
+                hooks.removeValue(forKey: databaseURL.path)
+            }
+        }
     }
 
-    static func _test_codexPriorityAccumulationQuery(
-        _ db: OpaquePointer?,
-        lastRowID: Int64,
-        coverageSinceEpoch: Int64) -> String
-    {
-        self.codexPriorityAccumulationPlan(
-            db,
-            lastRowID: lastRowID,
-            coverageSinceEpoch: coverageSinceEpoch).query
+    private static func runCodexPriorityBeforeImmutableReadHook(databaseURL: URL, db: OpaquePointer?) {
+        let hook = self.codexPriorityBeforeImmutableReadHook.withLock { $0[databaseURL.path] }
+        hook?(db)
     }
+    #endif
 
     /// Resolves priority turn metadata from the codex CLI trace database. The full-table
     /// `LIKE` scan over `feedback_log_body` grows with the database (hundreds of megabytes on
@@ -229,8 +241,22 @@ extension CostUsageScanner {
         sinceDayKey: String? = nil,
         untilDayKey: String? = nil) -> [String: CodexPriorityTurnMetadata]
     {
+        self.resolveCodexPriorityTurns(
+            databaseURL: databaseURL,
+            sinceDayKey: sinceDayKey,
+            untilDayKey: untilDayKey).turns
+    }
+
+    static func resolveCodexPriorityTurns(
+        databaseURL: URL? = nil,
+        sinceDayKey: String? = nil,
+        untilDayKey: String? = nil,
+        expectExistingDatabase: Bool = false) -> CodexPriorityTurnsResolution
+    {
         let url = self.resolvedCodexPriorityDatabaseURL(databaseURL)
-        guard FileManager.default.fileExists(atPath: url.path) else { return [:] }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return CodexPriorityTurnsResolution(turns: [:], validationPending: expectExistingDatabase)
+        }
 
         if let untilDayKey, untilDayKey < CostUsageDayRange.dayKey(from: Date()) {
             return self.boundedCodexPriorityTurns(
@@ -239,14 +265,23 @@ extension CostUsageScanner {
                 untilDayKey: untilDayKey)
         }
 
-        guard let opened = self.openCodexPriorityDatabase(at: url) else { return [:] }
+        let observationID = self.nextCodexPriorityTurnsObservationID()
+        guard let opened = self.openCodexPriorityDatabase(at: url) else {
+            return CodexPriorityTurnsResolution(turns: [:], validationPending: true)
+        }
         let db = opened.db
         let fileIdentity = opened.fileIdentity
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 250)
+        #if DEBUG
+        if opened.idleState != nil {
+            self.runCodexPriorityBeforeImmutableReadHook(databaseURL: url, db: db)
+        }
+        #endif
 
-        let observationID = self.nextCodexPriorityTurnsObservationID()
-        guard let maxRowID = self.maxCodexLogsRowID(db) else { return [:] }
+        guard let maxRowID = self.maxCodexLogsRowID(db) else {
+            return CodexPriorityTurnsResolution(turns: [:], validationPending: true)
+        }
 
         let requestedSinceEpoch: Int64 = if sinceDayKey != nil || untilDayKey != nil {
             self.epochSeconds(forDayKey: sinceDayKey ?? "0000-01-01") ?? 0
@@ -287,10 +322,12 @@ extension CostUsageScanner {
         if state != nil {
             var pruned = resolved
             guard let didPrune = self.pruneDeletedCodexPrioritySources(db, from: &pruned) else {
-                return self.filteredResolvedCodexPriorityTurns(
-                    resolved,
-                    sinceDayKey: sinceDayKey,
-                    untilDayKey: untilDayKey)
+                return CodexPriorityTurnsResolution(
+                    turns: self.filteredResolvedCodexPriorityTurns(
+                        resolved,
+                        sinceDayKey: sinceDayKey,
+                        untilDayKey: untilDayKey),
+                    validationPending: true)
             }
             resolved = pruned
             prunedDeletedSources = didPrune
@@ -299,17 +336,21 @@ extension CostUsageScanner {
         if maxRowID > resolved.lastRowID {
             var updated = resolved
             guard self.accumulateCodexPriorityTurns(db, into: &updated) else {
-                return self.filteredResolvedCodexPriorityTurns(
-                    resolved,
-                    sinceDayKey: sinceDayKey,
-                    untilDayKey: untilDayKey)
+                return CodexPriorityTurnsResolution(
+                    turns: self.filteredResolvedCodexPriorityTurns(
+                        resolved,
+                        sinceDayKey: sinceDayKey,
+                        untilDayKey: untilDayKey),
+                    validationPending: true)
             }
             updated.lastRowID = maxRowID
             guard self.captureCodexPriorityCursorAnchor(db, into: &updated) else {
-                return self.filteredResolvedCodexPriorityTurns(
-                    updated,
-                    sinceDayKey: sinceDayKey,
-                    untilDayKey: untilDayKey)
+                return CodexPriorityTurnsResolution(
+                    turns: self.filteredResolvedCodexPriorityTurns(
+                        updated,
+                        sinceDayKey: sinceDayKey,
+                        untilDayKey: untilDayKey),
+                    validationPending: true)
             }
             self.storeCodexPriorityTurnsMemoIfNewer(updated, forPath: url.path)
             resolved = updated
@@ -317,10 +358,19 @@ extension CostUsageScanner {
             self.storeCodexPriorityTurnsMemoIfNewer(resolved, forPath: url.path)
         }
 
-        return self.filteredResolvedCodexPriorityTurns(
+        let turns = self.filteredResolvedCodexPriorityTurns(
             resolved,
             sinceDayKey: sinceDayKey,
             untilDayKey: untilDayKey)
+        if let idleState = opened.idleState,
+           SQLiteIdleDatabaseState.read(at: url) != idleState
+        {
+            // A writer may have appeared during an immutable read. Do not persist that observation;
+            // an older invalidation must not clear a newer scan's cursor.
+            self.dropCodexPriorityTurnsMemo(databaseURL: url, through: observationID)
+            return CodexPriorityTurnsResolution(turns: turns, validationPending: true)
+        }
+        return CodexPriorityTurnsResolution(turns: turns, validationPending: false)
     }
 
     private static func filteredResolvedCodexPriorityTurns(
@@ -347,13 +397,12 @@ extension CostUsageScanner {
     private static func boundedCodexPriorityTurns(
         databaseURL: URL,
         sinceDayKey: String?,
-        untilDayKey: String?) -> [String: CodexPriorityTurnMetadata]
+        untilDayKey: String?) -> CodexPriorityTurnsResolution
     {
-        var db: OpaquePointer?
-        guard sqlite3_open_v2(databaseURL.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
-            sqlite3_close(db)
-            return [:]
+        guard let opened = self.openCodexPriorityDatabase(at: databaseURL) else {
+            return CodexPriorityTurnsResolution(turns: [:], validationPending: true)
         }
+        let db = opened.db
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 250)
 
@@ -366,7 +415,9 @@ extension CostUsageScanner {
                or feedback_log_body like '%service_tier: Some(Some("priority"))%')
         """
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else { return [:] }
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            return CodexPriorityTurnsResolution(turns: [:], validationPending: true)
+        }
         defer { sqlite3_finalize(stmt) }
         let start = self.epochSeconds(forDayKey: sinceDayKey ?? "0000-01-01") ?? 0
         let end = self.epochSeconds(forDayKey: self.nextDayKey(after: untilDayKey ?? "9999-12-30"))
@@ -376,7 +427,9 @@ extension CostUsageScanner {
 
         var turns: [String: CodexPriorityTurnMetadata] = [:]
         var completedModelsByTurnID: [String: String] = [:]
-        while sqlite3_step(stmt) == SQLITE_ROW {
+        var stepResult = sqlite3_step(stmt)
+        while stepResult == SQLITE_ROW {
+            defer { stepResult = sqlite3_step(stmt) }
             let timestamp = self.timestamp(stmt: stmt, index: 0)
             guard self.timestamp(timestamp, isInRangeSince: sinceDayKey, until: untilDayKey),
                   let body = self.text(stmt: stmt, index: 1)
@@ -396,7 +449,11 @@ extension CostUsageScanner {
             }
             turns[parsed.turnID] = parsed
         }
-        return turns
+        let resolution = CodexPriorityTurnsResolution(turns: turns, validationPending: stepResult != SQLITE_DONE)
+        guard let idleState = opened.idleState,
+              SQLiteIdleDatabaseState.read(at: databaseURL) != idleState
+        else { return resolution }
+        return CodexPriorityTurnsResolution(turns: turns, validationPending: true)
     }
 
     private static func maxCodexLogsRowID(_ db: OpaquePointer?) -> Int64? {
@@ -408,9 +465,15 @@ extension CostUsageScanner {
         return sqlite3_column_int64(stmt, 0)
     }
 
+    struct OpenedCodexPriorityDatabase {
+        let db: OpaquePointer?
+        let fileIdentity: UInt64
+        let idleState: SQLiteIdleDatabaseState?
+    }
+
     static func openCodexPriorityDatabase(
         at url: URL,
-        afterOpen: (() -> Void)? = nil) -> (db: OpaquePointer?, fileIdentity: UInt64)?
+        afterOpen: (() -> Void)? = nil) -> OpenedCodexPriorityDatabase?
     {
         guard let fileIdentity = self.codexPriorityDatabaseFileIdentity(at: url) else { return nil }
         var db: OpaquePointer?
@@ -418,15 +481,52 @@ extension CostUsageScanner {
             sqlite3_close(db)
             return nil
         }
+        sqlite3_busy_timeout(db, 250)
+        var idleState: SQLiteIdleDatabaseState?
+        #if DEBUG
+        let forceImmutableFallback = self.codexPriorityForceImmutableFallbackPaths.withLock {
+            $0.contains(url.path)
+        }
+        #else
+        let forceImmutableFallback = false
+        #endif
+        if forceImmutableFallback || !self.codexPriorityDatabaseIsReadable(db) {
+            // A closed Codex WAL may have no sidecars. Some SQLite builds decline normal
+            // read-only access until the schema is touched, although the checkpointed main file
+            // remains safe to read through immutable=1.
+            let cannotOpen = forceImmutableFallback || sqlite3_errcode(db) == SQLITE_CANTOPEN
+            sqlite3_close(db)
+            db = nil
+            guard cannotOpen,
+                  let before = SQLiteIdleDatabaseState.read(at: url),
+                  let uri = SQLiteIdleDatabaseState.immutableURI(for: url),
+                  sqlite3_open_v2(uri, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK,
+                  self.codexPriorityDatabaseIsReadable(db)
+            else {
+                sqlite3_close(db)
+                return nil
+            }
+            idleState = before
+        }
         afterOpen?()
         guard self.codexPriorityDatabaseFileIdentity(at: url) == fileIdentity else {
             sqlite3_close(db)
             return nil
         }
-        return (db, fileIdentity)
+        return OpenedCodexPriorityDatabase(db: db, fileIdentity: fileIdentity, idleState: idleState)
     }
 
-    private static func codexPriorityDatabaseFileIdentity(at url: URL) -> UInt64? {
+    /// Forces SQLite to read the schema. A read-only open is lazy, so a sidecar-less WAL may fail here.
+    private static func codexPriorityDatabaseIsReadable(_ db: OpaquePointer?) -> Bool {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "select max(rowid) from logs", -1, &stmt, nil) == SQLITE_OK else {
+            return false
+        }
+        defer { sqlite3_finalize(stmt) }
+        return sqlite3_step(stmt) == SQLITE_ROW
+    }
+
+    static func codexPriorityDatabaseFileIdentity(at url: URL) -> UInt64? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.systemFileNumber]
             .flatMap { $0 as? UInt64 }
     }
@@ -591,7 +691,7 @@ extension CostUsageScanner {
         state.completedTurnIDInsertionOrderStartIndex = 0
     }
 
-    private static func accumulateCodexPriorityTurns(
+    static func accumulateCodexPriorityTurns(
         _ db: OpaquePointer?,
         into state: inout CodexPriorityTurnsMemoState) -> Bool
     {
@@ -642,7 +742,7 @@ extension CostUsageScanner {
         }
     }
 
-    private static func codexPriorityAccumulationPlan(
+    static func codexPriorityAccumulationPlan(
         _ db: OpaquePointer?,
         lastRowID: Int64,
         coverageSinceEpoch: Int64) -> (query: String, usesTimestampIndex: Bool)

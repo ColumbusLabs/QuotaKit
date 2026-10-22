@@ -692,6 +692,7 @@ struct GrokWebBillingFetcherTests {
 
         #expect(snapshot.usedPercent == 0)
         #expect(snapshot.resetsAt == Date(timeIntervalSince1970: 1_782_864_000))
+        #expect(snapshot.usedPercentIsImplicitZero)
     }
 
     @Test

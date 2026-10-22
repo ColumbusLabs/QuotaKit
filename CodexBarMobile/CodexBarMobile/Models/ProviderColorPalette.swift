@@ -203,7 +203,7 @@ enum ProviderColorPalette {
             (["nous"], RawColor(red: 214 / 255, green: 165 / 255, blue: 92 / 255)),
             (["muse"], RawColor(red: 6 / 255, green: 104 / 255, blue: 225 / 255)),
             (["museai"], RawColor(red: 6 / 255, green: 104 / 255, blue: 225 / 255)),
-            (["pi"], RawColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255)),
+            (["pi"], RawColor(red: 77 / 255, green: 154 / 255, blue: 191 / 255)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),

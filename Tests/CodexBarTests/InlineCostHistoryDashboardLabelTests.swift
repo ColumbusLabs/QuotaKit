@@ -269,8 +269,9 @@ struct InlineCostHistoryDashboardLabelTests {
 
         #expect(model.inlineUsageDashboard?.kpis.first?.title == "Today")
         #expect(model.inlineUsageDashboard?.kpis.first?.value == "$0.00")
-        #expect(model.inlineUsageDashboard?.points.first?.id == "2023-11-15")
-        #expect(model.inlineUsageDashboard?.points.first?.accessibilityValue.contains("$0.25 · 275 tokens") == true)
+        #expect(model.inlineUsageDashboard?.points.first { $0.id == "2023-11-15" }?.id == "2023-11-15")
+        #expect(model.inlineUsageDashboard?.points.first { $0.id == "2023-11-15" }?.accessibilityValue
+            .contains("$0.25 · 275 tokens") == true)
     }
 
     @Test
@@ -326,10 +327,10 @@ struct InlineCostHistoryDashboardLabelTests {
             providerCurrency: "EUR").value
         #expect(model.inlineUsageDashboard?.currencyCode == "USD")
         #expect(model.inlineUsageDashboard?.kpis.first?.value == expected)
-        #expect(model.inlineUsageDashboard?.points.first?.value == expectedValue)
-        #expect(model.inlineUsageDashboard?.points.first?.id == "2023-11-15")
+        #expect(model.inlineUsageDashboard?.points.first { $0.id == "2023-11-15" }?.value == expectedValue)
         #expect(
-            model.inlineUsageDashboard?.points.first?.accessibilityValue.contains("\(expected) · 100 tokens") == true)
+            model.inlineUsageDashboard?.points.first { $0.id == "2023-11-15" }?.accessibilityValue
+                .contains("\(expected) · 100 tokens") == true)
     }
 
     @Test

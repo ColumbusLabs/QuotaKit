@@ -36,7 +36,7 @@ struct BurnDownWidgetView: View {
             Text(W("Open QuotaKit"))
                 .font(.body)
                 .fontWeight(.semibold)
-            Text(W("Usage data will appear once the app refreshes."))
+            Text(W("No data"))
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .opacity(0.55)

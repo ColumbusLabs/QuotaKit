@@ -523,6 +523,7 @@ jobs:
           bin_dir="$(swift build --product CodexBarCLI --show-bin-path)"
           bash Scripts/check-linux-cli-linkage.sh "$bin_dir/CodexBarCLI"
           timeout 20 "$bin_dir/CodexBarCLI" --help >/dev/null
+          bash Scripts/check-linux-cli-codex-cost-smoke.sh "$bin_dir/CodexBarCLI"
           timeout 240 python3 Scripts/test_dashboard_private_accounts.py "$bin_dir/CodexBarCLI"
           timeout 240 python3 Scripts/test_linux_serve_rpc_pipes.py "$bin_dir/CodexBarCLI"
           timeout 240 python3 Scripts/test_linux_procfs_reads.py

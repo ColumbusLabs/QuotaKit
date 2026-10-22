@@ -105,6 +105,10 @@ struct CostUsageClaudeOverflowTests {
         #expect(report.summary?.totalInputTokens == (complete ? 10 : 30))
         #expect(report.summary?.totalOutputTokens == (complete ? 1 : 3))
         #expect(report.summary?.totalCostUSD == (complete ? 1 : nil))
+        if !complete {
+            #expect(report.data.first?.unpricedRequestCount == nil)
+            #expect(report.data.first?.estimatedRequestCount == nil)
+        }
         if complete {
             cache.files["known"]?.claudeRows = []
             let empty = CostUsageScanner.buildClaudeReportFromCache(

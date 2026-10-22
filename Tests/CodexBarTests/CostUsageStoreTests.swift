@@ -2317,6 +2317,7 @@ extension CostUsageStoreTests {
         "005a869f36400f7e",
         "15a7d46518e83cc0",
         "7607317f30850961",
+        "d0d7da3636605240",
     ]
 
     @Test(arguments: Self.testedPredecessorParserHashes)
@@ -2365,6 +2366,7 @@ extension CostUsageStoreTests {
             "3053f2f21b526cb2",
             "794d08208e8b4be3",
             "a9e63a41a2306504",
+            "d0d7da3636605240",
         ]))
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,

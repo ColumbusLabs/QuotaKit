@@ -278,6 +278,7 @@ actor CostUsageStore {
         "005a869f36400f7e", // Alias and historical-price routing changes; parsed rows/checkpoints remain compatible.
         "15a7d46518e83cc0", // Timestamp/order and lean report reads preserve parsed rows and checkpoints.
         "7607317f30850961", // Lazy history materialization changes reads; persisted parser rows remain compatible.
+        "d0d7da3636605240", // Read-only priority-database fallback changes no parsed session rows or checkpoints.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "3f70d97998be5ff8", // Rebuild retained estimates after revision 9 ledger mirror correction.

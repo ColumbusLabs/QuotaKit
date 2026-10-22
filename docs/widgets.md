@@ -30,6 +30,7 @@ read_when:
   **Preferences → Providers → Claude → Show model-specific weekly usage in widgets** toggle controls only these
   desktop widget rows; it does not change fetching, menus, history, notifications, hooks, or iPhone sync.
 - If no snapshot is available, widgets fall back to preview/empty data.
+- Provider-pinned widgets (Usage, History, Metric) retain their configured provider. If it is absent from a nonempty snapshot's `enabledProviders`, the empty state names it as unavailable and points at Edit Widget. That list records enabled, available, widget-capable providers; missing credentials can therefore produce this state too. With no available providers or no saved snapshot, widgets point at provider setup in Settings. Enabled providers awaiting a measurement show **No data**. The Switcher has no provider editor, so its recovery always points at app settings. Burn Down uses the same **No data** label in its own empty-state layout; account widgets keep their own setup guidance.
 
 ## Extension
 - `Sources/CodexBarWidget` contains timeline + views.

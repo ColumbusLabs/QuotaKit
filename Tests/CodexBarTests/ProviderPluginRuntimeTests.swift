@@ -1158,6 +1158,27 @@ extension ProviderPluginRuntimeTests {
     }
 }
 
+extension ProviderPluginRuntimeTests {
+    @Test(arguments: Self.labelValidationEngines)
+    func `plugin rate windows retain absolute allowance metadata and reject nonpositive limits`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        return { primary: { usedPercent: 25, quotaLimit: 200, quotaUnit: "credits" } };
+        """), engine: engine)
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture"])
+        #expect(snapshot.primary?.quotaLimit == 200)
+        #expect(snapshot.primary?.quotaUnit == "credits")
+
+        let invalid = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        return { primary: { usedPercent: 25, quotaLimit: 0, quotaUnit: "credits" } };
+        """), engine: engine)
+        await #expect(throws: ProviderPluginError.invalidSnapshot("primary.quotaLimit must be positive")) {
+            _ = try await invalid.fetchUsage(secrets: ["TEST_KEY": "fixture"])
+        }
+    }
+}
+
 private actor TransportCancellationProbe {
     private var cancelled = false
     private var waiters: [CheckedContinuation<Void, Never>] = []

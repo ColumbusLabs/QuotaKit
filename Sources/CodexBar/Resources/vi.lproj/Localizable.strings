@@ -160,7 +160,6 @@
 "Local token history is unavailable or incomplete." = "Lịch sử token cục bộ không có hoặc chưa đầy đủ.";
 "Could not add Codex account" = "Không thể thêm tài khoản Codex";
 "Could not open Terminal for Gemini" = "Không thể mở Terminal cho Gemini";
-"Could not start claude /login" = "Không thể bắt đầu claude /đăng nhập";
 "Could not start codex login" = "Không thể bắt đầu đăng nhập codex";
 "Could not switch system account" = "Không thể không chuyển đổi tài khoản hệ thống";
 "Credits" = "Tín dụng";
@@ -1272,7 +1271,6 @@
 "Windsurf session JSON bundle" = "Phiên lướt ván buồm JSON gói";
 "Workspace ID" = "ID không gian làm việc";
 "Your StepFun platform password. Used to login and obtain a session token." = "Mật khẩu nền tảng StepFun của bạn. Được sử dụng để đăng nhập và nhận phiên token .";
-"claude /login exited with status %d." = "claude /đăng nhập đã thoát với trạng thái %d .";
 "codex login exited with status %d." = "đăng nhập codex đã thoát với trạng thái %d .";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\nhoặc dán bản chụp cURL từ bảng thông tin Abacus AI";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\nhoặc dán giá trị __Secure-next-auth.session- token";
@@ -1737,7 +1735,7 @@
 "Models for this day" = "Mô hình của ngày này";
 "Click a bar to explore. Use the menu below for exact amounts." = "Nhấp vào cột để khám phá. Dùng menu bên dưới để xem số tiền chính xác.";
 "merged_icon_source_title" = "Nguồn biểu tượng kết hợp";
-"merged_icon_source_subtitle" = "Chọn nhà cung cấp hiển thị trên biểu tượng kết hợp khi thu gọn.";
+"merged_icon_source_subtitle" = "“Mức sử dụng cao nhất” chỉ so sánh hạn mức. Với nhà cung cấp không có hạn mức, hãy dùng “Lựa chọn hiện tại”.";
 "merged_icon_source_current_selection" = "Lựa chọn hiện tại";
 "merged_icon_source_highest_usage" = "Mức sử dụng cao nhất";
 "merged_icon_source_frontmost_app" = "Ứng dụng nhà cung cấp ở phía trước";
@@ -2750,3 +2748,13 @@
 "Leave blank to keep the saved credential." = "Để trống để giữ thông tin xác thực đã lưu.";
 
 "No personal budget configured" = "Chưa thiết lập ngân sách cá nhân";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Không thể đọc thông tin xác thực Claude OAuth: bộ nhớ đệm Claude OAuth của QuotaKit tạm thời không khả dụng trong Chuỗi khóa macOS. Kiểm tra xem chuỗi khóa đăng nhập đã được mở khóa trong Truy cập chuỗi khóa chưa, rồi thử làm mới lại.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ không khả dụng. Chỉnh sửa widget để chọn một nhà cung cấp.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "Bố cục chỉ áp dụng cho kiểu thanh menu “%@”. Chọn kiểu đó ở trên để chỉnh sửa.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "Bật một nhà cung cấp trong QuotaKit → Cài đặt → Nhà cung cấp.";
+
+"monthly_daily_target_format" = "≈ %@ / ngày để đủ dùng đến khi đặt lại";

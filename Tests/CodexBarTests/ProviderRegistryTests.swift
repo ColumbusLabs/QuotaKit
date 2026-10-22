@@ -177,6 +177,27 @@ struct ProviderRegistryTests {
     }
 
     @Test
+    func `Pi uses its official palette and current repository`() {
+        let descriptor = PiProviderDescriptor.descriptor
+        #expect(descriptor.branding.color == ProviderColor(hex: 0x4D9ABF))
+        #expect(descriptor.branding.widgetColor == ProviderColor(hex: 0x4D9ABF))
+        #expect(descriptor.branding.confettiPalette == [0xF09082, 0x4D9ABF, 0xF1BE58].map(ProviderColor.init(hex:)))
+        #expect(descriptor.metadata.dashboardURL == "https://github.com/earendil-works/pi")
+    }
+
+    @Test
+    func `Pi and LiteLLM keep source-backed blue accents and distinct icon resources`() {
+        let pi = PiProviderDescriptor.descriptor.branding
+        let liteLLM = LiteLLMProviderDescriptor.descriptor.branding
+
+        #expect(pi.color == ProviderColor(hex: 0x4D9ABF))
+        #expect(liteLLM.color == ProviderColor(hex: 0x4C89C0))
+        #expect(pi.iconResourceName == "ProviderIcon-pi")
+        #expect(liteLLM.iconResourceName == "ProviderIcon-litellm")
+        #expect(pi.iconResourceName != liteLLM.iconResourceName)
+    }
+
+    @Test
     func `reviewed provider accents also drive widget colors`() {
         let expected: [(UsageProvider, String, String)] = [
             (.abacus, "#814EE8", "#814EE8"),
@@ -220,7 +241,6 @@ struct ProviderRegistryTests {
             [.t3chat, .groq],
             [.deepseek, .atlascloud],
             [.v0, .typesafe],
-            [.deepgram, .pi],
             [.neuralwatt, .aiand],
             [.clinepass, .litellm],
             [.devin, .doubao],
@@ -234,12 +254,16 @@ struct ProviderRegistryTests {
             [.claude, .claudeplatform],
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
-            // New providers retain upstream violet/neutral accents, mirrored by the iPhone palette.
+            // New providers retain upstream palettes that intentionally overlap.
             [.grok, .parallel],
             [.deepgram, .fal],
-            [.pi, .fal],
             [.v0, .flora],
             [.typesafe, .flora],
+        ]
+
+        // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
+        let closeBrandColorMinimumDistances: [Set<UsageProvider>: Double] = [
+            [.pi, .litellm]: 0.07,
         ]
 
         let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color
@@ -255,7 +279,8 @@ struct ProviderRegistryTests {
                 let delta = abs(left.branding.color.red - right.branding.color.red)
                     + abs(left.branding.color.green - right.branding.color.green)
                     + abs(left.branding.color.blue - right.branding.color.blue)
-                #expect(delta > 0.10, "\(left.id.rawValue) and \(right.id.rawValue) colors are too close")
+                let minimumDistance = closeBrandColorMinimumDistances[[left.id, right.id]] ?? 0.10
+                #expect(delta > minimumDistance, "\(left.id.rawValue) and \(right.id.rawValue) colors are too close")
             }
         }
     }

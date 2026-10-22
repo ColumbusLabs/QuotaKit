@@ -297,7 +297,9 @@ extension UsageMenuCardView.Model {
                 providerCurrency: snapshot.currencyCode)
         }
 
-        let historyDays = max(1, min(365, snapshot.historyDays))
+        let tokenCost = ProviderDescriptorRegistry.descriptor(for: input.provider).tokenCost
+        let calendar = tokenCost.chartCalendar ?? input.costUsageBucketCalendar
+        let historyDays = snapshot.displayHistoryDays(calendar: calendar)
         let explicitLabel = snapshot.historyLabel.map { L($0) }
         let defaultHistoryTitle = explicitLabel
             ?? (historyDays == 1
@@ -311,7 +313,6 @@ extension UsageMenuCardView.Model {
                 : historyDays == 30
                 ? "30d"
                 : String(format: L("Last %d days"), historyDays))
-        let tokenCost = ProviderDescriptorRegistry.descriptor(for: input.provider).tokenCost
         let historyTitle = tokenCost.historyTitleStyle == .compact ? codexHistoryPeriod : defaultHistoryTitle
         let tokenHistoryTitle = explicitLabel.map { "\($0) \(L("tokens"))" }
             ?? (historyDays == 1
@@ -336,8 +337,7 @@ extension UsageMenuCardView.Model {
             days: Self.inlineCostHistoryDays(
                 snapshot: snapshot,
                 historyDays: historyDays,
-                preservesCalendarDays: tokenCost.preservesCalendarDaysInCharts,
-                calendar: input.costUsageBucketCalendar),
+                calendar: calendar),
             displayCurrencyCode: displayCurrencyCode,
             convertedValue: convertedValue)
         let latest = CostUsageTokenSnapshot.latestEntry(in: snapshot.daily)
@@ -509,7 +509,8 @@ extension UsageMenuCardView.Model {
         calendar: Calendar) -> InlineUsageDashboardModel
     {
         let config = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost
-        let historyDays = max(1, min(365, snapshot.historyDays))
+        let chartCalendar = config.chartCalendar ?? calendar
+        let historyDays = snapshot.displayHistoryDays(calendar: chartCalendar)
         let historyLabel = snapshot.historyLabel.map { L($0) } ?? Self.costHistoryWindowLabel(days: historyDays)
         var kpis = [InlineUsageDashboardModel.KPI(
             title: L("Today"),
@@ -533,8 +534,7 @@ extension UsageMenuCardView.Model {
             days: Self.inlineCostHistoryDays(
                 snapshot: snapshot,
                 historyDays: historyDays,
-                preservesCalendarDays: config.preservesCalendarDaysInCharts,
-                calendar: calendar),
+                calendar: chartCalendar),
             displayCurrencyCode: "USD",
             convertedValue: { $0 },
             tokensOnly: true)
@@ -594,23 +594,18 @@ extension UsageMenuCardView.Model {
     private static func inlineCostHistoryDays(
         snapshot: CostUsageTokenSnapshot,
         historyDays: Int,
-        preservesCalendarDays: Bool,
         calendar sourceCalendar: Calendar)
         -> [(date: String, costUSD: Double?, totalTokens: Int?, incompleteRequestCount: Int)]
     {
-        let existingDays = snapshot.daily.suffix(historyDays)
-            .compactMap { entry -> (date: String, costUSD: Double?, totalTokens: Int?, incompleteRequestCount: Int)? in
-                guard entry.costUSD != nil || entry.totalTokens != nil || entry.incompleteRequestCount > 0
-                else { return nil }
-                return (entry.date, entry.costUSD, entry.totalTokens, entry.incompleteRequestCount)
-            }
-        guard preservesCalendarDays else { return existingDays }
+        guard !snapshot.daily.isEmpty || snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil else {
+            return []
+        }
 
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = sourceCalendar.timeZone
         let endDate = calendar.startOfDay(for: snapshot.updatedAt)
         guard let startDate = calendar.date(byAdding: .day, value: -(historyDays - 1), to: endDate) else {
-            return existingDays
+            return []
         }
 
         let entriesByDay = Dictionary(snapshot.daily.map { ($0.date, $0) }, uniquingKeysWith: { _, newer in newer })

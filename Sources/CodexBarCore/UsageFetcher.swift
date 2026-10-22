@@ -11,6 +11,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
     public let resetsAt: Date?
     /// Optional textual reset description (used by Claude CLI UI scrape).
     public let resetDescription: String?
+    /// Absolute allowance and its unit, when reported alongside the percentage.
+    public let quotaLimit: Double?
+    public let quotaUnit: String?
     /// Optional percent restored on the next regeneration tick for providers with rolling recovery.
     public let nextRegenPercent: Double?
     /// Whether this window was synthesized to stand in for a quota lane the provider did not actually
@@ -28,6 +31,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
         windowMinutes: Int?,
         resetsAt: Date?,
         resetDescription: String?,
+        quotaLimit: Double? = nil,
+        quotaUnit: String? = nil,
         nextRegenPercent: Double? = nil,
         isSyntheticPlaceholder: Bool = false)
     {
@@ -35,6 +40,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
         self.windowMinutes = windowMinutes
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
+        self.quotaLimit = quotaLimit
+        self.quotaUnit = quotaUnit
         self.nextRegenPercent = nextRegenPercent
         self.isSyntheticPlaceholder = isSyntheticPlaceholder
     }
@@ -44,6 +51,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
         case windowMinutes
         case resetsAt
         case resetDescription
+        case quotaLimit
+        case quotaUnit
         case nextRegenPercent
         case isSyntheticPlaceholder
     }
@@ -54,6 +63,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
         self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
+        self.quotaLimit = try container.decodeIfPresent(Double.self, forKey: .quotaLimit)
+        self.quotaUnit = try container.decodeIfPresent(String.self, forKey: .quotaUnit)
         self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
         self.isSyntheticPlaceholder =
             try container.decodeIfPresent(Bool.self, forKey: .isSyntheticPlaceholder) ?? false
@@ -65,6 +76,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
         try container.encodeIfPresent(self.windowMinutes, forKey: .windowMinutes)
         try container.encodeIfPresent(self.resetsAt, forKey: .resetsAt)
         try container.encodeIfPresent(self.resetDescription, forKey: .resetDescription)
+        try container.encodeIfPresent(self.quotaLimit, forKey: .quotaLimit)
+        try container.encodeIfPresent(self.quotaUnit, forKey: .quotaUnit)
         try container.encodeIfPresent(self.nextRegenPercent, forKey: .nextRegenPercent)
         // Only persist the flag when set, keeping payloads identical for the common (real-window) case.
         if self.isSyntheticPlaceholder {
@@ -96,6 +109,8 @@ public struct RateWindow: Codable, Equatable, Sendable {
             windowMinutes: windowMinutes,
             resetsAt: cachedReset,
             resetDescription: self.resetDescription ?? cached?.resetDescription,
+            quotaLimit: self.quotaLimit,
+            quotaUnit: self.quotaUnit,
             nextRegenPercent: self.nextRegenPercent,
             // Preserve the placeholder marker: backfilling a stale reset onto Claude web's null-session
             // placeholder must not let it masquerade as a real session lane.

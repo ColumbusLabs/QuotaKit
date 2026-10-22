@@ -108,7 +108,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v18.json")
+                == "claude-v19.json")
     }
 
     @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
@@ -134,7 +134,7 @@ struct CostUsageScannerClaudeMemoTests {
         let currentURL = CostUsageClaudeCacheIO.cacheFileURL(
             provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
         let priorURL = currentURL.deletingLastPathComponent().appendingPathComponent(
-            context == .regular ? "claude-v16.json" : "claude-history-v16.json")
+            context == .regular ? "claude-v18.json" : "claude-history-v18.json")
         let currentMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: currentURL)
         let priorMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: priorURL)
         let priorBytes = try Data(contentsOf: currentURL)
@@ -375,7 +375,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(metrics == CostUsageScanner.ClaudeScanWorkMetrics())
     }
 
-    @Test(arguments: [nil, 0, 4, CostUsageClaudeReportMemo.reportSemanticsVersion + 1] as [Int?])
+    @Test(arguments: [nil, 0, 4, 5, 6, CostUsageClaudeReportMemo.reportSemanticsVersion + 1] as [Int?])
     func `cold process rejects reports from incompatible semantics`(revision: Int?) throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

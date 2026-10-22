@@ -309,4 +309,33 @@ extension SpendDashboardModel {
         }
         return entryTokens == totalTokens
     }
+
+    static func validCost(_ value: Double?) -> Double? {
+        guard let value, value.isFinite, value >= 0 else { return nil }
+        return value
+    }
+
+    static func nonnegative(_ value: Int?) -> Int? {
+        guard let value, value >= 0 else { return nil }
+        return value
+    }
+
+    static func safeCostSum(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        var result = 0.0
+        for value in values {
+            result += value
+            guard result.isFinite else { return nil }
+        }
+        return result
+    }
+
+    static func completeCostSum(_ values: [Double?]) -> Double? {
+        guard values.allSatisfy({ $0 != nil }) else { return nil }
+        return self.safeCostSum(values.compactMap(\.self))
+    }
+
+    static func knownCostSum(_ values: [Double?]) -> Double? {
+        self.safeCostSum(values.compactMap(\.self))
+    }
 }

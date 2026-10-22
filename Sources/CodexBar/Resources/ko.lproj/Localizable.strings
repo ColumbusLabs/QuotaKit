@@ -160,7 +160,6 @@
 "Local token history is unavailable or incomplete." = "로컬 토큰 기록을 사용할 수 없거나 기록이 불완전합니다.";
 "Could not add Codex account" = "Codex 계정을 추가할 수 없음";
 "Could not open Terminal for Gemini" = "Gemini용 터미널을 열 수 없음";
-"Could not start claude /login" = "claude /login을 시작할 수 없음";
 "Could not start codex login" = "codex login을 시작할 수 없음";
 "Could not switch system account" = "시스템 계정을 전환할 수 없음";
 "Credits" = "크레딧";
@@ -1243,7 +1242,6 @@
 "Windsurf session JSON bundle" = "Windsurf 세션 JSON 번들";
 "Workspace ID" = "작업 공간 ID";
 "Your StepFun platform password. Used to login and obtain a session token." = "StepFun 플랫폼 비밀번호입니다. 로그인하여 세션 토큰을 가져오는 데 사용됩니다.";
-"claude /login exited with status %d." = "claude /login이 상태 %d(으)로 종료되었습니다.";
 "codex login exited with status %d." = "codex login이 상태 %d(으)로 종료되었습니다.";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\n또는 Abacus AI 대시보드에서 캡처한 cURL을 붙여넣으세요";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\n또는 __Secure-next-auth.session-token 값을 붙여넣으세요";
@@ -1705,7 +1703,7 @@
 "Models for this day" = "이 날짜의 모델";
 "Click a bar to explore. Use the menu below for exact amounts." = "막대를 클릭해 자세히 살펴보세요. 아래 메뉴에서 정확한 금액을 확인할 수 있습니다.";
 "merged_icon_source_title" = "통합 아이콘 표시 기준";
-"merged_icon_source_subtitle" = "접힌 통합 아이콘에 표시할 공급자를 선택합니다.";
+"merged_icon_source_subtitle" = "‘사용량이 가장 높음’은 할당량만 비교합니다. 할당량이 없는 공급자는 ‘현재 선택’을 사용하세요.";
 "merged_icon_source_current_selection" = "현재 선택";
 "merged_icon_source_highest_usage" = "사용량이 가장 높음";
 "merged_icon_source_frontmost_app" = "전면의 공급자 앱";
@@ -2385,12 +2383,12 @@
 "https://proxy.example.com" = "https://proxy.example.com";
 "https://resource.openai.azure.com" = "https://resource.openai.azure.com";
 "https://sub2api.example.com" = "https://sub2api.example.com";
-"in %@d" = "%@일에서";
-"in %@d %@h" = "%1$@일 %2$@h에서";
-"in %@d %@m" = "%1$@일 %2$@m에서";
-"in %@h" = "%@h에서";
-"in %@h %@m" = "%1$@시간 %2$@m에서";
-"in %@m" = "%@m에서";
+"in %@d" = "%@일 후";
+"in %@d %@h" = "%1$@일 %2$@시간 후";
+"in %@d %@m" = "%1$@일 %2$@분 후";
+"in %@h" = "%@시간 후";
+"in %@h %@m" = "%1$@시간 %2$@분 후";
+"in %@m" = "%@분 후";
 "kilo_..." = "kilo_...";
 "kimi-auth token or Cookie: …" = "kimi-auth 토큰 또는 Cookie: …";
 "left" = "남음";
@@ -2717,3 +2715,13 @@
 "Leave blank to keep the saved credential." = "저장된 인증 정보를 유지하려면 비워 두세요.";
 
 "No personal budget configured" = "개인 예산이 설정되지 않았습니다";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Claude OAuth 인증 정보를 읽지 못했습니다. macOS 키체인에서 QuotaKit의 Claude OAuth 캐시를 일시적으로 사용할 수 없습니다. 키체인 접근에서 로그인 키체인이 잠금 해제되어 있는지 확인한 다음 다시 새로 고침하세요.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@을(를) 사용할 수 없습니다. 위젯을 편집하여 제공자를 선택하세요.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "레이아웃은 “%@” 메뉴 막대 스타일에만 적용됩니다. 편집하려면 위에서 해당 스타일을 선택하세요.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "QuotaKit → 설정 → 제공자에서 제공자를 활성화하세요.";
+
+"monthly_daily_target_format" = "재설정까지 사용할 수 있는 하루 목표: 약 %@";

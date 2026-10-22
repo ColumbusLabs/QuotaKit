@@ -81,6 +81,11 @@ as the organization total. Labels use workspace IDs; a null workspace is **Defau
 Anthropic's USD cents to dollars. A single workspace keeps the existing organization view.
 
 ## Keychain prompt policy (Claude OAuth)
+
+If QuotaKit reports that its Claude OAuth cache is temporarily unavailable in macOS Keychain, check that the login
+keychain is unlocked in Keychain Access, then retry Refresh. This guidance does not change the prompt policy or switch
+to another credential source.
+
 - Preferences → Providers → Claude → Keychain prompt policy.
 - Options:
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
@@ -437,6 +442,8 @@ of retaining values from another profile.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
+  - Completed requests with unknown model pricing retain their token counts and mark the day as unpriced coverage.
+    Usage & Spend keeps dollars from priced requests and days as a lower bound; it never treats an unknown price as zero.
   - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).
   - When no `requestId` is present, deduplicates responses by `session_id + message.id`, including across Cowork audit
     logs and mirrored project transcripts.
@@ -446,14 +453,14 @@ of retaining values from another profile.
   - Claude-swap history contributes to the combined Claude total, even when `$CLAUDE_CONFIG_DIR` is set. Shared-history symlinks are scanned once, copied responses use the same deduplication as native logs, and missing profile directories do not prevent other homes from contributing. Local cost records do not establish per-account attribution.
 - Cache:
   - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart. Dashboard and regular report windows keep separate cache files so duplicate proxy responses cannot leak a winner between ranges. Oversized token components remain unavailable independently while representable components and costs stay visible.
-  - The Claude cache at `~/Library/Caches/CodexBar/cost-usage/claude-v18.json` is a small manifest. Its sibling `claude-v18.json.fragments` directory contains immutable JSON shards grouped by transcript project/directory, including source identities and empty-file parse offsets. Vertex uses its separate `vertexai-v7.json` manifest and sibling shards.
+  - The Claude cache at `~/Library/Caches/CodexBar/cost-usage/claude-v19.json` is a small manifest. Its sibling `claude-v19.json.fragments` directory contains immutable JSON shards grouped by transcript project/directory, including source identities and empty-file parse offsets. Vertex uses its separate `vertexai-v7.json` manifest and sibling shards.
   - Report memos (`<cache-name>.report-memo.json`) store the daily report in the manifest header and source stamps in project shards. Reuse still validates transcript inventory, cache and pricing artifacts, requested window, and report-semantics revision.
   - Changed refreshes write affected project shards and then atomically replace the manifest. Loaded usage dictionaries reserve capacity for their source files, and unchanged immutable file records are reused across refreshes to reduce peak memory on large histories. Unchanged shards are neither read nor re-encoded while their snapshot remains in the bounded in-memory memo; a large project or report can still require larger writes. The memo retains at most eight snapshots under a conservative encoded-size budget.
   - Readers and writers share a cross-process lock. Shards are committed before the manifest, which is the commit point; an interrupted write leaves the previous snapshot intact. Missing or corrupt referenced shards reject the whole snapshot. Clone-capable macOS volumes reuse unchanged blocks within changed shards, while other volumes write the shard in full.
   - Existing single-file JSON caches load and migrate on their next save without a migration-only transcript rescan. Cache schema, source paths, row fields, report semantics, and public report JSON stay unchanged. Older CodexBar builds can rebuild from original logs after downgrade.
   - If the pricing catalog changes during a refresh, QuotaKit preserves the parsed transcript-window certificate. The next refresh applies the new prices to cached rows without reparsing unchanged transcripts, including after a restart; an externally replaced transcript cache still requires window certification again.
   - Raw-line prechecks skip impossible Vertex-only transcript records before decoding or recursively visiting metadata; escaped marker forms still receive full classification.
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v18.json`; app Usage & Spend uses `claude-history-v18.json`. The Cowork/history discovery update rebuilds regular and dashboard artifacts from transcripts while retaining prior v17 files and report memos.
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v19.json`; app Usage & Spend uses `claude-history-v19.json`. The Cowork/history discovery update rebuilds regular and dashboard artifacts from transcripts while retaining prior v18 files and report memos.
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Quota warnings

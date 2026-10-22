@@ -293,7 +293,9 @@ extension StatusItemController {
             usedPercent: limit.usedPercent,
             windowMinutes: nil,
             resetsAt: limit.resetsAt,
-            resetDescription: nil)
+            resetDescription: nil,
+            quotaLimit: limit.limit,
+            quotaUnit: "credits")
         guard let snapshot else {
             return UsageSnapshot(
                 primary: nil,

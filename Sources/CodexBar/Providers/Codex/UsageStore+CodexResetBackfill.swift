@@ -186,6 +186,8 @@ extension UsageStore {
             usedPercent: cached.usedPercent,
             windowMinutes: windowMinutes,
             resetsAt: resetsAt,
-            resetDescription: cached.resetDescription)
+            resetDescription: cached.resetDescription,
+            quotaLimit: cached.quotaLimit,
+            quotaUnit: cached.quotaUnit)
     }
 }

@@ -762,17 +762,30 @@ struct SpendDashboardModel: Equatable, Sendable {
         let hasConsistentCostHistory = Self.hasConsistentCostHistory(input, displayCalendar: calendar)
         let costAggregateIsConsistent = input.snapshot.last30DaysCostUSD == nil || hasConsistentCostHistory
         let invalidCostHistory = hasInvalidCostHistory || !costAggregateIsConsistent
-        let totalCost = invalidCostHistory
-            ? nil
-            : entries.isEmpty
-            ? (coveredDayCount > 0 && hasConsistentCostHistory ? 0 : nil)
-            : hasConsistentCostHistory
-            ? Self.safeCostSum(entries.compactMap {
+        let hasInvalidCostAmount = entries.contains { item in
+            guard let cost = item.entry.costUSD else { return false }
+            return Self.validCost(cost) == nil
+        }
+        let hasExplicitPartialCostCoverage = Self.hasExplicitPartialCostCoverage(
+            historyScanIsPartial: input.snapshot.historyScanIsPartial,
+            entries: entries)
+        let totalCost: Double? = if invalidCostHistory || hasInvalidCostAmount {
+            nil
+        } else if entries.isEmpty {
+            coveredDayCount > 0 && hasConsistentCostHistory ? 0 : nil
+        } else if hasConsistentCostHistory {
+            Self.safeCostSum(entries.compactMap {
                 Self.validCost($0.entry.costUSD).map { $0 * costMultiplier }
             })
-            : Self.completeCostSum(entries.map {
+        } else if hasExplicitPartialCostCoverage {
+            Self.knownCostSum(entries.map {
                 Self.validCost($0.entry.costUSD).map { $0 * costMultiplier }
             })
+        } else {
+            Self.completeCostSum(entries.map {
+                Self.validCost($0.entry.costUSD).map { $0 * costMultiplier }
+            })
+        }
         return InputSummary(
             input: input,
             costMultiplier: costMultiplier,
@@ -822,6 +835,16 @@ struct SpendDashboardModel: Equatable, Sendable {
                             return coverage.unpriced > 0 || coverage.unmetered > 0
                         })
             }
+    }
+
+    private static func hasExplicitPartialCostCoverage(
+        historyScanIsPartial: Bool,
+        entries: [WindowEntry]) -> Bool
+    {
+        historyScanIsPartial || entries.contains { item in
+            item.entry.incompleteRequestCount > 0 || (item.entry.unpricedRequestCount ?? 0) > 0
+                || (item.entry.unmeteredRequestCount ?? 0) > 0
+        }
     }
 
     /// Rolls per-project daily entries up to window-scoped rows, mirroring the proven-zero
@@ -1437,35 +1460,6 @@ struct SpendDashboardModel: Equatable, Sendable {
     private static func currencyCode(_ rawValue: String) -> String? {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         return value.isEmpty || value == "XXX" ? nil : value
-    }
-
-    static func validCost(_ value: Double?) -> Double? {
-        guard let value, value.isFinite, value >= 0 else { return nil }
-        return value
-    }
-
-    static func nonnegative(_ value: Int?) -> Int? {
-        guard let value, value >= 0 else { return nil }
-        return value
-    }
-
-    static func safeCostSum(_ values: [Double]) -> Double? {
-        guard !values.isEmpty else { return nil }
-        var result = 0.0
-        for value in values {
-            result += value
-            guard result.isFinite else { return nil }
-        }
-        return result
-    }
-
-    private static func completeCostSum(_ values: [Double?]) -> Double? {
-        guard values.allSatisfy({ $0 != nil }) else { return nil }
-        return self.safeCostSum(values.compactMap(\.self))
-    }
-
-    private static func knownCostSum(_ values: [Double?]) -> Double? {
-        self.safeCostSum(values.compactMap(\.self))
     }
 
     private static func safeIntSum(_ values: [Int]) -> Int? {

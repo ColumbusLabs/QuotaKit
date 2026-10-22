@@ -113,7 +113,9 @@ extension UsageStore {
             usedPercent: 100,
             windowMinutes: previousMonthly.windowMinutes,
             resetsAt: previousMonthly.resetsAt,
-            resetDescription: previousMonthly.resetDescription)
+            resetDescription: previousMonthly.resetDescription,
+            quotaLimit: previousMonthly.quotaLimit,
+            quotaUnit: previousMonthly.quotaUnit)
         return current.with(tertiary: depleted)
     }
 

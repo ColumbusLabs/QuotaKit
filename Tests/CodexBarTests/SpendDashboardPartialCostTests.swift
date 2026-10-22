@@ -233,6 +233,30 @@ struct SpendDashboardPartialCostTests {
     }
 
     @Test
+    func `explicit partial coverage does not hide invalid cost amounts`() throws {
+        let priced = Self.entry(day: "2026-07-15", cost: 2, tokens: 60, model: "fixture-priced-model")
+        let invalid = CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 40,
+            costUSD: -.infinity,
+            modelsUsed: nil,
+            modelBreakdowns: [.init(modelName: "unknown", costUSD: nil, totalTokens: 40)],
+            unpricedRequestCount: 1)
+        let snapshot = Self.snapshot(
+            entries: [priced, invalid],
+            last30DaysTokens: 100,
+            last30DaysCostUSD: nil)
+        let group = try Self.group(inputs: [
+            .init(provider: .claude, displayName: "Claude", snapshot: snapshot),
+        ])
+
+        #expect(group.providers.first?.totalCost == nil)
+        #expect(group.totalCost == nil)
+    }
+
+    @Test
     func `a partial scan does not render an unread gap as zero tokens`() throws {
         let snapshot = Self.snapshot(
             entries: [

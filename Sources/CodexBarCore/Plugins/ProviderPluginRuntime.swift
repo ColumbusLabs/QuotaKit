@@ -614,8 +614,15 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                     allowsProviderExtensions: !self.enforcesUserResponsePolicy)
                 completion(.success(snapshot))
             } catch {
+                let message: String = if let pluginError = error as? ProviderPluginError,
+                                         case let .invalidSnapshot(details) = pluginError
+                {
+                    details
+                } else {
+                    error.localizedDescription
+                }
                 completion(.failure(ProviderPluginError
-                        .invalidSnapshot(redactionValues.redact(error.localizedDescription))))
+                        .invalidSnapshot(redactionValues.redact(message))))
             }
         }
         let reject: @convention(block) (JSValue) -> Void = { [weak self] value in
