@@ -15,6 +15,8 @@ struct CostUsageScannerCodexPriorityImmutableFallbackTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, true)
+        defer { CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, false) }
         defer { CostUsageScanner.dropCodexPriorityTurnsMemo(databaseURL: dbURL) }
         try Self.createWALLogsDatabase(at: dbURL)
         try CostUsageSQLiteFixtures.insertTestLog(
@@ -38,6 +40,8 @@ struct CostUsageScannerCodexPriorityImmutableFallbackTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, true)
+        defer { CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, false) }
         try Self.createWALLogsDatabase(at: dbURL)
         try CostUsageSQLiteFixtures.insertTestLog(
             dbURL: dbURL,
@@ -81,8 +85,10 @@ struct CostUsageScannerCodexPriorityImmutableFallbackTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, true)
         CostUsageScanner.dropCodexPriorityTurnsMemo(databaseURL: dbURL)
         defer {
+            CostUsageScanner._test_forceCodexPriorityImmutableFallback(databaseURL: dbURL, false)
             CostUsageScanner._test_setCodexPriorityBeforeImmutableReadHook(databaseURL: dbURL, nil)
             CostUsageScanner.dropCodexPriorityTurnsMemo(databaseURL: dbURL)
         }
@@ -96,10 +102,8 @@ struct CostUsageScannerCodexPriorityImmutableFallbackTests {
         try Self.removeSidecars(of: dbURL)
 
         let probe = try #require(CostUsageScanner.openCodexPriorityDatabase(at: dbURL))
-        let usesImmutableFallback = probe.idleState != nil
+        #expect(probe.idleState != nil)
         sqlite3_close(probe.db)
-        // Some SQLite builds can read a sidecar-less WAL normally and do not need invalidation.
-        guard usesImmutableFallback else { return }
 
         let initial = CostUsageScanner.resolveCodexPriorityTurns(databaseURL: dbURL)
         #expect(!initial.validationPending)

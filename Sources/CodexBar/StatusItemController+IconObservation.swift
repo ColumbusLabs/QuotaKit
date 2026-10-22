@@ -212,9 +212,9 @@ extension StatusItemController {
             snapshot: snapshot,
             codexCredits: self.menuBarUsageSource(for: provider).isFleet ? nil : self.store
                 .codexConsumerProjectionIfNeeded(
-                for: provider,
-                surface: .menuBar,
-                snapshotOverride: snapshot)?.credits?.snapshot,
+                    for: provider,
+                    surface: .menuBar,
+                    snapshotOverride: snapshot)?.credits?.snapshot,
             showsOptionalCredits: showsOptionalCredits)
         return [
             "text=\(balance ?? "nil")",

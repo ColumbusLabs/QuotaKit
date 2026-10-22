@@ -49,7 +49,7 @@ extension UsageMenuCardView.Model {
         guard let cost,
               ["monthly", "month", "this month", "monthly cap", "monthly credit limit"]
                   .contains(cost.period?.lowercased() ?? ""),
-              cost.limit.isFinite, cost.limit > 0, cost.used.isFinite, cost.used >= 0
+                  cost.limit.isFinite, cost.limit > 0, cost.used.isFinite, cost.used >= 0
         else { return nil }
         let target = UsagePace.dailyTarget(
             remaining: max(0, cost.limit - cost.used),

@@ -279,7 +279,7 @@ extension StatusItemController {
         }
         defer {
             let providers = self.stackedMergeIconProvidersIfActive().map { [$0.top, $0.bottom] }
-                ?? self.primaryProviderForUnifiedIcon().firstPartyProvider.map { [$0] } ?? []
+                ?? self.primaryProviderInstanceForUnifiedIcon().firstPartyProvider.map { [$0] } ?? []
             self.updateMenuBarSourceDescription(for: button, providers: providers)
         }
 

@@ -166,6 +166,18 @@ struct ProviderColorPaletteTests {
     }
 
     @Test
+    func `Pi and LiteLLM keep exact colors and distinct icon identities`() {
+        expectColor("Pi", red: 77 / 255, green: 154 / 255, blue: 191 / 255)
+        expectColor("LiteLLM", red: 76 / 255, green: 137 / 255, blue: 192 / 255)
+
+        let piIcon = ProviderBrandAsset.assetName(for: "Pi")
+        let liteLLMIcon = ProviderBrandAsset.assetName(for: "LiteLLM")
+        #expect(piIcon == "ProviderIcon-pi")
+        #expect(liteLLMIcon == "ProviderIcon-litellm")
+        #expect(piIcon != liteLLMIcon)
+    }
+
+    @Test
     func `Display names normalize to provider IDs`() {
         let pairs = [
             ("OpenCode Go", "opencodego"),
@@ -191,6 +203,8 @@ struct ProviderColorPaletteTests {
             ("Aerostack", "aerostack"),
             ("Sail Research", "sailresearch"),
             ("Sofya", "sofya"),
+            ("Pi", "pi"),
+            ("LiteLLM", "litellm"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -264,6 +278,8 @@ private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["minimax", "amp"]: 0.07,
     ["abacus", "commandcode"]: 0.08,
     ["litellm", "clinepass"]: 0.065,
+    // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
+    ["pi", "litellm"]: 0.07,
 ]
 
 private func expectDistinctColors(

@@ -10049,7 +10049,7 @@ enum CostUsageScanner {
         let hasPendingPriorityReprocessing = options.useCodexCatchUpWorkingSet
             && !plan.changedPriorityTurnIDs.isEmpty
             && cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false
-        if !hasPendingPriorityReprocessing && !plan.priorityValidationPending {
+        if !hasPendingPriorityReprocessing, !plan.priorityValidationPending {
             cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
             if options.useCodexCatchUpWorkingSet, !plan.changedPriorityTurnIDs.isEmpty {
                 cache.codexActiveLookbackState?.cacheWideMigrationQueueActive = nil
@@ -10071,7 +10071,7 @@ enum CostUsageScanner {
                 retainedSinceKey: retainedSinceKey,
                 retainedUntilKey: retainedUntilKey,
                 workRecorder: options.codexScanWorkRecorderForTesting)
-            if plan.inspectedPriorityTurns && !plan.priorityValidationPending {
+            if plan.inspectedPriorityTurns, !plan.priorityValidationPending {
                 // Only inspected refreshes observe the live memo; skip writing otherwise so
                 // a nil plan cursor cannot clobber a previously persisted one.
                 cache.codexPriorityTurnsCursor = plan.priorityTurnsCursor

@@ -1361,7 +1361,7 @@ extension MenuBarLayoutRenderer {
             prefixes.append((NSRange(location: NSMaxRange(range) - 1, length: 1), CGFloat(width)))
         }
         guard prefixes.count == text.components(separatedBy: "\n").count,
-              let width = prefixes.map({ $0.width }).max() else { return }
+              let width = prefixes.map(\.width).max() else { return }
         for prefix in prefixes {
             title.addAttribute(.kern, value: width - prefix.width, range: prefix.range)
         }

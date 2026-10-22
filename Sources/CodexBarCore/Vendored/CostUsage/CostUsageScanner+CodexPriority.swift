@@ -157,6 +157,8 @@ extension CostUsageScanner {
     #if DEBUG
     private static let codexPriorityBeforeImmutableReadHook =
         CostUsageScanExecutor.LockedState<[String: (OpaquePointer?) -> Void]>([:])
+    private static let codexPriorityForceImmutableFallbackPaths =
+        CostUsageScanExecutor.LockedState<Set<String>>([])
     #endif
 
     private static func nextCodexPriorityTurnsObservationID() -> UInt64 {
@@ -196,6 +198,16 @@ extension CostUsageScanner {
     }
 
     #if DEBUG
+    static func _test_forceCodexPriorityImmutableFallback(databaseURL: URL, _ force: Bool) {
+        self.codexPriorityForceImmutableFallbackPaths.withLock { paths in
+            if force {
+                paths.insert(databaseURL.path)
+            } else {
+                paths.remove(databaseURL.path)
+            }
+        }
+    }
+
     static func _test_setCodexPriorityBeforeImmutableReadHook(
         databaseURL: URL,
         _ hook: ((OpaquePointer?) -> Void)?)
@@ -471,11 +483,18 @@ extension CostUsageScanner {
         }
         sqlite3_busy_timeout(db, 250)
         var idleState: SQLiteIdleDatabaseState?
-        if !self.codexPriorityDatabaseIsReadable(db) {
+        #if DEBUG
+        let forceImmutableFallback = self.codexPriorityForceImmutableFallbackPaths.withLock {
+            $0.contains(url.path)
+        }
+        #else
+        let forceImmutableFallback = false
+        #endif
+        if forceImmutableFallback || !self.codexPriorityDatabaseIsReadable(db) {
             // A closed Codex WAL may have no sidecars. Some SQLite builds decline normal
             // read-only access until the schema is touched, although the checkpointed main file
             // remains safe to read through immutable=1.
-            let cannotOpen = sqlite3_errcode(db) == SQLITE_CANTOPEN
+            let cannotOpen = forceImmutableFallback || sqlite3_errcode(db) == SQLITE_CANTOPEN
             sqlite3_close(db)
             db = nil
             guard cannotOpen,
