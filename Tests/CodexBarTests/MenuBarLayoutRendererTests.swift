@@ -2500,8 +2500,9 @@ extension MenuBarLayoutRendererTests {
         #expect(darkOutput.statusImage !== changed.statusImage)
         #expect(cache.count == 2)
         renderer.removeAll()
-        let rebuilt = renderer.render(layout: layout, data: self.data(), icon: nil, options: self.options())
-        #expect(rebuilt.statusImage !== image)
+        let rebuilt = renderer.render(layout: layout, data: changedData, icon: nil, options: dark)
+        #expect(rebuilt.statusImage !== darkOutput.statusImage)
+        #expect(cache.count == 1)
     }
 
     @Test

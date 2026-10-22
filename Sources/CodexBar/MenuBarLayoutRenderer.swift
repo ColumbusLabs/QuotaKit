@@ -304,6 +304,10 @@ struct MenuBarLayoutRenderedTitle {
 final class MenuBarLayoutTitleCache {
     private let capacity: Int
     private var storage: [MenuBarLayoutRenderKey: MenuBarLayoutRenderedTitle] = [:]
+    /// Most menu-bar renders repeat the exact same inputs on consecutive timer ticks. Keep the
+    /// newest key separately so those hits can use value equality without hashing the full key
+    /// before consulting the bounded dictionary.
+    private var mostRecent: (key: MenuBarLayoutRenderKey, value: MenuBarLayoutRenderedTitle)?
 
     init(capacity: Int = 64) {
         self.capacity = max(1, capacity)
@@ -314,7 +318,11 @@ final class MenuBarLayoutTitleCache {
         make: () -> MenuBarLayoutRenderedTitle)
         -> MenuBarLayoutRenderedTitle
     {
+        if let mostRecent, mostRecent.key == key {
+            return mostRecent.value
+        }
         if let cached = self.storage[key] {
+            self.mostRecent = (key, cached)
             return cached
         }
         let value = make()
@@ -322,11 +330,13 @@ final class MenuBarLayoutTitleCache {
             self.storage.removeValue(forKey: oldest)
         }
         self.storage[key] = value
+        self.mostRecent = (key, value)
         return value
     }
 
     func removeAll() {
         self.storage.removeAll(keepingCapacity: true)
+        self.mostRecent = nil
     }
 
     var count: Int {
