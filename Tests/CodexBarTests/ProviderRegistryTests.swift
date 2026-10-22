@@ -186,6 +186,18 @@ struct ProviderRegistryTests {
     }
 
     @Test
+    func `Pi and LiteLLM keep source-backed blue accents and distinct icon resources`() {
+        let pi = PiProviderDescriptor.descriptor.branding
+        let liteLLM = LiteLLMProviderDescriptor.descriptor.branding
+
+        #expect(pi.color == ProviderColor(hex: 0x4D9ABF))
+        #expect(liteLLM.color == ProviderColor(hex: 0x4C89C0))
+        #expect(pi.iconResourceName == "ProviderIcon-pi")
+        #expect(liteLLM.iconResourceName == "ProviderIcon-litellm")
+        #expect(pi.iconResourceName != liteLLM.iconResourceName)
+    }
+
+    @Test
     func `reviewed provider accents also drive widget colors`() {
         let expected: [(UsageProvider, String, String)] = [
             (.abacus, "#814EE8", "#814EE8"),
@@ -249,6 +261,11 @@ struct ProviderRegistryTests {
             [.typesafe, .flora],
         ]
 
+        // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
+        let closeBrandColorMinimumDistances: [Set<UsageProvider>: Double] = [
+            [.pi, .litellm]: 0.07,
+        ]
+
         let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color
         #expect(ClaudePlatformProviderDescriptor.descriptor.branding.color == claudeBrandColor)
 
@@ -262,7 +279,8 @@ struct ProviderRegistryTests {
                 let delta = abs(left.branding.color.red - right.branding.color.red)
                     + abs(left.branding.color.green - right.branding.color.green)
                     + abs(left.branding.color.blue - right.branding.color.blue)
-                #expect(delta > 0.10, "\(left.id.rawValue) and \(right.id.rawValue) colors are too close")
+                let minimumDistance = closeBrandColorMinimumDistances[[left.id, right.id]] ?? 0.10
+                #expect(delta > minimumDistance, "\(left.id.rawValue) and \(right.id.rawValue) colors are too close")
             }
         }
     }

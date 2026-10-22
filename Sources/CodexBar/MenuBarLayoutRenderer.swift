@@ -153,8 +153,8 @@ struct MenuBarLayoutRenderOptions: Hashable {
     let isStale: Bool
     /// Whether the status item is currently highlighted (e.g. tracking an open menu).
     let isHighlighted: Bool
-    /// Exact display clock. The cache keys on the resulting reset strings, so animation ticks that keep
-    /// the same visible countdown still reuse the cached title.
+    /// Exact display clock. The cache keys on reset state at the displayed precision, so animation ticks
+    /// that keep the same visible countdown still reuse the cached title.
     let now: Date
     /// User-tunable vertical nudge for the whole title, applied on top of the optical baseline
     /// offset. Positive moves content up, negative moves it down.
@@ -217,11 +217,42 @@ struct MenuBarLayoutRenderKey: Hashable {
     let verticalAdjustment: Int
     let forceStackedStyle: Bool
     let providerAccentColor: String?
-    let resetText: [MenuBarLayoutResetText]
+    let localizationSignature: String
+    let formatterLocalizationSignature: String
+    let resetKey: MenuBarLayoutResetKey?
     /// Truth value per conditional id. Predicates can read the clock (time to reset), so two renders
-    /// with identical data and reset text can still need different branches; keying on the outcomes
-    /// keeps the cache correct without putting `now` — which ticks constantly — into the key.
+    /// with identical data and reset display state can still need different branches; keying on the
+    /// outcomes keeps the cache correct without putting `now` — which ticks constantly — into the key.
     let conditionalOutcomes: [UUID: Bool]
+}
+
+struct MenuBarLayoutResetCountdownKey: Hashable {
+    let window: PercentWindow
+    let minutes: Int?
+    /// Unrepresentable countdowns have the localized value "Unknown" until they enter Int's range.
+    /// These are exceptionally rare, so key them on the exact clock to keep that transition correct.
+    let nowWhenUnrepresentable: Date?
+
+    init(window: PercentWindow, resetsAt: Date?, now: Date) {
+        self.window = window
+        guard let resetsAt else {
+            self.minutes = nil
+            self.nowWhenUnrepresentable = nil
+            return
+        }
+        let minutes = UsageFormatter.resetCountdownMinutes(from: resetsAt, now: now)
+        self.minutes = minutes
+        self.nowWhenUnrepresentable = minutes == nil ? now : nil
+    }
+}
+
+/// Clock-derived reset state used for cache invalidation. The render key already contains `data`,
+/// which retains each selected window's raw reset date/description and provider identity.
+struct MenuBarLayoutResetKey: Hashable {
+    let countdowns: [MenuBarLayoutResetCountdownKey]
+    let absoluteDayStart: Date?
+    let calendarIdentifier: String?
+    let timeZoneIdentifier: String?
 }
 
 struct MenuBarLayoutResetText: Hashable {
@@ -330,15 +361,31 @@ final class MenuBarLayoutRenderer {
         options: MenuBarLayoutRenderOptions)
         -> MenuBarLayoutRenderedTitle
     {
-        let resetWindows = Set(layout.flattenedTokens(conditionals: options.conditionals).compactMap(\.resetWindow))
-        let resetText = PercentWindow.allCases
-            .filter { $0 == .automatic || resetWindows.contains($0) }
-            .map { selection in
-                MenuBarLayoutResetText(
-                    window: Self.window(selection, data: data),
-                    provider: selection == .automatic ? data.provider : nil,
-                    now: options.now)
+        let tokens = layout.flattenedTokens(conditionals: options.conditionals)
+        let resetTokens = tokens.filter { $0.resetWindow != nil }
+        let countdownWindows = Set(resetTokens.filter { !$0.resetIsAbsolute }.compactMap(\.resetWindow))
+        let absoluteWindows = Set(resetTokens.filter(\.resetIsAbsolute).compactMap(\.resetWindow))
+        let resetKey: MenuBarLayoutResetKey? = if resetTokens.isEmpty {
+            nil
+        } else {
+            let countdowns = PercentWindow.allCases
+                .filter(countdownWindows.contains)
+                .map { selection in
+                    MenuBarLayoutResetCountdownKey(
+                        window: selection,
+                        resetsAt: Self.window(selection, data: data)?.resetsAt,
+                        now: options.now)
+                }
+            let hasAbsoluteResetDate = absoluteWindows.contains {
+                Self.window($0, data: data)?.resetsAt != nil
             }
+            let calendar = hasAbsoluteResetDate ? Calendar.current : nil
+            MenuBarLayoutResetKey(
+                countdowns: countdowns,
+                absoluteDayStart: calendar?.startOfDay(for: options.now),
+                calendarIdentifier: calendar.map { String(describing: $0.identifier) },
+                timeZoneIdentifier: calendar?.timeZone.identifier)
+        }
         // Evaluate each conditional exactly once per render: the outcome is both a cache-key component
         // and what the token resolver needs, so re-testing per placement would only duplicate work.
         let outcomes = Dictionary(
@@ -365,7 +412,9 @@ final class MenuBarLayoutRenderer {
             verticalAdjustment: options.verticalAdjustment,
             forceStackedStyle: options.forceStackedStyle,
             providerAccentColor: accentColor,
-            resetText: resetText,
+            localizationSignature: codexBarLocalizationSignature(),
+            formatterLocalizationSignature: UsageFormatter.localizationSignature(),
+            resetKey: resetKey,
             conditionalOutcomes: outcomes)
         return self.cache.value(for: key) {
             Self.renderUncached(

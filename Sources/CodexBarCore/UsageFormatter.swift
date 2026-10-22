@@ -11,29 +11,45 @@ public enum UsageFormatter {
     private static let localizationLock = NSLock()
     private nonisolated(unsafe) static var localizationProvider: (@Sendable (String) -> String)?
     private nonisolated(unsafe) static var localeProvider: (@Sendable () -> Locale)?
+    private nonisolated(unsafe) static var localizationRevision: UInt64 = 0
 
     public static func setLocalizationProvider(_ provider: @escaping @Sendable (String) -> String) {
         self.localizationLock.lock()
         self.localizationProvider = provider
+        self.localizationRevision &+= 1
         self.localizationLock.unlock()
     }
 
     public static func clearLocalizationProvider() {
         self.localizationLock.lock()
         self.localizationProvider = nil
+        self.localizationRevision &+= 1
         self.localizationLock.unlock()
     }
 
     public static func setLocaleProvider(_ provider: @escaping @Sendable () -> Locale) {
         self.localizationLock.lock()
         self.localeProvider = provider
+        self.localizationRevision &+= 1
         self.localizationLock.unlock()
     }
 
     public static func clearLocaleProvider() {
         self.localizationLock.lock()
         self.localeProvider = nil
+        self.localizationRevision &+= 1
         self.localizationLock.unlock()
+    }
+
+    /// Identifies the active localized formatting context without formatting a display string.
+    /// Render caches use this to invalidate when either injected provider or its current locale changes.
+    public static func localizationSignature() -> String {
+        self.localizationLock.lock()
+        let revision = self.localizationRevision
+        let provider = self.localeProvider
+        self.localizationLock.unlock()
+        let localeIdentifier = provider?().identifier ?? "en_US_POSIX"
+        return "\(revision):\(localeIdentifier)"
     }
 
     private static func currentLocale() -> Locale {
@@ -142,7 +158,8 @@ public enum UsageFormatter {
         return self.localized("\(prefix)%@m", "\(totalMinutes)")
     }
 
-    private static func resetCountdownMinutes(from date: Date, now: Date) -> Int? {
+    /// Returns the exact rounded minute value used by reset countdown formatting, or nil when it cannot be represented.
+    public static func resetCountdownMinutes(from date: Date, now: Date) -> Int? {
         let seconds = date.timeIntervalSince(now)
         guard let minutes = Int(exactly: ceil(seconds / 60)) else { return nil }
         return seconds < 1 ? 0 : max(1, minutes)

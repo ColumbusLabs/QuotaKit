@@ -38,7 +38,12 @@ struct CostUsageClaudeUnpricedCoverageTests {
         #expect(abs((group.totalCost ?? 0) - pricedCost) < 0.000000001)
         #expect(abs((provider.totalCost ?? 0) - pricedCost) < 0.000000001)
         #expect(provider.costIsLowerBound)
+        #expect(provider.hasPartialCost)
+        #expect(!group.hasPartialTokens)
         #expect(group.hasPartialCost)
+        let breakdown = try #require(spendDashboardProviderBreakdowns(group).first)
+        #expect(abs((breakdown.totalCost ?? 0) - pricedCost) < 0.000000001)
+        #expect(breakdown.hasPartialCost)
     }
 
     @Test
