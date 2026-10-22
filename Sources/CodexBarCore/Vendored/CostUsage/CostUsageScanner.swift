@@ -7741,22 +7741,11 @@ enum CostUsageScanner {
             || cache.lastScanUnixMs == 0
             || nowMs - cache.lastScanUnixMs > refreshMs
         let resolvedPriorityDatabaseURL = Self.resolvedCodexPriorityDatabaseURL(options.codexTraceDatabaseURL)
-        if shouldInspectPriorityTurns {
-            if options.forceRescan {
-                Self.dropCodexPriorityTurnsMemo(databaseURL: resolvedPriorityDatabaseURL)
-            } else {
-                Self.seedCodexPriorityTurnsMemoIfEmpty(
-                    cache.codexPriorityTurnsCursor,
-                    databaseURL: resolvedPriorityDatabaseURL)
-            }
-        }
-        let previouslyObservedDatabase = cache.codexPriorityMetadataKey
-            == "sqlite:\(resolvedPriorityDatabaseURL.standardizedFileURL.path)"
-        let priorityResolution = shouldInspectPriorityTurns ? Self.resolveCodexPriorityTurns(
-            databaseURL: resolvedPriorityDatabaseURL,
-            sinceDayKey: range.scanSinceKey,
-            untilDayKey: range.scanUntilKey,
-            expectExistingDatabase: previouslyObservedDatabase) : nil
+        let priorityResolution = Self.resolveCodexPriorityForRefresh(
+            cache: cache,
+            range: range,
+            options: options,
+            shouldInspect: shouldInspectPriorityTurns)
         let priorityValidationPending = priorityResolution?.validationPending ?? false
         let priorityTurns = priorityValidationPending
             ? Self.validatedPriorityTurns(cache: cache, calendar: range.calendar)
@@ -7846,6 +7835,30 @@ enum CostUsageScanner {
             preserveUnavailableHistoryDuringRecovery: preserveUnavailableHistoryDuringRecovery,
             requiresCacheWideFileReprocessing: requiresCacheWideFileReprocessing,
             shouldRefresh: shouldRefresh)
+    }
+
+    private static func resolveCodexPriorityForRefresh(
+        cache: CostUsageCache,
+        range: CostUsageDayRange,
+        options: Options,
+        shouldInspect: Bool) -> CodexPriorityTurnsResolution?
+    {
+        guard shouldInspect else { return nil }
+        let databaseURL = Self.resolvedCodexPriorityDatabaseURL(options.codexTraceDatabaseURL)
+        if options.forceRescan {
+            Self.dropCodexPriorityTurnsMemo(databaseURL: databaseURL)
+        } else {
+            Self.seedCodexPriorityTurnsMemoIfEmpty(
+                cache.codexPriorityTurnsCursor,
+                databaseURL: databaseURL)
+        }
+        let previouslyObservedDatabase = cache.codexPriorityMetadataKey
+            == "sqlite:\(databaseURL.standardizedFileURL.path)"
+        return Self.resolveCodexPriorityTurns(
+            databaseURL: databaseURL,
+            sinceDayKey: range.scanSinceKey,
+            untilDayKey: range.scanUntilKey,
+            expectExistingDatabase: previouslyObservedDatabase)
     }
 
     private static func loadCodexCache(

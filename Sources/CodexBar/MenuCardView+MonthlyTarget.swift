@@ -2,6 +2,46 @@ import CodexBarCore
 import Foundation
 
 extension UsageMenuCardView.Model {
+    static func monthlyTargetProviderCostSection(
+        input: Input,
+        cost: ProviderCostSnapshot?,
+        metrics: [Metric],
+        paceVisible: Bool,
+        calendar: Calendar) -> ProviderCostSection?
+    {
+        let presentation = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation
+        let menuCard = presentation.menuCard
+        let isClaudeAdminAPI = input.snapshot?.loginMethod(for: input.provider) == "Admin API"
+        let extraUsageSnapshot = cost.map { cost in
+            (input.snapshot ?? UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: cost.updatedAt)).with(providerCost: cost)
+        } ?? input.snapshot
+        let showsProviderCost = menuCard.showsProviderCost(context: ProviderCostVisibilityContext(
+            snapshot: extraUsageSnapshot,
+            showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
+        let style = extraUsageSnapshot.map { presentation.cost(snapshot: $0).menuCardStyle } ?? .generic
+        let followsSummaryStyle = Self.providerCostFollowsSummaryStyle(
+            cost: cost,
+            style: style,
+            isClaudeAdminAPI: isClaudeAdminAPI) && !menuCard.providerCostIsRequiredUsage
+        guard showsProviderCost,
+              !metrics.contains(where: { $0.id == "claude-extra-usage" }),
+              !(followsSummaryStyle && !input.costSummaryInlineEnabled)
+        else { return nil }
+        var section = Self.providerCostSection(
+            cost: cost,
+            style: style,
+            percentStyle: input.usageBarsShowUsed ? .used : .left,
+            isClaudeAdminAPI: isClaudeAdminAPI,
+            preferredCurrencyCode: input.preferredCurrencyCode)
+        if paceVisible, section?.percentUsed != nil {
+            section?.dailyTargetText = Self.monthlyCostTarget(cost: cost, input: input, calendar: calendar)
+        }
+        return section
+    }
+
     static func monthlyTargetMetrics(_ metrics: [Metric], input: Input, calendar: Calendar) -> [Metric] {
         guard let snapshot = input.snapshot else { return metrics }
         let capability = ProviderDescriptorRegistry.descriptor(for: input.provider).pace

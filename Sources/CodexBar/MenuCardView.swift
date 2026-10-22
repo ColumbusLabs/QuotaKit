@@ -924,7 +924,6 @@ extension UsageMenuCardView.Model {
         let creditsProgressPercent = Self.creditsProgressPercent(credits: input.credits)
         let creditsScaleText = Self.creditsScaleText(credits: input.credits)
         let codexCreditLimitDetail = Self.codexCreditLimitDetail(credits: input.credits, now: input.now)
-        let isClaudeAdminAPI = input.snapshot?.loginMethod(for: input.provider) == "Admin API"
         let extraUsageCost = Self.resolvedProviderCost(input: input)
         let extraUsageSnapshot = extraUsageCost.map { cost in
             (input.snapshot ?? UsageSnapshot(
@@ -932,32 +931,13 @@ extension UsageMenuCardView.Model {
                 secondary: nil,
                 updatedAt: cost.updatedAt)).with(providerCost: cost)
         } ?? input.snapshot
-        let showsProviderCost = menuCard.showsProviderCost(context: ProviderCostVisibilityContext(
-            snapshot: extraUsageSnapshot,
-            showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
         let costPresentation = extraUsageSnapshot.map { presentation.cost(snapshot: $0) }
-        let providerCostStyle = costPresentation?.menuCardStyle ?? .generic
-        let providerCostFollowsSummaryStyle = Self.providerCostFollowsSummaryStyle(
+        let providerCost = Self.monthlyTargetProviderCostSection(
+            input: input,
             cost: extraUsageCost,
-            style: providerCostStyle,
-            isClaudeAdminAPI: isClaudeAdminAPI) && !menuCard.providerCostIsRequiredUsage
-        var providerCost: ProviderCostSection? = if !showsProviderCost ||
-            metrics.contains(where: { $0.id == "claude-extra-usage" }) ||
-            (providerCostFollowsSummaryStyle && !input.costSummaryInlineEnabled)
-        {
-            nil
-        } else {
-            Self.providerCostSection(
-                cost: extraUsageCost,
-                style: providerCostStyle,
-                percentStyle: input.usageBarsShowUsed ? .used : .left,
-                isClaudeAdminAPI: isClaudeAdminAPI,
-                preferredCurrencyCode: input.preferredCurrencyCode)
-        }
-        if paceVisible, providerCost?.percentUsed != nil {
-            providerCost?.dailyTargetText = Self.monthlyCostTarget(
-                cost: extraUsageCost, input: input, calendar: calendar)
-        }
+            metrics: metrics,
+            paceVisible: paceVisible,
+            calendar: calendar)
         let tokenUsageSnapshot = Self.tokenUsageSnapshot(input: input)
         let tokenUsage = Self.tokenUsageSection(
             provider: input.provider,

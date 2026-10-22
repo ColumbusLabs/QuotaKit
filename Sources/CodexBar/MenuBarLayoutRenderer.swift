@@ -1347,8 +1347,7 @@ extension MenuBarLayoutRenderer {
     private static func alignWindowPrefixes(in title: NSMutableAttributedString, promotedIcon: Bool = false) {
         let text = title.string as NSString
         var prefixes: [(range: NSRange, width: CGFloat)] = []
-        title.enumerateAttribute(self.windowPrefixKey, in: NSRange(location: 0, length: title.length)) {
-            value, range, _ in
+        let inspectPrefix: (Any?, NSRange, UnsafeMutablePointer<ObjCBool>) -> Void = { value, range, _ in
             guard value != nil else { return }
             let line = text.lineRange(for: range)
             let leading = text.substring(with: NSRange(location: line.location, length: range.location - line.location))
@@ -1360,6 +1359,10 @@ extension MenuBarLayoutRenderer {
             let width = CTLineGetTypographicBounds(CTLineCreateWithAttributedString(prefix), nil, nil, nil)
             prefixes.append((NSRange(location: NSMaxRange(range) - 1, length: 1), CGFloat(width)))
         }
+        title.enumerateAttribute(
+            self.windowPrefixKey,
+            in: NSRange(location: 0, length: title.length),
+            using: inspectPrefix)
         guard prefixes.count == text.components(separatedBy: "\n").count,
               let width = prefixes.map(\.width).max() else { return }
         for prefix in prefixes {
