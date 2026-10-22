@@ -22,7 +22,9 @@ struct PreferencesPaneSmokeTests {
         _ = ProvidersPane(settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
-        _ = AboutPane(updater: DisabledUpdaterController()).body
+        _ = AboutPane(
+            updater: DisabledUpdaterController(),
+            selection: PreferencesSelection(userDefaults: InMemoryUserDefaults())).body
         _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.general)).body
 
         settings.debugDisableKeychainAccess = false
@@ -57,7 +59,9 @@ struct PreferencesPaneSmokeTests {
         _ = ProvidersPane(provider: .claude, settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
-        _ = AboutPane(updater: DisabledUpdaterController()).body
+        _ = AboutPane(
+            updater: DisabledUpdaterController(),
+            selection: PreferencesSelection(userDefaults: InMemoryUserDefaults())).body
         _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.provider(.codex))).body
     }
 
@@ -138,10 +142,31 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
-    func `inactive display contrast is available only for icon and percent`() {
-        #expect(!MenuBarPane.inactiveDisplayContrastAvailable(for: .critters))
-        #expect(!MenuBarPane.inactiveDisplayContrastAvailable(for: .bars))
-        #expect(MenuBarPane.inactiveDisplayContrastAvailable(for: .iconAndPercent))
+    func `menu bar layout editor follows icon and percent style`() {
+        #expect(!MenuBarPane.layoutEditorEnabled(for: .critters))
+        #expect(!MenuBarPane.layoutEditorEnabled(for: .bars))
+        #expect(MenuBarPane.layoutEditorEnabled(for: .iconAndPercent))
+    }
+
+    @Test
+    func `menu bar layout footer follows the selected style`() {
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            let enabledFooter = MenuBarPane.layoutFooterText(for: .iconAndPercent)
+            let disabledFooter = MenuBarPane.layoutFooterText(for: .critters)
+
+            #expect(enabledFooter.contains("Drag tokens"))
+            #expect(!enabledFooter.contains("Icon & percent"))
+            #expect(disabledFooter.contains("Icon & percent"))
+            #expect(!disabledFooter.contains("Drag tokens"))
+            #expect(!disabledFooter.contains("%@"))
+            #expect(MenuBarPane.layoutFooterText(for: .bars) == disabledFooter)
+        }
+
+        CodexBarLocalizationOverride.$appLanguage.withValue("de") {
+            let footer = MenuBarPane.layoutFooterText(for: .bars)
+            #expect(footer.contains(MenuBarIconStyle.iconAndPercent.label))
+            #expect(!footer.contains("%@"))
+        }
     }
 
     @Test

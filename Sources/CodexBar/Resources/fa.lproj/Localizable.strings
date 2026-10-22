@@ -144,7 +144,6 @@
 "Local token history is unavailable or incomplete." = "تاریخچهٔ محلی توکن‌ها در دسترس نیست یا ناقص است.";
 "Could not add Codex account" = "نتوانستم حساب Codex اضافه کنم";
 "Could not open Terminal for Gemini" = "نتوانستم ترمینال را برای Gemini باز کنم";
-"Could not start claude /login" = "نتوانستم کلود را شروع /login";
 "Could not start codex login" = "ورود به کدکس فعال نشد";
 "Could not switch system account" = "نتوانستم حساب سیستم را تغییر دهم";
 "Credits" = "اعتبارات";
@@ -1293,7 +1292,6 @@
 "Windsurf session JSON bundle" = "Windsurf جلسه JSON بسته";
 "Workspace ID" = "شناسه فضای کاری";
 "Your StepFun platform password. Used to login and obtain a session token." = "رمز عبور پلتفرم StepFun شما. برای ورود و دریافت توکن نشست استفاده می شود.";
-"claude /login exited with status %d." = "کلود با %d جایگاه /login خارج شد.";
 "codex login exited with status %d." = "ورود به کدکس با وضعیت %d خارج شد.";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "کوکی: ... \n\n یا کپچر cURL را از داشبورد Abacus AI پیست کنید";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "کوکی: ... \n\n یا مقدار توکن __Secure-next-auth.session-token را جای گذاری کنید";
@@ -1740,7 +1738,7 @@
 "Models for this day" = "مدل‌های این روز";
 "Click a bar to explore. Use the menu below for exact amounts." = "برای مشاهده جزئیات روی ستون کلیک کنید. مبلغ دقیق را در منوی زیر ببینید.";
 "merged_icon_source_title" = "منبع نماد ترکیبی";
-"merged_icon_source_subtitle" = "انتخاب کنید نماد ترکیبی در حالت جمع‌شده کدام ارائه‌دهنده را نشان دهد.";
+"merged_icon_source_subtitle" = "«بیشترین استفاده» فقط سهمیه‌ها را مقایسه می‌کند. برای ارائه‌دهندگان بدون سهمیه، از «انتخاب فعلی» استفاده کنید.";
 "merged_icon_source_current_selection" = "انتخاب فعلی";
 "merged_icon_source_highest_usage" = "بیشترین استفاده";
 "merged_icon_source_frontmost_app" = "برنامه ارائه‌دهنده در پیش‌زمینه";
@@ -2753,3 +2751,13 @@
 "Leave blank to keep the saved credential." = "برای حفظ اطلاعات ورود ذخیره‌شده، خالی بگذارید.";
 
 "No personal budget configured" = "بودجهٔ شخصی تنظیم نشده است";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "خواندن اطلاعات ورود Claude OAuth ناموفق بود: حافظهٔ نهان Claude OAuth در QuotaKit موقتاً در دسته‌کلید macOS در دسترس نیست. در برنامهٔ Keychain Access بررسی کنید که دسته‌کلید ورود باز باشد، سپس دوباره تازه‌سازی کنید.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ در دسترس نیست. ویجت را ویرایش کنید تا ارائه‌دهنده را انتخاب کنید.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "چیدمان فقط برای سبک نوار منو «%@» اعمال می‌شود. برای ویرایش آن، آن سبک را از بالا انتخاب کنید.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "یک ارائه‌دهنده را در QuotaKit → تنظیمات → ارائه‌دهندگان فعال کنید.";
+
+"monthly_daily_target_format" = "≈ %@ در روز برای دوام تا زمان ریست";

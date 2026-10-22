@@ -47,6 +47,10 @@ The provider catalog additions from upstream commits `fca039015` and `81438267f`
 | Sail Research | `#2C4681` | `#2C4681` | [Sail Research website](https://www.sailresearch.com/) |
 | Sofya | `#B0B820` | `#B0B820` | [Sofya website](https://sofya.co/) |
 
+## Later provider-specific palette update
+
+Pi's blue app accent, chart and widget color, and confetti colors were adopted separately from the 16-provider audit above. The [official logo](https://pi.dev/logo-auto.svg) uses blue `#4D9ABF`, coral `#F09082`, and yellow `#F1BE58`; the blue measures 3.14:1 against white and 5.07:1 against `#222222`, meeting the existing accent threshold. Pi's dashboard now opens its [current repository](https://github.com/earendil-works/pi).
+
 ## Preserved color roles
 
 `ProviderDescriptor.branding.color` remains the Mac app accent. Mac widgets now
@@ -57,8 +61,10 @@ lookup continues to preserve its previous raw colors for these providers and
 applies its existing appearance adaptation; this fork-specific mobile palette
 policy is independent of the Mac widget palette.
 
-Confetti palettes were not refreshed. Moonshot's `#121212` confetti ink stays
-in place, and Kimi keeps QuotaKit's documented rose accent `#F43F5E`.
+The 16-provider refresh above did not change confetti palettes. Pi's separate
+brand update uses coral, blue, and yellow from its official logo. Moonshot's
+`#121212` confetti ink stays in place, and Kimi keeps QuotaKit's documented
+rose accent `#F43F5E`.
 
 ## Retained proposals and fork palette decisions
 

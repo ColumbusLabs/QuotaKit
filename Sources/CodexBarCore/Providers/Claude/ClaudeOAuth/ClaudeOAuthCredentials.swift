@@ -423,7 +423,9 @@ public enum ClaudeOAuthCredentialsStore {
                     lastError = ClaudeOAuthCredentialsError.readFailed("QuotaKit cache requires replacement.")
                 case .temporarilyUnavailable:
                     cacheTemporarilyUnavailable = true
-                    lastError = ClaudeOAuthCredentialsError.readFailed("QuotaKit cache is temporarily unavailable.")
+                    lastError = ClaudeOAuthCredentialsError.readFailed(
+                        "QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. " +
+                            "Check that the login keychain is unlocked in Keychain Access, then retry Refresh.")
                 case .missing:
                     break
                 }

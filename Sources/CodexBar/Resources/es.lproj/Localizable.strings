@@ -159,7 +159,6 @@
 "Local token history is unavailable or incomplete." = "El historial local de tokens no está disponible o está incompleto.";
 "Could not add Codex account" = "No se pudo añadir la cuenta de Codex";
 "Could not open Terminal for Gemini" = "No se pudo abrir la Terminal para Gemini";
-"Could not start claude /login" = "No se pudo iniciar claude /login";
 "Could not start codex login" = "No se pudo iniciar codex login";
 "Could not switch system account" = "No se pudo cambiar la cuenta del sistema";
 "Credits" = "Créditos";
@@ -1131,7 +1130,6 @@
 "Windsurf session JSON bundle" = "Paquete JSON de sesión de Windsurf";
 "Workspace ID" = "ID de espacio de trabajo";
 "Your StepFun platform password. Used to login and obtain a session token." = "Tu contraseña de la plataforma StepFun. Se usa para iniciar sesión y obtener un token de sesión.";
-"claude /login exited with status %d." = "claude /login salió con estado %d.";
 "codex login exited with status %d." = "codex login salió con estado %d.";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\no pega una captura cURL del panel de Abacus AI";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\no pega el valor de __Secure-next-auth.session-token";
@@ -1734,7 +1732,7 @@
 "Models for this day" = "Modelos de este día";
 "Click a bar to explore. Use the menu below for exact amounts." = "Haz clic en una barra para explorar. Consulta los importes exactos en el menú inferior.";
 "merged_icon_source_title" = "Origen del icono combinado";
-"merged_icon_source_subtitle" = "Elige qué proveedor muestra el icono combinado cuando está contraído.";
+"merged_icon_source_subtitle" = "«Mayor uso» solo compara cuotas. Para proveedores sin cuotas, usa «Selección actual».";
 "merged_icon_source_current_selection" = "Selección actual";
 "merged_icon_source_highest_usage" = "Mayor uso";
 "merged_icon_source_frontmost_app" = "Aplicación del proveedor en primer plano";
@@ -2747,3 +2745,13 @@
 "Leave blank to keep the saved credential." = "Déjalo en blanco para conservar la credencial guardada.";
 
 "No personal budget configured" = "No hay ningún presupuesto personal configurado";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "No se han podido leer las credenciales de Claude OAuth: la caché de Claude OAuth de QuotaKit no está disponible temporalmente en el llavero de macOS. Comprueba que el llavero de inicio de sesión esté desbloqueado en Acceso a Llaveros y vuelve a actualizar.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ no está disponible. Edita el widget para elegir un proveedor.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "La disposición solo se aplica al estilo de la barra de menús “%@”. Elige ese estilo arriba para editarla.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "Activa un proveedor en QuotaKit → Ajustes → Proveedores.";
+
+"monthly_daily_target_format" = "≈ %@ / día para que dure hasta el restablecimiento";

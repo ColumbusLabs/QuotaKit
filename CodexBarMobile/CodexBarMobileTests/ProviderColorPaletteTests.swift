@@ -98,7 +98,7 @@ struct ProviderColorPaletteTests {
             ("nous", 214 / 255, 165 / 255, 92 / 255),
             ("muse", 6 / 255, 104 / 255, 225 / 255),
             ("museai", 6 / 255, 104 / 255, 225 / 255),
-            ("pi", 124 / 255, 58 / 255, 237 / 255),
+            ("pi", 77 / 255, 154 / 255, 191 / 255),
             ("huggingface", 1, 210 / 255, 30 / 255),
             ("replicate", 160 / 255, 160 / 255, 160 / 255),
             ("tavily", 120 / 255, 176 / 255, 161 / 255),
@@ -109,8 +109,8 @@ struct ProviderColorPaletteTests {
             ("aerostack", 123 / 255, 108 / 255, 219 / 255),
             ("sailresearch", 44 / 255, 70 / 255, 129 / 255),
             ("sofya", 176 / 255, 184 / 255, 32 / 255),
-            // Brand colors intentionally match Pi and v0; these balance-only providers
-            // are omitted from the palette's distinct-quota-color set below.
+            // Balance-only providers retain their published brand colors and stay out of the
+            // palette's distinct-quota-color set below.
             ("fal", 124 / 255, 58 / 255, 237 / 255),
             ("flora", 17 / 255, 17 / 255, 17 / 255),
         ]
@@ -156,6 +156,13 @@ struct ProviderColorPaletteTests {
 
         #expect(ProviderColorPalette.widgetRawColor(for: "ampcode") == ProviderColorPalette.widgetRawColor(for: "amp"))
         #expect(ProviderColorPalette.widgetRawColor(for: "kimi") == ProviderColorPalette.rawColor(for: "kimi"))
+    }
+
+    @Test
+    func `Pi uses its official accent in the iPhone app and widgets`() {
+        let officialBlue = ProviderColorPalette.RawColor(red: 77 / 255, green: 154 / 255, blue: 191 / 255)
+        #expect(ProviderColorPalette.rawColor(for: "pi") == officialBlue)
+        #expect(ProviderColorPalette.widgetRawColor(for: "pi") == officialBlue)
     }
 
     @Test
@@ -233,6 +240,7 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
 private let knownDistinctProviders = [
     "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
     "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "futureagi", "munito", "gitkraken", "antigravity",
+    "pi",
     "copilot",
     "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment", "neuralwatt",
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",

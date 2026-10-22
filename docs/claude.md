@@ -81,6 +81,11 @@ as the organization total. Labels use workspace IDs; a null workspace is **Defau
 Anthropic's USD cents to dollars. A single workspace keeps the existing organization view.
 
 ## Keychain prompt policy (Claude OAuth)
+
+If QuotaKit reports that its Claude OAuth cache is temporarily unavailable in macOS Keychain, check that the login
+keychain is unlocked in Keychain Access, then retry Refresh. This guidance does not change the prompt policy or switch
+to another credential source.
+
 - Preferences → Providers → Claude → Keychain prompt policy.
 - Options:
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
@@ -437,6 +442,8 @@ of retaining values from another profile.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
+  - Completed requests with unknown model pricing retain their token counts and mark the day as unpriced coverage.
+    Usage & Spend keeps dollars from priced requests and days as a lower bound; it never treats an unknown price as zero.
   - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).
   - When no `requestId` is present, deduplicates responses by `session_id + message.id`, including across Cowork audit
     logs and mirrored project transcripts.

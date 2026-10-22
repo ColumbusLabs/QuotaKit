@@ -55,7 +55,7 @@ extension StatusItemController {
             return "\(instanceID.rawValue)|percent=\(Self.iconSignatureValue(percent))" +
                 "|error=\(self.store.errors[instanceID] != nil)|source=\(source)"
         }
-        let snapshot = self.store.menuBarSnapshot(for: provider.instanceID)
+        let snapshot = self.menuBarUsageSource(for: provider).snapshot
         let style = self.store.style(for: provider)
         let resolved = self.resolvedMenuBarIconPercents(
             provider: provider,
@@ -104,10 +104,10 @@ extension StatusItemController {
             "credits=\(Self.iconSignatureValue(creditsRemaining))",
             "creditsPercent=\(Self.iconSignatureValue(creditsRemainingPercent))",
             "confidence=\(snapshot?.dataConfidence.rawValue ?? UsageDataConfidence.unknown.rawValue)",
-            "stale=\(self.store.isStale(provider: provider) ? "1" : "0")",
+            "stale=\(self.menuBarIsStale(for: provider) ? "1" : "0")",
             "status=\(self.store.statusIndicator(for: provider).rawValue)",
             "anim=\(self.shouldAnimate(provider: provider) ? "1" : "0")",
-            "refreshing=\(self.store.refreshingProviders.contains(provider.instanceID) ? "1" : "0")",
+            "refreshing=\(self.isRefreshingLocalMenuBarUsage(provider) ? "1" : "0")",
             "text=\(displayText ?? "nil")",
             "layoutCost=\(layoutCostSignature ?? "nil")",
             "layoutAccount=\(layoutAccountSignature ?? "nil")",
@@ -127,7 +127,7 @@ extension StatusItemController {
         let selections = Set(resolution.layout
             .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals).compactMap(\.resetWindow))
         guard !selections.isEmpty else { return nil }
-        let windows = self.store.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
         var hasher = Hasher()
         for selection in PercentWindow.allCases where selections.contains(selection) {
             let window = windows.resetWindow(selection, snapshot: snapshot)
@@ -167,11 +167,12 @@ extension StatusItemController {
         let showsSparkline = tokens.contains(.tokensSparkline)
         guard showsToday || showsLast30Days || showsThroughput || showsSparkline else { return nil }
 
+        let sourceSnapshot = self.menuBarUsageSource(for: provider).snapshot
         let throughput = showsThroughput
-            ? self.store.menuBarSnapshot(for: provider.instanceID)?.throughput?.latestTokensPerMinute.map(String.init)
+            ? sourceSnapshot?.throughput?.latestTokensPerMinute.map(String.init)
             : "unused"
         let sparkline = showsSparkline
-            ? self.store.menuBarSnapshot(for: provider.instanceID)?.throughput.map {
+            ? sourceSnapshot?.throughput.map {
                 String(MenuBarTokensSparkline(minutes: $0.minutes).hashValue)
             } : "unused"
         let costs = self.menuBarLayoutCosts(provider: provider)
@@ -209,7 +210,8 @@ extension StatusItemController {
         let balance = MenuBarLayoutBalanceResolver.balance(
             provider: provider,
             snapshot: snapshot,
-            codexCredits: self.store.codexConsumerProjectionIfNeeded(
+            codexCredits: self.menuBarUsageSource(for: provider).isFleet ? nil : self.store
+                .codexConsumerProjectionIfNeeded(
                 for: provider,
                 surface: .menuBar,
                 snapshotOverride: snapshot)?.credits?.snapshot,
@@ -234,6 +236,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
+        guard !self.menuBarUsageSource(for: provider).isFleet else { return nil }
         let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
@@ -261,7 +264,7 @@ extension StatusItemController {
         guard !paceWindows.isEmpty || needsRunsOut else { return nil }
 
         let now = Date()
-        let windows = self.store.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
         var components = PercentWindow.allCases
             .filter(paceWindows.contains)
             .map { percentWindow in
@@ -319,7 +322,7 @@ extension StatusItemController {
             .compactMap(\.selectedLane))
         guard !lanes.isEmpty else { return nil }
 
-        let windows = self.store.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
         let showUsed = self.settings.usageBarsShowUsed
         return MenuBarLayoutLane.allCases
             .filter(lanes.contains)
@@ -364,7 +367,7 @@ extension StatusItemController {
             .filter(\.readsRateWindow)
         guard !metrics.isEmpty else { return nil }
 
-        let windows = self.store.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
+        let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
         let scopedWeekly = MenuBarLayoutSemanticWindowResolver
             .scopedWeeklyNamedWindow(snapshot: snapshot)?.window
         return MenuBarConditionalMetric.allCases
@@ -391,6 +394,7 @@ extension StatusItemController {
     /// Spend percent, money tokens, and amount predicates read provider cost data that no other signature component
     /// covers. Spend pace and reset readings are signed by the pace, reset, and conditional-window components.
     private func storedMenuBarLayoutSpendSignature(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
+        guard !self.menuBarUsageSource(for: provider).isFleet else { return nil }
         let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)

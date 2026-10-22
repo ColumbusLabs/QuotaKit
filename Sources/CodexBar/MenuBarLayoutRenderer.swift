@@ -307,6 +307,7 @@ final class MenuBarLayoutTitleCache {
 final class MenuBarLayoutRenderer {
     private static let missingValue = "–"
     private static let stackedBaselineOffset: CGFloat = -3 // Center multi-line NSStatusBarButton titles.
+    private static let windowPrefixKey = NSAttributedString.Key("CodexBarWindowPrefix")
     private static let singleLineBaselineOffset: CGFloat = -1 // Drop single-line titles slightly for optical centering.
 
     private struct TokenStyle {
@@ -407,6 +408,7 @@ final class MenuBarLayoutRenderer {
         let breakAttributes = top.attributedTitle.attributes(at: top.attributedTitle.length - 1, effectiveRange: nil)
         result.append(NSAttributedString(string: "\n", attributes: breakAttributes))
         result.append(bottom.attributedTitle)
+        self.alignWindowPrefixes(in: result)
         let secondLineLabel = L("menu_bar_layout_line", 2)
         let accessibilityLabel = "\(topProviderName), \(top.accessibilityLabel), " +
             "\(secondLineLabel), \(bottomProviderName), \(bottom.accessibilityLabel)"
@@ -551,6 +553,9 @@ final class MenuBarLayoutRenderer {
             accessibilityLines.append(accessibilityParts.joined(separator: ", "))
         }
 
+        if isStacked {
+            Self.alignWindowPrefixes(in: result, promotedIcon: leadingIcon != nil)
+        }
         if options.isDebugApp {
             result.append(NSAttributedString(string: " D", attributes: attributes))
             // Every line can collapse when a conditional hides the only token in the layout.
@@ -838,7 +843,6 @@ final class MenuBarLayoutRenderer {
             showUsed: options.showUsed)
         let prefix = self.windowPrefix(window, data: data, showWindowLabels: options.showWindowLabels)
         let accessibilityPrefix = Self.windowAccessibilityLabel(window, data: data)
-        let display = prefix.isEmpty ? resolvedValue.text : "\(prefix) \(resolvedValue.text)"
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", accessibilityPrefix, resolvedValue.text)
             : L("%@ unavailable", accessibilityPrefix)
@@ -846,7 +850,12 @@ final class MenuBarLayoutRenderer {
         if let providerTintColor {
             attributes[.foregroundColor] = providerTintColor
         }
-        return self.textToken(display, accessibilityText: accessibility, attributes: attributes)
+        return (
+            self.prefixedValue(
+                prefix,
+                value: NSAttributedString(string: resolvedValue.text, attributes: attributes),
+                attributes: attributes),
+            accessibility)
     }
 
     private static func windowPrefix(
@@ -1309,11 +1318,10 @@ extension MenuBarLayoutRenderer {
             height: barSize.height)
 
         let prefix = self.windowPrefix(window, data: data)
-        let result = NSMutableAttributedString()
-        if !prefix.isEmpty {
-            result.append(NSAttributedString(string: "\(prefix) ", attributes: style.attributes))
-        }
-        result.append(self.attachmentText(attachment, style: style))
+        let result = self.prefixedValue(
+            prefix,
+            value: self.attachmentText(attachment, style: style),
+            attributes: style.attributes)
 
         let percentText = self.percentValue(
             window: window,
@@ -1322,6 +1330,41 @@ extension MenuBarLayoutRenderer {
             estimated: data.quotaIsEstimated,
             showUsed: options.showUsed).text
         return (result, L("%@ %@", accessibilityPrefix, percentText))
+    }
+
+    private static func prefixedValue(
+        _ prefix: String,
+        value: NSAttributedString,
+        attributes: [NSAttributedString.Key: Any]) -> NSAttributedString
+    {
+        guard !prefix.isEmpty else { return value }
+        let result = NSMutableAttributedString(string: "\(prefix) ", attributes: attributes)
+        result.addAttribute(self.windowPrefixKey, value: true, range: NSRange(location: 0, length: result.length))
+        result.append(value)
+        return result
+    }
+
+    private static func alignWindowPrefixes(in title: NSMutableAttributedString, promotedIcon: Bool = false) {
+        let text = title.string as NSString
+        var prefixes: [(range: NSRange, width: CGFloat)] = []
+        title.enumerateAttribute(self.windowPrefixKey, in: NSRange(location: 0, length: title.length)) {
+            value, range, _ in
+            guard value != nil else { return }
+            let line = text.lineRange(for: range)
+            let leading = text.substring(with: NSRange(location: line.location, length: range.location - line.location))
+            guard leading.isEmpty || (promotedIcon && line.location == 0 && leading == "\u{2009}") else { return }
+            let prefix = NSMutableAttributedString(attributedString: title.attributedSubstring(from: NSRange(
+                location: line.location, length: NSMaxRange(range) - line.location)))
+            // Include glyph advances and spaces, but ignore previously applied kerning during composition.
+            prefix.removeAttribute(.kern, range: NSRange(location: 0, length: prefix.length))
+            let width = CTLineGetTypographicBounds(CTLineCreateWithAttributedString(prefix), nil, nil, nil)
+            prefixes.append((NSRange(location: NSMaxRange(range) - 1, length: 1), CGFloat(width)))
+        }
+        guard prefixes.count == text.components(separatedBy: "\n").count,
+              let width = prefixes.map({ $0.width }).max() else { return }
+        for prefix in prefixes {
+            title.addAttribute(.kern, value: width - prefix.width, range: prefix.range)
+        }
     }
 
     private static func progressBarSize(size: MenuBarLayoutSize, font: NSFont) -> NSSize {

@@ -133,6 +133,7 @@ assert_gate true test-markdown $'M\tTests/Fixtures/README.md'
 assert_gate true shared-markdown $'M\tShared/README.md'
 assert_gate true mobile-markdown $'M\tCodexBarMobile/README.md'
 assert_gate true workflow-markdown $'M\t.github/workflows/README.md'
+assert_gate true linux-codex-cost-smoke $'M\tScripts/check-linux-cli-codex-cost-smoke.sh'
 
 assert_lite() {
   local expected_lite="$1"

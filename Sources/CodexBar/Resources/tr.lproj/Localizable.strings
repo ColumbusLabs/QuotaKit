@@ -144,7 +144,6 @@
 "Local token history is unavailable or incomplete." = "Yerel token geçmişi mevcut değil veya eksik.";
 "Could not add Codex account" = "Codex hesabı eklenemedi";
 "Could not open Terminal for Gemini" = "Gemini için Terminal açılamadı";
-"Could not start claude /login" = "claude /login başlatılamadı";
 "Could not start codex login" = "codex login başlatılamadı";
 "Could not switch system account" = "Sistem hesabı değiştirilemedi";
 "Credits" = "Krediler";
@@ -1287,7 +1286,6 @@
 "Windsurf session JSON bundle" = "Windsurf oturum JSON paketi";
 "Workspace ID" = "Çalışma alanı kimliği";
 "Your StepFun platform password. Used to login and obtain a session token." = "StepFun platform parolanız. Oturum açmak ve oturum tokenı almak için kullanılır.";
-"claude /login exited with status %d." = "claude /login %d durum koduyla sonlandı.";
 "codex login exited with status %d." = "codex login %d durum koduyla sonlandı.";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Çerez: …\n\nveya Abacus AI panelinden bir cURL yakalaması yapıştırın";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Çerez: …\n\nveya __Secure-next-auth.session-token değerini yapıştırın";
@@ -1738,7 +1736,7 @@
 "Models for this day" = "Bu günün modelleri";
 "Click a bar to explore. Use the menu below for exact amounts." = "Ayrıntılar için bir çubuğa tıklayın. Kesin tutarlar için aşağıdaki menüyü kullanın.";
 "merged_icon_source_title" = "Birleşik simge kaynağı";
-"merged_icon_source_subtitle" = "Daraltılmış birleşik simgede gösterilecek sağlayıcıyı seçin.";
+"merged_icon_source_subtitle" = "“En yüksek kullanım” yalnızca kotaları karşılaştırır. Kotası olmayan sağlayıcılar için “Geçerli seçim” seçeneğini kullanın.";
 "merged_icon_source_current_selection" = "Geçerli seçim";
 "merged_icon_source_highest_usage" = "En yüksek kullanım";
 "merged_icon_source_frontmost_app" = "Öndeki sağlayıcı uygulaması";
@@ -2751,3 +2749,13 @@
 "Leave blank to keep the saved credential." = "Kayıtlı kimlik bilgisini korumak için boş bırakın.";
 
 "No personal budget configured" = "Kişisel bütçe yapılandırılmadı";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Claude OAuth kimlik bilgileri okunamadı: QuotaKit’ın Claude OAuth önbelleği macOS Anahtar Zinciri’nde geçici olarak kullanılamıyor. Anahtar Zinciri Erişimi’nde oturum açma anahtar zincirinin kilidinin açık olduğunu kontrol edip yeniden yenileyin.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ kullanılamıyor. Bir sağlayıcı seçmek için widget’ı düzenleyin.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "Düzen yalnızca “%@” menü çubuğu stili için geçerlidir. Düzenlemek için yukarıdan bu stili seçin.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "QuotaKit → Ayarlar → Sağlayıcılar’da bir sağlayıcıyı etkinleştirin.";
+
+"monthly_daily_target_format" = "Sıfırlamaya kadar yetmesi için günde ≈ %@";

@@ -144,7 +144,6 @@
 "Local token history is unavailable or incomplete." = "Riwayat token lokal tidak tersedia atau tidak lengkap.";
 "Could not add Codex account" = "Tidak dapat menambahkan akun Codex";
 "Could not open Terminal for Gemini" = "Tidak dapat membuka Terminal untuk Gemini";
-"Could not start claude /login" = "Tidak dapat memulai claude /login";
 "Could not start codex login" = "Tidak dapat memulai codex login";
 "Could not switch system account" = "Tidak dapat beralih akun sistem";
 "Credits" = "Kredit";
@@ -1295,7 +1294,6 @@
 "Windsurf session JSON bundle" = "Bundel JSON sesi Windsurf";
 "Workspace ID" = "ID Workspace";
 "Your StepFun platform password. Used to login and obtain a session token." = "Kata sandi platform StepFun Anda. Digunakan untuk login dan mendapatkan token sesi.";
-"claude /login exited with status %d." = "claude /login keluar dengan status %d.";
 "codex login exited with status %d." = "codex login keluar dengan status %d.";
 "Cookie: …\n\nor paste a cURL capture from the Abacus AI dashboard" = "Cookie: …\n\natau tempel tangkapan cURL dari dasbor Abacus AI";
 "Cookie: …\n\nor paste the __Secure-next-auth.session-token value" = "Cookie: …\n\natau tempel nilai __Secure-next-auth.session-token";
@@ -1739,7 +1737,7 @@
 "Models for this day" = "Model untuk hari ini";
 "Click a bar to explore. Use the menu below for exact amounts." = "Klik batang untuk menelusuri. Gunakan menu di bawah untuk melihat jumlah tepat.";
 "merged_icon_source_title" = "Sumber ikon gabungan";
-"merged_icon_source_subtitle" = "Pilih penyedia yang ditampilkan ikon gabungan saat diciutkan.";
+"merged_icon_source_subtitle" = "“Penggunaan tertinggi” hanya membandingkan kuota. Untuk penyedia tanpa kuota, gunakan “Pilihan saat ini”.";
 "merged_icon_source_current_selection" = "Pilihan saat ini";
 "merged_icon_source_highest_usage" = "Penggunaan tertinggi";
 "merged_icon_source_frontmost_app" = "Aplikasi penyedia di depan";
@@ -2752,3 +2750,13 @@
 "Leave blank to keep the saved credential." = "Biarkan kosong untuk mempertahankan kredensial tersimpan.";
 
 "No personal budget configured" = "Belum ada anggaran pribadi yang dikonfigurasi";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Gagal membaca kredensial Claude OAuth: cache Claude OAuth QuotaKit untuk sementara tidak tersedia di Rantai Kunci macOS. Pastikan rantai kunci masuk sudah dibuka di Akses Rantai Kunci, lalu coba segarkan lagi.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ tidak tersedia. Edit widget untuk memilih penyedia.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "Tata letak hanya berlaku untuk gaya menu bar “%@”. Pilih gaya tersebut di atas untuk mengeditnya.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "Aktifkan penyedia di QuotaKit → Pengaturan → Penyedia.";
+
+"monthly_daily_target_format" = "≈ %@ / hari agar cukup hingga reset";

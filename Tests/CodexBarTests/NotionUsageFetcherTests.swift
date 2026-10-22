@@ -78,6 +78,8 @@ struct NotionUsageFetcherTests {
             usage.primary?.resetsAt.map { Int($0.timeIntervalSince1970) }
                 == Int(Self.now.timeIntervalSince1970) + Self.rollingResetSeconds)
         #expect(usage.secondary?.usedPercent == 18.0)
+        #expect(usage.secondary?.quotaLimit == 100)
+        #expect(usage.secondary?.quotaUnit == "credits")
         // The monthly sentinel, not nil: it is what makes the provider's pace capability match, which is
         // what swaps in the real calendar cycle ending at `resetsAt`.
         #expect(usage.secondary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)

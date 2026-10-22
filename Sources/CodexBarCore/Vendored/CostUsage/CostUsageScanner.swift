@@ -1267,6 +1267,7 @@ enum CostUsageScanner {
         let priorityTurnKeys: [String: String]
         let priorityTurnIDsByDay: [String: [String]]
         let inspectedPriorityTurns: Bool
+        let priorityValidationPending: Bool
         let priorityTurnsCursor: CodexPriorityTurnsPersistedCursor?
         let priorityMetadataChanged: Bool
         let priorityTurnsChanged: Bool
@@ -3220,6 +3221,28 @@ enum CostUsageScanner {
             out[dayKey] = self.sha256Hex(Data(parts.sorted().joined(separator: "\n").utf8))
         }
         return out
+    }
+
+    private static func validatedPriorityTurns(
+        cache: CostUsageCache,
+        calendar: Calendar) -> [String: CodexPriorityTurnMetadata]
+    {
+        guard let cursor = cache.codexPriorityTurnsCursor,
+              let publishedKeys = cache.codexPriorityTurnKeys
+        else { return [:] }
+        var turns = cursor.turns
+        for (turnID, modelsByRowID) in cursor.priorityCompletedModelsByTurnID {
+            guard var turn = turns[turnID],
+                  let latest = modelsByRowID.max(by: { $0.key < $1.key })?.value
+            else { continue }
+            turn.model = latest
+            turns[turnID] = turn
+        }
+        let cursorKeys = self.codexPriorityTurnKeys(turns, calendar: calendar)
+        return turns.filter { _, turn in
+            guard let dayKey = self.codexPriorityDayKey(turn, calendar: calendar) else { return false }
+            return cursorKeys[dayKey] == publishedKeys[dayKey]
+        }
     }
 
     private static func codexPriorityTurnIDsByDay(
@@ -7693,7 +7716,7 @@ enum CostUsageScanner {
         let pricingKeyChanged = cache.codexPricingKey != codexPricingKey
         let codexPriorityMetadataKey = Self.codexPriorityMetadataKey(databaseURL: options.codexTraceDatabaseURL)
         let hasPriorityMetadata = codexPriorityMetadataKey.hasPrefix("sqlite:")
-        let priorityMetadataChanged = Self.codexPriorityMetadataChanged(
+        let detectedPriorityMetadataChanged = Self.codexPriorityMetadataChanged(
             old: cache.codexPriorityMetadataKey,
             new: codexPriorityMetadataKey)
         let turnIDCacheMigrationPathKeys = hasPriorityMetadata && !options.useCodexCatchUpWorkingSet
@@ -7713,7 +7736,7 @@ enum CostUsageScanner {
             || needsPricingMetadataMigration
             || needsProjectMetadataMigration
             || needsTurnIDCacheMigration
-            || priorityMetadataChanged
+            || detectedPriorityMetadataChanged
             || refreshMs == 0
             || cache.lastScanUnixMs == 0
             || nowMs - cache.lastScanUnixMs > refreshMs
@@ -7727,23 +7750,32 @@ enum CostUsageScanner {
                     databaseURL: resolvedPriorityDatabaseURL)
             }
         }
-        let priorityTurns = shouldInspectPriorityTurns ? Self.codexPriorityTurns(
+        let previouslyObservedDatabase = cache.codexPriorityMetadataKey
+            == "sqlite:\(resolvedPriorityDatabaseURL.standardizedFileURL.path)"
+        let priorityResolution = shouldInspectPriorityTurns ? Self.resolveCodexPriorityTurns(
             databaseURL: resolvedPriorityDatabaseURL,
             sinceDayKey: range.scanSinceKey,
-            untilDayKey: range.scanUntilKey) : [:]
-        let priorityTurnsCursor = shouldInspectPriorityTurns
+            untilDayKey: range.scanUntilKey,
+            expectExistingDatabase: previouslyObservedDatabase) : nil
+        let priorityValidationPending = priorityResolution?.validationPending ?? false
+        let priorityTurns = priorityValidationPending
+            ? Self.validatedPriorityTurns(cache: cache, calendar: range.calendar)
+            : priorityResolution?.turns ?? Self.validatedPriorityTurns(cache: cache, calendar: range.calendar)
+        let priorityMetadataChanged = detectedPriorityMetadataChanged && !priorityValidationPending
+        let priorityTurnsCursor = shouldInspectPriorityTurns && !priorityValidationPending
             ? Self.codexPriorityTurnsPersistedCursor(databaseURL: resolvedPriorityDatabaseURL)
             : nil
         let priorityTurnKeys = Self.codexPriorityTurnKeys(priorityTurns, calendar: range.calendar)
         let priorityTurnIDsByDay = Self.codexPriorityTurnIDsByDay(priorityTurns, calendar: range.calendar)
         let priorityTurnsChanged = shouldInspectPriorityTurns
+            && !priorityValidationPending
             && hasPriorityMetadata
             && Self.codexPriorityTurnKeysChanged(
                 old: cache.codexPriorityTurnKeys,
                 new: priorityTurnKeys,
                 range: range,
                 workRecorder: options.codexScanWorkRecorderForTesting)
-        let changedPriorityTurnIDs = shouldInspectPriorityTurns && hasPriorityMetadata
+        let changedPriorityTurnIDs = shouldInspectPriorityTurns && !priorityValidationPending && hasPriorityMetadata
             ? Self.changedPriorityTurnIDs(
                 old: cache.codexPriorityTurnIDsByDay,
                 new: priorityTurnIDsByDay,
@@ -7800,6 +7832,7 @@ enum CostUsageScanner {
             priorityTurnKeys: priorityTurnKeys,
             priorityTurnIDsByDay: priorityTurnIDsByDay,
             inspectedPriorityTurns: shouldInspectPriorityTurns,
+            priorityValidationPending: priorityValidationPending,
             priorityTurnsCursor: priorityTurnsCursor,
             priorityMetadataChanged: priorityMetadataChanged,
             priorityTurnsChanged: priorityTurnsChanged,
@@ -9040,7 +9073,9 @@ enum CostUsageScanner {
             cache.scanUntilKey = retainedWindow.untilKey
             cache.codexRetainedLookbackDays = retainedWindow.rememberedLookbackDays
             cache.codexPricingKey = plan.codexPricingKey
-            cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
+            if !plan.priorityValidationPending {
+                cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
+            }
             cache.codexProjectMetadataVersion = Self.codexProjectMetadataVersion
             cache.codexScanProcessedBytes = exact.summary.processedBytes
             cache.codexScanTotalBytes = exact.summary.totalBytes
@@ -9937,8 +9972,9 @@ enum CostUsageScanner {
         let scanResult = metadata.scanResult
         let retiredRequestOwnerPaths = history.retiredRequestOwnerPaths
 
-        let shouldRetainWiderWindow = !options.forceRescan && !plan
-            .priorityMetadataChanged && !plan.needsTurnIDCacheMigration && !plan.needsProjectMetadataMigration
+        let shouldRetainWiderWindow = plan.priorityValidationPending
+            || (!options.forceRescan && !plan.priorityMetadataChanged
+                && !plan.needsTurnIDCacheMigration && !plan.needsProjectMetadataMigration)
         let retainedWindow = Self.rollingCodexRetentionWindow(
             cachedSinceKey: shouldRetainWiderWindow ? cachedSinceKey : nil,
             cachedUntilKey: shouldRetainWiderWindow ? cachedUntilKey : nil,
@@ -10013,7 +10049,7 @@ enum CostUsageScanner {
         let hasPendingPriorityReprocessing = options.useCodexCatchUpWorkingSet
             && !plan.changedPriorityTurnIDs.isEmpty
             && cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false
-        if !hasPendingPriorityReprocessing {
+        if !hasPendingPriorityReprocessing && !plan.priorityValidationPending {
             cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
             if options.useCodexCatchUpWorkingSet, !plan.changedPriorityTurnIDs.isEmpty {
                 cache.codexActiveLookbackState?.cacheWideMigrationQueueActive = nil
@@ -10035,7 +10071,7 @@ enum CostUsageScanner {
                 retainedSinceKey: retainedSinceKey,
                 retainedUntilKey: retainedUntilKey,
                 workRecorder: options.codexScanWorkRecorderForTesting)
-            if plan.inspectedPriorityTurns {
+            if plan.inspectedPriorityTurns && !plan.priorityValidationPending {
                 // Only inspected refreshes observe the live memo; skip writing otherwise so
                 // a nil plan cursor cannot clobber a previously persisted one.
                 cache.codexPriorityTurnsCursor = plan.priorityTurnsCursor

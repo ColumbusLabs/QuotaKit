@@ -601,7 +601,7 @@ struct CostUsagePerformanceGateTests {
 
         let full = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
         #expect(full.keys.sorted() == ["turn-a"])
-        let scanned = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
+        let scanned = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
 
         try Self.replaceTraceBody(
             dbURL: dbURL,
@@ -616,7 +616,7 @@ struct CostUsagePerformanceGateTests {
         let refreshed = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
 
         #expect(refreshed.keys.sorted() == ["turn-a", "turn-b"])
-        let advanced = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
+        let advanced = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(advanced.lastRowID == scanned.lastRowID + 1)
     }
 

@@ -319,6 +319,7 @@ extension UsageMenuCardView.Model {
                     metric.detailText,
                     provider: provider,
                     metricID: metric.id),
+                dailyTargetText: metric.dailyTargetText,
                 detailLeftText: PersonalInfoRedactor.redactEmails(in: metric.detailLeftText, isEnabled: true),
                 detailRightText: PersonalInfoRedactor.redactEmails(in: metric.detailRightText, isEnabled: true),
                 pacePercent: metric.pacePercent,

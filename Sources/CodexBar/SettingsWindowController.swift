@@ -90,7 +90,7 @@ final class SettingsWindowController: NSWindowController {
                 backing: .buffered,
                 defer: false)
             window.contentViewController = hostingController
-            window.title = selection.pane.title
+            window.title = selection.title
             window.titlebarAppearsTransparent = true
             SettingsWindowToolbar.configure(window)
             window.titlebarSeparatorStyle = .none
@@ -112,12 +112,12 @@ final class SettingsWindowController: NSWindowController {
     @discardableResult
     func open(pane: SettingsPane?) -> Outcome {
         if let pane {
-            self.selection.pane = pane
+            if pane == .about {
+                self.selection.requestAboutRoot()
+            } else {
+                self.selection.pane = pane
+            }
         }
-        if pane == .about {
-            self.selection.requestAboutRoot()
-        }
-
         self.prepareToPresent()
         let outcome: Outcome
         let window: NSWindow

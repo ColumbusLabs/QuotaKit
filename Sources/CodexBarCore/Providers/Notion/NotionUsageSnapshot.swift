@@ -190,7 +190,9 @@ public struct NotionUsageSnapshot: Sendable {
                     // would score a billing period against a week.
                     windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
                     resetsAt: Self.date(fromMilliseconds: billing.periodEndMs),
-                    resetDescription: nil)
+                    resetDescription: nil,
+                    quotaLimit: billing.limit,
+                    quotaUnit: "credits")
             }
         }
 

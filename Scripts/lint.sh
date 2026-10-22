@@ -269,6 +269,7 @@ run_portable_checks() {
   check_release_feed_url
   check_ci_path_gate
   python3 "${ROOT_DIR}/Scripts/test_linux_cli_linkage.py"
+  python3 "${ROOT_DIR}/Scripts/test_linux_cli_codex_cost_smoke.py"
   check_ci_build_cache
   check_repository_size
   check_shell_scripts

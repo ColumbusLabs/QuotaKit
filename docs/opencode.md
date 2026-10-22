@@ -95,6 +95,9 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
   chart show a per-model breakdown for OpenCode Go the same way it already does for Claude (see the "Cost usage"
   section in [docs/claude.md](claude.md)). Rows with no `modelID` are grouped under an "unknown" bucket instead of
   being dropped.
+- The local reader supports OpenCode v2 `session_message` history, including completed compaction costs. A migrated
+  v2 row is deduplicated against its legacy copy only when that copy has a usable timestamp and cost, so malformed
+  legacy data cannot hide valid v2 history.
 - Local history also includes recorded input, output, reasoning, cache-read, cache-write, and total tokens per day
   and model. Step-finish parts take precedence over their parent message so multi-step sessions are not counted
   twice. Explicit totals are used as recorded; older rows without a total sum the five complete token components.

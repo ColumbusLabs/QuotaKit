@@ -177,6 +177,15 @@ struct ProviderRegistryTests {
     }
 
     @Test
+    func `Pi uses its official palette and current repository`() {
+        let descriptor = PiProviderDescriptor.descriptor
+        #expect(descriptor.branding.color == ProviderColor(hex: 0x4D9ABF))
+        #expect(descriptor.branding.widgetColor == ProviderColor(hex: 0x4D9ABF))
+        #expect(descriptor.branding.confettiPalette == [0xF09082, 0x4D9ABF, 0xF1BE58].map(ProviderColor.init(hex:)))
+        #expect(descriptor.metadata.dashboardURL == "https://github.com/earendil-works/pi")
+    }
+
+    @Test
     func `reviewed provider accents also drive widget colors`() {
         let expected: [(UsageProvider, String, String)] = [
             (.abacus, "#814EE8", "#814EE8"),
@@ -220,7 +229,6 @@ struct ProviderRegistryTests {
             [.t3chat, .groq],
             [.deepseek, .atlascloud],
             [.v0, .typesafe],
-            [.deepgram, .pi],
             [.neuralwatt, .aiand],
             [.clinepass, .litellm],
             [.devin, .doubao],
@@ -234,10 +242,9 @@ struct ProviderRegistryTests {
             [.claude, .claudeplatform],
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
-            // New providers retain upstream violet/neutral accents, mirrored by the iPhone palette.
+            // New providers retain upstream palettes that intentionally overlap.
             [.grok, .parallel],
             [.deepgram, .fal],
-            [.pi, .fal],
             [.v0, .flora],
             [.typesafe, .flora],
         ]

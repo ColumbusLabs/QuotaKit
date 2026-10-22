@@ -167,17 +167,17 @@ struct CostUsageScannerCodexPriorityTests {
         }
         defer { sqlite3_close(db) }
 
-        let coldQuery = CostUsageScanner._test_codexPriorityAccumulationQuery(
+        let coldQuery = CostUsageScanner.codexPriorityAccumulationPlan(
             db,
             lastRowID: 0,
-            coverageSinceEpoch: 1)
+            coverageSinceEpoch: 1).query
         let coldPlan = try Self.queryPlan(db: db, query: coldQuery, bindings: [1])
         #expect(coldPlan.contains { $0.contains("USING INDEX idx_logs_ts") })
 
-        let unboundedColdQuery = CostUsageScanner._test_codexPriorityAccumulationQuery(
+        let unboundedColdQuery = CostUsageScanner.codexPriorityAccumulationPlan(
             db,
             lastRowID: 0,
-            coverageSinceEpoch: 0)
+            coverageSinceEpoch: 0).query
         let unboundedColdPlan = try Self.queryPlan(
             db: db,
             query: unboundedColdQuery,
@@ -185,10 +185,10 @@ struct CostUsageScannerCodexPriorityTests {
         #expect(unboundedColdPlan.contains { $0.contains("USING INTEGER PRIMARY KEY") })
         #expect(!unboundedColdPlan.contains { $0.contains("USE TEMP B-TREE") })
 
-        let warmQuery = CostUsageScanner._test_codexPriorityAccumulationQuery(
+        let warmQuery = CostUsageScanner.codexPriorityAccumulationPlan(
             db,
             lastRowID: 1,
-            coverageSinceEpoch: 0)
+            coverageSinceEpoch: 0).query
         let warmPlan = try Self.queryPlan(db: db, query: warmQuery, bindings: [1, 0])
         #expect(warmPlan.contains { $0.contains("USING INTEGER PRIMARY KEY") })
     }
@@ -466,7 +466,7 @@ struct CostUsageScannerCodexPriorityTests {
             completedTurnIDInsertionOrder: [],
             completedTurnIDInsertionOrderStartIndex: 0)
 
-        #expect(!CostUsageScanner._test_accumulateCodexPriorityTurns(db, into: &state))
+        #expect(!CostUsageScanner.accumulateCodexPriorityTurns(db, into: &state))
     }
 
     @Test
@@ -577,7 +577,7 @@ struct CostUsageScannerCodexPriorityTests {
             body: "thread_id=thread-b turn.id=turn-b websocket request: "
                 + #"{"type":"response.create","model":"request-model","service_tier":"priority"}"#)
         #expect(CostUsageScanner.codexPriorityTurns(databaseURL: dbURL).count == 2)
-        let stored = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
+        let stored = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
 
         // A slower overlapping refresh writes back a snapshot read before the second row was
         // appended: an older cursor that only observed the first turn. It must not win.
@@ -586,7 +586,7 @@ struct CostUsageScannerCodexPriorityTests {
         stale.turns = stored.turns.filter { $0.key == "turn-a" }
         CostUsageScanner.storeCodexPriorityTurnsMemoIfNewer(stale, forPath: dbURL.path)
 
-        let retained = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
+        let retained = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(retained.lastRowID == stored.lastRowID)
         #expect(retained.turns.keys.sorted() == ["turn-a", "turn-b"])
 
@@ -595,7 +595,7 @@ struct CostUsageScannerCodexPriorityTests {
         newer.lastRowID += 1
         CostUsageScanner.storeCodexPriorityTurnsMemoIfNewer(newer, forPath: dbURL.path)
         #expect(
-            CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path)?
+            CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path)?
                 .lastRowID == stored.lastRowID + 1)
 
         // A full rescan that expanded coverage earlier than the stored window also replaces,
@@ -604,7 +604,7 @@ struct CostUsageScannerCodexPriorityTests {
         broader.coverageSinceEpoch -= 1
         CostUsageScanner.storeCodexPriorityTurnsMemoIfNewer(broader, forPath: dbURL.path)
         #expect(
-            CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path)?
+            CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path)?
                 .coverageSinceEpoch == broader.coverageSinceEpoch)
     }
 
@@ -650,7 +650,7 @@ struct CostUsageScannerCodexPriorityTests {
 
         let turns = CostUsageScanner.codexPriorityTurns(databaseURL: dbURL)
 
-        let memo = try #require(CostUsageScanner._test_codexPriorityTurnsMemoState(forPath: dbURL.path))
+        let memo = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(memo.completedModelsByTurnID.count == limit - 1)
         #expect(
             memo.completedTurnIDInsertionOrder.count

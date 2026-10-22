@@ -160,7 +160,6 @@
 "Local token history is unavailable or incomplete." = "Lokal tokenhistorik saknas eller är ofullständig.";
 "Could not add Codex account" = "Kunde inte lägga till Codex-konto";
 "Could not open Terminal for Gemini" = "Kunde inte öppna Terminal för Gemini";
-"Could not start claude /login" = "Kunde inte starta claude /login";
 "Could not start codex login" = "Kunde inte starta codex login";
 "Could not switch system account" = "Kunde inte byta systemkonto";
 "Credits" = "Krediter";
@@ -1190,7 +1189,6 @@
 "Open T3 Chat Settings" = "Öppna T3 Chat-inställningar";
 "after next regen" = "efter nästa regenerering";
 "%.0f%% used" = "%.0f%% använt";
-"claude /login exited with status %d." = "claude /login avslutades med status %d.";
 "%d days of cost data" = "%d dagar med kostnadsdata";
 "Open legacy provider docs" = "Öppna äldre leverantörsdokumentation";
 "Secret access key" = "Hemlig åtkomstnyckel";
@@ -1735,7 +1733,7 @@
 "Models for this day" = "Modeller för denna dag";
 "Click a bar to explore. Use the menu below for exact amounts." = "Klicka på en stapel för detaljer. Menyn nedan visar exakta belopp.";
 "merged_icon_source_title" = "Källa för kombinerad ikon";
-"merged_icon_source_subtitle" = "Välj vilken leverantör den hopfällda kombinerade ikonen visar.";
+"merged_icon_source_subtitle" = "”Högsta användning” jämför endast kvoter. Använd ”Aktuellt val” för leverantörer utan kvoter.";
 "merged_icon_source_current_selection" = "Aktuellt val";
 "merged_icon_source_highest_usage" = "Högsta användning";
 "merged_icon_source_frontmost_app" = "Leverantörsapp i förgrunden";
@@ -2748,3 +2746,13 @@
 "Leave blank to keep the saved credential." = "Lämna tomt för att behålla de sparade inloggningsuppgifterna.";
 
 "No personal budget configured" = "Ingen personlig budget har konfigurerats";
+
+"Claude OAuth credentials read failed: QuotaKit's Claude OAuth cache is temporarily unavailable in macOS Keychain. Check that the login keychain is unlocked in Keychain Access, then retry Refresh." = "Det gick inte att läsa Claude OAuth-inloggningsuppgifterna: QuotaKits Claude OAuth-cache är tillfälligt otillgänglig i macOS-nyckelringen. Kontrollera i Nyckelhanterare att inloggningsnyckelringen är upplåst och försök sedan uppdatera igen.";
+
+"%@ is unavailable. Edit the widget to choose a provider." = "%@ är inte tillgänglig. Redigera widgeten för att välja en leverantör.";
+
+"menu_bar_layout_footer_requires_icon_and_percent" = "Layouten gäller endast för menyradsstilen ”%@”. Välj den stilen ovan för att redigera den.";
+
+"Enable a provider in QuotaKit → Settings → Providers." = "Aktivera en leverantör i QuotaKit → Inställningar → Leverantörer.";
+
+"monthly_daily_target_format" = "≈ %@ / dag för att räcka till återställningen";

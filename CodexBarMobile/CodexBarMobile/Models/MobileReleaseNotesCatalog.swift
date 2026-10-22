@@ -55,6 +55,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "The app now uses refreshed provider accent colors; widget colors stay the same."),
                         String(
+                            localized: "Pi now uses its official blue accent across the iPhone app and widgets."),
+                        String(
                             localized: "Muse (muse.ai) weekly quota now syncs from QuotaKit Mac to iPhone."),
                         String(
                             localized: "Muse Code's selected team quota and Copilot seat credits now sync from QuotaKit Mac to iPhone."),

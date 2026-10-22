@@ -8,6 +8,7 @@ read_when:
 # UI & icon
 
 ## Settings
+- Back and Forward revisit the panes you opened, using Command-[ and Command-] as in System Settings. Selecting a new pane after going back clears forward history; reselecting the current pane preserves it. The last pane still restores at launch, while navigation history lasts only for the current app session. Hidden Debug panes are removed from history. On macOS 26 and later, the controls share the detail header; macOS 14/15 retain the native window title and show the controls above the pane content. The native window title stays set on every version for accessibility and the Window menu. About and Acknowledgements share this history. Opening About explicitly returns to its root; reopening Settings preserves the current destination during the session. Only the pane, not a subpage or history, restores after relaunch.
 - App copy, credential-expiry alerts, share cards, number formatting, and layout direction follow the selected app language. Widgets use the system language independently. All 23 supported languages have app catalogs and generated widget catalogs. After editing app translations or widget lookup keys, run `node Scripts/sync-widget-locales.mjs`; hosted lint verifies key coverage, format arguments, plural branches, and generated resources.
 - Usage & Spend charts group longer periods by week or month, drill into days and hours, and isolate individual sources. The amount inspector uses the reporting calendar and labels totals as recorded spend; measured zero, unavailable, and incomplete amounts remain distinct.
 - Codex settings show saved accounts with separate quota snapshots. Viewing or refreshing an account does not switch the active account; local usage remains tied to the current Codex profile.
@@ -22,6 +23,8 @@ read_when:
 - Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
 
 ## Menu bar
+Stacked rows with leading window labels align their values and meters after the widest label. Rows that begin with names, explicit spaces, or inline icons retain their natural spacing; hiding percentage window labels is unchanged.
+- **Highest usage** compares quota windows, not cost or token activity. Providers without quota windows, such as Pi, are not candidates; choose **Current selection** and select the provider in the menu to keep it visible in the combined icon.
 - Combined icon source can follow the current selection, highest usage, or frontmost enabled provider app. Focus monitoring runs only for collapsed merged icons, uses application notifications, and never changes the saved selection or reads terminal tabs.
 - Optional Color by provider uses provider accents without rewriting layouts. Pace colors remain independent. Open menus, stale readings, Increase Contrast, inactive-display contrast, and insufficient accent contrast use monochrome rendering.
 - The empty Settings placeholder never promotes the app to a Dock application. Real settings and update dialogs retain temporary Dock behavior; macOS may refuse demotion after those dialogs close.
@@ -206,3 +209,12 @@ three valid later completed samples can restore forecasting.
 Fresh monochrome stacked text can use template rendering for native inactive-display dimming. Colored,
 stale and high-contrast content keeps its appropriate rendering path. Dock updates follow startup and actual
 window transitions; reset confetti stays click-through while particles finish falling.
+
+
+### Monthly allowance daily target
+
+Monthly allowance cards also show a daily target: remaining allowance divided by the local calendar days
+until reset, counting today and any partial reset day (at least one day). A reset exactly at midnight does
+not add another day. The target keeps the reported credits, requests, currency, or percentage units and
+follows the existing pace visibility setting. Unknown usage, missing resets, and expired windows show no
+target. This is a budget for the remaining period, not a measurement of today's usage or an alert threshold.

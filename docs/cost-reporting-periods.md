@@ -6,6 +6,8 @@ The menu's **History window** supports rolling days, **Month to date**, and **Av
 
 Month to date starts at midnight on the first day of the current month and includes today. It uses the pinned cost-bucketing time zone from Settings, falling back to the current local zone. Calendar arithmetic handles leap years and 23/25-hour daylight-saving days. A bounded, time-zone-keyed Gregorian day memo avoids rebuilding the same day key for every event while retaining those boundaries. Each operation resolves its window again, and cache identities include the selection, dates, and time zone.
 
+Menu cost and token charts retain a slot for every calendar day in the selected window. A missing day is shown as zero only after the history scan covers that window; incomplete scans and recorded unpriced costs remain unknown. OpenAI and Mistral use their fixed UTC billing-day calendars; local history follows the selected bucket time zone.
+
 The menu selection also supplies the default for `quotakit cost`, the HTTP `/cost` endpoint, and widget cost summaries. The widget metric is named **Cost**; its displayed period comes from the app's snapshot. Explicit CLI options override the saved selection:
 
 ```sh

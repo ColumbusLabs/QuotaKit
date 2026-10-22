@@ -139,8 +139,7 @@ struct CodexResetCreditsPresentation: Equatable {
     }
 
     private static func relativeExpiryTimeText(_ expiresAt: Date, now: Date) -> String {
-        let countdown = UsageFormatter.resetCountdownDescription(from: expiresAt, now: now)
-        return countdown == "now" ? L("now") : countdown
+        UsageFormatter.resetCountdownDescription(from: expiresAt, now: now)
     }
 }
 

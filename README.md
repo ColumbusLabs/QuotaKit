@@ -84,6 +84,10 @@ QuotaKit does not ship a Linux desktop installer.
 
 - [CodexBar AgentView](https://github.com/materemias/codexbar-agentview) — Community KDE Plasma 6 widget built for the upstream CodexBar Linux CLI, with usage meters, agent-session search, terminal focus, and kitty session restoration. Maintained separately from QuotaKit.
 
+## Terminal task handoff integration
+
+- [ccx](https://github.com/aaronwong1999/ccx) is a community macOS companion for Claude Code/Codex task handoff, documented upstream as using `codexbar usage --provider both --format json` for quota warnings. It targets the upstream CodexBar CLI and is maintained separately from QuotaKit.
+
 ## Desk display integration
 
 - [TokenTV](https://github.com/click6067-ship-it/token-tv) is a community desk-clock integration built for the upstream CodexBar CLI and `codexbar serve`. It uses a Python host to display Claude and Codex usage on compatible Wi-Fi clocks. Maintained separately from QuotaKit.
