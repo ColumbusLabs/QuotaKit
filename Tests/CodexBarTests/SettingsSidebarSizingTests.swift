@@ -5,6 +5,8 @@ import Testing
 
 @MainActor
 struct SettingsSidebarSizingTests {
+    private static let nativeColumnChromeWidth: CGFloat = 8
+
     @Test
     func `native sidebar saves divider changes and restores them in a new view`() async throws {
         let width = SidebarWidth(value: 320)
@@ -12,28 +14,40 @@ struct SettingsSidebarSizingTests {
         try await self.settle(firstWindow)
         let firstContent = try #require(firstWindow.contentView)
         let firstSplit = try #require(self.splitView(in: firstContent))
-        #expect(firstSplit.subviews[0].frame.width == 320)
+        let firstController = try #require(firstSplit.delegate as? NSSplitViewController)
+        let firstSidebar = try #require(firstController.splitViewItems.first)
+        // The saved value tracks hosted content like the legacy frame; native split columns add 8pt of chrome.
+        #expect(firstSidebar.viewController.view.frame.width == CGFloat(width.value))
+        #expect(firstSplit.subviews[0].frame.width == CGFloat(width.value) + Self.nativeColumnChromeWidth)
 
-        firstSplit.setPosition(300, ofDividerAt: 0)
+        let dividerPosition: CGFloat = 300
+        firstSplit.setPosition(dividerPosition, ofDividerAt: 0)
         try await self.settle(firstWindow)
-        #expect(width.value == 300)
+        #expect(firstSplit.subviews[0].frame.width == dividerPosition)
+        #expect(width.value == Double(dividerPosition - Self.nativeColumnChromeWidth))
+        #expect(firstSidebar.viewController.view.frame.width == CGFloat(width.value))
 
         let secondWindow = self.makeWindow(width: width)
         try await self.settle(secondWindow)
         let secondContent = try #require(secondWindow.contentView)
         let secondSplit = try #require(self.splitView(in: secondContent))
-        #expect(secondSplit.subviews[0].frame.width == 300)
+        let secondController = try #require(secondSplit.delegate as? NSSplitViewController)
+        let secondSidebar = try #require(secondController.splitViewItems.first)
+        #expect(secondSidebar.viewController.view.frame.width == CGFloat(width.value))
+        #expect(secondSplit.subviews[0].frame.width == dividerPosition)
+        #expect(
+            secondSplit.subviews[0].frame.width == secondSidebar.viewController.view.frame.width +
+                Self.nativeColumnChromeWidth)
 
-        let controller = try #require(firstSplit.delegate as? NSSplitViewController)
-        let sidebar = try #require(controller.splitViewItems.first)
-        #expect(sidebar.canCollapse)
-        sidebar.isCollapsed = true
+        #expect(firstSidebar.canCollapse)
+        firstSidebar.isCollapsed = true
         try await self.settle(firstWindow)
-        #expect(sidebar.isCollapsed)
-        #expect(width.value == 300)
-        sidebar.isCollapsed = false
+        #expect(firstSidebar.isCollapsed)
+        #expect(width.value == Double(dividerPosition - Self.nativeColumnChromeWidth))
+        firstSidebar.isCollapsed = false
         try await self.settle(firstWindow)
-        #expect(width.value == 300)
+        #expect(width.value == Double(dividerPosition - Self.nativeColumnChromeWidth))
+        #expect(firstSidebar.viewController.view.frame.width == CGFloat(width.value))
     }
 
     @Test

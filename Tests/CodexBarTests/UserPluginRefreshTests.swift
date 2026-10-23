@@ -426,6 +426,8 @@ extension UserPluginRefreshTests {
         #expect(fixture.store.userPluginSessionQuotaAccountIdentities[secondID] != nil)
         #expect(!FileManager.default.fileExists(atPath: firstUsage.path))
         #expect(!FileManager.default.fileExists(atPath: reached.path))
+        // Discovery reloads the existing plugin runtime, so its first sample establishes a fresh baseline.
+        fixture.store.emitUserPluginHooks(provider: fixture.id, snapshot: Self.snapshot(20, 60, 0))
         fixture.store.emitUserPluginHooks(provider: fixture.id, snapshot: Self.snapshot(100, 60, 1))
         #expect(try await Self.payload(at: reached)["provider"] as? String == fixture.id.rawValue)
         #expect(try await Self.payload(at: firstUsage)["provider"] as? String == fixture.id.rawValue)

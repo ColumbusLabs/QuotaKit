@@ -49,6 +49,10 @@ struct ClaudeEmptyQuotaAvailabilityTests {
             now: Self.now))
         #expect(model.metrics.isEmpty)
         #expect(model.placeholder == "Limits not available")
+
+        let withHiddenCreditPreference = model.applyingUsageItemVisibility(
+            hiddenItemIDs: [.detailSection(ClaudeCloudCreditsSnapshot.detailTitle)])
+        #expect(withHiddenCreditPreference.placeholder == "Limits not available")
     }
 
     @Test

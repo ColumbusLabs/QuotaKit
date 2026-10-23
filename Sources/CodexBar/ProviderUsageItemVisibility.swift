@@ -209,6 +209,21 @@ extension UsageMenuCardView.Model {
         }
         if hiddenItemIDs.contains(.detailSection(ClaudeCloudCreditsSnapshot.detailTitle)) {
             projected.cloudCredits = nil
+            // A quota-unavailable placeholder can be synthesized alongside an otherwise empty
+            // Cloud credits-only snapshot. Hiding that sole optional item should leave no card,
+            // while a truly quota-less snapshot without Cloud credits keeps its message.
+            let hidReportedCloudCredits = self.provider == .claude && self.cloudCredits != nil
+            if hidReportedCloudCredits,
+               projected.placeholder != nil,
+               !projected.hasUsageContentAboveCloudCredits,
+               projected.openAIAPIUsage == nil,
+               projected.providerCost == nil,
+               projected.tokenUsage == nil,
+               projected.creditsText == nil,
+               projected.creditsRemaining == nil
+            {
+                projected.placeholder = nil
+            }
         }
         let hiddenSectionIDs = Set(hiddenItemIDs.filter { $0.detailSectionTitle != nil })
         if !hiddenSectionIDs.isEmpty {

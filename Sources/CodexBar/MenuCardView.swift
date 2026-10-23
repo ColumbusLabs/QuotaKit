@@ -173,7 +173,7 @@ struct UsageMenuCardView: View {
         var cloudCredits: ProviderCostSection?
         var providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
-        let placeholder: String?
+        var placeholder: String?
         let progressColor: Color
     }
 
