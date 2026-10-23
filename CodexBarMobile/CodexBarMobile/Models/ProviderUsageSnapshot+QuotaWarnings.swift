@@ -5,12 +5,11 @@ extension ProviderUsageSnapshot {
     /// Resolves the per-window quota warning config that `UsageCardView`
     /// should render for the given rate-window index.
     ///
-    /// Mac's `QuotaWarningConfig` only knows two semantic windows:
-    /// `session` and `weekly`. Within the supported first two slots, use
-    /// synced identity or a seven-day cadence when available; untyped legacy
-    /// windows retain the session-at-0 / weekly-at-1 fallback. Additional
-    /// windows at index ≥ 2 have no warning config, so render without markers
-    /// (`enabled = false`) rather than guessing.
+    /// Mac's `QuotaWarningConfig` remains slot-based: session at index 0 and
+    /// weekly at index 1. The one exception is Cursor's verified, single
+    /// shared-weekly window, which occupies index 0 on Mac but uses weekly
+    /// thresholds. Additional windows at index ≥ 2 have no warning config, so
+    /// render without markers (`enabled = false`) rather than guessing.
     ///
     /// When `self.quotaWarnings` is nil (old Mac pre-0.25.2, or the
     /// provider didn't map to a known `UsageProvider` enum case on
@@ -21,10 +20,14 @@ extension ProviderUsageSnapshot {
         guard (0...1).contains(index) else { return (nil, false) }
 
         let windows = self.displayRateWindows
-        let rateWindow = windows.indices.contains(index) ? windows[index] : nil
-        let warningIndex = if let identity = rateWindow?.identity {
-            identity == .weekly ? 1 : 0
-        } else if rateWindow?.windowMinutes == 10080 {
+        let warningIndex = if index == 0,
+            self.providerID == "cursor",
+            windows.count == 1,
+            let rateWindow = windows.first,
+            rateWindow.windowMinutes == 10080,
+            rateWindow.identity != .session,
+            rateWindow.label != "Requests"
+        {
             1
         } else {
             index

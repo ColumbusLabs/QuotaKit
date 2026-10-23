@@ -61,14 +61,16 @@ struct SyncCoordinatorCursorRateWindowTests {
         #expect(provider.rateWindows.map(\.label) == ["Auto", "API"])
         #expect(provider.primary?.label == "Auto")
         #expect(provider.secondary?.label == "API")
-        #expect(provider.primary?.identity == .weekly)
-        #expect(provider.secondary?.identity == .weekly)
+        #expect(provider.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(provider.secondary?.windowMinutes == 30 * 24 * 60)
+        #expect(provider.primary?.identity == nil)
+        #expect(provider.secondary?.identity == nil)
         #expect(provider.primary?.pace != nil)
         #expect(provider.secondary?.pace != nil)
     }
 
     @Test
-    func `push exports cursor plan fallback label and identity`() async throws {
+    func `push exports Cursor plan as neutral monthly window with pace`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-plan-fallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -97,7 +99,8 @@ struct SyncCoordinatorCursorRateWindowTests {
         let provider = try #require(mock.lastSnapshot?.providers
             .first(where: { $0.providerID == UsageProvider.cursor.rawValue }))
         #expect(provider.rateWindows.map(\.label) == ["Plan"])
-        #expect(provider.primary?.identity == .weekly)
+        #expect(provider.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(provider.primary?.identity == nil)
         #expect(provider.primary?.pace != nil)
     }
 
@@ -134,5 +137,6 @@ struct SyncCoordinatorCursorRateWindowTests {
         #expect(provider.primary?.windowMinutes == 10080)
         #expect(provider.primary?.resetsAt == reset)
         #expect(provider.primary?.identity == .weekly)
+        #expect(provider.primary?.pace != nil)
     }
 }

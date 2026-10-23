@@ -11,6 +11,30 @@ final class QuotaKitWidgetTests: XCTestCase {
         super.tearDown()
     }
 
+    private func makeWidgetProvider(
+        providerID: String,
+        window: SyncRateWindow) throws -> QuotaKitWidgetSnapshot.Provider
+    {
+        let now = Date(timeIntervalSince1970: 1_803_000_000)
+        let provider = ProviderUsageSnapshot(
+            providerID: providerID,
+            providerName: providerID,
+            primary: window,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            rateWindows: [window])
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Fixture Mac")
+        let widgetSnapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(from: snapshot, generatedAt: now)
+        return try XCTUnwrap(widgetSnapshot.providers.first)
+    }
+
     func testWidgetSnapshotRoundTripsWithProjectJSONCodec() throws {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
@@ -149,6 +173,70 @@ final class QuotaKitWidgetTests: XCTestCase {
         let bothWindows = QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both)
         XCTAssertEqual(bothWindows.map(\.mode), [.weekly])
         XCTAssertEqual(bothWindows.map(\.window), [window])
+    }
+
+    func testWidgetTreatsMonthlyCursorLegacyWeeklyIdentitiesAsSessionWindows() throws {
+        for label in ["Plan", "aUtO", "API", "Requests"] {
+            let window = SyncRateWindow(
+                label: label,
+                usedPercent: 67,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: Date(timeIntervalSince1970: 1_803_604_800),
+                resetDescription: nil,
+                identity: .weekly)
+            let cursor = try self.makeWidgetProvider(providerID: "cursor", window: window)
+            let widgetWindow = try XCTUnwrap(cursor.primaryWindow)
+
+            XCTAssertNil(widgetWindow.identity, "Expected \(label) to clear the stale weekly identity")
+            XCTAssertEqual(
+                QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session),
+                widgetWindow)
+            XCTAssertEqual(
+                QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both).map(\.mode),
+                [.session])
+        }
+    }
+
+    func testWidgetPreservesTrueWeeklyMissingCadenceAndOtherProviderIdentities() throws {
+        let trueWeekly = try self.makeWidgetProvider(
+            providerID: "cursor",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(trueWeekly.primaryWindow?.identity, .weekly)
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: trueWeekly, displayMode: .session))
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: trueWeekly, displayMode: .weekly),
+            trueWeekly.primaryWindow)
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.displayWindows(for: trueWeekly, displayMode: .both).map(\.mode),
+            [.weekly])
+
+        let missingCadence = try self.makeWidgetProvider(
+            providerID: "cursor",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(missingCadence.primaryWindow?.identity, .weekly)
+
+        let otherProvider = try self.makeWidgetProvider(
+            providerID: "kimi",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(otherProvider.primaryWindow?.identity, .weekly)
     }
 
     func testWidgetSnapshotMovesSelectedProviderFirst() {

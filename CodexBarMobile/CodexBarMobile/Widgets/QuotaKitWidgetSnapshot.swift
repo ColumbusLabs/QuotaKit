@@ -167,11 +167,30 @@ enum QuotaKitWidgetSnapshotBuilder {
                     remainingPercent: window.remainingPercent,
                     resetsAt: window.resetsAt,
                     pace: window.pace,
-                    identity: window.identity ?? self.legacyIdentity(for: window))
+                    identity: self.legacyIdentity(for: window, providerID: provider.providerID))
             })
     }
 
-    private static func legacyIdentity(for window: SyncRateWindow) -> SyncRateWindowIdentity? {
+    private static func legacyIdentity(
+        for window: SyncRateWindow,
+        providerID: String) -> SyncRateWindowIdentity?
+    {
+        // Older Mac payloads could label Cursor's monthly lanes weekly by pace role.
+        // Clear that identity only when a known cadence and neutral lane label confirm it.
+        if providerID == "cursor",
+           window.identity == .weekly,
+           let windowMinutes = window.windowMinutes,
+           windowMinutes > 0,
+           windowMinutes != 10080,
+           let label = window.label,
+           ["plan", "auto", "api", "requests"].contains(
+               label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        {
+            return nil
+        }
+        if let identity = window.identity {
+            return identity
+        }
         if window.windowMinutes == 10080 {
             return .weekly
         }

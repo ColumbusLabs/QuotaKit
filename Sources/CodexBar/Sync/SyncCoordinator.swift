@@ -1163,14 +1163,12 @@ final class SyncCoordinator {
             pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
                 ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
                 : nil,
-            identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window, role: role))
+            identity: Self.syncRateWindowIdentity(label: label, window: window))
     }
 
     private static func syncRateWindowIdentity(
-        provider: UsageProvider,
         label: String?,
-        window: RateWindow,
-        role: SyncPaceWindowRole) -> SyncRateWindowIdentity?
+        window: RateWindow) -> SyncRateWindowIdentity?
     {
         if window.windowMinutes == 10080 {
             return .weekly
@@ -1194,9 +1192,6 @@ final class SyncCoordinator {
            (1...(24 * 60)).contains(windowMinutes)
         {
             return .session
-        }
-        if provider == .cursor, role == .weekly {
-            return .weekly
         }
         return nil
     }

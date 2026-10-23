@@ -226,12 +226,12 @@ struct SyncQuotaWarningConfigTests {
     }
 
     @Test
-    func `quotaWarning uses explicit weekly identity for primary window`() {
+    func `quotaWarning uses weekly config for single Cursor shared weekly primary`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "cursor",
             providerName: "Cursor",
             primary: SyncRateWindow(
-                label: "Quota",
+                label: "Weekly",
                 usedPercent: 45,
                 windowMinutes: 10080,
                 resetsAt: nil,
@@ -254,19 +254,19 @@ struct SyncQuotaWarningConfigTests {
     }
 
     @Test
-    func `quotaWarning uses explicit session identity for secondary window`() {
+    func `quotaWarning preserves Kimi config slots when typed identities disagree`() {
         let snapshot = ProviderUsageSnapshot(
-            providerID: "claude",
-            providerName: "Claude",
+            providerID: "kimi",
+            providerName: "Kimi",
             primary: SyncRateWindow(
-                label: "Weekly",
+                label: "7-day",
                 usedPercent: 45,
                 windowMinutes: 10080,
                 resetsAt: nil,
                 resetDescription: nil,
                 identity: .weekly),
             secondary: SyncRateWindow(
-                label: "Quota",
+                label: "5-hour",
                 usedPercent: 25,
                 windowMinutes: 300,
                 resetsAt: nil,
@@ -279,25 +279,70 @@ struct SyncQuotaWarningConfigTests {
             lastUpdated: Date(),
             quotaWarnings: SyncQuotaWarningConfig(
                 sessionThresholds: [80, 40],
-                weeklyThresholds: [70, 30]))
+                sessionEnabled: false,
+                weeklyThresholds: [70, 30],
+                weeklyEnabled: true))
 
-        let result = snapshot.quotaWarning(forWindowIndex: 1)
+        let primary = snapshot.quotaWarning(forWindowIndex: 0)
+        let secondary = snapshot.quotaWarning(forWindowIndex: 1)
 
-        #expect(result.thresholds == [80, 40])
-        #expect(result.enabled)
+        #expect(primary.thresholds == [80, 40])
+        #expect(primary.enabled == false)
+        #expect(secondary.thresholds == [70, 30])
+        #expect(secondary.enabled)
     }
 
     @Test
-    func `quotaWarning infers weekly from untyped seven day cadence`() {
+    func `quotaWarning preserves legacy Cursor two-window config slots`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "cursor",
             providerName: "Cursor",
             primary: SyncRateWindow(
-                label: "Quota",
+                label: "Session",
                 usedPercent: 45,
                 windowMinutes: 10080,
                 resetsAt: nil,
-                resetDescription: nil),
+                resetDescription: nil,
+                identity: .weekly),
+            secondary: SyncRateWindow(
+                label: "Weekly",
+                usedPercent: 25,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly),
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(
+                sessionThresholds: [80, 40],
+                sessionEnabled: false,
+                weeklyThresholds: [70, 30],
+                weeklyEnabled: true))
+
+        let primary = snapshot.quotaWarning(forWindowIndex: 0)
+        let secondary = snapshot.quotaWarning(forWindowIndex: 1)
+
+        #expect(primary.thresholds == [80, 40])
+        #expect(primary.enabled == false)
+        #expect(secondary.thresholds == [70, 30])
+        #expect(secondary.enabled)
+    }
+
+    @Test
+    func `quotaWarning does not remap a typed Session Cursor window`() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "cursor",
+            providerName: "Cursor",
+            primary: SyncRateWindow(
+                label: "Session",
+                usedPercent: 45,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .session),
             secondary: nil,
             accountEmail: nil,
             loginMethod: nil,
@@ -310,7 +355,35 @@ struct SyncQuotaWarningConfigTests {
 
         let result = snapshot.quotaWarning(forWindowIndex: 0)
 
-        #expect(result.thresholds == [70, 30])
+        #expect(result.thresholds == [80, 40])
+        #expect(result.enabled)
+    }
+
+    @Test
+    func `quotaWarning keeps request quota on Cursor session slot`() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "cursor",
+            providerName: "Cursor",
+            primary: SyncRateWindow(
+                label: "Requests",
+                usedPercent: 45,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly),
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(
+                sessionThresholds: [80, 40],
+                weeklyThresholds: [70, 30]))
+
+        let result = snapshot.quotaWarning(forWindowIndex: 0)
+
+        #expect(result.thresholds == [80, 40])
         #expect(result.enabled)
     }
 
