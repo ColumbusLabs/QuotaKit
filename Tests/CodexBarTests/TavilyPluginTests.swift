@@ -84,7 +84,18 @@ struct TavilyPluginTests {
     {
         let free = try await Self.fetch(
             engine: engine,
-            body: #"{"key":{"usage":3,"limit":null},"account":{"current_plan":"Researcher","plan_usage":10,"plan_limit":1000,"paygo_usage":0,"paygo_limit":null}}"#)
+            body: #"""
+            {
+              "key": {"usage": 3, "limit": null},
+              "account": {
+                "current_plan": "Researcher",
+                "plan_usage": 10,
+                "plan_limit": 1000,
+                "paygo_usage": 0,
+                "paygo_limit": null
+              }
+            }
+            """#)
         #expect(free.primary?.usedPercent == 1)
         #expect(free.identity?.loginMethod == "Researcher")
         #expect(free.details.map(\.title) == ["Account plan", "API key", "Pay as you go"])

@@ -127,7 +127,9 @@ extension StatusItemController {
             width: width,
             heightCacheScope: plugin.manifest.id.rawValue,
             heightCacheFingerprint: UserPluginMenuCardView.fingerprint(
-                snapshot: snapshot, error: error, resetStyle: self.settings.resetTimeDisplayStyle,
+                snapshot: snapshot,
+                error: error,
+                resetStyle: self.settings.resetTimeDisplayStyle,
                 hidePersonalInfo: self.settings.hidePersonalInfo),
             containsInteractiveControls: true,
             onClick: onClick)
@@ -334,7 +336,8 @@ struct UserPluginMenuCardView: View {
                     ProviderDetailSectionsContent(sections: snapshot.details, chartColor: self.tint)
                 }
                 if let identity = Self.visibleIdentity(
-                    snapshot: snapshot, provider: self.plugin.manifest.id,
+                    snapshot: snapshot,
+                    provider: self.plugin.manifest.id,
                     hidePersonalInfo: self.hidePersonalInfo)
                 {
                     self.identity(identity)
@@ -411,7 +414,9 @@ struct UserPluginMenuCardView: View {
     }
 
     static func fingerprint(
-        snapshot: UsageSnapshot?, error: String?, resetStyle: ResetTimeDisplayStyle,
+        snapshot: UsageSnapshot?,
+        error: String?,
+        resetStyle: ResetTimeDisplayStyle,
         hidePersonalInfo: Bool = false) -> String
     {
         let resets = [snapshot?.primary, snapshot?.secondary, snapshot?.tertiary].map { window in

@@ -485,12 +485,6 @@ public struct CursorStatusSnapshot: Sendable {
             nil
         }
 
-        // Unified token plans use the current shared weekly pool instead of stale monthly Auto/API lanes.
-        let sharedWeeklyPool = cursorRequests == nil && self.sandUsage?.isUnified == true
-            && sandWindow?.window.windowMinutes == 10080
-            && sandWindow?.window.resetsAt.map { $0 > now } == true ? sandWindow?.window : nil
-        let hidesMonthlyBreakdown = cursorRequests != nil || sharedWeeklyPool != nil
-
         let billingCycleWindowMinutes = CursorSandUsageStatus.windowMinutes(
             start: self.billingCycleStart,
             end: self.billingCycleEnd)
@@ -542,17 +536,11 @@ public struct CursorStatusSnapshot: Sendable {
             cursorRateWindowLayout = nil
         }
 
-        let primary = sharedWeeklyPool ?? standardPrimary
-        let secondary = hidesMonthlyBreakdown ? nil : standardSecondary
-
-        // Grok Bot is a weekly included allowance on the same Cursor account, not the monthly
-        // Total/Cursor/Third Party bars. Hide it on legacy request plans so it cannot sit next
-        // to a request quota that does not share that token-based breakdown.
-        let extraRateWindows: [NamedRateWindow]? = if hidesMonthlyBreakdown {
-            nil
-        } else {
-            sandWindow.map { [$0] }
-        }
+        let weeklyProjection = self.weeklyPoolProjection(
+            sandWindow: sandWindow,
+            hasRequestQuota: cursorRequests != nil,
+            standardWindows: (primary: standardPrimary, secondary: standardSecondary),
+            now: now)
 
         // Prefer authoritative personal billing, then a personal cap or the shared team budget.
         let monthly = self.unifiedUsage?.currentMonthlyUsage(at: now)
@@ -604,10 +592,10 @@ public struct CursorStatusSnapshot: Sendable {
             loginMethod: self.membershipType.map { Self.formatMembershipType($0) },
             accountID: self.accountID)
         return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
+            primary: weeklyProjection.primary,
+            secondary: weeklyProjection.secondary,
             tertiary: nil,
-            extraRateWindows: extraRateWindows,
+            extraRateWindows: weeklyProjection.extraRateWindows,
             providerCost: providerCost,
             details: cursorRequests.map { requests in
                 [.makeSection(title: "Usage", rows: [
