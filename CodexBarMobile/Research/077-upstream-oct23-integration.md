@@ -9,3 +9,5 @@ Cursor’s promoted weekly pool must keep its weekly identity across Mac sync la
 Separate plugin hook/session baselines preserve the fork’s existing Codex/Claude account state; current request/config/runtime guards, privacy, throttling and lifecycle cleanup remain mandatory. Account logging must be redacted and Copilot login uses injected synthetic tests. Claude cache schema/report semantics rebuild stale Cowork costs while preserving Codex cache compatibility.
 
 Full per-commit decisions and verification design: [integration ledger](../../docs/upstream-sync-2026-10-23.md). Hosted CI and independent adversarial source review qualify the result; no routine local builds/tests or real-account probes.
+
+Native Settings keeps content-width persistence across divider changes, collapse and new views. The hosted regression test selects the arranged pane containing sidebar content, because raw split-view subview order can differ; exact widths and the original settling deadline remain enforced.
