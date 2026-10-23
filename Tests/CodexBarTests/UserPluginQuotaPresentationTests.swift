@@ -213,6 +213,8 @@ struct UserPluginQuotaPresentationTests {
         #expect(fingerprint != UserPluginMenuCardView.fingerprint(snapshot: second, error: nil, resetStyle: .countdown))
         #expect(fingerprint != UserPluginMenuCardView.fingerprint(snapshot: third, error: nil, resetStyle: .countdown))
     }
+
+    @MainActor
     @Test
     func `hide personal info suppresses plugin identity and changes card height key`() throws {
         let provider = try #require(ProviderInstanceID(rawValue: "private-plugin"))
