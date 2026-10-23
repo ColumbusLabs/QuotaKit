@@ -185,6 +185,7 @@ struct UserPluginRefreshTests {
                 error: fixture.store.errors[fixture.id],
                 isRefreshing: false,
                 showUsed: true,
+                hidePersonalInfo: false,
                 resetStyle: .countdown,
                 width: 330,
                 onRefresh: {}))

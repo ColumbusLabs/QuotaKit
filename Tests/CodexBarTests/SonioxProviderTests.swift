@@ -69,6 +69,7 @@ struct SonioxProviderTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -97,7 +98,9 @@ struct SonioxProviderTests {
         #expect(visibleModel.providerCost?.spendLine == "This month: $6.00")
         #expect(visibleModel.providerCost?.balanceLine == "Balance: $18.50")
         #expect(visibleModel.providerCost?.dailyTargetText == nil)
-        #expect(model.usageItemDescriptors.contains { $0.id == .metric("primary") && $0.title == "Monthly budget" })
+        #expect(model.usageItemDescriptors.contains {
+            $0.id == ProviderUsageItemID.metric("primary") && $0.title == "Monthly budget"
+        })
     }
 
     @Test

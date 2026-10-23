@@ -1171,7 +1171,8 @@ struct KimiUsageSnapshotConversionTests {
             type: "SUBSCRIPTION",
             amountUsedRatio: 1,
             kimiCodeUsedRatio: nil,
-            expireTime: "2026-07-23T00:00:00Z")
+            expireTime: "2026-07-23T00:00:00Z",
+            displayName: nil)
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
@@ -1215,7 +1216,8 @@ struct KimiUsageSnapshotConversionTests {
             type: "SUBSCRIPTION",
             amountUsedRatio: 0.7716,
             kimiCodeUsedRatio: nil,
-            expireTime: "2026-07-23T00:00:00Z")
+            expireTime: "2026-07-23T00:00:00Z",
+            displayName: nil)
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
@@ -1359,7 +1361,8 @@ struct KimiUsageSnapshotConversionTests {
                     type: "SUBSCRIPTION",
                     amountUsedRatio: .nan,
                     kimiCodeUsedRatio: nil,
-                    expireTime: nil),
+                    expireTime: nil,
+                    displayName: nil),
                 subscriptionCodeWeeklyLimit: limit,
                 updatedAt: Date())
 
