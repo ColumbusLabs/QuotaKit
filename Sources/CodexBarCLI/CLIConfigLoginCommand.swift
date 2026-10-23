@@ -11,13 +11,12 @@ extension CodexBarCLI {
 
         let task = Task {
             try await Self.loginCopilot(store: CodexBarConfigStore()) { event in
-                let line: String
-                if output.format == .json {
-                    line = Self.encodeJSON(event, pretty: false) ?? ""
+                let line = if output.format == .json {
+                    Self.encodeJSON(event, pretty: false) ?? ""
                 } else if let url = event.verificationURI, let code = event.userCode {
-                    line = "\(url)\n\(code)"
+                    "\(url)\n\(code)"
                 } else {
-                    line = "Connected"
+                    "Connected"
                 }
                 FileHandle.standardOutput.write(Data("\(line)\n".utf8))
             }

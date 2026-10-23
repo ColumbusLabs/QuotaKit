@@ -237,6 +237,5 @@ struct UserPluginQuotaPresentationTests {
             UserPluginMenuCardView.fingerprint(
                 snapshot: snapshot, error: nil, resetStyle: .countdown, hidePersonalInfo: false))
     }
-
 }
 #endif

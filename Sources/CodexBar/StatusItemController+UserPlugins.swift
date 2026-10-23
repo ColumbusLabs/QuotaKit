@@ -333,8 +333,10 @@ struct UserPluginMenuCardView: View {
                     Divider()
                     ProviderDetailSectionsContent(sections: snapshot.details, chartColor: self.tint)
                 }
-                if let identity = Self.visibleIdentity(snapshot: snapshot, provider: self.plugin.manifest.id,
-                    hidePersonalInfo: self.hidePersonalInfo) {
+                if let identity = Self.visibleIdentity(
+                    snapshot: snapshot, provider: self.plugin.manifest.id,
+                    hidePersonalInfo: self.hidePersonalInfo)
+                {
                     self.identity(identity)
                 }
             } else if self.error == nil {
@@ -415,7 +417,7 @@ struct UserPluginMenuCardView: View {
         let resets = [snapshot?.primary, snapshot?.secondary, snapshot?.tertiary].map { window in
             window.flatMap { UsageFormatter.resetLine(for: $0, style: resetStyle) } ?? ""
         }
-        return ([
+        var fields: [String] = [
             snapshot?.updatedAt.timeIntervalSinceReferenceDate.description ?? "none",
             String(snapshot?.details.count ?? 0),
             String(hidePersonalInfo),
@@ -423,7 +425,9 @@ struct UserPluginMenuCardView: View {
             snapshot?.secondary?.title ?? "",
             snapshot?.tertiary?.title ?? "",
             error ?? "",
-        ] + resets).joined(separator: "|")
+        ]
+        fields.append(contentsOf: resets)
+        return fields.joined(separator: "|")
     }
 }
 #endif
