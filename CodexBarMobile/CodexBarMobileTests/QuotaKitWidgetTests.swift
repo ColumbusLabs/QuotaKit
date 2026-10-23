@@ -176,7 +176,7 @@ final class QuotaKitWidgetTests: XCTestCase {
     }
 
     func testWidgetTreatsMonthlyCursorLegacyWeeklyIdentitiesAsSessionWindows() throws {
-        for label in ["Plan", "aUtO", "API", "Requests"] {
+        for label in ["Plan", "aUtO", "API", "Requests", "Total"] {
             let window = SyncRateWindow(
                 label: label,
                 usedPercent: 67,

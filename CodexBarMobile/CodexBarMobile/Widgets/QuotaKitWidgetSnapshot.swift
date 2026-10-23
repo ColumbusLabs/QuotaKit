@@ -183,7 +183,7 @@ enum QuotaKitWidgetSnapshotBuilder {
            windowMinutes > 0,
            windowMinutes != 10080,
            let label = window.label,
-           ["plan", "auto", "api", "requests"].contains(
+           ["plan", "auto", "api", "requests", "total"].contains(
                label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
         {
             return nil
