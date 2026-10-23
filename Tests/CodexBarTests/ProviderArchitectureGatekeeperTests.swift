@@ -4671,14 +4671,6 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "These provider-native window labels preserve the established mobile presentation contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1192,
-            anchor: "if provider == .cursor, role == .weekly {",
-            expectedProviderIDs: ["cursor"],
-            expectedReferenceCount: 1,
-            expectedReferenceFingerprint: ["cursor@0"],
-            reason: "Cursor's persisted request layout assigns its weekly window the matching mobile pace role."),
-        AllowedProviderConstruct(
-            path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
             line: 1231,
             anchor: "if provider == .abacus {",
             expectedProviderIDs: ["abacus"],
