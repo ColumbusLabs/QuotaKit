@@ -21,12 +21,12 @@ extension ProviderUsageSnapshot {
 
         let windows = self.displayRateWindows
         let warningIndex = if index == 0,
-            self.providerID == "cursor",
-            windows.count == 1,
-            let rateWindow = windows.first,
-            rateWindow.windowMinutes == 10080,
-            rateWindow.identity != .session,
-            rateWindow.label != "Requests"
+                              self.providerID == "cursor",
+                              windows.count == 1,
+                              let rateWindow = windows.first,
+                              rateWindow.windowMinutes == 10080,
+                              rateWindow.identity != .session,
+                              rateWindow.label != "Requests"
         {
             1
         } else {
