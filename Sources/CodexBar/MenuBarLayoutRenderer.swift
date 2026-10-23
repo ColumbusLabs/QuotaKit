@@ -1618,14 +1618,11 @@ extension MenuBarLayoutRenderer {
 }
 
 extension MenuBarLayoutRenderer {
-    /// Match the actual lane title so older saved layouts keep the correct semantic tag.
+    /// Match the actual lane title so saved layouts keep the tag for the lane's semantic role.
     private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
         guard let provider = data.provider else { return nil }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        let staticLabels = MenuBarLayoutLaneLabels(provider: provider, snapshot: nil)
-        guard !descriptor.menuBarMetrics.laneShortLabels.isEmpty,
-              data.laneLabels.label(for: lane) == staticLabels.label(for: lane)
-        else { return nil }
+        guard !descriptor.menuBarMetrics.laneShortLabels.isEmpty else { return nil }
         let declaredLabels: [(MenuBarLayoutLane, String)] = [
             (.primary, L(descriptor.metadata.sessionLabel)),
             (.secondary, L(descriptor.metadata.weeklyLabel)),
