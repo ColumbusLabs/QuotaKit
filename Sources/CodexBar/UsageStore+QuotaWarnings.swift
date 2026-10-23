@@ -15,9 +15,9 @@ extension UsageStore {
         // hooks run on a separate path that does not depend on the notification
         // preference or the notification thresholds.
         self.resetQuotaLowHookUsageIfConfigurationChanged()
-        let hooksActive = self.hasQuotaHookRule(event: .quotaLow, provider: provider)
+        let hooksActive = self.hasQuotaHookRule(event: .quotaLow, provider: provider.instanceID)
         if !hooksActive {
-            self.clearQuotaLowHookUsage(provider: provider)
+            self.clearQuotaLowHookUsage(provider: provider.instanceID)
         }
         guard notificationsEnabled || hooksActive else { return }
         if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
@@ -46,6 +46,9 @@ extension UsageStore {
         if provider == .antigravity {
             primaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60)
             secondaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 7 * 24 * 60)
+        } else if provider == .cursor, let weekly = CursorProviderDescriptor.sharedWeeklyPool(snapshot: snapshot) {
+            primaryWindow = nil
+            secondaryWindow = weekly
         } else {
             let suppressWindows = provider == .mimo || provider == .qoder
             primaryWindow = suppressWindows ? nil : snapshot.primary
@@ -83,7 +86,7 @@ extension UsageStore {
         if hooksActive {
             let hookDiscriminator = hookAccountDiscriminator ?? account.discriminator
             self.dispatchQuotaLowHooks(
-                provider: provider,
+                provider: provider.instanceID,
                 lane: QuotaLowHookLane(
                     window: .session,
                     windowID: nil,
@@ -92,7 +95,7 @@ extension UsageStore {
                 accountDiscriminator: hookDiscriminator,
                 accountDisplayName: account.displayName)
             self.dispatchQuotaLowHooks(
-                provider: provider,
+                provider: provider.instanceID,
                 lane: QuotaLowHookLane(
                     window: .weekly,
                     windowID: nil,
@@ -105,14 +108,14 @@ extension UsageStore {
                 : []
             for named in extraWindows {
                 self.dispatchQuotaLowHooks(
-                    provider: provider,
+                    provider: provider.instanceID,
                     lane: QuotaLowHookLane(window: .weekly, windowID: named.id, label: named.title),
                     rateWindow: named.window,
                     accountDiscriminator: hookDiscriminator,
                     accountDisplayName: account.displayName)
             }
             self.pruneQuotaLowHookUsage(
-                provider: provider,
+                provider: provider.instanceID,
                 accountDiscriminator: hookDiscriminator,
                 keepingExtraWindowIDs: Set(extraWindows.map(\.id)))
         }
@@ -222,7 +225,7 @@ extension UsageStore {
         guard !rateWindow.isSyntheticPlaceholder else { return }
 
         let thresholds = self.settings.resolvedQuotaWarningThresholds(
-            provider: provider,
+            provider: provider.instanceID,
             window: transition.window)
         let currentRemaining = rateWindow.remainingPercent
         var previousState = self.quotaWarningState[key]
@@ -445,7 +448,7 @@ extension UsageStore {
                 accountDiscriminatorOverride: $0)
         }
         let stateKey = SessionQuotaStateKey(provider: provider, accountDiscriminator: resolvedAccountDiscriminator)
-        let quotaReachedHookActive = self.hasQuotaHookRule(event: .quotaReached, provider: provider)
+        let quotaReachedHookActive = self.hasQuotaHookRule(event: .quotaReached, provider: provider.instanceID)
         guard let sessionWindow = self.sessionQuotaWindowForTransition(
             provider: provider,
             snapshot: snapshot,
@@ -462,7 +465,7 @@ extension UsageStore {
         let evaluation = SessionQuotaTransitionReducer.evaluate(
             previous: previousState,
             observation: SessionQuotaTransitionObservation(
-                provider: provider,
+                provider: provider.instanceID,
                 remaining: currentRemaining,
                 source: currentSource,
                 resetBoundary: currentResetBoundary,
@@ -609,7 +612,7 @@ extension UsageStore {
             }
             if transition == .depleted, delivery.quotaReachedHookActive {
                 self.emitQuotaReachedHook(
-                    provider: provider,
+                    provider: provider.instanceID,
                     sessionWindow: delivery.sessionWindow,
                     snapshot: delivery.snapshot)
             }

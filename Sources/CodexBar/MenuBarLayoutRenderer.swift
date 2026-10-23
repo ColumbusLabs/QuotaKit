@@ -256,17 +256,18 @@ struct MenuBarLayoutResetKey: Hashable {
 }
 
 struct MenuBarLayoutResetText: Hashable {
-    let countdown: String?
-    let absolute: String?
+    let value: String?
 
-    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider? = nil, now: Date) {
+    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider? = nil, now: Date, absolute: Bool) {
         let metadata = provider.map { ProviderDescriptorRegistry.descriptor(for: $0).metadata }
         // Balance-only providers keep their documented legacy reset-token balance aliases.
         let fallback = metadata?.usesDetailBackedWindow == true && metadata?.balanceOnly == false
             ? nil : window?.resetDescription
-        self.countdown = window?.resetsAt
-            .map { UsageFormatter.resetCountdownDescription(from: $0, now: now) } ?? fallback
-        self.absolute = window?.resetsAt.map { UsageFormatter.resetDescription(from: $0, now: now) } ?? fallback
+        self.value = window?.resetsAt.map { date in
+            absolute
+                ? UsageFormatter.resetDescription(from: date, now: now)
+                : UsageFormatter.resetCountdownDescription(from: date, now: now)
+        } ?? fallback
     }
 }
 
@@ -457,11 +458,14 @@ final class MenuBarLayoutRenderer {
         // both, leaving VoiceOver unable to tell which value belongs to which provider. Naming the
         // provider here, independent of the visible tokens, keeps that identification correct for
         // every layout, not just the ones that happen to render it.
-        if top.attributedTitle.length == 0 {
-            return self.namingProvider(bottomProviderName, in: bottom)
-        }
-        if bottom.attributedTitle.length == 0 {
-            return self.namingProvider(topProviderName, in: top)
+        if top.attributedTitle.length == 0 || bottom.attributedTitle.length == 0 {
+            let (providerName, row) = top.attributedTitle.length == 0
+                ? (bottomProviderName, bottom) : (topProviderName, top)
+            return MenuBarLayoutRenderedTitle(
+                attributedTitle: row.attributedTitle,
+                accessibilityLabel: "\(providerName), \(row.accessibilityLabel)",
+                leadingIcon: row.leadingIcon,
+                statusImage: row.statusImage)
         }
 
         let result = NSMutableAttributedString(attributedString: top.attributedTitle)
@@ -477,17 +481,6 @@ final class MenuBarLayoutRenderer {
             accessibilityLabel: accessibilityLabel,
             leadingIcon: nil,
             statusImage: Self.statusImage(title: result, foregroundColor: .controlTextColor))
-    }
-
-    private static func namingProvider(
-        _ providerName: String,
-        in row: MenuBarLayoutRenderedTitle)
-        -> MenuBarLayoutRenderedTitle
-    {
-        MenuBarLayoutRenderedTitle(
-            attributedTitle: row.attributedTitle,
-            accessibilityLabel: "\(providerName), \(row.accessibilityLabel)",
-            leadingIcon: row.leadingIcon)
     }
 
     private static func renderUncached(
@@ -523,18 +516,10 @@ final class MenuBarLayoutRenderer {
         let isStacked = options.forceStackedStyle || renderedLines.count == 2
         let fontSize = Self.fontSize(size: options.size, isStacked: isStacked)
         let font = options.monospacedDigits
-            ? NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .regular)
-            : NSFont.systemFont(ofSize: fontSize)
+            ? NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: isStacked ? .medium : .regular)
+            : NSFont.systemFont(ofSize: fontSize, weight: isStacked ? .medium : .regular)
         let providerTintColor = data.provider.flatMap { Self.effectiveProviderTintColor(for: $0, options: options) }
-        let foregroundColor = if let providerTintColor {
-            providerTintColor
-        } else if options.highContrast {
-            NSColor.labelColor
-        } else if options.isStale {
-            NSColor.secondaryLabelColor
-        } else {
-            NSColor.controlTextColor
-        }
+        let foregroundColor = providerTintColor ?? Self.neutralForegroundColor(options)
         let isTintActive = providerTintColor != nil
         let paragraphStyle = NSMutableParagraphStyle()
         if isStacked {
@@ -811,8 +796,7 @@ final class MenuBarLayoutRenderer {
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
             var attributes = style.attributes
-            attributes[.foregroundColor] = options.highContrast ? NSColor.labelColor
-                : options.isStale ? NSColor.secondaryLabelColor : NSColor.controlTextColor
+            attributes[.foregroundColor] = Self.neutralForegroundColor(options)
             if options.colorPace, !options.highContrast,
                let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0
             {
@@ -824,20 +808,20 @@ final class MenuBarLayoutRenderer {
                 unavailableLabel: L("%@ unavailable", accessibilityPrefix),
                 accessibilityPrefix: accessibilityPrefix,
                 attributes: attributes)
-        case .resetCountdown, .resetAbsolute:
-            let text = MenuBarLayoutResetText(window: data.automatic, provider: data.provider, now: options.now)
-            return self.resetToken(
-                item.resetIsAbsolute ? text.absolute : text.countdown,
-                unavailableLabel: item.resetIsAbsolute ? L("Reset time unavailable") : L("Reset countdown unavailable"),
-                attributes: style.attributes)
-        case let .windowResetCountdown(window), let .windowResetAbsolute(window):
-            let text = MenuBarLayoutResetText(window: Self.window(window, data: data), now: options.now)
-            let label = item.editorLabel(provider: data.provider)
-            let value = item.resetIsAbsolute ? text.absolute : text.countdown
+        case .resetCountdown, .resetAbsolute, .windowResetCountdown, .windowResetAbsolute:
+            let window = item.resetWindow ?? .automatic
+            let qualified = item != .resetCountdown && item != .resetAbsolute
+            let label = qualified ? Self.windowAccessibilityLabel(window, data: data) : L("Resets")
+            let text = MenuBarLayoutResetText(
+                window: Self.window(window, data: data),
+                provider: data.provider,
+                now: options.now,
+                absolute: item.resetIsAbsolute)
             return self.optionalTextToken(
-                value,
-                unavailableLabel: L("%@ unavailable", label),
-                accessibilityText: value.map { L("%@: %@", Self.windowAccessibilityLabel(window, data: data), $0) },
+                text.value,
+                unavailableLabel: qualified ? L("%@ unavailable", item.editorLabel(provider: data.provider))
+                    : (item.resetIsAbsolute ? L("Reset time unavailable") : L("Reset countdown unavailable")),
+                accessibilityText: text.value.map { qualified ? L("%@: %@", label, $0) : "\(label) \($0)" },
                 attributes: style.attributes)
         case .runsOut, .runsOutCompact:
             let isCompact = item == .runsOutCompact
@@ -1039,6 +1023,10 @@ final class MenuBarLayoutRenderer {
         return tintedImage
     }
 
+    private static func neutralForegroundColor(_ options: MenuBarLayoutRenderOptions) -> NSColor {
+        options.highContrast ? .labelColor : options.isStale ? .secondaryLabelColor : .controlTextColor
+    }
+
     /// Provider color is decoration; native monochrome owns stale, selected and accessible states.
     static func effectiveProviderTintColor(
         for provider: UsageProvider,
@@ -1070,19 +1058,6 @@ final class MenuBarLayoutRenderer {
             return clamped <= 0.04045 ? clamped / 12.92 : pow((clamped + 0.055) / 1.055, 2.4)
         }
         return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
-    }
-
-    private static func resetToken(
-        _ value: String?,
-        unavailableLabel: String,
-        attributes: [NSAttributedString.Key: Any])
-        -> (value: NSAttributedString, accessibilityText: String?)
-    {
-        self.optionalTextToken(
-            value,
-            unavailableLabel: unavailableLabel,
-            accessibilityPrefix: L("Resets"),
-            attributes: attributes)
     }
 
     private static func optionalTextToken(
@@ -1176,9 +1151,13 @@ final class MenuBarLayoutRenderer {
         guard let provider = data.provider else { return nil }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
-        guard descriptor.metadata.usesDetailBackedWindow, data.session?.windowMinutes == nil else { return nil }
-        return descriptor.presentation.primarySemanticWindow == .session
-            ? data.laneLabels.primary : data.laneLabels.secondary
+        let lane: MenuBarLayoutLane = descriptor.presentation.primarySemanticWindow == .session ? .primary : .secondary
+        let label = data.laneLabels.label(for: lane)
+        let staticLabel = MenuBarLayoutLaneLabels(provider: provider, snapshot: nil).label(for: lane)
+        let renamedTaggedLane = !descriptor.menuBarMetrics.laneShortLabels.isEmpty && label != staticLabel
+        guard (descriptor.metadata.usesDetailBackedWindow && data.session?.windowMinutes == nil) || renamedTaggedLane
+        else { return nil }
+        return label
     }
 
     private static func secondaryLabel(data: MenuBarLayoutRenderData) -> String? {
@@ -1639,10 +1618,11 @@ extension MenuBarLayoutRenderer {
 }
 
 extension MenuBarLayoutRenderer {
-    /// Match the actual lane title so older saved layouts keep the correct semantic tag.
+    /// Match the actual lane title so saved layouts keep the tag for the lane's semantic role.
     private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
         guard let provider = data.provider else { return nil }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        guard !descriptor.menuBarMetrics.laneShortLabels.isEmpty else { return nil }
         let declaredLabels: [(MenuBarLayoutLane, String)] = [
             (.primary, L(descriptor.metadata.sessionLabel)),
             (.secondary, L(descriptor.metadata.weeklyLabel)),

@@ -169,6 +169,10 @@ public enum QuotaProviderList {
         // Append-only to preserve existing CloudKit subscription identifiers.
         Provider(id: "futureagi", displayName: "Future AGI"),
         Provider(id: "munito", displayName: "Munito"),
+        // Append-only: Soniox monthly budgets and Trae CN credit allowances emit transitions only
+        // when a real measured primary window is present.
+        Provider(id: "soniox", displayName: "Soniox"),
+        Provider(id: "traecn", displayName: "Trae CN"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

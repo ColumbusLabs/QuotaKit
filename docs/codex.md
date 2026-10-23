@@ -68,6 +68,12 @@ use the affected row's **Reauthenticate** action or ordinary `codex login` scope
 and intended workspace. A future CLI renewal command needs staged login and identity/workspace
 validation before committing; `promote` is not a renewal workaround. See [CLI details](cli.md#managed-codex-accounts-macos).
 
+Managed registry writes emit one bounded `codex-accounts` log entry with the operation, before/requested/written
+row counts, and success or failure. Successful managed-home deletions log the operation only. These diagnostics
+contain no account identifiers, fingerprints, email addresses, home paths, tokens, or error descriptions. Enable
+file logging in the app's Debug settings to include app mutations in the existing debug log. The records can help
+investigate a future disappearance; missing log lines alone do not prove that an external process changed the registry.
+
 ### In-process managed credential access (macOS)
 
 `ManagedCodexAccountCredentialResolver` accepts a managed-account UUID, a metadata-only account store, and

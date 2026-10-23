@@ -2759,3 +2759,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "QuotaKit → Ayarlar → Sağlayıcılar’da bir sağlayıcıyı etkinleştirin.";
 
 "monthly_daily_target_format" = "Sıfırlamaya kadar yetmesi için günde ≈ %@";
+
+"Use --provider copilot." = "--provider copilot kullanın.";
+
+"Sign in to Trae CN at trae.cn, then refresh QuotaKit." = "trae.cn üzerinden Trae CN’ye giriş yapıp QuotaKit’ı yenileyin.";
+
+"Trae CN usage response format changed." = "Trae CN kullanım yanıtının biçimi değişti.";
+
+"Show Trae CN usage" = "Trae CN kullanımını göster";
+
+"Config changed during login. Please try again." = "Giriş sırasında yapılandırma değişti. Lütfen tekrar deneyin.";
+
+"Invoice billing" = "Faturalı ödeme";
+
+"Secondary" = "İkincil";
+
+"Prepaid" = "Ön ödemeli";
+
+"Tertiary" = "Üçüncül";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "Birincil";
+
+"Trae CN request failed. Try refreshing later." = "Trae CN isteği başarısız oldu. Daha sonra yeniden yenileyin.";
+
+"Show Soniox usage" = "Soniox kullanımını göster";

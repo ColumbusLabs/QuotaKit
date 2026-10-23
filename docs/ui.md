@@ -8,7 +8,10 @@ read_when:
 # UI & icon
 
 ## Settings
-- Back and Forward revisit the panes you opened, using Command-[ and Command-] as in System Settings. Selecting a new pane after going back clears forward history; reselecting the current pane preserves it. The last pane still restores at launch, while navigation history lasts only for the current app session. Hidden Debug panes are removed from history. On macOS 26 and later, the controls share the detail header; macOS 14/15 retain the native window title and show the controls above the pane content. The native window title stays set on every version for accessibility and the Window menu. About and Acknowledgements share this history. Opening About explicitly returns to its root; reopening Settings preserves the current destination during the session. Only the pane, not a subpage or history, restores after relaunch.
+
+On macOS 26 and later, Settings uses the system split-view sidebar, toolbar, search, and scroll-edge effects. The native sidebar toggle and divider can hide or restore the sidebar; its saved width is preserved. Earlier macOS versions keep the existing sidebar and titlebar layout.
+
+- Back and Forward revisit the panes you opened, using Command-[ and Command-] as in System Settings. Selecting a new pane after going back clears forward history; reselecting the current pane preserves it. The last pane still restores at launch, while navigation history lasts only for the current app session. Hidden Debug panes are removed from history. On macOS 26 and later, the controls use the native toolbar; earlier macOS versions retain the native window title and show the controls above the pane content. The native window title stays set on every version for accessibility and the Window menu. About and Acknowledgements share this history. Opening About explicitly returns to its root; reopening Settings preserves the current destination during the session. Only the pane, not a subpage or history, restores after relaunch.
 - App copy, credential-expiry alerts, share cards, number formatting, and layout direction follow the selected app language. Widgets use the system language independently. All 23 supported languages have app catalogs and generated widget catalogs. After editing app translations or widget lookup keys, run `node Scripts/sync-widget-locales.mjs`; hosted lint verifies key coverage, format arguments, plural branches, and generated resources.
 - Usage & Spend charts group longer periods by week or month, drill into days and hours, and isolate individual sources. The amount inspector uses the reporting calendar and labels totals as recorded spend; measured zero, unavailable, and incomplete amounts remain distinct.
 - Codex settings show saved accounts with separate quota snapshots. Viewing or refreshing an account does not switch the active account; local usage remains tied to the current Codex profile.
@@ -67,7 +70,7 @@ Stacked rows with leading window labels align their values and meters after the 
   proportional. Show window labels is a separate optional setting that defaults on. These display preferences stay
   outside saved layout tokens, preserving V6 layouts and V5, V4, V3, V2, and legacy projections. Tight/Regular controls
   status-item padding. Compact stacked uses two tightly spaced lines
-  sized to fit the menu bar.
+  sized to fit the menu bar. Stacked text, including combined-provider rows, uses medium weight for legibility at every size and digit style; single-line text keeps regular weight.
 
 ### Layout tokens
 

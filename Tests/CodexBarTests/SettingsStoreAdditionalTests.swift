@@ -239,6 +239,7 @@ struct SettingsStoreAdditionalTests {
             .claude: standard.union([.primaryAndSecondary, .extraUsage]),
             .cursor: standard.union([.tertiary, .extraUsage]),
             .munito: standard.union([.extraUsage]),
+            .soniox: [.automatic, .primary],
             .gemini: standard.union([.average]),
             .perplexity: standard.union([.tertiary]),
             .opencodego: standard.union([.tertiary]),
@@ -272,6 +273,7 @@ struct SettingsStoreAdditionalTests {
             .aerostack: [.automatic, .primary],
             .sailresearch: [.automatic],
             .sofya: [.automatic],
+            .traecn: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {

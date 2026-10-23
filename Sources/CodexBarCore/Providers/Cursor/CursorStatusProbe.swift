@@ -475,6 +475,7 @@ public struct CursorStatusSnapshot: Sendable {
 
     /// Convert to UsageSnapshot for the common provider interface
     public func toUsageSnapshot(now: Date = Date()) -> UsageSnapshot {
+        let sandWindow = self.sandUsage?.extraRateWindow(now: now, resetDescription: Self.formatResetDate)
         let cursorRequests: CursorRequestUsage? = if let used = self.requestsUsed,
                                                      let limit = self.requestsLimit,
                                                      limit > 0
@@ -506,43 +507,40 @@ public struct CursorStatusSnapshot: Sendable {
 
         // Preserve QuotaKit's explicit Cursor lane contract: modern plans expose Auto/API independently,
         // legacy plans expose requests, and enterprise-only payloads keep a visible plan fallback.
-        let primary: RateWindow?
-        let secondary: RateWindow?
+        let standardPrimary: RateWindow?
+        let standardSecondary: RateWindow?
         let cursorRateWindowLayout: CursorRateWindowLayout?
         if let cursorRequests {
-            primary = billingCycleWindow(usedPercent: cursorRequests.usedPercent)
-            secondary = nil
+            standardPrimary = billingCycleWindow(usedPercent: cursorRequests.usedPercent)
+            standardSecondary = nil
             cursorRateWindowLayout = .requests
         } else if let autoWindow, let apiWindow {
-            primary = autoWindow
-            secondary = apiWindow
+            standardPrimary = autoWindow
+            standardSecondary = apiWindow
             cursorRateWindowLayout = .autoAPI
         } else if let autoWindow {
-            primary = autoWindow
-            secondary = nil
+            standardPrimary = autoWindow
+            standardSecondary = nil
             cursorRateWindowLayout = .autoOnly
         } else if let apiWindow {
-            primary = apiWindow
-            secondary = nil
+            standardPrimary = apiWindow
+            standardSecondary = nil
             cursorRateWindowLayout = .apiOnly
         } else if let planFallbackWindow {
-            primary = planFallbackWindow
-            secondary = nil
+            standardPrimary = planFallbackWindow
+            standardSecondary = nil
             cursorRateWindowLayout = .plan
         } else {
-            primary = nil
-            secondary = nil
+            standardPrimary = nil
+            standardSecondary = nil
             cursorRateWindowLayout = nil
         }
 
-        // Grok Bot is a weekly included allowance on the same Cursor account, not the monthly
-        // Total/Cursor/Third Party bars. Hide it on legacy request plans so it cannot sit next
-        // to a request quota that does not share that token-based breakdown.
-        let extraRateWindows: [NamedRateWindow]? = if cursorRequests != nil {
-            nil
-        } else {
-            self.sandUsage?.extraRateWindow(now: now, resetDescription: Self.formatResetDate).map { [$0] }
-        }
+        let weeklyProjection = self.weeklyPoolProjection(
+            sandWindow: sandWindow,
+            hasRequestQuota: cursorRequests != nil,
+            standardWindows: (primary: standardPrimary, secondary: standardSecondary),
+            now: now)
 
         // Prefer authoritative personal billing, then a personal cap or the shared team budget.
         let monthly = self.unifiedUsage?.currentMonthlyUsage(at: now)
@@ -594,10 +592,10 @@ public struct CursorStatusSnapshot: Sendable {
             loginMethod: self.membershipType.map { Self.formatMembershipType($0) },
             accountID: self.accountID)
         return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
+            primary: weeklyProjection.primary,
+            secondary: weeklyProjection.secondary,
             tertiary: nil,
-            extraRateWindows: extraRateWindows,
+            extraRateWindows: weeklyProjection.extraRateWindows,
             providerCost: providerCost,
             details: cursorRequests.map { requests in
                 [.makeSection(title: "Usage", rows: [

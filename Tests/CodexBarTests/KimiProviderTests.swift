@@ -593,8 +593,8 @@ struct KimiUsageResponseParsingTests {
 
         let response = try JSONDecoder().decode(KimiUsageResponse.self, from: Data(json.utf8))
 
-        #expect(response.usages.count == 1)
-        let usage = response.usages[0]
+        #expect(response.usages?.count == 1)
+        let usage = try #require(response.usages?.first)
         #expect(usage.scope == "FEATURE_CODING")
         #expect(usage.detail.limit == "2048")
         #expect(usage.detail.used == "375")
@@ -629,7 +629,7 @@ struct KimiUsageResponseParsingTests {
         """
 
         let response = try JSONDecoder().decode(KimiUsageResponse.self, from: Data(json.utf8))
-        #expect(response.usages.first?.limits?.isEmpty == true)
+        #expect(response.usages?.first?.limits?.isEmpty == true)
     }
 
     @Test
@@ -652,7 +652,7 @@ struct KimiUsageResponseParsingTests {
         """
 
         let response = try JSONDecoder().decode(KimiUsageResponse.self, from: Data(json.utf8))
-        #expect(response.usages.first?.limits == nil)
+        #expect(response.usages?.first?.limits == nil)
     }
 
     @Test
@@ -1113,7 +1113,7 @@ struct KimiUsageResponseParsingTests {
         """
 
         let response = try JSONDecoder().decode(KimiUsageResponse.self, from: Data(json.utf8))
-        let codingUsage = response.usages.first { $0.scope == "FEATURE_CODING" }
+        let codingUsage = response.usages?.first { $0.scope == "FEATURE_CODING" }
         #expect(codingUsage == nil)
     }
 }
@@ -1166,12 +1166,13 @@ struct KimiUsageSnapshotConversionTests {
             used: "375",
             remaining: "1673",
             resetTime: "2026-01-09T15:23:13.373329235Z")
-        let subscriptionBalance = KimiSubscriptionBalance(
+        let subscriptionBalance = KimiCreditBalance(
             feature: "FEATURE_OMNI",
             type: "SUBSCRIPTION",
             amountUsedRatio: 1,
             kimiCodeUsedRatio: nil,
-            expireTime: "2026-07-23T00:00:00Z")
+            expireTime: "2026-07-23T00:00:00Z",
+            displayName: nil)
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
@@ -1210,12 +1211,13 @@ struct KimiUsageSnapshotConversionTests {
             resetTime: "2026-01-09T15:23:13.373329235Z")
         // A live, partially-used balance (not the fully-exhausted 1.0 fixture): amountUsedRatio is a
         // real consumption ratio, so the Monthly window must track it rather than pin to 100%.
-        let subscriptionBalance = KimiSubscriptionBalance(
+        let subscriptionBalance = KimiCreditBalance(
             feature: "FEATURE_OMNI",
             type: "SUBSCRIPTION",
             amountUsedRatio: 0.7716,
             kimiCodeUsedRatio: nil,
-            expireTime: "2026-07-23T00:00:00Z")
+            expireTime: "2026-07-23T00:00:00Z",
+            displayName: nil)
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
@@ -1354,12 +1356,13 @@ struct KimiUsageSnapshotConversionTests {
             let snapshot = KimiUsageSnapshot(
                 weekly: weeklyDetail,
                 rateLimit: nil,
-                subscriptionBalance: KimiSubscriptionBalance(
+                subscriptionBalance: KimiCreditBalance(
                     feature: "FEATURE_OMNI",
                     type: "SUBSCRIPTION",
                     amountUsedRatio: .nan,
                     kimiCodeUsedRatio: nil,
-                    expireTime: nil),
+                    expireTime: nil,
+                    displayName: nil),
                 subscriptionCodeWeeklyLimit: limit,
                 updatedAt: Date())
 

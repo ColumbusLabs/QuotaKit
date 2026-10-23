@@ -4,6 +4,10 @@ import Foundation
 import Observation
 import SweetCookieKit
 
+struct UserPluginSessionQuotaAccountIdentity: Equatable {
+    let accountDiscriminator: String?
+}
+
 // MARK: - Observation helpers
 
 @MainActor
@@ -462,6 +466,10 @@ final class UsageStore {
     @ObservationIgnored var claudeHistoryFallbackEligible = false
     @ObservationIgnored var claudeHistoryFallbackActiveAccountObservation:
         ClaudeOAuthActiveAccountObservation = .changed
+    @ObservationIgnored var userPluginSessionQuotaStates: [ProviderInstanceID: SessionQuotaTransitionState] = [:]
+    @ObservationIgnored var userPluginSessionQuotaAccountIdentities:
+        [ProviderInstanceID: UserPluginSessionQuotaAccountIdentity] = [:]
+    @ObservationIgnored var userPluginSessionQuotaBaselineRequired: Set<ProviderInstanceID> = []
     @ObservationIgnored var sessionQuotaTransitionStates: [SessionQuotaStateKey: SessionQuotaTransitionState] = [:]
     @ObservationIgnored var deepseekProfileTransition: DeepSeekProfileTransition?
     @ObservationIgnored var codexSessionQuotaBaselineRequirement: CodexSessionQuotaBaselineRequirement?
@@ -477,7 +485,7 @@ final class UsageStore {
     @ObservationIgnored var providerStatusPublishedGenerations: [ProviderInstanceID: UInt64] = [:]
     /// Last observed usage fraction (0...1) per account and quota-warning lane, used
     /// to detect upward crossings of a quota_low hook rule's own threshold.
-    @ObservationIgnored var quotaLowHookUsage: [QuotaWarningStateKey: Double] = [:]
+    @ObservationIgnored var quotaLowHookUsage: [QuotaLowHookStateKey: Double] = [:]
     @ObservationIgnored var quotaLowHookConfigRevision: Int?
     @ObservationIgnored var predictivePaceWarningNotifiedKeys: Set<PredictivePaceWarningStateKey> = []
     #if DEBUG
@@ -597,6 +605,11 @@ final class UsageStore {
                 for: self.freshCodexVisibleAccountsForSnapshotHydration())
         }
         self.logStartupState()
+        self.settings.onProviderFetchIdentityChange = { [weak self] instanceID in
+            guard instanceID.firstPartyProvider == nil else { return }
+            self?.clearUserPluginHookState(instanceID, requiresSessionQuotaBaseline: true)
+        }
+        self.pruneUserPluginHookState()
         self.bindSettings()
         self.pathDebugInfo = PathDebugSnapshot(
             codexBinary: nil,

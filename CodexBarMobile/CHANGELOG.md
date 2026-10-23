@@ -14,6 +14,7 @@ current Columbus Labs product surface and recent release history.
 - Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.
 - Parallel prepaid balance and pending debit details sync from Mac to iPhone without quota widgets or alerts.
 - Claude Platform API credit grants and their quota alerts now sync from QuotaKit Mac to iPhone.
+- Soniox monthly spend and optional budgets, plus Trae CN credit usage, now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.
 
 - xAI estimated remaining credit syncs from Mac as a separate detail, preserving posted balance and adding no quota budget or alerts.
 - fal account balance and FLORA workspace balance, member limit, and month-to-date spend now sync from QuotaKit Mac to iPhone with provider branding; neither provider emits quota alerts.
@@ -57,6 +58,7 @@ current Columbus Labs product surface and recent release history.
 
 - Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.
 - Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
+- Cursor's shared weekly quota now keeps its Weekly label and quota alerts; iPhone widgets display it in Weekly mode.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.
 - A fresh historical rebuild now publishes monotonic partial progress to the

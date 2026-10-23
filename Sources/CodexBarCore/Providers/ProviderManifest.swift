@@ -62,6 +62,7 @@ public enum ProviderManifest {
         LiteLLMProviderDescriptor.descriptor,
         BifrostProviderDescriptor.descriptor,
         DeepgramProviderDescriptor.descriptor,
+        SonioxProviderDescriptor.descriptor,
         PoeProviderDescriptor.descriptor,
         ChutesProviderDescriptor.descriptor,
         NeuralWattProviderDescriptor.descriptor,
@@ -111,5 +112,6 @@ public enum ProviderManifest {
         ClaudePlatformProviderDescriptor.descriptor,
         FutureAGIProviderDescriptor.descriptor,
         MunitoProviderDescriptor.descriptor,
+        TraeCNProviderDescriptor.descriptor,
     ]
 }

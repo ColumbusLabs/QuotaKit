@@ -22,8 +22,10 @@ extension UsageStore {
             }
             if current.runtime !== plugin.runtime {
                 self.providerRefreshCoordinator.invalidateRequests(for: plugin.manifest.id)
+                self.clearUserPluginHookState(plugin.manifest.id, requiresSessionQuotaBaseline: true)
             }
         }
+        self.pruneUserPluginHookState()
     }
 
     func refreshUserPlugin(_ instanceID: ProviderInstanceID) async {
@@ -86,6 +88,7 @@ extension UsageStore {
             self.snapshots[instanceID] = snapshot
             self.errors[instanceID] = nil
             self.lastSourceLabels[instanceID] = plugin.fileURL.pathExtension.lowercased()
+            self.emitUserPluginHooks(provider: instanceID, snapshot: snapshot)
         } catch {
             guard canPublish() else { return }
             self.errors[instanceID] = error.localizedDescription
@@ -98,6 +101,7 @@ extension UsageStore {
         self.snapshots.removeValue(forKey: instanceID)
         self.errors.removeValue(forKey: instanceID)
         self.lastSourceLabels.removeValue(forKey: instanceID)
+        self.clearUserPluginHookState(instanceID, requiresSessionQuotaBaseline: true)
     }
 
     func approveUserPlugin(_ plugin: UserProviderPlugin) throws {
@@ -115,6 +119,139 @@ extension UsageStore {
         self.settings.replaceConfigAfterPluginDeletion(config)
         self.clearUserPluginState(plugin.manifest.id)
         self.refreshUserPluginDiscovery()
+    }
+
+    func emitUserPluginHooks(provider: ProviderInstanceID, snapshot: UsageSnapshot) {
+        self.resetQuotaLowHookUsageIfConfigurationChanged()
+        let account = Self.hookAccountDiscriminator(provider: provider, snapshot: snapshot)
+        let accountIdentity = UserPluginSessionQuotaAccountIdentity(accountDiscriminator: account)
+        let previousAccountIdentity = self.userPluginSessionQuotaAccountIdentities.updateValue(
+            accountIdentity,
+            forKey: provider)
+        if previousAccountIdentity.map({ $0 != accountIdentity }) == true {
+            self.userPluginSessionQuotaBaselineRequired.insert(provider)
+        }
+        let displayName = self.hookAccountDisplayName(provider: provider, snapshot: snapshot)
+        self.emitUsageUpdatedHook(provider: provider, snapshot: snapshot)
+        if self.hasQuotaHookRule(event: .quotaLow, provider: provider) {
+            for (lane, window) in [(QuotaWarningWindow.session, snapshot.primary), (.weekly, snapshot.secondary)] {
+                self.dispatchQuotaLowHooks(
+                    provider: provider,
+                    lane: QuotaLowHookLane(window: lane, windowID: nil, label: lane.displayName),
+                    rateWindow: window?.measured,
+                    accountDiscriminator: account,
+                    accountDisplayName: displayName)
+            }
+        } else {
+            self.clearQuotaLowHookUsage(provider: provider)
+        }
+
+        let session = snapshot.primary?.measured.flatMap { Self.isSessionWindow($0) ? $0 : nil }
+        if let session {
+            let requiresBaseline = self.userPluginSessionQuotaBaselineRequired.contains(provider)
+            let evaluation = SessionQuotaTransitionReducer.evaluate(
+                previous: requiresBaseline ? nil : self.userPluginSessionQuotaStates[provider],
+                observation: SessionQuotaTransitionObservation(
+                    provider: provider,
+                    remaining: session.remainingPercent,
+                    source: .primary,
+                    resetBoundary: session.resetsAt,
+                    observedAt: snapshot.updatedAt,
+                    evaluationTime: Date(),
+                    codexOwnerKey: nil),
+                notificationsEnabled: self.hasQuotaHookRule(event: .quotaReached, provider: provider),
+                forceBaseline: requiresBaseline)
+            self.userPluginSessionQuotaStates[provider] = evaluation.state
+            self.userPluginSessionQuotaBaselineRequired.remove(provider)
+            if evaluation.outcome == .depleted {
+                self.emitQuotaReachedHook(provider: provider, sessionWindow: (session, .primary), snapshot: snapshot)
+            }
+        } else {
+            self.userPluginSessionQuotaStates.removeValue(forKey: provider)
+        }
+
+        let key = Self.limitResetDetectorStateKey(
+            provider: provider,
+            accountIdentifier: account.map { Self.sha256Hex("\(provider.rawValue):\($0)") } ?? provider.rawValue)
+        let resetSession = session.flatMap { Self.isSemanticSessionResetWindow(($0, .primary)) ? $0 : nil }
+        let weekly = Self.genericSessionEquivalentWindowComponents(snapshot: snapshot).weekly?.window.measured
+        for (series, window) in [(PlanUtilizationSeriesName.session, resetSession), (.weekly, weekly)] {
+            guard let window else { continue }
+            let previous = series == .session
+                ? self.sessionLimitResetDetectorStates[key] : self.weeklyLimitResetDetectorStates[key]
+            guard previous.map({ snapshot.updatedAt > $0.lastObservedAt }) ?? true else { continue }
+            let transition = Self.limitResetDetectorTransition(input: LimitResetDetectorTransitionInput(
+                provider: provider,
+                snapshot: snapshot,
+                seriesName: series,
+                observation: LimitResetObservation(
+                    usedPercent: window.usedPercent,
+                    observedAt: snapshot.updatedAt,
+                    resetBoundary: window.resetsAt,
+                    source: series == .session ? .primary : nil),
+                previousState: previous,
+                requiresLowConfirmation: false,
+                suppressesCodexWeeklyResetCelebration: false,
+                codexCorrectsWeeklyBoundary: false))
+            if series == .session {
+                self.sessionLimitResetDetectorStates[key] = transition.state
+            } else {
+                self.weeklyLimitResetDetectorStates[key] = transition.state
+            }
+            if transition.shouldPost {
+                self.emitQuotaResetHook(
+                    provider: provider,
+                    window: series == .session ? .session : .weekly,
+                    usedPercent: window.usedPercent,
+                    accountLabel: displayName)
+            }
+        }
+        self.persistUserPluginResetStates()
+    }
+
+    func clearUserPluginHookState(
+        _ provider: ProviderInstanceID,
+        requiresSessionQuotaBaseline: Bool = false)
+    {
+        self.clearQuotaLowHookUsage(provider: provider)
+        self.userPluginSessionQuotaStates.removeValue(forKey: provider)
+        self.userPluginSessionQuotaAccountIdentities.removeValue(forKey: provider)
+        if requiresSessionQuotaBaseline {
+            self.userPluginSessionQuotaBaselineRequired.insert(provider)
+        } else {
+            self.userPluginSessionQuotaBaselineRequired.remove(provider)
+        }
+        let prefix = provider.rawValue + ":"
+        self.sessionLimitResetDetectorStates = self.sessionLimitResetDetectorStates.filter { !$0.key.hasPrefix(prefix) }
+        self.weeklyLimitResetDetectorStates = self.weeklyLimitResetDetectorStates.filter { !$0.key.hasPrefix(prefix) }
+        self.persistUserPluginResetStates()
+    }
+
+    func pruneUserPluginHookState() {
+        let resetIDs = (Array(self.sessionLimitResetDetectorStates.keys)
+            + Array(self.weeklyLimitResetDetectorStates.keys)).compactMap { key in
+            key.split(separator: ":", maxSplits: 1).first.flatMap { ProviderInstanceID(rawValue: String($0)) }
+        }
+        let ids = Set(resetIDs).union(self.userPluginSessionQuotaStates.keys)
+            .union(self.userPluginSessionQuotaAccountIdentities.keys)
+            .union(self.userPluginSessionQuotaBaselineRequired)
+            .union(self.quotaLowHookUsage.keys.map(\.provider))
+        for id in ids where id.firstPartyProvider == nil {
+            if UserProviderPluginRegistry.plugin(for: id) == nil || !self.settings.isPluginEnabled(id) {
+                self.clearUserPluginHookState(id)
+            }
+        }
+    }
+
+    private func persistUserPluginResetStates() {
+        self.persistPlanUtilizationStates(
+            self.sessionLimitResetDetectorStates,
+            defaultsKey: Self.sessionLimitResetDetectorDefaultsKey,
+            logName: "session")
+        self.persistPlanUtilizationStates(
+            self.weeklyLimitResetDetectorStates,
+            defaultsKey: Self.weeklyLimitResetDetectorDefaultsKey,
+            logName: "weekly")
     }
 }
 

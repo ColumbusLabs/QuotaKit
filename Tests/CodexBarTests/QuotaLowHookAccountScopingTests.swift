@@ -9,13 +9,13 @@ struct QuotaLowHookAccountScopingTests {
     func `quota_low crossing history is scoped per account`() {
         // Same provider/window/lane, different account discriminators must not share
         // history: one account's high usage must not overwrite or re-arm another's.
-        let accountA = UsageStore.QuotaWarningStateKey(
+        let accountA = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .session, accountDiscriminator: "a@example.com")
-        let accountB = UsageStore.QuotaWarningStateKey(
+        let accountB = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .session, accountDiscriminator: "b@example.com")
         #expect(accountA != accountB)
 
-        var usage: [UsageStore.QuotaWarningStateKey: Double] = [:]
+        var usage: [UsageStore.QuotaLowHookStateKey: Double] = [:]
         usage[accountA] = 0.40
         usage[accountB] = 0.95
         // Account B's observation did not clobber account A's baseline.
@@ -25,11 +25,11 @@ struct QuotaLowHookAccountScopingTests {
 
     @Test
     func `distinct windows and lanes stay independent for one account`() {
-        let session = UsageStore.QuotaWarningStateKey(
+        let session = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .session, accountDiscriminator: "a@example.com")
-        let weekly = UsageStore.QuotaWarningStateKey(
+        let weekly = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .weekly, accountDiscriminator: "a@example.com")
-        let scoped = UsageStore.QuotaWarningStateKey(
+        let scoped = UsageStore.QuotaLowHookStateKey(
             provider: .claude,
             window: .weekly,
             accountDiscriminator: "a@example.com",
@@ -40,9 +40,9 @@ struct QuotaLowHookAccountScopingTests {
     @Test
     func `inactive hooks discard quota-low baselines`() {
         let store = self.makeStore(suiteName: "QuotaLowHookAccountScopingTests-inactive")
-        let claude = UsageStore.QuotaWarningStateKey(
+        let claude = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .session, accountDiscriminator: "account")
-        let codex = UsageStore.QuotaWarningStateKey(
+        let codex = UsageStore.QuotaLowHookStateKey(
             provider: .codex, window: .session, accountDiscriminator: "account")
         store.quotaLowHookUsage = [claude: 0.4, codex: 0.5]
 
@@ -55,7 +55,7 @@ struct QuotaLowHookAccountScopingTests {
     @Test
     func `configuration revision discards quota-low baselines`() {
         let store = self.makeStore(suiteName: "QuotaLowHookAccountScopingTests-revision")
-        let key = UsageStore.QuotaWarningStateKey(
+        let key = UsageStore.QuotaLowHookStateKey(
             provider: .claude, window: .session, accountDiscriminator: "account")
         store.resetQuotaLowHookUsageIfConfigurationChanged()
         store.quotaLowHookUsage[key] = 0.4
@@ -70,12 +70,12 @@ struct QuotaLowHookAccountScopingTests {
     @Test
     func `vanished extra lanes discard quota-low baselines`() {
         let store = self.makeStore(suiteName: "QuotaLowHookAccountScopingTests-extra")
-        let retained = UsageStore.QuotaWarningStateKey(
+        let retained = UsageStore.QuotaLowHookStateKey(
             provider: .claude,
             window: .weekly,
             accountDiscriminator: "account",
             windowID: "retained")
-        let vanished = UsageStore.QuotaWarningStateKey(
+        let vanished = UsageStore.QuotaLowHookStateKey(
             provider: .claude,
             window: .weekly,
             accountDiscriminator: "account",

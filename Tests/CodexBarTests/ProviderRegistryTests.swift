@@ -198,6 +198,25 @@ struct ProviderRegistryTests {
     }
 
     @Test
+    func `Soniox and Trae CN keep upstream accents and distinct icon resources`() {
+        // Preserve the upstream CodexBar accents from Soniox 575a2446 and Trae CN 0703a0c.
+        let soniox = SonioxProviderDescriptor.descriptor.branding
+        let traeCN = TraeCNProviderDescriptor.descriptor.branding
+
+        #expect(soniox.color == ProviderColor(hex: 0x253772))
+        #expect(traeCN.color == ProviderColor(hex: 0x4D7CFE))
+        #expect(soniox.iconResourceName == "ProviderIcon-soniox")
+        #expect(traeCN.iconResourceName == "ProviderIcon-traecn")
+        #expect(soniox.iconResourceName != traeCN.iconResourceName)
+        let deepInfra = ProviderDescriptorRegistry.descriptor(for: .deepinfra).branding
+        let deepSeek = ProviderDescriptorRegistry.descriptor(for: .deepseek).branding
+        #expect(deepInfra.color == ProviderColor(hex: 0x2A3275))
+        #expect(deepSeek.color == ProviderColor(hex: 0x4D6BFE))
+        #expect(soniox.iconResourceName != deepInfra.iconResourceName)
+        #expect(traeCN.iconResourceName != deepSeek.iconResourceName)
+    }
+
+    @Test
     func `reviewed provider accents also drive widget colors`() {
         let expected: [(UsageProvider, String, String)] = [
             (.abacus, "#814EE8", "#814EE8"),
@@ -262,8 +281,11 @@ struct ProviderRegistryTests {
         ]
 
         // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
+        // Soniox #253772 is 13/255 from DeepInfra; Trae CN #4D7CFE is 17/255 from DeepSeek.
         let closeBrandColorMinimumDistances: [Set<UsageProvider>: Double] = [
             [.pi, .litellm]: 0.07,
+            [.deepinfra, .soniox]: 0.05,
+            [.deepseek, .traecn]: 0.06,
         ]
 
         let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color

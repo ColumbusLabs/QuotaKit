@@ -132,6 +132,89 @@ struct CostUsageScannerClaudeDesktopTests {
         }
     }
 
+    @Test
+    func `Cowork request id aliases deduplicate and rebuild old cache from sources`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer {
+            CostUsageScanner.evictClaudeReportMemoForTesting(provider: .claude, cacheRoot: env.cacheRoot)
+            env.cleanup()
+        }
+        let day = try env.makeLocalNoon(year: 2026, month: 10, day: 16)
+        let auditEvent: [String: Any] = [
+            "type": "assistant",
+            "timestamp": env.isoString(for: day),
+            "session_id": "cowork-session",
+            "request_id": "cowork-request",
+            "message": [
+                "id": "cowork-message",
+                "model": "claude-test-model",
+                "usage": ["input_tokens": 100, "output_tokens": 5],
+            ],
+        ]
+        var transcriptEvent = auditEvent
+        transcriptEvent["sessionId"] = transcriptEvent.removeValue(forKey: "session_id")
+        transcriptEvent["requestId"] = transcriptEvent.removeValue(forKey: "request_id")
+        let auditURL = try env.writeClaudeDesktopLocalAgentFile(
+            relativePath: "audit.jsonl", contents: env.jsonl([auditEvent]))
+        let transcriptURL = try env.writeClaudeDesktopLocalAgentProjectFile(
+            relativePath: "project/session.jsonl", contents: env.jsonl([transcriptEvent]))
+        let roots = CostUsageScanner.defaultClaudeProjectsRoots(
+            options: .init(cacheRoot: env.cacheRoot), environment: [:], homeDirectory: env.root)
+        #expect(roots.contains(auditURL.standardizedFileURL))
+        var options = CostUsageScanner.Options(claudeProjectsRoots: roots, cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 60
+
+        func recordedLoad() -> (CostUsageDailyReport, CostUsageScanner.ClaudeScanWorkMetrics) {
+            let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
+            let report = CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) {
+                CostUsageScanner.loadDailyReport(
+                    provider: .claude, since: day, until: day, now: day, options: options)
+            }
+            return (report, recorder.snapshot())
+        }
+
+        let (initial, initialWork) = recordedLoad()
+        #expect(initial.summary?.totalInputTokens == 100)
+        #expect(initial.summary?.totalOutputTokens == 5)
+        #expect(initialWork.transcriptParses == 2)
+
+        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: env.cacheRoot)
+        var legacy = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
+        let auditPath = try #require(legacy.usage.files.keys.first { $0.hasSuffix("/audit.jsonl") })
+        let row = try #require(legacy.usage.files[auditPath]?.claudeRows?.first)
+        legacy.usage.files[auditPath]?.claudeRows = [CostUsageScanner.ClaudeUsageRow(
+            dayKey: row.dayKey,
+            model: row.model,
+            sessionId: row.sessionId,
+            messageId: row.messageId,
+            requestId: nil,
+            timestampUnixMs: row.timestampUnixMs,
+            isSidechain: row.isSidechain,
+            pathRole: row.pathRole,
+            input: row.input,
+            cacheRead: row.cacheRead,
+            cacheCreate: row.cacheCreate,
+            cacheCreate1h: row.cacheCreate1h,
+            output: row.output,
+            costNanos: row.costNanos,
+            costPriced: row.costPriced,
+            isIncomplete: row.isIncomplete)]
+        legacy.usage.version = 3
+        try JSONEncoder().encode(legacy).write(to: cacheURL)
+        let auditStamp = CostUsageClaudeFileStamp.read(at: auditURL)
+        let transcriptStamp = CostUsageClaudeFileStamp.read(at: transcriptURL)
+        CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: cacheURL)
+        CostUsageScanner.evictClaudeReportMemoForTesting(provider: .claude, cacheRoot: env.cacheRoot)
+
+        let (rebuilt, work) = recordedLoad()
+        #expect(rebuilt.data == initial.data)
+        #expect(rebuilt.summary == initial.summary)
+        #expect(work.transcriptParses == 2)
+        #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).version == 4)
+        #expect(CostUsageClaudeFileStamp.read(at: auditURL) == auditStamp)
+        #expect(CostUsageClaudeFileStamp.read(at: transcriptURL) == transcriptStamp)
+    }
+
     @Test(.enabled(if: getuid() != 0, "root ignores directory permissions"))
     func `unreadable Cowork audit parent preserves cached history`() throws {
         let env = try CostUsageTestEnvironment()

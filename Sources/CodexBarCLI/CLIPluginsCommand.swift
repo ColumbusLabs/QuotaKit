@@ -85,7 +85,7 @@ extension CodexBarCLI {
                 }
                 print(json)
             } else {
-                self.printPluginSnapshot(plugin: plugin, snapshot: snapshot)
+                self.pluginSnapshotLines(plugin: plugin, snapshot: snapshot).forEach { print($0) }
             }
         } catch {
             Self.exit(code: .failure, message: error.localizedDescription, kind: .provider)
@@ -115,24 +115,44 @@ extension CodexBarCLI {
         return readLine()?.lowercased() == "y"
     }
 
-    private static func printPluginSnapshot(plugin: UserProviderPlugin, snapshot: UsageSnapshot) {
-        print(plugin.manifest.name)
-        if let primary = snapshot.primary {
-            print("Primary: \(Int(primary.usedPercent.rounded()))% used")
-        }
-        if let secondary = snapshot.secondary {
-            print("Secondary: \(Int(secondary.usedPercent.rounded()))% used")
+    static func pluginSnapshotLines(plugin: UserProviderPlugin, snapshot: UsageSnapshot) -> [String] {
+        var lines = [plugin.manifest.name]
+        for (fallback, window) in [
+            ("Primary", snapshot.primary), ("Secondary", snapshot.secondary), ("Tertiary", snapshot.tertiary),
+        ] {
+            if let window {
+                lines.append("\(window.title ?? fallback): \(Int(window.usedPercent.rounded()))% used")
+            }
         }
         if let cost = snapshot.providerCost {
-            print("Cost: \(cost.used) \(cost.currencyCode)")
+            lines.append("Cost: \(cost.used) \(cost.currencyCode)")
         }
         for section in snapshot.details {
             if let title = section.title {
-                print(title)
+                lines.append(title)
             }
             for row in section.rows {
-                print("\(row.label): \(row.value)")
+                lines.append("\(row.label): \(row.value)")
             }
+        }
+        if let identity = snapshot.identity(for: plugin.manifest.id) {
+            Self.appendPluginIdentity(identity, lines: &lines)
+        }
+        return lines
+    }
+
+    private static func appendPluginIdentity(_ identity: ProviderIdentitySnapshot, lines: inout [String]) {
+        if let email = identity.accountEmail {
+            lines.append("Account: \(email)")
+        }
+        if let organization = identity.accountOrganization {
+            lines.append("Organization: \(organization)")
+        }
+        if let loginMethod = identity.loginMethod {
+            lines.append("Plan: \(loginMethod)")
+        }
+        if let accountID = identity.accountID {
+            lines.append("Account ID: \(accountID)")
         }
     }
 }

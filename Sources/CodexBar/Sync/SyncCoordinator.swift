@@ -1114,6 +1114,12 @@ final class SyncCoordinator {
         }
 
         if provider == .cursor {
+            if let snapshot,
+               CursorProviderDescriptor.sharedWeeklyPool(snapshot: snapshot) != nil
+            {
+                return ("Weekly", nil, metadata?.opusLabel ?? "API")
+            }
+
             // Cursor's legacy projection stored Auto/API in primary/secondary,
             // while the current projection uses Total/Auto/API across all
             // three lanes. Preserve the labels that match the recorded layout
@@ -1157,14 +1163,12 @@ final class SyncCoordinator {
             pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
                 ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
                 : nil,
-            identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window, role: role))
+            identity: Self.syncRateWindowIdentity(label: label, window: window))
     }
 
     private static func syncRateWindowIdentity(
-        provider: UsageProvider,
         label: String?,
-        window: RateWindow,
-        role: SyncPaceWindowRole) -> SyncRateWindowIdentity?
+        window: RateWindow) -> SyncRateWindowIdentity?
     {
         if window.windowMinutes == 10080 {
             return .weekly
@@ -1188,9 +1192,6 @@ final class SyncCoordinator {
            (1...(24 * 60)).contains(windowMinutes)
         {
             return .session
-        }
-        if provider == .cursor, role == .weekly {
-            return .weekly
         }
         return nil
     }
@@ -1671,11 +1672,11 @@ final class SyncCoordinator {
         }
         return SyncQuotaWarningConfig(
             sessionThresholds: self.settings.resolvedQuotaWarningThresholds(
-                provider: usageProvider, window: .session),
+                provider: usageProvider.instanceID, window: .session),
             sessionEnabled: self.settings.quotaWarningEnabled(
                 provider: usageProvider, window: .session),
             weeklyThresholds: self.settings.resolvedQuotaWarningThresholds(
-                provider: usageProvider, window: .weekly),
+                provider: usageProvider.instanceID, window: .weekly),
             weeklyEnabled: self.settings.quotaWarningEnabled(
                 provider: usageProvider, window: .weekly))
     }
@@ -2049,8 +2050,8 @@ final class SyncCoordinator {
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
-             .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
+             .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe, .atlascloud, .vercel, .llmman,
+             .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi, .soniox, .traecn,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,

@@ -105,8 +105,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     static let shared = CostUsageClaudeReportMemo()
     #endif
     static let persistedVersion = 1
-    /// Bump when pricing, aliases, or report aggregation changes without new artifact stamps.
-    static let reportSemanticsVersion = 7
+    /// Bump when pricing, aliases, row identity, or report aggregation changes without new artifact stamps.
+    static let reportSemanticsVersion = 9
 
     private struct StoredEntry {
         let entry: Entry
@@ -432,7 +432,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
     /// Compact row keys; older artifacts rebuild from their source transcripts.
-    private static let schemaVersion = 3
+    private static let schemaVersion = 4
 
     #if DEBUG
     @TaskLocal static var readForTesting: (@Sendable (URL, Data.ReadingOptions) -> Data?)?
@@ -465,7 +465,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 19
+        case .claude: 20
         case .vertexai: 7
         default: preconditionFailure("unsupported cost cache provider")
         }

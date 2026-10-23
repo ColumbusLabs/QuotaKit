@@ -9,6 +9,13 @@ read_when:
 
 Copilot uses GitHub OAuth device flow and the Copilot internal usage API for primary usage. Optional budget extras use GitHub web cookies only when enabled.
 
+CLI-only setups can run `quotakit config login --provider copilot` (or add `--json` for newline-delimited login
+events). It uses the same device flow and issuer-aware account matching as the app, without opening a browser or
+accessing Keychain. On approval, QuotaKit verifies the GitHub user, stores the token in the selected config's
+`providers[].tokenAccounts`, selects and enables that account, and clears the legacy provider-level API key.
+It preserves a matched account's label and settings, and fails closed when an Enterprise legacy account cannot
+be identified safely. See [CLI configuration](cli-configuration.md#copilot-device-login).
+
 ## Data sources + fallback order
 
 1) **GitHub OAuth device flow** (user initiated)
@@ -22,8 +29,8 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
      - device flow uses `https://<enterpriseHost>/login/...`
    - Scope: `read:user`.
    - Token stored in config:
-     - `~/.quotakit/config.json` -> `providers[].apiKey` for `copilot`
-     - token accounts use `providers[].tokenAccounts`
+     - new logins and multiple accounts use `providers[].tokenAccounts`
+     - legacy provider-level tokens may remain in `providers[].apiKey` until replaced by an account login
 
 2) **Usage fetch**
    - `GET https://api.github.com/copilot_internal/user`

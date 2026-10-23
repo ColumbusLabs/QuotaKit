@@ -204,6 +204,25 @@ struct AccountIdentityComputerTests {
     }
 
     @Test
+    func `Soniox uses legacy grouping without a stable account identity`() {
+        // The organization API key is a secret credential; Soniox returns no durable account identifier.
+        #expect(AccountIdentityComputer.compute(provider: .soniox, identity: nil) == nil)
+    }
+
+    @Test
+    func `Trae CN plan label does not become an account identity`() {
+        // The plugin exposes the entitlement plan as loginMethod; the cookie and exchanged token are not identities.
+        let identity = ProviderIdentitySnapshot(
+            providerID: .traecn,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "Plan label",
+            accountID: nil)
+        #expect(AccountIdentityComputer.compute(provider: .traecn, identity: identity) == nil)
+        #expect(AccountIdentityComputer.compute(provider: .traecn, identity: nil) == nil)
+    }
+
+    @Test
     func `Non-Tier-A providers return nil for legacy iOS grouping`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
@@ -213,7 +232,7 @@ struct AccountIdentityComputerTests {
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
             .fireworks, .ibmbob, .huggingface, .museai, .lithosai, .langdock,
             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-            .claudeplatform,
+            .claudeplatform, .soniox, .traecn,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

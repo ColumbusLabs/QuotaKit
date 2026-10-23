@@ -103,6 +103,8 @@ enum ProviderBrandAsset {
         "flora",
         "futureagi",
         "munito",
+        "soniox",
+        "traecn",
         "aiand",
     ]
 

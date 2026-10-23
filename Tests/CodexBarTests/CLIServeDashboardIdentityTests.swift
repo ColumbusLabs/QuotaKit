@@ -2,6 +2,7 @@ import Commander
 import Foundation
 import Testing
 @testable import CodexBarCLI
+@testable import CodexBarCore
 
 /// `quotakit serve` defaults dashboard identity to redacted and only exposes full
 /// account identities after an explicit command-line opt-in.
@@ -40,6 +41,57 @@ struct CLIServeDashboardIdentityTests {
             provider: nil)
 
         #expect(used != remaining)
+    }
+
+    @Test
+    func `returning to an expired dashboard identity rebuilds before responding`() async throws {
+        let store = testConfigStore(suiteName: "CLIServeDashboardIdentityTests-\(UUID().uuidString)")
+        defer { try? store.deleteIfPresent() }
+        let config = CodexBarConfig(providers: UsageProvider.allCases.map {
+            ProviderConfig(id: $0.instanceID, enabled: false)
+        })
+        try store.save(config)
+        let cache = CLIServeResponseCache()
+        let showUsed = CodexBarCLI.usageBarsShowUsedFromDefaults()
+        let token = try CodexBarCLI.serveConfigCacheToken(for: config)
+        for (mode, interval, body) in [
+            (DashboardIdentityMode.redacted, 0.001, "expired-redacted-snapshot"),
+            (DashboardIdentityMode.full, 60, "fresh-full-snapshot"),
+        ] {
+            let key = try CodexBarCLI.serveDashboardOperationKey(
+                identityMode: mode, usageBarsShowUsed: showUsed, provider: nil)
+            _ = await CodexBarCLI.cachedServeResponse(
+                key: key, cache: cache, refreshInterval: interval, configFingerprint: token)
+            {
+                CLILocalHTTPResponse(status: .ok, body: Data(body.utf8))
+            }
+        }
+        try await Task.sleep(nanoseconds: 25_000_000)
+        let runtime = ServeRuntime(
+            configStore: store,
+            cache: cache,
+            providerOperations: CLIServeOperationCoordinator(),
+            costOperations: CLIServeOperationCoordinator(),
+            refreshInterval: 60,
+            requestTimeout: 5,
+            healthVersion: "0.0.0-test",
+            dashboardAuth: CLIServeDashboardAuth(bearer: "fixture-token"),
+            dashboardIdentityMode: .redacted,
+            dashboardIdentityWasExplicit: true,
+            bindHost: "127.0.0.1")
+        let response = await CodexBarCLI.handleServeRequest(CLILocalHTTPRequest(
+            method: "GET",
+            target: "/dashboard/v1/snapshot",
+            host: "localhost",
+            path: "/dashboard/v1/snapshot",
+            queryItems: [:],
+            authorization: "Bearer fixture-token"), runtime: runtime)
+
+        #expect(response.status == .ok)
+        #expect(response.body != Data("expired-redacted-snapshot".utf8))
+        await cache.operations.shutdown()
+        await runtime.providerOperations.shutdown()
+        await runtime.costOperations.shutdown()
     }
 
     @Test

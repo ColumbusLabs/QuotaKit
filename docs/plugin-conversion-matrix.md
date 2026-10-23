@@ -8,7 +8,7 @@ read_when:
 # Provider plugin conversion matrix
 
 This is the historical 67-row capability audit from 2026-08-02, retained as provenance; it is not the current provider
-catalog. The current checkout registers 106 `UsageProvider` cases. Notion remains in the audit because it was explicitly
+catalog. The current checkout registers 108 `UsageProvider` cases. Notion remains in the audit because it was explicitly
 requested by that work order, and Crof remains only as a retired historical row. See [`plugin-prototype.md`](plugin-prototype.md)
 for the prototype context.
 
@@ -132,3 +132,9 @@ with estimated cost derived from the provider's billing dates and usage meters.
 
 Munito is plugin-first. Its Admin API bearer key reads organization spend limits and account details on both plugin
 engines; it does not infer a reset time.
+
+Soniox is plugin-first. Its organization API key reads prepaid balance and current-month spend; only a positive
+reported monthly budget supplies an optional meter and alert denominator.
+
+Trae CN is plugin-first. Its browser session is exchanged for a short-lived token to read aggregate credits; the
+token is not persisted, and the plugin infers no reset or renewal.

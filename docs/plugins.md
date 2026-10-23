@@ -119,9 +119,13 @@ defineProvider({
 - `topLevel` (optional): set to `true` to give an enabled plugin its own provider-switcher tab. The default is `false`.
 - `endpoints`: 1–16 declared network origins. A fixed endpoint is a normalized HTTPS origin such as
   `https://api.example.com` (no path, query, fragment, or user info). A settings-derived endpoint is
-  `{setting: "BASE_URL", policy: "https"}`, `"https-or-loopback-http"`, or
-  `"https-or-private-network-http"`. Its setting must be declared as `plain`. The private-network policy permits
-  authenticated HTTP only to a validated private origin after exact-origin typed approval.
+  `{setting: "BASE_URL", policy: "https"}`, `{setting: "BASE_URL", policy: "https-or-loopback-http"}`, or
+  `{setting: "BASE_URL", policy: "https-or-private-network-http"}`. Its setting must be declared as `plain`.
+  A missing, empty, or whitespace-only value is required configuration, not an invalid manifest. QuotaKit identifies
+  the plugin and missing setting; fetching stays blocked until a valid endpoint is configured and approved.
+  `https-or-loopback-http` preserves the unauthenticated loopback-only rule. `https-or-private-network-http` also permits
+  authenticated HTTP for loopback, RFC 1918 IPv4, IPv4 link-local, IPv6 unique-local/link-local, and `.local` targets,
+  but only through the separate typed approval described below. Public targets always require HTTPS.
 - `auth` (optional): one of the forms below. The named secret must be a declared `secure` setting.
 - `settings`: up to 32 setting definitions. Keys contain 1–64 ASCII letters, digits, or underscores and start with a
   letter. Each entry has `key`, `title`, optional `subtitle`, and `type: "plain" | "secure"` (default `secure`).
@@ -291,7 +295,7 @@ has no usage to report, return `{ empty: true }` to clear stale plugin data. The
 
 ```js
 return {
-  primary: { usedPercent: 25, resetsAt: new Date(), windowMinutes: 300 },
+  primary: { title: "Requests", usedPercent: 25, resetsAt: new Date(), windowMinutes: 300 },
   secondary: { usedPercent: 40, resetsAt: "2026-08-10T00:00:00Z", windowMinutes: 10080 },
   tertiary: { usedPercent: 5 },
   extraWindows: [{ id: "daily", title: "Daily", window: { usedPercent: 12 } }],
@@ -316,6 +320,15 @@ Percentages must be finite and are clamped to 0–100. Window minutes are positi
 and a three-letter uppercase currency. Dates are JavaScript `Date` values or ISO-8601 strings. Snapshot identity is
 always scoped to the manifest's instance ID. Data confidence defaults to `unknown`. Details allow at most 8 sections, 24 rows per section, 120 chart points,
 and 120 characters per detail string. Wrong types and limit violations fail the whole fetch instead of truncating it.
+
+Standard windows (`primary`, `secondary`, and `tertiary`) may include an optional `title`. Generic menu cards and
+`plugins fetch` text output use it instead of Primary, Secondary, or Tertiary. Titles are trimmed, limited to 256 UTF-8
+bytes, and must be strings; omitted, null, or blank titles use the default label. JSON snapshots retain the title.
+
+Plugin cards show `resetsAt` using the app's countdown or absolute-time preference. When no usable timestamp is
+available, `resetDescription` supplies the reset text through the same formatter as built-in providers. A refresh
+failure appears alongside the last successful usage until a subsequent refresh succeeds.
+
 Rate windows may include `quotaLimit` (a positive finite number) and `quotaUnit` (`credits`, `requests`, or an
 ISO currency code) alongside `usedPercent`. Built-in provider cards use these units for monthly daily targets;
 without an absolute allowance the target remains percentage-based. Do not invent an allowance or reset date.
@@ -338,6 +351,21 @@ displayable usage or identity remains invalid unless `empty: true` is explicitly
 DeepInfra uses a bundled JavaScript plugin for API key billing.
 
 ZenMux uses the bundled `zenmux.js` plugin for management API usage.
+## External hooks
+
+Installed user plugins appear in the existing Hooks provider picker. Rules can select the manifest ID or match any
+provider. Successful, current app refreshes emit `usage_updated` with the existing primary and secondary payload.
+`quota_low` uses primary and secondary threshold crossings; `quota_reached` uses a measured primary session window.
+`quota_reset` uses the app's confirmed session/weekly reset detection: a session needs a declared cadence of at most
+six hours, and a weekly lane needs an unambiguous seven-day cadence. A durationless primary can report depletion but
+cannot report a session reset. Custom titles do not change the hook window identifiers.
+
+Hooks retain the existing opt-in commands, privacy setting, and rate limiter. Failed, cancelled, and obsolete refreshes
+never publish usage/quota hooks. Disablement, fetch-setting changes, plugin replacement, and deletion clear quota
+baselines; display-only changes preserve depletion/reset baselines. As with built-ins, `quota_low` starts a fresh
+crossing baseline after a configuration edit. These plugin events come from the macOS app; `hooks watch` keeps its
+built-in-provider polling scope. See [configuration](configuration.md#external-event-hooks) for rule and payload details.
+
 
 ## TypeScript
 
@@ -417,6 +445,10 @@ the manifest name and icon. Selecting it shows that plugin’s usage followed by
 appended-card placement. Plugin tabs also show a quota gauge from the most constrained reported seven-day window,
 otherwise the first available primary, secondary, tertiary, or extra window. The gauge follows the used/remaining
 display preference; unknown usage stays unavailable. With Merge Icons disabled, plugins retain appended-card placement.
+
+Merged meter icons render the primary window in the thick lane and the secondary window in the thin lane, following
+the used/remaining preference. When both are absent, the existing tertiary/extra-window single-meter fallback remains;
+the switcher gauge keeps its weekly-first selection.
 
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed

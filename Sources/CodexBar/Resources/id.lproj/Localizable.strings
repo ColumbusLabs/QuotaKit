@@ -2760,3 +2760,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "Aktifkan penyedia di QuotaKit → Pengaturan → Penyedia.";
 
 "monthly_daily_target_format" = "≈ %@ / hari agar cukup hingga reset";
+
+"Use --provider copilot." = "Gunakan --provider copilot.";
+
+"Sign in to Trae CN at trae.cn, then refresh QuotaKit." = "Masuk ke Trae CN di trae.cn, lalu segarkan QuotaKit.";
+
+"Trae CN usage response format changed." = "Format respons penggunaan Trae CN telah berubah.";
+
+"Show Trae CN usage" = "Tampilkan penggunaan Trae CN";
+
+"Config changed during login. Please try again." = "Konfigurasi berubah saat masuk. Silakan coba lagi.";
+
+"Invoice billing" = "Pembayaran dengan faktur";
+
+"Secondary" = "Sekunder";
+
+"Prepaid" = "Prabayar";
+
+"Tertiary" = "Tersier";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "Utama";
+
+"Trae CN request failed. Try refreshing later." = "Permintaan Trae CN gagal. Coba segarkan lagi nanti.";
+
+"Show Soniox usage" = "Tampilkan penggunaan Soniox";

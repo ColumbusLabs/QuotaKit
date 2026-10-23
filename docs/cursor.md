@@ -76,6 +76,9 @@ Manual option:
 - `POST https://cursor.com/api/dashboard/get-sand-usage-status`
   - Grok Bot weekly included usage (`usagePercent`, `nextResetTimestampUtc`). Same session cookie;
     requires `Origin: https://cursor.com`. Best-effort: a failure leaves Cursor's monthly bars intact.
+  - `isUnified: true` marks The X Subscription's shared weekly pool. When no valid request quota is present,
+    a usable pool with a current reset becomes the primary **Weekly** bar and replaces the stale monthly
+    Total/Cursor/Third Party bars; on-demand spend stays in the cost section.
 
 ## Cookie file paths
 - Safari: `~/Library/Cookies/Cookies.binarycookies`
@@ -128,10 +131,12 @@ Caching: the app holds the snapshot for an in-memory hourly TTL, keyed by the hi
 When Cursor rejects a cost request with HTTP 403, ordinary menu and spend-dashboard cost refreshes pause for at least six hours for that account and configuration, including when refresh cadence is Manual. Explicit refresh, account or cookie changes, and clearing the cost cache retry immediately. Cursor quota refreshes continue normally.
 
 ## Snapshot mapping
-- Primary/secondary: QuotaKit's explicit Cursor layout stores request, Auto, API, or plan-fallback lanes according to the `cursorRateWindowLayout` discriminator.
+- Primary: a valid legacy request quota takes precedence. Otherwise, use the plan usage percent, or the shared weekly pool for `isUnified: true` accounts with a current weekly reset. Missing or expired timing retains the prior monthly layout.
+- Secondary: Cursor's API usage is retained on legacy plans; unified weekly accounts omit the stale monthly breakdown. QuotaKit's `cursorRateWindowLayout` discriminator preserves request, Auto, API, and plan-fallback layouts.
 - Tertiary: unused for current QuotaKit Cursor snapshots; older synced snapshots remain backward-compatible.
-- Extra: Grok Bot usage from `get-sand-usage-status` when the account has a paid allowance or an unexpired trial. The current `includedLimitZero` field takes precedence over the older allowance flag. Exhausted active trials remain visible; missing, malformed, or expired trial dates do not grant an allowance. Grok Bot is not the semantic weekly window, so monthly Auto pace stays on its own bar. A paid Grok Bot allowance with a reset timestamp always uses a seven-day pace, even if Cursor reports a midweek, missing, or inconsistent period start; trial extras and allowances without a reset remain unpaced.
+- Extra: Grok Bot usage from `get-sand-usage-status` when the account has a paid allowance or an unexpired trial. The current `includedLimitZero` field takes precedence over the older allowance flag. Exhausted active trials remain visible; missing, malformed, or expired trial dates do not grant an allowance. On unified X Subscription accounts, this shared pool becomes the semantic primary/weekly window; otherwise it remains separate from monthly Cursor Auto pace. A paid Grok Bot allowance with a reset timestamp always uses a seven-day pace, even if Cursor reports a midweek, missing, or inconsistent period start; trial extras and allowances without a reset remain unpaced.
 - Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout; unknown or synthetic placeholder windows are not offered as tokens.
+- Saved Grok Bot selections continue to read the same allowance after it becomes the unified primary pool.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
 - Reset: billing cycle end date for monthly bars; paid Grok Bot uses `nextResetTimestampUtc`, even if a trial-expiry field is also present. Trial-only allowances have no recurring reset or duration because trial expiration does not replenish quota.
 

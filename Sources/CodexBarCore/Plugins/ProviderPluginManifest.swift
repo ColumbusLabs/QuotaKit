@@ -475,11 +475,7 @@ enum ProviderPluginOrigin {
         return "https://\(self.formattedHost(host))\(port == nil || port == 443 ? "" : ":\(port!)")"
     }
 
-    static func normalizedOrigin(of url: URL) throws -> String {
-        try self.normalizedOrigin(of: url, policy: .https)
-    }
-
-    static func normalizedOrigin(of url: URL, policy: ProviderPluginEndpoint.Policy) throws -> String {
+    static func normalizedOrigin(of url: URL, policy: ProviderPluginEndpoint.Policy = .https) throws -> String {
         let validator = ProviderEndpointOverrideValidator()
         let validated: URL? = switch policy {
         case .https:
@@ -508,6 +504,7 @@ enum ProviderPluginOrigin {
 public enum ProviderPluginError: LocalizedError, Sendable, Equatable {
     case load(String)
     case invalidManifest(String)
+    case endpointNotConfigured(plugin: String, setting: String)
     case networkPolicy(String)
     case http(String)
     case secretAccess(String)
@@ -519,6 +516,8 @@ public enum ProviderPluginError: LocalizedError, Sendable, Equatable {
         switch self {
         case let .load(message): "Provider plugin load failed: \(message)"
         case let .invalidManifest(message): "Invalid provider plugin manifest: \(message)"
+        case let .endpointNotConfigured(plugin, setting):
+            "\(plugin): \(UsageFormatter.localized("Configure endpoint settings")) (\(setting))"
         case let .networkPolicy(message): "Provider plugin network policy rejected the request: \(message)"
         case let .http(message): "Provider plugin HTTP error: \(message)"
         case let .secretAccess(message): "Provider plugin secret access denied: \(message)"

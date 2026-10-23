@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 106 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 108 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -163,6 +163,8 @@ complete when the available scan window covers fewer days.
 | [Claude Platform](claudeplatform.md) | Browser or manual platform.claude.com session → Console API credit balance, expiring grants, and month-to-date spend (`web`). |
 | [Future AGI](futureagi.md) | API key and secret key → billing-period usage, allowances, and estimated cost (`api`). |
 | [Munito](munito.md) | Admin API key with Read account data permission → organization spend limits, daily/monthly spend, and account details (`api`). |
+| [Soniox](soniox.md) | Organization API key → prepaid USD balance, monthly spend, and an optional budget meter (`api`). |
+| [Trae CN](traecn.md) | Dashboard cookies → signed-in account credit entitlement (`web`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -803,3 +805,15 @@ See also: `docs/provider.md` for architecture notes.
 - FLORA uses a billing-enabled API key and required workspace ID to show available balance and reported month-to-date spend.
 - Both are balance-only and do not create quota alerts or guessed resets.
 - Details: [fal](fal.md) and [FLORA](flora.md).
+
+## Soniox
+- Organization API key from Settings or SONIOX_ORG_API_KEY; project keys cannot read organization billing.
+- Shows remaining prepaid USD balance and current-month spend. A positive configured monthly budget enables an optional usage meter and reset; invoice billing does not appear as a zero balance.
+- Monthly budget alerts use the provider-reported denominator. No quota is inferred when the budget is missing or zero.
+- Details: [Soniox](soniox.md).
+
+## Trae CN
+- Signed-in dashboard cookies, imported from a supported browser or entered manually.
+- Exchanges the session for a short-lived token, then reads the account's finite credit entitlement. No API key, reset, or renewal is inferred.
+- Quota alerts use the reported aggregate allowance only when it is positive.
+- Details: [Trae CN](traecn.md).

@@ -2760,3 +2760,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "Abilita un provider in QuotaKit → Impostazioni → Provider.";
 
 "monthly_daily_target_format" = "≈ %@ / giorno per arrivare al reset";
+
+"Use --provider copilot." = "Usa --provider copilot.";
+
+"Sign in to Trae CN at trae.cn, then refresh QuotaKit." = "Accedi a Trae CN su trae.cn, quindi aggiorna QuotaKit.";
+
+"Trae CN usage response format changed." = "Il formato della risposta di utilizzo di Trae CN è cambiato.";
+
+"Show Trae CN usage" = "Mostra l’utilizzo di Trae CN";
+
+"Config changed during login. Please try again." = "La configurazione è cambiata durante l’accesso. Riprova.";
+
+"Invoice billing" = "Pagamento tramite fattura";
+
+"Secondary" = "Secondaria";
+
+"Prepaid" = "Prepagato";
+
+"Tertiary" = "Terziaria";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "Principale";
+
+"Trae CN request failed. Try refreshing later." = "La richiesta a Trae CN non è riuscita. Riprova ad aggiornare più tardi.";
+
+"Show Soniox usage" = "Mostra l’utilizzo di Soniox";

@@ -204,7 +204,7 @@ struct CostUsageClaudeFragmentTests {
 
             var replacement = CostUsageClaudeCacheArtifact()
             replacement.usage.files["replacement"] = self.file(2)
-            replacement.usage.version = 3
+            replacement.usage.version = 4
             replacement.usage.timeZoneIdentifier = Calendar.current.timeZone.identifier
             let legacyReplacement = try self.encoder.encode(replacement)
             let replaced = LockedValue(false)
@@ -242,7 +242,7 @@ struct CostUsageClaudeFragmentTests {
             var replacement = updated
             replacement.usage.files["initial"]?.size += 1
             replacement.usage.lastScanUnixMs += 1
-            replacement.usage.version = 3
+            replacement.usage.version = 4
             replacement.usage.timeZoneIdentifier = Calendar.current.timeZone.identifier
             let legacyReplacement = try self.encoder.encode(replacement)
             let replaced = LockedValue(false)

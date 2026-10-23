@@ -173,7 +173,7 @@ struct UsageMenuCardView: View {
         var cloudCredits: ProviderCostSection?
         var providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
-        let placeholder: String?
+        var placeholder: String?
         let progressColor: Color
     }
 
@@ -1445,7 +1445,11 @@ extension UsageMenuCardView.Model {
             detailIsPaceDerived: presentation.detailIsPaceDerived,
             paceOnTop: presentation.paceOnTop,
             warningMarkerPercents: Self.warningMarkerPercents(
-                thresholds: input.quotaWarningThresholds[.session],
+                thresholds: input.quotaWarningThresholds[
+                    input.provider == .cursor && input.snapshot
+                        .flatMap(CursorProviderDescriptor.sharedWeeklyPool) != nil
+                        ? .weekly : .session,
+                ],
                 showUsed: input.usageBarsShowUsed),
             sessionEquivalentDetail: Self.sessionEquivalentDetail(
                 input: input,

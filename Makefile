@@ -19,7 +19,7 @@ stop:
 	pkill -x QuotaKit || pkill -f QuotaKit.app || true
 
 check lint:
-	./Scripts/lint.sh lint
+	./Scripts/lint.sh $(if $(filter Linux,$(shell uname -s)),lint-linux,lint)
 
 format:
 	./Scripts/lint.sh format

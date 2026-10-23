@@ -108,7 +108,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v19.json")
+                == "claude-v20.json")
     }
 
     @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
@@ -134,7 +134,7 @@ struct CostUsageScannerClaudeMemoTests {
         let currentURL = CostUsageClaudeCacheIO.cacheFileURL(
             provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
         let priorURL = currentURL.deletingLastPathComponent().appendingPathComponent(
-            context == .regular ? "claude-v18.json" : "claude-history-v18.json")
+            context == .regular ? "claude-v19.json" : "claude-history-v19.json")
         let currentMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: currentURL)
         let priorMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: priorURL)
         let priorBytes = try Data(contentsOf: currentURL)
@@ -273,7 +273,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(work.cacheDecodes == 1)
         #expect(work.transcriptParses == 2)
         let rebuilt = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
-        #expect(rebuilt.usage.version == 3)
+        #expect(rebuilt.usage.version == 4)
         #expect(rebuilt.usage.files.count == 2)
         #expect(rebuilt.usage.days.count == 2)
     }
@@ -375,7 +375,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(metrics == CostUsageScanner.ClaudeScanWorkMetrics())
     }
 
-    @Test(arguments: [nil, 0, 4, 5, 6, CostUsageClaudeReportMemo.reportSemanticsVersion + 1] as [Int?])
+    @Test(arguments: [nil, 0, 4, 5, 6, 7, 8, CostUsageClaudeReportMemo.reportSemanticsVersion + 1] as [Int?])
     func `cold process rejects reports from incompatible semantics`(revision: Int?) throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

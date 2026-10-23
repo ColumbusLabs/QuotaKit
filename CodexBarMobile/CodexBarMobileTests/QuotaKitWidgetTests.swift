@@ -11,6 +11,30 @@ final class QuotaKitWidgetTests: XCTestCase {
         super.tearDown()
     }
 
+    private func makeWidgetProvider(
+        providerID: String,
+        window: SyncRateWindow) throws -> QuotaKitWidgetSnapshot.Provider
+    {
+        let now = Date(timeIntervalSince1970: 1_803_000_000)
+        let provider = ProviderUsageSnapshot(
+            providerID: providerID,
+            providerName: providerID,
+            primary: window,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            rateWindows: [window])
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Fixture Mac")
+        let widgetSnapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(from: snapshot, generatedAt: now)
+        return try XCTUnwrap(widgetSnapshot.providers.first)
+    }
+
     func testWidgetSnapshotRoundTripsWithProjectJSONCodec() throws {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
@@ -106,6 +130,113 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(decoded.lastSyncedAt, Date(timeIntervalSince1970: 1_802_999_900))
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.pace, pace)
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
+    }
+
+    func testLegacySevenDayCursorWindowKeepsWeeklyModeAndResetInWidget() throws {
+        let updatedAt = Date(timeIntervalSince1970: 1_803_000_000)
+        let reset = Date(timeIntervalSince1970: 1_803_604_800)
+        let weekly = SyncRateWindow(
+            label: "Quota",
+            usedPercent: 67,
+            windowMinutes: 10080,
+            resetsAt: reset,
+            resetDescription: nil)
+        let provider = ProviderUsageSnapshot(
+            providerID: "cursor",
+            providerName: "Cursor",
+            primary: weekly,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: updatedAt,
+            rateWindows: [weekly])
+        let synced = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: updatedAt,
+            deviceName: "Fixture Mac")
+
+        let widget = QuotaKitWidgetSnapshotBuilder.makeSnapshot(from: synced, generatedAt: updatedAt)
+        let cursor = try XCTUnwrap(widget.providers.first)
+        let window = try XCTUnwrap(cursor.primaryWindow)
+
+        XCTAssertEqual(window.identity, .weekly)
+        XCTAssertEqual(window.resetsAt, reset)
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session))
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .weekly),
+            window)
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .both),
+            window)
+        let bothWindows = QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both)
+        XCTAssertEqual(bothWindows.map(\.mode), [.weekly])
+        XCTAssertEqual(bothWindows.map(\.window), [window])
+    }
+
+    func testWidgetTreatsMonthlyCursorLegacyWeeklyIdentitiesAsSessionWindows() throws {
+        for label in ["Plan", "aUtO", "API", "Requests", "Total"] {
+            let window = SyncRateWindow(
+                label: label,
+                usedPercent: 67,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: Date(timeIntervalSince1970: 1_803_604_800),
+                resetDescription: nil,
+                identity: .weekly)
+            let cursor = try self.makeWidgetProvider(providerID: "cursor", window: window)
+            let widgetWindow = try XCTUnwrap(cursor.primaryWindow)
+
+            XCTAssertNil(widgetWindow.identity, "Expected \(label) to clear the stale weekly identity")
+            XCTAssertEqual(
+                QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session),
+                widgetWindow)
+            XCTAssertEqual(
+                QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both).map(\.mode),
+                [.session])
+        }
+    }
+
+    func testWidgetPreservesTrueWeeklyMissingCadenceAndOtherProviderIdentities() throws {
+        let trueWeekly = try self.makeWidgetProvider(
+            providerID: "cursor",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(trueWeekly.primaryWindow?.identity, .weekly)
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: trueWeekly, displayMode: .session))
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: trueWeekly, displayMode: .weekly),
+            trueWeekly.primaryWindow)
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.displayWindows(for: trueWeekly, displayMode: .both).map(\.mode),
+            [.weekly])
+
+        let missingCadence = try self.makeWidgetProvider(
+            providerID: "cursor",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(missingCadence.primaryWindow?.identity, .weekly)
+
+        let otherProvider = try self.makeWidgetProvider(
+            providerID: "kimi",
+            window: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 67,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: nil,
+                identity: .weekly))
+        XCTAssertEqual(otherProvider.primaryWindow?.identity, .weekly)
     }
 
     func testWidgetSnapshotMovesSelectedProviderFirst() {
@@ -804,6 +935,69 @@ final class QuotaKitWidgetTests: XCTestCase {
 
         XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session)?.title, "7-day")
         XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "5-hour")
+    }
+
+    func testWidgetSessionModeDoesNotTreatTypedWeeklySessionTitleAsSession() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "cursor",
+            providerName: "Cursor",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Session",
+                    usedPercent: 42,
+                    remainingPercent: 58,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .weekly),
+            ])
+
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session))
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title,
+            "Session")
+    }
+
+    func testWidgetSessionModeSkipsUntypedWeeklyTitleButKeepsUnknownLegacyFallbacks() {
+        let weeklyProvider = QuotaKitWidgetSnapshot.Provider(
+            id: "cursor",
+            providerName: "Cursor",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Weekly",
+                    usedPercent: 42,
+                    remainingPercent: 58,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: weeklyProvider, displayMode: .session))
+
+        for title in ["Quota", "30 days"] {
+            let legacyProvider = QuotaKitWidgetSnapshot.Provider(
+                id: "cursor",
+                providerName: "Cursor",
+                lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+                statusMessage: nil,
+                isError: false,
+                windows: [
+                    .init(
+                        title: title,
+                        usedPercent: 42,
+                        remainingPercent: 58,
+                        resetsAt: nil,
+                        pace: nil),
+                ])
+
+            XCTAssertEqual(
+                QuotaKitWidgetPresentation.primaryWindow(for: legacyProvider, displayMode: .session)?.title,
+                title)
+        }
     }
 
     func testWidgetBothModeTypedIdentityBeatsSlotOrder() {

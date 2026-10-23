@@ -20,9 +20,10 @@ The bundled JavaScript plugin reads `GET https://api.tavily.com/usage` with bear
 section. Credit totals come directly from Tavily, so differing search, extract, crawl, map, and research
 costs are already accounted for; QuotaKit does not turn request counts into estimated credits.
 
-A null key limit means **Unlimited**. Zero limits and unlimited keys retain their detail rows without an
-invented usage percentage. Remaining credits are the nonnegative difference between the reported cap and
-usage for that same scope. Missing or malformed required totals fail the refresh instead of becoming zero.
+A null key limit means **Unlimited**. A null pay-as-you-go limit leaves the cap unspecified and shows only
+the reported usage. Zero limits and unlimited keys retain their detail rows without an invented usage
+percentage. Remaining credits are the nonnegative difference between the reported cap and usage for that
+same scope. Missing or malformed required totals fail the refresh instead of becoming zero.
 The returned plan name identifies the account plan; no email or account ID is inferred.
 
 Tavily limits `/usage` to **10 requests per 10 minutes**, including both development and production keys.

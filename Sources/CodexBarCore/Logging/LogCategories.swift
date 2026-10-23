@@ -22,6 +22,7 @@ public enum LogCategories {
     public static let claudeCLI = Self.provider(.claude, scope: "cli")
     public static let claudeProbe = Self.provider(.claude, scope: "probe")
     public static let claudeUsage = Self.provider(.claude, scope: "usage")
+    public static let codexAccounts = "codex-accounts"
     public static let codexRPC = Self.provider(.codex, scope: "rpc")
     public static let commandcodeCookie = Self.provider(.commandcode, scope: "cookie")
     public static let commandcodeUsage = Self.provider(.commandcode, scope: "usage")

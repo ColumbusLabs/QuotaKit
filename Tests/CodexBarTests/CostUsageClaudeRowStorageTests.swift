@@ -65,7 +65,7 @@ struct CostUsageClaudeRowStorageTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         var artifact = CostUsageClaudeCacheArtifact()
-        artifact.usage.version = 3
+        artifact.usage.version = 4
         artifact.usage.files["/synthetic/first.jsonl"] = CostUsageFileUsage(
             mtimeUnixMs: 1, size: 1, days: [:], claudeRows: (0..<5000).map(self.row))
         artifact.usage.files["/synthetic/second.jsonl"] = CostUsageFileUsage(

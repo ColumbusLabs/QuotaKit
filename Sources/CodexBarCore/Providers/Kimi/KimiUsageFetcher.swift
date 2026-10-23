@@ -102,10 +102,10 @@ public struct KimiUsageFetcher: Sendable {
             transport: transport,
             grace: subscriptionGrace ?? .seconds(self.subscriptionGraceSeconds))
 
-        let codingUsage: KimiUsage
+        let codingUsage: KimiUsage?
         do {
             codingUsage = try await withTaskCancellationHandler {
-                try await self.fetchRequiredUsage(
+                try await self.fetchCodingUsage(
                     authToken: authToken,
                     region: region,
                     sessionInfo: sessionInfo,
@@ -121,22 +121,28 @@ public struct KimiUsageFetcher: Sendable {
 
         let subscription = try await enrichment.value()
 
-        let rateLimit = codingUsage.limits?.first
-        return KimiUsageSnapshot(
-            weekly: codingUsage.detail,
+        let rateLimit = codingUsage?.limits?.first
+        let snapshot = KimiUsageSnapshot(
+            weekly: codingUsage?.detail,
             rateLimit: rateLimit?.detail,
             rateLimitWindow: rateLimit?.window,
             subscriptionBalance: subscription.stats?.subscriptionBalance,
             subscriptionCodeWeeklyLimit: subscription.stats?.ratelimitCode7d,
+            giftBalances: subscription.stats?.giftBalances,
             planName: subscription.planName,
             updatedAt: now)
+        // A lapsed Code plan can still have a usable membership quota.
+        if codingUsage == nil, snapshot.toUsageSnapshot().extraRateWindows?.isEmpty != false {
+            throw KimiAPIError.parseFailed("FEATURE_CODING scope not found in response")
+        }
+        return snapshot
     }
 
-    private static func fetchRequiredUsage(
+    private static func fetchCodingUsage(
         authToken: String,
         region: KimiRegion = .china,
         sessionInfo: SessionInfo?,
-        transport: any ProviderHTTPTransport) async throws -> KimiUsage
+        transport: any ProviderHTTPTransport) async throws -> KimiUsage?
     {
         var request = self.webRequest(
             url: region.webBaseURL.appendingPathComponent("apiv2/kimi.gateway.billing.v1.BillingService/GetUsages"),
@@ -161,11 +167,7 @@ public struct KimiUsageFetcher: Sendable {
         }
 
         let usageResponse = try JSONDecoder().decode(KimiUsageResponse.self, from: data)
-        guard let codingUsage = usageResponse.usages.first(where: { $0.scope == "FEATURE_CODING" }) else {
-            throw KimiAPIError.parseFailed("FEATURE_CODING scope not found in response")
-        }
-
-        return codingUsage
+        return usageResponse.usages?.first(where: { $0.scope == "FEATURE_CODING" })
     }
 
     private static func enrichCodeAPIUsage(
@@ -190,6 +192,7 @@ public struct KimiUsageFetcher: Sendable {
             rateLimitWindow: snapshot.rateLimitWindow,
             subscriptionBalance: subscription.stats?.subscriptionBalance,
             subscriptionCodeWeeklyLimit: subscription.stats?.ratelimitCode7d,
+            giftBalances: subscription.stats?.giftBalances,
             codeUsagePools: snapshot.codeUsagePools,
             planName: snapshot.planName ?? subscription.planName,
             updatedAt: now)
@@ -344,6 +347,11 @@ public struct KimiUsageFetcher: Sendable {
         return try JSONDecoder().decode(KimiSubscriptionStatsResponse.self, from: response.data)
     }
 
+    /// Kimi serves gift names in Chinese for unsupported languages; request Chinese only for Chinese UI.
+    static func webLanguage(for locale: Locale) -> String {
+        locale.language.languageCode?.identifier == "zh" ? "zh-CN" : "en-US"
+    }
+
     private static func webRequest(url: URL, authToken: String, sessionInfo: SessionInfo?) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -359,7 +367,7 @@ public struct KimiUsageFetcher: Sendable {
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("1", forHTTPHeaderField: "connect-protocol-version")
-        request.setValue("en-US", forHTTPHeaderField: "x-language")
+        request.setValue(Self.webLanguage(for: UsageFormatter.currentLocale()), forHTTPHeaderField: "x-language")
         request.setValue("web", forHTTPHeaderField: "x-msh-platform")
         request.setValue(TimeZone.current.identifier, forHTTPHeaderField: "r-timezone")
 

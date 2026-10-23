@@ -935,7 +935,7 @@ extension UsageStore {
                 expectedOwnerKey: context.codexLimitResetOwnerKey,
                 weeklyBoundaryEvidence: context.codexWeeklyBoundaryEvidence)
         }
-        self.emitUsageUpdatedHook(provider: provider, snapshot: backfilled, rateKey: warningAccounts.source)
+        self.emitUsageUpdatedHook(provider: provider.instanceID, snapshot: backfilled, rateKey: warningAccounts.source)
         return (backfilled, sessionRestored)
     }
 
@@ -1625,7 +1625,7 @@ extension UsageStore {
                 }
                 self.emitHook(
                     .refreshFailed,
-                    provider: provider,
+                    provider: provider.instanceID,
                     status: Self.refreshFailureHookStatus(error))
             } else {
                 self.errors[provider.instanceID] = nil

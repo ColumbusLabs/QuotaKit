@@ -311,6 +311,7 @@ extension CodexBarCLI {
           quotakit config providers [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
+          quotakit config login --provider copilot [--format text|json] [--json] [--json-only]
           quotakit config set-source --provider <name> --source auto|web|cli|oauth|api
                                      [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
@@ -327,6 +328,9 @@ extension CodexBarCLI {
           Export writes JSON to stdout unless --file is supplied. --defaults-domain selects an alternate app domain.
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
+          login performs the GitHub device-code flow for a Copilot account without opening a browser.
+          It prints the verification URL and user code, then stores the verified account in the private config file.
+          JSON mode emits newline-delimited login events; the token and polling device code are never printed.
           set-source stores a supported data source without changing provider enablement; auto clears the override.
           set-api-key stores a provider API key in the resolved config file and enables that provider by default.
           For z.ai team usage, add --usage-scope team with BigModel organization and project IDs; this stores
@@ -336,6 +340,7 @@ extension CodexBarCLI {
           quotakit config validate --format json --pretty
           quotakit config dump --pretty
           quotakit config providers
+          quotakit config login --provider copilot --json
           quotakit config enable --provider grok
           quotakit config disable --provider cursor
           quotakit config set-source --provider claude --source cli

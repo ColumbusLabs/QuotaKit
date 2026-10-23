@@ -2749,3 +2749,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "在 QuotaKit → 设置 → 提供商中启用一个提供商。";
 
 "monthly_daily_target_format" = "每天约 %@，可用至重置";
+
+"Use --provider copilot." = "请使用 --provider copilot。";
+
+"Sign in to Trae CN at trae.cn, then refresh QuotaKit." = "请在 trae.cn 登录 Trae CN，然后刷新 QuotaKit。";
+
+"Trae CN usage response format changed." = "Trae CN 用量响应格式已更改。";
+
+"Show Trae CN usage" = "显示 Trae CN 用量";
+
+"Config changed during login. Please try again." = "登录期间配置已更改。请重试。";
+
+"Invoice billing" = "账单付款";
+
+"Secondary" = "次要";
+
+"Prepaid" = "预付";
+
+"Tertiary" = "第三";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "主要";
+
+"Trae CN request failed. Try refreshing later." = "Trae CN 请求失败。请稍后尝试刷新。";
+
+"Show Soniox usage" = "显示 Soniox 用量";

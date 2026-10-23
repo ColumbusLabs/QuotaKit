@@ -63,6 +63,7 @@ enum ProviderImplementationManifest {
         { PluginAPIKeyProviderImplementation(spec: LiteLLMProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: BifrostProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: DeepgramProviderDescriptor.spec) },
+        { PluginAPIKeyProviderImplementation(spec: SonioxProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: PoeProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: ChutesProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: NeuralWattProviderDescriptor.spec) },
@@ -112,5 +113,6 @@ enum ProviderImplementationManifest {
         { PluginCookieProviderImplementation(spec: ClaudePlatformProviderDescriptor.spec) },
         { FutureAGIProviderImplementation() },
         { PluginAPIKeyProviderImplementation(spec: MunitoProviderDescriptor.spec) },
+        { PluginCookieProviderImplementation(spec: TraeCNProviderDescriptor.spec) },
     ]
 }
