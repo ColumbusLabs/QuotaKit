@@ -1621,6 +1621,149 @@
         }
       }
     },
+    "Cursor's shared weekly quota now keeps its Weekly label, quota alerts, and widget display on iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتفظ الحد الأسبوعي المشترك في Cursor الآن بتسمية Weekly وتنبيهات الحصة وعرض الأداة على iPhone."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La quota setmanal compartida de Cursor ara conserva l’etiqueta Weekly, les alertes de quota i la visualització del giny a l’iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das gemeinsame Wochenkontingent von Cursor behält auf dem iPhone jetzt die Bezeichnung Weekly, die Kontingentwarnungen und die Widget-Anzeige."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor's shared weekly quota now keeps its Weekly label, quota alerts, and widget display on iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La cuota semanal compartida de Cursor ahora conserva la etiqueta Weekly, las alertas de cuota y la visualización del widget en el iPhone."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سهمیه هفتگی مشترک Cursor اکنون برچسب Weekly، هشدارهای سهمیه و نمایش ویجت را در iPhone حفظ می‌کند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le quota hebdomadaire partagé de Cursor conserve désormais le libellé Weekly, les alertes de quota et l’affichage du widget sur iPhone."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A cota semanal compartida de Cursor agora conserva a etiqueta Weekly, os avisos de cota e a visualización do widget no iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kuota mingguan bersama Cursor kini mempertahankan label Weekly, peringatan kuota, dan tampilan widget di iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La quota settimanale condivisa di Cursor ora mantiene l’etichetta Weekly, gli avvisi di quota e la visualizzazione del widget su iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor の共有週間クォータが、iPhone で Weekly ラベル、クォータ通知、ウィジェット表示を維持するようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor의 공유 주간 할당량이 이제 iPhone에서 Weekly 레이블, 할당량 알림, 위젯 표시를 유지합니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het gedeelde weekquotum van Cursor behoudt nu het label Weekly, quota-waarschuwingen en de widgetweergave op de iPhone."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wspólny tygodniowy limit Cursor zachowuje teraz etykietę Weekly, alerty limitu i widok widżetu na iPhonie."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A cota semanal compartilhada do Cursor agora mantém o rótulo Weekly, os alertas de cota e a exibição do widget no iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Общая недельная квота Cursor теперь сохраняет метку Weekly, предупреждения о квоте и отображение виджета на iPhone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursors delade veckokvot behåller nu etiketten Weekly, kvotvarningar och widgetvisningen på iPhone."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โควตารายสัปดาห์ที่ใช้ร่วมกันของ Cursor จะแสดงป้าย Weekly การแจ้งเตือนโควตา และวิดเจ็ตบน iPhone อย่างถูกต้อง"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor'ın paylaşılan haftalık kotası artık iPhone'da Weekly etiketini, kota uyarılarını ve araç takımı görünümünü koruyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спільна тижнева квота Cursor тепер зберігає мітку Weekly, сповіщення про квоту та відображення віджета на iPhone."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hạn mức tuần dùng chung của Cursor giờ giữ nhãn Weekly, cảnh báo hạn mức và cách hiển thị tiện ích trên iPhone."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor 的共享每周额度现在会在 iPhone 上保留 Weekly 标签、额度提醒和小组件显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor 的共用每週額度現在會在 iPhone 上保留 Weekly 標籤、額度提醒和小工具顯示。"
+          }
+        }
+      }
+    },
     "$%.2f / 30d": {
       "extractionState": "manual",
       "localizations": {

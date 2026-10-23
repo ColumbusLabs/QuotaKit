@@ -58,6 +58,7 @@ current Columbus Labs product surface and recent release history.
 
 - Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.
 - Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
+- Cursor's shared weekly quota now keeps its Weekly label and quota alerts; iPhone widgets display it in Weekly mode.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.
 - A fresh historical rebuild now publishes monotonic partial progress to the

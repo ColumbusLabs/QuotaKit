@@ -33,6 +33,7 @@ enum QuotaKitWidgetPresentation {
         switch displayMode {
         case .both:
             self.sessionWindow(for: provider, allowPrimaryFallback: true)
+                ?? self.weeklyWindow(for: provider, allowPrimaryFallback: false)
         case .session:
             self.sessionWindow(for: provider, allowPrimaryFallback: true)
         case .weekly:
@@ -104,7 +105,19 @@ enum QuotaKitWidgetPresentation {
     {
         provider.windows.first(where: { $0.identity == .session })
             ?? provider.windows.first(where: self.isSessionWindow)
-            ?? (allowPrimaryFallback ? provider.windows.first : nil)
+            ?? self.primarySessionFallback(for: provider, allowed: allowPrimaryFallback)
+    }
+
+    private static func primarySessionFallback(
+        for provider: QuotaKitWidgetSnapshot.Provider,
+        allowed: Bool) -> QuotaKitWidgetSnapshot.Provider.Window?
+    {
+        guard allowed,
+              let primary = provider.windows.first,
+              primary.identity != .weekly,
+              !Self.isWeeklyWindow(primary)
+        else { return nil }
+        return primary
     }
 
     private static func sessionWindowForBothMode(
@@ -149,6 +162,9 @@ enum QuotaKitWidgetPresentation {
     }
 
     private static func isSessionWindow(_ window: QuotaKitWidgetSnapshot.Provider.Window) -> Bool {
+        if let identity = window.identity {
+            return identity == .session
+        }
         let title = window.title.localizedLowercase
         return title.contains("session")
             || title.contains("hour")

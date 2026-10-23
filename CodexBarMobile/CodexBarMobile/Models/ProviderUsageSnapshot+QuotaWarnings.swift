@@ -6,11 +6,11 @@ extension ProviderUsageSnapshot {
     /// should render for the given rate-window index.
     ///
     /// Mac's `QuotaWarningConfig` only knows two semantic windows:
-    /// `session` (index 0) and `weekly` (index 1). Providers with
-    /// additional rate windows (e.g. Perplexity's three-tier plan)
-    /// expose them at index ≥ 2; the design choice mirrors Mac, where
-    /// these extra windows have no warning config — we render the bar
-    /// without markers (`enabled = false`) rather than guessing.
+    /// `session` and `weekly`. Within the supported first two slots, use
+    /// synced identity or a seven-day cadence when available; untyped legacy
+    /// windows retain the session-at-0 / weekly-at-1 fallback. Additional
+    /// windows at index ≥ 2 have no warning config, so render without markers
+    /// (`enabled = false`) rather than guessing.
     ///
     /// When `self.quotaWarnings` is nil (old Mac pre-0.25.2, or the
     /// provider didn't map to a known `UsageProvider` enum case on
@@ -18,7 +18,19 @@ extension ProviderUsageSnapshot {
     /// sees a marker — matches the 16-cell device matrix proof in
     /// Research/020 §R7.4 (G3 + G7).
     func quotaWarning(forWindowIndex index: Int) -> (thresholds: [Int]?, enabled: Bool) {
-        switch index {
+        guard (0...1).contains(index) else { return (nil, false) }
+
+        let windows = self.displayRateWindows
+        let rateWindow = windows.indices.contains(index) ? windows[index] : nil
+        let warningIndex = if let identity = rateWindow?.identity {
+            identity == .weekly ? 1 : 0
+        } else if rateWindow?.windowMinutes == 10080 {
+            1
+        } else {
+            index
+        }
+
+        switch warningIndex {
         case 0:
             guard let cfg = self.quotaWarnings else {
                 return (SyncQuotaWarningConfig.macDefaults, true)

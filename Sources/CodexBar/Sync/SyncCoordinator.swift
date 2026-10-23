@@ -1114,6 +1114,12 @@ final class SyncCoordinator {
         }
 
         if provider == .cursor {
+            if let snapshot,
+               CursorProviderDescriptor.sharedWeeklyPool(snapshot: snapshot) != nil
+            {
+                return ("Weekly", nil, metadata?.opusLabel ?? "API")
+            }
+
             // Cursor's legacy projection stored Auto/API in primary/secondary,
             // while the current projection uses Total/Auto/API across all
             // three lanes. Preserve the labels that match the recorded layout

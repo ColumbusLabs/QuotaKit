@@ -172,6 +172,9 @@ enum QuotaKitWidgetSnapshotBuilder {
     }
 
     private static func legacyIdentity(for window: SyncRateWindow) -> SyncRateWindowIdentity? {
+        if window.windowMinutes == 10080 {
+            return .weekly
+        }
         guard let title = window.label?.localizedLowercase else { return nil }
         if title.contains("session")
             || title.contains("hour")

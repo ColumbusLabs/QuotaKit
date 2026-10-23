@@ -98,6 +98,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone."),
+                        String(
+                            localized: "Cursor's shared weekly quota now keeps its Weekly label, quota alerts, and widget display on iPhone."),
                     ]),
             ]),
         ReleaseNotesVersion(
