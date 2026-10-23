@@ -267,7 +267,7 @@ struct ClaudeCloudCreditsTests {
         let genericTitle = "Generic usage"
         let genericSection = try ProviderDetailSection(
             title: genericTitle,
-            rows: [try ProviderDetailSection.Row(label: "Usage", value: "Available")])
+            rows: [ProviderDetailSection.Row(label: "Usage", value: "Available")])
         let snapshot = try UsageSnapshot(
             primary: nil,
             secondary: nil,
