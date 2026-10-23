@@ -2049,8 +2049,8 @@ final class SyncCoordinator {
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
-             .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
-             .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
+             .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe, .atlascloud, .vercel, .llmman,
+             .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi, .soniox, .traecn,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,
