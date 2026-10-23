@@ -426,6 +426,11 @@ struct SyncQuotaWarningConfigTests {
             providerName: "Perplexity",
             primary: nil,
             secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
             rateWindows: [
                 SyncRateWindow(
                     label: "Session",
@@ -449,11 +454,6 @@ struct SyncQuotaWarningConfigTests {
                     resetDescription: nil,
                     identity: .weekly),
             ],
-            accountEmail: nil,
-            loginMethod: nil,
-            statusMessage: nil,
-            isError: false,
-            lastUpdated: Date(),
             quotaWarnings: SyncQuotaWarningConfig(sessionThresholds: [50]))
         let result = snapshot.quotaWarning(forWindowIndex: 2)
         #expect(result.thresholds == nil)
