@@ -2761,3 +2761,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "เปิดใช้งานผู้ให้บริการใน QuotaKit → การตั้งค่า → ผู้ให้บริการ";
 
 "monthly_daily_target_format" = "≈ %@ / วัน เพื่อให้ใช้ได้จนถึงการรีเซ็ต";
+
+"Use --provider copilot." = "ใช้ --provider copilot";
+
+"Sign in to Trae CN at trae.cn, then refresh CodexBar." = "ลงชื่อเข้าใช้ Trae CN ที่ trae.cn แล้วรีเฟรช CodexBar";
+
+"Trae CN usage response format changed." = "รูปแบบการตอบกลับข้อมูลการใช้งานของ Trae CN เปลี่ยนไป";
+
+"Show Trae CN usage" = "แสดงการใช้งาน Trae CN";
+
+"Config changed during login. Please try again." = "การกำหนดค่ามีการเปลี่ยนแปลงระหว่างเข้าสู่ระบบ โปรดลองอีกครั้ง";
+
+"Invoice billing" = "การชำระเงินตามใบแจ้งหนี้";
+
+"Secondary" = "รอง";
+
+"Prepaid" = "ชำระเงินล่วงหน้า";
+
+"Tertiary" = "ลำดับที่สาม";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "หลัก";
+
+"Trae CN request failed. Try refreshing later." = "คำขอ Trae CN ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+
+"Show Soniox usage" = "แสดงการใช้งาน Soniox";

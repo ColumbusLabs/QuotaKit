@@ -1584,7 +1584,7 @@ extension UsageStore {
                self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id
             { return }
             self.emitUsageUpdatedHook(
-                provider: provider,
+                provider: provider.instanceID,
                 snapshot: backfilled,
                 rateKey: Self.warningTokenAccountDiscriminator(account))
             self.scheduleSupplementalUsageUpdate(

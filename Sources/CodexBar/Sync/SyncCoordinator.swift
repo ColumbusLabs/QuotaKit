@@ -1671,11 +1671,11 @@ final class SyncCoordinator {
         }
         return SyncQuotaWarningConfig(
             sessionThresholds: self.settings.resolvedQuotaWarningThresholds(
-                provider: usageProvider, window: .session),
+                provider: usageProvider.instanceID, window: .session),
             sessionEnabled: self.settings.quotaWarningEnabled(
                 provider: usageProvider, window: .session),
             weeklyThresholds: self.settings.resolvedQuotaWarningThresholds(
-                provider: usageProvider, window: .weekly),
+                provider: usageProvider.instanceID, window: .weekly),
             weeklyEnabled: self.settings.quotaWarningEnabled(
                 provider: usageProvider, window: .weekly))
     }

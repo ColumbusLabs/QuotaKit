@@ -52,14 +52,14 @@ public enum UsageFormatter {
         return "\(revision):\(localeIdentifier)"
     }
 
-    private static func currentLocale() -> Locale {
+    static func currentLocale() -> Locale {
         self.localizationLock.lock()
         let provider = self.localeProvider
         self.localizationLock.unlock()
         return provider?() ?? Locale(identifier: "en_US_POSIX")
     }
 
-    private static func localized(_ key: String) -> String {
+    static func localized(_ key: String) -> String {
         self.localizationLock.lock()
         let provider = self.localizationProvider
         self.localizationLock.unlock()

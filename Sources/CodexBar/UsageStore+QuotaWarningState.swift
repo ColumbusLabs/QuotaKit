@@ -33,6 +33,25 @@ extension UsageStore {
         }
     }
 
+    struct QuotaLowHookStateKey: Hashable {
+        let provider: ProviderInstanceID
+        let window: QuotaWarningWindow
+        let accountDiscriminator: String?
+        let windowID: String?
+
+        init(
+            provider: ProviderInstanceID,
+            window: QuotaWarningWindow,
+            accountDiscriminator: String? = nil,
+            windowID: String? = nil)
+        {
+            self.provider = provider
+            self.window = window
+            self.accountDiscriminator = accountDiscriminator
+            self.windowID = windowID
+        }
+    }
+
     struct SessionQuotaStateKey: Hashable {
         let provider: UsageProvider
         let accountDiscriminator: String?

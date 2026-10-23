@@ -11,7 +11,7 @@ struct CostUsageClaudePersistenceBenchmarkTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         var cache = CostUsageClaudeCacheArtifact()
-        cache.usage.version = 3
+        cache.usage.version = 4
         cache.usage.timeZoneIdentifier = Calendar.current.timeZone.identifier
         cache.usage.lastScanUnixMs = 1_780_000_000_000
         for file in 0..<1000 {

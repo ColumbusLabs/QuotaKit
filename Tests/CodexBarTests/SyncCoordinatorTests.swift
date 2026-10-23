@@ -205,6 +205,7 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .codex, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .futureagi, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .munito, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .soniox, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
 
         let configuredBudget = ProviderCostSnapshot(
@@ -213,7 +214,7 @@ struct SyncCoordinatorTests {
             currencyCode: "USD",
             period: "This month",
             updatedAt: Date())
-        for provider in [UsageProvider.futureagi, .munito] {
+        for provider in [UsageProvider.futureagi, .munito, .soniox] {
             #expect(SyncCoordinator.syncBudgetSnapshot(provider: provider, providerCost: configuredBudget) ==
                 SyncBudgetSnapshot(
                     usedAmount: 2.5,

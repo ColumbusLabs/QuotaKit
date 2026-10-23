@@ -60,6 +60,7 @@ extension ProviderInstanceID {
     public static let litellm = UsageProvider.litellm.instanceID
     public static let bifrost = UsageProvider.bifrost.instanceID
     public static let deepgram = UsageProvider.deepgram.instanceID
+    public static let soniox = UsageProvider.soniox.instanceID
     public static let poe = UsageProvider.poe.instanceID
     public static let chutes = UsageProvider.chutes.instanceID
     public static let neuralwatt = UsageProvider.neuralwatt.instanceID
@@ -109,6 +110,7 @@ extension ProviderInstanceID {
     public static let claudeplatform = UsageProvider.claudeplatform.instanceID
     public static let futureagi = UsageProvider.futureagi.instanceID
     public static let munito = UsageProvider.munito.instanceID
+    public static let traecn = UsageProvider.traecn.instanceID
 }
 
 // swiftformat:enable sortDeclarations

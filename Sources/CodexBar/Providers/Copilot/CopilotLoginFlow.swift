@@ -49,7 +49,10 @@ struct CopilotLoginFlow {
             let hostWindow = parentWindow ?? Self.makeWaitingHostWindow()
             let shouldCloseHostWindow = parentWindow == nil
             let tokenTask = Task.detached(priority: .userInitiated) {
-                try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
+                try await flow.pollForToken(
+                    deviceCode: code.deviceCode,
+                    interval: code.interval,
+                    expiresIn: code.expiresIn)
             }
 
             let waitTask = Task { @MainActor in
@@ -142,18 +145,19 @@ struct CopilotLoginFlow {
         guard settings.providerConfigRevision(for: .copilot) == revision else { return nil }
         let enterpriseHost = settings.copilotEnterpriseHost
         let issuer = CopilotUsageFetcher.apiHost(enterpriseHost: enterpriseHost)
-        let match = await Self.resolveExistingAccount(
+        let match = await CopilotAccountIdentity.resolveExistingAccount(
             existingAccounts: settings.tokenAccounts(for: .copilot),
             identity: identity,
             label: label,
-            host: LoginHost(issuer: issuer, enterpriseHost: enterpriseHost),
+            issuer: issuer,
+            enterpriseHost: enterpriseHost,
             legacyIdentityResolver: legacyIdentityResolver)
         guard !Task.isCancelled,
               settings.providerConfigRevision(for: .copilot) == revision,
               case let .resolved(matchedExisting) = match,
               identity != nil || issuer == "api.github.com" && settings.tokenAccounts(for: .copilot).isEmpty
         else { return nil }
-        let externalIdentifier = identity.map { Self.externalIdentifier(for: $0, issuer: issuer) }
+        let externalIdentifier = identity.map { CopilotAccountIdentity.externalIdentifier(for: $0, issuer: issuer) }
         if let existing = matchedExisting {
             settings.updateTokenAccount(
                 provider: .copilot,
@@ -188,11 +192,12 @@ struct CopilotLoginFlow {
                     token: account.token, enterpriseHost: enterpriseHost)
             }) async -> ProviderTokenAccount?
     {
-        switch await self.resolveExistingAccount(
+        switch await CopilotAccountIdentity.resolveExistingAccount(
             existingAccounts: existingAccounts,
             identity: identity,
             label: label,
-            host: LoginHost(issuer: issuer, enterpriseHost: enterpriseHost),
+            issuer: issuer,
+            enterpriseHost: enterpriseHost,
             legacyIdentityResolver: legacyIdentityResolver)
         {
         case let .resolved(account): account
@@ -200,99 +205,11 @@ struct CopilotLoginFlow {
         }
     }
 
-    private enum AccountMatch {
-        case resolved(ProviderTokenAccount?)
-        case ambiguous
-    }
-
-    private struct LoginHost {
-        let issuer: String
-        let enterpriseHost: String?
-    }
-
-    private static func resolveExistingAccount(
-        existingAccounts: [ProviderTokenAccount],
-        identity: CopilotUsageFetcher.GitHubUserIdentity?,
-        label: String,
-        host: LoginHost,
-        legacyIdentityResolver: @escaping @Sendable (ProviderTokenAccount, String?) async
-            -> CopilotUsageFetcher.GitHubUserIdentity?) async -> AccountMatch
-    {
-        guard let identity, !existingAccounts.isEmpty else { return .resolved(nil) }
-        let stableIdentifier = self.externalIdentifier(for: identity, issuer: host.issuer)
-        let login = self.normalizedGitHubLogin(identity.login)
-
-        if let byID = existingAccounts.first(where: { account in
-            self.normalizedExternalIdentifier(account.externalIdentifier) == stableIdentifier
-        }) {
-            return .resolved(byID)
-        }
-
-        if host.issuer != "api.github.com" {
-            // An unscoped account may belong to another host. Only its saved token can prove
-            // which Enterprise issuer and user it represents. An unresolved token or multiple
-            // matches leave storage ambiguous, so do not add a duplicate or overwrite either.
-            guard let enterpriseHost = host.enterpriseHost, !enterpriseHost.isEmpty else { return .ambiguous }
-            var matched: ProviderTokenAccount?
-            var unresolved = false
-            for account in existingAccounts where account.externalIdentifier == nil {
-                guard let resolved = await legacyIdentityResolver(account, enterpriseHost) else {
-                    unresolved = true
-                    continue
-                }
-                if resolved.id == identity.id {
-                    guard matched == nil else { return .ambiguous }
-                    matched = account
-                }
-            }
-            return unresolved ? .ambiguous : .resolved(matched)
-        }
-
-        // Previous PR revisions stored GitHub login in externalIdentifier. Keep matching those
-        // accounts case-insensitively, then write back the stable ID on update.
-        if let byLegacyLogin = existingAccounts.first(where: { account in
-            self.normalizedGitHubLogin(account.externalIdentifier) == login
-        }) {
-            return .resolved(byLegacyLogin)
-        }
-
-        var labelFallback: ProviderTokenAccount?
-        for account in existingAccounts where account.externalIdentifier == nil {
-            if let resolvedIdentity = await legacyIdentityResolver(account, nil) {
-                if resolvedIdentity.id == identity.id {
-                    return .resolved(account)
-                }
-            } else if labelFallback == nil,
-                      self.displayLabelPrefix(account.label) == self.displayLabelPrefix(label)
-            {
-                labelFallback = account
-            }
-        }
-        return .resolved(labelFallback)
-    }
-
     static func externalIdentifier(
         for identity: CopilotUsageFetcher.GitHubUserIdentity,
         issuer: String = "api.github.com") -> String
     {
-        issuer == "api.github.com" ? "github:user:\(identity.id)" : "github:\(issuer):user:\(identity.id)"
-    }
-
-    private static func normalizedExternalIdentifier(_ identifier: String?) -> String? {
-        let trimmed = identifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? nil : trimmed.lowercased()
-    }
-
-    private static func normalizedGitHubLogin(_ login: String?) -> String? {
-        guard let normalized = self.normalizedExternalIdentifier(login), !normalized.hasPrefix("github:")
-        else { return nil }
-        return normalized
-    }
-
-    private static func displayLabelPrefix(_ label: String) -> String {
-        (label.components(separatedBy: " (").first ?? label)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
+        CopilotAccountIdentity.externalIdentifier(for: identity, issuer: issuer)
     }
 
     @MainActor

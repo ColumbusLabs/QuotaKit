@@ -39,6 +39,8 @@ enum MobileReleaseNotesCatalog {
                         String(localized: "Claude cloud credits now sync from Mac to iPhone."),
                         String(
                             localized: "Claude Platform credit grants now sync from QuotaKit Mac to iPhone with branded cards and quota alerts."),
+                        String(
+                            localized: "Soniox monthly spend and optional budgets, plus Trae CN credits, now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."),
                         String(localized: "Claude subscription dates now sync from Mac to iPhone."),
                         String(localized: "X API balances now sync from Mac to iPhone."),
                         String(localized: "xAI estimated remaining credit now syncs from Mac to iPhone."),

@@ -1,7 +1,7 @@
 import Foundation
 
 struct KimiUsageResponse: Codable {
-    let usages: [KimiUsage]
+    let usages: [KimiUsage]?
 }
 
 struct KimiCodeAPIUsageResponse: Codable {
@@ -87,16 +87,32 @@ struct KimiRatioPool: Codable, Sendable {
 }
 
 struct KimiSubscriptionStatsResponse: Codable, Sendable {
-    let subscriptionBalance: KimiSubscriptionBalance?
+    let subscriptionBalance: KimiCreditBalance?
     let ratelimitCode7d: KimiSubscriptionRateLimit?
+
+    /// Promotional credit pools granted on top of the subscription.
+    let giftBalances: [KimiCreditBalance]?
+
+    private enum CodingKeys: String, CodingKey { case subscriptionBalance, ratelimitCode7d, giftBalances }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.subscriptionBalance = try container.decodeIfPresent(
+            KimiCreditBalance.self,
+            forKey: .subscriptionBalance)
+        self.ratelimitCode7d = try container.decodeIfPresent(KimiSubscriptionRateLimit.self, forKey: .ratelimitCode7d)
+        // Optional gift schema drift must not reject valid subscription usage.
+        self.giftBalances = try? container.decodeIfPresent([KimiCreditBalance].self, forKey: .giftBalances)
+    }
 }
 
-struct KimiSubscriptionBalance: Codable, Sendable {
+struct KimiCreditBalance: Codable, Sendable {
     let feature: String?
     let type: String?
     let amountUsedRatio: Double?
     let kimiCodeUsedRatio: Double?
     let expireTime: String?
+    let displayName: String?
 }
 
 struct KimiSubscriptionRateLimit: Codable, Sendable {

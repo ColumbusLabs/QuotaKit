@@ -23804,6 +23804,148 @@
           }
         }
       }
+    },
+    "Soniox monthly spend and optional budgets, plus Trae CN credits, now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة الإنفاق الشهري والميزانيات الاختيارية في Soniox، إلى جانب أرصدة Trae CN، من QuotaKit على Mac إلى iPhone مع هوية المزوّد وتنبيهات الحصة."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La despesa mensual i els pressupostos opcionals de Soniox, així com els crèdits de Trae CN, ara se sincronitzen del QuotaKit per a Mac a l’iPhone amb la marca del proveïdor i alertes de quota."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox-Monatsausgaben und optionale Budgets sowie Trae-CN-Guthaben werden jetzt mit Anbieterkennzeichnung und Kontingentwarnungen von QuotaKit auf dem Mac mit dem iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox monthly spend and optional budgets, plus Trae CN credits, now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gasto mensual y los presupuestos opcionales de Soniox, además de los créditos de Trae CN, ahora se sincronizan de QuotaKit para Mac al iPhone con la marca del proveedor y alertas de cuota."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هزینهٔ ماهانه و بودجه‌های اختیاری Soniox، به‌همراه اعتبارهای Trae CN، اکنون با نشان ارائه‌دهنده و هشدارهای سهمیه از QuotaKit در Mac با iPhone همگام‌سازی می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les dépenses mensuelles et budgets facultatifs de Soniox, ainsi que les crédits Trae CN, sont maintenant synchronisés de QuotaKit sur Mac vers l’iPhone, avec la marque du fournisseur et les alertes de quota."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O gasto mensual e os orzamentos opcionais de Soniox, xunto cos créditos de Trae CN, agora sincronízanse de QuotaKit para Mac ao iPhone coa marca do provedor e avisos de cota."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengeluaran bulanan dan anggaran opsional Soniox, serta kredit Trae CN, kini disinkronkan dari QuotaKit di Mac ke iPhone dengan merek penyedia dan peringatan kuota."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La spesa mensile e i budget facoltativi di Soniox, insieme ai crediti Trae CN, ora si sincronizzano da QuotaKit per Mac a iPhone con il marchio del provider e gli avvisi di quota."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox の月間利用額と任意の予算、Trae CN のクレジットが、プロバイダーのブランド表示と利用枠アラート付きで QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox의 월간 지출과 선택 예산, Trae CN 크레딧이 이제 공급자 브랜딩 및 할당량 알림과 함께 QuotaKit Mac에서 iPhone으로 동기화됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De maandelijkse uitgaven en optionele budgetten van Soniox, plus de tegoeden van Trae CN, worden nu met providerbranding en quotameldingen van QuotaKit op de Mac naar de iPhone gesynchroniseerd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miesięczne wydatki i opcjonalne budżety Soniox oraz środki Trae CN są teraz synchronizowane z QuotaKit na Macu na iPhone’a wraz z oznaczeniem dostawcy i alertami limitu."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os gastos mensais e orçamentos opcionais do Soniox, além dos créditos do Trae CN, agora são sincronizados do QuotaKit no Mac para o iPhone com a marca do provedor e alertas de cota."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Месячные расходы и необязательные бюджеты Soniox, а также кредиты Trae CN теперь синхронизируются из QuotaKit на Mac с iPhone вместе с оформлением провайдера и уведомлениями о квотах."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox månadsutgifter och valfria budgetar, samt Trae CN-krediter, synkroniseras nu från QuotaKit på Mac till iPhone med leverantörens varumärke och kvotvarningar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ขณะนี้มีการซิงค์ค่าใช้จ่ายรายเดือนและงบประมาณเสริมของ Soniox รวมถึงเครดิตของ Trae CN จาก QuotaKit บน Mac ไปยัง iPhone พร้อมแบรนด์ผู้ให้บริการและการแจ้งเตือนโควตา"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox aylık harcamaları ve isteğe bağlı bütçeleri ile Trae CN kredileri artık sağlayıcı markası ve kota uyarılarıyla QuotaKit Mac'ten iPhone'a eşitleniyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Місячні витрати й необов’язкові бюджети Soniox, а також кредити Trae CN тепер синхронізуються з QuotaKit на Mac на iPhone з брендуванням провайдера та сповіщеннями про квоти."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chi tiêu hằng tháng và ngân sách tùy chọn của Soniox, cùng với tín dụng Trae CN, hiện được đồng bộ từ QuotaKit trên Mac sang iPhone kèm thương hiệu nhà cung cấp và cảnh báo hạn mức."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox 的月度支出和可选预算，以及 Trae CN 积分，现在会从 Mac 版 QuotaKit 同步到 iPhone，并显示服务商品牌和配额提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soniox 的每月支出與選用預算，以及 Trae CN 點數，現在會從 Mac 版 QuotaKit 同步至 iPhone，並顯示服務提供者品牌與配額提醒。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -218,6 +218,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "c939f17d29a7e29d", // Claude-only pricing preserves native Codex rows, checkpoints, and reports.
         "65175f55d6bacbca", // Exact byte-marker searches preserve native rows, checkpoints, and reports.
         "7465d609f5f2dcfb", // Opt-in export observers preserve QuotaKit saved rows and checkpoints.
         "652f5d14be9ccccf", // Revision 13 captures creator eligibility through bounded reparsing; retains ledger

@@ -18,6 +18,7 @@ Code subscription credentials.
 
 - Displays weekly request quota (from membership tier)
 - Shows current 5-hour rate limit usage
+- Shows promotional gift balances and expiry dates from web membership statistics, including Code API enrichment; gift balances remain separate from recurring quota windows and monthly blocking limits
 - Enriches Code API/CLI usage with the monthly membership pool when a web session is available
 - Automatic menu-bar usage prioritizes an exhausted monthly Total usage pool over reset Code windows; explicit window selections remain authoritative
 - API-key, Kimi Code CLI, automatic cookie, and manual cookie authentication methods
@@ -110,6 +111,10 @@ to Kimi Desktop, then refresh QuotaKit to acquire it again. Successful Code API 
 available when this optional membership enrichment is unavailable. These local checks do not verify JWT
 signatures or revoke requests already sent; the Kimi service authenticates the token.
 
+Gift credit balances are shown as separate detail rows with their remaining percentage and expiry date.
+Their displayed names follow the app language: Chinese for Chinese UI, English for other languages. Gift
+balances do not change the recurring quota bars or monthly blocking behavior.
+
 International retains its existing read-only Desktop cookie discovery. Its Cookies database uses
 WAL-aware SQLite reads, with an immutable fallback for idle WAL-mode databases that have no sidecars.
 International Desktop Local Storage is not imported, and QuotaKit never creates or modifies Desktop
@@ -176,6 +181,10 @@ When multiple sources are available, QuotaKit uses this order:
 For Code API and CLI results, sources 3–7 are best-effort enrichment only: the required Code usage remains
 available if the membership request fails. Setting **Cookie source** to **Off** disables this enrichment and
 does not inspect Kimi Desktop or browser cookies.
+
+If a Code subscription lapses and the web response omits Code pools, a usable membership quota remains
+visible without inventing empty Code bars. A response with neither Code usage nor a usable membership quota
+still fails the refresh. The separate `totalQuota` field is not treated as a Code quota window.
 
 **Note**: Browser cookie import requires Full Disk Access permission.
 

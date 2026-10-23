@@ -6,8 +6,9 @@ public struct KimiUsageSnapshot: Sendable {
     public let updatedAt: Date
     public let planName: String?
     let rateLimitWindow: KimiWindow?
-    let subscriptionBalance: KimiSubscriptionBalance?
+    let subscriptionBalance: KimiCreditBalance?
     let subscriptionCodeWeeklyLimit: KimiSubscriptionRateLimit?
+    let giftBalances: [KimiCreditBalance]?
     let codeUsagePools: KimiCodeUsagePools?
 
     public init(weekly: KimiUsageDetail?, rateLimit: KimiUsageDetail?, updatedAt: Date) {
@@ -18,8 +19,9 @@ public struct KimiUsageSnapshot: Sendable {
         weekly: KimiUsageDetail?,
         rateLimit: KimiUsageDetail?,
         rateLimitWindow: KimiWindow? = nil,
-        subscriptionBalance: KimiSubscriptionBalance?,
+        subscriptionBalance: KimiCreditBalance?,
         subscriptionCodeWeeklyLimit: KimiSubscriptionRateLimit? = nil,
+        giftBalances: [KimiCreditBalance]? = nil,
         codeUsagePools: KimiCodeUsagePools? = nil,
         planName: String? = nil,
         updatedAt: Date)
@@ -29,6 +31,7 @@ public struct KimiUsageSnapshot: Sendable {
         self.rateLimitWindow = rateLimitWindow
         self.subscriptionBalance = subscriptionBalance
         self.subscriptionCodeWeeklyLimit = subscriptionCodeWeeklyLimit
+        self.giftBalances = giftBalances
         self.planName = planName
         self.codeUsagePools = codeUsagePools
         self.updatedAt = updatedAt
@@ -197,12 +200,32 @@ extension KimiUsageSnapshot {
             primary: weeklyWindow,
             secondary: rateLimitWindow,
             extraRateWindows: extraRateWindows.isEmpty ? nil : extraRateWindows,
+            details: self.giftDetails(),
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
                 providerID: .kimi,
                 accountEmail: nil,
                 accountOrganization: nil,
                 loginMethod: self.planName))
+    }
+
+    /// Gift credits expire without replenishing and are independent of the monthly quota.
+    private func giftDetails() -> [ProviderDetailSection] {
+        let rows = (self.giftBalances ?? []).compactMap { balance -> ProviderDetailSection.Row? in
+            guard balance.feature == nil || balance.feature == "FEATURE_OMNI",
+                  balance.type == nil || balance.type == "GIFT",
+                  let ratio = balance.amountUsedRatio, ratio.isFinite, ratio >= 0 else { return nil }
+            let expiresAt = Self.parseDate(balance.expireTime)
+            if let expiresAt, expiresAt <= self.updatedAt { return nil }
+            let name = balance.displayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return .makeRow(
+                label: name.flatMap { $0.isEmpty ? nil : $0 } ?? "Bonus credits",
+                value: UsageFormatter.usageLine(remaining: (1 - ratio) * 100, used: ratio * 100, showUsed: false),
+                secondaryValue: expiresAt
+                    .map { "Expires \($0.formatted(date: .abbreviated, time: .shortened))" },
+                progress: try? .init(used: ratio, total: 1))
+        }
+        return rows.isEmpty ? [] : [.makeSection(title: "Bonus credits", rows: rows)]
     }
 
     private static func isEquivalentToWeeklyWindow(_ window: RateWindow, weeklyWindow: RateWindow?) -> Bool {

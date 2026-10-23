@@ -101,6 +101,11 @@ extension SyncCoordinator {
         {
             return nil
         }
+        if provider == .soniox, let providerCost, providerCost.limit <= 0 {
+            // Soniox reports spend without a budget when no monthly limit is configured. Do not
+            // turn that state into a misleading "$0 / $0" budget on iPhone.
+            return nil
+        }
         if provider == .grok,
            let providerCost,
            providerCost.limit <= 0,

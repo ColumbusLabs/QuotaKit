@@ -57,6 +57,12 @@ extension UsageMenuCardView.Model {
         _ row: ProviderDetailSection.Row,
         provider: UsageProvider) -> String?
     {
+        if provider == .kimi,
+           let value = row.secondaryValue,
+           value.hasPrefix("Expires ")
+        {
+            return L("Expires %@", String(value.dropFirst("Expires ".count)))
+        }
         // Localize Amp's static Tier copy while leaving provider-supplied amounts canonical.
         if provider == .amp {
             switch row.secondaryValue {

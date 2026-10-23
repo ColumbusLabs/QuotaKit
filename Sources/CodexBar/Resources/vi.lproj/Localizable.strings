@@ -2758,3 +2758,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "Bật một nhà cung cấp trong QuotaKit → Cài đặt → Nhà cung cấp.";
 
 "monthly_daily_target_format" = "≈ %@ / ngày để đủ dùng đến khi đặt lại";
+
+"Use --provider copilot." = "Dùng --provider copilot.";
+
+"Sign in to Trae CN at trae.cn, then refresh CodexBar." = "Đăng nhập vào Trae CN tại trae.cn, rồi làm mới CodexBar.";
+
+"Trae CN usage response format changed." = "Định dạng phản hồi mức sử dụng Trae CN đã thay đổi.";
+
+"Show Trae CN usage" = "Hiển thị mức sử dụng Trae CN";
+
+"Config changed during login. Please try again." = "Cấu hình đã thay đổi trong khi đăng nhập. Vui lòng thử lại.";
+
+"Invoice billing" = "Thanh toán theo hóa đơn";
+
+"Secondary" = "Phụ";
+
+"Prepaid" = "Trả trước";
+
+"Tertiary" = "Thứ ba";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "Chính";
+
+"Trae CN request failed. Try refreshing later." = "Yêu cầu Trae CN không thành công. Hãy thử làm mới sau.";
+
+"Show Soniox usage" = "Hiển thị mức sử dụng Soniox";

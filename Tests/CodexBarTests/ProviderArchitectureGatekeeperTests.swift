@@ -27,7 +27,7 @@ struct ProviderArchitectureGatekeeperTests {
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
         .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
         .tavily, .exa, .linkup, .tinyapi, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-        .claudeplatform, .futureagi, .munito,
+        .claudeplatform, .futureagi, .munito, .soniox, .traecn,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -1597,6 +1597,30 @@ struct ProviderArchitectureGatekeeperTests {
     /// Anchor literals must remain byte-for-byte single lines for exact source verification.
     private static let allowedProviderConstructs: [AllowedProviderConstruct] = [
         AllowedProviderConstruct(
+            path: "Sources/CodexBar/MenuBarLayout.swift",
+            line: 639,
+            anchor: "let windows = provider == .cursor",
+            expectedProviderIDs: ["cursor"],
+            expectedReferenceCount: 1,
+            expectedReferenceFingerprint: ["cursor@0"],
+            reason: "Keeps the persisted Grok Bot layout token attached to the promoted Cursor weekly pool."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBar/MenuCardView.swift",
+            line: 1449,
+            anchor: "input.provider == .cursor && input.snapshot",
+            expectedProviderIDs: ["cursor"],
+            expectedReferenceCount: 1,
+            expectedReferenceFingerprint: ["cursor@0"],
+            reason: "The promoted Cursor weekly pool uses weekly warning thresholds on its primary card."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBarCore/AccountMenuLayoutPlanner.swift",
+            line: 246,
+            anchor: "label: (account.provider == .cursor ? CursorProviderDescriptor.primaryLabel(snapshot: snapshot) : nil)",
+            expectedProviderIDs: ["cursor"],
+            expectedReferenceCount: 1,
+            expectedReferenceFingerprint: ["cursor@0"],
+            reason: "Compact Cursor account rows use the same verified weekly label as the full card."),
+        AllowedProviderConstruct(
             path: "Sources/CodexBar/CodexOwnershipContext.swift",
             line: 31,
             anchor: "snapshot?.accountEmail(for: .codex) ??",
@@ -1830,12 +1854,12 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuCardView+ProviderDetailLocalization.swift",
-            line: 61,
-            anchor: "if provider == .amp {",
-            expectedProviderIDs: ["amp", "openrouter"],
-            expectedReferenceCount: 2,
-            expectedReferenceFingerprint: ["amp@0", "openrouter@9"],
-            reason: "Localizes Amp's static unit/pool copy and OpenRouter's cap disclosure; balances stay canonical."),
+            line: 60,
+            anchor: "if provider == .kimi,",
+            expectedProviderIDs: ["amp", "kimi", "openrouter"],
+            expectedReferenceCount: 3,
+            expectedReferenceFingerprint: ["kimi@0", "amp@7", "openrouter@16"],
+            reason: "Kimi gift balance expiry uses the shared localized expiry phrase; server titles stay canonical."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuCardView+ProviderDetailLocalization.swift",
             line: 121,
@@ -3866,6 +3890,16 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["commandcode@0"],
             reason: "This exact warning-evaluation branch preserves provider-specific enrichment, owner, and balance semantics before threshold transitions."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBar/UsageStore+QuotaWarnings.swift",
+            line: 49,
+            anchor: "} else if provider == .cursor, let weekly = CursorProviderDescriptor.sharedWeeklyPool(snapshot: snapshot) {",
+            expectedProviderIDs: ["amp", "antigravity", "cursor", "mimo", "qoder"],
+            expectedReferenceCount: 7,
+            expectedReferenceFingerprint: [
+                "antigravity@0", "antigravity@9", "cursor@12", "mimo@16", "qoder@16", "amp@20", "amp@23",
+            ],
+            reason: "This exact warning-lane bridge preserves Antigravity windows, Cursor's unified weekly pool, balance-only suppression, and Amp labels."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+QuotaWarnings.swift",
             line: 378,

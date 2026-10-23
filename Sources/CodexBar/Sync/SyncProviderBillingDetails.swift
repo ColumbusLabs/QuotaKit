@@ -17,6 +17,7 @@ enum SyncProviderBillingDetails {
         case resetDate
         case balance
         case currencyAmount(allowNegative: Bool, allowUnavailable: Bool)
+        case fixed(Set<String>)
     }
 
     private struct SectionRule {
@@ -116,6 +117,17 @@ enum SyncProviderBillingDetails {
                 ("This month (UTC)", .currencyAmount(allowNegative: false, allowUnavailable: false)),
                 ("Spend", .currencyAmount(allowNegative: false, allowUnavailable: true)),
             ])]
+        case .soniox:
+            [.init(title: "Billing", rows: [
+                ("Prepaid", .fixed(["USD"])), ("Invoice billing", .fixed(["USD"])),
+                ("Available balance", .dollars(allowNegative: true)),
+                ("Monthly spend", .dollars(allowNegative: false)),
+                ("Monthly budget", .dollars(allowNegative: false)),
+            ])]
+        case .traecn:
+            [.init(title: "Credits", rows: [
+                ("Used", .number), ("Total", .number), ("Remaining", .number),
+            ])]
         default:
             nil
         }
@@ -165,6 +177,8 @@ enum SyncProviderBillingDetails {
                 options: .regularExpression)
             let signed = value.hasPrefix("-") ? "-\(numeric)" : numeric
             return self.number(signed).map { allowNegative || $0 >= 0 } ?? false
+        case let .fixed(values):
+            return values.contains(value)
         }
     }
 

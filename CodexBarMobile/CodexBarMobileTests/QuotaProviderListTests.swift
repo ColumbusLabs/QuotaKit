@@ -29,7 +29,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Total count is 79 with Claude Platform Future AGI and Munito quota alerts`() {
+    func `Total count is 81 after Soniox and Trae CN quota alerts`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -56,11 +56,11 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 79)
+        #expect(QuotaProviderList.providers.count == 81)
     }
 
     @Test
-    func `Subscription zone count is 237 (79 providers × 3 states)`() {
+    func `Subscription zone count is 243 (81 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -84,7 +84,7 @@ struct QuotaProviderListTests {
         // Future AGI and Munito add six append-only zones.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state).
-        #expect(QuotaProviderList.providers.count * 3 == 237)
+        #expect(QuotaProviderList.providers.count * 3 == 243)
     }
 
     @Test
@@ -306,9 +306,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 79/237 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 79)
-        #expect(QuotaProviderList.providers.count * 3 == 237)
+    func `Cause: catalog 81/243 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 81)
+        #expect(QuotaProviderList.providers.count * 3 == 243)
     }
 
     @Test
@@ -382,8 +382,9 @@ struct QuotaProviderListTests {
         let munito = QuotaProviderList.providers.first { $0.id == "munito" }
         #expect(futureAGI?.displayName == "Future AGI")
         #expect(munito?.displayName == "Munito")
-        #expect(QuotaProviderList.providers.suffix(2).map(\.id) == ["futureagi", "munito"])
-        for id in ["futureagi", "munito"] {
+        #expect(QuotaProviderList.providers.suffix(4).map(\.id) == ["futureagi", "munito", "soniox", "traecn"])
+        #expect(QuotaProviderList.providers.suffix(2).map(\.displayName) == ["Soniox", "Trae CN"])
+        for id in ["futureagi", "munito", "soniox", "traecn"] {
             for state in ["depleted", "restored", "warning"] {
                 #expect(QuotaProviderList.quotaZoneName(
                     providerID: id, state: state) == "Quota-\(id)-\(state)Zone")
@@ -438,7 +439,7 @@ struct QuotaProviderListTests {
     @Test
     func `LithosAI prepaid billing has no quota alert subscription`() {
         #expect(!QuotaProviderList.providers.contains { $0.id == "lithosai" })
-        #expect(QuotaProviderList.providers.count == 79)
+        #expect(QuotaProviderList.providers.count == 81)
     }
 
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.

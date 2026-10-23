@@ -40,6 +40,35 @@ command override and does not edit config.
 If every provider is disabled, `quotakit usage` with no `--provider` prints no text output, and
 `quotakit usage --json` prints `[]`. Passing `--provider <name>` still fetches that provider for the one command.
 
+## Copilot device login
+
+```bash
+quotakit config login --provider copilot
+quotakit config login --provider copilot --json
+```
+
+The command prints GitHub's verification URL and user code. Open the URL on any machine, enter the code,
+and authorize access. QuotaKit polls until approval, denial, expiry, or cancellation (Ctrl-C); it does not
+open a browser or access Keychain. A configured Copilot `enterpriseHost` selects the matching GitHub issuer.
+
+On approval, QuotaKit verifies the GitHub identity, saves it to the existing `providers[].tokenAccounts`,
+selects that account, and enables Copilot. Repeating login updates the matching account while preserving
+its label and settings. The legacy provider-level API key is cleared, as when adding an account in Settings.
+If config changes while login is pending, the command fails without overwriting that edit; retry against the
+updated config. Success is reported only after the private, atomic config write succeeds.
+
+JSON mode emits newline-delimited objects (one object per event; `--pretty` has no effect):
+
+```json
+{"expiresIn":900,"status":"authorization_pending","userCode":"ABCD-EFGH","verificationURI":"https://github.com/login/device"}
+{"status":"authorized"}
+```
+
+After the login flow starts, failures emit `{"status":"failed","error":"..."}` and exit nonzero. Neither
+output mode prints the access token or device code used for polling. This is an interactive setup command;
+`usage` and `serve` never start login automatically. `QUOTAKIT_CONFIG` and the legacy `CODEXBAR_CONFIG` path
+override also apply to login.
+
 ## API keys
 
 API keys are stored under the provider entry in config:

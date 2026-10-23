@@ -6,6 +6,8 @@ Artwork adopted from the reviewed steipete/CodexBar source range retains its doc
 
 | Provider | Artwork source |
 | --- | --- |
+| Soniox (monochrome) | [Soniox website](https://soniox.com/) | Official symbol path retained as a monochrome template; currentColor supports adaptive rendering. |
+| Trae CN (monochrome) | [Trae CN website](https://www.trae.cn/) | Official symbol retained as a monochrome template; currentColor supports adaptive rendering. |
 | Codex | [OpenAI Codex](https://openai.com/codex/) product artwork |
 | Antigravity | [Google Antigravity homepage PNG](https://antigravity.google/assets/image/antigravity-logo.png), retained unchanged |
 | Claude | Existing bundled silhouette with Anthropic’s documented accent `#D97757`; upstream records this as a palette-backed variant |
@@ -35,3 +37,5 @@ The retained assets are provider marks, not QuotaKit application icons. Source t
 | `Brand-ProviderIcon-mistral.svg` | `13e29ba8fa7a2a01a3086b1cf6601e72fd389ffaac3139ccd95f046cc6f53524` |
 | `Brand-ProviderIcon-muse.svg` | `b49f20f0738c318be02177b1823bc702c6007fe9c0ec20bba8641454cff20bd3` |
 | `Brand-ProviderIcon-vertexai.svg` | `17922247f3110026fd637c531d0604c67a00c9a58a6e152030f2242b9fd48a8e` |
+| `docs/logos/soniox.svg` | `3811c11ff1f9794cddbe76ffdf83b69bb8f3245fa45332a983436b62d2bd6e0f` |
+| `docs/logos/traecn.svg` | `567a5551a5204acbbfd4d89b5954c57128d605b64878169b1730b3a202067b97` |

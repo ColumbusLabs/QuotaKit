@@ -144,8 +144,8 @@ extension UsageStore {
         let resetKind: String
     }
 
-    private struct LimitResetDetectorTransitionInput {
-        let provider: UsageProvider
+    struct LimitResetDetectorTransitionInput {
+        let provider: ProviderInstanceID
         let snapshot: UsageSnapshot
         let seriesName: PlanUtilizationSeriesName
         let observation: LimitResetObservation
@@ -155,7 +155,7 @@ extension UsageStore {
         let codexCorrectsWeeklyBoundary: Bool
     }
 
-    private struct LimitResetDetectorTransition {
+    struct LimitResetDetectorTransition {
         let state: LimitResetDetectorState
         let shouldPost: Bool
         let claudeWeeklyRecoveryPending: Bool
@@ -208,7 +208,7 @@ extension UsageStore {
             return
         }
         let detectorKey = Self.limitResetDetectorStateKey(
-            provider: context.provider,
+            provider: context.provider.instanceID,
             accountIdentifier: accountIdentifier)
         let requiresLowConfirmation = context.provider == .claude
             && accountIdentifier == context.provider.rawValue
@@ -223,7 +223,7 @@ extension UsageStore {
         let previousState = states[detectorKey]
         let transition = Self.limitResetDetectorTransition(
             input: LimitResetDetectorTransitionInput(
-                provider: context.provider,
+                provider: context.provider.instanceID,
                 snapshot: context.snapshot,
                 seriesName: descriptor.seriesName,
                 observation: observation,
@@ -292,7 +292,7 @@ extension UsageStore {
         switch descriptor.seriesName {
         case .session:
             self.emitQuotaResetHook(
-                provider: context.provider,
+                provider: context.provider.instanceID,
                 window: .session,
                 usedPercent: currentUsed,
                 accountLabel: accountLabel)
@@ -304,7 +304,7 @@ extension UsageStore {
             NotificationCenter.default.post(name: .codexbarSessionLimitReset, object: event)
         case .weekly:
             self.emitQuotaResetHook(
-                provider: context.provider,
+                provider: context.provider.instanceID,
                 window: .weekly,
                 usedPercent: currentUsed,
                 accountLabel: accountLabel)
@@ -319,7 +319,7 @@ extension UsageStore {
         }
     }
 
-    private nonisolated static func limitResetDetectorTransition(
+    nonisolated static func limitResetDetectorTransition(
         input: LimitResetDetectorTransitionInput) -> LimitResetDetectorTransition
     {
         if input.provider == .codex, input.codexCorrectsWeeklyBoundary {

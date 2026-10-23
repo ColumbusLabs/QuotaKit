@@ -2725,3 +2725,29 @@
 "Enable a provider in QuotaKit → Settings → Providers." = "QuotaKit → 설정 → 제공자에서 제공자를 활성화하세요.";
 
 "monthly_daily_target_format" = "재설정까지 사용할 수 있는 하루 목표: 약 %@";
+
+"Use --provider copilot." = "--provider copilot을 사용하세요.";
+
+"Sign in to Trae CN at trae.cn, then refresh CodexBar." = "trae.cn에서 Trae CN에 로그인한 다음 CodexBar를 새로 고침하세요.";
+
+"Trae CN usage response format changed." = "Trae CN 사용량 응답 형식이 변경되었습니다.";
+
+"Show Trae CN usage" = "Trae CN 사용량 표시";
+
+"Config changed during login. Please try again." = "로그인 중에 구성이 변경되었습니다. 다시 시도하세요.";
+
+"Invoice billing" = "청구서 결제";
+
+"Secondary" = "보조";
+
+"Prepaid" = "선불";
+
+"Tertiary" = "세 번째";
+
+"Trae CN" = "Trae CN";
+
+"Primary" = "기본";
+
+"Trae CN request failed. Try refreshing later." = "Trae CN 요청에 실패했습니다. 나중에 다시 새로 고침하세요.";
+
+"Show Soniox usage" = "Soniox 사용량 표시";

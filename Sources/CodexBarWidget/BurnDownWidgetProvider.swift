@@ -74,6 +74,7 @@ enum BurnProviderChoice: String, AppEnum {
     case zenmux
     case aiand
     case zoommate
+    case soniox
     case xai
     case xapi
     case notion
@@ -111,6 +112,7 @@ enum BurnProviderChoice: String, AppEnum {
     case claudeplatform
     case futureagi
     case munito
+    case traecn
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -185,6 +187,7 @@ enum BurnProviderChoice: String, AppEnum {
         .zenmux: DisplayRepresentation(title: "ZenMux"),
         .aiand: DisplayRepresentation(title: "ai&"),
         .zoommate: DisplayRepresentation(title: "ZoomMate"),
+        .soniox: DisplayRepresentation(title: "Soniox"),
         .xai: DisplayRepresentation(title: "xAI"),
         .xapi: DisplayRepresentation(title: "X API"),
         .notion: DisplayRepresentation(title: "Notion AI"),
@@ -224,6 +227,7 @@ enum BurnProviderChoice: String, AppEnum {
         .claudeplatform: DisplayRepresentation(title: "Claude Platform"),
         .futureagi: DisplayRepresentation(title: "Future AGI"),
         .munito: DisplayRepresentation(title: "Munito"),
+        .traecn: DisplayRepresentation(title: "Trae CN"),
     ]
 
     var provider: UsageProvider? {

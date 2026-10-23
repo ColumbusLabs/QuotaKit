@@ -46,6 +46,10 @@ The provider catalog additions from upstream commits `fca039015` and `81438267f`
 | Aerostack | `#6366F1` | `#7B6CDB` | [Aerostack billing docs](https://docs.aerostack.dev/billing/); adjusted to distinguish it from OpenRouter and Langdock |
 | Sail Research | `#2C4681` | `#2C4681` | [Sail Research website](https://www.sailresearch.com/) |
 | Sofya | `#B0B820` | `#B0B820` | [Sofya website](https://sofya.co/) |
+| Soniox | `#253772` | `#253772` | Soniox provider descriptor |
+| Trae CN | `#4D7CFE` | `#4D7CFE` | Trae CN provider descriptor |
+
+Soniox and Trae CN retain their provider descriptor accents. The same colors are used by the Mac descriptors and iOS palette; Soniox is close to DeepInfra, and Trae CN is close to DeepSeek, but both pass the existing palette distinctness checks.
 
 ## Later provider-specific palette update
 

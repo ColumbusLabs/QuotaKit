@@ -172,6 +172,8 @@ Control Center host removal or placement after process exit. This does not diagn
 
 ### Run Tests Only
 
+`make check` and `make lint` run portable `lint-linux` checks on Linux and full `lint` checks on macOS.
+
 ```bash
 make test
 ```

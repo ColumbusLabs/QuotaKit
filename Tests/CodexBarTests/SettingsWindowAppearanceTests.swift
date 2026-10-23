@@ -218,25 +218,30 @@ struct SettingsWindowAppearanceTests {
         window.contentView = bridge
 
         #expect(window.styleMask.contains(.fullSizeContentView))
-        #expect(window.titlebarAppearsTransparent)
+        if #unavailable(macOS 26.0) {
+            #expect(window.titlebarAppearsTransparent)
+        }
     }
 
     @Test
-    func `settings toolbar keeps navigation controls in the titlebar on macOS 26`() {
+    func `settings titlebar follows OS availability without losing the native title`() {
+        let bridge = SettingsWindowAppearanceView()
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
             styleMask: [.titled],
             backing: .buffered,
             defer: false)
+        window.contentView = bridge
 
-        SettingsWindowToolbar.configure(window)
+        bridge.refreshWindowAppearance(for: .light, windowTitle: "General")
+        #expect(window.title == "General")
 
         if #available(macOS 26.0, *) {
-            #expect(window.titleVisibility == .hidden)
-            #expect(window.toolbar?.identifier == SettingsWindowToolbar.identifier)
-            #expect(window.toolbar?.allowsUserCustomization == false)
-            #expect(window.toolbarStyle == .unified)
+            // NavigationSplitView owns the toolbar through SwiftUI's scene bridging.
+            #expect(!window.titlebarAppearsTransparent)
+            #expect(window.titlebarSeparatorStyle == .automatic)
         } else {
+            #expect(window.titlebarAppearsTransparent)
             #expect(window.titleVisibility == .visible)
             #expect(window.toolbar == nil)
         }

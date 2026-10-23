@@ -62,6 +62,8 @@ struct ProviderColorPaletteTests {
             ("mistral", 255 / 255, 82 / 255, 41 / 255),
             ("deepseek", 77 / 255, 107 / 255, 254 / 255),
             ("deepinfra", 42 / 255, 50 / 255, 117 / 255),
+            ("soniox", 37 / 255, 55 / 255, 114 / 255),
+            ("traecn", 77 / 255, 124 / 255, 254 / 255),
             ("sub2api", 20 / 255, 184 / 255, 166 / 255),
             ("devin", 49 / 255, 124 / 255, 255 / 255),
             ("codebuff", 0, 255 / 255, 149 / 255),
@@ -252,7 +254,7 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
 }
 
 private let knownDistinctProviders = [
-    "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
+    "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego", "soniox", "traecn",
     "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "futureagi", "munito", "gitkraken", "antigravity",
     "pi",
     "copilot",
@@ -278,6 +280,8 @@ private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["minimax", "amp"]: 0.07,
     ["abacus", "commandcode"]: 0.08,
     ["litellm", "clinepass"]: 0.065,
+    ["soniox", "deepinfra"]: 0.04,
+    ["traecn", "deepseek"]: 0.06,
     // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
     ["pi", "litellm"]: 0.07,
 ]

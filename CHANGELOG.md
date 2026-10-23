@@ -5,6 +5,15 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-10-23)
+
+- Add Soniox organization spend and Trae CN usage across the Mac and iPhone provider catalog.
+- Show Kimi gift expiry and lapsed-plan usage, Cursor’s active weekly pool, and Tavily spending without a configured PAYG cap.
+- Avoid Kiro background sign-in tabs; add Copilot CLI device-code login and redacted managed Codex account diagnostics.
+- Rebuild stale Claude Cowork costs, add published model pricing, and distinguish unavailable web limits.
+- Use native Settings on macOS 26, improve stacked menu text, and avoid unnecessary reset formatting.
+- Show plugin refresh errors, named windows and resets; support opt-in usage/quota hooks with account and privacy safeguards.
+
 ## Unreleased upstream integration (2026-10-22)
 
 - Preserve Grok weekly credit windows on validated zero-usage weeks, named Antigravity model quotas, and Pi’s official blue accent.

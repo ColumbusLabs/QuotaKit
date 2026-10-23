@@ -841,6 +841,11 @@ extension UsageStore {
                 window: window)
         }
 
+        if let primaryLabel = CursorProviderDescriptor.primaryLabel(snapshot: snapshot) {
+            return [row(id: "primary", title: primaryLabel, window: snapshot.primary)]
+                .filter { $0.percentLeft != nil }
+        }
+
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
         case .requests:
             [row(id: "primary", title: "Requests", window: snapshot.primary)]

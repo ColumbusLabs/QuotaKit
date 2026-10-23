@@ -100,8 +100,8 @@ extension SettingsStore {
         self.configSnapshot.providerConfig(for: provider.instanceID)
     }
 
-    func quotaWarningConfig(for provider: UsageProvider) -> QuotaWarningConfig {
-        self.configSnapshot.providerConfig(for: provider.instanceID)?.quotaWarnings ?? QuotaWarningConfig()
+    func quotaWarningConfig(for provider: ProviderInstanceID) -> QuotaWarningConfig {
+        self.configSnapshot.providerConfig(for: provider)?.quotaWarnings ?? QuotaWarningConfig()
     }
 
     /// The user accent override for a provider, or nil when the provider keeps its shipped color.
@@ -125,7 +125,7 @@ extension SettingsStore {
         }
     }
 
-    func resolvedQuotaWarningThresholds(provider: UsageProvider, window: QuotaWarningWindow) -> [Int] {
+    func resolvedQuotaWarningThresholds(provider: ProviderInstanceID, window: QuotaWarningWindow) -> [Int] {
         self.quotaWarningConfig(for: provider).thresholds(
             for: window,
             global: self.quotaWarningThresholds(window))
@@ -138,13 +138,13 @@ extension SettingsStore {
     }
 
     func quotaWarningEnabled(provider: UsageProvider, window: QuotaWarningWindow) -> Bool {
-        self.quotaWarningConfig(for: provider).isEnabled(
+        self.quotaWarningConfig(for: provider.instanceID).isEnabled(
             for: window,
             global: self.quotaWarningWindowEnabled(window))
     }
 
     func hasQuotaWarningOverride(provider: UsageProvider, window: QuotaWarningWindow) -> Bool {
-        self.quotaWarningConfig(for: provider).hasOverride(for: window)
+        self.quotaWarningConfig(for: provider.instanceID).hasOverride(for: window)
     }
 
     func setQuotaWarningThresholds(provider: UsageProvider, window: QuotaWarningWindow, thresholds: [Int]?) {
@@ -286,7 +286,7 @@ extension SettingsStore {
         provider: UsageProvider,
         window: QuotaWarningWindow) -> QuotaWarningWindowConfig?
     {
-        let config = self.quotaWarningConfig(for: provider)
+        let config = self.quotaWarningConfig(for: provider.instanceID)
         switch window {
         case .session:
             return config.session

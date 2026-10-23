@@ -597,7 +597,7 @@ extension UsageStore {
             observation: weeklyObservation)
     }
 
-    private static func isSemanticSessionResetWindow(
+    static func isSemanticSessionResetWindow(
         _ resolved: (window: RateWindow, source: SessionQuotaWindowSource)) -> Bool
     {
         guard !resolved.window.isSyntheticPlaceholder else { return false }
@@ -935,7 +935,7 @@ extension UsageStore {
     }
 
     nonisolated static func limitResetDetectorStateKey(
-        provider: UsageProvider,
+        provider: ProviderInstanceID,
         accountIdentifier: String) -> String
     {
         "\(provider.rawValue):\(accountIdentifier)"
