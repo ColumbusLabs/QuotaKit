@@ -207,23 +207,11 @@ extension UsageMenuCardView.Model {
         {
             projected.codexResetCredits = nil
         }
+        let hidReportedCloudCredits = self.provider == .claude &&
+            self.cloudCredits != nil &&
+            hiddenItemIDs.contains(.detailSection(ClaudeCloudCreditsSnapshot.detailTitle))
         if hiddenItemIDs.contains(.detailSection(ClaudeCloudCreditsSnapshot.detailTitle)) {
             projected.cloudCredits = nil
-            // A quota-unavailable placeholder can be synthesized alongside an otherwise empty
-            // Cloud credits-only snapshot. Hiding that sole optional item should leave no card,
-            // while a truly quota-less snapshot without Cloud credits keeps its message.
-            let hidReportedCloudCredits = self.provider == .claude && self.cloudCredits != nil
-            if hidReportedCloudCredits,
-               projected.placeholder != nil,
-               !projected.hasUsageContentAboveCloudCredits,
-               projected.openAIAPIUsage == nil,
-               projected.providerCost == nil,
-               projected.tokenUsage == nil,
-               projected.creditsText == nil,
-               projected.creditsRemaining == nil
-            {
-                projected.placeholder = nil
-            }
         }
         let hiddenSectionIDs = Set(hiddenItemIDs.filter { $0.detailSectionTitle != nil })
         if !hiddenSectionIDs.isEmpty {
@@ -236,6 +224,18 @@ extension UsageMenuCardView.Model {
             }
             projected.providerDetails = kept.map(\.section)
             projected.providerDetailRawTitles = kept.map(\.rawTitle)
+        }
+        // Wait until generic detail visibility is applied before removing the empty-card placeholder.
+        if hidReportedCloudCredits,
+           projected.placeholder != nil,
+           !projected.hasUsageContentAboveCloudCredits,
+           projected.openAIAPIUsage == nil,
+           projected.providerCost == nil,
+           projected.tokenUsage == nil,
+           projected.creditsText == nil,
+           projected.creditsRemaining == nil
+        {
+            projected.placeholder = nil
         }
         return projected
     }

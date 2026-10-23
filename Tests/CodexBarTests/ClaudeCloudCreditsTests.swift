@@ -263,6 +263,32 @@ struct ClaudeCloudCreditsTests {
 
     @MainActor
     @Test
+    func `hiding cloud credits and generic details removes the empty quota placeholder`() throws {
+        let genericTitle = "Generic usage"
+        let genericSection = try ProviderDetailSection(
+            title: genericTitle,
+            rows: [try ProviderDetailSection.Row(label: "Usage", value: "Available")])
+        let snapshot = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: Self.parse(Self.funded).detailSections(now: Self.now) + [genericSection],
+            updatedAt: Self.now)
+        let model = try Self.menuModel(snapshot: snapshot, showOptional: true)
+        #expect(model.cloudCredits != nil)
+        #expect(model.providerDetails.count == 1)
+        #expect(model.placeholder == "Limits not available")
+
+        let hidden = model.applyingUsageItemVisibility(hiddenItemIDs: [
+            .detailSection(ClaudeCloudCreditsSnapshot.detailTitle),
+            .detailSection(genericTitle),
+        ])
+        #expect(hidden.providerDetails.isEmpty)
+        #expect(hidden.cloudCredits == nil)
+        #expect(!hidden.hasUsageContent)
+    }
+
+    @MainActor
+    @Test
     func `open menu adopts balance and expiry updates without changing layout`() throws {
         let original = try Self.menuModel(snapshot: Self.snapshot(), showOptional: true)
         let depleted = #"{"limit_dollars":100,"remaining_dollars":0}"#

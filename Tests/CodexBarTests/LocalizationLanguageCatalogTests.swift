@@ -660,6 +660,7 @@ struct LocalizationLanguageCatalogTests {
             "Pro",
             "SuperGrok OAuth",
             "Token",
+            "Trae CN",
             "ZeroGPU",
             "__raycast_session=…; csrf_token=…",
             "antigravity-cli-usage",
