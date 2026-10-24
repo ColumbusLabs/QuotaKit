@@ -99,7 +99,9 @@ struct MenuBarLayoutRenderData: Hashable {
     var spendCurrencySymbol: String = "$"
 
     func extraTitle(_ id: String) -> String? {
-        guard let provider else { return nil }
+        guard let provider else {
+            return self.extraRateWindows.first { $0.id == id }?.title
+        }
         return ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtras[id].map { title in
             self.extraRateWindows.first { $0.id == id }?.title ?? L(title)
         }
@@ -786,8 +788,9 @@ final class MenuBarLayoutRenderer {
         guard laneMatches.isEmpty else { return nil }
         guard extraMatches.count == 1, let extra = extraMatches.first, let title = data.extraTitle(extra.id)
         else { return nil }
-        let short = ProviderDescriptorRegistry.descriptor(for: data.provider).menuBarMetrics
-            .namedExtraShortLabels[extra.id] ?? title
+        let short = data.provider.flatMap { provider in
+            ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtraShortLabels[extra.id]
+        } ?? title
         return (short, title)
     }
 

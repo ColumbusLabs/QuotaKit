@@ -80,19 +80,18 @@ extension CostUsageScanner {
             let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
             let sessionSource = SessionToolActivitySource(
                 fileURL: URL(fileURLWithPath: file.path), sessionID: sessionID)
-            let requestDetailSource: CostUsageSessionDetailSource?
-            if let detailPricingKey,
-               let ledgerRevision = file.usage.codexLedgerRevision,
-               file.usage.codexReplacementScanPending != true
+            let detailSource: CostUsageSessionDetailSource? = if let detailPricingKey,
+                                                                 let ledgerRevision = file.usage.codexLedgerRevision,
+                                                                 file.usage.codexReplacementScanPending != true
             {
-                requestDetailSource = CostUsageSessionDetailSource(
+                CostUsageSessionDetailSource(
                     databaseURL: databaseURL,
                     sessionSource: sessionSource,
                     parsedBytes: file.usage.parsedBytes,
                     pricingKey: detailPricingKey,
                     ledgerRevision: ledgerRevision)
             } else {
-                requestDetailSource = nil
+                nil
             }
             var session = CostUsageSessionBreakdown(
                 sessionID: sessionID,
@@ -110,7 +109,7 @@ extension CostUsageScanner {
                 title: file.usage.codexSession?.title,
                 turnPerformanceSamples: performanceSamples,
                 toolActivitySource: sessionSource,
-                requestDetailSource: requestDetailSource)
+                requestDetailSource: detailSource)
             session.workingDirectory = file.usage.projectPath
             return session
         }

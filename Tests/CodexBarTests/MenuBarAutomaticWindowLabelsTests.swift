@@ -82,6 +82,29 @@ struct MenuBarAutomaticWindowLabelsTests {
         }
     }
 
+    @Test
+    func `automatic named extra uses its title when provider is unavailable`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.percent(window: .automatic)]])
+        var data = self.data(namedAllowance: true)
+        data.provider = nil
+
+        let visible = renderer.render(layout: layout, data: data, icon: nil, options: self.options())
+        #expect(visible.attributedTitle.string == "Grok Bot 84%")
+        #expect(visible.accessibilityLabel.contains("Grok Bot"))
+
+        let hidden = renderer.render(
+            layout: layout,
+            data: data,
+            icon: nil,
+            options: self.options(showLabels: false))
+        #expect(hidden.attributedTitle.string == "84%")
+        #expect(hidden.accessibilityLabel == visible.accessibilityLabel)
+
+        let cached = renderer.render(layout: layout, data: data, icon: nil, options: self.options())
+        #expect(cached.attributedTitle === visible.attributedTitle)
+    }
+
     private func data(
         weekly: Bool = false,
         monthly: Bool = false,

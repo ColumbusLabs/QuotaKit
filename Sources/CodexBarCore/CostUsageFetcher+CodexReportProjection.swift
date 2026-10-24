@@ -434,19 +434,18 @@ enum CostUsageCodexReportProjectionBuilder {
                 ?? projectPathResolver.canonicalProjectPath(for: value.1.projectPath)
             let sessionSource = SessionToolActivitySource(
                 fileURL: URL(fileURLWithPath: value.0), sessionID: id)
-            let requestDetailSource: CostUsageSessionDetailSource?
-            if let detailPricingKey,
-               let ledgerRevision = value.1.codexLedgerRevision,
-               value.1.codexReplacementScanPending != true
+            let detailSource: CostUsageSessionDetailSource? = if let detailPricingKey,
+                                                                 let ledgerRevision = value.1.codexLedgerRevision,
+                                                                 value.1.codexReplacementScanPending != true
             {
-                requestDetailSource = CostUsageSessionDetailSource(
+                CostUsageSessionDetailSource(
                     databaseURL: databaseURL,
                     sessionSource: sessionSource,
                     parsedBytes: value.1.parsedBytes,
                     pricingKey: detailPricingKey,
                     ledgerRevision: ledgerRevision)
             } else {
-                requestDetailSource = nil
+                nil
             }
             var session = CostUsageSessionBreakdown(
                 sessionID: id, lastActivity: Date(timeIntervalSince1970: Double(value.1.mtimeUnixMs) / 1000),
@@ -465,7 +464,7 @@ enum CostUsageCodexReportProjectionBuilder {
                     usage: value.1,
                     range: range),
                 toolActivitySource: sessionSource,
-                requestDetailSource: requestDetailSource)
+                requestDetailSource: detailSource)
             session.workingDirectory = value.1.projectPath
             return session
         }.sorted { lhs, rhs in
