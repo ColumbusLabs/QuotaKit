@@ -734,6 +734,7 @@ extension CLIEntryTests {
             stderr.fileHandleForReading.readDataToEndOfFile())
     }
 }
+
 extension CodexBarCLI {
     static func sourceModeRequiresWebSupport(
         _ sourceMode: ProviderSourceMode,

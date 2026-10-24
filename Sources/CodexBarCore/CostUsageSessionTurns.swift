@@ -130,7 +130,7 @@ extension CostUsageScanner {
 
         private static func remainder(_ total: Int?, _ parts: [Int?]) -> Int? {
             guard let total, total >= 0, parts.allSatisfy({ $0 != nil }),
-                  let sum = CheckedSum.integers(parts.compactMap { $0 }), sum <= total
+                  let sum = CheckedSum.integers(parts.compactMap(\.self)), sum <= total
             else { return nil }
             return total - sum
         }

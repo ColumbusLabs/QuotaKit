@@ -705,7 +705,11 @@ final class SyncCoordinator {
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
         // Routines / Web Sonnet, Cursor Extra usage, etc.
-        for extra in self.visibleExtraRateWindows(provider: provider, snapshot: snapshot) where provider != .abliteration {
+        for extra in self.visibleExtraRateWindows(
+            provider: provider,
+            snapshot: snapshot)
+            where provider != .abliteration
+        {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: extra.title,

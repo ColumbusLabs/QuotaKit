@@ -434,6 +434,20 @@ enum CostUsageCodexReportProjectionBuilder {
                 ?? projectPathResolver.canonicalProjectPath(for: value.1.projectPath)
             let sessionSource = SessionToolActivitySource(
                 fileURL: URL(fileURLWithPath: value.0), sessionID: id)
+            let requestDetailSource: CostUsageSessionDetailSource?
+            if let detailPricingKey,
+               let ledgerRevision = value.1.codexLedgerRevision,
+               value.1.codexReplacementScanPending != true
+            {
+                requestDetailSource = CostUsageSessionDetailSource(
+                    databaseURL: databaseURL,
+                    sessionSource: sessionSource,
+                    parsedBytes: value.1.parsedBytes,
+                    pricingKey: detailPricingKey,
+                    ledgerRevision: ledgerRevision)
+            } else {
+                requestDetailSource = nil
+            }
             var session = CostUsageSessionBreakdown(
                 sessionID: id, lastActivity: Date(timeIntervalSince1970: Double(value.1.mtimeUnixMs) / 1000),
                 inputTokens: report.summary?.totalInputTokens,
@@ -451,19 +465,7 @@ enum CostUsageCodexReportProjectionBuilder {
                     usage: value.1,
                     range: range),
                 toolActivitySource: sessionSource,
-                requestDetailSource: if let detailPricingKey,
-                                        let ledgerRevision = value.1.codexLedgerRevision,
-                                        value.1.codexReplacementScanPending != true
-                {
-                    CostUsageSessionDetailSource(
-                        databaseURL: databaseURL,
-                        sessionSource: sessionSource,
-                        parsedBytes: value.1.parsedBytes,
-                        pricingKey: detailPricingKey,
-                        ledgerRevision: ledgerRevision)
-                } else {
-                    nil
-                })
+                requestDetailSource: requestDetailSource)
             session.workingDirectory = value.1.projectPath
             return session
         }.sorted { lhs, rhs in

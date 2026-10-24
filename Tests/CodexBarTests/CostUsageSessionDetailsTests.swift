@@ -98,12 +98,13 @@ struct CostUsageSessionDetailsTests {
             sessionSource: .init(fileURL: root.appendingPathComponent("session.jsonl"), sessionID: "missing"),
             parsedBytes: nil)
         let now = Date(timeIntervalSince1970: 1_792_562_400)
+        let timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
         #expect(throws: CostUsageSessionDetailError.unavailable) {
             try CostUsageSessionDetailLoader.read(
                 source: source,
                 lastActivity: now,
                 range: now..<now.addingTimeInterval(1),
-                timeZone: try #require(TimeZone(identifier: "Asia/Shanghai")))
+                timeZone: timeZone)
         }
         #expect(!FileManager.default.fileExists(atPath: database.path))
         #expect(!FileManager.default.fileExists(atPath: root.path))

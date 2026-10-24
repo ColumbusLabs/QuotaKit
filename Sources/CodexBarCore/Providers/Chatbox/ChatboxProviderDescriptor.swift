@@ -19,10 +19,10 @@ public enum ChatboxProviderDescriptor {
         color: .init(hex: 0x228BE6),
         confetti: [0x228BE6, 0xA9C2FF],
         noDataMessage: "No cost history data.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: "CHATBOX_LICENSE_KEY",
         menuBarMetrics: .init(supported: [.automatic, .primary, .secondary]),
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         scriptSettings: { _ in
             let messages = Dictionary(uniqueKeysWithValues: Self.diagnosticMessages.map {
                 ($0, UsageFormatter.localized($0))

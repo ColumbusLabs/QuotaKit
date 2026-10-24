@@ -20,8 +20,6 @@ public enum AbliterationProviderDescriptor {
         confetti: [0x1B1B1B, 0xECE8E6],
         progressColorStyle: .label,
         noDataMessage: "No cost history data.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: "ABLITERATION_API_KEY",
         missingCredentialMessage: { _ in UsageFormatter.localized("Check your API key in Settings.") },
         menuBarMetrics: .init(supported: [.automatic, .primary]),
@@ -30,6 +28,8 @@ public enum AbliterationProviderDescriptor {
             menuCard: ProviderMenuCardPresentation(
                 primaryDescriptionPlacement: .detail,
                 hidesPrimaryResetWithoutDate: true)),
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         scriptSettings: { _ in
             let messages = Dictionary(uniqueKeysWithValues: Self.diagnosticMessages.map {
                 ($0, UsageFormatter.localized($0))

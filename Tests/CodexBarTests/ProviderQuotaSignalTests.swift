@@ -45,7 +45,8 @@ struct ProviderQuotaSignalTests {
             provider: .chatbox,
             snapshot: Self.snapshot(primaryUsed: 55, secondaryUsed: 90, time: 2))
 
-        #expect(notifier.warnings.map { $0.1.window } == [.session])
+        #expect(notifier.warnings.count == 1)
+        #expect(notifier.warnings.first?.1.window == .session)
         #expect(store.quotaWarningState[.init(provider: .chatbox, window: .weekly, accountDiscriminator: nil)] == nil)
         #expect(store.quotaLowHookUsage[quotaLowSession] == 0.55)
         #expect(store.quotaLowHookUsage[quotaLowWeekly] == nil)
@@ -96,11 +97,11 @@ struct ProviderQuotaSignalTests {
         let store = self.store(
             settings: self.settings("ProviderQuotaSignalTests-abliteration-window"),
             notifier: NotifierSpy())
-        let snapshot = UsageSnapshot(
+        let snapshot = try UsageSnapshot(
             primary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: "$4.00 / $10.00"),
             secondary: nil,
-            details: [try ProviderDetailSection(title: "Credits", rows: [
-                try ProviderDetailSection.Row(label: "Balance", value: "$6.00"),
+            details: [ProviderDetailSection(title: "Credits", rows: [
+                ProviderDetailSection.Row(label: "Balance", value: "$6.00"),
             ])],
             updatedAt: Date(timeIntervalSince1970: 1))
         #expect(store.sessionQuotaWindow(provider: .abliteration, snapshot: snapshot) == nil)

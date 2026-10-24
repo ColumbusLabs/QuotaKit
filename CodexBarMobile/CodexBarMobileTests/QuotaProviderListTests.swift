@@ -382,8 +382,15 @@ struct QuotaProviderListTests {
         let munito = QuotaProviderList.providers.first { $0.id == "munito" }
         #expect(futureAGI?.displayName == "Future AGI")
         #expect(munito?.displayName == "Munito")
-        #expect(QuotaProviderList.providers.suffix(5).map(\.id) == ["futureagi", "munito", "soniox", "traecn", "chatbox"])
-        #expect(QuotaProviderList.providers.suffix(3).map(\.displayName) == ["Soniox", "Trae CN", "Chatbox AI"])
+        #expect(
+            QuotaProviderList.providers.suffix(5).map(\.id)
+                == ["futureagi", "munito", "soniox", "traecn", "chatbox"])
+        #expect(
+            QuotaProviderList.providers.suffix(3).map(\.displayName) == [
+                "Soniox",
+                "Trae CN",
+                "Chatbox AI",
+            ])
         for id in ["futureagi", "munito", "soniox", "traecn", "chatbox"] {
             for state in ["depleted", "restored", "warning"] {
                 #expect(QuotaProviderList.quotaZoneName(

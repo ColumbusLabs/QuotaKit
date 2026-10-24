@@ -80,6 +80,20 @@ extension CostUsageScanner {
             let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
             let sessionSource = SessionToolActivitySource(
                 fileURL: URL(fileURLWithPath: file.path), sessionID: sessionID)
+            let requestDetailSource: CostUsageSessionDetailSource?
+            if let detailPricingKey,
+               let ledgerRevision = file.usage.codexLedgerRevision,
+               file.usage.codexReplacementScanPending != true
+            {
+                requestDetailSource = CostUsageSessionDetailSource(
+                    databaseURL: databaseURL,
+                    sessionSource: sessionSource,
+                    parsedBytes: file.usage.parsedBytes,
+                    pricingKey: detailPricingKey,
+                    ledgerRevision: ledgerRevision)
+            } else {
+                requestDetailSource = nil
+            }
             var session = CostUsageSessionBreakdown(
                 sessionID: sessionID,
                 lastActivity: Date(timeIntervalSince1970: TimeInterval(file.usage.mtimeUnixMs) / 1000),
@@ -96,19 +110,7 @@ extension CostUsageScanner {
                 title: file.usage.codexSession?.title,
                 turnPerformanceSamples: performanceSamples,
                 toolActivitySource: sessionSource,
-                requestDetailSource: if let detailPricingKey,
-                                        let ledgerRevision = file.usage.codexLedgerRevision,
-                                        file.usage.codexReplacementScanPending != true
-                {
-                    CostUsageSessionDetailSource(
-                        databaseURL: databaseURL,
-                        sessionSource: sessionSource,
-                        parsedBytes: file.usage.parsedBytes,
-                        pricingKey: detailPricingKey,
-                        ledgerRevision: ledgerRevision)
-                } else {
-                    nil
-                })
+                requestDetailSource: requestDetailSource)
             session.workingDirectory = file.usage.projectPath
             return session
         }

@@ -184,23 +184,22 @@ public enum CostUsageSessionDetailLoader {
         if let readError { throw readError }
         try checkCancellation()
         let aggregates = try CostUsageStore.readFileDayAggregates(database, path: path)
-        let snapshot = CostUsageStoreSnapshot(
+        let snapshot = try CostUsageStoreSnapshot(
             metadata: .empty,
             files: [file],
             tokenSnapshots: [],
             fileDayAggregates: aggregates,
             dayAggregates: aggregates.map(\.aggregate),
-            forkLineage: try CostUsageStore.readForkLineage(database, path: path),
+            forkLineage: CostUsageStore.readForkLineage(database, path: path),
             bufferedLines: [],
             discoveryState: nil,
             lookbackState: nil,
             accumulators: [])
-        let cache = CostUsageStore.decodeCodexCache(
+        return CostUsageStore.decodeCodexCache(
             from: snapshot,
             tokenSnapshotsLoaded: false,
             decodedUsageRowsByPath: [path: rows],
             includesRequestLedgerState: false)
-        return cache
     }
 
     private static func validateFile(
