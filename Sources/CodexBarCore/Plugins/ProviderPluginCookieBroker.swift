@@ -599,7 +599,10 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     }
 
     private func scope(_ domain: String) -> CookieHeaderCache.Scope? {
-        self.domains.count == 1 ? nil : .providerVariant(domain)
+        // Provider-specific by design: preserve Trae CN's legacy unscoped API-host cache while parent-domain
+        // sessions use a separate provider-variant slot.
+        if self.provider == .traecn, domain == "api.trae.cn" { return nil }
+        return self.domains.count == 1 ? nil : .providerVariant(domain)
     }
 
     static func importCookieHeaders(
@@ -687,8 +690,13 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     {
         var chosen: [String: HTTPCookie] = [:]
         var order: [String] = []
-        let preferredHost = provider == .helmcode && ["helmcode.com", "nan.builders"].contains(domain)
-            ? "cloud.\(domain)" : domain
+        let preferredHost: String = if provider == .traecn, domain == "trae.cn" {
+            "api.trae.cn"
+        } else if provider == .helmcode, ["helmcode.com", "nan.builders"].contains(domain) {
+            "cloud.\(domain)"
+        } else {
+            domain
+        }
         for cookie in cookies where Self.matches(cookieDomain: cookie.domain, domain: domain, provider: provider) {
             if let existing = chosen[cookie.name] {
                 // A host-specific session must not be shadowed by its parent-domain cookie.
@@ -713,6 +721,11 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     private static func cookieHosts(domain: String, provider: UsageProvider?) -> [String] {
         let alternate = domain.hasPrefix("www.") ? String(domain.dropFirst(4)) : "www.\(domain)"
         var hosts = [domain, alternate]
+        if provider == .traecn, domain == "trae.cn" {
+            // Import both the dashboard parent-domain cookie and the host-only
+            // API cookie used by earlier QuotaKit versions.
+            hosts.append("api.trae.cn")
+        }
         if provider == .helmcode, ["helmcode.com", "nan.builders"].contains(domain) {
             hosts.append("cloud.\(domain)")
         }

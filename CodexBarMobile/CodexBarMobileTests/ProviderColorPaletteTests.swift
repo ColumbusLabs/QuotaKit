@@ -6,6 +6,8 @@ struct ProviderColorPaletteTests {
     @Test
     func `Priority providers use QuotaKit-approved raw colors`() {
         expectColor("codex", red: 73 / 255, green: 163 / 255, blue: 176 / 255)
+        expectColor("chatbox", red: 34 / 255, green: 139 / 255, blue: 230 / 255)
+        expectColor("abliteration", red: 27 / 255, green: 27 / 255, blue: 27 / 255)
         expectColor("claude", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("claudeplatform", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("anthropic", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
@@ -16,6 +18,8 @@ struct ProviderColorPaletteTests {
     @Test
     func `Palette mirrors Mac descriptor colors for known providers`() {
         let expected: [(String, Double, Double, Double)] = [
+            ("chatbox", 34 / 255, 139 / 255, 230 / 255),
+            ("abliteration", 27 / 255, 27 / 255, 27 / 255),
             ("openai", 0.06, 0.51, 0.43),
             ("azureopenai", 0, 120 / 255, 212 / 255),
             ("cursor", 245 / 255, 78 / 255, 0),
@@ -125,6 +129,8 @@ struct ProviderColorPaletteTests {
     @Test
     func `Widgets retain prior colors for refreshed app accents`() {
         let expected: [(String, ProviderColorPalette.RawColor)] = [
+            ("chatbox", .init(red: 34 / 255, green: 139 / 255, blue: 230 / 255)),
+            ("abliteration", .init(red: 27 / 255, green: 27 / 255, blue: 27 / 255)),
             ("abacus", .init(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
             ("amp", .init(red: 220 / 255, green: 38 / 255, blue: 38 / 255)),
             ("augment", .init(red: 139 / 255, green: 92 / 255, blue: 246 / 255)),
@@ -182,6 +188,8 @@ struct ProviderColorPaletteTests {
     @Test
     func `Display names normalize to provider IDs`() {
         let pairs = [
+            ("Chatbox AI", "chatbox"),
+            ("abliteration.ai", "abliteration"),
             ("OpenCode Go", "opencodego"),
             ("Command Code", "commandcode"),
             ("Abacus AI", "abacus"),
@@ -254,7 +262,7 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
 }
 
 private let knownDistinctProviders = [
-    "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego", "soniox", "traecn",
+    "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego", "soniox", "traecn", "chatbox",
     "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "futureagi", "munito", "gitkraken", "antigravity",
     "pi",
     "copilot",
@@ -284,6 +292,9 @@ private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["traecn", "deepseek"]: 0.06,
     // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
     ["pi", "litellm"]: 0.07,
+    // Upstream Chatbox #228BE6 and retained StepFun (0.13, 0.59, 0.95) are 0.09627 apart.
+    // Both raw swatches stay pinned above; this exact pair must not be treated as an alias collision.
+    ["chatbox", "stepfun"]: 0.095,
 ]
 
 private func expectDistinctColors(

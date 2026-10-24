@@ -368,6 +368,11 @@ struct SpendDashboardModel: Equatable, Sendable {
         let modelName: String?
         var turnPerformance: CostUsageTurnPerformanceSummary?
         var toolActivitySource: SessionToolActivitySource?
+        var usage: CostUsageSessionBreakdown?
+        var sourceName: String?
+        var costMultiplier: Double = 1
+        var reportingRange: Range<Date>?
+        var reportingPeriod: CostReportingPeriod?
     }
 
     struct HourlyPoint: Identifiable, Equatable, Sendable {
@@ -1500,72 +1505,6 @@ struct SpendDashboardModel: Equatable, Sendable {
             return nil
         }
         return result
-    }
-
-    static func sessionRows(
-        summaries: [InputSummary],
-        bounds: ClosedRange<Date>,
-        calendar: Calendar,
-        selectedDay: Date? = nil) -> [SessionRow]
-    {
-        let rows = summaries.flatMap { summary -> [SessionRow] in
-            summary.input.snapshot.sessions.compactMap { session -> SessionRow? in
-                let day = calendar.startOfDay(for: session.lastActivity)
-                // Provider-specific by design: only the native Codex ledger has validated turn timing.
-                let performanceSamples = summary.input.provider == .codex && summary.input.sourceKind == .native
-                    ? session.turnPerformanceSamples.filter {
-                        let completionDay = calendar.startOfDay(for: $0.completedAt)
-                        return bounds.contains(completionDay) &&
-                            (selectedDay == nil || completionDay == selectedDay)
-                    } : []
-                guard bounds.contains(day) || !performanceSamples.isEmpty else { return nil }
-                let modelName = session.modelBreakdowns.max {
-                    ($0.totalTokens ?? 0) < ($1.totalTokens ?? 0)
-                }?.modelName
-                return SessionRow(
-                    id: "\(summary.input.id):\(session.sessionID)",
-                    rank: 0,
-                    sessionID: session.sessionID,
-                    sourceID: summary.input.id,
-                    provider: summary.input.provider,
-                    title: session.title,
-                    projectName: session.projectName,
-                    projectPath: session.projectPath,
-                    lastActivity: session.lastActivity,
-                    totalTokens: session.totalTokens,
-                    totalCost: session.costUSD.map { $0 * summary.costMultiplier },
-                    modelName: modelName,
-                    turnPerformance: CostUsageTurnPerformanceSummary(samples: performanceSamples),
-                    // Provider-specific by design: Only native Codex logs supply owned item_completed tool records.
-                    toolActivitySource: summary.input.provider == .codex && summary.input.sourceKind == .native
-                        ? session.toolActivitySource : nil)
-            }
-        }
-        .sorted(by: Self.sessionOrder)
-        return rows.prefix(Self.sessionRowLimit).enumerated().map { rank, row in
-            var ranked = row
-            ranked.rank = rank + 1
-            return ranked
-        }
-    }
-
-    static let sessionRowLimit = 50
-
-    private static func sessionOrder(_ lhs: SessionRow, _ rhs: SessionRow) -> Bool {
-        switch (lhs.totalCost, rhs.totalCost) {
-        case let (left?, right?) where left != right: return left > right
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: break
-        }
-        switch (lhs.totalTokens, rhs.totalTokens) {
-        case let (left?, right?) where left != right: return left > right
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: break
-        }
-        if lhs.lastActivity != rhs.lastActivity { return lhs.lastActivity > rhs.lastActivity }
-        return lhs.id < rhs.id
     }
 
     private static func hourlyPoints(

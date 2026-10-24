@@ -680,6 +680,7 @@ struct AntigravityCLISessionTests {
         let outputURL = tempDirectory.appendingPathComponent("result.txt")
         let script = """
         pwd > \(outputURL.path)
+        echo "${AGY_CLI_DISABLE_AUTO_UPDATE:-missing}" >> \(outputURL.path)
         if [ -e /dev/fd/\(inheritedFD) ] || [ -e /proc/self/fd/\(inheritedFD) ]; then
           echo inherited >> \(outputURL.path)
         else
@@ -703,14 +704,14 @@ struct AntigravityCLISessionTests {
                 let lines = output
                     .split(separator: "\n")
                     .map(String.init)
-                if lines.count >= 2, output.hasSuffix("\n") { break }
+                if lines.count >= 3, output.hasSuffix("\n") { break }
             }
             Thread.sleep(forTimeInterval: 0.01)
         }
         let lines = try String(contentsOf: outputURL, encoding: .utf8)
             .split(separator: "\n")
             .map(String.init)
-        #expect(lines == [NSHomeDirectory(), "closed"])
+        #expect(lines == [NSHomeDirectory(), "true", "closed"])
     }
 
     @Test

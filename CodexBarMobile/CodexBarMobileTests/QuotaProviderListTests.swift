@@ -29,7 +29,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Total count is 81 after Soniox and Trae CN quota alerts`() {
+    func `Total count is 82 after Chatbox plan quota alerts`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -56,11 +56,11 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 81)
+        #expect(QuotaProviderList.providers.count == 82)
     }
 
     @Test
-    func `Subscription zone count is 243 (81 providers × 3 states)`() {
+    func `Subscription zone count is 246 (82 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -84,7 +84,7 @@ struct QuotaProviderListTests {
         // Future AGI and Munito add six append-only zones.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state).
-        #expect(QuotaProviderList.providers.count * 3 == 243)
+        #expect(QuotaProviderList.providers.count * 3 == 246)
     }
 
     @Test
@@ -178,7 +178,7 @@ struct QuotaProviderListTests {
         //  - IBM Bob and GitKraken AI occupy positions [60...61].
         //  - v0 is appended at position [62].
         //  - Hugging Face is appended at position [63].
-        let tail = providers.dropLast(16).suffix(26).map(\.id)
+        let tail = providers.dropLast(17).suffix(26).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api", "zenmux",
@@ -191,7 +191,7 @@ struct QuotaProviderListTests {
     func `Existing notification provider IDs and order are preserved before v0`() {
         let prefix = Array(QuotaProviderList.providers.prefix(Self.providerIDsBeforeV0.count)).map(\.id)
         #expect(prefix == Self.providerIDsBeforeV0)
-        #expect(QuotaProviderList.providers.dropLast(18).suffix(3).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(19).suffix(3).map(\.id) == [
             "gitkraken", "v0", "huggingface",
         ])
     }
@@ -202,8 +202,8 @@ struct QuotaProviderListTests {
         // window; iPhone therefore has no CodeRabbit usage data or quota transitions to subscribe
         // to. Adding idle CloudKit zones would change this catalog without an event source.
         #expect(!QuotaProviderList.providers.contains { $0.id == "coderabbit" })
-        #expect(QuotaProviderList.providers.dropLast(9).suffix(3).map(\.id) == ["nous", "muse", "museai"])
-        #expect(QuotaProviderList.providers.dropLast(13).suffix(5).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(10).suffix(3).map(\.id) == ["nous", "muse", "museai"])
+        #expect(QuotaProviderList.providers.dropLast(14).suffix(5).map(\.id) == [
             "bifrost", "devpass", "aixy", "xkiro", "raycast",
         ])
     }
@@ -306,9 +306,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 81/243 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 81)
-        #expect(QuotaProviderList.providers.count * 3 == 243)
+    func `Cause: catalog 82/246 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 82)
+        #expect(QuotaProviderList.providers.count * 3 == 246)
     }
 
     @Test
@@ -329,7 +329,7 @@ struct QuotaProviderListTests {
 
     @Test
     func `GitKraken notification IDs and newer additions preserve the prior zone name`() {
-        #expect(QuotaProviderList.providers.dropLast(16).suffix(6).map(\.id) == [
+        #expect(QuotaProviderList.providers.dropLast(17).suffix(6).map(\.id) == [
             "ibmbob", "gitkraken", "v0", "huggingface", "bifrost", "devpass",
         ])
         #expect(QuotaProviderList.quotaZoneName(
@@ -342,7 +342,7 @@ struct QuotaProviderListTests {
 
     @Test
     func `WorkBuddy follows MuseAI with stable subscription names`() {
-        #expect(QuotaProviderList.providers.dropLast(8).suffix(4).map(\.id) == ["nous", "muse", "museai", "workbuddy"])
+        #expect(QuotaProviderList.providers.dropLast(9).suffix(4).map(\.id) == ["nous", "muse", "museai", "workbuddy"])
         let museAI = QuotaProviderList.providers.first { $0.id == "museai" }
         #expect(museAI?.displayName == "Muse (muse.ai)")
         #expect(QuotaProviderList.providers.first { $0.id == "workbuddy" }?.displayName == "WorkBuddy")
@@ -357,7 +357,7 @@ struct QuotaProviderListTests {
     @Test
     func `Tavily Cosmic AI and Aerostack keep their quota subscriptions`() {
         let providers = QuotaProviderList.providers
-        let precedingQuotaProviders = providers.dropLast(5).suffix(3)
+        let precedingQuotaProviders = providers.dropLast(6).suffix(3)
         #expect(precedingQuotaProviders.map(\.id) == ["tavily", "cosmic", "aerostack"])
         #expect(precedingQuotaProviders.map(\.displayName) == ["Tavily", "Cosmic AI", "Aerostack"])
         for id in ["linkup", "tinyapi", "exa", "sailresearch", "sofya", "fal", "flora"] {
@@ -382,9 +382,16 @@ struct QuotaProviderListTests {
         let munito = QuotaProviderList.providers.first { $0.id == "munito" }
         #expect(futureAGI?.displayName == "Future AGI")
         #expect(munito?.displayName == "Munito")
-        #expect(QuotaProviderList.providers.suffix(4).map(\.id) == ["futureagi", "munito", "soniox", "traecn"])
-        #expect(QuotaProviderList.providers.suffix(2).map(\.displayName) == ["Soniox", "Trae CN"])
-        for id in ["futureagi", "munito", "soniox", "traecn"] {
+        #expect(
+            QuotaProviderList.providers.suffix(5).map(\.id)
+                == ["futureagi", "munito", "soniox", "traecn", "chatbox"])
+        #expect(
+            QuotaProviderList.providers.suffix(3).map(\.displayName) == [
+                "Soniox",
+                "Trae CN",
+                "Chatbox AI",
+            ])
+        for id in ["futureagi", "munito", "soniox", "traecn", "chatbox"] {
             for state in ["depleted", "restored", "warning"] {
                 #expect(QuotaProviderList.quotaZoneName(
                     providerID: id, state: state) == "Quota-\(id)-\(state)Zone")
@@ -439,7 +446,7 @@ struct QuotaProviderListTests {
     @Test
     func `LithosAI prepaid billing has no quota alert subscription`() {
         #expect(!QuotaProviderList.providers.contains { $0.id == "lithosai" })
-        #expect(QuotaProviderList.providers.count == 81)
+        #expect(QuotaProviderList.providers.count == 82)
     }
 
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.

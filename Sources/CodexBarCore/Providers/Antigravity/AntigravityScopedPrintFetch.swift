@@ -78,14 +78,12 @@ enum AntigravityScopedAgyStaging {
                 child[key] = value
             }
         }
-        child["PATH"] = PathBuilder.effectivePATH(
-            purposes: [.tty], env: child, loginPATH: LoginShellPathCache.shared.current)
         child["HOME"] = home.path
         child["PWD"] = home.path
         // agy prefers the OS keyring unless SSH_TTY is present. The private staged HOME
         // plus this marker makes its file token store the only credential source.
         child["SSH_TTY"] = "codexbar-scoped"
-        return child
+        return AntigravityCLIHTTPSFetchStrategy.childEnvironment(child)
     }
 
     static func stage(

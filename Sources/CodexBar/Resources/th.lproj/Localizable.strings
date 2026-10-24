@@ -2787,3 +2787,64 @@
 "Trae CN request failed. Try refreshing later." = "คำขอ Trae CN ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
 
 "Show Soniox usage" = "แสดงการใช้งาน Soniox";
+
+/* October 24 upstream integration */
+"Search sessions" = "ค้นหาเซสชัน";
+
+"No matching sessions" = "ไม่พบเซสชันที่ตรงกัน";
+
+"Select a session" = "เลือกเซสชัน";
+
+"Cached input is included in input; reasoning is included in output." = "อินพุตที่แคชรวมอยู่ในอินพุตแล้ว และโทเค็นการให้เหตุผลรวมอยู่ในเอาต์พุตแล้ว";
+
+"Recent activity" = "กิจกรรมล่าสุด";
+
+"Sort by" = "จัดเรียงตาม";
+
+"Ascending" = "น้อยไปมาก";
+
+"Descending" = "มากไปน้อย";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "แต่ละรอบรวมคำขอโมเดลที่บันทึกในช่วงเวลานี้ ไม่สามารถคำนวณค่าใช้จ่ายแยกสำหรับข้อความในรอบเดียวกันได้";
+
+"No turn-level usage records are available." = "ไม่มีบันทึกการใช้งานแยกตามรอบ";
+
+"Unattributed usage" = "การใช้งานที่ไม่ระบุรอบ";
+
+"Turn %d" = "รอบที่ %d";
+
+"Model requests" = "คำขอโมเดล";
+
+"Tool activity has no separate recorded token or monetary cost." = "ไม่มีการบันทึกโทเคนหรือค่าใช้จ่ายแยกสำหรับการเรียกเครื่องมือ";
+
+"Request %d" = "คำขอที่ %d";
+
+"Request details exceed the limit." = "รายละเอียดคำขอเกินขีดจำกัด";
+
+"Request details are unavailable. Refresh usage and try again." = "ไม่สามารถแสดงรายละเอียดคำขอได้ โปรดรีเฟรชข้อมูลการใช้งานแล้วลองอีกครั้ง";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "แสดงการใช้งาน Chatbox AI";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "คีย์ใบอนุญาต Chatbox AI ไม่ถูกต้อง โปรดอัปเดตในการตั้งค่า";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI ปฏิเสธการเข้าถึง โปรดตรวจสอบใบอนุญาตของคุณ";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+
+"Chatbox AI request failed. Try refreshing later." = "คำขอ Chatbox AI ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต QuotaKit แล้วลองอีกครั้ง";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "แสดงการใช้งาน abliteration.ai";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+
+"abliteration.ai request failed. Try refreshing later." = "คำขอ abliteration.ai ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต QuotaKit แล้วลองอีกครั้ง";
+
+"Check your API key in Settings." = "ตรวจสอบคีย์ API ของคุณในการตั้งค่า";

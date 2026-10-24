@@ -21,6 +21,7 @@ package final class ProcessPipeCapture: @unchecked Sendable {
     private var isFinished = false
     private var didReachEOF = false
     private var isStopping = false
+    private var isStopped = false
     private var continuation: CheckedContinuation<Void, Never>?
     #if os(Linux)
     private let callbackQueue = DispatchQueue(label: "com.steipete.CodexBar.process-pipe-capture.callback")
@@ -209,7 +210,7 @@ package final class ProcessPipeCapture: @unchecked Sendable {
 
     private func handleReadableData(from handle: FileHandle) {
         self.condition.lock()
-        guard !self.isStopping else {
+        guard !self.isStopping, !self.isFinished else {
             self.condition.unlock()
             return
         }
@@ -244,7 +245,8 @@ package final class ProcessPipeCapture: @unchecked Sendable {
         var continuation: CheckedContinuation<Void, Never>?
 
         self.condition.lock()
-        if chunk.isEmpty, !self.isStopping, !self.isFinished {
+        if chunk.isEmpty {
+            // Mark EOF before removing the handler so new callbacks cannot start another read.
             self.isFinished = true
             self.didReachEOF = true
             continuation = self.continuation
@@ -255,16 +257,19 @@ package final class ProcessPipeCapture: @unchecked Sendable {
                 self.data.append(chunk.prefix(remainingBytes))
             }
         }
-        self.activeCallbacks -= 1
-        if self.activeCallbacks == 0 {
-            self.condition.broadcast()
-        }
         self.condition.unlock()
         self.readLock.unlock()
 
         if chunk.isEmpty {
             handle.readabilityHandler = nil
-        } else {
+        }
+        self.condition.lock()
+        self.activeCallbacks -= 1
+        if self.activeCallbacks == 0 {
+            self.condition.broadcast()
+        }
+        self.condition.unlock()
+        if !chunk.isEmpty {
             self.onData?()
         }
         continuation?.resume()
@@ -283,7 +288,6 @@ package final class ProcessPipeCapture: @unchecked Sendable {
         let continuation: CheckedContinuation<Void, Never>?
         self.condition.lock()
         self.isFinished = true
-        self.isStopping = true
         self.didReachEOF = false
         continuation = self.continuation
         self.continuation = nil
@@ -494,46 +498,56 @@ package final class ProcessPipeCapture: @unchecked Sendable {
     }
 
     private func stopAndSnapshot() -> Data {
-        let continuation: CheckedContinuation<Void, Never>?
-        let snapshot: Data
-        #if os(Linux)
         self.condition.lock()
+        while self.isStopping, !self.isStopped {
+            self.condition.wait()
+        }
+        guard !self.isStopped else {
+            let snapshot = self.data
+            self.condition.unlock()
+            return snapshot
+        }
+
         self.isStopping = true
+        #if os(Linux)
         let closeUnstartedReader = !self.readerStarted
         if closeUnstartedReader {
             self.readerExited = true
         }
         self.condition.broadcast()
-        self.condition.unlock()
-        if closeUnstartedReader {
-            try? self.handle.close()
-        }
-        #else
-        self.handle.readabilityHandler = nil
-        #endif
-
-        self.condition.lock()
-        self.isStopping = true
-        #if os(Linux)
-        while self.activeCallbacks > 0 || (self.readerStarted && !self.readerExited) {
+        while self.readerStarted, !self.readerExited {
             self.condition.wait()
         }
         #else
         while self.activeCallbacks > 0 {
             self.condition.wait()
         }
+        let shouldRemoveReadabilityHandler = !self.didReachEOF
         #endif
         self.isFinished = true
-        continuation = self.continuation
+        let continuation = self.continuation
         self.continuation = nil
-        snapshot = self.data
+        let snapshot = self.data
+        self.condition.broadcast()
         self.condition.unlock()
 
-        // Linux closes from the reader's single exit path (or the never-started path above). On Darwin,
-        // clearing readabilityHandler does not release its duplicated monitor descriptor immediately.
-        #if !os(Linux)
+        #if os(Linux)
+        if closeUnstartedReader {
+            try? self.handle.close()
+        }
+        #else
+        // Clear the handler outside the condition lock: a queued callback can acquire the lock, observe
+        // isStopping, and return while the teardown owner waits for the setter to finish.
+        if shouldRemoveReadabilityHandler {
+            self.handle.readabilityHandler = nil
+        }
         try? self.handle.close()
         #endif
+
+        self.condition.lock()
+        self.isStopped = true
+        self.condition.broadcast()
+        self.condition.unlock()
 
         continuation?.resume()
         return snapshot

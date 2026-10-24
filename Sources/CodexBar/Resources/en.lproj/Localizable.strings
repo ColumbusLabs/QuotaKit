@@ -2785,3 +2785,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN request failed. Try refreshing later.";
 
 "Show Soniox usage" = "Show Soniox usage";
+
+/* October 24 upstream integration */
+"Search sessions" = "Search sessions";
+
+"No matching sessions" = "No matching sessions";
+
+"Select a session" = "Select a session";
+
+"Cached input is included in input; reasoning is included in output." = "Cached input is included in input; reasoning is included in output.";
+
+"Recent activity" = "Recent activity";
+
+"Sort by" = "Sort by";
+
+"Ascending" = "Ascending";
+
+"Descending" = "Descending";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately.";
+
+"No turn-level usage records are available." = "No turn-level usage records are available.";
+
+"Unattributed usage" = "Unattributed usage";
+
+"Turn %d" = "Turn %d";
+
+"Model requests" = "Model requests";
+
+"Tool activity has no separate recorded token or monetary cost." = "Tool activity has no separate recorded token or monetary cost.";
+
+"Request %d" = "Request %d";
+
+"Request details exceed the limit." = "Request details exceed the limit.";
+
+"Request details are unavailable. Refresh usage and try again." = "Request details are unavailable. Refresh usage and try again.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Show Chatbox AI usage";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Chatbox AI license key is invalid. Update it in Settings.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI denied access. Check your license.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI is rate limiting requests. Try again later.";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI request failed. Try refreshing later.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI returned an unrecognized response. Update QuotaKit and try again.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "Show abliteration.ai usage";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai is rate limiting requests. Try again later.";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai request failed. Try refreshing later.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai returned an unrecognized response. Update QuotaKit and try again.";
+
+"Check your API key in Settings." = "Check your API key in Settings.";

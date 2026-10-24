@@ -80,11 +80,13 @@ enum ProviderColorPalette {
 
     private static let widgetPalette: [String: RawColor] = {
         let entries: [(aliases: [String], color: RawColor)] = [
+            (["abliteration", "abliterationai"], RawColor(red: 27 / 255, green: 27 / 255, blue: 27 / 255)),
             (["abacus", "abacusai"], RawColor(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
             (["amp", "ampcode"], RawColor(red: 220 / 255, green: 38 / 255, blue: 38 / 255)),
             (["augment"], RawColor(red: 139 / 255, green: 92 / 255, blue: 246 / 255)),
             (["bedrock"], RawColor(red: 1, green: 0.6, blue: 0)),
             (["clinepass"], RawColor(red: 0.38, green: 0.64, blue: 0.98)),
+            (["chatbox", "chatboxai"], RawColor(red: 34 / 255, green: 139 / 255, blue: 230 / 255)),
             (["codebuff"], RawColor(red: 68 / 255, green: 255 / 255, blue: 0)),
             (["commandcode"], RawColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),
             (["cursor"], RawColor(red: 0, green: 0, blue: 0)),
@@ -117,6 +119,8 @@ enum ProviderColorPalette {
             (["openai", "chatgpt"], RawColor(red: 0.06, green: 0.51, blue: 0.43)),
             (["azureopenai"], RawColor(red: 0, green: 120 / 255, blue: 212 / 255)),
             (["claude", "anthropic"], RawColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
+            (["abliteration", "abliterationai"], RawColor(red: 27 / 255, green: 27 / 255, blue: 27 / 255)),
+            (["chatbox", "chatboxai"], RawColor(red: 34 / 255, green: 139 / 255, blue: 230 / 255)),
             (["claudeplatform"], RawColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
             (["cursor"], RawColor(red: 245 / 255, green: 78 / 255, blue: 0)),
             (["opencode"], RawColor(red: 14 / 255, green: 165 / 255, blue: 233 / 255)),

@@ -128,6 +128,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case futureagi
     case munito
     case traecn
+    case chatbox
+    case abliteration
 }
 
 // swiftformat:enable sortDeclarations

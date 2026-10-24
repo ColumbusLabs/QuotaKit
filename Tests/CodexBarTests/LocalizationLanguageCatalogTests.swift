@@ -599,158 +599,6 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
-    func `italian localization matches English catalog and includes current UI labels`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
-        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
-        let itURL = resourcesURL.appendingPathComponent("it.lproj/Localizable.strings")
-        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
-        let italian = try #require(NSDictionary(contentsOf: itURL) as? [String: String])
-
-        #expect(Set(italian.keys) == Set(english.keys))
-        #expect(italian["Individual credits"] == "Crediti individuali")
-        #expect(italian["Workspace"] == "Spazio di lavoro")
-        #expect(italian["display_mode_reset_time"] == "Ora di reimpostazione")
-        #expect(italian["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
-        #expect(italian["ory_session_…=…; csrftoken=…"] == "ory_session_…=…; csrftoken=…")
-        #expect(italian["quota_warning_notifications_subtitle"]?.contains("scende sotto") == true)
-        #expect(italian["metric_mistral_payg"] == "A consumo")
-        #expect(italian["metric_mistral_monthly_plan"] == "Piano mensile")
-
-        let intentionallyUnchanged: Set = [
-            "/Applications/TcrBar.app/Contents/MacOS/tcr",
-            "Gemini CLI",
-            "Gemini app",
-            "%.0f%% %@",
-            "%@ %@",
-            "%@: %@",
-            "%@h",
-            "00000000-0000-0000-0000-000000000000",
-            "<1%% %@",
-            "AKIA...",
-            "ak_…",
-            "Amp CLI",
-            "Bailian CLI",
-            "Base",
-            "Bearer eyJ...",
-            "Bonus",
-            "Chrome",
-            "Cookie: ...",
-            "Cookie: llama_dev_sess=...",
-            "Cookie: …",
-            "Cursor",
-            "Flash",
-            "Flash Lite",
-            "Gemini Flash",
-            "GitHub",
-            "Google OAuth",
-            "Grok CLI",
-            "Helmcode Cloud",
-            "Input",
-            "LLMMAN_API_KEY",
-            "NaN Builders",
-            "No",
-            "Oasis-Token",
-            "Oasis-Token=…",
-            "OpenCodex",
-            "Output",
-            "Pro",
-            "SuperGrok OAuth",
-            "Token",
-            "Trae CN",
-            "ZeroGPU",
-            "__raycast_session=…; csrf_token=…",
-            "antigravity-cli-usage",
-            "antigravity-cli-version",
-            "byte_unit_byte",
-            "byte_unit_gigabyte",
-            "byte_unit_kilobyte",
-            "byte_unit_megabyte",
-            "cb_...",
-            "cos_…",
-            "cpk-...",
-            "curl 'https://ai.zoom.us/ai-computer/api/v1/credits/status' -H 'authorization: ...'",
-            "dg_...",
-            "default",
-            "fk-...",
-            "fw_...",
-            "github.com",
-            "gpt-4o-mini",
-            "gsk_...",
-            "hooks_executable_placeholder",
-            "hooks_threshold_placeholder",
-            "http_server_dashboard",
-            "https://api.aixy-gateway.com",
-            "https://bifrost.example.com",
-            "https://litellm.example.com",
-            "https://openrouter.ai/api/v1",
-            "https://proxy.example.com",
-            "https://resource.openai.azure.com",
-            "https://sub2api.example.com",
-            "kilo_...",
-            "language_arabic",
-            "language_galician",
-            "language_italian",
-            "language_persian",
-            "language_russian",
-            "language_thai",
-            "link_github",
-            "ollama-...",
-            "org/example-org",
-            "ory_session_…=…; csrftoken=…",
-            "proj_...",
-            "project-slug",
-            "section_privacy",
-            "session_id=…",
-            "session_quota_estimate_value_format",
-            "sessionid=…; csrftoken=…",
-            "sgamp_...",
-            "sk-...",
-            "sk-admin-...",
-            "sk-ant-admin...",
-            "sk-or-v1-...",
-            "sk-…",
-            "spend_performance_percent",
-            "spend_performance_rate",
-            "spend_performance_rate_range",
-            "spend_performance_seconds",
-            "spend_tools_coverage",
-            "spend_tools_milliseconds",
-            "us-east-1",
-            "user@example.com",
-            "v0_...",
-            "wk-...",
-            "wrk_…",
-            "ws_…",
-            "x0mh0x",
-            "xai-...",
-            "xi-...",
-            "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-            "~/.local/bin/cswap",
-            "~/Library/Application Support/JetBrains/IntelliJIdea2024.3",
-        ]
-        let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
-        #expect(unchanged == intentionallyUnchanged)
-
-        let warningFormat = try #require(italian["quota_warning_notification_body"])
-        let warning = String(
-            format: warningFormat,
-            locale: Locale(identifier: "it_IT"),
-            arguments: ["20%", 15, "settimanale"])
-        #expect(warning == "Rimane 20%. Hai raggiunto la soglia di avviso del 15% per la quota settimanale.")
-
-        let titleFormat = try #require(italian["quota_warning_notification_title"])
-        let title = String(
-            format: titleFormat,
-            locale: Locale(identifier: "it_IT"),
-            arguments: ["Codex", "settimanale"])
-        #expect(title == "Quota settimanale di Codex quasi esaurita")
-    }
-
-    @Test
     func `indonesian localization matches English catalog and preserves format placeholders`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -883,6 +731,162 @@ struct LocalizationLanguageCatalogTests {
         defaults.removePersistentDomain(forName: suiteName)
         defer { defaults.removePersistentDomain(forName: suiteName) }
         body(defaults, suiteName)
+    }
+}
+
+extension LocalizationLanguageCatalogTests {
+    @Test
+    func `italian localization matches English catalog and includes current UI labels`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
+        let itURL = resourcesURL.appendingPathComponent("it.lproj/Localizable.strings")
+        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
+        let italian = try #require(NSDictionary(contentsOf: itURL) as? [String: String])
+
+        #expect(Set(italian.keys) == Set(english.keys))
+        #expect(italian["Individual credits"] == "Crediti individuali")
+        #expect(italian["Workspace"] == "Spazio di lavoro")
+        #expect(italian["display_mode_reset_time"] == "Ora di reimpostazione")
+        #expect(italian["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
+        #expect(italian["ory_session_…=…; csrftoken=…"] == "ory_session_…=…; csrftoken=…")
+        #expect(italian["quota_warning_notifications_subtitle"]?.contains("scende sotto") == true)
+        #expect(italian["metric_mistral_payg"] == "A consumo")
+        #expect(italian["metric_mistral_monthly_plan"] == "Piano mensile")
+
+        let intentionallyUnchanged: Set = [
+            "/Applications/TcrBar.app/Contents/MacOS/tcr",
+            "Gemini CLI",
+            "Gemini app",
+            "%.0f%% %@",
+            "%@ %@",
+            "%@: %@",
+            "%@h",
+            "00000000-0000-0000-0000-000000000000",
+            "<1%% %@",
+            "AKIA...",
+            "ak_…",
+            "Amp CLI",
+            "Bailian CLI",
+            "Base",
+            "Bearer eyJ...",
+            "Bonus",
+            "Chatbox AI",
+            "Chrome",
+            "Cookie: ...",
+            "Cookie: llama_dev_sess=...",
+            "Cookie: …",
+            "Cursor",
+            "Flash",
+            "Flash Lite",
+            "Gemini Flash",
+            "GitHub",
+            "Google OAuth",
+            "Grok CLI",
+            "Helmcode Cloud",
+            "Input",
+            "LLMMAN_API_KEY",
+            "NaN Builders",
+            "No",
+            "Oasis-Token",
+            "Oasis-Token=…",
+            "OpenCodex",
+            "Output",
+            "Pro",
+            "SuperGrok OAuth",
+            "Token",
+            "Trae CN",
+            "ZeroGPU",
+            "__raycast_session=…; csrf_token=…",
+            "abliteration.ai",
+            "antigravity-cli-usage",
+            "antigravity-cli-version",
+            "byte_unit_byte",
+            "byte_unit_gigabyte",
+            "byte_unit_kilobyte",
+            "byte_unit_megabyte",
+            "cb_...",
+            "cos_…",
+            "cpk-...",
+            "curl 'https://ai.zoom.us/ai-computer/api/v1/credits/status' -H 'authorization: ...'",
+            "dg_...",
+            "default",
+            "fk-...",
+            "fw_...",
+            "github.com",
+            "gpt-4o-mini",
+            "gsk_...",
+            "hooks_executable_placeholder",
+            "hooks_threshold_placeholder",
+            "http_server_dashboard",
+            "https://api.aixy-gateway.com",
+            "https://bifrost.example.com",
+            "https://litellm.example.com",
+            "https://openrouter.ai/api/v1",
+            "https://proxy.example.com",
+            "https://resource.openai.azure.com",
+            "https://sub2api.example.com",
+            "kilo_...",
+            "language_arabic",
+            "language_galician",
+            "language_italian",
+            "language_persian",
+            "language_russian",
+            "language_thai",
+            "link_github",
+            "ollama-...",
+            "org/example-org",
+            "ory_session_…=…; csrftoken=…",
+            "proj_...",
+            "project-slug",
+            "section_privacy",
+            "session_id=…",
+            "session_quota_estimate_value_format",
+            "sessionid=…; csrftoken=…",
+            "sgamp_...",
+            "sk-...",
+            "sk-admin-...",
+            "sk-ant-admin...",
+            "sk-or-v1-...",
+            "sk-…",
+            "spend_performance_percent",
+            "spend_performance_rate",
+            "spend_performance_rate_range",
+            "spend_performance_seconds",
+            "spend_tools_coverage",
+            "spend_tools_milliseconds",
+            "us-east-1",
+            "user@example.com",
+            "v0_...",
+            "wk-...",
+            "wrk_…",
+            "ws_…",
+            "x0mh0x",
+            "xai-...",
+            "xi-...",
+            "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            "~/.local/bin/cswap",
+            "~/Library/Application Support/JetBrains/IntelliJIdea2024.3",
+        ]
+        let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
+        #expect(unchanged == intentionallyUnchanged)
+
+        let warningFormat = try #require(italian["quota_warning_notification_body"])
+        let warning = String(
+            format: warningFormat,
+            locale: Locale(identifier: "it_IT"),
+            arguments: ["20%", 15, "settimanale"])
+        #expect(warning == "Rimane 20%. Hai raggiunto la soglia di avviso del 15% per la quota settimanale.")
+
+        let titleFormat = try #require(italian["quota_warning_notification_title"])
+        let title = String(
+            format: titleFormat,
+            locale: Locale(identifier: "it_IT"),
+            arguments: ["Codex", "settimanale"])
+        #expect(title == "Quota settimanale di Codex quasi esaurita")
     }
 }
 

@@ -9,7 +9,7 @@ read_when:
 
 ## Settings
 
-On macOS 26 and later, Settings uses the system split-view sidebar, toolbar, search, and scroll-edge effects. The native sidebar toggle and divider can hide or restore the sidebar; its saved width is preserved. Earlier macOS versions keep the existing sidebar and titlebar layout.
+On macOS 26 and later, Settings uses the system split-view sidebar, toolbar, search, and scroll-edge effects. The native sidebar toggle and divider can hide or restore the sidebar; its saved width is preserved. The detail scroll view and frosted toolbar backing fill the available column in wide windows. Earlier macOS versions keep the existing sidebar, titlebar layout, and detail reading-width cap.
 
 - Back and Forward revisit the panes you opened, using Command-[ and Command-] as in System Settings. Selecting a new pane after going back clears forward history; reselecting the current pane preserves it. The last pane still restores at launch, while navigation history lasts only for the current app session. Hidden Debug panes are removed from history. On macOS 26 and later, the controls use the native toolbar; earlier macOS versions retain the native window title and show the controls above the pane content. The native window title stays set on every version for accessibility and the Window menu. About and Acknowledgements share this history. Opening About explicitly returns to its root; reopening Settings preserves the current destination during the session. Only the pane, not a subpage or history, restores after relaunch.
 - App copy, credential-expiry alerts, share cards, number formatting, and layout direction follow the selected app language. Widgets use the system language independently. All 23 supported languages have app catalogs and generated widget catalogs. After editing app translations or widget lookup keys, run `node Scripts/sync-widget-locales.mjs`; hosted lint verifies key coverage, format arguments, plural branches, and generated resources.
@@ -56,6 +56,7 @@ Stacked rows with leading window labels align their values and meters after the 
 - Turn off **Show window labels** beside **Monospaced digits** to hide Session, Weekly, and Scoped weekly percentage
   prefixes such as `5h` and `W`. It defaults on and applies to all layouts. Percentages keep their full VoiceOver
   descriptions; named provider lanes, named allowances, Spend currency symbols, and progress-bar labels remain visible.
+- Automatic percentage, pace, and reset tokens identify the selected window when multiple distinct quota windows are available. Show window labels controls the visible prefix, while VoiceOver retains the full window name. Single-window, balance-only, and ambiguous selections stay bare.
 - For a provider-specific bare Session percentage, select Codex or Claude in Layout, remove the existing percentage,
   and add the **second Session %** chip from Usage (the provider's primary lane). This works with window labels enabled.
 - For Codex or Claude weekly usage without a `W` prefix, select that provider in Layout, remove the existing percentage,

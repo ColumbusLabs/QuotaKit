@@ -18,6 +18,10 @@ QuotaKit monitors CodeRabbit review activity, usage billing state, and billing p
 coderabbit usage
 ```
 
+QuotaKit sets the documented `CODERABBIT_CLI_DISABLE_AUTO_UPDATE=true` environment variable on its usage child,
+so passive refreshes do not trigger CLI auto-updates. This does not change saved settings or user-launched sessions.
+See the [CLI environment variables](https://docs.coderabbit.ai/cli/reference#environment-variables).
+
 Example CLI output:
 ```text
 CodeRabbit Usage — current billing period

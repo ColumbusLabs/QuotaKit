@@ -14,6 +14,7 @@ struct CodeRabbitUsageTests {
                 "CODERABBIT_TEST_AUTH_STATUS": authStatus,
                 "CODERABBIT_TEST_AUTH_EXIT_CODE": String(exitCode),
                 "CODERABBIT_TEST_INVOCATIONS": self.invocations.path,
+                "CODERABBIT_CLI_DISABLE_AUTO_UPDATE": "false",
             ]
         }
     }
@@ -26,6 +27,7 @@ struct CodeRabbitUsageTests {
         let script = """
         #!/bin/sh
         printf '%s\\n' "$*" >> "$CODERABBIT_TEST_INVOCATIONS"
+        [ "$CODERABBIT_CLI_DISABLE_AUTO_UPDATE" = "true" ] || exit 27
         if [ "$1" = "auth" ] && [ "$2" = "status" ] && [ "$3" = "--agent" ]; then
             printf '%s\\n' "$CODERABBIT_TEST_AUTH_STATUS"
             exit "${CODERABBIT_TEST_AUTH_EXIT_CODE:-0}"

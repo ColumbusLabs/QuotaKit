@@ -69,7 +69,7 @@ struct PerplexityCreditPercentTests {
         for (preference, expected): (PercentWindow, String) in [
             (.session, showUsed ? "C 100%" : "C 0%"),
             (.weekly, showUsed ? "B 25%" : "B 75%"),
-            (.automatic, showUsed ? "25%" : "75%"),
+            (.automatic, showUsed ? "B 25%" : "B 75%"),
         ] {
             let layout = MenuBarLayout(lines: [[.percent(window: preference)]])
             let output = MenuBarLayoutRenderer().render(
@@ -109,7 +109,7 @@ struct PerplexityCreditPercentTests {
                     appearanceName: NSAppearance.Name.aqua.rawValue,
                     isDebugApp: false,
                     now: self.now))
-            #expect(output.attributedTitle.string == "–")
+            #expect(output.attributedTitle.string == "B –")
             #expect(!output.accessibilityLabel.contains("1000/4000"))
         }
     }

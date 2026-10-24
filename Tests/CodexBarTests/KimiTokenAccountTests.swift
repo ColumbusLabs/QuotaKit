@@ -37,7 +37,7 @@ struct KimiTokenAccountTests {
 
     @Test(arguments: KimiRegion.allCases, [ProviderSourceMode.auto, .api, .web])
     func `CLI selects labeled web accounts with isolated credentials in the configured region`(
-        region: KimiRegion, source: ProviderSourceMode) throws
+        region: KimiRegion, source: ProviderSourceMode) async throws
     {
         let accounts = [
             self.account("eyJ.first.fixture", label: "Personal"),
@@ -53,7 +53,7 @@ struct KimiTokenAccountTests {
             #expect(snapshot.kimi?.cookieSource == .manual)
             let mode = cli.effectiveSourceMode(base: source, provider: .kimi, account: account)
             #expect(mode == .web)
-            #expect(!CodexBarCLI.sourceModeRequiresWebSupport(
+            #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(
                 mode, provider: .kimi, environment: environment, settings: snapshot))
             #expect(KimiCookieHeader.override(from: snapshot.kimi?.manualCookieHeader)?.token ==
                 (index == 0 ? "eyJ.first.fixture" : "second"))
@@ -63,9 +63,9 @@ struct KimiTokenAccountTests {
 
     @Test(arguments: [ProviderSourceMode.auto, .web], [ProviderCookieSource.auto, .off])
     func `automatic Kimi cookies still require browser support`(
-        source: ProviderSourceMode, cookies: ProviderCookieSource)
+        source: ProviderSourceMode, cookies: ProviderCookieSource) async
     {
-        #expect(CodexBarCLI.sourceModeRequiresWebSupport(
+        #expect(await CodexBarCLI.sourceModeRequiresWebSupport(
             source,
             provider: .kimi,
             environment: ["KIMI_CODE_HOME": "/dev/null/quotakit-test-credentials"],

@@ -422,6 +422,8 @@ enum CostUsageCodexReportProjectionBuilder {
             }
         }
         let projectPathResolver = CostUsageScanner.CodexCanonicalProjectPathResolver()
+        let databaseURL = CostUsageStore.databaseURL(cacheRoot: cacheRoot)
+        let detailPricingKey = cache.codexScanCatchUpPending == true ? nil : cache.codexPricingKey
         return latest.compactMap { id, value in
             let report = self.report(
                 aggregates: (aggregatesByPath[value.0] ?? []).map(\.aggregate),
@@ -430,6 +432,21 @@ enum CostUsageCodexReportProjectionBuilder {
             let requestCounts = report.data.compactMap(\.requestCount)
             let projectPath = value.1.canonicalProjectPath
                 ?? projectPathResolver.canonicalProjectPath(for: value.1.projectPath)
+            let sessionSource = SessionToolActivitySource(
+                fileURL: URL(fileURLWithPath: value.0), sessionID: id)
+            let detailSource: CostUsageSessionDetailSource? = if let detailPricingKey,
+                                                                 let ledgerRevision = value.1.codexLedgerRevision,
+                                                                 value.1.codexReplacementScanPending != true
+            {
+                CostUsageSessionDetailSource(
+                    databaseURL: databaseURL,
+                    sessionSource: sessionSource,
+                    parsedBytes: value.1.parsedBytes,
+                    pricingKey: detailPricingKey,
+                    ledgerRevision: ledgerRevision)
+            } else {
+                nil
+            }
             var session = CostUsageSessionBreakdown(
                 sessionID: id, lastActivity: Date(timeIntervalSince1970: Double(value.1.mtimeUnixMs) / 1000),
                 inputTokens: report.summary?.totalInputTokens,
@@ -442,7 +459,12 @@ enum CostUsageCodexReportProjectionBuilder {
                 modelBreakdowns: self.mergedModelBreakdowns(report.data) ?? [],
                 projectPath: projectPath,
                 projectName: projectPath.map { self.projectName($0) },
-                title: value.1.codexSession?.title)
+                title: value.1.codexSession?.title,
+                turnPerformanceSamples: CostUsageScanner.codexTurnPerformanceSamples(
+                    usage: value.1,
+                    range: range),
+                toolActivitySource: sessionSource,
+                requestDetailSource: detailSource)
             session.workingDirectory = value.1.projectPath
             return session
         }.sorted { lhs, rhs in

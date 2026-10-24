@@ -70,6 +70,7 @@ struct CostHistoryChartMenuView: View {
     private let sessions: [CostUsageSessionBreakdown]
     private let hidePersonalInfo: Bool
     private let width: CGFloat
+    private let onBrowseSessions: (@MainActor (String?) -> Void)?
     @State private var metric: ChartMetric
     @State private var selectedDateKey: String?
 
@@ -85,7 +86,8 @@ struct CostHistoryChartMenuView: View {
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
         hidePersonalInfo: Bool,
-        width: CGFloat)
+        width: CGFloat,
+        onBrowseSessions: (@MainActor (String?) -> Void)? = nil)
     {
         self.provider = provider
         self.daily = daily
@@ -98,6 +100,7 @@ struct CostHistoryChartMenuView: View {
         self.sessions = sessions
         self.hidePersonalInfo = hidePersonalInfo
         self.width = width
+        self.onBrowseSessions = onBrowseSessions
         self._metric = State(initialValue: Self.defaultMetric(provider: provider, daily: daily))
     }
 
@@ -438,6 +441,17 @@ struct CostHistoryChartMenuView: View {
                 Text("\(self.sessions.count)")
                     .font(.caption2)
                     .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                if let onBrowseSessions = self.onBrowseSessions {
+                    Image(systemName: "magnifyingglass")
+                        .frame(width: 22, height: Self.detailPrimaryLineHeight)
+                        .accessibilityHidden(true)
+                        .overlay {
+                            SessionUsageMenuAction(label: L("Search sessions")) { onBrowseSessions(nil) }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .help(L("Search sessions"))
+                        .accessibilityLabel(L("Search sessions"))
+                }
             }
             .frame(height: Self.detailPrimaryLineHeight, alignment: .leading)
 
@@ -464,7 +478,7 @@ struct CostHistoryChartMenuView: View {
     private func sessionRow(_ session: CostUsageSessionBreakdown) -> some View {
         let identity = CostHistoryIdentity(
             sessionID: session.sessionID, title: session.title, hidePersonalInfo: self.hidePersonalInfo)
-        return HStack(alignment: .top, spacing: 8) {
+        let content = HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(identity.name)
                     .font(.caption)
@@ -487,9 +501,22 @@ struct CostHistoryChartMenuView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.sessionRowHeight, alignment: .topLeading)
+        .contentShape(Rectangle())
         .help(L("Session %@", Self.shortSessionID(session.sessionID)))
         .accessibilityElement(children: .combine)
+
+        return Group {
+            if let onBrowseSessions = self.onBrowseSessions {
+                content.accessibilityHidden(true).overlay {
+                    SessionUsageMenuAction(label: identity.name) { onBrowseSessions(session.sessionID) }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                content
+            }
+        }
     }
 
     nonisolated static func shortSessionID(_ sessionID: String) -> String {

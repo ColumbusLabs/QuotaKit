@@ -2763,3 +2763,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN 請求失敗。請稍後嘗試重新整理。";
 
 "Show Soniox usage" = "顯示 Soniox 用量";
+
+/* October 24 upstream integration */
+"Search sessions" = "搜尋對話";
+
+"No matching sessions" = "沒有符合的對話";
+
+"Select a session" = "選擇一個對話";
+
+"Cached input is included in input; reasoning is included in output." = "快取輸入已包含在輸入中；推理 Token 已包含在輸出中。";
+
+"Recent activity" = "最近活動";
+
+"Sort by" = "排序依據";
+
+"Ascending" = "升冪";
+
+"Descending" = "降冪";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "每輪包含該時間範圍內記錄的模型請求；同一輪中的多則訊息無法分別計費。";
+
+"No turn-level usage records are available." = "沒有可用的輪次用量記錄。";
+
+"Unattributed usage" = "未歸屬的用量";
+
+"Turn %d" = "第 %d 輪";
+
+"Model requests" = "模型請求";
+
+"Tool activity has no separate recorded token or monetary cost." = "日誌未單獨記錄工具呼叫的 Token 或費用。";
+
+"Request %d" = "第 %d 次請求";
+
+"Request details exceed the limit." = "請求明細超過載入上限。";
+
+"Request details are unavailable. Refresh usage and try again." = "請求明細暫不可用，請重新整理用量後再試。";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "顯示 Chatbox AI 用量";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Chatbox AI 授權金鑰無效。請在設定中更新。";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI 拒絕了存取。請檢查授權。";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI 正在限制請求頻率。請稍後再試。";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI 請求失敗。請稍後嘗試重新整理。";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI 傳回了無法辨識的回應。請更新 QuotaKit 後再試。";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "顯示 abliteration.ai 用量";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai 正在限制請求頻率。請稍後再試。";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai 請求失敗。請稍後嘗試重新整理。";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai 傳回了無法辨識的回應。請更新 QuotaKit 後再試。";
+
+"Check your API key in Settings." = "請在設定中檢查你的 API 金鑰。";

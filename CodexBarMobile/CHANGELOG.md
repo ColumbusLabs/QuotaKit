@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone.
+
 - Optional Vercel personal budgets sync from Mac to iPhone through the existing quota and detail payloads.
 
 - Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.

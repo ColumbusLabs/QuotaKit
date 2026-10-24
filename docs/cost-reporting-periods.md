@@ -1,5 +1,31 @@
 # Cost reporting periods
 
+## Conversation usage details
+
+In a cost-history menu, click a conversation to open its session inspector in Usage & Spend. The
+search control opens the same inspector for conversations retained in the current account snapshot.
+Usage & Spend groups sessions by source so identical session IDs from different accounts remain
+separate. Search matches the visible conversation name or session ID; hidden names are not searched
+when **Hide personal information** is enabled. Sessions sort by activity, tokens, or cost, with
+unavailable values remaining last.
+
+The inspector shows input, cached input, uncached input, output, reasoning, requests, estimated spend,
+and per-model totals. Expand a turn to see its request records and local Codex tool activity when
+available. Tools have no separate recorded token or monetary cost. Requests without a known turn are
+shown as unattributed usage; requests outside the selected reporting period are not included.
+Cached input is a subset of input, and reasoning is a subset of output. Missing counters and prices
+remain unavailable rather than being displayed as zero.
+
+Ordinary refreshes retain the existing session summaries without building request-detail arrays.
+Selecting one native Codex session reads only that file's existing SQLite rows in a read-only
+transaction. The loader enforces limits of 5,000 requests, 8 MiB of request payload, 1 MiB of file
+metadata, 5,000 day/model aggregates, and 1 MiB of aggregate model names. If the session exceeds a
+limit, or its modification time, parsed byte checkpoint, or store schema no longer matches the
+summary, the summary remains available and request details are unavailable; no partial totals are
+presented. Detail reads use the session's existing cached pricing metadata and fork-accounting
+lineage. Closing the inspector releases its selected request details. No additional history store is
+created.
+
 Spend charts use the same reporting calendar for grouped bars, scoped day/hour inspection, day navigation, and source isolation. Recorded zero sources remain selectable; absent coverage is unavailable rather than a fabricated zero. Totals and chart selections preserve the selected reporting dates across daylight-saving boundaries.
 
 The menu's **History window** supports rolling days, **Month to date**, and **Available year**. Usage & Spend uses the same period model and keeps its own range selection. Existing saved day counts retain their rolling windows; the dashboard's former 365-day selection migrates to Available year.

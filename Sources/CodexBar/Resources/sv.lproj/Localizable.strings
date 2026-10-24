@@ -2782,3 +2782,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN-förfrågan misslyckades. Försök uppdatera senare.";
 
 "Show Soniox usage" = "Visa Soniox-användning";
+
+/* October 24 upstream integration */
+"Search sessions" = "Sök sessioner";
+
+"No matching sessions" = "Inga matchande sessioner";
+
+"Select a session" = "Välj en session";
+
+"Cached input is included in input; reasoning is included in output." = "Cachelagrad indata ingår i indata; resonemangstoken ingår i utdata.";
+
+"Recent activity" = "Senaste aktivitet";
+
+"Sort by" = "Sortera efter";
+
+"Ascending" = "Stigande";
+
+"Descending" = "Fallande";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Varje tur innehåller modellförfrågningar som registrerats under perioden. Meddelanden i samma tur kan inte prissättas separat.";
+
+"No turn-level usage records are available." = "Inga användningsdata per tur finns tillgängliga.";
+
+"Unattributed usage" = "Ej tilldelad användning";
+
+"Turn %d" = "Tur %d";
+
+"Model requests" = "Modellförfrågningar";
+
+"Tool activity has no separate recorded token or monetary cost." = "Inga separata token- eller penningkostnader registreras för verktygsanrop.";
+
+"Request %d" = "Förfrågan %d";
+
+"Request details exceed the limit." = "Förfrågningsdetaljerna överskrider gränsen.";
+
+"Request details are unavailable. Refresh usage and try again." = "Förfrågningsdetaljerna är inte tillgängliga. Uppdatera användningen och försök igen.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Visa Chatbox AI-användning";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Licensnyckeln för Chatbox AI är ogiltig. Uppdatera den i Inställningar.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI nekade åtkomst. Kontrollera din licens.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI begränsar antalet förfrågningar. Försök igen senare.";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI-förfrågan misslyckades. Försök uppdatera senare.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "Visa abliteration.ai-användning";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai begränsar antalet förfrågningar. Försök igen senare.";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai-förfrågan misslyckades. Försök uppdatera senare.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
+
+"Check your API key in Settings." = "Kontrollera din API-nyckel i Inställningar.";

@@ -173,6 +173,8 @@ public enum QuotaProviderList {
         // when a real measured primary window is present.
         Provider(id: "soniox", displayName: "Soniox"),
         Provider(id: "traecn", displayName: "Trae CN"),
+        // Chatbox has a plan quota; prepaid, reward, and image pools never enter quota alerts.
+        Provider(id: "chatbox", displayName: "Chatbox AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

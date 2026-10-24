@@ -113,5 +113,7 @@ public enum ProviderManifest {
         FutureAGIProviderDescriptor.descriptor,
         MunitoProviderDescriptor.descriptor,
         TraeCNProviderDescriptor.descriptor,
+        ChatboxProviderDescriptor.descriptor,
+        AbliterationProviderDescriptor.descriptor,
     ]
 }
