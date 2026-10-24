@@ -218,6 +218,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "8d37b5425fe86c2a", // Selected-session inspection preserves existing parsed rows and checkpoints.
         "c939f17d29a7e29d", // Claude-only pricing preserves native Codex rows, checkpoints, and reports.
         "65175f55d6bacbca", // Exact byte-marker searches preserve native rows, checkpoints, and reports.
         "7465d609f5f2dcfb", // Opt-in export observers preserve QuotaKit saved rows and checkpoints.
@@ -395,14 +396,17 @@ actor CostUsageStore {
         parserHash: String = CodexParserHash.value,
         busyTimeoutMilliseconds: Int32 = 5000)
     {
-        let root = cacheRoot ?? Self.defaultCacheRoot()
-        self.databaseURL = root
-            .appendingPathComponent("cost-usage", isDirectory: true)
-            .appendingPathComponent(Self.databaseFilename, isDirectory: false)
+        self.databaseURL = Self.databaseURL(cacheRoot: cacheRoot)
         self.executor = StoreSerialExecutor.shared(for: self.databaseURL)
         self.expectedSchemaVersion = schemaVersion
         self.expectedParserHash = parserHash
         self.busyTimeoutMilliseconds = busyTimeoutMilliseconds
+    }
+
+    static func databaseURL(cacheRoot: URL?) -> URL {
+        let root = cacheRoot ?? Self.defaultCacheRoot()
+        return root.appendingPathComponent("cost-usage", isDirectory: true)
+            .appendingPathComponent(Self.databaseFilename, isDirectory: false)
     }
 
     static func combinedSchemaVersion(base: Int, parserHash: String) -> Int32 {

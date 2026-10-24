@@ -15,14 +15,14 @@ struct PlatformGatingTests {
     }
 
     @Test
-    func ampAutoSource_doesNotRequireWebSupport() {
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
+    func ampAutoSource_doesNotRequireWebSupport() async {
+        #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
     }
 
     @Test
-    func claudeAutoSource_allowsPlannerToFallBackToCLI() {
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .claude))
-        #expect(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .claude))
+    func claudeAutoSource_allowsPlannerToFallBackToCLI() async {
+        #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .claude))
+        #expect(await CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .claude))
     }
 
     @Test

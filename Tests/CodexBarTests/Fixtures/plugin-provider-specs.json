@@ -107,7 +107,9 @@
     "claudeplatform",
     "futureagi",
     "munito",
-    "traecn"
+    "traecn",
+    "chatbox",
+    "abliteration"
   ],
   "order": [
     "codex",
@@ -217,7 +219,9 @@
     "claudeplatform",
     "futureagi",
     "munito",
-    "traecn"
+    "traecn",
+    "chatbox",
+    "abliteration"
   ],
   "providers": [
     {
@@ -274,7 +278,7 @@
         {
           "actions": [],
           "id": "xkiro-api-key",
-          "placeholder": "Paste API key…",
+          "placeholder": "Paste API key\u2026",
           "secure": true,
           "subtitle": "Saved in QuotaKit's local config file. Or set XKIRO_API_KEY. Reads free-token usage only.",
           "title": "xKiro API key"
@@ -301,10 +305,10 @@
       "noData": "xKiro cost history is not available.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "XKIRO_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -373,7 +377,7 @@
         {
           "actions": [],
           "id": "atlascloud-api-key",
-          "placeholder": "Paste API key…",
+          "placeholder": "Paste API key\u2026",
           "secure": true,
           "subtitle": "Saved in QuotaKit's local config file. Or set ATLASCLOUD_API_KEY.",
           "title": "Atlas Cloud API key"
@@ -400,10 +404,10 @@
       "noData": "Atlas Cloud cost history is not available.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "ATLASCLOUD_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -472,7 +476,7 @@
         {
           "actions": [],
           "id": "vercel-api-key",
-          "placeholder": "Paste API key…",
+          "placeholder": "Paste API key\u2026",
           "secure": true,
           "subtitle": "Saved in QuotaKit's local config file. Or set AI_GATEWAY_API_KEY.",
           "title": "Vercel AI Gateway API key"
@@ -520,11 +524,11 @@
       "noData": "Vercel AI Gateway cost history is not available.",
       "planLabels": {},
       "progressColor": "label",
+      "projectToken": "",
       "projections": {
         "AI_GATEWAY_API_KEY": "fixture-key",
         "VERCEL_TEAM_ID": "fixture-project"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -625,10 +629,10 @@
       "noData": "DevPass cost history is not available.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "DEVPASS_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -738,11 +742,11 @@
       "noData": "GitKraken cost history is not available.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "GITKRAKEN_API_TOKEN": "fixture-key",
         "GITKRAKEN_ORG_ID": "fixture-project"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -843,10 +847,10 @@
       "noData": "Poe usage history is unavailable.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "POE_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -941,10 +945,10 @@
       "noData": "DeepInfra per-request cost history is not available in QuotaKit.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "DEEPINFRA_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         "https://status.deepinfra.com"
@@ -957,7 +961,7 @@
         "injection": {
           "DEEPINFRA_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste API key…",
+        "placeholder": "Paste API key\u2026",
         "subtitle": "Store multiple DeepInfra API keys.",
         "title": "API tokens"
       },
@@ -1033,7 +1037,7 @@
             }
           ],
           "id": "zenmux-management-api-key",
-          "placeholder": "ZenMux management key…",
+          "placeholder": "ZenMux management key\u2026",
           "secure": true,
           "subtitle": "Stored in ~/.quotakit/config.json. Standard ZenMux inference API keys are not supported.",
           "title": "Management API key"
@@ -1060,10 +1064,10 @@
       "noData": "ZenMux cost history is not exposed by the Management API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "ZENMUX_MANAGEMENT_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1091,8 +1095,8 @@
       ],
       "color": [
         0.32941176470588235,
-        0.52941176470588236,
-        0.78431372549019607
+        0.5294117647058824,
+        0.7843137254901961
       ],
       "confetti": [
         [
@@ -1165,10 +1169,10 @@
       "noData": "ClinePass cost history is not available via the usage-limits API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "CLINE_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1258,7 +1262,7 @@
             }
           ],
           "id": "aiand-api-key",
-          "placeholder": "sk-…",
+          "placeholder": "sk-\u2026",
           "secure": true,
           "subtitle": "Stored in QuotaKit's config file. Create a key in the ai& console (shown once).",
           "title": "API key"
@@ -1285,10 +1289,10 @@
       "noData": "ai& spend is summed from the request logs API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "AIAND_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1363,7 +1367,7 @@
         {
           "actions": [],
           "id": "synthetic-api-key",
-          "placeholder": "Paste key…",
+          "placeholder": "Paste key\u2026",
           "secure": true,
           "subtitle": "Stored in ~/.quotakit/config.json. Paste the key from the Synthetic dashboard.",
           "title": "API key"
@@ -1395,10 +1399,10 @@
         "team": "Team"
       },
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "SYNTHETIC_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1500,10 +1504,10 @@
       "noData": "Chutes cost history is not available from QuotaKit.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "CHUTES_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1617,11 +1621,11 @@
       "noData": "v0 cost history is not available via the Platform API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "V0_API_KEY": "fixture-key",
         "V0_SCOPE": "fixture-project"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1734,10 +1738,10 @@
         "starter": "Starter"
       },
       "progressColor": "label",
+      "projectToken": "",
       "projections": {
         "ELEVENLABS_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         "https://status.elevenlabs.io"
@@ -1750,7 +1754,7 @@
         "injection": {
           "ELEVENLABS_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste API key…",
+        "placeholder": "Paste API key\u2026",
         "subtitle": "Store multiple ElevenLabs API keys.",
         "title": "API keys"
       },
@@ -1775,7 +1779,7 @@
         "neural"
       ],
       "color": [
-        0.83529411764705885,
+        0.8352941176470589,
         0.34901960784313724,
         0.20392156862745098
       ],
@@ -1850,10 +1854,10 @@
       "noData": "Neuralwatt token cost history is not available via the quota API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "NEURALWATT_API_KEY": "fixture-key"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -1937,7 +1941,7 @@
         {
           "actions": [],
           "id": "clawrouter-api-key",
-          "placeholder": "ClawRouter key…",
+          "placeholder": "ClawRouter key\u2026",
           "secure": true,
           "subtitle": "Stored in the QuotaKit config file. Reads monthly budget and routed usage from /v1/usage.",
           "title": "API key"
@@ -1972,11 +1976,11 @@
       "noData": "ClawRouter spend is reported by its usage API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "CLAWROUTER_API_KEY": "fixture-key",
         "CLAWROUTER_BASE_URL": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2051,7 +2055,7 @@
         {
           "actions": [],
           "id": "aixy-api-key",
-          "placeholder": "Paste Aixy API key…",
+          "placeholder": "Paste Aixy API key\u2026",
           "secure": true,
           "subtitle": "Project-scoped Aixy key used to read its own usage and applicable budgets.",
           "title": "API key"
@@ -2086,11 +2090,11 @@
       "noData": "Aixy spend is reported by the provider API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "AIXY_API_KEY": "fixture-key",
         "AIXY_BASE_URL": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2103,7 +2107,7 @@
         "injection": {
           "AIXY_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste Aixy API key…",
+        "placeholder": "Paste Aixy API key\u2026",
         "subtitle": "Store multiple Aixy API keys.",
         "title": "API keys"
       },
@@ -2174,7 +2178,7 @@
         {
           "actions": [],
           "id": "bifrost-api-key",
-          "placeholder": "Paste Bifrost virtual key…",
+          "placeholder": "Paste Bifrost virtual key\u2026",
           "secure": true,
           "subtitle": "Bifrost virtual key used to read its own budgets and rate limits.",
           "title": "Virtual key"
@@ -2209,11 +2213,11 @@
       "noData": "Bifrost spend is reported by the provider API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "BIFROST_API_KEY": "fixture-key",
         "BIFROST_BASE_URL": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2226,7 +2230,7 @@
         "injection": {
           "BIFROST_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste Bifrost virtual key…",
+        "placeholder": "Paste Bifrost virtual key\u2026",
         "subtitle": "Store multiple Bifrost virtual keys.",
         "title": "Virtual keys"
       },
@@ -2332,11 +2336,11 @@
       "noData": "Deepgram cost summary is not yet supported.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "fixture-project",
       "projections": {
         "DEEPGRAM_API_KEY": "fixture-key",
         "DEEPGRAM_PROJECT_ID": "fixture-project"
       },
-      "projectToken": "fixture-project",
       "status": [
         "",
         "https://status.deepgram.com"
@@ -2413,7 +2417,7 @@
         {
           "actions": [],
           "id": "llmproxy-api-key",
-          "placeholder": "proxy key…",
+          "placeholder": "proxy key\u2026",
           "secure": true,
           "subtitle": "Stored in ~/.quotakit/config.json. Used for /v1/quota-stats.",
           "title": "API key"
@@ -2448,11 +2452,11 @@
       "noData": "LLM Proxy cost history is reported in the quota-stats summary.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "LLM_PROXY_API_KEY": "fixture-key",
         "LLM_PROXY_BASE_URL": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2465,7 +2469,7 @@
         "injection": {
           "LLM_PROXY_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste proxy API key…",
+        "placeholder": "Paste proxy API key\u2026",
         "subtitle": "Store multiple LLM Proxy API keys.",
         "title": "API keys"
       },
@@ -2537,7 +2541,7 @@
         {
           "actions": [],
           "id": "litellm-api-key",
-          "placeholder": "sk-…",
+          "placeholder": "sk-\u2026",
           "secure": true,
           "subtitle": "LiteLLM virtual key used to read its own spend and budget.",
           "title": "API key"
@@ -2572,12 +2576,12 @@
       "noData": "LiteLLM spend is reported by the provider API.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "LITELLM_API_KEY": "fixture-key",
         "LITELLM_BASE_URL": "https://fixture.example.com",
         "LITELLM_MODEL_USAGE_ENABLED": "true"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2596,7 +2600,7 @@
         "injection": {
           "LITELLM_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste LiteLLM API key…",
+        "placeholder": "Paste LiteLLM API key\u2026",
         "subtitle": "Store multiple LiteLLM API keys.",
         "title": "API keys"
       },
@@ -2620,9 +2624,9 @@
         "sub-2-api"
       ],
       "color": [
-        0.078431372549019607,
-        0.72156862745098038,
-        0.65098039215686276
+        0.0784313725490196,
+        0.7215686274509804,
+        0.6509803921568628
       ],
       "confetti": [
         [
@@ -2668,7 +2672,7 @@
         {
           "actions": [],
           "id": "sub2api-api-key",
-          "placeholder": "sk-…",
+          "placeholder": "sk-\u2026",
           "secure": true,
           "subtitle": "Used when no group API key account is selected.",
           "title": "Fallback API key"
@@ -2710,11 +2714,11 @@
         "wallet plan": "Wallet"
       },
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "SUB2API_API_KEY": "fixture-key",
         "SUB2API_BASE_URL": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""
@@ -2727,7 +2731,7 @@
         "injection": {
           "SUB2API_API_KEY": "fixture-account"
         },
-        "placeholder": "Paste sub2api API key…",
+        "placeholder": "Paste sub2api API key\u2026",
         "subtitle": "Store one labeled sub2api API key for each group you want to monitor.",
         "title": "Group API keys"
       },
@@ -2837,11 +2841,11 @@
       "noData": "llmman cost summary is not supported.",
       "planLabels": {},
       "progressColor": "brand",
+      "projectToken": "",
       "projections": {
         "LLMMAN_API_KEY": "fixture-key",
         "LLMMAN_HOST": "https://fixture.example.com"
       },
-      "projectToken": "",
       "status": [
         "",
         ""

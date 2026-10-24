@@ -36,7 +36,12 @@ same inline dashboard pattern used by the OpenAI API provider.
 - App runtime main pipeline: OAuth API → CLI PTY → Web API.
 - CLI runtime on macOS: Web API → CLI PTY.
 - CLI runtime on Linux Auto: Web API → OAuth API (when available) → CLI PTY.
-- Explicit picker modes (OAuth/Web/CLI) bypass automatic fallback.
+- Explicit Web/CLI modes use the selected source. Explicit OAuth can fall back to Claude Code's own CLI on a
+  manual refresh when direct OAuth credentials are unavailable, including when the Keychain item contains only MCP
+  OAuth state. MCP tokens cannot provide Claude subscription usage, and recovery does not switch to browser
+  credentials; Auto keeps its OAuth → CLI → Web order and existing prompt/account checks.
+- A successful refresh replaces retained usage and clears its error and last-known capture notice. MCP-only
+  detection alone does not establish that another source is signed in or allowed to run in the background.
 - A lower-level direct Claude fetcher still contains a separate `.auto` order. That inconsistency is tracked in
   [docs/refactor/claude-current-baseline.md](refactor/claude-current-baseline.md).
 

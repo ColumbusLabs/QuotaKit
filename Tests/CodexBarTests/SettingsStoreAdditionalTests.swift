@@ -218,6 +218,21 @@ struct SettingsStoreAdditionalTests {
     }
 
     @Test
+    func `Chatbox and Abliteration expose only their supported menu bar metrics`() {
+        let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-chatbox-abliteration-metric")
+
+        settings.setMenuBarMetricPreference(.secondary, for: .chatbox)
+        #expect(settings.menuBarMetricPreference(for: .chatbox) == .secondary)
+        settings.setMenuBarMetricPreference(.tertiary, for: .chatbox)
+        #expect(settings.menuBarMetricPreference(for: .chatbox) == .automatic)
+
+        settings.setMenuBarMetricPreference(.primary, for: .abliteration)
+        #expect(settings.menuBarMetricPreference(for: .abliteration) == .primary)
+        settings.setMenuBarMetricPreference(.secondary, for: .abliteration)
+        #expect(settings.menuBarMetricPreference(for: .abliteration) == .automatic)
+    }
+
+    @Test
     func `menu bar metric preference restricts text only balance providers to automatic`() {
         let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-text-only-metric")
 

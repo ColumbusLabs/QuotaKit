@@ -676,7 +676,7 @@ final class SyncCoordinator {
         let codexProjection = provider == .codex
             ? self.store.codexConsumerProjection(surface: .widget, snapshotOverride: snapshot, now: paceNow)
             : nil
-        if let p = snapshot?.primary {
+        if provider != .abliteration, let p = snapshot?.primary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.primary,
@@ -685,7 +685,7 @@ final class SyncCoordinator {
                 dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
-        if let s = snapshot?.secondary {
+        if provider != .abliteration, provider != .chatbox, let s = snapshot?.secondary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.secondary,
@@ -694,7 +694,7 @@ final class SyncCoordinator {
                 dataConfidence: snapshot?.dataConfidence ?? .unknown,
                 now: paceNow))
         }
-        if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
+        if provider != .abliteration, let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.tertiary,
@@ -705,7 +705,7 @@ final class SyncCoordinator {
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
         // Routines / Web Sonnet, Cursor Extra usage, etc.
-        for extra in self.visibleExtraRateWindows(provider: provider, snapshot: snapshot) {
+        for extra in self.visibleExtraRateWindows(provider: provider, snapshot: snapshot) where provider != .abliteration {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: extra.title,
@@ -2052,6 +2052,7 @@ final class SyncCoordinator {
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe, .atlascloud, .vercel, .llmman,
              .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi, .soniox, .traecn,
+             .chatbox, .abliteration,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,

@@ -2786,3 +2786,64 @@
 "Trae CN request failed. Try refreshing later." = "Permintaan Trae CN gagal. Coba segarkan lagi nanti.";
 
 "Show Soniox usage" = "Tampilkan penggunaan Soniox";
+
+/* October 24 upstream integration */
+"Search sessions" = "Cari sesi";
+
+"No matching sessions" = "Tidak ada sesi yang cocok";
+
+"Select a session" = "Pilih sesi";
+
+"Cached input is included in input; reasoning is included in output." = "Input cache sudah termasuk dalam input; token penalaran sudah termasuk dalam output.";
+
+"Recent activity" = "Aktivitas terbaru";
+
+"Sort by" = "Urutkan berdasarkan";
+
+"Ascending" = "Menaik";
+
+"Descending" = "Menurun";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Setiap giliran mencakup permintaan model yang tercatat dalam periode ini. Pesan dalam giliran yang sama tidak dapat dihitung biayanya secara terpisah.";
+
+"No turn-level usage records are available." = "Tidak ada catatan penggunaan per giliran.";
+
+"Unattributed usage" = "Penggunaan tanpa atribusi";
+
+"Turn %d" = "Giliran %d";
+
+"Model requests" = "Permintaan model";
+
+"Tool activity has no separate recorded token or monetary cost." = "Panggilan alat tidak memiliki biaya token atau uang yang tercatat secara terpisah.";
+
+"Request %d" = "Permintaan %d";
+
+"Request details exceed the limit." = "Detail permintaan melebihi batas.";
+
+"Request details are unavailable. Refresh usage and try again." = "Detail permintaan tidak tersedia. Muat ulang penggunaan dan coba lagi.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Tampilkan penggunaan Chatbox AI";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Kunci lisensi Chatbox AI tidak valid. Perbarui di Pengaturan.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI menolak akses. Periksa lisensi Anda.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI membatasi frekuensi permintaan. Coba lagi nanti.";
+
+"Chatbox AI request failed. Try refreshing later." = "Permintaan Chatbox AI gagal. Coba segarkan lagi nanti.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI mengembalikan respons yang tidak dikenali. Perbarui QuotaKit dan coba lagi.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "Tampilkan penggunaan abliteration.ai";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai membatasi frekuensi permintaan. Coba lagi nanti.";
+
+"abliteration.ai request failed. Try refreshing later." = "Permintaan abliteration.ai gagal. Coba segarkan lagi nanti.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai mengembalikan respons yang tidak dikenali. Perbarui QuotaKit dan coba lagi.";
+
+"Check your API key in Settings." = "Periksa kunci API Anda di Pengaturan.";

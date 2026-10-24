@@ -170,6 +170,7 @@ check_cli_installer() {
 check_release_dsym_paths() {
   "${ROOT_DIR}/Scripts/test_release_dsym_paths.sh"
   python3 "${ROOT_DIR}/Scripts/test_release_asset_verification.py"
+  python3 "${ROOT_DIR}/Scripts/test_sparkle_release_notes.py"
   python3 "${ROOT_DIR}/Scripts/test_test_environment.py"
 }
 

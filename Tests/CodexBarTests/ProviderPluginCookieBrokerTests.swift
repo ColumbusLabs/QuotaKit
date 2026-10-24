@@ -351,6 +351,28 @@ struct ProviderPluginCookieBrokerTests {
     }
 
     @Test
+    func `Trae API domain keeps legacy cache while parent cookies use a variant`() throws {
+        try self.isolated { () throws in
+            CookieHeaderCache.store(
+                provider: .traecn,
+                cookieHeader: "session=legacy-api",
+                sourceLabel: "Old API browser profile")
+            let broker = ProviderPluginCookieBroker(
+                provider: .traecn,
+                domains: ["trae.cn", "api.trae.cn"],
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                importer: { [("session=\($0)", "Fixture")] })
+
+            #expect(try broker.cookieHeader(domain: "api.trae.cn") == "session=legacy-api")
+            #expect(try broker.cookieHeader(domain: "trae.cn") == "session=trae.cn")
+            #expect(CookieHeaderCache.load(provider: .traecn)?.cookieHeader == "session=legacy-api")
+            #expect(CookieHeaderCache.load(
+                provider: .traecn,
+                scope: .providerVariant("trae.cn"))?.cookieHeader == "session=trae.cn")
+        }
+    }
+
+    @Test
     func `candidate order skips duplicates and late rejection cannot evict successor`() throws {
         try self.isolated { () throws in
             let domain = "cloud.example.test"

@@ -13,21 +13,21 @@ import CSQLite3
 @Suite
 struct OpenCodeGoLinuxTests {
     @Test
-    func autoSourceDoesNotRequireWebSupport() {
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .opencodego))
-        #expect(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .opencodego))
+    func autoSourceDoesNotRequireWebSupport() async {
+        #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .opencodego))
+        #expect(await CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .opencodego))
     }
 
     @Test
-    func commandCodeManualCookieDoesNotRequireMacOSWebSupport() {
+    func commandCodeManualCookieDoesNotRequireMacOSWebSupport() async {
         let settings = ProviderSettingsSnapshot.make(
             commandcode: .init(cookieSource: .manual, manualCookieHeader: "session=manual"))
 
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(
+        #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .commandcode,
             settings: settings))
-        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(
+        #expect(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .commandcode,
             settings: settings))

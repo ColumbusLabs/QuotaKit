@@ -2785,3 +2785,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN isteği başarısız oldu. Daha sonra yeniden yenileyin.";
 
 "Show Soniox usage" = "Soniox kullanımını göster";
+
+/* October 24 upstream integration */
+"Search sessions" = "Oturum ara";
+
+"No matching sessions" = "Eşleşen oturum yok";
+
+"Select a session" = "Bir oturum seçin";
+
+"Cached input is included in input; reasoning is included in output." = "Önbelleğe alınan girdi, girdiye dahildir; akıl yürütme tokenleri çıktıya dahildir.";
+
+"Recent activity" = "Son etkinlik";
+
+"Sort by" = "Sıralama ölçütü";
+
+"Ascending" = "Artan";
+
+"Descending" = "Azalan";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Her tur, bu dönemde kaydedilen model isteklerini içerir. Aynı turdaki mesajlar ayrı ayrı fiyatlandırılamaz.";
+
+"No turn-level usage records are available." = "Tur düzeyinde kullanım kaydı yok.";
+
+"Unattributed usage" = "İlişkilendirilmemiş kullanım";
+
+"Turn %d" = "Tur %d";
+
+"Model requests" = "Model istekleri";
+
+"Tool activity has no separate recorded token or monetary cost." = "Araç çağrıları için ayrı token veya parasal maliyet kaydedilmez.";
+
+"Request %d" = "İstek %d";
+
+"Request details exceed the limit." = "İstek ayrıntıları sınırı aşıyor.";
+
+"Request details are unavailable. Refresh usage and try again." = "İstek ayrıntıları kullanılamıyor. Kullanımı yenileyip tekrar deneyin.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Chatbox AI kullanımını göster";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Chatbox AI lisans anahtarı geçersiz. Ayarlar’dan güncelleyin.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI erişimi reddetti. Lisansınızı kontrol edin.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI isteği başarısız oldu. Daha sonra yeniden yenileyin.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "abliteration.ai kullanımını göster";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai isteği başarısız oldu. Daha sonra yeniden yenileyin.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
+
+"Check your API key in Settings." = "Ayarlar’dan API anahtarınızı kontrol edin.";

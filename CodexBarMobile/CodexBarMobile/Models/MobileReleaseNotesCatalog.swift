@@ -33,6 +33,8 @@ enum MobileReleaseNotesCatalog {
                     items: [
                         String(localized: "Vercel personal budgets now sync from Mac to iPhone."),
                         String(
+                            localized: "Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone."),
+                        String(
                             localized: "Future AGI allowances, Munito spend limits, and Gemini app quota windows now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."),
                         String(
                             localized: "Antigravity now uses standard Gemini quota as its primary allowance, with model-specific limits still available."),

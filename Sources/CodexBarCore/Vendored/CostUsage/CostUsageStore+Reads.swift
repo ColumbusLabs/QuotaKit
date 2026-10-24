@@ -725,7 +725,7 @@ extension CostUsageStore {
             accumulators: self.readAccumulators(database, path: nil))
     }
 
-    private static let fileSelectSQL = """
+    static let fileSelectSQL = """
     SELECT path, inode, mtime_ms, size, parsed_bytes, anchor_indexed_bytes,
            anchor_window_start, anchor_sha256, scan_state, scan_target_size,
            scan_complete, session_id, coverage_since_day, coverage_until_day, updated_at_ms,

@@ -24089,6 +24089,148 @@
           }
         }
       }
+    },
+    "Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم الآن مزامنة حصص خطة Chatbox وأرصدة abliteration.ai من QuotaKit على Mac إلى iPhone."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les quotes del pla de Chatbox i els saldos de crèdit d’abliteration.ai ara se sincronitzen del QuotaKit per a Mac a l’iPhone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox-Plankontingente und abliteration.ai-Guthaben werden jetzt von QuotaKit auf dem Mac mit dem iPhone synchronisiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las cuotas del plan de Chatbox y los saldos de crédito de abliteration.ai ahora se sincronizan de QuotaKit para Mac al iPhone."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سهمیه‌های طرح Chatbox و موجودی اعتبار abliteration.ai اکنون از QuotaKit در Mac به iPhone همگام‌سازی می‌شوند."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les quotas du forfait Chatbox et les soldes de crédits abliteration.ai sont maintenant synchronisés de QuotaKit sur Mac vers l’iPhone."
+          }
+        },
+        "gl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As cotas do plan de Chatbox e os saldos de crédito de abliteration.ai agora sincronízanse de QuotaKit para Mac ao iPhone."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kuota paket Chatbox dan saldo kredit abliteration.ai kini disinkronkan dari QuotaKit Mac ke iPhone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le quote del piano Chatbox e i saldi di credito di abliteration.ai ora si sincronizzano da QuotaKit per Mac a iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox のプラン利用枠と abliteration.ai のクレジット残高が、QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox 요금제 할당량과 abliteration.ai 크레딧 잔액이 이제 QuotaKit Mac에서 iPhone으로 동기화됩니다."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox-abonnementslimieten en abliteration.ai-tegoeden worden nu van QuotaKit op de Mac naar de iPhone gesynchroniseerd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limity planu Chatbox i salda środków abliteration.ai są teraz synchronizowane z QuotaKit na Macu na iPhone’a."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As cotas do plano Chatbox e os saldos de crédito da abliteration.ai agora são sincronizados do QuotaKit no Mac para o iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квоты плана Chatbox и остатки кредитов abliteration.ai теперь синхронизируются из QuotaKit на Mac с iPhone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox-abonnemangets kvoter och kreditsaldon för abliteration.ai synkroniseras nu från QuotaKit på Mac till iPhone."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "โควตาแผน Chatbox และยอดเครดิต abliteration.ai จะซิงค์จาก QuotaKit บน Mac ไปยัง iPhone แล้ว"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox plan kotaları ve abliteration.ai kredi bakiyeleri artık QuotaKit Mac’ten iPhone’a eşitleniyor."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квоти плану Chatbox і залишки кредитів abliteration.ai тепер синхронізуються з QuotaKit на Mac на iPhone."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hạn mức gói Chatbox và số dư tín dụng abliteration.ai hiện được đồng bộ từ QuotaKit Mac sang iPhone."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox 套餐配额和 abliteration.ai 积分余额现可从 Mac 版 QuotaKit 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chatbox 方案配額和 abliteration.ai 點數餘額現在會從 Mac 版 QuotaKit 同步至 iPhone。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

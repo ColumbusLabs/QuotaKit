@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 108 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 110 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -165,6 +165,8 @@ complete when the available scan window covers fewer days.
 | [Munito](munito.md) | Admin API key with Read account data permission → organization spend limits, daily/monthly spend, and account details (`api`). |
 | [Soniox](soniox.md) | Organization API key → prepaid USD balance, monthly spend, and an optional budget meter (`api`). |
 | [Trae CN](traecn.md) | Dashboard cookies → signed-in account credit entitlement (`web`). |
+| [Chatbox AI](chatbox.md) | License key → plan, top-up credit, and image-generation quota details (`api`). |
+| [abliteration.ai](abliteration.md) | API key → USD credit balance and reported usage (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -817,3 +819,15 @@ See also: `docs/provider.md` for architecture notes.
 - Exchanges the session for a short-lived token, then reads the account's finite credit entitlement. No API key, reset, or renewal is inferred.
 - Quota alerts use the reported aggregate allowance only when it is positive.
 - Details: [Trae CN](traecn.md).
+
+## Chatbox AI
+- License key from Settings or `CHATBOX_LICENSE_KEY`.
+- Shows plan token usage, top-up credits, and image-generation quota from the license detail response; expired reward pools are omitted.
+- iPhone sync carries the plan and remaining-credit details, not a fabricated reset for non-plan pools.
+- Details: [Chatbox AI](chatbox.md).
+
+## abliteration.ai
+- API key from Settings or `ABLITERATION_API_KEY`.
+- Shows the provider-reported total credit balance and usage in USD; it does not infer a rate-window reset.
+- iPhone receives the billing detail, while quota alerts and burn-down widgets remain unavailable.
+- Details: [abliteration.ai](abliteration.md).

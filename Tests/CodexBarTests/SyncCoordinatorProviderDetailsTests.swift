@@ -8,6 +8,71 @@ import Testing
 @Suite(.serialized)
 struct SyncCoordinatorProviderDetailsTests {
     @Test
+    func `prepaid provider meters sync billing details without exporting quota windows`() async throws {
+        let suite = "SyncCoordinatorPrepaidMeterTests-\(UUID().uuidString)"
+        let settings = testSettingsStore(suiteName: suite, config: testConfigWithAllProvidersDisabled())
+        settings.iCloudSyncEnabled = true
+        settings.accountWidgetsEnabled = false
+        for provider in [UsageProvider.chatbox, .abliteration] {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderDefaults.metadata[provider]),
+                enabled: true)
+        }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 80, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                details: [.makeSection(title: "Remaining", rows: [
+                    .makeRow(label: "Plan", value: "8 / 10"),
+                    .makeRow(label: "Top-up credits", value: "2 / 5"),
+                ])],
+                updatedAt: timestamp),
+            provider: .chatbox)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: "$4.00 / $10.00"),
+                secondary: RateWindow(usedPercent: 90, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                details: [.makeSection(title: "Credits", rows: [
+                    .makeRow(label: "Balance", value: "$6.00"),
+                    .makeRow(label: "Credits used", value: "$4.00"),
+                    .makeRow(label: "Credits", value: "$10.00"),
+                ])],
+                updatedAt: timestamp),
+            provider: .abliteration)
+
+        let pusher = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
+
+        let chatbox = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "chatbox"
+        }?.provider)
+        #expect(chatbox.rateWindows.count == 1)
+        #expect(chatbox.primary?.usedPercent == 20)
+        #expect(chatbox.secondary == nil)
+        #expect(chatbox.providerDetails?.first?.rows.map(\.label) == ["Plan", "Top-up credits"])
+
+        let abliteration = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "abliteration"
+        }?.provider)
+        #expect(abliteration.rateWindows.isEmpty)
+        #expect(abliteration.primary == nil)
+        #expect(abliteration.secondary == nil)
+        #expect(abliteration.providerDetails?.first?.rows.map(\.label) == ["Balance", "Credits used", "Credits"])
+    }
+
+    @Test
     func `xAI sync exports only the live estimate and clears it when unavailable`() {
         let withEstimate = UsageSnapshot(
             primary: nil,

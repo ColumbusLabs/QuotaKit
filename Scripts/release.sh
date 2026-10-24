@@ -151,6 +151,8 @@ phase2() {
 
   SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
     SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
+    SPARKLE_APP_NAME="$APP_NAME" \
+    SPARKLE_REPOSITORY="$RELEASE_REPO" \
     SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/${RELEASE_REPO}/releases/download/${TAG}/" \
     "$ROOT/Scripts/make_appcast.sh" \
     "${RELEASE_ASSET_BASENAME}.zip" \

@@ -17,6 +17,7 @@ enum SyncProviderBillingDetails {
         case resetDate
         case balance
         case currencyAmount(allowNegative: Bool, allowUnavailable: Bool)
+        case remainingPair
         case fixed(Set<String>)
     }
 
@@ -128,6 +129,16 @@ enum SyncProviderBillingDetails {
             [.init(title: "Credits", rows: [
                 ("Used", .number), ("Total", .number), ("Remaining", .number),
             ])]
+        case .chatbox:
+            [.init(title: "Remaining", rows: [
+                ("Plan", .remainingPair), ("Quota", .remainingPair), ("Credits", .remainingPair),
+                ("Top-up credits", .remainingPair), ("Image Generation", .remainingPair),
+            ])]
+        case .abliteration:
+            [.init(title: "Credits", rows: [
+                ("Balance", .dollars(allowNegative: false)), ("Credits used", .dollars(allowNegative: false)),
+                ("Credits", .dollars(allowNegative: false)),
+            ])]
         default:
             nil
         }
@@ -177,6 +188,13 @@ enum SyncProviderBillingDetails {
                 options: .regularExpression)
             let signed = value.hasPrefix("-") ? "-\(numeric)" : numeric
             return self.number(signed).map { allowNegative || $0 >= 0 } ?? false
+        case .remainingPair:
+            let parts = value.components(separatedBy: " / ")
+            guard parts.count == 2,
+                  let remaining = self.number(parts[0]),
+                  let total = self.number(parts[1])
+            else { return false }
+            return remaining >= 0 && total >= remaining && total <= 9_007_199_254_740_991
         case let .fixed(values):
             return values.contains(value)
         }

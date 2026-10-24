@@ -214,6 +214,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 if case .credentialsChanged = error {
                     throw error
                 }
+                if case .mcpOAuthOnlyKeychain = error {
+                    throw error
+                }
                 throw ClaudeUsageError.oauthFailed(error.localizedDescription)
             } catch let error as ClaudeOAuthFetchError {
                 if case .rateLimited = error {

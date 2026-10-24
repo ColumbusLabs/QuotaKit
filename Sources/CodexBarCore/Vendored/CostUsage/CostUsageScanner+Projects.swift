@@ -57,6 +57,8 @@ extension CostUsageScanner {
             latestFileBySessionID[sessionID] = (filePath, usage)
         }
 
+        let databaseURL = CostUsageStore.databaseURL(cacheRoot: modelsDevCacheRoot)
+        let detailPricingKey = cache.codexScanCatchUpPending == true ? nil : cache.codexPricingKey
         return latestFileBySessionID.compactMap { sessionID, file in
             var fileCache = CostUsageCache()
             fileCache.files[file.path] = file.usage
@@ -76,12 +78,15 @@ extension CostUsageScanner {
             let resolvedProjectPath = file.usage.canonicalProjectPath
                 ?? projectPathResolver.canonicalProjectPath(for: file.usage.projectPath)
             let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
+            let sessionSource = SessionToolActivitySource(
+                fileURL: URL(fileURLWithPath: file.path), sessionID: sessionID)
             var session = CostUsageSessionBreakdown(
                 sessionID: sessionID,
                 lastActivity: Date(timeIntervalSince1970: TimeInterval(file.usage.mtimeUnixMs) / 1000),
                 inputTokens: summary?.totalInputTokens,
                 cachedInputTokens: summary?.cacheReadTokens,
                 outputTokens: summary?.totalOutputTokens,
+                reasoningTokens: summary?.reasoningTokens,
                 totalTokens: summary?.totalTokens,
                 requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
                 costUSD: summary?.totalCostUSD,
@@ -90,8 +95,20 @@ extension CostUsageScanner {
                 projectName: projectPath.map { Self.codexProjectName(path: $0) },
                 title: file.usage.codexSession?.title,
                 turnPerformanceSamples: performanceSamples,
-                toolActivitySource: SessionToolActivitySource(
-                    fileURL: URL(fileURLWithPath: file.path), sessionID: sessionID))
+                toolActivitySource: sessionSource,
+                requestDetailSource: if let detailPricingKey,
+                                        let ledgerRevision = file.usage.codexLedgerRevision,
+                                        file.usage.codexReplacementScanPending != true
+                {
+                    CostUsageSessionDetailSource(
+                        databaseURL: databaseURL,
+                        sessionSource: sessionSource,
+                        parsedBytes: file.usage.parsedBytes,
+                        pricingKey: detailPricingKey,
+                        ledgerRevision: ledgerRevision)
+                } else {
+                    nil
+                })
             session.workingDirectory = file.usage.projectPath
             return session
         }

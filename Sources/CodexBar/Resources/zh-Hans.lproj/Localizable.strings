@@ -2775,3 +2775,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN 请求失败。请稍后尝试刷新。";
 
 "Show Soniox usage" = "显示 Soniox 用量";
+
+/* October 24 upstream integration */
+"Search sessions" = "搜索会话";
+
+"No matching sessions" = "没有匹配的会话";
+
+"Select a session" = "选择一个会话";
+
+"Cached input is included in input; reasoning is included in output." = "缓存输入已包含在输入中；推理 Token 已包含在输出中。";
+
+"Recent activity" = "最近活动";
+
+"Sort by" = "排序依据";
+
+"Ascending" = "升序";
+
+"Descending" = "降序";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "每轮包含该时间范围内记录的模型请求；同一轮中的多条消息无法分别计费。";
+
+"No turn-level usage records are available." = "没有可用的轮次用量记录。";
+
+"Unattributed usage" = "未归属的用量";
+
+"Turn %d" = "第 %d 轮";
+
+"Model requests" = "模型请求";
+
+"Tool activity has no separate recorded token or monetary cost." = "日志未单独记录工具调用的 Token 或费用。";
+
+"Request %d" = "第 %d 次请求";
+
+"Request details exceed the limit." = "请求明细超过加载上限。";
+
+"Request details are unavailable. Refresh usage and try again." = "请求明细暂不可用，请刷新用量后重试。";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "显示 Chatbox AI 用量";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Chatbox AI 许可证密钥无效。请在设置中更新。";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI 拒绝了访问。请检查许可证。";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI 正在限制请求频率。请稍后重试。";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI 请求失败。请稍后尝试刷新。";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "显示 abliteration.ai 用量";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai 正在限制请求频率。请稍后重试。";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai 请求失败。请稍后尝试刷新。";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+
+"Check your API key in Settings." = "请在设置中检查你的 API 密钥。";
