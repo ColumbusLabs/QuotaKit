@@ -32,7 +32,8 @@ struct CostUsageSessionTurnsTests {
         let remainder = try #require(session.turns.last)
         #expect(remainder.turnID == nil)
         #expect(remainder.totalTokens == 110)
-        #expect(remainder.requestCount == nil)
+        #expect(remainder.requestCount == 1)
+        #expect(remainder.requestCount == remainder.requests.count)
         #expect(remainder.requests.count == 1)
         #expect(abs((remainder.costUSD ?? -1) - 0.1) < 1e-12)
         #expect(session.turns.compactMap(\.totalTokens).reduce(0, +) == session.totalTokens)
@@ -61,6 +62,9 @@ struct CostUsageSessionTurnsTests {
         #expect(session.totalTokens == 110)
         #expect(session.turns.compactMap(\.totalTokens).reduce(0, +) == 110)
         #expect(session.turns.allSatisfy { $0.turnID == nil })
+        let remainder = try #require(session.turns.last)
+        #expect(remainder.requestCount == nil)
+        #expect(remainder.requests.isEmpty)
     }
 
     @Test

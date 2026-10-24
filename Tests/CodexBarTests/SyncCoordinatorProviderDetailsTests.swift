@@ -447,7 +447,11 @@ struct SyncCoordinatorProviderBillingDetailsTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: [:])
+            // Snapshot-only sync still filters unavailable providers; fixture keys satisfy availability without an API refresh.
+            environmentBase: [
+                ChatboxProviderDescriptor.spec.environmentKey: "fixture-chatbox-license-key",
+                AbliterationProviderDescriptor.spec.environmentKey: "fixture-abliteration-api-key",
+            ])
         let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
         store._setSnapshotForTesting(
             UsageSnapshot(

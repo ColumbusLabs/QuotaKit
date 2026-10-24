@@ -599,8 +599,8 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     }
 
     private func scope(_ domain: String) -> CookieHeaderCache.Scope? {
-        // Trae CN previously cached its API-host session in the unscoped slot. Keep
-        // that slot readable while parent-domain sessions use their own variant.
+        // Provider-specific by design: preserve Trae CN's legacy unscoped API-host cache while parent-domain
+        // sessions use a separate provider-variant slot.
         if self.provider == .traecn, domain == "api.trae.cn" { return nil }
         return self.domains.count == 1 ? nil : .providerVariant(domain)
     }

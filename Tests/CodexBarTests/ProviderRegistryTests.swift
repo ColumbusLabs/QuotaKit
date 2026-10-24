@@ -274,6 +274,9 @@ struct ProviderRegistryTests {
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
             // New providers retain upstream palettes that intentionally overlap.
+            // Abliteration's neutral brand gray is excluded from iOS's quota-color distinctness set.
+            [.grok, .abliteration],
+            [.parallel, .abliteration],
             [.grok, .parallel],
             [.deepgram, .fal],
             [.v0, .flora],
@@ -286,6 +289,7 @@ struct ProviderRegistryTests {
             [.pi, .litellm]: 0.07,
             [.deepinfra, .soniox]: 0.05,
             [.deepseek, .traecn]: 0.06,
+            [.chatbox, .stepfun]: 0.095,
         ]
 
         let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color

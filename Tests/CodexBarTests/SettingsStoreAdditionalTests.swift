@@ -286,6 +286,7 @@ struct SettingsStoreAdditionalTests {
             .linkup: [.automatic],
             .tinyapi: [.automatic],
             .aerostack: [.automatic, .primary],
+            .abliteration: [.automatic, .primary],
             .sailresearch: [.automatic],
             .sofya: [.automatic],
             .traecn: [.automatic, .primary],
