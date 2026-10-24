@@ -599,6 +599,143 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
+    func `indonesian localization matches English catalog and preserves format placeholders`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
+        let idURL = resourcesURL.appendingPathComponent("id.lproj/Localizable.strings")
+        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
+        let indonesian = try #require(NSDictionary(contentsOf: idURL) as? [String: String])
+
+        #expect(Set(indonesian.keys) == Set(english.keys))
+        #expect(indonesian["language_indonesian"] == "Bahasa Indonesia")
+        #expect(indonesian["tab_general"] == "Umum")
+        #expect(indonesian["quit_app"] == "Keluar QuotaKit")
+        #expect(indonesian["30d"] == "30 hari")
+        #expect(indonesian["On"] == "Aktif")
+        #expect(indonesian["Off"] == "Nonaktif")
+
+        let warningFormat = try #require(indonesian["quota_warning_notification_body"])
+        let warning = String(
+            format: warningFormat,
+            locale: Locale(identifier: "id_ID"),
+            arguments: ["20%", 15, "sesi"])
+        #expect(warning.contains("15%"))
+        #expect(!warning.contains("%2$d"))
+
+        let historyFormat = try #require(indonesian["%@: %@%% used"])
+        let historyLabel = String(
+            format: historyFormat,
+            locale: Locale(identifier: "id_ID"),
+            arguments: ["12 Jun", "45"])
+        #expect(historyLabel == "12 Jun: 45% terpakai")
+
+        let daysFormat = try #require(indonesian["%dd"])
+        let daysLabel = String(
+            format: daysFormat,
+            locale: Locale(identifier: "id_ID"),
+            arguments: [30])
+        #expect(daysLabel == "30 hari")
+    }
+
+    @Test
+    func `polish localization matches English catalog and includes current UI labels`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
+        let plURL = resourcesURL.appendingPathComponent("pl.lproj/Localizable.strings")
+        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
+        let polish = try #require(NSDictionary(contentsOf: plURL) as? [String: String])
+
+        #expect(Set(polish.keys) == Set(english.keys))
+        #expect(polish["Individual credits"] == "Kredyty indywidualne")
+        #expect(polish["Workspace"] == "Obszar roboczy")
+        #expect(polish["display_mode_reset_time"] == "Godzina resetu")
+        #expect(polish["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
+    }
+
+    @Test
+    func `japanese usage chart accessibility text preserves argument meanings`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let jaURL = root.appendingPathComponent("Sources/CodexBar/Resources/ja.lproj/Localizable.strings")
+        let catalog = try #require(NSDictionary(contentsOf: jaURL) as? [String: String])
+        let format = try #require(catalog["%d days of usage data across %d services"])
+
+        let rendered = String(
+            format: format,
+            locale: Locale(identifier: "ja_JP"),
+            arguments: [7, 3])
+
+        #expect(rendered.contains("7日間"))
+        #expect(rendered.contains("3サービス"))
+    }
+
+    @Test
+    func `korean usage chart accessibility text preserves argument meanings`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let koURL = root.appendingPathComponent("Sources/CodexBar/Resources/ko.lproj/Localizable.strings")
+        let catalog = try #require(NSDictionary(contentsOf: koURL) as? [String: String])
+        let format = try #require(catalog["%d days of usage data across %d services"])
+
+        let rendered = String(
+            format: format,
+            locale: Locale(identifier: "ko_KR"),
+            arguments: [7, 3])
+
+        #expect(rendered.contains("7일간"))
+        #expect(rendered.contains("3개 서비스"))
+    }
+
+    @Test
+    func `statistics time zone controls are localized in every app language`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let keys = [
+            "Statistics time zone",
+            "Use Mac's current time zone",
+            "Daily usage uses a fixed time zone. Changing it may move usage to a different day.",
+        ]
+
+        for language in AppLanguage.allCases where language != .system {
+            let url = resourcesURL.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
+            for key in keys {
+                let value = try #require(catalog[key], "Missing \(key) in \(language.rawValue)")
+                #expect(!value.isEmpty)
+                if language != .english { #expect(value != key) }
+            }
+        }
+    }
+
+    private static func withTemporaryDefaults(
+        for testName: String,
+        _ body: (UserDefaults, String) -> Void)
+    {
+        let suiteName = "LocalizationLanguageCatalogTests.\(testName).\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        body(defaults, suiteName)
+    }
+}
+
+extension LocalizationLanguageCatalogTests {
+    @Test
     func `italian localization matches English catalog and includes current UI labels`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -750,141 +887,6 @@ struct LocalizationLanguageCatalogTests {
             locale: Locale(identifier: "it_IT"),
             arguments: ["Codex", "settimanale"])
         #expect(title == "Quota settimanale di Codex quasi esaurita")
-    }
-
-    @Test
-    func `indonesian localization matches English catalog and preserves format placeholders`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
-        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
-        let idURL = resourcesURL.appendingPathComponent("id.lproj/Localizable.strings")
-        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
-        let indonesian = try #require(NSDictionary(contentsOf: idURL) as? [String: String])
-
-        #expect(Set(indonesian.keys) == Set(english.keys))
-        #expect(indonesian["language_indonesian"] == "Bahasa Indonesia")
-        #expect(indonesian["tab_general"] == "Umum")
-        #expect(indonesian["quit_app"] == "Keluar QuotaKit")
-        #expect(indonesian["30d"] == "30 hari")
-        #expect(indonesian["On"] == "Aktif")
-        #expect(indonesian["Off"] == "Nonaktif")
-
-        let warningFormat = try #require(indonesian["quota_warning_notification_body"])
-        let warning = String(
-            format: warningFormat,
-            locale: Locale(identifier: "id_ID"),
-            arguments: ["20%", 15, "sesi"])
-        #expect(warning.contains("15%"))
-        #expect(!warning.contains("%2$d"))
-
-        let historyFormat = try #require(indonesian["%@: %@%% used"])
-        let historyLabel = String(
-            format: historyFormat,
-            locale: Locale(identifier: "id_ID"),
-            arguments: ["12 Jun", "45"])
-        #expect(historyLabel == "12 Jun: 45% terpakai")
-
-        let daysFormat = try #require(indonesian["%dd"])
-        let daysLabel = String(
-            format: daysFormat,
-            locale: Locale(identifier: "id_ID"),
-            arguments: [30])
-        #expect(daysLabel == "30 hari")
-    }
-
-    @Test
-    func `polish localization matches English catalog and includes current UI labels`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
-        let enURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
-        let plURL = resourcesURL.appendingPathComponent("pl.lproj/Localizable.strings")
-        let english = try #require(NSDictionary(contentsOf: enURL) as? [String: String])
-        let polish = try #require(NSDictionary(contentsOf: plURL) as? [String: String])
-
-        #expect(Set(polish.keys) == Set(english.keys))
-        #expect(polish["Individual credits"] == "Kredyty indywidualne")
-        #expect(polish["Workspace"] == "Obszar roboczy")
-        #expect(polish["display_mode_reset_time"] == "Godzina resetu")
-        #expect(polish["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
-    }
-
-    @Test
-    func `japanese usage chart accessibility text preserves argument meanings`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let jaURL = root.appendingPathComponent("Sources/CodexBar/Resources/ja.lproj/Localizable.strings")
-        let catalog = try #require(NSDictionary(contentsOf: jaURL) as? [String: String])
-        let format = try #require(catalog["%d days of usage data across %d services"])
-
-        let rendered = String(
-            format: format,
-            locale: Locale(identifier: "ja_JP"),
-            arguments: [7, 3])
-
-        #expect(rendered.contains("7日間"))
-        #expect(rendered.contains("3サービス"))
-    }
-
-    @Test
-    func `korean usage chart accessibility text preserves argument meanings`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let koURL = root.appendingPathComponent("Sources/CodexBar/Resources/ko.lproj/Localizable.strings")
-        let catalog = try #require(NSDictionary(contentsOf: koURL) as? [String: String])
-        let format = try #require(catalog["%d days of usage data across %d services"])
-
-        let rendered = String(
-            format: format,
-            locale: Locale(identifier: "ko_KR"),
-            arguments: [7, 3])
-
-        #expect(rendered.contains("7일간"))
-        #expect(rendered.contains("3개 서비스"))
-    }
-
-    @Test
-    func `statistics time zone controls are localized in every app language`() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
-        let keys = [
-            "Statistics time zone",
-            "Use Mac's current time zone",
-            "Daily usage uses a fixed time zone. Changing it may move usage to a different day.",
-        ]
-
-        for language in AppLanguage.allCases where language != .system {
-            let url = resourcesURL.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
-            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
-            for key in keys {
-                let value = try #require(catalog[key], "Missing \(key) in \(language.rawValue)")
-                #expect(!value.isEmpty)
-                if language != .english { #expect(value != key) }
-            }
-        }
-    }
-
-    private static func withTemporaryDefaults(
-        for testName: String,
-        _ body: (UserDefaults, String) -> Void)
-    {
-        let suiteName = "LocalizationLanguageCatalogTests.\(testName).\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        body(defaults, suiteName)
     }
 }
 
