@@ -189,15 +189,19 @@ enum SyncProviderBillingDetails {
             let signed = value.hasPrefix("-") ? "-\(numeric)" : numeric
             return self.number(signed).map { allowNegative || $0 >= 0 } ?? false
         case .remainingPair:
-            let parts = value.components(separatedBy: " / ")
-            guard parts.count == 2,
-                  let remaining = self.number(parts[0]),
-                  let total = self.number(parts[1])
-            else { return false }
-            return remaining >= 0 && total >= remaining && total <= 9_007_199_254_740_991
+            return self.isRemainingPair(value)
         case let .fixed(values):
             return values.contains(value)
         }
+    }
+
+    private static func isRemainingPair(_ value: String) -> Bool {
+        let parts = value.components(separatedBy: " / ")
+        guard parts.count == 2,
+              let remaining = self.number(parts[0]),
+              let total = self.number(parts[1])
+        else { return false }
+        return remaining >= 0 && total >= remaining && total <= 9_007_199_254_740_991
     }
 
     private static func number(_ value: String) -> Double? {

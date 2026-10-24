@@ -292,6 +292,9 @@ private let closeBrandColorMinimumDistances: [Set<String>: Double] = [
     ["traecn", "deepseek"]: 0.06,
     // Pi #4D9ABF and LiteLLM #4C89C0 retain source-backed blues 19/255 apart.
     ["pi", "litellm"]: 0.07,
+    // Upstream Chatbox #228BE6 and retained StepFun (0.13, 0.59, 0.95) are 0.09627 apart.
+    // Both raw swatches stay pinned above; this exact pair must not be treated as an alias collision.
+    ["chatbox", "stepfun"]: 0.095,
 ]
 
 private func expectDistinctColors(
