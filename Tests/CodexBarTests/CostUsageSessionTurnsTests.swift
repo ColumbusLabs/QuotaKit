@@ -65,7 +65,7 @@ struct CostUsageSessionTurnsTests {
 
     @Test
     func `stored pricing mode survives selected request reconstruction`() throws {
-        let row = Self.row(0, turn: "priority", cost: nil, model: "gpt-5.4", pricingMode: "priority")
+        let row = Self.row(0, turn: "priority", model: "gpt-5.4", cost: nil, pricingMode: "priority")
         let session = try Self.session([row])
         #expect(try #require(session.costUSD) > 0)
         #expect(session.turns.first?.costUSD == session.costUSD)

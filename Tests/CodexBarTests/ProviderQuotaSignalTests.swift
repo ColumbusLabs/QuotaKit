@@ -122,8 +122,8 @@ struct ProviderQuotaSignalTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             sessionQuotaNotifier: notifier,
-            environmentBase: [:],
-            startupBehavior: .testing)
+            startupBehavior: .testing,
+            environmentBase: [:])
     }
 
     private static func snapshot(primaryUsed: Double, secondaryUsed: Double, time: Double) -> UsageSnapshot {

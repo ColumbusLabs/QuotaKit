@@ -138,7 +138,6 @@ struct MenuBarAutomaticWindowLabelsTests {
                 resetDescription: nil))) : nil
         let provider: UsageProvider = monthly ? .opencodego : namedAllowance ? .cursor : .claude
         return MenuBarLayoutRenderData(
-            provider: provider,
             iconKey: "synthetic-auto-label",
             providerName: nil,
             accountLabel: nil,
@@ -146,6 +145,7 @@ struct MenuBarAutomaticWindowLabelsTests {
             primary: session,
             secondary: week,
             tertiary: month,
+            provider: provider,
             extraRateWindows: extra.map { [$0] } ?? [],
             session: session,
             weekly: week,
