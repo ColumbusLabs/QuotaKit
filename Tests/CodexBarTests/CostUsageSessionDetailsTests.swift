@@ -286,10 +286,11 @@ struct CostUsageSessionDetailsTests {
                 customPricing: customPricing ?? .empty)
             if let customPricing {
                 #if DEBUG
+                let cacheRoot = self.root
                 var hooks = CostUsageStoreTestHooks.current
                 hooks.customPricingOverlay = customPricing
                 _ = CostUsageStoreTestHooks.$current.withValue(hooks) {
-                    CostUsageStoreAccess.replace(cacheRoot: self.root, cache: cache, calendar: calendar)
+                    CostUsageStoreAccess.replace(cacheRoot: cacheRoot, cache: cache, calendar: calendar)
                 }
                 #else
                 _ = CostUsageStoreAccess.replace(cacheRoot: self.root, cache: cache, calendar: calendar)
