@@ -97,7 +97,7 @@ private final class CountingFileHandle: FileHandle, @unchecked Sendable {
         set {}
     }
 
-    // ProcessPipeCapture reads this during initialization; a bare FileHandle() is abstract on Darwin.
+    /// ProcessPipeCapture reads this during initialization; a bare FileHandle() is abstract on Darwin.
     override var fileDescriptor: Int32 {
         self.backingHandle.fileDescriptor
     }
