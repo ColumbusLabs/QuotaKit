@@ -1,8 +1,8 @@
 # Upstream integration — 2026-10-24
 
-Frozen upstream range: `7683b73676bf25e1c347082e383b6807c853b00b..ee890b5f392e70d6e20162d3e95cf9f1be265b60`. QuotaKit origin base: `5c634b863bc10a2e54acb12cee187784397ae401`. Tracking and authoritative qualification: [issue #262](https://github.com/ColumbusLabs/QuotaKit/issues/262).
+Reviewed upstream range (original 13-commit batch plus two release-only commits inspected on October 25): `7683b73676bf25e1c347082e383b6807c853b00b..d34fbb47afe73f81dd591bae28a60f72c39a9fe4`. QuotaKit origin base: `5c634b863bc10a2e54acb12cee187784397ae401`. Tracking and authoritative qualification: [issue #262](https://github.com/ColumbusLabs/QuotaKit/issues/262).
 
-All 13 reachable commits are linear: 11 adapted intents and two justified whole-commit rejections; zero merge wrappers, superseded commits or applicable deferrals. Exclude upstream release/changelog bookkeeping hunks throughout. No wholesale merge.
+All 15 reachable commits are linear: 11 adapted intents and four justified whole-commit rejections; zero merge wrappers, superseded commits or applicable deferrals. Exclude upstream release/changelog bookkeeping hunks throughout. No wholesale merge.
 
 | Upstream commit | Decision | Intent and treatment |
 | --- | --- | --- |
@@ -19,6 +19,8 @@ All 13 reachable commits are linear: 11 adapted intents and two justified whole-
 | `c1ce9a4e6f1fc26d396e084b32d4947370cfcdc2` | adapted | feat(menubar): identify the selected window in automatic tokens (#4750) |
 | `63dccd52bd743dbf9ca5a9153fdc5427392d970a` | adapted | feat(providers): add abliteration.ai credits (#4756) |
 | `ee890b5f392e70d6e20162d3e95cf9f1be265b60` | rejected | Upstream 0.81.0 release-only changelog/version bookkeeping; QuotaKit release provenance and build numbers are unchanged. |
+| `628dd0d09b025806c424cdd5f438d6aedeadbcb5` | rejected | Upstream 0.81.0 appcast entry, release URLs, signatures and release notes are upstream-owned distribution bookkeeping. QuotaKit appcast remains byte-identical. |
+| `d34fbb47afe73f81dd591bae28a60f72c39a9fe4` | rejected | Upstream 0.81.1 development version/build and empty changelog heading; preserve QuotaKit version/build values. |
 
 ## Fork adaptations and qualification
 
@@ -32,3 +34,5 @@ All 13 reachable commits are linear: 11 adapted intents and two justified whole-
 - Live repository visibility is PUBLIC. Ordinary source PR/main workflows use standard eligible GitHub-hosted macOS/Ubuntu runners and restore-only caches with no artifact/cache uploads. No larger runners, paid settings or storage-cap changes. [Current billing rules](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
 The linked issue's completion receipt records the exact reviewed head, hosted run, independent review, merge and post-merge cursor/tail. Implementation or a staged cursor alone is not completion.
+
+October 25 continuation: the prior hosted Darwin crash came from the test-only `CountingFileHandle` inheriting an abstract descriptor accessor. It now owns a concrete `/dev/null` handle, forwards its descriptor, and closes that backing handle on the first counted close. All test bodies, close-count/concurrency assertions, synthetic read-error coverage and production capture code remain unchanged by this repair. Fresh exact-head hosted checks remain mandatory.

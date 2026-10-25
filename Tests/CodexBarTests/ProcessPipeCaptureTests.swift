@@ -77,8 +77,16 @@ struct ProcessPipeCaptureTests {
 
 private final class CountingFileHandle: FileHandle, @unchecked Sendable {
     private let lock = NSLock()
+    private let backingHandle: FileHandle
     private var closes = 0
     var beforeFirstClose: (@Sendable () -> Void)?
+
+    override init() {
+        let descriptor = Darwin.open("/dev/null", O_RDONLY | O_CLOEXEC)
+        precondition(descriptor >= 0)
+        self.backingHandle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        super.init()
+    }
 
     var closeCount: Int {
         self.lock.withLock { self.closes }
@@ -89,11 +97,19 @@ private final class CountingFileHandle: FileHandle, @unchecked Sendable {
         set {}
     }
 
+    // ProcessPipeCapture reads this during initialization; a bare FileHandle() is abstract on Darwin.
+    override var fileDescriptor: Int32 {
+        self.backingHandle.fileDescriptor
+    }
+
     override func close() throws {
         let firstClose = self.lock.withLock {
             self.closes += 1
             return self.closes == 1
         }
-        if firstClose { self.beforeFirstClose?() }
+        if firstClose {
+            self.beforeFirstClose?()
+            try self.backingHandle.close()
+        }
     }
 }
