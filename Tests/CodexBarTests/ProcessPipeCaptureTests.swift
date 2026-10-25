@@ -82,6 +82,7 @@ private final class CountingFileHandle: FileHandle, @unchecked Sendable {
         precondition(descriptor >= 0)
         return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
     }()
+
     private var closes = 0
     var beforeFirstClose: (@Sendable () -> Void)?
 
