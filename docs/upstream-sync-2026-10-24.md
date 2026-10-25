@@ -1,0 +1,38 @@
+# Upstream integration — 2026-10-24
+
+Reviewed upstream range (original 13-commit batch plus two release-only commits inspected on October 25): `7683b73676bf25e1c347082e383b6807c853b00b..d34fbb47afe73f81dd591bae28a60f72c39a9fe4`. QuotaKit origin base: `5c634b863bc10a2e54acb12cee187784397ae401`. Tracking and authoritative qualification: [issue #262](https://github.com/ColumbusLabs/QuotaKit/issues/262).
+
+All 15 reachable commits are linear: 11 adapted intents and four justified whole-commit rejections; zero merge wrappers, superseded commits or applicable deferrals. Exclude upstream release/changelog bookkeeping hunks throughout. No wholesale merge.
+
+| Upstream commit | Decision | Intent and treatment |
+| --- | --- | --- |
+| `bf007095d53633ce32f73fa36982f90332eddb5a` | adapted | feat(spend): add session inspection with bounded selected-request loading (#4730) |
+| `75cf822275a49fae3efb3b46cb59c5f0a7d4d761` | adapted | fix(claude): let OAuth recover when the Keychain only holds MCP OAuth state (#4735) |
+| `3a9fd985f579800c0bb210fb8a778c1bcb67cf86` | adapted | fix(traecn): import session cookies from the parent trae.cn domain (#4732) |
+| `dfc7b62ac9e592bc085d3b3155699892eb708f67` | adapted | fix(plugins): show the age of retained usage after a failed refresh (#4737) |
+| `6aa11fd4fc99fdf1db1a7d5e63882b08e850c383` | adapted | feat(chatbox): add license-key quota tracking (#4742) |
+| `d6c651ca26c4cd8fb886b5036275a3623b49d450` | adapted | fix(cli): disable auto-updates in passive agy and CodeRabbit usage probes (#4740) |
+| `55089baf5d14050ca4d4d1962e0e3aeefe0969eb` | rejected | Upstream Homebrew updater is absent. QuotaKit has no supported Homebrew update command/tap and deliberately returns an unavailable updater for Homebrew installs; adding an unowned updater would break release ownership. Existing Sparkle update path remains. |
+| `776ad44335b349d096cc936ee7fc12e4a2eca4e2` | adapted | fix(settings): let the native detail view fill wide Settings windows (#4741) |
+| `0827f30bfcecf08ade05ea878b147184ec6515dc` | adapted | fix(cli): close pipe captures once and resolve Auto web support (#4749) |
+| `e71d7761a253911847a9ff1699e60a65df66954a` | adapted | fix(updates): render Sparkle release notes as Markdown (#4754) |
+| `c1ce9a4e6f1fc26d396e084b32d4947370cfcdc2` | adapted | feat(menubar): identify the selected window in automatic tokens (#4750) |
+| `63dccd52bd743dbf9ca5a9153fdc5427392d970a` | adapted | feat(providers): add abliteration.ai credits (#4756) |
+| `ee890b5f392e70d6e20162d3e95cf9f1be265b60` | rejected | Upstream 0.81.0 release-only changelog/version bookkeeping; QuotaKit release provenance and build numbers are unchanged. |
+| `628dd0d09b025806c424cdd5f438d6aedeadbcb5` | rejected | Upstream 0.81.0 appcast entry, release URLs, signatures and release notes are upstream-owned distribution bookkeeping. QuotaKit appcast remains byte-identical. |
+| `d34fbb47afe73f81dd591bae28a60f72c39a9fe4` | rejected | Upstream 0.81.1 development version/build and empty changelog heading; preserve QuotaKit version/build values. |
+
+## Fork adaptations and qualification
+
+- Keep all existing 108 provider IDs and relative order; append Chatbox and abliteration.ai using QuotaKit's registry, manifests, credential settings and existing optional mobile billing/quota projection. Preserve saved configuration, notification identifiers and wire compatibility. Synthetic fixtures cover provider parsing, malformed counters, auth failures, absent limits and credits. Chatbox plan quotas remain eligible; its prepaid top-up/reward/image pools and all abliteration.ai prepaid balances stay out of quota warnings/hooks and synced quota windows, while billing details remain visible.
+- Session inspection remains summary-only during ordinary publication. Selected request reads are transactional and bounded by rows/bytes, validate captured scan checkpoints plus persisted pricing keys and per-file ledger revisions, and never store additional session content. The normal native aggregate projection attaches the captured detail source; pending catch-up withholds details until pricing migration completes. Catalog/custom-price changes and same-checkpoint turn ownership changes fail closed rather than mix newer requests with an older summary. Keep existing pricing, partial/unpriced semantics, cache roots, compatible predecessors and report ownership. Inspection inherits private-data redaction.
+- Retain Trae CN API-host cookie fallback and its existing unscoped cookie-cache slot while adding parent-domain imports. Treat Claude MCP-only OAuth state as recoverable through existing owner-scoped OAuth/CLI safeguards. Keep private credential/cache ownership, no-prompt Keychain behavior and injected credential fixtures. Passive agy/CodeRabbit probes suppress their auto-updaters; pipe capture shutdown remains exactly once, including QuotaKit’s existing synthetic read-failure path; Auto web support uses resolved fetch context.
+- Carry automatic token window identity through the existing renderer cache and preserve native Settings sidebar persistence while allowing wide detail content. Adapt release-note Markdown generation only in QuotaKit's active `Scripts/release.sh` → `Scripts/make_appcast.sh` tooling, retaining the mobile heading, full-changelog link, repository, signatures and beta-channel metadata; do not modify public appcast entries, sign, publish or distribute anything.
+- Preserve QuotaKit by Columbus Labs identity, support/setup/config/Application Support paths, origin/upstream push boundary, Mac/iPhone models, CloudKit/App Group/notification/StoreKit/recovery behavior, entitlements, signing, bundle topology, Sparkle ownership and all version/build values. Only UPSTREAM_MONITOR_BASE advances after range accounting and qualification.
+- Preserve source-backed Chatbox blue `#228BE6` and the existing StepFun tint `(0.13, 0.59, 0.95)` across Mac/iPhone. Their RGB channel-sum distance is `0.0962745`; the existing close-brand policy uses a narrowly scoped `0.095` minimum for this pair, with both raw colors pinned and the global `0.10` minimum unchanged. This checks alias collisions while preserving branding; it does not establish native perceptual contrast. Existing notification IDs/order remain pinned after the sole Chatbox subscription append.
+- Require independent adversarial source review, exact-head free hosted lint, Mac shards, compatibility/widget build, Linux CLI and applicable iOS/Lite gates. No routine local Swift/Xcode tests/builds/lint/resolver/device runs or live provider/account/cookie/Keychain/CloudKit probes. Cheap source and whitespace checks only locally.
+- Live repository visibility is PUBLIC. Ordinary source PR/main workflows use standard eligible GitHub-hosted macOS/Ubuntu runners and restore-only caches with no artifact/cache uploads. No larger runners, paid settings or storage-cap changes. [Current billing rules](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+The linked issue's completion receipt records the exact reviewed head, hosted run, independent review, merge and post-merge cursor/tail. Implementation or a staged cursor alone is not completion.
+
+October 25 continuation: the prior hosted Darwin crash came from the test-only `CountingFileHandle` inheriting an abstract descriptor accessor. It now owns a concrete `/dev/null` handle, forwards its descriptor, and closes that backing handle on the first counted close. All test bodies, close-count/concurrency assertions, synthetic read-error coverage and production capture code remain unchanged by this repair. Fresh exact-head hosted checks remain mandatory.

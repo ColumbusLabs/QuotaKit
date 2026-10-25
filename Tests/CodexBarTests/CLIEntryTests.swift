@@ -438,7 +438,16 @@ final class CLIEntryTests: XCTestCase {
             attempts: deniedClaudeCLI))
     }
 
-    func test_sourceModeRequiresWebSupportIsProviderAware() throws {
+    private func expectWebSupport(
+        _ condition: @autoclosure () async -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line) async
+    {
+        let result = await condition()
+        XCTAssertTrue(result, file: file, line: line)
+    }
+
+    func test_sourceModeRequiresWebSupportIsProviderAware() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("mimo-cli-source-mode-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -456,19 +465,19 @@ final class CLIEntryTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: payload).write(to: validMiMoCache)
         try Data("{}".utf8).write(to: invalidMiMoCache)
 
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .kilo))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .claude))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .claude))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .venice))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .venice))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .venice))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .kilo))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .claude))
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .claude))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .venice))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .venice))
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .venice))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencodego,
             settings: ProviderSettingsSnapshot.make(
@@ -476,7 +485,7 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .manual,
                     manualCookieHeader: "auth=manual",
                     workspaceID: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .opencodego,
             settings: ProviderSettingsSnapshot.make(
@@ -484,7 +493,7 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .manual,
                     manualCookieHeader: "auth=manual",
                     workspaceID: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencodego,
             settings: ProviderSettingsSnapshot.make(
@@ -492,7 +501,7 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .auto,
                     manualCookieHeader: nil,
                     workspaceID: nil))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .opencodego,
             settings: ProviderSettingsSnapshot.make(
@@ -500,54 +509,54 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .auto,
                     manualCookieHeader: nil,
                     workspaceID: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .commandcode,
             settings: ProviderSettingsSnapshot.make(
                 commandcode: .init(
                     cookieSource: .manual,
                     manualCookieHeader: "session=manual"))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .commandcode,
             settings: ProviderSettingsSnapshot.make(
                 commandcode: .init(
                     cookieSource: .manual,
                     manualCookieHeader: "session=manual"))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .commandcode,
             settings: ProviderSettingsSnapshot.make(
                 commandcode: .init(
                     cookieSource: .auto,
                     manualCookieHeader: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .sakana,
             environment: ["SAKANA_COOKIE": "session=manual"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .sakana,
             environment: ["SAKANA_COOKIE": "session=manual"]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .sakana,
             environment: [:]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .qoder,
             settings: ProviderSettingsSnapshot.make(
                 qoder: .init(
                     cookieSource: .manual,
                     manualCookieHeader: "sid=manual"))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .qoder,
             settings: ProviderSettingsSnapshot.make(
                 qoder: .init(
                     cookieSource: .auto,
                     manualCookieHeader: nil))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencode,
             settings: ProviderSettingsSnapshot.make(
@@ -555,51 +564,51 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .manual,
                     manualCookieHeader: "auth=manual",
                     workspaceID: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .ollama,
             environment: ["OLLAMA_API_KEY": "ollama-test"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .codex,
             environment: ["OLLAMA_API_KEY": "ollama-test"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .ollama,
             settings: ProviderSettingsSnapshot.make(
                 ollama: .init(cookieSource: .off, manualCookieHeader: nil))))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .kimi,
             environment: ["KIMI_CODE_API_KEY": "kimi-test"]))
-        try self.assertKimiCodeCredentialSourceMode(in: directory)
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        try await self.assertKimiCodeCredentialSourceMode(in: directory)
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .mimo,
             environment: ["MIMO_LOCAL_USAGE_PATH": validMiMoCache.path]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .mimo,
             environment: ["MIMO_LOCAL_USAGE_PATH": validMiMoCache.path]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .mimo,
             environment: ["MIMO_LOCAL_USAGE_PATH": invalidMiMoCache.path]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .mimo,
             environment: ["MIMO_LOCAL_USAGE_PATH": directory.appendingPathComponent("missing.json").path]))
     }
 
-    func test_sourceModeRequiresWebSupportAllowsZoomMateManualCapture() {
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+    func test_sourceModeRequiresWebSupportAllowsZoomMateManualCapture() async {
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .zoommate,
             settings: ProviderSettingsSnapshot.make(
                 zoommate: .init(
                     cookieSource: .manual,
                     manualCookieHeader: "curl 'https://zoommate.zoom.us/' -H 'authorization: Bearer fake'"))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .zoommate,
             settings: ProviderSettingsSnapshot.make(
@@ -608,23 +617,23 @@ final class CLIEntryTests: XCTestCase {
                     manualCookieHeader: nil))))
     }
 
-    func test_sourceModeRequiresWebSupportAllowsQwenCookiesOnLinuxGate() {
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+    func test_sourceModeRequiresWebSupportAllowsQwenCookiesOnLinuxGate() async {
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .qwencloud,
             environment: ["QWEN_CLOUD_COOKIE": "login_qwencloud_ticket=test"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .qwencloud,
             settings: ProviderSettingsSnapshot.make(
                 qwenCloud: .init(
                     cookieSource: .manual,
                     manualCookieHeader: "login_qwencloud_ticket=test"))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .qwencloud,
             environment: [:]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .qwencloud,
             environment: ["QWEN_CLOUD_COOKIE": "login_qwencloud_ticket=test"],
@@ -632,7 +641,7 @@ final class CLIEntryTests: XCTestCase {
                 qwenCloud: .init(cookieSource: .off, manualCookieHeader: nil))))
     }
 
-    private func assertKimiCodeCredentialSourceMode(in directory: URL) throws {
+    private func assertKimiCodeCredentialSourceMode(in directory: URL) async throws {
         let home = directory.appendingPathComponent("kimi-code", isDirectory: true)
         let credentials = home.appendingPathComponent("credentials", isDirectory: true)
         try FileManager.default.createDirectory(at: credentials, withIntermediateDirectories: true)
@@ -644,49 +653,49 @@ final class CLIEntryTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: payload)
             .write(to: credentials.appendingPathComponent("kimi-code.json"))
 
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .kimi,
             environment: ["KIMI_CODE_HOME": home.path]))
     }
 
-    func test_sourceModeRequiresWebSupportAllowsFactoryAPIKeyOnLinuxGate() {
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+    func test_sourceModeRequiresWebSupportAllowsFactoryAPIKeyOnLinuxGate() async {
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .factory,
             environment: ["FACTORY_API_KEY": "fk-test"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .cli,
             provider: .factory,
             environment: ["FACTORY_API_KEY": "fk-test"]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .factory,
             environment: [:]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .factory,
             environment: ["FACTORY_API_KEY": "fk-test"]))
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .api,
             provider: .factory,
             environment: [:]))
     }
 
-    func test_sourceModeRequiresWebSupportAllowsHyperAPIKeyOnLinuxGate() {
-        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+    func test_sourceModeRequiresWebSupportAllowsHyperAPIKeyOnLinuxGate() async {
+        await self.expectWebSupport(await !CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .hyper,
             environment: ["HYPER_API_KEY": "fixture-key"]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .hyper,
             environment: ["HYPER_API_KEY": " \n "]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .hyper,
             environment: [:]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        await self.expectWebSupport(await CodexBarCLI.sourceModeRequiresWebSupport(
             .web,
             provider: .hyper,
             environment: ["HYPER_API_KEY": "fixture-key"]))
@@ -723,5 +732,30 @@ extension CLIEntryTests {
             process.terminationStatus,
             stdout.fileHandleForReading.readDataToEndOfFile(),
             stderr.fileHandleForReading.readDataToEndOfFile())
+    }
+}
+
+extension CodexBarCLI {
+    static func sourceModeRequiresWebSupport(
+        _ sourceMode: ProviderSourceMode,
+        provider: UsageProvider,
+        environment: [String: String]? = nil,
+        settings: ProviderSettingsSnapshot? = nil) async -> Bool
+    {
+        let env = environment ?? [:]
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        let context = ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: sourceMode,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: env,
+            settings: settings,
+            fetcher: UsageFetcher(environment: env),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
+        return await self.sourceModeRequiresWebSupport(provider: provider, context: context)
     }
 }

@@ -2301,6 +2301,7 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "8d37b5425fe86c2a",
         "c939f17d29a7e29d",
         "65175f55d6bacbca",
         "7465d609f5f2dcfb",

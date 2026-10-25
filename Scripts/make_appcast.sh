@@ -8,6 +8,12 @@ ZIP=${1:?
 "Usage: $0 QuotaKit-macos-<arch>-<ver>.zip"}
 RELEASE_BRANCH=${QUOTAKIT_RELEASE_BRANCH:-main}
 FEED_URL=${2:-"https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/${RELEASE_BRANCH}/appcast.xml"}
+SPARKLE_APP_NAME=${SPARKLE_APP_NAME:-QuotaKit}
+SPARKLE_REPOSITORY=${SPARKLE_REPOSITORY:-ColumbusLabs/QuotaKit}
+SPARKLE_MOBILE_VERSION=${SPARKLE_MOBILE_VERSION:-}
+if [[ -z "$SPARKLE_MOBILE_VERSION" && -f "$ROOT/version.env" ]]; then
+  SPARKLE_MOBILE_VERSION=$(source "$ROOT/version.env" && printf "%s" "${MOBILE_VERSION:-}")
+fi
 PRIVATE_KEY_FILE=${SPARKLE_PRIVATE_KEY_FILE:-}
 SPARKLE_CHANNEL=${SPARKLE_CHANNEL:-}
 if [[ -z "$PRIVATE_KEY_FILE" ]]; then
@@ -111,6 +117,15 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
   echo "Tagged ${VERSION} with sparkle:channel=\"${SPARKLE_CHANNEL}\""
 fi
+
+python3 "$ROOT/Scripts/sparkle_release_notes.py" \
+  --appcast "$WORK_DIR/appcast.xml" \
+  --changelog "$ROOT/CHANGELOG.md" \
+  --version "$VERSION" \
+  --app-name "$SPARKLE_APP_NAME" \
+  --repository "$SPARKLE_REPOSITORY" \
+  --mobile-version "$SPARKLE_MOBILE_VERSION" \
+  --branch "$RELEASE_BRANCH"
 
 cp "$WORK_DIR/appcast.xml" "$ROOT/appcast.xml"
 

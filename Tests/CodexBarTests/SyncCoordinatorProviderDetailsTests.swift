@@ -126,50 +126,6 @@ struct SyncCoordinatorProviderDetailsTests {
     }
 
     @Test
-    func `Soniox and Trae CN sync only allowlisted billing and numeric credit details`() {
-        let soniox = UsageSnapshot(
-            primary: nil,
-            secondary: nil,
-            details: [.makeSection(title: "Billing", rows: [
-                .makeRow(label: "Prepaid", value: "USD"),
-                .makeRow(label: "Monthly spend", value: "$12.34"),
-                .makeRow(label: "Available balance", value: "-$0.50"),
-                .makeRow(label: "Monthly budget", value: "$0.00"),
-                .makeRow(label: "Organization API key", value: "fixture-secret"),
-            ])],
-            updatedAt: Date())
-        #expect(SyncCoordinator.mapProviderDetails(provider: .soniox, snapshot: soniox) == [
-            .init(title: "Billing", rows: [
-                .init(label: "Prepaid", value: "USD"),
-                .init(label: "Available balance", value: "-$0.50"),
-                .init(label: "Monthly spend", value: "$12.34"),
-                .init(label: "Monthly budget", value: "$0.00"),
-            ]),
-        ])
-
-        let traecn = UsageSnapshot(
-            primary: nil,
-            secondary: nil,
-            details: [.makeSection(title: "Credits", rows: [
-                .makeRow(label: "Used", value: "12.5"),
-                .makeRow(label: "Total", value: "20"),
-                .makeRow(label: "Remaining", value: "7.5"),
-                .makeRow(label: "Cookie", value: "session=fixture-secret"),
-                .makeRow(label: "Used", value: "NaN"),
-            ])],
-            updatedAt: Date())
-        #expect(SyncCoordinator.mapProviderDetails(provider: .traecn, snapshot: traecn) == [
-            .init(title: "Credits", rows: [
-                .init(label: "Used", value: "12.5"),
-                .init(label: "Total", value: "20"),
-                .init(label: "Remaining", value: "7.5"),
-            ]),
-        ])
-        #expect(SyncCoordinator.mapProviderDetails(provider: .soniox, snapshot: nil) == nil)
-        #expect(SyncCoordinator.mapProviderDetails(provider: .traecn, snapshot: nil) == nil)
-    }
-
-    @Test
     func `WorkBuddy phone payload omits account identity and cookie details`() async throws {
         let suite = "SyncCoordinatorWorkBuddyDetailsTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -468,6 +424,124 @@ struct SyncCoordinatorProviderDetailsTests {
             #expect(envelope.provider.rateWindows.isEmpty)
             #expect(envelope.provider.providerDetails?.first?.rows.first?.value == provider.rawValue)
         }
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct SyncCoordinatorProviderBillingDetailsTests {
+    @Test
+    func `prepaid provider meters sync billing details without exporting quota windows`() async throws {
+        let suite = "SyncCoordinatorPrepaidMeterTests-\(UUID().uuidString)"
+        let settings = testSettingsStore(suiteName: suite, config: testConfigWithAllProvidersDisabled())
+        settings.iCloudSyncEnabled = true
+        settings.accountWidgetsEnabled = false
+        for provider in [UsageProvider.chatbox, .abliteration] {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderDefaults.metadata[provider]),
+                enabled: true)
+        }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            // Snapshot-only sync still filters unavailable providers.
+            // Fixture keys satisfy availability without an API refresh.
+            environmentBase: [
+                ChatboxProviderDescriptor.spec.environmentKey: "fixture-chatbox-license-key",
+                AbliterationProviderDescriptor.spec.environmentKey: "fixture-abliteration-api-key",
+            ])
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 80, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                details: [.makeSection(title: "Remaining", rows: [
+                    .makeRow(label: "Plan", value: "8 / 10"),
+                    .makeRow(label: "Top-up credits", value: "2 / 5"),
+                ])],
+                updatedAt: timestamp),
+            provider: .chatbox)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: "$4.00 / $10.00"),
+                secondary: RateWindow(usedPercent: 90, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                details: [.makeSection(title: "Credits", rows: [
+                    .makeRow(label: "Balance", value: "$6.00"),
+                    .makeRow(label: "Credits used", value: "$4.00"),
+                    .makeRow(label: "Credits", value: "$10.00"),
+                ])],
+                updatedAt: timestamp),
+            provider: .abliteration)
+
+        let pusher = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
+
+        let chatbox = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "chatbox"
+        }?.provider)
+        #expect(chatbox.rateWindows.count == 1)
+        #expect(chatbox.primary?.usedPercent == 20)
+        #expect(chatbox.secondary == nil)
+        #expect(chatbox.providerDetails?.first?.rows.map(\.label) == ["Plan", "Top-up credits"])
+
+        let abliteration = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "abliteration"
+        }?.provider)
+        #expect(abliteration.rateWindows.isEmpty)
+        #expect(abliteration.primary == nil)
+        #expect(abliteration.secondary == nil)
+        #expect(abliteration.providerDetails?.first?.rows.map(\.label) == ["Balance", "Credits used", "Credits"])
+    }
+
+    @Test
+    func `Soniox and Trae CN sync only allowlisted billing and numeric credit details`() {
+        let soniox = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Billing", rows: [
+                .makeRow(label: "Prepaid", value: "USD"),
+                .makeRow(label: "Monthly spend", value: "$12.34"),
+                .makeRow(label: "Available balance", value: "-$0.50"),
+                .makeRow(label: "Monthly budget", value: "$0.00"),
+                .makeRow(label: "Organization API key", value: "fixture-secret"),
+            ])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .soniox, snapshot: soniox) == [
+            .init(title: "Billing", rows: [
+                .init(label: "Prepaid", value: "USD"),
+                .init(label: "Available balance", value: "-$0.50"),
+                .init(label: "Monthly spend", value: "$12.34"),
+                .init(label: "Monthly budget", value: "$0.00"),
+            ]),
+        ])
+
+        let traecn = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Credits", rows: [
+                .makeRow(label: "Used", value: "12.5"),
+                .makeRow(label: "Total", value: "20"),
+                .makeRow(label: "Remaining", value: "7.5"),
+                .makeRow(label: "Cookie", value: "session=fixture-secret"),
+                .makeRow(label: "Used", value: "NaN"),
+            ])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .traecn, snapshot: traecn) == [
+            .init(title: "Credits", rows: [
+                .init(label: "Used", value: "12.5"),
+                .init(label: "Total", value: "20"),
+                .init(label: "Remaining", value: "7.5"),
+            ]),
+        ])
+        #expect(SyncCoordinator.mapProviderDetails(provider: .soniox, snapshot: nil) == nil)
+        #expect(SyncCoordinator.mapProviderDetails(provider: .traecn, snapshot: nil) == nil)
     }
 
     private struct BillingFixture {

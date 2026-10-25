@@ -2783,3 +2783,64 @@
 "Trae CN request failed. Try refreshing later." = "Die Trae-CN-Anfrage ist fehlgeschlagen. Versuche es später erneut.";
 
 "Show Soniox usage" = "Trae-CN-Nutzung anzeigen";
+
+/* October 24 upstream integration */
+"Search sessions" = "Sitzungen suchen";
+
+"No matching sessions" = "Keine passenden Sitzungen";
+
+"Select a session" = "Sitzung auswählen";
+
+"Cached input is included in input; reasoning is included in output." = "Cache-Eingaben sind in der Eingabe enthalten; Reasoning-Token sind in der Ausgabe enthalten.";
+
+"Recent activity" = "Letzte Aktivität";
+
+"Sort by" = "Sortieren nach";
+
+"Ascending" = "Aufsteigend";
+
+"Descending" = "Absteigend";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Jeder Turn enthält die in diesem Zeitraum erfassten Modellanfragen. Nachrichten im selben Turn können nicht getrennt bepreist werden.";
+
+"No turn-level usage records are available." = "Keine Nutzungsdaten auf Turn-Ebene verfügbar.";
+
+"Unattributed usage" = "Nicht zugeordnete Nutzung";
+
+"Turn %d" = "Turn %d";
+
+"Model requests" = "Modellanfragen";
+
+"Tool activity has no separate recorded token or monetary cost." = "Für Werkzeugaufrufe werden keine separaten Token- oder Geldkosten erfasst.";
+
+"Request %d" = "Anfrage %d";
+
+"Request details exceed the limit." = "Die Anfragedetails überschreiten das Limit.";
+
+"Request details are unavailable. Refresh usage and try again." = "Die Anfragedetails sind nicht verfügbar. Aktualisiere die Nutzung und versuche es erneut.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Chatbox-AI-Nutzung anzeigen";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Der Chatbox-AI-Lizenzschlüssel ist ungültig. Aktualisiere ihn in den Einstellungen.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI hat den Zugriff verweigert. Prüfe deine Lizenz.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI begrenzt die Anzahl der Anfragen. Versuche es später erneut.";
+
+"Chatbox AI request failed. Try refreshing later." = "Die Chatbox-AI-Anfrage ist fehlgeschlagen. Versuche es später erneut.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI hat eine unbekannte Antwort zurückgegeben. Aktualisiere QuotaKit und versuche es erneut.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "Nutzung von abliteration.ai anzeigen";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai begrenzt die Anzahl der Anfragen. Versuche es später erneut.";
+
+"abliteration.ai request failed. Try refreshing later." = "Die Anfrage an abliteration.ai ist fehlgeschlagen. Versuche es später erneut.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai hat eine unbekannte Antwort zurückgegeben. Aktualisiere QuotaKit und versuche es erneut.";
+
+"Check your API key in Settings." = "Prüfe deinen API-Schlüssel in den Einstellungen.";

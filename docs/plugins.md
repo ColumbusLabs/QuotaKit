@@ -453,6 +453,8 @@ the switcher gauge keeps its weekly-first selection.
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
 refreshes update visible plugin cards, and repeated requests for the same plugin share its in-flight refresh.
+When a refresh fails, the card keeps the last successful usage and shows the error plus how long ago that usage was
+captured. A later successful refresh clears both warnings.
 Enabled plugins can also be selected in **Settings → Menu Bar → Overview**. They share the six-provider limit and render
 their existing usage card. Overview selections keep the same string-array format, so older builds still read built-in
 providers while ignoring unknown plugin IDs. This setting changes placement only: it grants no additional host

@@ -50,9 +50,10 @@ extension UsageStore {
             primaryWindow = nil
             secondaryWindow = weekly
         } else {
-            let suppressWindows = provider == .mimo || provider == .qoder
+            let suppressWindows = provider == .mimo || provider == .qoder || provider == .abliteration
             primaryWindow = suppressWindows ? nil : snapshot.primary
-            secondaryWindow = suppressWindows ? nil : snapshot.secondary
+            // Chatbox's secondary meter is prepaid top-up credit, not a weekly quota.
+            secondaryWindow = suppressWindows || provider == .chatbox ? nil : snapshot.secondary
         }
         let primaryWindowDisplayLabel = provider == .amp
             ? AmpProviderDescriptor.primaryLabel(snapshot: snapshot)

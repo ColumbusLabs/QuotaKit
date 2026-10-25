@@ -297,6 +297,18 @@ struct PluginProviderSpecTests {
                 balanceOnly: true,
                 allowsBurnDown: false,
                 sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .chatbox,
+                displayName: "Chatbox AI",
+                balanceOnly: false,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
+            NewProviderSpecExpectation(
+                provider: .abliteration,
+                displayName: "abliteration.ai",
+                balanceOnly: false,
+                allowsBurnDown: false,
+                sourceModes: [.auto, .api]),
         ]
         for expectation in expected {
             let descriptor = ProviderDescriptorRegistry.descriptor(for: expectation.provider)

@@ -65,9 +65,11 @@ struct ProcessPipeCaptureReadFailureTests {
             capture.stop()
         }
         let output = await finishTask.value
+        capture.stop()
 
         #expect(finishedPromptly)
         #expect(output == prefix)
+        #expect(capture.currentSnapshot() == prefix)
         #expect(!capture.reachedEOF)
         #expect(readCount.value == 2)
     }

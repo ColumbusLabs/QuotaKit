@@ -2783,3 +2783,64 @@
 "Trae CN request failed. Try refreshing later." = "Trae CN へのリクエストに失敗しました。後でもう一度更新してください。";
 
 "Show Soniox usage" = "Soniox の使用状況を表示";
+
+/* October 24 upstream integration */
+"Search sessions" = "セッションを検索";
+
+"No matching sessions" = "一致するセッションがありません";
+
+"Select a session" = "セッションを選択";
+
+"Cached input is included in input; reasoning is included in output." = "キャッシュ入力は入力に、推論トークンは出力に含まれます。";
+
+"Recent activity" = "最近のアクティビティ";
+
+"Sort by" = "並べ替え";
+
+"Ascending" = "昇順";
+
+"Descending" = "降順";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "各ターンには、この期間に記録されたモデルリクエストが含まれます。同じターン内のメッセージを個別に料金計算することはできません。";
+
+"No turn-level usage records are available." = "ターン単位の使用量記録はありません。";
+
+"Unattributed usage" = "未割り当ての使用量";
+
+"Turn %d" = "ターン %d";
+
+"Model requests" = "モデルリクエスト";
+
+"Tool activity has no separate recorded token or monetary cost." = "ツール呼び出しのトークン数や料金は個別には記録されていません。";
+
+"Request %d" = "リクエスト %d";
+
+"Request details exceed the limit." = "リクエストの詳細が上限を超えています。";
+
+"Request details are unavailable. Refresh usage and try again." = "リクエストの詳細を取得できません。使用状況を更新して、もう一度お試しください。";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Chatbox AI の使用状況を表示";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Chatbox AI のライセンスキーが無効です。設定で更新してください。";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI がアクセスを拒否しました。ライセンスを確認してください。";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI がリクエストの頻度を制限しています。後でもう一度お試しください。";
+
+"Chatbox AI request failed. Try refreshing later." = "Chatbox AI へのリクエストに失敗しました。後でもう一度更新してください。";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI から認識できない応答が返されました。QuotaKit を更新して、もう一度お試しください。";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "abliteration.ai の使用状況を表示";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai がリクエストの頻度を制限しています。後でもう一度お試しください。";
+
+"abliteration.ai request failed. Try refreshing later." = "abliteration.ai へのリクエストに失敗しました。後でもう一度更新してください。";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai から認識できない応答が返されました。QuotaKit を更新して、もう一度お試しください。";
+
+"Check your API key in Settings." = "設定でAPIキーを確認してください。";

@@ -21,6 +21,13 @@ run `agy` once and sign in. QuotaKit keeps the signed-in `agy` local HTTPS serve
 after each refresh and stops it when idle, or reuses a signed-in `agy` you already have running
 without taking ownership of that process.
 
+Every QuotaKit-owned `agy` child (version checks, ambient or account-scoped print reports, and managed PTY sessions)
+receives `AGY_CLI_DISABLE_AUTO_UPDATE=true`, preventing passive quota probes from starting CLI auto-updates.
+The lowercase literal `true` is required: upstream reports show that `1` is ignored
+([updater behavior](https://github.com/google-antigravity/antigravity-cli/issues/942),
+[macOS print-mode evidence](https://github.com/google-antigravity/antigravity-cli/issues/1046)).
+This per-child override leaves user-launched terminal sessions and saved updater settings unchanged.
+
 For `agy` 1.2.2 and later, a failed legacy HTTPS fetch can fall back to
 `agy -p /usage --output-format json`. CodexBar checks that the same executable reports version 1.1.11
 or later before using print mode; [Google introduced non-interactive usage reports in 1.1.11](https://antigravity.google/changelog).

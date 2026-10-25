@@ -5,6 +5,15 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-10-24)
+
+- Inspect spend sessions and load selected request details with bounded reads and accounting context.
+- Add Chatbox license quotas and abliteration.ai credit balances across the provider catalog.
+- Recover Claude OAuth when Keychain holds only MCP state, import Trae CN parent-domain cookies, and show the age of retained plugin usage.
+- Suppress updater activity in passive CLI probes and resolve Auto web-source support from the effective fetch context.
+- Identify selected quota windows in automatic menu tokens and let native Settings detail content fill wide windows.
+- Prepare Markdown release-note rendering in QuotaKit's release source tooling.
+
 ## Unreleased upstream integration (2026-10-23)
 
 - Add Soniox organization spend and Trae CN usage across the Mac and iPhone provider catalog.

@@ -2784,3 +2784,64 @@
 "Trae CN request failed. Try refreshing later." = "Yêu cầu Trae CN không thành công. Hãy thử làm mới sau.";
 
 "Show Soniox usage" = "Hiển thị mức sử dụng Soniox";
+
+/* October 24 upstream integration */
+"Search sessions" = "Tìm phiên";
+
+"No matching sessions" = "Không có phiên phù hợp";
+
+"Select a session" = "Chọn một phiên";
+
+"Cached input is included in input; reasoning is included in output." = "Đầu vào được lưu đệm đã nằm trong đầu vào; token suy luận đã nằm trong đầu ra.";
+
+"Recent activity" = "Hoạt động gần đây";
+
+"Sort by" = "Sắp xếp theo";
+
+"Ascending" = "Tăng dần";
+
+"Descending" = "Giảm dần";
+
+"Each turn includes its recorded model calls within this period. Messages sharing a turn cannot be priced separately." = "Mỗi lượt gồm các yêu cầu mô hình được ghi trong khoảng thời gian này. Không thể tính phí riêng từng tin nhắn trong cùng một lượt.";
+
+"No turn-level usage records are available." = "Không có bản ghi sử dụng theo lượt.";
+
+"Unattributed usage" = "Mức sử dụng chưa được quy thuộc";
+
+"Turn %d" = "Lượt %d";
+
+"Model requests" = "Yêu cầu mô hình";
+
+"Tool activity has no separate recorded token or monetary cost." = "Không ghi riêng chi phí token hoặc tiền cho các lệnh gọi công cụ.";
+
+"Request %d" = "Yêu cầu %d";
+
+"Request details exceed the limit." = "Chi tiết yêu cầu vượt quá giới hạn.";
+
+"Request details are unavailable. Refresh usage and try again." = "Không có chi tiết yêu cầu. Hãy làm mới mức sử dụng rồi thử lại.";
+
+"Chatbox AI" = "Chatbox AI";
+
+"Show Chatbox AI usage" = "Hiển thị mức sử dụng Chatbox AI";
+
+"Chatbox AI license key is invalid. Update it in Settings." = "Khóa giấy phép Chatbox AI không hợp lệ. Hãy cập nhật khóa trong Cài đặt.";
+
+"Chatbox AI denied access. Check your license." = "Chatbox AI đã từ chối truy cập. Hãy kiểm tra giấy phép của bạn.";
+
+"Chatbox AI is rate limiting requests. Try again later." = "Chatbox AI đang giới hạn tần suất yêu cầu. Hãy thử lại sau.";
+
+"Chatbox AI request failed. Try refreshing later." = "Yêu cầu Chatbox AI không thành công. Hãy thử làm mới sau.";
+
+"Chatbox AI returned an unrecognized response. Update QuotaKit and try again." = "Chatbox AI trả về phản hồi không nhận dạng được. Hãy cập nhật QuotaKit rồi thử lại.";
+
+"abliteration.ai" = "abliteration.ai";
+
+"Show abliteration.ai usage" = "Hiển thị mức sử dụng abliteration.ai";
+
+"abliteration.ai is rate limiting requests. Try again later." = "abliteration.ai đang giới hạn tần suất yêu cầu. Hãy thử lại sau.";
+
+"abliteration.ai request failed. Try refreshing later." = "Yêu cầu abliteration.ai không thành công. Hãy thử làm mới sau.";
+
+"abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai trả về phản hồi không nhận dạng được. Hãy cập nhật QuotaKit rồi thử lại.";
+
+"Check your API key in Settings." = "Kiểm tra khóa API trong Cài đặt.";

@@ -412,10 +412,10 @@ extension UsageStore {
         provider: UsageProvider,
         snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
     {
-        // Provider-specific by design: MiMo/Qoder balances, Antigravity families, and Copilot chat
-        // fallback encode distinct session-quota payload semantics.
-        // MiMo/Qoder balances are never session quotas.
-        guard provider != .mimo, provider != .qoder else { return nil }
+        // Provider-specific by design: MiMo/Qoder/Abliteration balances, Antigravity families,
+        // and Copilot chat fallback encode distinct session-quota payload semantics.
+        // Balance meters are never session quotas.
+        guard provider != .mimo, provider != .qoder, provider != .abliteration else { return nil }
         if provider == .antigravity {
             guard let window = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60) else {
                 return nil

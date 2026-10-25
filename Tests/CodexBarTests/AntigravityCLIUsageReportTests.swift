@@ -169,6 +169,26 @@ struct AntigravityCLIUsageReportTests {
     }
 
     @Test
+    func `version and ambient print disable auto update`() async throws {
+        let fixture = try Self.printExecutable("""
+        printf '%s:%s\\n' "$1" "${AGY_CLI_DISABLE_AUTO_UPDATE:-missing}" >> "$HOME/update-guards"
+        if [ "$1" = --version ]; then echo 1.2.2; exit 0; fi
+        /bin/cat <<'REPORT'
+        \(Self.reportJSON())
+        REPORT
+        """, version: nil)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        var environment = fixture.environment
+        environment["AGY_CLI_DISABLE_AUTO_UPDATE"] = "false"
+
+        _ = try await AntigravityCLIHTTPSFetchStrategy().fetchPrintUsage(
+            binary: fixture.binary.path, environment: environment)
+
+        let guards = try String(contentsOf: fixture.directory.appendingPathComponent("update-guards"), encoding: .utf8)
+        #expect(guards == "--version:true\n-p:true\n")
+    }
+
+    @Test
     func `print usage cannot launch the system browser`() async throws {
         // Each fallback launcher is checked before it runs, so a regression fails safely in the test.
         let fixture = try Self.printExecutable("""

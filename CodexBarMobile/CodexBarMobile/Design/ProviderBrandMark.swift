@@ -6,6 +6,7 @@ enum ProviderBrandAsset {
 
     private static let canonicalIconIDs: Set<String> = [
         "abacus",
+        "abliteration",
         "alibaba",
         "amp",
         "antigravity",
@@ -13,6 +14,7 @@ enum ProviderBrandAsset {
         "bedrock",
         "bifrost",
         "chutes",
+        "chatbox",
         "clinepass",
         "claude",
         "claudeplatform",
@@ -111,6 +113,7 @@ enum ProviderBrandAsset {
     private static let aliases: [String: String] = [
         "11labs": "elevenlabs",
         "abacusai": "abacus",
+        "abliterationai": "abliteration",
         "alibabatoken": "alibaba",
         "alibabatokenplan": "alibaba",
         "ampcode": "amp",
@@ -119,6 +122,7 @@ enum ProviderBrandAsset {
         "bailian": "alibaba",
         "bailiantokenplan": "alibaba",
         "chatgpt": "codex",
+        "chatboxai": "chatbox",
         "droid": "factory",
         "eleven": "elevenlabs",
         "groqapi": "groq",

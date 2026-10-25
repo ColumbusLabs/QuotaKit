@@ -99,7 +99,9 @@ struct MenuBarLayoutRenderData: Hashable {
     var spendCurrencySymbol: String = "$"
 
     func extraTitle(_ id: String) -> String? {
-        guard let provider else { return nil }
+        guard let provider else {
+            return self.extraRateWindows.first { $0.id == id }?.title
+        }
         return ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtras[id].map { title in
             self.extraRateWindows.first { $0.id == id }?.title ?? L(title)
         }
@@ -579,7 +581,7 @@ final class MenuBarLayoutRenderer {
                 if tokenIndex > 0, token != .space, renderedLine[tokenIndex - 1] != .space {
                     result.append(NSAttributedString(string: "\u{2009}", attributes: attributes))
                 }
-                let renderedItem = Self.renderItem(
+                var renderedItem = Self.renderItem(
                     token,
                     data: data,
                     icon: icon,
@@ -590,6 +592,8 @@ final class MenuBarLayoutRenderer {
                         attributes: attributes),
                     options: options,
                     providerTintColor: providerTintColor)
+                renderedItem = Self.labelAutomaticItem(
+                    renderedItem, token: token, data: data, options: options, attributes: attributes)
                 result.append(renderedItem.value)
                 if let accessibilityText = renderedItem.accessibilityText {
                     accessibilityParts.append(accessibilityText)
@@ -902,7 +906,7 @@ final class MenuBarLayoutRenderer {
             accessibility)
     }
 
-    private static func windowPrefix(
+    static func windowPrefix(
         _ window: PercentWindow,
         data: MenuBarLayoutRenderData,
         showWindowLabels: Bool = true) -> String
@@ -928,7 +932,7 @@ final class MenuBarLayoutRenderer {
         }
     }
 
-    private static func windowAccessibilityLabel(_ window: PercentWindow, data: MenuBarLayoutRenderData) -> String {
+    static func windowAccessibilityLabel(_ window: PercentWindow, data: MenuBarLayoutRenderData) -> String {
         if let lane = self.taggedSemanticLane(window, data: data) {
             return data.laneLabels.label(for: lane)
         }
@@ -1084,7 +1088,7 @@ final class MenuBarLayoutRenderer {
         (NSAttributedString(string: value, attributes: attributes), accessibilityText)
     }
 
-    private static func window(
+    static func window(
         _ percentWindow: PercentWindow,
         data: MenuBarLayoutRenderData)
         -> MenuBarLayoutRenderWindow?
@@ -1098,7 +1102,7 @@ final class MenuBarLayoutRenderer {
         }
     }
 
-    private static func laneWindow(
+    static func laneWindow(
         _ lane: MenuBarLayoutLane,
         data: MenuBarLayoutRenderData)
         -> MenuBarLayoutRenderWindow?
@@ -1371,7 +1375,7 @@ extension MenuBarLayoutRenderer {
         return (result, L("%@ %@", accessibilityPrefix, percentText))
     }
 
-    private static func prefixedValue(
+    static func prefixedValue(
         _ prefix: String,
         value: NSAttributedString,
         attributes: [NSAttributedString.Key: Any]) -> NSAttributedString
@@ -1619,7 +1623,7 @@ extension MenuBarLayoutRenderer {
 
 extension MenuBarLayoutRenderer {
     /// Match the actual lane title so saved layouts keep the tag for the lane's semantic role.
-    private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
+    static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
         guard let provider = data.provider else { return nil }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         guard !descriptor.menuBarMetrics.laneShortLabels.isEmpty else { return nil }

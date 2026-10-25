@@ -317,6 +317,10 @@ struct UserPluginMenuCardView: View {
             }
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                if let snapshot {
+                    Text(LastKnownUsagePresentation.message(capturedAt: snapshot.updatedAt))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
             }
             if let snapshot {
                 self.window("Primary", snapshot.primary)
@@ -417,12 +421,14 @@ struct UserPluginMenuCardView: View {
         snapshot: UsageSnapshot?,
         error: String?,
         resetStyle: ResetTimeDisplayStyle,
-        hidePersonalInfo: Bool = false) -> String
+        hidePersonalInfo: Bool = false,
+        now: Date = .now) -> String
     {
         let resets = [snapshot?.primary, snapshot?.secondary, snapshot?.tertiary].map { window in
-            window.flatMap { UsageFormatter.resetLine(for: $0, style: resetStyle) } ?? ""
+            window.flatMap { UsageFormatter.resetLine(for: $0, style: resetStyle, now: now) } ?? ""
         }
         var fields: [String] = [
+            codexBarLocalizationSignature(),
             snapshot?.updatedAt.timeIntervalSinceReferenceDate.description ?? "none",
             String(snapshot?.details.count ?? 0),
             String(hidePersonalInfo),
@@ -430,6 +436,9 @@ struct UserPluginMenuCardView: View {
             snapshot?.secondary?.title ?? "",
             snapshot?.tertiary?.title ?? "",
             error ?? "",
+            error == nil ? "" : snapshot.map {
+                LastKnownUsagePresentation.message(capturedAt: $0.updatedAt, now: now)
+            } ?? "",
         ]
         fields.append(contentsOf: resets)
         return fields.joined(separator: "|")
