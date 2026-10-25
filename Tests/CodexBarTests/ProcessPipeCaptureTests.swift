@@ -77,16 +77,13 @@ struct ProcessPipeCaptureTests {
 
 private final class CountingFileHandle: FileHandle, @unchecked Sendable {
     private let lock = NSLock()
-    private let backingHandle: FileHandle
-    private var closes = 0
-    var beforeFirstClose: (@Sendable () -> Void)?
-
-    override init() {
+    private let backingHandle: FileHandle = {
         let descriptor = Darwin.open("/dev/null", O_RDONLY | O_CLOEXEC)
         precondition(descriptor >= 0)
-        self.backingHandle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
-        super.init()
-    }
+        return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    }()
+    private var closes = 0
+    var beforeFirstClose: (@Sendable () -> Void)?
 
     var closeCount: Int {
         self.lock.withLock { self.closes }
