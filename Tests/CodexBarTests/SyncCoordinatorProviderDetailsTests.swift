@@ -91,6 +91,22 @@ struct SyncCoordinatorProviderDetailsTests {
     }
 
     @Test
+    func `Kimi sync exports only numeric monthly share rows and clears stale data`() throws {
+        let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data("""
+        {"usages":{"limit_month_total":{"used_ratio":0.5761},"limit_month_code":{"used_ratio":0.0426}}}
+        """.utf8)).toUsageSnapshot()
+        #expect(SyncCoordinator.mapProviderDetails(provider: .kimi, snapshot: snapshot) == [
+            SyncProviderDetailSection(title: "Total usage", rows: [
+                .init(label: "Kimi Code", value: "4% used"),
+                .init(label: "Other features", value: "53% used"),
+            ]),
+        ])
+        #expect(SyncCoordinator.mapProviderDetails(provider: .kimi, snapshot: nil) == nil)
+        let empty = UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .kimi, snapshot: empty) == [])
+    }
+
+    @Test
     func `WorkBuddy sync allowlists numeric credit details and clears empty results`() {
         let snapshot = UsageSnapshot(
             primary: nil,

@@ -2549,7 +2549,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Planverlängerung / Ablauf";
 "Hidden by the global optional credits, spending & billing setting." = "Durch die globale Einstellung für optionale Guthaben, Ausgaben und Abrechnungsdetails ausgeblendet.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ Token · %@ Anfragen";
 "15m" = "15 Min.";
@@ -2844,3 +2843,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai hat eine unbekannte Antwort zurückgegeben. Aktualisiere QuotaKit und versuche es erneut.";
 
 "Check your API key in Settings." = "Prüfe deinen API-Schlüssel in den Einstellungen.";
+"install_updates_auto" = "Updates automatisch laden und installieren";
+"install_updates_auto_subtitle" = "Wenn deaktiviert, werden Sie vor der Installation einer neuen Version gefragt.";
+"OpenCode local history" = "Lokaler OpenCode-Verlauf";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Zeigt die auf diesem Mac erfasste OpenCode-Nutzung im Codex-Verlauf. Standardmäßig deaktiviert; CODEX_HOME-Verzeichnisse mit eingeschränktem Geltungsbereich sowie alternative Verzeichnisse bleiben immer ausgeschlossen.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Auto verwendet die aktive gespeicherte Sitzung, andernfalls einen API-Schlüssel oder Browser-Cookies.";
+"Store multiple Command Code subscription sessions." = "Speichern Sie mehrere Command Code-Abonnementsitzungen.";
+"Other features" = "Andere Funktionen";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "Der OpenCode-Verlauf bleibt auf diesem Mac. Die nativen Codex-Kosten werden weiterhin mit dem iPhone synchronisiert.";

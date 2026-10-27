@@ -102,7 +102,32 @@ struct CodexLocalSessionCostSettingsTests {
         #expect(scope.signature.hasPrefix("codex:managed:"))
     }
 
-    private func makeSettingsFixture(suite: String) throws -> Fixture {
+    @Test
+    func `OpenCode history requires an enabled ambient source`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "OpenCode-history-ambient", environment: [:])
+        #expect(!fixture.store.shouldIncludeOpenCodeLocalHistory)
+        fixture.settings.openCodeLocalHistoryEnabled = true
+        fixture.settings.codexActiveSource = .liveSystem
+        #expect(fixture.store.shouldIncludeOpenCodeLocalHistory)
+        let ambient = fixture.store.tokenSnapshotScopeSignature(for: .codex)
+        fixture.settings.codexActiveSource = .managedAccount(id: UUID())
+        #expect(!fixture.store.shouldIncludeOpenCodeLocalHistory)
+        #expect(fixture.store.tokenSnapshotScopeSignature(for: .codex) != ambient)
+        let scoped = try self.makeSettingsFixture(
+            suite: "OpenCode-history-scoped", environment: ["CODEX_HOME": "/tmp/isolated-codex"])
+        scoped.settings.openCodeLocalHistoryEnabled = true
+        #expect(!scoped.store.shouldIncludeOpenCodeLocalHistory)
+    }
+
+    @Test
+    func `OpenCode setting changes cost publication revision`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "OpenCode-history-toggle", environment: [:])
+        let revision = fixture.settings.costUsageSettingsRevision
+        fixture.settings.openCodeLocalHistoryEnabled = true
+        #expect(fixture.settings.costUsageSettingsRevision > revision)
+    }
+
+    private func makeSettingsFixture(suite: String, environment: [String: String] = [:]) throws -> Fixture {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
@@ -113,7 +138,8 @@ struct CodexLocalSessionCostSettingsTests {
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
+            settings: settings,
+            environmentBase: environment)
         return Fixture(settings: settings, store: store)
     }
 

@@ -155,23 +155,10 @@ extension KimiUsageSnapshot {
                         windowMinutes: windowMinutes))
             }
 
-        let monthlyWindow = self.codeUsagePools?.monthly?
-            .window(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes)
-            .map { NamedRateWindow(id: "kimi-monthly", title: "Total usage", window: $0) }
-            ?? self.subscriptionBalance.flatMap { balance -> NamedRateWindow? in
-                // Total usage = shared subscription pool (`amountUsedRatio`), not the Code-only
-                // `kimiCodeUsedRatio`: the pool is shared across features, so amountUsedRatio is the
-                // real "subscription remaining". Matches the official "Total usage" lane.
-                guard balance.feature == nil || balance.feature == "FEATURE_OMNI" else { return nil }
-                guard balance.type == nil || balance.type == "SUBSCRIPTION" else { return nil }
-                guard let ratio = balance.amountUsedRatio, ratio.isFinite else { return nil }
-                let window = RateWindow(
-                    usedPercent: Self.clampedPercent(ratio * 100),
-                    windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
-                    resetsAt: Self.parseDate(balance.expireTime),
-                    resetDescription: nil)
-                return NamedRateWindow(id: "kimi-monthly", title: "Total usage", window: window)
-            }
+        let monthlyPool = self.monthlyPool()
+        let monthlyWindow = monthlyPool.map {
+            NamedRateWindow(id: "kimi-monthly", title: "Total usage", window: $0.window)
+        }
 
         let subscriptionCodeWeeklyWindow = self.subscriptionCodeWeeklyLimit.flatMap { limit -> NamedRateWindow? in
             guard limit.enabled != false else { return nil }
@@ -200,13 +187,51 @@ extension KimiUsageSnapshot {
             primary: weeklyWindow,
             secondary: rateLimitWindow,
             extraRateWindows: extraRateWindows.isEmpty ? nil : extraRateWindows,
-            details: self.giftDetails(),
+            details: Self.monthlyBreakdownDetails(
+                usedRatio: monthlyPool?.usedRatio,
+                codeUsedRatio: monthlyPool?.codeUsedRatio) + self.giftDetails(),
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
                 providerID: .kimi,
                 accountEmail: nil,
                 accountOrganization: nil,
                 loginMethod: self.planName))
+    }
+
+    /// The shared monthly pool and its Code share must come from the same source.
+    private func monthlyPool() -> (window: RateWindow, usedRatio: Double, codeUsedRatio: Double?)? {
+        if let pool = self.codeUsagePools?.monthly,
+           let usedRatio = pool.usedRatio,
+           let window = pool.window(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes)
+        {
+            return (window, usedRatio, self.codeUsagePools?.monthlyCode?.usedRatio)
+        }
+        guard let balance = self.subscriptionBalance else { return nil }
+        guard balance.feature == nil || balance.feature == "FEATURE_OMNI" else { return nil }
+        guard balance.type == nil || balance.type == "SUBSCRIPTION" else { return nil }
+        guard let ratio = balance.amountUsedRatio, ratio.isFinite else { return nil }
+        let window = RateWindow(
+            usedPercent: Self.clampedPercent(ratio * 100),
+            windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
+            resetsAt: Self.parseDate(balance.expireTime),
+            resetDescription: nil)
+        return (window, ratio, balance.kimiCodeUsedRatio)
+    }
+
+    private static func monthlyBreakdownDetails(usedRatio: Double?, codeUsedRatio: Double?) -> [ProviderDetailSection] {
+        guard let usedRatio, usedRatio.isFinite, usedRatio >= 0,
+              let codeUsedRatio, codeUsedRatio.isFinite, codeUsedRatio >= 0 else { return [] }
+        let rows = [
+            ("kimi-monthly-code", "Kimi Code", codeUsedRatio),
+            ("kimi-monthly-other", "Other features", max(0, usedRatio - codeUsedRatio)),
+        ].map { id, label, ratio in
+            ProviderDetailSection.Row.makeRow(
+                id: id,
+                label: label,
+                value: UsageFormatter.usageLine(remaining: (1 - ratio) * 100, used: ratio * 100, showUsed: true),
+                progress: try? .init(used: ratio, total: 1))
+        }
+        return [.makeSection(title: "Total usage", rows: rows)]
     }
 
     /// Gift credits expire without replenishing and are independent of the monthly quota.

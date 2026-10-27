@@ -150,4 +150,4 @@ Copy each value once, on one line. Multi-line or duplicated IDs can make the API
 - `Sources/CodexBarCore/Providers/Zai/ZaiProviderDescriptor.swift`
 - `Sources/CodexBarCore/Providers/Zai/ZaiUsageStats.swift`
 - `Sources/CodexBarCore/Providers/Zai/ZaiSettingsReader.swift`
-- `Sources/CodexBar/ZaiTokenStore.swift` (legacy migration helper)
+- `Sources/CodexBar/Providers/Zai/ZaiTokenStore.swift` (legacy migration helper)

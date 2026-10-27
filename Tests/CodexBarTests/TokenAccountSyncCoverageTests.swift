@@ -36,7 +36,7 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains all 38 expected token-account providers`() {
+    func `Catalog contains all 39 expected token-account providers`() {
         // v0.33.0 baseline — 22 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -86,6 +86,8 @@ struct TokenAccountSyncCoverageTests {
             "bifrost", "typesafe", "aixy",
             // ClinePass labeled API-key accounts reuse the existing sync envelope.
             "clinepass",
+            // Command Code subscription sessions reuse the same sync envelope.
+            "commandcode",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

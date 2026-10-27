@@ -327,6 +327,8 @@ MOONSHOT_API_KEY=... quotakit --provider moonshot --source api --format json --p
 quotakit config validate --format json --pretty
 quotakit config dump --pretty
 printf '%s' "$OPENAI_ADMIN_KEY" | quotakit config set-api-key --provider openai --stdin
+pbpaste | quotakit config set-cookie --provider claude --stdin
+quotakit config clear-credential --provider claude --cookie
 quotakit config enable --provider grok
 quotakit config set-source --provider claude --source cli
 quotakit config set-source --provider claude --source auto

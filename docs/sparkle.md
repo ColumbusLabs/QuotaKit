@@ -12,7 +12,7 @@ read_when:
 - Updater: `SPUStandardUpdaterController` owned by `AppDelegate` (see `Sources/CodexBar/CodexbarApp.swift:1`).
 - Feed: `SUFeedURL` in Info.plist points to the QuotaKit-owned raw GitHub feed (`appcast.xml`).
 - Key: `SUPublicEDKey` set to `3265cWUVXVYIRJEJd0C7hPAYVeQlm/652ut6AnTlpz0=`. Keep the Ed25519 private key safe; use it when generating the appcast.
-- UI: auto-check toggle (About) enables auto-downloads; a staged update remains owned by Sparkle and a manual check reopens its install UI. The menu shows the staged reminder or a manual update check and running version.
+- UI: separate automatic-check and automatic-install toggles (About) preserve Sparkle's saved install choice across launches; a staged update remains owned by Sparkle and a manual check reopens its install UI. The menu shows the staged reminder or a manual update check and running version.
 - LSUIElement: works; updater window will show when checking. App is non-sandboxed.
 - Channels: stable vs beta are served from the same appcast. Beta items are tagged with `sparkle:channel="beta"`; About → Update Channel controls `allowedChannels`.
 
@@ -53,5 +53,5 @@ spaces.
 ## Notes
 - Release notes use `<description sparkle:format="markdown">`; Sparkle 2.9.6 renders headings, lists, and wrapping text, with GitHub references linked in the QuotaKit repository.
 - If you change the feed host or key, update Info.plist (`SUFeedURL`, `SUPublicEDKey`) and bump the app.
-- Auto-check toggle is persisted via Sparkle; manual “Check for Updates…” is available in About and the menu.
+- Automatic checks retain the existing QuotaKit preference. Automatic installs use Sparkle's `SUAutomaticallyUpdate` preference, default on in packaged builds; disabling checks suspends installs without erasing that saved choice. Manual “Check for Updates…” is available in About and the menu.
 - QuotaKit disables Sparkle when it detects a Homebrew Cask installation. No QuotaKit Homebrew tap is currently published, so the app does not offer a Homebrew update check or command. Unsigned builds also have no updater.

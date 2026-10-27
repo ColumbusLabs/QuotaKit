@@ -11,7 +11,18 @@ OpenCode Go is registered separately from OpenCode as `opencodego`. It supports 
 with five-hour, weekly, and monthly quota windows when reported by the selected source. Local cost history reads
 OpenCode Go assistant records from `~/.local/share/opencode/opencode.db`.
 
-Without an API key or a usable session, Auto can return `source: "local"` and
+Auto and API sources can reuse the active OpenCode CLI login. Auto prefers a configured API key and usable browser
+session before the CLI login. API mode uses a configured key first and otherwise the active CLI login. A rejected
+configured key never borrows the CLI account. Selected QuotaKit accounts, manual cookies, workspace overrides, and
+Web mode never borrow an unrelated CLI login. The source is `local+cli` with local history or `cli` without it; CLI
+quotas retain local daily history without attaching another browser account's balance.
+
+The CLI credential is read-only and reread on each fetch. A modern credential table takes precedence over stale
+legacy `auth.json`, including after logout; expired OAuth credentials must be renewed through OpenCode. Lookup honors
+absolute `XDG_DATA_HOME` and `OPENCODE_DB` (filename or absolute path); `:memory:` disables file lookup. Active WAL
+updates remain visible. Cookie source Off disables browser discovery, but not the CLI login.
+
+Without a configured API key, usable CLI login, or usable browser session, Auto can return `source: "local"` and
 `usage.dataConfidence: "estimated"`. Its $12/$30/$60 denominators apply to five-hour, weekly, and monthly
 local cost windows; they are fixed estimates, **not detected subscription tiers or Console quotas**. Local history
 covers only this device, and its inferred monthly boundary can differ from the billing cycle. Even a low local

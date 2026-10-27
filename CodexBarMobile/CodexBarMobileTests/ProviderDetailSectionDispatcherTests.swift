@@ -151,6 +151,26 @@ struct ProviderDetailSectionDispatcherTests {
     }
 
     @Test
+    func `Kimi monthly share details retain the existing generic card and omit private rows`() {
+        let provider = Self.snapshot(providerID: "kimi", providerName: "Kimi", providerDetails: [
+            .init(title: "Total usage", rows: [
+                .init(label: "Kimi Code", value: "4% used"),
+                .init(label: "Other features", value: "53% used"),
+                .init(label: "Cookie", value: "fixture-secret"),
+            ]),
+            .init(title: "Account", rows: [.init(label: "ID", value: "private-id")]),
+        ])
+        #expect(ProviderDetailSectionDispatcher.displayProviderDetails(for: provider) == [
+            SyncProviderDetailSection(title: String(localized: "Total usage"), rows: [
+                .init(label: String(localized: "Kimi Code"), value: "4% \(String(localized: "used"))"),
+                .init(label: String(localized: "Other features"), value: "53% \(String(localized: "used"))"),
+            ]),
+        ])
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false)
+            .map(\.id).contains("provider-details"))
+    }
+
+    @Test
     func `WorkBuddy details show only sanitized credit rows`() {
         let provider = Self.snapshot(
             providerID: "workbuddy",

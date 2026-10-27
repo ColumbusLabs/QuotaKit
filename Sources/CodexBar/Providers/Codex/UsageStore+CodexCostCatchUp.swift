@@ -535,8 +535,10 @@ extension UsageStore {
                 historyDays: context.historyDays,
                 allowScopedCodexHome: context.codexHomePath != nil,
                 includePiSessions: context.includePiSessions,
+                includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
                 includeProjectAndSessionBreakdowns: false,
-                calendar: self.settings.costUsageBucketCalendar)
+                calendar: self.settings.costUsageBucketCalendar,
+                environment: context.environment)
             {
                 if cached.snapshot.historyCoverageIsEstablished {
                     Self.codexCostSnapshotRefreshingProofMetadataOnly(
@@ -969,13 +971,18 @@ extension UsageStore {
         onto established: CostUsageTokenSnapshot,
         calendar: Calendar) -> CostUsageTokenSnapshot?
     {
-        guard candidate.historyIsFullyScanned,
-              established.historyIsFullyScanned,
-              candidate.historyDayWindow(calendar: calendar) == established.historyDayWindow(calendar: calendar),
-              candidate.ownership == established.ownership,
-              candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
-              candidate.currencyCode == established.currencyCode,
-              candidate.costProvenance == established.costProvenance
+        // Native proof clocks cannot validate changes to an independently recorded source.
+        guard !candidate.daily
+            .contains(where: { $0.modelBreakdowns?.contains(where: { $0.sourceRecorded == true }) == true }),
+            !established.daily
+                .contains(where: { $0.modelBreakdowns?.contains(where: { $0.sourceRecorded == true }) == true }),
+                candidate.historyIsFullyScanned,
+                established.historyIsFullyScanned,
+                candidate.historyDayWindow(calendar: calendar) == established.historyDayWindow(calendar: calendar),
+                candidate.ownership == established.ownership,
+                candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
+                candidate.currencyCode == established.currencyCode,
+                candidate.costProvenance == established.costProvenance
         else { return nil }
 
         let window = established.historyDayWindow(calendar: calendar)
@@ -1226,7 +1233,9 @@ extension UsageStore {
             historyDays: context.historyDays,
             allowScopedCodexHome: context.codexHomePath != nil,
             includePiSessions: context.includePiSessions,
-            calendar: self.settings.costUsageBucketCalendar)
+            includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
+            calendar: self.settings.costUsageBucketCalendar,
+            environment: context.environment)
         {
             result = CostUsageTokenResult(snapshot: cached.snapshot, accounting: cached.accounting)
         } else {
@@ -1307,7 +1316,9 @@ extension UsageStore {
         return await self.costUsageFetcher.codexScanCatchUpStatus(
             codexHomePath: codexHomePath,
             calendar: self.settings.costUsageBucketCalendar,
-            historyDays: historyDays)
+            historyDays: historyDays,
+            includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
+            environment: self.environmentBase)
     }
 
     private func scheduleCodexCostCatchUpProgressProbe(
@@ -1372,7 +1383,9 @@ extension UsageStore {
             codexHomePath: codexHomePath,
             historyDays: historyDays,
             scanDurationPerRefresh: durationBudget,
-            calendar: self.settings.costUsageBucketCalendar)
+            calendar: self.settings.costUsageBucketCalendar,
+            includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
+            environment: self.environmentBase)
     }
 
     func codexCostCatchUpDecision(

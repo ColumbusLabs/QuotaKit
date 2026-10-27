@@ -171,12 +171,12 @@ struct KeychainPromptSafetyAuditTests {
     func `legacy migration stores read and delete with no UI keychain queries`() throws {
         let files = [
             "Sources/CodexBar/CookieHeaderStore.swift",
-            "Sources/CodexBar/CopilotTokenStore.swift",
-            "Sources/CodexBar/KimiTokenStore.swift",
-            "Sources/CodexBar/MiniMaxAPITokenStore.swift",
-            "Sources/CodexBar/MiniMaxCookieStore.swift",
-            "Sources/CodexBar/SyntheticTokenStore.swift",
-            "Sources/CodexBar/ZaiTokenStore.swift",
+            "Sources/CodexBar/Providers/Copilot/CopilotTokenStore.swift",
+            "Sources/CodexBar/Providers/Kimi/KimiTokenStore.swift",
+            "Sources/CodexBar/Providers/MiniMax/MiniMaxAPITokenStore.swift",
+            "Sources/CodexBar/Providers/MiniMax/MiniMaxCookieStore.swift",
+            "Sources/CodexBar/Providers/Synthetic/SyntheticTokenStore.swift",
+            "Sources/CodexBar/Providers/Zai/ZaiTokenStore.swift",
         ]
 
         for file in files {

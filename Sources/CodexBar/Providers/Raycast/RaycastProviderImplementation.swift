@@ -8,7 +8,7 @@ struct RaycastProviderImplementation: ProviderImplementation {
 
     @MainActor
     func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
-        ProviderPresentation { _ in "web" }
+        ProviderPresentation(showsVersionInSettings: false) { _ in "web" }
     }
 
     @MainActor

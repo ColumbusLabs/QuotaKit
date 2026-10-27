@@ -38,7 +38,16 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
         self == .monthlyPlan ? .monthlyPlan : .automatic
     }
 
-    func label(for provider: UsageProvider, snapshot: UsageSnapshot? = nil) -> String {
+    func label(for provider: UsageProvider?, snapshot: UsageSnapshot? = nil) -> String {
+        guard let provider else {
+            return switch self {
+            case .automatic, .monthlyPlan: L("menu_bar_layout_token_auto")
+            case .session: snapshot?.primary?.title ?? L("Primary")
+            case .weekly: snapshot?.secondary?.title ?? L("Secondary")
+            case .tertiary: snapshot?.tertiary?.title ?? L("Tertiary")
+            case let .extra(id): snapshot?.extraRateWindows?.first { $0.id == id }?.title ?? id
+            }
+        }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if case let .extra(id) = self {
             return L(descriptor.menuBarMetrics.namedExtras[id] ?? "Usage")
@@ -80,6 +89,19 @@ enum MenuBarPercentWindowPreference: Hashable, Identifiable, Sendable {
             options.append(.monthlyPlan)
         }
         return options + metrics.namedExtras.keys.sorted().map { .extra(id: $0) }
+    }
+
+    static func availableForPlugin(snapshot: UsageSnapshot?, layout: MenuBarLayout) -> [Self] {
+        var options: [Self] = [.automatic, .session, .weekly, .tertiary]
+        var seenExtraIDs = Set<String>()
+        options += (snapshot?.extraRateWindows ?? []).compactMap { window in
+            seenExtraIDs.insert(window.id).inserted ? .extra(id: window.id) : nil
+        }
+        // Preserve a selected extra across missing snapshots; rendering falls back to Automatic.
+        if let selected = Self.current(in: layout), !options.contains(selected) {
+            options.append(selected)
+        }
+        return options
     }
 
     static func available(for provider: UsageProvider, layout: MenuBarLayout? = nil) -> [Self] {

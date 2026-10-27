@@ -166,6 +166,14 @@ protocol UpdaterProviding: AnyObject {
     func installUpdate()
 }
 
+/// Applies QuotaKit's automatic-check preference without overwriting Sparkle's saved install choice.
+@MainActor
+enum UpdaterPreferenceSync {
+    static func applyAutomaticChecks(_ enabled: Bool, to updater: UpdaterProviding) {
+        updater.automaticallyChecksForUpdates = enabled
+    }
+}
+
 /// No-op updater used for debug builds and non-bundled runs to suppress Sparkle dialogs.
 final class DisabledUpdaterController: UpdaterProviding {
     var automaticallyChecksForUpdates: Bool = false
@@ -211,12 +219,10 @@ final class SparkleUpdaterController: NSObject, UpdaterProviding, SPUUpdaterDele
     let isAvailable = true
     private var dockPresentationAttemptID: DockIconPresentationAttemptID?
 
-    init(savedAutoUpdate: Bool, startingUpdater: Bool = true) {
+    init(savedAutoCheck: Bool, startingUpdater: Bool = true) {
         super.init()
         guard startingUpdater else { return }
-        let updater = self.controller.updater
-        updater.automaticallyChecksForUpdates = savedAutoUpdate
-        updater.automaticallyDownloadsUpdates = savedAutoUpdate
+        UpdaterPreferenceSync.applyAutomaticChecks(savedAutoCheck, to: self)
         self.controller.startUpdater()
     }
 
@@ -363,9 +369,9 @@ private func makeUpdaterController() -> UpdaterProviding {
 
     let defaults = UserDefaults.standard
     let autoUpdateKey = "autoUpdateEnabled"
-    // Default to true for first launch; fall back to saved preference thereafter.
-    let savedAutoUpdate = (defaults.object(forKey: autoUpdateKey) as? Bool) ?? true
-    return SparkleUpdaterController(savedAutoUpdate: savedAutoUpdate)
+    // Checks default to on for first launch; Sparkle preserves the saved automatic-install choice.
+    let savedAutoCheck = (defaults.object(forKey: autoUpdateKey) as? Bool) ?? true
+    return SparkleUpdaterController(savedAutoCheck: savedAutoCheck)
 }
 #else
 private func makeUpdaterController() -> UpdaterProviding {

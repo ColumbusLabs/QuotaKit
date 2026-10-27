@@ -2542,7 +2542,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "套餐续订 / 到期";
 "Hidden by the global optional credits, spending & billing setting." = "已被可选额度、支出和账单详情的全局设置隐藏。";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ token · %@ 请求";
 "15m" = "15分钟";
@@ -2836,3 +2835,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai 返回了无法识别的响应。请更新 QuotaKit 后重试。";
 
 "Check your API key in Settings." = "请在设置中检查你的 API 密钥。";
+"install_updates_auto" = "自动下载并安装更新";
+"install_updates_auto_subtitle" = "关闭时，安装新版本前会先征求你的确认。";
+"OpenCode local history" = "OpenCode 本地历史记录";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "在 Codex 历史记录中显示此 Mac 上记录的 OpenCode 用量。默认关闭；始终排除限定范围或其他 CODEX_HOME 位置。";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "自动使用当前启用的已保存会话，否则使用 API 密钥或浏览器 Cookie。";
+"Store multiple Command Code subscription sessions." = "存储多个 Command Code 订阅会话。";
+"Other features" = "其他功能";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "OpenCode 历史记录仅保留在这台 Mac 上。Codex 原生费用仍会同步到 iPhone。";

@@ -187,6 +187,21 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                 }
             }
 
+            // Provider-specific by design: this opt-in augments only the ambient Codex cost ledger.
+            if self.provider == .codex {
+                Section {
+                    Toggle(L("OpenCode local history"), isOn: Binding(
+                        get: { self.store.settings.openCodeLocalHistoryEnabled },
+                        set: { self.store.settings.openCodeLocalHistoryEnabled = $0 }))
+                } footer: {
+                    SettingsSectionFooter(L(
+                        // swiftlint:disable:next line_length
+                        "Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded.") +
+                        " " + L(
+                            "OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone."))
+                }
+            }
+
             if !self.usageItems.isEmpty {
                 ProviderUsageItemVisibilitySettingsView(
                     provider: self.provider,
@@ -509,9 +524,10 @@ struct ProviderMetricsInlineView: View {
         let hasTokenUsage = self.model.tokenUsage != nil
         let hasResetCredits = self.model.codexResetCredits != nil
         let hasCloudCredits = self.model.cloudCredits != nil
+        let hasProviderDetails = !self.model.providerDetails.isEmpty
 
         if !hasMetrics, !hasUsageNotes, !hasProviderCost, infoRows.isEmpty,
-           !hasTokenUsage, !hasResetCredits, !hasCloudCredits
+           !hasTokenUsage, !hasResetCredits, !hasCloudCredits, !hasProviderDetails
         {
             Text(self.placeholderText)
                 .font(.footnote)
@@ -556,6 +572,13 @@ struct ProviderMetricsInlineView: View {
 
             if let tokenUsage = self.model.tokenUsage {
                 ProviderTokenUsageInlineView(provider: self.model.provider, tokenUsage: tokenUsage)
+            }
+
+            if hasProviderDetails {
+                ProviderDetailSectionsContent(
+                    sections: self.model.providerDetails,
+                    chartColor: self.model.progressColor,
+                    paceVisible: self.model.detailPaceVisible)
             }
         }
     }

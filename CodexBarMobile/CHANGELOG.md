@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Kimi monthly usage breakdown now syncs from Mac to iPhone as details of the existing quota.
+
 - Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone.
 
 - Optional Vercel personal budgets sync from Mac to iPhone through the existing quota and detail payloads.
@@ -46,6 +48,7 @@ current Columbus Labs product surface and recent release history.
   iPhone.
 
 ### Changed
+- WorkBuddy uses its official brand mark on iPhone.
 - Crof is retired from active quota-alert subscriptions; historical synced records remain readable.
 
 - Provider accent colors in the app now use the refreshed reviewed palette; widget colors stay the same.

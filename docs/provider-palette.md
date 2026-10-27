@@ -96,3 +96,5 @@ current retention decision is explicit and does not depend on reconstructing the
 
 Kimi's `#F43F5E` rose is a documented QuotaKit fork choice. It remains
 separate from Moonshot's unchanged `#205DEB` accent.
+
+| workbuddy | `#0DC8A6` | `#0EC8A9` | `#0DC8A6` | [Official logo](https://assets.workbuddy.cn/web/workbuddy/a5b2fb510f0e7b156f19d072fae0cd12ae1f2f19/assets/logo.svg) | Retain existing accent; this update changes only the monochrome mark. |

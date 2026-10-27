@@ -86,7 +86,7 @@ complete when the available scan window covers fewer days.
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app or cursor-agent local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
-| [OpenCode Go](opencodego.md) | Unscoped Auto: local SQLite cost history with API overlay (`local+api`) → usage API (`api`) → web dashboard (`web`). Scoped Auto (selected account/manual cookie/workspace): web → local → API. Explicit API/Web: selected source only. |
+| [OpenCode Go](opencodego.md) | Unscoped Auto: local SQLite cost history overlaid with configured API quotas (`local+api`), otherwise web quotas (`local+web`) or the active CLI login (`local+cli`). Without local history, use a configured API key, otherwise web then active CLI login. Scoped Auto (selected account/manual cookie/workspace): web → local → API. Explicit API/Web: selected source only. |
 | Alibaba Coding Plan | Console RPC via web cookies (auto/manual) with API key fallback (`web`, `api`). |
 | Alibaba Token Plan | Signed-in Bailian CLI (`cli`) → subscription summary API via browser or manual cookies (`web`). |
 | Qwen Cloud | Qwen Cloud 5-hour/weekly Token Plan APIs via browser or manual cookies (`web`). |

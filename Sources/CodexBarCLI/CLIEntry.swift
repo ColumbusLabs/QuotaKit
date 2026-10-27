@@ -174,6 +174,8 @@ enum CodexBarCLI {
         let configProviderToggleSignature = CommandSignature.describe(ConfigProviderToggleOptions())
         let configSetSourceSignature = CommandSignature.describe(ConfigSetSourceOptions())
         let configSetAPIKeySignature = CommandSignature.describe(ConfigSetAPIKeyOptions())
+        let configSetCookieSignature = CommandSignature.describe(ConfigSetCookieOptions())
+        let configClearCredentialSignature = CommandSignature.describe(ConfigClearCredentialOptions())
         let cacheSignature = CommandSignature.describe(CacheOptions())
         let diagnoseSignature = CommandSignature.describe(DiagnoseOptions())
         let guardSignature = CommandSignature.describe(GuardOptions())
@@ -270,6 +272,16 @@ enum CodexBarCLI {
                         abstract: "Store a provider API key",
                         discussion: nil,
                         signature: configSetAPIKeySignature),
+                    CommandDescriptor(
+                        name: "set-cookie",
+                        abstract: "Store a provider manual cookie",
+                        discussion: nil,
+                        signature: configSetCookieSignature),
+                    CommandDescriptor(
+                        name: "clear-credential",
+                        abstract: "Clear a provider API key or manual cookie",
+                        discussion: nil,
+                        signature: configClearCredentialSignature),
                     Self.preferencesCommandDescriptor(),
                 ],
                 defaultSubcommandName: "validate"),

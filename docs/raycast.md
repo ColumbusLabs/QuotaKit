@@ -66,3 +66,5 @@ Top-up packages and the Show details breakdown (`GET /api/v1/ai/credits/details`
 - The website credits route is unofficial and can change without notice.
 - Automatic import needs a signed-in www.raycast.com session (`__raycast_session`) in a supported browser.
 - BYOK, Bring Your Own Subscription, and local models do not count against these credits and are not shown here.
+
+Settings omits the Version row because this provider reads the website API and does not detect the desktop app version.

@@ -339,6 +339,10 @@ and `severity: "normal" | "warning" | "critical"`. The host maps the fraction to
 `used: progress, total: 1`; `usageValue` is preserved independently. Severity colours the progress bar green, orange,
 or red independently from usage, and adds a warning symbol for warning and critical rows. Rows without severity keep the
 existing provider tint.
+An optional `pace` (a finite expected consumed fraction from 0 through 1) marks even consumption, for example elapsed
+time divided by window length. The native pace marker compares `progress` with `pace`; severity controls the fill
+independently. Omit `pace` to hide the marker. **Show pace** also controls detail pace markers. Pace is ignored on
+rows without `progress`; invalid values fail the fetch.
 Absent or null numeric fields leave existing text-only rows unchanged. A supplied `usageKnown` must be a boolean,
 including when the window uses the nested `window` form; null is invalid.
 An identity-only snapshot is useful for balance-only or zero-usage provider states and renders its available account,
@@ -442,13 +446,14 @@ choice, independent of installation, enablement and capability approval.
 
 Set `topLevel: true` in the manifest to give an enabled plugin its own tab when **Merge Icons** is enabled. The tab uses
 the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins using the original
-appended-card placement. Plugin tabs also show a quota gauge from the most constrained reported seven-day window,
-otherwise the first available primary, secondary, tertiary, or extra window. The gauge follows the used/remaining
-display preference; unknown usage stays unavailable. With Merge Icons disabled, plugins retain appended-card placement.
+appended-card placement. The tab's quota gauge follows the plugin's menu-bar metric preference. The Auto default uses
+the most constrained reported seven-day window, otherwise the first available primary, secondary, tertiary, or extra
+window. The gauge follows the used/remaining display preference; unknown usage stays unavailable. With Merge Icons
+disabled, plugins retain appended-card placement.
 
 Merged meter icons render the primary window in the thick lane and the secondary window in the thin lane, following
 the used/remaining preference. When both are absent, the existing tertiary/extra-window single-meter fallback remains;
-the switcher gauge keeps its weekly-first selection.
+the switcher gauge follows the plugin's selected metric.
 
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
@@ -459,6 +464,19 @@ Enabled plugins can also be selected in **Settings → Menu Bar → Overview**. 
 their existing usage card. Overview selections keep the same string-array format, so older builds still read built-in
 providers while ignoring unknown plugin IDs. This setting changes placement only: it grants no additional host
 capabilities and does not change network approval.
+
+## Menu-bar percentage
+
+In **Settings → Plugins**, each installed plugin has a **Menu bar metric** picker. **Auto** chooses the most-used
+reported seven-day window, otherwise the first available primary, secondary, tertiary, or extra window. Selecting
+Primary, Secondary, Tertiary, or a named extra changes both the Icon & percent number and switcher gauge. Reported
+titles replace the generic labels, and named extras appear after the plugin reports them. Both surfaces honor the
+used/remaining display preference.
+
+The choice is saved per plugin in the existing layout preferences and applies without another fetch. If the selected
+window is missing or has unknown usage, the display falls back to Auto and resumes the selected window when it returns.
+A selected extra remains in the picker while absent, using its ID until its title returns. The choice does not alter
+the two-lane meter icon, snapshot JSON, window order, reset metadata, or hook payloads.
 
 ## Selected browser profiles
 

@@ -2551,7 +2551,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Renovació / venciment del pla";
 "Hidden by the global optional credits, spending & billing setting." = "Ocult per la configuració global de crèdits opcionals, despesa i facturació.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ tokens · %@ sol·licituds";
 "15m" = "15 min";
@@ -2846,3 +2845,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai ha retornat una resposta desconeguda. Actualitzeu QuotaKit i torneu-ho a provar.";
 
 "Check your API key in Settings." = "Comprova la teva clau API a Configuració.";
+"install_updates_auto" = "Baixa i instal·la les actualitzacions automàticament";
+"install_updates_auto_subtitle" = "Si està desactivat, se't demanarà abans d'instal·lar una versió nova.";
+"OpenCode local history" = "Historial local de l’OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Mostra l’ús de l’OpenCode registrat en aquest Mac a l’historial del Codex. Desactivat per defecte; les ubicacions de CODEX_HOME amb àmbit restringit o alternatives sempre en queden excloses.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Auto utilitza la sessió desada activa; si no n’hi ha, una clau API o les galetes del navegador.";
+"Store multiple Command Code subscription sessions." = "Deseu diverses sessions de subscripció de Command Code.";
+"Other features" = "Altres funcions";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "L’historial d’OpenCode es queda en aquest Mac. Els costos natius de Codex es continuen sincronitzant amb l’iPhone.";

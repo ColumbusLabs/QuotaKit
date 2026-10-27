@@ -2540,7 +2540,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Поновлення / завершення плану";
 "Hidden by the global optional credits, spending & billing setting." = "Приховано глобальним налаштуванням додаткових кредитів, витрат і оплати.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Режим «Автоматично» використовує ключ API, якщо його налаштовано, інакше — файли cookie браузера.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Зберігається у файлі конфігурації QuotaKit. Також можна задати COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ токенів · %@ запитів";
 "15m" = "15 хв";
@@ -2835,3 +2834,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
 
 "Check your API key in Settings." = "Перевірте ключ API в налаштуваннях.";
+"install_updates_auto" = "Автоматично завантажувати та встановлювати оновлення";
+"install_updates_auto_subtitle" = "Якщо вимкнено, перед встановленням нової версії буде запит на підтвердження.";
+"OpenCode local history" = "Локальна історія OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Показує використання OpenCode, записане на цьому Mac, в історії Codex. Типово вимкнено; розташування CODEX_HOME з обмеженою областю дії або альтернативні розташування завжди виключаються.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Автоматичний режим використовує активний збережений сеанс, інакше — ключ API або файли cookie браузера.";
+"Store multiple Command Code subscription sessions." = "Зберігати кілька сеансів передплати Command Code.";
+"Other features" = "Інші функції";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "Історія OpenCode залишається на цьому Mac. Власні витрати Codex і далі синхронізуються з iPhone.";

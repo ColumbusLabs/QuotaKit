@@ -2548,7 +2548,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Renovación / caducidade do plan";
 "Hidden by the global optional credits, spending & billing setting." = "Agochado pola configuración global de créditos opcionais, gastos e facturación.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ tokens · %@ solicitudes";
 "15m" = "15 min";
@@ -2843,3 +2842,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai devolveu unha resposta descoñecida. Actualiza QuotaKit e téntao de novo.";
 
 "Check your API key in Settings." = "Comproba a túa clave API en Configuración.";
+"install_updates_auto" = "Descargar e instalar actualizacións automaticamente";
+"install_updates_auto_subtitle" = "Se está desactivado, preguntaráseche antes de instalar unha nova versión.";
+"OpenCode local history" = "Historial local de OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Mostra o uso de OpenCode rexistrado neste Mac no historial de Codex. Desactivado de forma predeterminada; as rutas de CODEX_HOME con ámbito restrinxido ou alternativas quedan sempre excluídas.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Auto usa a sesión gardada activa; se non, unha clave API ou as cookies do navegador.";
+"Store multiple Command Code subscription sessions." = "Garda varias sesións de subscrición de Command Code.";
+"Other features" = "Outras funcións";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "O historial de OpenCode queda neste Mac. Os custos nativos de Codex seguen sincronizándose co iPhone.";

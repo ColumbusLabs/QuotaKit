@@ -95,11 +95,11 @@ classify_path() {
       ;;
     docs/*.png|docs/*.jpg|docs/*.jpeg|docs/*.webp|docs/*.ico|docs/*.svg)
       ;;
-    Sources/CodexBar/PreferencesView.swift|Tests/CodexBarTests/SettingsWindowAppearanceTests.swift)
+    Sources/CodexBar/Settings/PreferencesView.swift|Tests/CodexBarTests/SettingsWindowAppearanceTests.swift)
       require_macos_tests "$path" "covered by the settings appearance suite"
       settings_appearance_changed=true
       ;;
-    Sources/CodexBar/SpendActivityHeatmap.swift|Tests/CodexBarTests/SpendActivityHeatmapTests.swift)
+    Sources/CodexBar/SpendDashboard/SpendActivityHeatmap.swift|Tests/CodexBarTests/SpendActivityHeatmapTests.swift)
       require_macos_tests "$path" "covered by the spend heatmap suite"
       spend_heatmap_changed=true
       ;;

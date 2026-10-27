@@ -37,6 +37,10 @@ final class SyncCoordinator {
     /// coalescing any number of mutations that arrived during the network wait.
     private var pushPending: Bool = false
 
+    #if DEBUG
+    var _test_nativeCodexSyncSnapshotLoader: (@MainActor () async -> CostUsageTokenSnapshot?)?
+    #endif
+
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
@@ -281,6 +285,40 @@ final class SyncCoordinator {
         }
         guard !enabledProviders.isEmpty else { return }
 
+        // OpenCode source rows are Mac-local and do not have Codex day proof. Rebuild the
+        // sync projection from the native cache instead of reusing the combined Mac view.
+        let requiresNativeCodexSnapshot = enabledProviders.contains(.codex)
+            && self.store.shouldIncludeOpenCodeLocalHistory
+        var nativeCodexSnapshot: CostUsageTokenSnapshot?
+        if requiresNativeCodexSnapshot,
+           self.store.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) != nil
+        {
+            let signature = self.store.tokenSnapshotScopeSignature(for: .codex)
+            let revision = self.store.tokenSnapshotPublicationRevision(for: .codex)
+            let providerRevision = self.settings.providerConfigRevision(for: .codex)
+            #if DEBUG
+            if let loader = self._test_nativeCodexSyncSnapshotLoader {
+                nativeCodexSnapshot = await loader()
+            } else {
+                nativeCodexSnapshot = await self.nativeCodexSnapshotForSync()
+            }
+            #else
+            nativeCodexSnapshot = await self.nativeCodexSnapshotForSync()
+            #endif
+            guard self.settings.iCloudSyncEnabled else { return }
+            let currentProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+                ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+            }
+            guard currentProviders == enabledProviders,
+                  self.settings.providerConfigRevision(for: .codex) == providerRevision,
+                  self.store.shouldIncludeOpenCodeLocalHistory,
+                  self.store.tokenSnapshotScopeSignature(for: .codex) == signature,
+                  self.store.tokenSnapshotPublicationRevision(for: .codex) == revision
+            else {
+                self.pushPending = true
+                return
+            }
+        }
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
         for provider in enabledProviders {
@@ -302,7 +340,9 @@ final class SyncCoordinator {
             // currently provider-level (not split per account); future
             // refinement (R5+) may push these per-account when the data
             // source allows.
-            let sharedCostSummary = self.makeCostSummary(for: provider)
+            let sharedCostSummary = self.makeCostSummary(
+                for: provider, nativeCodexSnapshot: nativeCodexSnapshot,
+                requiresNativeCodexSnapshot: requiresNativeCodexSnapshot)
             let sharedUtilizationHistory = self.makeUtilizationHistory(for: provider)
             if let sharedCostSummary {
                 let revision = sharedCostSummary.costUpdatedAt.map {
@@ -962,6 +1002,24 @@ final class SyncCoordinator {
             return [SyncProviderDetailSection(
                 title: "Browser team quota (dev.meta.ai)",
                 rows: [.init(label: "Team", value: team.value)])]
+        }
+        // Kimi's monthly shares are display-only parts of an existing quota window. Export only
+        // the two generated numeric rows, never arbitrary provider detail or account metadata.
+        if provider == .kimi {
+            guard let snapshot else { return nil }
+            let labels = ["kimi-monthly-code": "Kimi Code", "kimi-monthly-other": "Other features"]
+            var seen: Set<String> = []
+            let rows = snapshot.details
+                .filter { $0.title == "Total usage" }
+                .flatMap(\.rows)
+                .compactMap { row -> SyncProviderDetailSection.Row? in
+                    guard let id = row.id, let label = labels[id], row.label == label,
+                          let progress = row.progress,
+                          progress.used.isFinite, progress.used >= 0,
+                          progress.total == 1, seen.insert(id).inserted else { return nil }
+                    return .init(label: label, value: "\(UsageFormatter.percentString(progress.used * 100)) used")
+                }
+            return rows.isEmpty ? [] : [SyncProviderDetailSection(title: "Total usage", rows: rows)]
         }
         // WorkBuddy's generic plugin details can include account or credential metadata. Sync only the finite
         // numeric credit balance rows the iPhone needs, and clear stale details after a successful empty result.
@@ -1752,7 +1810,24 @@ final class SyncCoordinator {
         self.isObserving = false
     }
 
-    private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
+    private func nativeCodexSnapshotForSync() async -> CostUsageTokenSnapshot? {
+        let scope = self.store.tokenCostScope(for: .codex)
+        return await self.store.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            codexHomePath: scope.codexHomePath,
+            historyDays: self.settings.costUsageHistoryDays,
+            allowScopedCodexHome: scope.codexHomePath != nil,
+            includePiSessions: self.store.shouldIncludePiSessionsInTokenSnapshot(for: .codex),
+            includeOpenCodeLocalHistory: false,
+            includeProjectAndSessionBreakdowns: false,
+            calendar: self.settings.costUsageBucketCalendar,
+            environment: self.store.environmentBase)?.snapshot
+    }
+
+    private func makeCostSummary(
+        for provider: UsageProvider,
+        nativeCodexSnapshot: CostUsageTokenSnapshot? = nil,
+        requiresNativeCodexSnapshot: Bool = false) -> SyncCostSummary?
+    {
         // Machine-global local caches have no trustworthy account owner. They remain available to
         // the Mac spend dashboard, but never travel in an account-keyed CloudKit provider record.
         // Prefer the current publication slot: it is the stable candidate that survives
@@ -1766,7 +1841,9 @@ final class SyncCoordinator {
         let rawFallback = provider == .codex && self.store.tokenSnapshotPublications[provider.instanceID] != nil
             ? nil
             : self.store.tokenSnapshots[provider.instanceID]
-        let storedTokenSnapshot = currentPublication?.snapshot ?? rawFallback
+        let storedTokenSnapshot = provider == .codex && requiresNativeCodexSnapshot
+            ? nativeCodexSnapshot
+            : currentPublication?.snapshot ?? rawFallback
         let canonicalScope = self.canonicalCostScope(
             for: provider,
             tokenSnapshot: storedTokenSnapshot)

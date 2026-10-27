@@ -60,19 +60,19 @@ The sample stack maps cleanly onto current `origin/main` around commit `8c4bdd63
 
 Key source paths:
 
-- `Sources/CodexBar/StatusItemController+Menu.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+Menu.swift`
   - `addOverviewRows` builds each Overview provider row as a custom menu card.
   - It installs provider-detail submenus and click handling.
-- `Sources/CodexBar/StatusItemController+MenuTypes.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+MenuTypes.swift`
   - `OverviewMenuCardRowView` is the SwiftUI view rendered inside each Overview row.
   - It subscribes to menu highlight environment.
-- `Sources/CodexBar/MenuCardView.swift`
+- `Sources/CodexBar/Menu/MenuCardView.swift`
   - `UsageMenuCardUsageSectionView` renders usage content.
   - It resolves live menu-card models through `MenuCardRefreshMonitor`.
-- `Sources/CodexBar/InlineUsageDashboardContent.swift`
+- `Sources/CodexBar/Menu/InlineUsageDashboardContent.swift`
   - Uses `LazyVGrid` and mini chart/bar content.
   - This matches the `LazyVGridLayout lengthAndSpacing` sample fragment.
-- `Sources/CodexBar/StatusItemController+OverviewScroll.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+OverviewScroll.swift`
   - Handles scroll-wheel navigation on Overview rows.
   - Moves highlight by calling menu highlight paths and posting synthetic mouse movement over row views.
 
@@ -161,7 +161,7 @@ It intentionally moves rich charts/details out of the Overview row and leaves th
 
 Changed files:
 
-- `Sources/CodexBar/StatusItemController+MenuTypes.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+MenuTypes.swift`
 - `Tests/CodexBarTests/OverviewMenuCardRowViewTests.swift`
 
 Key implementation points:
@@ -243,10 +243,10 @@ This follows the `build-macos-apps:appkit-interop` guidance: cross only the narr
 
 Changed files:
 
-- `Sources/CodexBar/StatusItemController+Menu.swift`
-- `Sources/CodexBar/StatusItemController+MenuCardItems.swift`
-- `Sources/CodexBar/StatusItemController+MenuPresentation.swift`
-- `Sources/CodexBar/StatusItemController+MenuTypes.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+Menu.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+MenuCardItems.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+MenuPresentation.swift`
+- `Sources/CodexBar/StatusItem/StatusItemController+MenuTypes.swift`
 - `Tests/CodexBarTests/MenuCardViewRecyclingTests.swift`
 
 Key implementation points:
@@ -425,16 +425,16 @@ On `main`, only the unchanged baseline symbols (`addOverviewRows`, `OverviewMenu
 
 For Lite row review:
 
-- Start with `OverviewMenuCardRowView` in `Sources/CodexBar/StatusItemController+MenuTypes.swift`.
+- Start with `OverviewMenuCardRowView` in `Sources/CodexBar/StatusItem/StatusItemController+MenuTypes.swift`.
 - Check `resolvedLiveModel(refreshMonitor:)`.
 - Check `LiteSummary.make(for:)`.
 - Check `OverviewMenuCardRowViewTests`.
 
 For Rich row review:
 
-- Start with `OverviewMenuRowHostingView` in `Sources/CodexBar/StatusItemController+MenuPresentation.swift`.
-- Check `makeOverviewMenuRowItem` in `Sources/CodexBar/StatusItemController+MenuCardItems.swift`.
-- Check `addOverviewRows` in `Sources/CodexBar/StatusItemController+Menu.swift`.
+- Start with `OverviewMenuRowHostingView` in `Sources/CodexBar/StatusItem/StatusItemController+MenuPresentation.swift`.
+- Check `makeOverviewMenuRowItem` in `Sources/CodexBar/StatusItem/StatusItemController+MenuCardItems.swift`.
+- Check `addOverviewRows` in `Sources/CodexBar/StatusItem/StatusItemController+Menu.swift`.
 - Check `MenuCardViewRecyclingTests`.
 
 For shared behavior:

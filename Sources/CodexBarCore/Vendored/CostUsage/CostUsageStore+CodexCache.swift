@@ -2980,6 +2980,10 @@ enum CostUsageStoreAccess {
 
     private static let scanStores = ScanStoreRegistry()
 
+    static func sharedScanStore(cacheRoot: URL?) -> CostUsageStore {
+        self.scanStores.store(cacheRoot: cacheRoot)
+    }
+
     static func load(cacheRoot: URL?, calendar: Calendar) -> CostUsageStoreLoad {
         let store = self.scanStores.store(cacheRoot: cacheRoot)
         return store.syncLoadCodexScan(calendar: calendar)

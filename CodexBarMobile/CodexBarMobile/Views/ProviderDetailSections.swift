@@ -1,4 +1,5 @@
 import CodexBarSync
+import Foundation
 import SwiftUI
 
 enum ProviderDetailPrimarySection {
@@ -113,6 +114,25 @@ enum ProviderDetailSectionDispatcher {
         for provider: ProviderUsageSnapshot,
         now: Date = Date()) -> [SyncProviderDetailSection]?
     {
+        if provider.providerID == "kimi" {
+            guard let details = provider.providerDetails else { return nil }
+            let rows = details
+                .filter { $0.title == "Total usage" }
+                .flatMap(\.rows)
+            var seen: Set<String> = []
+            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
+                guard ["Kimi Code", "Other features"].contains(row.label),
+                      row.value.range(of: #"^(?:<1|[0-9]{1,3})% used$"#, options: .regularExpression) != nil,
+                      seen.insert(row.label).inserted
+                else { return nil }
+                let label = row.label == "Kimi Code" ? String(localized: "Kimi Code")
+                    : String(localized: "Other features")
+                let percent = String(row.value.dropLast(" used".count))
+                return .init(label: label, value: "\(percent) \(String(localized: "used"))")
+            }
+            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(
+                title: String(localized: "Total usage"), rows: safeRows)]
+        }
         if provider.providerID == "workbuddy" {
             guard let details = provider.providerDetails else { return nil }
             let rows = details

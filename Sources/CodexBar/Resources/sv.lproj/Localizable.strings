@@ -2548,7 +2548,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Planförnyelse / utgångsdatum";
 "Hidden by the global optional credits, spending & billing setting." = "Dolt av den globala inställningen för valfria krediter, utgifter och faktureringsuppgifter.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ token · %@ förfrågningar";
 "15m" = "15 min";
@@ -2843,3 +2842,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
 
 "Check your API key in Settings." = "Kontrollera din API-nyckel i Inställningar.";
+"install_updates_auto" = "Hämta och installera uppdateringar automatiskt";
+"install_updates_auto_subtitle" = "När det är av tillfrågas du innan en ny version installeras.";
+"OpenCode local history" = "Lokal OpenCode-historik";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Visar OpenCode-användningen som registrerats på den här Mac-datorn i Codex-historiken. Avstängt som standard; CODEX_HOME-platser med begränsad omfattning eller alternativa platser förblir alltid undantagna.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Automatiskt använder den aktiva sparade sessionen, annars en API-nyckel eller webbläsarcookies.";
+"Store multiple Command Code subscription sessions." = "Spara flera prenumerationssessioner för Command Code.";
+"Other features" = "Övriga funktioner";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "OpenCode-historiken stannar på denna Mac. Ursprungliga Codex-kostnader fortsätter att synkroniseras till iPhone.";

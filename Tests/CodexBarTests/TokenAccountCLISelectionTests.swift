@@ -116,6 +116,30 @@ struct TokenAccountCLISelectionTests {
     }
 
     @Test
+    func `Command Code API mode keeps sessions passive unless a CLI account is explicitly selected`() throws {
+        let account = Self.account(token: "synthetic-commandcode-token")
+        let config = CodexBarConfig(providers: [ProviderConfig(
+            id: .commandcode,
+            source: .api,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))])
+        let passive = try TokenAccountCLIContext(
+            selection: .init(label: nil, index: nil, allAccounts: false),
+            config: config, verbose: false, baseEnvironment: [:])
+        #expect(try passive.resolvedAccounts(for: .commandcode).isEmpty)
+        #expect(passive.effectiveSourceMode(base: .api, provider: .commandcode, account: nil) == .api)
+        for selection in [
+            TokenAccountCLISelection(label: "Primary", index: nil, allAccounts: false),
+            TokenAccountCLISelection(label: nil, index: 0, allAccounts: false),
+            TokenAccountCLISelection(label: nil, index: nil, allAccounts: true),
+        ] {
+            let context = try TokenAccountCLIContext(
+                selection: selection, config: config, verbose: false, baseEnvironment: [:])
+            let selected = try #require(try context.resolvedAccounts(for: .commandcode).first)
+            #expect(context.effectiveSourceMode(base: .api, provider: .commandcode, account: selected) == .web)
+        }
+    }
+
+    @Test
     func `saved account label remains separate from provider identity`() throws {
         let context = try TokenAccountCLIContext(
             selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
