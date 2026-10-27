@@ -11,7 +11,11 @@ private final class CodexCostCatchUpContext {
     let costUsageSettingsRevision: UInt64
     let includePiSessions: Bool
     let includeOpenCodeLocalHistory: Bool
-    let environment: [String: String]
+    private let environmentStorage: ProcessEnvironment<[String: String]>
+    var environment: [String: String] {
+        self.environmentStorage.wrappedValue
+    }
+
     let calendar: Calendar
     let piHistoryScopeGeneration: UInt64
     var workerTokenSnapshotPublicationRevision: UInt64?
@@ -40,7 +44,7 @@ private final class CodexCostCatchUpContext {
         self.costUsageSettingsRevision = costUsageSettingsRevision
         self.includePiSessions = includePiSessions
         self.includeOpenCodeLocalHistory = includeOpenCodeLocalHistory
-        self.environment = environment
+        self.environmentStorage = ProcessEnvironment(wrappedValue: environment)
         self.calendar = calendar
         self.piHistoryScopeGeneration = piHistoryScopeGeneration
         self.workerTokenSnapshotPublicationRevision = workerTokenSnapshotPublicationRevision

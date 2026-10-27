@@ -172,8 +172,14 @@ extension CostUsageStore {
                     var deltas: [CostUsageStoreDayAggregate] = []
                     for identity in identities {
                         try Task.checkCancellation()
-                        let old = previous[identity].flatMap {
-                            try? JSONDecoder().decode(OpenCodeLocalHistoryAdapter.Turn.self, from: $0)
+                        let old: OpenCodeLocalHistoryAdapter.Turn?
+                        if let payload = previous[identity] {
+                            guard let decoded = try? JSONDecoder().decode(
+                                OpenCodeLocalHistoryAdapter.Turn.self, from: payload)
+                            else { throw StoreError.sqlite(SQLITE_CONSTRAINT) }
+                            old = decoded
+                        } else {
+                            old = nil
                         }
                         let new = deletions.contains(identity) ? nil : turns[identity]
                         guard old != new else { continue }
@@ -182,7 +188,7 @@ extension CostUsageStore {
                             deltas.append(new.aggregate)
                             let payload = try JSONEncoder().encode(new)
                             guard payload.count <= OpenCodeLocalHistoryAdapter.maximumMetadataBytes else {
-                                throw StoreError.invalidData
+                                throw StoreError.sqlite(SQLITE_TOOBIG)
                             }
                             rows.append(.init(path: file.path, rowIndex: Int(identity), payload: payload))
                         } else {
@@ -430,7 +436,9 @@ extension CostUsageStore {
             }
             Self.bindAggregateValues(delta, to: statement, startingAt: start + 2)
             try Self.stepDone(statement, database: database)
-            guard sqlite3_changes(database) == 1 else { throw StoreError.invalidData }
+            // A rejected arithmetic update is an input constraint failure, not store corruption.
+            // The caller rolls back and must preserve the previous database rather than rebuild it.
+            guard sqlite3_changes(database) == 1 else { throw StoreError.sqlite(SQLITE_CONSTRAINT) }
             try Self.stepDone(removeEmpty, database: database)
         }
     }

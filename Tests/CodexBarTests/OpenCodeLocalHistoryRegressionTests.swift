@@ -411,7 +411,12 @@ struct OpenCodeLocalHistoryRegressionTests {
             }
             return true
         }
-        #expect(inserted)
+        try #require(inserted)
+        let baseline = await store.readSnapshot()
+        try #require(baseline.dayAggregates.first?.authoritativeCostNanos == Int64.max)
+        try #require(baseline.dayAggregates.first?.requestCount == 1)
+        #expect(!CostUsageStore.shouldRebuild(after: CostUsageStore.StoreError.sqlite(SQLITE_CONSTRAINT)))
+        #expect(!CostUsageStore.shouldRebuild(after: CostUsageStore.StoreError.sqlite(SQLITE_TOOBIG)))
         var overflow = CostUsageStoreDayAggregate.zero(day: "2026-03-05", model: "fixture-model")
         overflow.authoritativeCostNanos = 1
         let overflowAggregate = overflow
@@ -432,14 +437,53 @@ struct OpenCodeLocalHistoryRegressionTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.session("first", cost: 8_000_000_000)
-        _ = try await fixture.pass()
+        let first = try await fixture.pass()
+        guard case .applied = first else {
+            Issue.record("Expected the initial source pass to commit its baseline")
+            return
+        }
         let before = await fixture.store().readSnapshot()
-        #expect(before.files.count == 1)
-        #expect(before.usageRows.count == 1)
+        try #require(before.files.count == 1)
+        try #require(before.usageRows.count == 1)
+        try #require(before.dayAggregates.first?.authoritativeCostNanos == 8_000_000_000_000_000_000)
+        try #require(before.fileDayAggregates.first?.aggregate.authoritativeCostNanos == 8_000_000_000_000_000_000)
         try fixture.session("second", cost: 8_000_000_000)
         let outcome = try await fixture.pass()
         #expect(outcome == .skipped(.staleBaseline))
         let after = await fixture.store().readSnapshot()
+        #expect(after.files == before.files)
+        #expect(after.usageRows == before.usageRows)
+        #expect(after.fileDayAggregates == before.fileDayAggregates)
+        #expect(after.dayAggregates == before.dayAggregates)
+    }
+
+    @Test
+    func `unreadable previous source row rejects replacement without rebuilding the store`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.session("existing", cost: 1)
+        let initial = try await fixture.pass()
+        guard case .applied = initial else {
+            Issue.record("Expected the initial source pass to commit its baseline")
+            return
+        }
+        let store = fixture.store()
+        let corrupted = await store.withDatabase(default: false) { database in
+            try CostUsageStore.execute(database, "UPDATE usage_rows SET payload = X'7B'")
+            return true
+        }
+        try #require(corrupted)
+        let before = await store.readSnapshot()
+        try #require(before.files.count == 1)
+        try #require(before.usageRows.count == 1)
+        try fixture.sql("""
+        UPDATE session_message
+        SET data = '{"model":{"providerID":"openai","id":"fixture-model"},"cost":2}',
+            time_updated = time_updated + 1000 WHERE id = 'existing';
+        """)
+        let outcome = try await fixture.pass()
+        #expect(outcome == .skipped(.staleBaseline))
+        let after = await store.readSnapshot()
         #expect(after.files == before.files)
         #expect(after.usageRows == before.usageRows)
         #expect(after.fileDayAggregates == before.fileDayAggregates)

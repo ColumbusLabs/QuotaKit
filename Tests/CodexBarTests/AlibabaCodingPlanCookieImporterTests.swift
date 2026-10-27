@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import os.lock
 import Security
 import SQLite3
@@ -46,7 +47,10 @@ struct AlibabaCodingPlanCookieImporterTests {
                 nil) == SQLITE_OK)
         }
         let client = BrowserCookieClient(configuration: .init(homeDirectories: [home]))
+        let secretReads = OSAllocatedUnfairLock(initialState: 0)
         let lookup: @Sendable ([String: Any]) -> (OSStatus, Data?) = { query in
+            secretReads.withLock { $0 += 1 }
+            #expect((query[kSecUseAuthenticationContext as String] as? LAContext)?.interactionNotAllowed == true)
             #expect(query[kSecUseAuthenticationUI as String] as? String ==
                 KeychainNoUIQuery.uiFailPolicyForTesting())
             return (errSecSuccess, Data(CursorAppAuthEncryptionTests.password.utf8))
@@ -65,6 +69,7 @@ struct AlibabaCodingPlanCookieImporterTests {
                 }
             }
         }
+        #expect(secretReads.withLock { $0 } > 0)
         #expect(session?.cookies.map(\.value).sorted() == ["hashed-session", "legacy-session"])
         #expect(session?.cookies.first(where: { $0.name == "legacy" })?.isSecure == false)
         #expect(session?.cookies.first(where: { $0.name == "hashed" })?.isSecure == true)
@@ -213,27 +218,50 @@ struct AlibabaCodingPlanCookieImporterTests {
         let cookiesDirectory = home
             .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network")
         try FileManager.default.createDirectory(at: cookiesDirectory, withIntermediateDirectories: true)
-        FileManager.default.createFile(
-            atPath: cookiesDirectory.appendingPathComponent("Cookies").path,
-            contents: Data())
         defer { try? FileManager.default.removeItem(at: home) }
+        let cookiePath = cookiesDirectory.appendingPathComponent("Cookies").path
+        var database: OpaquePointer?
+        try #require(sqlite3_open(cookiePath, &database) == SQLITE_OK)
+        let result = sqlite3_exec(
+            database,
+            """
+            CREATE TABLE cookies (host_key TEXT, name TEXT, path TEXT, expires_utc INTEGER,
+            is_secure INTEGER, value TEXT, encrypted_value BLOB);
+            INSERT INTO cookies VALUES('.example.com', 'session', '/', 0, 1, '', X'76313000000000000000000000000000000000');
+            """,
+            nil,
+            nil,
+            nil)
+        sqlite3_close(database)
+        try #require(result == SQLITE_OK)
 
         let client = BrowserCookieClient(configuration: .init(homeDirectories: [home]))
         let keychainProbeCount = OSAllocatedUnfairLock(initialState: 0)
-        try BrowserCookieAccessGate.withExplicitRetry(bypassingCooldown: true) {
-            try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                try KeychainAccessGate.withTaskOverrideForTesting(false) {
-                    try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+        let secretReadCount = OSAllocatedUnfairLock(initialState: 0)
+        BrowserCookieAccessGate.withExplicitRetry(bypassingCooldown: true) {
+            ProviderInteractionContext.$current.withValue(.userInitiated) {
+                KeychainAccessGate.withTaskOverrideForTesting(false) {
+                    KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
                         keychainProbeCount.withLock { $0 += 1 }
                         return .interactionRequired
                     } operation: {
-                        #expect(throws: AliyunOneConsoleChromiumCookieFallbackImporter.ImportError.self) {
-                            try AliyunOneConsoleChromiumCookieFallbackImporter.importSession(
-                                browser: .chrome,
-                                domains: ["example.com"],
-                                isAuthenticatedSession: { _ in false },
-                                sessionLabel: "Test",
-                                cookieClient: client)
+                        ChromiumSafeStorage.$readOverrideForTesting.withValue({ _ in
+                            secretReadCount.withLock { $0 += 1 }
+                            return (errSecSuccess, nil)
+                        }) {
+                            do {
+                                _ = try AliyunOneConsoleChromiumCookieFallbackImporter.importSession(
+                                    browser: .chrome,
+                                    domains: ["example.com"],
+                                    isAuthenticatedSession: { _ in false },
+                                    sessionLabel: "Test",
+                                    cookieClient: client)
+                                Issue.record("A prompt-requiring Safe Storage item must be denied")
+                            } catch AliyunOneConsoleChromiumCookieFallbackImporter.ImportError.keychainDenied(_) {
+                                // Expected: metadata preflight denied access before any secret read.
+                            } catch {
+                                Issue.record("Expected Keychain denial, received \(error)")
+                            }
                         }
                     }
                 }
@@ -241,6 +269,7 @@ struct AlibabaCodingPlanCookieImporterTests {
         }
 
         #expect(keychainProbeCount.withLock { $0 } > 0)
+        #expect(secretReadCount.withLock { $0 } == 0)
         #expect(!BrowserCookieAccessGate.hasActiveDenial(for: .chrome))
     }
 
