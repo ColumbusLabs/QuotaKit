@@ -175,7 +175,8 @@ extension CostUsageStore {
                         let old: OpenCodeLocalHistoryAdapter.Turn?
                         if let payload = previous[identity] {
                             guard let decoded = try? JSONDecoder().decode(
-                                OpenCodeLocalHistoryAdapter.Turn.self, from: payload)
+                                OpenCodeLocalHistoryAdapter.Turn.self,
+                                from: payload)
                             else { throw StoreError.sqlite(SQLITE_CONSTRAINT) }
                             old = decoded
                         } else {
