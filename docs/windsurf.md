@@ -86,7 +86,7 @@ Preferences → Providers → Windsurf → Cookie source:
 6. In CodexBar: Providers → Windsurf → Cookie source → Manual → paste the JSON bundle.
 
 For the CLI, pass the same bundle as compact, single-line JSON to
-`codexbar config set-cookie --provider windsurf --stdin`. It is stored in the existing `cookieHeader` field
+`quotakit config set-cookie --provider windsurf --stdin`. It is stored in the existing `cookieHeader` field
 with `cookieSource` set to `manual`, and the CLI passes it to the same session-bundle parser.
 
 ## Authentication flow (Automatic mode)
