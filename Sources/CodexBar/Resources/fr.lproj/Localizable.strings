@@ -2548,7 +2548,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Renouvellement / expiration du forfait";
 "Hidden by the global optional credits, spending & billing setting." = "Masqué par le réglage global des crédits facultatifs, dépenses et informations de facturation.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ jetons · %@ requêtes";
 "15m" = "15 min";
@@ -2843,3 +2842,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai a renvoyé une réponse inconnue. Mettez QuotaKit à jour et réessayez.";
 
 "Check your API key in Settings." = "Vérifiez votre clé API dans les réglages.";
+"install_updates_auto" = "Télécharger et installer automatiquement les mises à jour";
+"install_updates_auto_subtitle" = "Si désactivé, votre accord est demandé avant l'installation d'une nouvelle version.";
+"OpenCode local history" = "Historique local d’OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Affiche l’utilisation d’OpenCode enregistrée sur ce Mac dans l’historique de Codex. Désactivé par défaut ; les emplacements CODEX_HOME à portée restreinte ou alternatifs restent toujours exclus.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Auto utilise la session enregistrée active, sinon une clé API ou les cookies du navigateur.";
+"Store multiple Command Code subscription sessions." = "Stockez plusieurs sessions d’abonnement à Command Code.";
+"Other features" = "Autres fonctionnalités";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "L’historique OpenCode reste sur ce Mac. Les coûts natifs de Codex continuent de se synchroniser avec l’iPhone.";

@@ -18,6 +18,7 @@ Code subscription credentials.
 
 - Displays weekly request quota (from membership tier)
 - Shows current 5-hour rate limit usage
+- Breaks the monthly Total usage pool down into Kimi Code and other features when both shares come from the same source. Missing or malformed shares hide the breakdown without discarding valid quota windows.
 - Shows promotional gift balances and expiry dates from web membership statistics, including Code API enrichment; gift balances remain separate from recurring quota windows and monthly blocking limits
 - Enriches Code API/CLI usage with the monthly membership pool when a web session is available
 - Automatic menu-bar usage prioritizes an exhausted monthly Total usage pool over reset Code windows; explicit window selections remain authoritative

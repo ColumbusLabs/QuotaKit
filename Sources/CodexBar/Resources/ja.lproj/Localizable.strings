@@ -2549,7 +2549,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "プランの更新 / 有効期限";
 "Hidden by the global optional credits, spending & billing setting." = "オプションのクレジット、支出、請求情報の全体設定により非表示になっています。";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ トークン · %@ リクエスト";
 "15m" = "15分";
@@ -2844,3 +2843,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai から認識できない応答が返されました。QuotaKit を更新して、もう一度お試しください。";
 
 "Check your API key in Settings." = "設定でAPIキーを確認してください。";
+"install_updates_auto" = "アップデートを自動的にダウンロードしてインストール";
+"install_updates_auto_subtitle" = "オフの場合、新しいバージョンをインストールする前に確認します。";
+"OpenCode local history" = "OpenCode のローカル履歴";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "この Mac に記録された OpenCode の使用状況を Codex の履歴に表示します。デフォルトではオフです。スコープが限定された場所や代替の CODEX_HOME の場所は常に除外されます。";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "自動では使用中の保存済みセッションを使用し、それ以外の場合は API キーまたはブラウザの Cookie を使用します。";
+"Store multiple Command Code subscription sessions." = "Command Code サブスクリプションのセッションを複数保存します。";
+"Other features" = "その他の機能";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "OpenCodeの履歴はこのMacにのみ保存されます。Codex本来のコストは引き続きiPhoneに同期されます。";

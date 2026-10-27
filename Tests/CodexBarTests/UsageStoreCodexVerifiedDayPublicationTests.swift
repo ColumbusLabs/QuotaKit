@@ -71,6 +71,49 @@ struct UsageStoreCodexVerifiedDayPublicationTests {
     }
 
     @Test
+    func `native proof refresh cannot hide updated recorded OpenCode spending`() throws {
+        let calendar = Self.utcCalendar
+        let priorDay = "2026-10-02"
+        let today = "2026-10-03"
+        let before = try Self.date(today, hour: 10, calendar: calendar)
+        let after = try Self.date(today, hour: 11, calendar: calendar)
+        func sourceEntry(_ cost: Double) -> CostUsageDailyReport.Entry {
+            .init(
+                date: today,
+                inputTokens: 1,
+                outputTokens: 0,
+                totalTokens: 1,
+                costUSD: cost,
+                modelsUsed: ["fixture-open-code"],
+                modelBreakdowns: [.init(
+                    modelName: "fixture-open-code",
+                    costUSD: cost,
+                    totalTokens: 1,
+                    sourceRecorded: true)])
+        }
+        let established = Self.codexSnapshot(
+            entries: [Self.entry(
+                priorDay,
+                tokens: 10,
+                cost: 1,
+                evidence: Self.dayEvidence(revision: 2, verifiedAt: before)), sourceEntry(3)],
+            fixture: .init(since: priorDay, until: today, historyDays: 2, updatedAt: before, established: true))
+        let candidate = Self.codexSnapshot(
+            entries: [Self.entry(
+                priorDay,
+                tokens: 10,
+                cost: 1,
+                evidence: Self.dayEvidence(revision: 2, verifiedAt: after)), sourceEntry(6)],
+            fixture: .init(since: priorDay, until: today, historyDays: 2, updatedAt: after, established: true))
+        #expect(UsageStore.codexCostSnapshotRefreshingProofMetadataOnly(
+            candidate, onto: established, calendar: calendar) == nil)
+        let store = try Self.makeStore(suite: "open-code-independent-source")
+        store._setTokenSnapshotForTesting(established, provider: .codex)
+        store._setTokenSnapshotForTesting(candidate, provider: .codex)
+        #expect(store.tokenSnapshot(for: .codex)?.daily.first { $0.date == today }?.costUSD == 6)
+    }
+
+    @Test
     func `newer proof advances today's established row repeatedly without a global maximum`() throws {
         let calendar = Self.utcCalendar
         let previousDay = "2026-10-02"

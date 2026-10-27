@@ -278,6 +278,7 @@ extension ProviderCredentialAdapter {
     public static func apiKey(
         environmentKey: String,
         apiKeyDebugLabel: String? = nil,
+        requiresAPIKeyForAPISource: Bool = true,
         additionalProjections: [ProviderCredentialEnvironmentProjection] = [],
         precedence: ProviderCredentialEnvironmentProjection.Precedence = .config,
         environmentHasValue: @escaping @Sendable ([String: String]) -> Bool = { _ in false },
@@ -291,6 +292,7 @@ extension ProviderCredentialAdapter {
     {
         Self(
             supportsAPIKeyOverride: true,
+            requiresAPIKeyForAPISource: requiresAPIKeyForAPISource,
             usesRegion: usesRegion,
             apiKeyDebugLabel: apiKeyDebugLabel,
             environmentProjections: [

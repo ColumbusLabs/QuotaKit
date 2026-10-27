@@ -171,12 +171,12 @@ struct KeychainPromptSafetyAuditTests {
     func `legacy migration stores read and delete with no UI keychain queries`() throws {
         let files = [
             "Sources/CodexBar/CookieHeaderStore.swift",
-            "Sources/CodexBar/CopilotTokenStore.swift",
-            "Sources/CodexBar/KimiTokenStore.swift",
-            "Sources/CodexBar/MiniMaxAPITokenStore.swift",
-            "Sources/CodexBar/MiniMaxCookieStore.swift",
-            "Sources/CodexBar/SyntheticTokenStore.swift",
-            "Sources/CodexBar/ZaiTokenStore.swift",
+            "Sources/CodexBar/Providers/Copilot/CopilotTokenStore.swift",
+            "Sources/CodexBar/Providers/Kimi/KimiTokenStore.swift",
+            "Sources/CodexBar/Providers/MiniMax/MiniMaxAPITokenStore.swift",
+            "Sources/CodexBar/Providers/MiniMax/MiniMaxCookieStore.swift",
+            "Sources/CodexBar/Providers/Synthetic/SyntheticTokenStore.swift",
+            "Sources/CodexBar/Providers/Zai/ZaiTokenStore.swift",
         ]
 
         for file in files {
@@ -212,16 +212,29 @@ struct KeychainPromptSafetyAuditTests {
         let importer = try Self.readRepoFile(
             "Sources/CodexBarCore/Providers/Shared/AliyunOneConsole/" +
                 "AliyunOneConsoleChromiumCookieFallbackImporter.swift")
-        let lines = importer.split(separator: "\n", omittingEmptySubsequences: false)
-        guard let readIndex = lines.firstIndex(where: {
-            $0.contains("SecItemCopyMatching") || $0.contains("KeychainSecurity.copyMatching")
-        }) else {
-            Issue.record("Expected Alibaba importer to contain a Safe Storage keychain read")
+        #expect(importer.contains("KeychainAccessPreflight.checkGenericPassword"))
+        #expect(importer.contains("ChromiumSafeStorage.password(service: label.service, account: label.account)"))
+        #expect(!importer.contains("KeychainSecurity.copyMatching"))
+        #expect(!importer.contains("SecItemCopyMatching"))
+        let cursor = try Self.readRepoFile("Sources/CodexBarCore/Providers/Cursor/CursorAppAuth.swift")
+        #expect(cursor.contains("KeychainAccessPreflight.checkGenericPassword"))
+        #expect(cursor.contains("ChromiumSafeStorage.password(service: \"Cursor Safe Storage\", account: \"Cursor\")"))
+        #expect(!cursor.contains("KeychainSecurity.copyMatching"))
+        #expect(!cursor.contains("SecItemCopyMatching"))
+
+        let helper = try Self.readRepoFile("Sources/CodexBarCore/ChromiumSafeStorage.swift")
+        let lines = helper.split(separator: "\n", omittingEmptySubsequences: false)
+        let reads = lines.indices.filter { index in
+            lines[index].contains("KeychainSecurity.copyMatching") || lines[index].contains("SecItemCopyMatching")
+        }
+        guard reads.count == 1, let readIndex = reads.first else {
+            Issue.record("Expected one audited Safe Storage keychain read in the shared helper")
             return
         }
-
-        let window = Self.window(lines: lines, endingAt: readIndex, maxDistance: 8)
-        #expect(window.contains("KeychainNoUIQuery.apply"))
+        let window = Self.window(lines: lines, endingAt: readIndex, maxDistance: 20)
+        #expect(window.contains("guard !KeychainAccessGate.isDisabled"))
+        #expect(window.contains("KeychainNoUIQuery.apply(to: &query)"))
+        #expect(!window.contains("KeychainPromptHandler"))
     }
 
     @Test

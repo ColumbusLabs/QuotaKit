@@ -93,6 +93,44 @@ struct CodexCostCatchUpRecoveryTests {
         #expect(activity?.pauseReason == (stillStalled ? .noProgress : nil))
     }
 
+    @Test
+    func `changing the OpenCode source during a status read abandons the stale pass`() async throws {
+        let settings = testSettingsStore(
+            suiteName: "CodexCostCatchUpRecoveryTests-source-change",
+            userDefaults: InMemoryUserDefaults())
+        settings.costUsageEnabled = true
+        let metadata = try #require(ProviderRegistry.shared.metadata[.codex])
+        settings.setProviderEnabled(provider: .codex, metadata: metadata, enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let read = CatchUpCompletionReadGate<Void>()
+        defer {
+            store.cancelCodexCostCatchUp()
+            read.close()
+        }
+        var advances = 0
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            _ = try? await read.load()
+            return .init(pending: true, progressKey: "old-source")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            return .init(pending: false, progressKey: "complete")
+        }
+        store.startCodexCostCatchUpIfNeeded()
+        let worker = try #require(store.codexCostCatchUpTask)
+        try await read.waitForPendingCount(1)
+        settings.openCodeLocalHistoryEnabled = true
+        read.resume(returning: ())
+        await worker.value
+        #expect(advances == 0)
+        #expect(store.codexCostCatchUpActivity?.phase != .complete)
+    }
+
     @Test(arguments: [false, true])
     func `a user stop during recovery cooldown prevents the extra pass`(dashboard: Bool) async throws {
         let store = try UsageStoreSpendDashboardCodexCostCatchUpTests.makeStore(suite: "recovery-stop")

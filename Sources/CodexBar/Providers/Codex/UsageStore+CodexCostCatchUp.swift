@@ -10,6 +10,13 @@ private final class CodexCostCatchUpContext {
     let providerConfigRevision: UInt64
     let costUsageSettingsRevision: UInt64
     let includePiSessions: Bool
+    let includeOpenCodeLocalHistory: Bool
+    private let environmentStorage: ProcessEnvironment<[String: String]>
+    var environment: [String: String] {
+        self.environmentStorage.wrappedValue
+    }
+
+    let calendar: Calendar
     let piHistoryScopeGeneration: UInt64
     var workerTokenSnapshotPublicationRevision: UInt64?
 
@@ -22,6 +29,9 @@ private final class CodexCostCatchUpContext {
         providerConfigRevision: UInt64,
         costUsageSettingsRevision: UInt64,
         includePiSessions: Bool,
+        includeOpenCodeLocalHistory: Bool,
+        environment: [String: String],
+        calendar: Calendar,
         piHistoryScopeGeneration: UInt64,
         workerTokenSnapshotPublicationRevision: UInt64?)
     {
@@ -33,6 +43,9 @@ private final class CodexCostCatchUpContext {
         self.providerConfigRevision = providerConfigRevision
         self.costUsageSettingsRevision = costUsageSettingsRevision
         self.includePiSessions = includePiSessions
+        self.includeOpenCodeLocalHistory = includeOpenCodeLocalHistory
+        self.environmentStorage = ProcessEnvironment(wrappedValue: environment)
+        self.calendar = calendar
         self.piHistoryScopeGeneration = piHistoryScopeGeneration
         self.workerTokenSnapshotPublicationRevision = workerTokenSnapshotPublicationRevision
     }
@@ -194,6 +207,9 @@ extension UsageStore {
             providerConfigRevision: providerConfigRevision,
             costUsageSettingsRevision: self.settings.costUsageSettingsRevision,
             includePiSessions: self.shouldIncludePiSessionsInTokenSnapshot(for: .codex),
+            includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
+            environment: self.environmentBase,
+            calendar: self.settings.costUsageBucketCalendar,
             piHistoryScopeGeneration: self.piHistoryScopeGeneration,
             workerTokenSnapshotPublicationRevision: nil)
         self.codexCostCatchUpToken = token
@@ -324,7 +340,9 @@ extension UsageStore {
         while self.codexCostCatchUpContextIsCurrent(context) {
             var status = await self.loadCodexCostCatchUpStatus(
                 codexHomePath: context.codexHomePath,
-                historyDays: context.historyDays)
+                historyDays: context.historyDays,
+                context: context)
+            guard self.codexCostCatchUpContextIsCurrent(context) else { return }
             self.publishCodexCostCatchUpActivity(
                 status: status,
                 context: context,
@@ -389,10 +407,8 @@ extension UsageStore {
                     }
 
                     let result = try await self.advanceCodexCostCatchUp(
-                        token: context.token,
+                        context: context,
                         now: Date(),
-                        codexHomePath: context.codexHomePath,
-                        historyDays: context.historyDays,
                         previousActiveDuration: previousActiveDuration)
                     let nextStatus = result.value
                     previousActiveDuration = (previousActiveDuration ?? 0) + result.activeDuration
@@ -535,8 +551,10 @@ extension UsageStore {
                 historyDays: context.historyDays,
                 allowScopedCodexHome: context.codexHomePath != nil,
                 includePiSessions: context.includePiSessions,
+                includeOpenCodeLocalHistory: context.includeOpenCodeLocalHistory,
                 includeProjectAndSessionBreakdowns: false,
-                calendar: self.settings.costUsageBucketCalendar)
+                calendar: context.calendar,
+                environment: context.environment)
             {
                 if cached.snapshot.historyCoverageIsEstablished {
                     Self.codexCostSnapshotRefreshingProofMetadataOnly(
@@ -969,13 +987,18 @@ extension UsageStore {
         onto established: CostUsageTokenSnapshot,
         calendar: Calendar) -> CostUsageTokenSnapshot?
     {
-        guard candidate.historyIsFullyScanned,
-              established.historyIsFullyScanned,
-              candidate.historyDayWindow(calendar: calendar) == established.historyDayWindow(calendar: calendar),
-              candidate.ownership == established.ownership,
-              candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
-              candidate.currencyCode == established.currencyCode,
-              candidate.costProvenance == established.costProvenance
+        // Native proof clocks cannot validate changes to an independently recorded source.
+        guard !candidate.daily
+            .contains(where: { $0.modelBreakdowns?.contains(where: { $0.sourceRecorded == true }) == true }),
+            !established.daily
+                .contains(where: { $0.modelBreakdowns?.contains(where: { $0.sourceRecorded == true }) == true }),
+                candidate.historyIsFullyScanned,
+                established.historyIsFullyScanned,
+                candidate.historyDayWindow(calendar: calendar) == established.historyDayWindow(calendar: calendar),
+                candidate.ownership == established.ownership,
+                candidate.credentialScopeFingerprint == established.credentialScopeFingerprint,
+                candidate.currencyCode == established.currencyCode,
+                candidate.costProvenance == established.costProvenance
         else { return nil }
 
         let window = established.historyDayWindow(calendar: calendar)
@@ -1226,7 +1249,9 @@ extension UsageStore {
             historyDays: context.historyDays,
             allowScopedCodexHome: context.codexHomePath != nil,
             includePiSessions: context.includePiSessions,
-            calendar: self.settings.costUsageBucketCalendar)
+            includeOpenCodeLocalHistory: context.includeOpenCodeLocalHistory,
+            calendar: context.calendar,
+            environment: context.environment)
         {
             result = CostUsageTokenResult(snapshot: cached.snapshot, accounting: cached.accounting)
         } else {
@@ -1260,7 +1285,9 @@ extension UsageStore {
 
         let status = await self.loadCodexCostCatchUpStatus(
             codexHomePath: context.codexHomePath,
-            historyDays: context.historyDays)
+            historyDays: context.historyDays,
+            context: context)
+        guard self.codexCostCatchUpContextIsCurrent(context) else { throw CancellationError() }
         self.publishCodexCostCatchUpActivity(
             status: status,
             context: context,
@@ -1294,20 +1321,26 @@ extension UsageStore {
             && self.settings.isCostUsageEffectivelyEnabled(for: .codex)
             && self.isEnabled(.codex)
             && self.tokenCostScope(for: .codex).codexHomePath == context.codexHomePath
+            && self.shouldIncludeOpenCodeLocalHistory == context.includeOpenCodeLocalHistory
+            && self.environmentBase == context.environment
+            && self.settings.costUsageBucketCalendar == context.calendar
             && self.tokenSnapshotScopeSignature(for: .codex) == context.scopeSignature
     }
 
     private func loadCodexCostCatchUpStatus(
         codexHomePath: String?,
-        historyDays: Int? = nil) async -> CostUsageFetcher.CodexScanCatchUpStatus
+        historyDays: Int? = nil,
+        context: CodexCostCatchUpContext? = nil) async -> CostUsageFetcher.CodexScanCatchUpStatus
     {
         if let override = self._test_codexCostCatchUpStatusOverride {
             return await override(codexHomePath)
         }
         return await self.costUsageFetcher.codexScanCatchUpStatus(
             codexHomePath: codexHomePath,
-            calendar: self.settings.costUsageBucketCalendar,
-            historyDays: historyDays)
+            calendar: context?.calendar ?? self.settings.costUsageBucketCalendar,
+            historyDays: historyDays,
+            includeOpenCodeLocalHistory: context?.includeOpenCodeLocalHistory ?? self.shouldIncludeOpenCodeLocalHistory,
+            environment: context?.environment ?? self.environmentBase)
     }
 
     private func scheduleCodexCostCatchUpProgressProbe(
@@ -1346,10 +1379,8 @@ extension UsageStore {
     }
 
     private func advanceCodexCostCatchUp(
-        token: UUID,
+        context: CodexCostCatchUpContext,
         now: Date,
-        codexHomePath: String?,
-        historyDays: Int,
         previousActiveDuration: TimeInterval?) async throws
         -> CostUsageScanExecutor.TimedResult<CostUsageFetcher.CodexScanCatchUpStatus>
     {
@@ -1357,22 +1388,24 @@ extension UsageStore {
         self._test_codexCostCatchUpBudgetObserver?(durationBudget)
         self.codexCostCatchUpPassIsRunning = true
         defer {
-            if self.codexCostCatchUpToken == token {
+            if self.codexCostCatchUpToken == context.token {
                 self.codexCostCatchUpPassIsRunning = false
             }
             self.scheduleMemoryPressureRelief()
         }
         if let override = self._test_codexCostCatchUpAdvanceOverride {
             return try await .init(
-                value: override(now, codexHomePath, historyDays),
+                value: override(now, context.codexHomePath, context.historyDays),
                 activeDuration: self._test_codexCostCatchUpActiveDuration)
         }
         return try await self.costUsageFetcher.advanceCodexScanCatchUp(
             now: now,
-            codexHomePath: codexHomePath,
-            historyDays: historyDays,
+            codexHomePath: context.codexHomePath,
+            historyDays: context.historyDays,
             scanDurationPerRefresh: durationBudget,
-            calendar: self.settings.costUsageBucketCalendar)
+            calendar: context.calendar,
+            includeOpenCodeLocalHistory: context.includeOpenCodeLocalHistory,
+            environment: context.environment)
     }
 
     func codexCostCatchUpDecision(
@@ -1472,7 +1505,8 @@ extension UsageStore {
                 let revision = self.codexCostCatchUpCompletionCheckRevision
                 let status = await self.loadCodexCostCatchUpStatus(
                     codexHomePath: context.codexHomePath,
-                    historyDays: context.historyDays)
+                    historyDays: context.historyDays,
+                    context: context)
                 guard !Task.isCancelled,
                       self.codexCostCatchUpCompletionCheckToken == checkToken,
                       self.canCheckCodexCostCatchUpCompletion,
@@ -1532,6 +1566,9 @@ extension UsageStore {
             providerConfigRevision: providerConfigRevision,
             costUsageSettingsRevision: self.settings.costUsageSettingsRevision,
             includePiSessions: self.shouldIncludePiSessionsInTokenSnapshot(for: .codex),
+            includeOpenCodeLocalHistory: self.shouldIncludeOpenCodeLocalHistory,
+            environment: self.environmentBase,
+            calendar: self.settings.costUsageBucketCalendar,
             piHistoryScopeGeneration: self.piHistoryScopeGeneration,
             workerTokenSnapshotPublicationRevision: nil)
     }
@@ -1556,6 +1593,9 @@ extension UsageStore {
             && scope.codexHomePath == context.codexHomePath
             && self.shouldIncludePiSessionsInTokenSnapshot(for: .codex) == context.includePiSessions
             && self.piHistoryScopeGeneration == context.piHistoryScopeGeneration
+            && self.shouldIncludeOpenCodeLocalHistory == context.includeOpenCodeLocalHistory
+            && self.environmentBase == context.environment
+            && self.settings.costUsageBucketCalendar == context.calendar
             && self.tokenSnapshotScopeSignature(for: .codex) == context.scopeSignature
             && (hasWorker || self.codexCostCatchUpPausedScopeSignature == context.pauseScopeSignature)
     }

@@ -10,6 +10,7 @@ struct AboutPane: View {
     @AppStorage(UpdateChannel.userDefaultsKey)
     private var updateChannelRaw: String = UpdateChannel.defaultChannel.rawValue
     @State private var didLoadUpdaterState = false
+    @AppStorage("SUAutomaticallyUpdate") private var automaticInstallEnabled = true
 
     private var versionString: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
@@ -54,6 +55,15 @@ struct AboutPane: View {
             if self.updater.isAvailable {
                 Section {
                     Toggle(L("check_updates_auto"), isOn: self.$autoUpdateEnabled)
+                    Toggle(isOn: Binding(
+                        get: { self.automaticInstallEnabled },
+                        set: { self.updater.automaticallyDownloadsUpdates = $0 }))
+                    {
+                        SettingsRowLabel(
+                            L("install_updates_auto"),
+                            subtitle: L("install_updates_auto_subtitle"))
+                    }
+                    .disabled(!self.autoUpdateEnabled)
 
                     Picker(selection: self.updateChannelBinding) {
                         ForEach(UpdateChannel.allCases) { channel in
@@ -116,14 +126,12 @@ struct AboutPane: View {
         .scrollContentBackground(.hidden)
         .onAppear {
             guard !self.didLoadUpdaterState else { return }
-            // Align Sparkle's flag with the persisted preference on first load.
-            self.updater.automaticallyChecksForUpdates = self.autoUpdateEnabled
-            self.updater.automaticallyDownloadsUpdates = self.autoUpdateEnabled
+            // Changing the check preference must preserve Sparkle's saved install choice.
+            UpdaterPreferenceSync.applyAutomaticChecks(self.autoUpdateEnabled, to: self.updater)
             self.didLoadUpdaterState = true
         }
         .onChange(of: self.autoUpdateEnabled) { _, newValue in
-            self.updater.automaticallyChecksForUpdates = newValue
-            self.updater.automaticallyDownloadsUpdates = newValue
+            UpdaterPreferenceSync.applyAutomaticChecks(newValue, to: self.updater)
         }
     }
 

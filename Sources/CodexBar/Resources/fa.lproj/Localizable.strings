@@ -2553,7 +2553,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "تمدید / انقضای طرح";
 "Hidden by the global optional credits, spending & billing setting." = "با تنظیم عمومی اعتبارهای اختیاری، هزینه‌ها و صورتحساب پنهان شده است.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ توکن · %@ درخواست";
 "15m" = "۱۵ دقیقه";
@@ -2848,3 +2847,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai پاسخی ناشناخته برگرداند. QuotaKit را به‌روز کنید و دوباره امتحان کنید.";
 
 "Check your API key in Settings." = "کلید API خود را در تنظیمات بررسی کنید.";
+"install_updates_auto" = "دانلود و نصب خودکار به‌روزرسانی‌ها";
+"install_updates_auto_subtitle" = "در صورت خاموش بودن، پیش از نصب نسخه جدید از شما پرسیده می‌شود.";
+"OpenCode local history" = "تاریخچهٔ محلی OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "مصرف ثبت‌شدهٔ OpenCode در این Mac را در تاریخچهٔ Codex نمایش می‌دهد. به‌طور پیش‌فرض خاموش است؛ مسیرهای CODEX_HOME با دامنهٔ محدود یا جایگزین همیشه مستثنا هستند.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "حالت خودکار از نشست ذخیره‌شدهٔ فعال استفاده می‌کند؛ در غیر این صورت از کلید API یا کوکی‌های مرورگر استفاده می‌کند.";
+"Store multiple Command Code subscription sessions." = "چندین نشست اشتراک Command Code را ذخیره کنید.";
+"Other features" = "سایر قابلیت‌ها";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "تاریخچهٔ OpenCode روی این Mac می‌ماند. هزینه‌های بومی Codex همچنان با iPhone همگام می‌شوند.";

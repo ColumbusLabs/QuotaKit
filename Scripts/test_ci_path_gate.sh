@@ -190,7 +190,7 @@ assert_macos_selection() {
 }
 
 assert_macos_selection SettingsWindowAppearanceTests '[0]' settings-presentation \
-  $'M\tSources/CodexBar/PreferencesView.swift' \
+  $'M\tSources/CodexBar/Settings/PreferencesView.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_macos_selection SpendDashboardMidnightDSTTests '[0]' spend-dashboard-midnight-dst-test-only \
   $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift'
@@ -201,12 +201,12 @@ assert_macos_selection 'SettingsWindowAppearanceTests|SpendActivityHeatmapTests'
   $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_macos_selection SettingsWindowAppearanceTests '[0]' mapped-source-only \
-  $'M\tSources/CodexBar/PreferencesView.swift'
+  $'M\tSources/CodexBar/Settings/PreferencesView.swift'
 assert_macos_selection '' '[0,1,2,3]' mac-app-entrypoint \
   $'M\tSources/CodexBar/App.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_macos_selection '' '[0,1,2,3]' widget-persistence \
-  $'M\tSources/CodexBar/UsageStore+WidgetSnapshot.swift' \
+  $'M\tSources/CodexBar/UsageStore/UsageStore+WidgetSnapshot.swift' \
   $'M\tTests/CodexBarTests/WidgetEmptyProjectionTests.swift'
 assert_macos_selection '' '[0,1,2,3]' nested-sync-source \
   $'M\tSources/CodexBar/Sync/SyncCoordinator.swift' \
@@ -221,7 +221,7 @@ assert_macos_selection '' '[0,1,2,3]' civil-day-test-with-source-fallback \
 assert_macos_selection '' '[0,1,2,3]' unmapped-test-file \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
 assert_macos_selection '' '[0,1,2,3]' unrelated-test-suite \
-  $'M\tSources/CodexBar/PreferencesView.swift' \
+  $'M\tSources/CodexBar/Settings/PreferencesView.swift' \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
 assert_macos_selection '' '[0,1,2,3]' ci-workflow \
   $'M\t.github/workflows/ci.yml' \

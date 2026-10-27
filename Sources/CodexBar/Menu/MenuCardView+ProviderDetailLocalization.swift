@@ -6,9 +6,9 @@ extension UsageMenuCardView.Model {
         _ details: [ProviderDetailSection],
         provider: UsageProvider) -> [ProviderDetailSection]
     {
-        // Provider-specific by design: DeepSeek, z.ai, and Kiro rewrite unit phrasing.
+        // Provider-specific by design: DeepSeek, z.ai, Kiro, and Kimi rewrite unit phrasing.
         // Other providers localize section titles and row labels through the shared catalog; values stay canonical.
-        guard provider == .deepseek || provider == .zai || provider == .kiro else {
+        guard provider == .deepseek || provider == .zai || provider == .kiro || provider == .kimi else {
             return details.compactMap { section in
                 let rows = section.rows.compactMap { row in
                     try? ProviderDetailSection.Row(
@@ -57,12 +57,6 @@ extension UsageMenuCardView.Model {
         _ row: ProviderDetailSection.Row,
         provider: UsageProvider) -> String?
     {
-        if provider == .kimi,
-           let value = row.secondaryValue,
-           value.hasPrefix("Expires ")
-        {
-            return L("Expires %@", String(value.dropFirst("Expires ".count)))
-        }
         // Localize Amp's static Tier copy while leaving provider-supplied amounts canonical.
         if provider == .amp {
             switch row.secondaryValue {
@@ -125,13 +119,18 @@ extension UsageMenuCardView.Model {
     private static func localizedProviderDetailValue(_ value: String, provider: UsageProvider) -> String {
         switch provider {
         case .deepseek:
-            self.localizedTokenSuffix(value)
+            return self.localizedTokenSuffix(value)
         case .zai:
-            self.localizedZaiValue(value)
+            return self.localizedZaiValue(value)
         case .kiro:
-            self.localizedKiroCapPhrase(value)
+            return self.localizedKiroCapPhrase(value)
+        case .kimi:
+            if value.hasPrefix("Expires ") {
+                return L("Expires %@", String(value.dropFirst("Expires ".count)))
+            }
+            return self.localizedZaiValue(value)
         default:
-            value
+            return value
         }
     }
 

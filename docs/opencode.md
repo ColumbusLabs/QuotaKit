@@ -14,7 +14,7 @@ OpenCode Go's automatic menu-bar metric and merged switcher select the least rem
   `__Host-console_session` cookie authenticates Console requests. Both pass through the cookie filter, and a
   Console-only session is valid for a migrated workspace.
 - OpenCode Go usage API at `GET https://opencode.ai/zen/go/v1/usage`, authenticated by `OPENCODE_API_KEY` or
-  `providers[].apiKey`, or a selected API-key token account.
+  `providers[].apiKey`, a selected API-key token account, or the active OpenCode CLI login.
 - OpenCode Console JSON, used first for OpenCode Go web reads:
   - `GET https://opencode.ai/console/api/orgs` lists workspaces without a workspace header.
   - `GET https://opencode.ai/console/api/go/status` returns Go subscription meters and requires the workspace ID in
@@ -48,10 +48,38 @@ When OpenCode holds a Codex OAuth session, explicitly enabling **External Codex 
 prevents external fallback. External credentials remain read-only; stale credentials fail closed, and API-key
 entries are ignored.
 
-This does not import ordinary OpenCode sessions into Codex token or spend totals. The OpenCode Go SQLite reader
-selects only `opencode-go` assistant records. OpenAI API usage is separate from Codex subscription quota.
+The separate **OpenCode local history** setting in Codex settings can include this device's recorded OpenAI-backed
+OpenCode usage in the ambient Codex cost history. It is off by default and does not require external OAuth sources.
+It never changes subscription quota or attributes device-local rows to a signed-in account. Explicit session roots,
+alternate `CODEX_HOME` locations, managed accounts, and Usage & Spend remain excluded.
+
+The importer reads one database, selected by OpenCode's `OPENCODE_DB` and absolute `XDG_DATA_HOME` conventions
+(default `~/.local/share/opencode/opencode.db`). It reads usage metadata through a read-only SQLite connection and
+stores its checkpoint, rows, and aggregates in a separate local cost cache. It does not read authentication files,
+import browser cookies, or copy prompts, responses, and tool output into the cost store.
+
+Both legacy `message`/`part` and v2 `session_message` records are supported. Step-finish costs take precedence over
+message fallback costs; usable legacy usage takes precedence over its migrated v2 duplicate. Recorded dollars are
+authoritative, including a recorded **$0**. They are not replaced with model-list-price estimates. Model identifiers
+remain unchanged, and source-recorded breakdowns remain separate from native estimates for the same model, labeled
+**Recorded spend**. Partial refreshes retain valid cached costs; missing token counters remain unknown.
+
+Refreshes use bounded raw-row, byte, SQLite-instruction, and time budgets. Large histories converge over catch-up
+passes; mutations and deletions are reconciled, and incomplete source work keeps combined history marked partial.
+Cached publication reads the stored source summary without reopening OpenCode. Reporting uses the selected cost
+time zone. Replacing the database or changing the time zone restarts reconciliation without reusing old row progress;
+mixed old/new buckets stay unpublished until the rebuild settles.
+Oversized source rows are skipped without copying their content, and coverage stays partial when their usage cannot
+be established within the payload cap.
+
+The base OpenCode provider still tracks its web dashboard, and OpenCode Go's local reader selects only
+`opencode-go` usage. OpenAI API-platform usage is a separate [OpenAI provider](openai.md), not Codex subscription quota.
 
 ## Notes
+- Unscoped Auto combines local history with a configured API key, a usable browser session, or the active OpenCode CLI
+  login, in that order. Without local history, a configured API key remains first; otherwise web precedes CLI. Explicit
+  accounts, manual cookies, workspace overrides, and Web mode do not borrow an ambient CLI login. The CLI credential is
+  read-only, modern SQLite credentials prevent stale legacy fallback, and OpenCode owns OAuth renewal.
 - OpenCode Go accounts accept labeled API keys or Cookie headers. In Auto mode, a selected API-key account uses the
   usage API with that key, isolated from provider-wide and ambient `OPENCODE_API_KEY` values. A selected Cookie
   account clears those API credentials and uses manual web cookies. Explicit API and Web source choices remain
@@ -108,3 +136,5 @@ selects only `opencode-go` assistant records. OpenAI API usage is separate from 
   `--format text --breakdown` adds daily and per-model tables. The command follows the selected cost period and
   bucket time zone, with All covering the last 365 days. It reads local history independently of the app's quota
   source and preserves missing recorded costs as unknown.
+
+QuotaKit keeps the opt-in OpenCode recorded-history cache local to this Mac. It augments the Mac history display; iPhone cost sync continues to use native Codex history and its existing verified accounting evidence.

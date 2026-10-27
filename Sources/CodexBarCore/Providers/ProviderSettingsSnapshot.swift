@@ -78,6 +78,7 @@ public struct ProviderSettingsSnapshotContribution: Sendable {
 }
 
 public struct ProviderSettingsSectionRegistration: Sendable {
+    public private(set) var supportsConfigCookieHeader = false
     public private(set) var selectedProfileBrowsers: [String]?
     public var selectedProfileBrowser: String? {
         guard let browsers = self.selectedProfileBrowsers, browsers.count == 1 else { return nil }
@@ -93,7 +94,10 @@ public struct ProviderSettingsSectionRegistration: Sendable {
     private let credentialContributionReader: @Sendable (
         ProviderCredentialSettingsContext) -> ProviderSettingsSnapshotContribution?
 
-    public init<Key: ProviderSettingsSectionKey>(_ key: Key.Type) {
+    public init<Key: ProviderSettingsSectionKey>(
+        _ key: Key.Type, supportsConfigCookieHeader: Bool = false)
+    {
+        self.supportsConfigCookieHeader = supportsConfigCookieHeader
         self.providerID = key.providerID
         self.sectionTypeID = ObjectIdentifier(Key.Section.self)
         self.defaultContribution = nil
@@ -118,30 +122,35 @@ public struct ProviderSettingsSectionRegistration: Sendable {
             return settings
         })
         self.selectedProfileBrowsers = selectedProfileBrowsers
+        self.supportsConfigCookieHeader = false
     }
 
     public init<Key: ProviderSettingsSectionKey>(
         _ key: Key.Type,
         cookieSettings: @escaping @Sendable (Key.Section) -> CookieProviderSettings?,
-        credentialSettings: @escaping @Sendable (ProviderCredentialSettingsContext) -> Key.Section? = { _ in nil })
+        credentialSettings: (@Sendable (ProviderCredentialSettingsContext) -> Key.Section?)? = nil)
     {
         self.providerID = key.providerID
         self.sectionTypeID = ObjectIdentifier(Key.Section.self)
         self.defaultContribution = nil
         self.cookieContribution = nil
+        self.supportsConfigCookieHeader = credentialSettings != nil
         self.cookieSettingsReader = { snapshot in
             snapshot[key].flatMap(cookieSettings)
         }
         self.credentialContributionReader = { context in
-            credentialSettings(context).map { ProviderSettingsSnapshotContribution($0, for: key) }
+            guard let credentialSettings else { return nil }
+            return credentialSettings(context).map { ProviderSettingsSnapshotContribution($0, for: key) }
         }
     }
 
     public init<Key: ProviderSettingsSectionKey>(
         _ key: Key.Type,
+        supportsConfigCookieHeader: Bool = false,
         credentialSettings: @escaping @Sendable (ProviderCredentialSettingsContext) -> Key.Section?)
     {
         self.init(key, cookieSettings: { _ in nil }, credentialSettings: credentialSettings)
+        self.supportsConfigCookieHeader = supportsConfigCookieHeader
     }
 
     public init<Key: ProviderSettingsSectionKey>(

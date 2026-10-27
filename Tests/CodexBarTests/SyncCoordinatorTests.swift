@@ -583,6 +583,135 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `OpenCode local totals never replace native verified Codex sync history`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-opencode-native-only")
+        settings.iCloudSyncEnabled = true
+        settings.openCodeLocalHistoryEnabled = true
+        settings.codexActiveSource = .liveSystem
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: [:])
+        let now = Date()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+        let day = formatter.string(from: now)
+        let evidence = CostUsageDayEvidence(
+            sourceKind: "codexLocalLedger",
+            scopeID: "native-scope",
+            lineageID: "native-ledger",
+            revision: 4,
+            verifiedAt: now)
+        let native = CostUsageTokenSnapshot(
+            sessionTokens: 100,
+            sessionCostUSD: 2,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 2,
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: day,
+            historyUntilDayKey: day,
+            daily: [.init(
+                date: day,
+                inputTokens: 80,
+                outputTokens: 20,
+                totalTokens: 100,
+                costUSD: 2,
+                modelsUsed: ["fixture-native"],
+                modelBreakdowns: [.init(
+                    modelName: "fixture-native",
+                    costUSD: 2,
+                    totalTokens: 100)],
+                dayEvidence: evidence)],
+            updatedAt: now)
+        func combined(_ sourceCost: Double) -> CostUsageTokenSnapshot {
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 2 + sourceCost,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 2 + sourceCost,
+                historyCoverageIsEstablished: true,
+                historySinceDayKey: day,
+                historyUntilDayKey: day,
+                daily: [.init(
+                    date: day,
+                    inputTokens: 80,
+                    outputTokens: 20,
+                    totalTokens: 100,
+                    costUSD: 2 + sourceCost,
+                    modelsUsed: ["fixture-native", "fixture-open-code"],
+                    modelBreakdowns: [.init(
+                        modelName: "fixture-native",
+                        costUSD: 2,
+                        totalTokens: 100), .init(
+                        modelName: "fixture-open-code",
+                        costUSD: sourceCost,
+                        totalTokens: 0,
+                        sourceRecorded: true)])],
+                updatedAt: now)
+        }
+        store._setSnapshotForTesting(UsageSnapshot(primary: nil, secondary: nil, updatedAt: now), provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        coordinator._test_nativeCodexSyncSnapshotLoader = { native }
+        for sourceCost in [3.0, 6.0] {
+            store._setTokenSnapshotForTesting(combined(sourceCost), provider: .codex)
+            #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 2 + sourceCost)
+            await coordinator.pushCurrentSnapshot()
+            let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "codex" })
+            let point = try #require(provider.costSummary?.daily.first)
+            #expect(point.costUSD == 2)
+            #expect(point.dayEvidence?.revision == 4)
+            #expect(point.dayEvidence?.lineageID == "native-ledger")
+            #expect(point.modelBreakdowns.allSatisfy { $0.label != "fixture-open-code" })
+        }
+    }
+
+    @Test
+    func `disabling iCloud during native snapshot lookup prevents a sync push`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-opencode-sync-disabled-in-flight")
+        settings.iCloudSyncEnabled = true
+        settings.openCodeLocalHistoryEnabled = true
+        settings.codexActiveSource = .liveSystem
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: [:])
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 1,
+            sessionCostUSD: 1,
+            last30DaysTokens: 1,
+            last30DaysCostUSD: 1,
+            daily: [],
+            updatedAt: Date())
+        store._setSnapshotForTesting(UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .codex)
+        store._setTokenSnapshotForTesting(snapshot, provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        let latch = MockRecordNameFetchLatch()
+        coordinator._test_nativeCodexSyncSnapshotLoader = {
+            await latch.block()
+            return snapshot
+        }
+        let push = Task { await coordinator.pushCurrentSnapshot() }
+        #expect(await latch.waitUntilBlocked(timeout: .seconds(2)))
+        settings.iCloudSyncEnabled = false
+        latch.resume()
+        await push.value
+        #expect(mock.pushCount == 0)
+        #expect(mock.perProviderCallCount == 0)
+    }
+
+    @Test
     func `Codex cost summary maps history coverage from token snapshot`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-codex-history-coverage")
         settings.iCloudSyncEnabled = true

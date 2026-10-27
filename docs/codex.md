@@ -37,6 +37,8 @@ Optional matching OpenAI web extras load separately in the app. The web dashboar
 - The menu and provider settings list every still-available expiry, while the optional credits setting controls
   nearing-expiry notifications. QuotaKit does not redeem or modify reset credits.
 - `rate_limit.primary_window` / `secondary_window` map to the session/weekly lanes.
+- A reported fixed 30-day window (`limit_window_seconds: 2592000`) uses those 43,200 minutes for pace, rather than
+  inferring a calendar month. This covers observed Free-plan responses without assuming every Free account has it.
 - `additional_rate_limits[]` (model-specific limits such as GPT-5.3-Codex-Spark) map to named
   `UsageSnapshot.extraRateWindows` entries. Spark uses stable `codex-spark` / `codex-spark-weekly` ids and
   `Codex Spark 5-hour` / `Codex Spark Weekly` titles. When the field is absent, the snapshot is unchanged.

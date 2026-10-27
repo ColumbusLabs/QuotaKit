@@ -297,7 +297,11 @@ extension StatusItemController {
         guard let primaryProvider = selected.firstPartyProvider else {
             guard let plugin = UserProviderPluginRegistry.plugin(for: selected) else { return false }
             let snapshot = self.store.menuBarSnapshot(for: selected)
-            let percent = Self.pluginSwitcherMetricPercent(snapshot: snapshot, showUsed: showUsed)
+            let percent = Self.pluginSwitcherMetricPercent(
+                snapshot: snapshot,
+                showUsed: showUsed,
+                preference: MenuBarPercentWindowPreference.current(
+                    in: self.settings.menuBarLayout(forPlugin: selected)) ?? .automatic)
             let lanes = Self.pluginMeterPercents(snapshot: snapshot, showUsed: showUsed)
             // Returning to a built-in provider must redraw even when its last quota is unchanged.
             self.lastAppliedMergedIconRenderSignature = nil

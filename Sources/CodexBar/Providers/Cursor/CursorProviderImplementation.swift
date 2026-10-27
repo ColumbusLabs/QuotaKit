@@ -8,7 +8,7 @@ struct CursorProviderImplementation: ProviderImplementation {
 
     @MainActor
     func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
-        ProviderPresentation { context in
+        ProviderPresentation(showsVersionInSettings: false) { context in
             context.store.sourceLabel(for: context.provider)
         }
     }

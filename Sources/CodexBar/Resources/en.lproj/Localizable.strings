@@ -2551,7 +2551,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Plan renewal / expiry";
 "Hidden by the global optional credits, spending & billing setting." = "Hidden by the global optional credits, spending & billing setting.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ tokens · %@ requests";
 "15m" = "15m";
@@ -2846,3 +2845,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai returned an unrecognized response. Update QuotaKit and try again.";
 
 "Check your API key in Settings." = "Check your API key in Settings.";
+"install_updates_auto" = "Download and install updates automatically";
+"install_updates_auto_subtitle" = "When off, you're asked before a new version is installed.";
+"OpenCode local history" = "OpenCode local history";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded.";
+"Store multiple Command Code subscription sessions." = "Store multiple Command Code subscription sessions.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Auto uses the active saved session, otherwise an API key or browser cookies.";
+"Other features" = "Other features";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone.";

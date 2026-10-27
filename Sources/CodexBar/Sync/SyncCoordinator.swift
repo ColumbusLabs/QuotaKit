@@ -37,6 +37,10 @@ final class SyncCoordinator {
     /// coalescing any number of mutations that arrived during the network wait.
     private var pushPending: Bool = false
 
+    #if DEBUG
+    var _test_nativeCodexSyncSnapshotLoader: (@MainActor () async -> CostUsageTokenSnapshot?)?
+    #endif
+
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
@@ -281,6 +285,40 @@ final class SyncCoordinator {
         }
         guard !enabledProviders.isEmpty else { return }
 
+        // OpenCode source rows are Mac-local and do not have Codex day proof. Rebuild the
+        // sync projection from the native cache instead of reusing the combined Mac view.
+        let requiresNativeCodexSnapshot = enabledProviders.contains(.codex)
+            && self.store.shouldIncludeOpenCodeLocalHistory
+        var nativeCodexSnapshot: CostUsageTokenSnapshot?
+        if requiresNativeCodexSnapshot,
+           self.store.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) != nil
+        {
+            let signature = self.store.tokenSnapshotScopeSignature(for: .codex)
+            let revision = self.store.tokenSnapshotPublicationRevision(for: .codex)
+            let providerRevision = self.settings.providerConfigRevision(for: .codex)
+            #if DEBUG
+            if let loader = self._test_nativeCodexSyncSnapshotLoader {
+                nativeCodexSnapshot = await loader()
+            } else {
+                nativeCodexSnapshot = await self.nativeCodexSnapshotForSync()
+            }
+            #else
+            nativeCodexSnapshot = await self.nativeCodexSnapshotForSync()
+            #endif
+            guard self.settings.iCloudSyncEnabled else { return }
+            let currentProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider).filter {
+                ProviderDescriptorRegistry.descriptor(for: $0).snapshotExport.allowsIPhoneSync
+            }
+            guard currentProviders == enabledProviders,
+                  self.settings.providerConfigRevision(for: .codex) == providerRevision,
+                  self.store.shouldIncludeOpenCodeLocalHistory,
+                  self.store.tokenSnapshotScopeSignature(for: .codex) == signature,
+                  self.store.tokenSnapshotPublicationRevision(for: .codex) == revision
+            else {
+                self.pushPending = true
+                return
+            }
+        }
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
         for provider in enabledProviders {
@@ -302,7 +340,10 @@ final class SyncCoordinator {
             // currently provider-level (not split per account); future
             // refinement (R5+) may push these per-account when the data
             // source allows.
-            let sharedCostSummary = self.makeCostSummary(for: provider)
+            let sharedCostSummary = self.makeCostSummary(
+                for: provider,
+                nativeCodexSnapshot: nativeCodexSnapshot,
+                requiresNativeCodexSnapshot: requiresNativeCodexSnapshot)
             let sharedUtilizationHistory = self.makeUtilizationHistory(for: provider)
             if let sharedCostSummary {
                 let revision = sharedCostSummary.costUpdatedAt.map {
@@ -906,109 +947,6 @@ final class SyncCoordinator {
     }
 
     // swiftlint:enable function_body_length
-
-    static func mapProviderDetails(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
-    {
-        // Provider-specific by design: Sync Claude promotional dollars; reset inventory stays live-only.
-        if provider == .claude {
-            guard let snapshot else { return nil }
-            let details = snapshot.details
-            var sections: [SyncProviderDetailSection] = []
-            if let row = details.lazy.filter({ $0.title == ClaudeCloudCreditsSnapshot.detailTitle })
-                .flatMap(\.rows).first(where: { $0.id == ClaudeCloudCreditsSnapshot.detailRowID }),
-                let status = ClaudeCloudCreditsSnapshot.detailStatus(in: details, now: Date())
-            {
-                let value: String = switch status {
-                case .available: row.value
-                case .expired: "Expired"
-                case .unavailable: "Unavailable"
-                }
-                sections.append(SyncProviderDetailSection(
-                    title: ClaudeCloudCreditsSnapshot.detailTitle,
-                    rows: [.init(
-                        label: ClaudeCloudCreditsSnapshot.detailTitle,
-                        value: value,
-                        secondaryValue: row.secondaryValue)]))
-            }
-            // Use the existing detail wire/storage contract. Calendar dates stay UTC civil dates;
-            // timestamp values retain their instant. Successful missing metadata clears old rows.
-            let billingDate = snapshot.subscriptionExpiresAt ?? snapshot.subscriptionRenewsAt
-            let isExpiration = snapshot.subscriptionExpiresAt != nil
-            if let billingDate {
-                let dateOnly = isExpiration
-                    ? snapshot.subscriptionExpiresAtIsDateOnly : snapshot.subscriptionRenewsAtIsDateOnly
-                let formatter = ISO8601DateFormatter()
-                formatter.timeZone = TimeZone(secondsFromGMT: 0)
-                formatter.formatOptions = dateOnly ? [.withFullDate] : [.withInternetDateTime, .withFractionalSeconds]
-                sections.append(SyncProviderDetailSection(
-                    title: "Subscription",
-                    rows: [.init(
-                        label: isExpiration ? "Plan expires" : "Renews",
-                        value: formatter.string(from: billingDate))]))
-            }
-            return sections
-        }
-        // Provider-specific by design: Muse syncs the selected team label without its team list or secrets.
-        if provider == .muse {
-            // The selected browser team's source is useful on iPhone; the full team list and
-            // other plugin rows stay local to the Mac.
-            guard snapshot?.dataConfidence == .estimated,
-                  let section = snapshot?.details.first(where: { $0.title == "Browser team quota (dev.meta.ai)" }),
-                  let team = section.rows.first(where: { $0.label == "Team" }),
-                  !team.value.isEmpty
-            else { return nil }
-            return [SyncProviderDetailSection(
-                title: "Browser team quota (dev.meta.ai)",
-                rows: [.init(label: "Team", value: team.value)])]
-        }
-        // WorkBuddy's generic plugin details can include account or credential metadata. Sync only the finite
-        // numeric credit balance rows the iPhone needs, and clear stale details after a successful empty result.
-        if provider == .workbuddy {
-            guard let snapshot else { return nil }
-            let rows = snapshot.details
-                .filter { $0.title == "Credits" }
-                .flatMap(\.rows)
-                .filter { ["Left", "Total", "Reserved"].contains($0.label) && Self.isWorkBuddyCreditNumber($0.value) }
-            var seen: Set<String> = []
-            let safeRows = rows.compactMap { row -> SyncProviderDetailSection.Row? in
-                guard seen.insert(row.label).inserted else { return nil }
-                return .init(label: row.label, value: row.value)
-            }
-            return safeRows.isEmpty ? [] : [SyncProviderDetailSection(title: "Credits", rows: safeRows)]
-        }
-        if let billingDetails = SyncProviderBillingDetails.map(provider: provider, snapshot: snapshot) {
-            return billingDetails
-        }
-        // These providers expose useful rows that have no dedicated iPhone payload. In particular,
-        // DevPass and Poe can have details without a rate window or cost summary.
-        let supported: Set<UsageProvider> = [
-            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana, .copilot, .lithosai,
-            .xapi, .futureagi, .munito,
-        ]
-        guard supported.contains(provider),
-              let details = snapshot?.details,
-              !details.isEmpty
-        else { return nil }
-        return details.map { section in
-            SyncProviderDetailSection(
-                title: section.title,
-                rows: section.rows.map { row in
-                    SyncProviderDetailSection.Row(
-                        label: row.label,
-                        value: row.value,
-                        secondaryValue: row.secondaryValue)
-                })
-        }
-    }
-
-    private static func isWorkBuddyCreditNumber(_ raw: String) -> Bool {
-        // The plugin formats values as en-US digits with optional comma grouping and a decimal point.
-        let pattern = #"^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$"#
-        guard raw.range(of: pattern, options: .regularExpression) != nil else { return false }
-        return Double(raw.replacingOccurrences(of: ",", with: "")).map { $0.isFinite && $0 >= 0 } ?? false
-    }
 
     private func visibleExtraRateWindows(
         provider: UsageProvider,
@@ -1752,7 +1690,24 @@ final class SyncCoordinator {
         self.isObserving = false
     }
 
-    private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
+    private func nativeCodexSnapshotForSync() async -> CostUsageTokenSnapshot? {
+        let scope = self.store.tokenCostScope(for: .codex)
+        return await self.store.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            codexHomePath: scope.codexHomePath,
+            historyDays: self.settings.costUsageHistoryDays,
+            allowScopedCodexHome: scope.codexHomePath != nil,
+            includePiSessions: self.store.shouldIncludePiSessionsInTokenSnapshot(for: .codex),
+            includeOpenCodeLocalHistory: false,
+            includeProjectAndSessionBreakdowns: false,
+            calendar: self.settings.costUsageBucketCalendar,
+            environment: self.store.environmentBase)?.snapshot
+    }
+
+    private func makeCostSummary(
+        for provider: UsageProvider,
+        nativeCodexSnapshot: CostUsageTokenSnapshot? = nil,
+        requiresNativeCodexSnapshot: Bool = false) -> SyncCostSummary?
+    {
         // Machine-global local caches have no trustworthy account owner. They remain available to
         // the Mac spend dashboard, but never travel in an account-keyed CloudKit provider record.
         // Prefer the current publication slot: it is the stable candidate that survives
@@ -1766,7 +1721,9 @@ final class SyncCoordinator {
         let rawFallback = provider == .codex && self.store.tokenSnapshotPublications[provider.instanceID] != nil
             ? nil
             : self.store.tokenSnapshots[provider.instanceID]
-        let storedTokenSnapshot = currentPublication?.snapshot ?? rawFallback
+        let storedTokenSnapshot = provider == .codex && requiresNativeCodexSnapshot
+            ? nativeCodexSnapshot
+            : currentPublication?.snapshot ?? rawFallback
         let canonicalScope = self.canonicalCostScope(
             for: provider,
             tokenSnapshot: storedTokenSnapshot)

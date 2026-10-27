@@ -889,6 +889,70 @@ extension CostUsageStore {
         return values
     }
 
+    static func readFile(_ database: OpaquePointer, path: String) throws -> CostUsageStoreFile? {
+        let statement = try self.prepare(database, self.fileSelectSQL + " WHERE path = ?")
+        defer { sqlite3_finalize(statement) }
+        self.bind(path, to: statement, at: 1)
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return nil }
+        guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
+        return try self.decodeFile(statement)
+    }
+
+    static func readUsagePayloads(
+        _ database: OpaquePointer,
+        path: String,
+        rowIndices: [Int64]) throws -> [Int64: Data]
+    {
+        guard !rowIndices.isEmpty else { return [:] }
+        let placeholders = rowIndices.map { _ in "?" }.joined(separator: ",")
+        let statement = try Self.prepare(database, """
+        SELECT r.row_index, substr(r.payload, 1, 8193)
+        FROM usage_rows r
+        WHERE r.file_id = (SELECT id FROM files WHERE path = ?) AND r.row_index IN (\(placeholders))
+        """)
+        defer { sqlite3_finalize(statement) }
+        Self.bind(path, to: statement, at: 1)
+        for (index, value) in rowIndices.enumerated() {
+            sqlite3_bind_int64(statement, Int32(index + 2), Int64(value))
+        }
+        var values: [Int64: Data] = [:]
+        var result = sqlite3_step(statement)
+        while result == SQLITE_ROW {
+            let rowIndex = sqlite3_column_int64(statement, 0)
+            if let payload = self.columnData(statement, at: 1) {
+                values[rowIndex] = payload
+            }
+            result = sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+        return values
+    }
+
+    static func readUsageRowsPage(
+        _ database: OpaquePointer, path: String, after: Int64, limit: Int) throws -> [CostUsageStoreUsageRow]
+    {
+        let statement = try Self.prepare(database, """
+        SELECT row_index, substr(payload, 1, 8193) FROM usage_rows
+        WHERE file_id = (SELECT id FROM files WHERE path = ?) AND row_index > ?
+        ORDER BY row_index LIMIT ?
+        """)
+        defer { sqlite3_finalize(statement) }
+        Self.bind(path, to: statement, at: 1)
+        sqlite3_bind_int64(statement, 2, after)
+        sqlite3_bind_int64(statement, 3, Int64(limit))
+        var rows: [CostUsageStoreUsageRow] = []
+        var code = sqlite3_step(statement)
+        while code == SQLITE_ROW {
+            if let payload = Self.columnData(statement, at: 1) {
+                rows.append(.init(path: path, rowIndex: Int(sqlite3_column_int64(statement, 0)), payload: payload))
+            }
+            code = sqlite3_step(statement)
+        }
+        guard code == SQLITE_DONE else { throw StoreError.sqlite(code) }
+        return rows
+    }
+
     static func decodeFile(
         _ statement: OpaquePointer,
         includeBufferedPresence: Bool = false) throws -> CostUsageStoreFile
@@ -1129,7 +1193,9 @@ extension CostUsageStore {
 
     static func readFileDayAggregates(
         _ database: OpaquePointer,
-        path: String?) throws -> [CostUsageStoreFileDayAggregate]
+        path: String?,
+        sinceDay: String? = nil,
+        untilDay: String? = nil) throws -> [CostUsageStoreFileDayAggregate]
     {
         var sql = """
         SELECT f.path, a.day, a.model, a.input_tokens, a.cached_tokens, a.output_tokens,
@@ -1140,16 +1206,32 @@ extension CostUsageStore {
                a.standard_tokens, a.priority_tokens, a.standard_resolved_cost_nanos,
                a.priority_resolved_cost_nanos, a.standard_unresolved_pricing_count,
                a.priority_unresolved_pricing_count
-        FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
         """
-        if path != nil {
-            sql += " WHERE f.path = ?"
+        // A source-specific window starts from its file key and uses the aggregate
+        // table's (file_id, day, model) index. Preserve the existing native full scan.
+        sql += path == nil
+            ? " FROM file_day_aggregates a JOIN files f ON f.id = a.file_id"
+            : " FROM files f CROSS JOIN file_day_aggregates a ON f.id = a.file_id"
+        var conditions: [String] = []
+        var boundValues: [String] = []
+        if let path {
+            conditions.append("f.path = ?")
+            boundValues.append(path)
         }
+        if let sinceDay {
+            conditions.append("a.day >= ?")
+            boundValues.append(sinceDay)
+        }
+        if let untilDay {
+            conditions.append("a.day <= ?")
+            boundValues.append(untilDay)
+        }
+        if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
         sql += " ORDER BY f.path, a.day, a.model"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let path {
-            self.bind(path, to: statement, at: 1)
+        for (index, value) in boundValues.enumerated() {
+            self.bind(value, to: statement, at: Int32(index + 1))
         }
         var values: [CostUsageStoreFileDayAggregate] = []
         var result = sqlite3_step(statement)

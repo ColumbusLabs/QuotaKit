@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-10-27)
+
+- Add opt-in OpenCode local history to recorded Codex costs while keeping scoped accounts and verified native accounting separate.
+- Use the active OpenCode Go CLI login, read encrypted Cursor app tokens without prompting, and manage manual cookies and saved CommandCode sessions through the CLI.
+- Show Kimi Code and other-feature monthly usage on Mac and iPhone, track WorkBuddy's paid billing-cycle reset, and distinguish Trae CN gauge usage from its credit breakdown.
+- Add plugin detail pace markers and selectable menu percentage windows; pace Codex's fixed 30-day Free plan window.
+- Preserve automatic-install choices separately from update checks, hide undetected versions for web-only providers, and fade the provider-order Undo banner after inactivity.
+
 ## Unreleased upstream integration (2026-10-24)
 
 - Inspect spend sessions and load selected request details with bounded reads and accounting context.

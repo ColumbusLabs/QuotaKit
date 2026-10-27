@@ -117,6 +117,35 @@ through its own browser/CLI session and takes no API key, so enable it with
 LLM Proxy also needs a base URL. Use `LLM_PROXY_BASE_URL` for CLI runs, or add `"enterpriseHost"` to the provider entry
 in the QuotaKit config file.
 
+## Manual cookies
+
+Store a provider's `Cookie:` request header the same way Settings does when you paste a manual cookie:
+
+```bash
+pbpaste | quotakit config set-cookie --provider claude --stdin
+```
+
+`set-cookie` writes `cookieHeader` and sets `cookieSource` to `manual`, so browser import is skipped for that provider.
+Like `set-api-key`, it trims the value, enables the provider unless you pass `--no-enable`, and accepts `--cookie <header>`
+for one-off scripts. The header must be a single line; see [Manual cookies](configuration.md#manual-cookies) for how to
+copy it. Only providers whose fetchers read a manual config cookie accept this command; output never includes the cookie.
+
+## Clearing credentials
+
+Remove a stored API key and manual cookie, like emptying those fields in Settings:
+
+```bash
+quotakit config clear-credential --provider claude
+quotakit config clear-credential --provider claude --cookie
+quotakit config clear-credential --provider openrouter --api-key
+```
+
+Without flags both `apiKey` and `cookieHeader` are removed; `--api-key` or `--cookie` limits it to one. Provider
+enablement, `source`, `cookieSource`, token accounts, and other fields are unchanged. Manual cookie mode stays
+selected after its header is cleared. To request browser discovery, choose Automatic explicitly in Settings.
+Saved accounts and environment credentials are not removed. JSON output lists the removed fields in `cleared`
+(`apiKey`, `cookieHeader`); when nothing was stored, `cleared` is empty and the config file is not written.
+
 ## Isolated config files
 
 For tests, demos, and CI, point QuotaKit at a temporary config file:

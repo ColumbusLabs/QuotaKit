@@ -189,6 +189,8 @@ All provider fields are optional unless noted.
   `false`; multiple claude-swap accounts retain their existing precedence.
 
 ## Manual cookies
+
+To paste a Cookie header without placing it in shell history, run `pbpaste | quotakit config set-cookie --provider claude --stdin`.
 Use manual cookies when automatic browser import is unavailable, disabled, or too noisy for your setup.
 The app and CLI both read the same resolved config file, so a manual cookie saved in the UI is also used by
 `quotakit`, and a cookie written by tooling is shown in the app after reload.
@@ -330,6 +332,8 @@ z.ai team accounts also use `usageScope`, `organizationId`, and `workspaceID`; s
 See the [generated provider ID list](provider-ids.md), sourced from `UsageProvider` in enum order.
 
 ## Ordering
+The Settings sidebar supports dragging providers to reorder them. Its Undo banner dismisses after four seconds of inactivity. Hovering, keyboard focus, or VoiceOver focus pauses the timer; a new reorder restarts it. Reduce Motion disables the fade animation.
+
 The order of `providers` controls display/order in the app and CLI. Reorder the array to change ordering.
 
 ## iCloud sync

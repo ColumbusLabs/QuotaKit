@@ -12,6 +12,8 @@ QuotaKit fetches Cursor usage with a first-party session from Cursor.app or `cur
 cookie. Automatic mode prefers a valid Cursor.app token on macOS. On Linux, it tries cached and stored cookies before
 Cursor.app and cursor-agent local logins; browser cookie import is unavailable.
 
+Settings omits the Version row because Cursor reads web APIs and does not detect a local app or CLI version.
+
 ## Data sources + fallback order
 
 Manual cookie configuration is always the explicit override. Automatic mode follows app token → cached cookie → browser
@@ -35,7 +37,11 @@ Linux. Explicit `web` mode never reads app credentials; Linux requires a configu
    - Stored at: `~/Library/Application Support/CodexBar/cursor-session.json`.
 
 4) **Cursor local auth** (first automatic source on macOS; last fallback on Linux)
-   - Reads Cursor.app's VS Code-style global state DB for the local app bearer token.
+   - Reads Cursor.app's VS Code-style global state DB for the local app bearer token. On macOS it supports plain
+     JWTs and `cursor-safe-storage:v1:` encrypted tokens. Plain tokens do not access Keychain; encrypted tokens use
+     the `Cursor Safe Storage` item (account `Cursor`) only with prompt-free access. Unreadable or malformed
+     envelopes fall back to cookies without reviving an older persisted app identity; user ID and expiry validation
+     still apply after decryption.
    - Files consulted by read-only SQLite:
      - macOS: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`
      - Linux: absolute `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb`; otherwise absolute `$HOME/.config/Cursor/User/globalStorage/state.vscdb`, then the account home's `.config` directory.
@@ -158,9 +164,9 @@ and the normal refresh scheduler retain their existing behavior.
 - `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe+UsageSummary.swift` (summary projection)
 - `Sources/CodexBarCore/Providers/Cursor/CursorTeamSpend.swift` (verified member budget)
 - `Sources/CodexBarCore/Providers/Cursor/CursorSandUsage.swift` (Grok Bot weekly included usage)
-- `Sources/CodexBar/CursorLoginRunner.swift` (login flow)
+- `Sources/CodexBar/Providers/Cursor/CursorLoginRunner.swift` (login flow)
 - `Sources/CodexBar/Providers/Cursor/CursorLoginFlow.swift` (menu integration)
-- `Sources/CodexBar/CursorLoginBrowserRouter.swift` (browser routing and selection)
+- `Sources/CodexBar/Providers/Cursor/CursorLoginBrowserRouter.swift` (browser routing and selection)
 
 ### Enterprise and Business member budgets
 

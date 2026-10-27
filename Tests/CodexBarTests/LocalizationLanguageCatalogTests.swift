@@ -788,6 +788,7 @@ extension LocalizationLanguageCatalogTests {
             "Grok CLI",
             "Helmcode Cloud",
             "Input",
+            "Kimi Code",
             "LLMMAN_API_KEY",
             "NaN Builders",
             "No",

@@ -2552,7 +2552,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Perpanjangan / kedaluwarsa paket";
 "Hidden by the global optional credits, spending & billing setting." = "Disembunyikan oleh pengaturan global kredit opsional, pengeluaran, dan penagihan.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ token · %@ permintaan";
 "15m" = "15 mnt";
@@ -2847,3 +2846,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai mengembalikan respons yang tidak dikenali. Perbarui QuotaKit dan coba lagi.";
 
 "Check your API key in Settings." = "Periksa kunci API Anda di Pengaturan.";
+"install_updates_auto" = "Unduh dan instal pembaruan secara otomatis";
+"install_updates_auto_subtitle" = "Jika nonaktif, Anda akan ditanya sebelum versi baru diinstal.";
+"OpenCode local history" = "Riwayat lokal OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Menampilkan penggunaan OpenCode yang tercatat di Mac ini dalam riwayat Codex. Nonaktif secara bawaan; lokasi CODEX_HOME dengan cakupan terbatas atau lokasi alternatif selalu dikecualikan.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Otomatis menggunakan sesi tersimpan yang aktif, atau kunci API atau cookie browser jika tidak ada sesi yang aktif.";
+"Store multiple Command Code subscription sessions." = "Simpan beberapa sesi langganan Command Code.";
+"Other features" = "Fitur lainnya";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "Riwayat OpenCode tetap di Mac ini. Biaya Codex asli tetap disinkronkan ke iPhone.";

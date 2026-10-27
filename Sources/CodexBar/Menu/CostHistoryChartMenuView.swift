@@ -321,7 +321,7 @@ struct CostHistoryChartMenuView: View {
                         .lineLimit(1)
                         .truncationMode(.head)
                         .frame(height: Self.detailPrimaryLineHeight, alignment: .leading)
-                    if let disclaimer = Self.estimateDisclaimer(provider: self.provider) {
+                    if let disclaimer = Self.estimateDisclaimer(provider: self.provider, daily: self.daily) {
                         Text(disclaimer)
                             .font(.caption2)
                             .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
@@ -378,8 +378,11 @@ struct CostHistoryChartMenuView: View {
         .frame(minWidth: self.width, maxWidth: .infinity, alignment: .top)
     }
 
-    static func estimateDisclaimer(provider: UsageProvider) -> String? {
-        guard let hint = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.chartEstimateDisclaimer else {
+    static func estimateDisclaimer(provider: UsageProvider, daily: [DailyEntry] = []) -> String? {
+        let breakdowns = daily.flatMap { $0.modelBreakdowns ?? [] }
+        guard breakdowns.isEmpty || breakdowns.contains(where: { $0.sourceRecorded != true }),
+              let hint = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.chartEstimateDisclaimer
+        else {
             return nil
         }
         return switch hint {
@@ -770,7 +773,7 @@ struct CostHistoryChartMenuView: View {
     }
 
     private static func hasModeSubtitle(_ item: CostUsageDailyReport.ModelBreakdown) -> Bool {
-        item.standardCostUSD != nil || item.priorityCostUSD != nil
+        item.sourceRecorded == true || item.standardCostUSD != nil || item.priorityCostUSD != nil
     }
 
     private static func detailRowsViewportHeight(rowCount: Int, rowHeight: CGFloat) -> CGFloat {
@@ -1034,7 +1037,8 @@ struct CostHistoryChartMenuView: View {
             currencyCode: self.currencyCode)
     }
 
-    private func modelBreakdownModeSubtitle(_ item: CostUsageDailyReport.ModelBreakdown) -> String? {
+    func modelBreakdownModeSubtitle(_ item: CostUsageDailyReport.ModelBreakdown) -> String? {
+        if item.sourceRecorded == true { return L("Recorded spend") }
         var parts: [String] = []
         if let standardCost = item.standardCostUSD {
             var standardPart = "\(L("Std")) \(self.costString(standardCost))"
@@ -1133,6 +1137,7 @@ extension CostHistoryChartMenuView {
     }
 
     struct VisibleModelBreakdownFingerprint: Equatable {
+        var sourceRecorded: Bool = false
         let modelName: String
         let costBitPattern: UInt64?
         let totalTokens: Int?
@@ -1251,6 +1256,7 @@ extension CostHistoryChartMenuView {
             costBitPattern: entry.costUSD.map(\.bitPattern),
             modelBreakdowns: self.displayBreakdownItems(entry, provider: provider).map { item in
                 VisibleModelBreakdownFingerprint(
+                    sourceRecorded: item.sourceRecorded == true,
                     modelName: item.modelName,
                     costBitPattern: item.costUSD.map(\.bitPattern),
                     totalTokens: item.totalTokens,
@@ -1360,5 +1366,19 @@ extension CostUsageProjectBreakdown {
 extension CostUsageProjectSourceBreakdown {
     fileprivate var sourceRowID: String {
         self.path ?? "unknown:\(self.name)"
+    }
+}
+
+extension CostHistoryChartMenuView.VisibleModelBreakdownFingerprint {
+    init(_ item: CostUsageDailyReport.ModelBreakdown) {
+        self.init(
+            sourceRecorded: item.sourceRecorded == true,
+            modelName: item.modelName,
+            costBitPattern: item.costUSD.map(\.bitPattern),
+            totalTokens: item.totalTokens,
+            standardCostBitPattern: item.standardCostUSD.map(\.bitPattern),
+            priorityCostBitPattern: item.priorityCostUSD.map(\.bitPattern),
+            standardTokens: item.standardCostUSD == nil ? nil : item.standardTokens,
+            priorityTokens: item.priorityCostUSD == nil ? nil : item.priorityTokens)
     }
 }

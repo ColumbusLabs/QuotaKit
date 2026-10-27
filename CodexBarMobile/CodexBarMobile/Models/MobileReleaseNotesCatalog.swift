@@ -31,6 +31,7 @@ enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
+                        String(localized: "Kimi monthly usage breakdown now syncs from Mac to iPhone."),
                         String(localized: "Vercel personal budgets now sync from Mac to iPhone."),
                         String(
                             localized: "Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone."),

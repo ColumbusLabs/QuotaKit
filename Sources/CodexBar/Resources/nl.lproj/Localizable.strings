@@ -2548,7 +2548,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Verlenging / vervaldatum van abonnement";
 "Hidden by the global optional credits, spending & billing setting." = "Verborgen door de algemene instelling voor optionele tegoeden, uitgaven en factureringsgegevens.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ tokens · %@ verzoeken";
 "15m" = "15 min";
@@ -2843,3 +2842,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai heeft een onbekend antwoord teruggegeven. Werk QuotaKit bij en probeer het opnieuw.";
 
 "Check your API key in Settings." = "Controleer je API-sleutel in Instellingen.";
+"install_updates_auto" = "Updates automatisch downloaden en installeren";
+"install_updates_auto_subtitle" = "Als dit uit staat, word je gevraagd voordat een nieuwe versie wordt geïnstalleerd.";
+"OpenCode local history" = "Lokale OpenCode-geschiedenis";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Toont het op deze Mac vastgelegde OpenCode-gebruik in de Codex-geschiedenis. Standaard uitgeschakeld; CODEX_HOME-locaties met een beperkt bereik en alternatieve locaties blijven altijd uitgesloten.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Automatisch gebruikt de actieve opgeslagen sessie, anders een API-sleutel of browsercookies.";
+"Store multiple Command Code subscription sessions." = "Bewaar meerdere Command Code-abonnementssessies.";
+"Other features" = "Andere functies";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "De OpenCode-geschiedenis blijft op deze Mac. De oorspronkelijke Codex-kosten blijven synchroniseren met de iPhone.";

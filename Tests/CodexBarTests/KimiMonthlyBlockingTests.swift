@@ -115,9 +115,13 @@ struct KimiMonthlyBlockingTests {
         RateWindow(usedPercent: used, windowMinutes: minutes, resetsAt: reset, resetDescription: nil)
     }
 
-    static func model(_ snapshot: UsageSnapshot, showUsed: Bool = false) throws -> UsageMenuCardView.Model {
+    static func model(
+        _ snapshot: UsageSnapshot,
+        showUsed: Bool = false,
+        language: String = "en") throws -> UsageMenuCardView.Model
+    {
         let metadata = try #require(ProviderDefaults.metadata[.kimi])
-        return CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+        return CodexBarLocalizationOverride.$appLanguage.withValue(language) {
             UsageMenuCardView.Model.make(.init(
                 provider: .kimi,
                 metadata: metadata,

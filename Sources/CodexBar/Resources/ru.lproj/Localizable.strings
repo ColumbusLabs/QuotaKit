@@ -2550,7 +2550,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Продление / окончание плана";
 "Hidden by the global optional credits, spending & billing setting." = "Скрыто глобальной настройкой дополнительных кредитов, расходов и оплаты.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ токенов · %@ запросов";
 "15m" = "15 мин";
@@ -2845,3 +2844,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "abliteration.ai вернул неизвестный ответ. Обновите QuotaKit и повторите попытку.";
 
 "Check your API key in Settings." = "Проверьте ключ API в настройках.";
+"install_updates_auto" = "Автоматически загружать и устанавливать обновления";
+"install_updates_auto_subtitle" = "Если выключено, перед установкой новой версии будет запрошено подтверждение.";
+"OpenCode local history" = "Локальная история OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Показывает использование OpenCode, записанное на этом Mac, в истории Codex. По умолчанию выключено; каталоги CODEX_HOME с ограниченной областью действия и альтернативные каталоги всегда исключены.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Автоматический режим использует активный сохранённый сеанс, иначе — ключ API или файлы cookie браузера.";
+"Store multiple Command Code subscription sessions." = "Хранить несколько сеансов подписки Command Code.";
+"Other features" = "Другие функции";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "История OpenCode остаётся на этом Mac. Исходные расходы Codex по-прежнему синхронизируются с iPhone.";

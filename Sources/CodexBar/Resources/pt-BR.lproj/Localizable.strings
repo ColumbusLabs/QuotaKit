@@ -2549,7 +2549,6 @@
 /* Adopted provider and live-usage presentation */
 "Plan renewal / expiry" = "Renovação / expiração do plano";
 "Hidden by the global optional credits, spending & billing setting." = "Oculto pela configuração global de créditos opcionais, gastos e faturamento.";
-"Auto uses an API key when configured, otherwise browser cookies." = "Auto uses an API key when configured, otherwise browser cookies.";
 "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY." = "Stored in the QuotaKit config file. You can also set COMMAND_CODE_API_KEY.";
 "%@ tokens · %@ requests" = "%@ tokens · %@ requisições";
 "15m" = "15 min";
@@ -2844,3 +2843,12 @@
 "abliteration.ai returned an unrecognized response. Update QuotaKit and try again." = "O abliteration.ai retornou uma resposta desconhecida. Atualize o QuotaKit e tente novamente.";
 
 "Check your API key in Settings." = "Verifique sua chave de API nos Ajustes.";
+"install_updates_auto" = "Baixar e instalar atualizações automaticamente";
+"install_updates_auto_subtitle" = "Quando desativado, você será consultado antes de instalar uma nova versão.";
+"OpenCode local history" = "Histórico local do OpenCode";
+"Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "Mostra no histórico do Codex o uso do OpenCode registrado neste Mac. Desativado por padrão; locais CODEX_HOME com escopo restrito ou alternativos são sempre excluídos.";
+"Auto uses the active saved session, otherwise an API key or browser cookies." = "Automático usa a sessão salva ativa; caso contrário, uma chave API ou cookies do navegador.";
+"Store multiple Command Code subscription sessions." = "Armazena várias sessões de assinatura do Command Code.";
+"Other features" = "Outros recursos";
+"Kimi Code" = "Kimi Code";
+"OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "O histórico do OpenCode permanece neste Mac. Os custos nativos do Codex continuam sincronizando com o iPhone.";
