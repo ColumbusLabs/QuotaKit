@@ -124,7 +124,9 @@ struct TokenAccountCLISelectionTests {
             tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))])
         let passive = try TokenAccountCLIContext(
             selection: .init(label: nil, index: nil, allAccounts: false),
-            config: config, verbose: false, baseEnvironment: [:])
+            config: config,
+            verbose: false,
+            baseEnvironment: [:])
         #expect(try passive.resolvedAccounts(for: .commandcode).isEmpty)
         #expect(passive.effectiveSourceMode(base: .api, provider: .commandcode, account: nil) == .api)
         for selection in [
@@ -133,7 +135,10 @@ struct TokenAccountCLISelectionTests {
             TokenAccountCLISelection(label: nil, index: nil, allAccounts: true),
         ] {
             let context = try TokenAccountCLIContext(
-                selection: selection, config: config, verbose: false, baseEnvironment: [:])
+                selection: selection,
+                config: config,
+                verbose: false,
+                baseEnvironment: [:])
             let selected = try #require(try context.resolvedAccounts(for: .commandcode).first)
             #expect(context.effectiveSourceMode(base: .api, provider: .commandcode, account: selected) == .web)
         }

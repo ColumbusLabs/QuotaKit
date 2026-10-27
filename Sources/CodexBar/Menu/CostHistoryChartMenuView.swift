@@ -1372,8 +1372,10 @@ extension CostUsageProjectSourceBreakdown {
 extension CostHistoryChartMenuView.VisibleModelBreakdownFingerprint {
     init(_ item: CostUsageDailyReport.ModelBreakdown) {
         self.init(
-            sourceRecorded: item.sourceRecorded == true, modelName: item.modelName,
-            costBitPattern: item.costUSD.map(\.bitPattern), totalTokens: item.totalTokens,
+            sourceRecorded: item.sourceRecorded == true,
+            modelName: item.modelName,
+            costBitPattern: item.costUSD.map(\.bitPattern),
+            totalTokens: item.totalTokens,
             standardCostBitPattern: item.standardCostUSD.map(\.bitPattern),
             priorityCostBitPattern: item.priorityCostUSD.map(\.bitPattern),
             standardTokens: item.standardCostUSD == nil ? nil : item.standardTokens,

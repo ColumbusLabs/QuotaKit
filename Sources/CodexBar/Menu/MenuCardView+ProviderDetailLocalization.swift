@@ -119,17 +119,18 @@ extension UsageMenuCardView.Model {
     private static func localizedProviderDetailValue(_ value: String, provider: UsageProvider) -> String {
         switch provider {
         case .deepseek:
-            self.localizedTokenSuffix(value)
+            return self.localizedTokenSuffix(value)
         case .zai:
-            self.localizedZaiValue(value)
+            return self.localizedZaiValue(value)
         case .kiro:
-            self.localizedKiroCapPhrase(value)
+            return self.localizedKiroCapPhrase(value)
         case .kimi:
-            value.hasPrefix("Expires ")
-                ? L("Expires %@", String(value.dropFirst("Expires ".count)))
-                : self.localizedZaiValue(value)
+            if value.hasPrefix("Expires ") {
+                return L("Expires %@", String(value.dropFirst("Expires ".count)))
+            }
+            return self.localizedZaiValue(value)
         default:
-            value
+            return value
         }
     }
 

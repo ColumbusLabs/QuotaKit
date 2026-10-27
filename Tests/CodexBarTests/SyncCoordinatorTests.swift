@@ -589,36 +589,70 @@ struct SyncCoordinatorTests {
         settings.openCodeLocalHistoryEnabled = true
         settings.codexActiveSource = .liveSystem
         try settings.setProviderEnabled(
-            provider: .codex, metadata: #require(ProviderDefaults.metadata[.codex]), enabled: true)
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]), browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings, environmentBase: [:])
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: [:])
         let now = Date()
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate]
         let day = formatter.string(from: now)
         let evidence = CostUsageDayEvidence(
-            sourceKind: "codexLocalLedger", scopeID: "native-scope", lineageID: "native-ledger",
-            revision: 4, verifiedAt: now)
+            sourceKind: "codexLocalLedger",
+            scopeID: "native-scope",
+            lineageID: "native-ledger",
+            revision: 4,
+            verifiedAt: now)
         let native = CostUsageTokenSnapshot(
-            sessionTokens: 100, sessionCostUSD: 2, last30DaysTokens: 100, last30DaysCostUSD: 2,
-            historyCoverageIsEstablished: true, historySinceDayKey: day, historyUntilDayKey: day,
+            sessionTokens: 100,
+            sessionCostUSD: 2,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 2,
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: day,
+            historyUntilDayKey: day,
             daily: [.init(
-                date: day, inputTokens: 80, outputTokens: 20, totalTokens: 100, costUSD: 2,
-                modelsUsed: ["fixture-native"], modelBreakdowns: [.init(
-                    modelName: "fixture-native", costUSD: 2, totalTokens: 100)], dayEvidence: evidence)],
+                date: day,
+                inputTokens: 80,
+                outputTokens: 20,
+                totalTokens: 100,
+                costUSD: 2,
+                modelsUsed: ["fixture-native"],
+                modelBreakdowns: [.init(
+                    modelName: "fixture-native",
+                    costUSD: 2,
+                    totalTokens: 100)],
+                dayEvidence: evidence)],
             updatedAt: now)
         func combined(_ sourceCost: Double) -> CostUsageTokenSnapshot {
             CostUsageTokenSnapshot(
-                sessionTokens: 100, sessionCostUSD: 2 + sourceCost,
-                last30DaysTokens: 100, last30DaysCostUSD: 2 + sourceCost,
-                historyCoverageIsEstablished: true, historySinceDayKey: day, historyUntilDayKey: day,
+                sessionTokens: 100,
+                sessionCostUSD: 2 + sourceCost,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 2 + sourceCost,
+                historyCoverageIsEstablished: true,
+                historySinceDayKey: day,
+                historyUntilDayKey: day,
                 daily: [.init(
-                    date: day, inputTokens: 80, outputTokens: 20, totalTokens: 100, costUSD: 2 + sourceCost,
-                    modelsUsed: ["fixture-native", "fixture-open-code"], modelBreakdowns: [.init(
-                        modelName: "fixture-native", costUSD: 2, totalTokens: 100), .init(
-                        modelName: "fixture-open-code", costUSD: sourceCost, totalTokens: 0,
-                        sourceRecorded: true)])], updatedAt: now)
+                    date: day,
+                    inputTokens: 80,
+                    outputTokens: 20,
+                    totalTokens: 100,
+                    costUSD: 2 + sourceCost,
+                    modelsUsed: ["fixture-native", "fixture-open-code"],
+                    modelBreakdowns: [.init(
+                        modelName: "fixture-native",
+                        costUSD: 2,
+                        totalTokens: 100), .init(
+                        modelName: "fixture-open-code",
+                        costUSD: sourceCost,
+                        totalTokens: 0,
+                        sourceRecorded: true)])],
+                updatedAt: now)
         }
         store._setSnapshotForTesting(UsageSnapshot(primary: nil, secondary: nil, updatedAt: now), provider: .codex)
         let mock = MockSyncPusher()
@@ -644,13 +678,21 @@ struct SyncCoordinatorTests {
         settings.openCodeLocalHistoryEnabled = true
         settings.codexActiveSource = .liveSystem
         try settings.setProviderEnabled(
-            provider: .codex, metadata: #require(ProviderDefaults.metadata[.codex]), enabled: true)
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]), browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings, environmentBase: [:])
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: [:])
         let snapshot = CostUsageTokenSnapshot(
-            sessionTokens: 1, sessionCostUSD: 1, last30DaysTokens: 1, last30DaysCostUSD: 1,
-            daily: [], updatedAt: Date())
+            sessionTokens: 1,
+            sessionCostUSD: 1,
+            last30DaysTokens: 1,
+            last30DaysCostUSD: 1,
+            daily: [],
+            updatedAt: Date())
         store._setSnapshotForTesting(UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .codex)
         store._setTokenSnapshotForTesting(snapshot, provider: .codex)
         let mock = MockSyncPusher()

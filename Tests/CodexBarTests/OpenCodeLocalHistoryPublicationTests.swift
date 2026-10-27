@@ -132,14 +132,19 @@ struct OpenCodeLocalHistoryPublicationTests {
         disabledOptions.includeOpenCodeLocalHistory = false
         let disabled = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: Date(timeIntervalSince1970: Double(timestamp) / 1000),
-            historyDays: 1, includePiSessions: false, scannerOptions: disabledOptions,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: disabledOptions,
             environment: ["OPENCODE_DB": url.path])
         #expect(disabled?.snapshot.daily.flatMap { $0.modelBreakdowns ?? [] }
             .contains { $0.sourceRecorded == true } != true)
         let selectedHome = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: Date(timeIntervalSince1970: Double(timestamp) / 1000),
             codexHomePath: root.appendingPathComponent("selected-home").path,
-            historyDays: 1, allowScopedCodexHome: true, includePiSessions: false, scannerOptions: options,
+            historyDays: 1,
+            allowScopedCodexHome: true,
+            includePiSessions: false,
+            scannerOptions: options,
             environment: ["OPENCODE_DB": url.path])
         #expect(selectedHome?.snapshot.daily.flatMap { $0.modelBreakdowns ?? [] }
             .contains { $0.sourceRecorded == true } != true)

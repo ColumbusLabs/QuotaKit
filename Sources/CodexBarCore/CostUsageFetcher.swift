@@ -395,7 +395,8 @@ public struct CostUsageFetcher: Sendable {
             CostUsageScanner.CostUsageDayRange(
                 since: CostReportingPeriod.rolling(days: max(1, min(365, days)))
                     .bounds(now: now, calendar: options.calendar).lowerBound,
-                until: now, calendar: options.calendar)
+                until: now,
+                calendar: options.calendar)
         }
         let scope = OpenCodeLocalHistoryAdapter.readScope(options: options, environment: environment, range: range)
         guard let scope else { return native }
@@ -471,8 +472,10 @@ public struct CostUsageFetcher: Sendable {
         .init(
             pending: native.pending || sourcePending,
             progressKey: native.progressKey + ":" + (source?.progressKey ?? "source-unavailable"),
-            processedBytes: native.processedBytes, totalBytes: native.totalBytes,
-            completedFiles: native.completedFiles, totalFiles: native.totalFiles,
+            processedBytes: native.processedBytes,
+            totalBytes: native.totalBytes,
+            completedFiles: native.completedFiles,
+            totalFiles: native.totalFiles,
             staleSnapshotUpdatedAt: native.staleSnapshotUpdatedAt,
             yieldedBeforeFileAttempt: native.yieldedBeforeFileAttempt,
             completionIsConfirmed: native.completionIsConfirmed && !sourcePending)
@@ -1235,7 +1238,9 @@ public struct CostUsageFetcher: Sendable {
             until: now,
             calendar: scanOptions.calendar)
         let sourceScope = provider == .codex ? OpenCodeLocalHistoryAdapter.readScope(
-            options: scanOptions, environment: options.environment, reportContext: options.reportContext,
+            options: scanOptions,
+            environment: options.environment,
+            reportContext: options.reportContext,
             range: historyRange) : nil
         let sourceRefreshSucceeded = try await OpenCodeLocalHistoryAdapter.refresh(
             scope: sourceScope, cacheRoot: scanOptions.cacheRoot, calendar: scanOptions.calendar)

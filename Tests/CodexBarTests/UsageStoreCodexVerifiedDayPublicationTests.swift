@@ -79,18 +79,30 @@ struct UsageStoreCodexVerifiedDayPublicationTests {
         let after = try Self.date(today, hour: 11, calendar: calendar)
         func sourceEntry(_ cost: Double) -> CostUsageDailyReport.Entry {
             .init(
-                date: today, inputTokens: 1, outputTokens: 0, totalTokens: 1, costUSD: cost,
-                modelsUsed: ["fixture-open-code"], modelBreakdowns: [.init(
-                    modelName: "fixture-open-code", costUSD: cost, totalTokens: 1, sourceRecorded: true)])
+                date: today,
+                inputTokens: 1,
+                outputTokens: 0,
+                totalTokens: 1,
+                costUSD: cost,
+                modelsUsed: ["fixture-open-code"],
+                modelBreakdowns: [.init(
+                    modelName: "fixture-open-code",
+                    costUSD: cost,
+                    totalTokens: 1,
+                    sourceRecorded: true)])
         }
         let established = Self.codexSnapshot(
             entries: [Self.entry(
-                priorDay, tokens: 10, cost: 1,
+                priorDay,
+                tokens: 10,
+                cost: 1,
                 evidence: Self.dayEvidence(revision: 2, verifiedAt: before)), sourceEntry(3)],
             fixture: .init(since: priorDay, until: today, historyDays: 2, updatedAt: before, established: true))
         let candidate = Self.codexSnapshot(
             entries: [Self.entry(
-                priorDay, tokens: 10, cost: 1,
+                priorDay,
+                tokens: 10,
+                cost: 1,
                 evidence: Self.dayEvidence(revision: 2, verifiedAt: after)), sourceEntry(6)],
             fixture: .init(since: priorDay, until: today, historyDays: 2, updatedAt: after, established: true))
         #expect(UsageStore.codexCostSnapshotRefreshingProofMetadataOnly(

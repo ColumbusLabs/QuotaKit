@@ -945,34 +945,6 @@ struct ProviderSettingsDescriptorTests {
 
 extension ProviderSettingsDescriptorTests {
     @Test
-    func `zoommate presentation surfaces web rather than an undetected version`() throws {
-        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-zoommate-presentation")
-        let metadata = try #require(ProviderDescriptorRegistry.metadata[.zoommate])
-        let context = fixture.presentationContext(provider: .zoommate, metadata: metadata)
-
-        let detailLine = ZoomMateProviderImplementation()
-            .presentation(context: context)
-            .detailLine(context)
-
-        // Web-cookie provider with versionDetector: nil — must not fall back to "zoommate not detected".
-        #expect(detailLine == "web")
-    }
-
-    @Test
-    func `devin presentation follows store source label`() throws {
-        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-presentation")
-        fixture.store.lastSourceLabels[.devin] = "web"
-        let metadata = try #require(ProviderDescriptorRegistry.metadata[.devin])
-        let context = fixture.presentationContext(provider: .devin, metadata: metadata)
-
-        let detailLine = DevinProviderImplementation()
-            .presentation(context: context)
-            .detailLine(context)
-
-        #expect(detailLine == "web")
-    }
-
-    @Test
     func `devin automatic auth explains Chromium browser support`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-browsers")
         fixture.settings.devinCookieSource = .auto

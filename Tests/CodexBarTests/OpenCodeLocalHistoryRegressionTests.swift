@@ -101,6 +101,59 @@ struct OpenCodeLocalHistoryRegressionTests {
     }
 
     @Test
+    func `source aggregate reads honor inclusive date and path bounds`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.session("before", cost: 1)
+        try fixture.session("inside", cost: 2)
+        try fixture.session("after", cost: 3)
+        try fixture.sql("""
+        UPDATE session_message
+        SET time_created = time_created - 86400000, time_updated = time_updated - 86400000 WHERE id = 'before';
+        UPDATE session_message
+        SET time_created = time_created + 86400000, time_updated = time_updated + 86400000 WHERE id = 'after';
+        """)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let store = fixture.store()
+        _ = try await OpenCodeLocalHistoryAdapter.runPass(
+            databaseURL: fixture.url,
+            store: store,
+            calendar: calendar)
+        let day = OpenCodeLocalHistoryAdapter.dayKey(fromUnixMs: Self.timestamp, calendar: calendar)
+        let path = OpenCodeLocalHistoryAdapter.registeredPath(for: fixture.url)
+        let results = await store.withDatabase(default: [CostUsageStoreFileDayAggregate]()) { database in
+            try CostUsageStore.readFileDayAggregates(
+                database,
+                path: path,
+                sinceDay: day,
+                untilDay: day)
+        }
+        #expect(results.map(\.aggregate.day) == [day])
+        #expect(results.first?.aggregate.authoritativeCostNanos == 2_000_000_000)
+        let unbounded = await store.withDatabase(default: [CostUsageStoreFileDayAggregate]()) { database in
+            try CostUsageStore.readFileDayAggregates(database, path: path)
+        }
+        #expect(unbounded.count == 3)
+        let wrongPath = await store.withDatabase(default: [CostUsageStoreFileDayAggregate]()) { database in
+            try CostUsageStore.readFileDayAggregates(
+                database,
+                path: path + ".other",
+                sinceDay: day,
+                untilDay: day)
+        }
+        #expect(wrongPath.isEmpty)
+        let rangeAcrossFiles = await store.withDatabase(default: [CostUsageStoreFileDayAggregate]()) { database in
+            try CostUsageStore.readFileDayAggregates(
+                database,
+                path: nil,
+                sinceDay: day,
+                untilDay: day)
+        }
+        #expect(rangeAcrossFiles.map(\.aggregate.day) == [day])
+    }
+
+    @Test
     func `append overflow remains pending until every row is committed`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
