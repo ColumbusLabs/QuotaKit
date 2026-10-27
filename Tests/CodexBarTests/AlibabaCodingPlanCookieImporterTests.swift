@@ -227,7 +227,8 @@ struct AlibabaCodingPlanCookieImporterTests {
             """
             CREATE TABLE cookies (host_key TEXT, name TEXT, path TEXT, expires_utc INTEGER,
             is_secure INTEGER, value TEXT, encrypted_value BLOB);
-            INSERT INTO cookies VALUES('.example.com', 'session', '/', 0, 1, '', X'76313000000000000000000000000000000000');
+            INSERT INTO cookies
+            VALUES('.example.com', 'session', '/', 0, 1, '', X'76313000000000000000000000000000000000');
             """,
             nil,
             nil,
@@ -238,6 +239,10 @@ struct AlibabaCodingPlanCookieImporterTests {
         let client = BrowserCookieClient(configuration: .init(homeDirectories: [home]))
         let keychainProbeCount = OSAllocatedUnfairLock(initialState: 0)
         let secretReadCount = OSAllocatedUnfairLock(initialState: 0)
+        let denySecretRead: @Sendable ([String: Any]) -> (OSStatus, Data?) = { _ in
+            secretReadCount.withLock { $0 += 1 }
+            return (errSecSuccess, nil)
+        }
         BrowserCookieAccessGate.withExplicitRetry(bypassingCooldown: true) {
             ProviderInteractionContext.$current.withValue(.userInitiated) {
                 KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -245,10 +250,7 @@ struct AlibabaCodingPlanCookieImporterTests {
                         keychainProbeCount.withLock { $0 += 1 }
                         return .interactionRequired
                     } operation: {
-                        ChromiumSafeStorage.$readOverrideForTesting.withValue({ _ in
-                            secretReadCount.withLock { $0 += 1 }
-                            return (errSecSuccess, nil)
-                        }) {
+                        ChromiumSafeStorage.$readOverrideForTesting.withValue(denySecretRead) {
                             do {
                                 _ = try AliyunOneConsoleChromiumCookieFallbackImporter.importSession(
                                     browser: .chrome,
