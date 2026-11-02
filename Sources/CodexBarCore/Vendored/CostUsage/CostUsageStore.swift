@@ -32,7 +32,7 @@ actor CostUsageStore {
             weak var value: StoreSerialExecutor?
         }
 
-        static func shared(for databaseURL: URL) -> StoreSerialExecutor {
+        static func canonicalLocation(for databaseURL: URL) -> URL {
             var location = databaseURL
             var visited: Set<String> = []
             while true {
@@ -47,6 +47,11 @@ actor CostUsageStore {
                 else { break }
                 location = URL(fileURLWithPath: target, relativeTo: location.deletingLastPathComponent())
             }
+            return location
+        }
+
+        static func shared(for databaseURL: URL) -> StoreSerialExecutor {
+            let location = self.canonicalLocation(for: databaseURL)
             let caseSensitive = try? location.deletingLastPathComponent()
                 .resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames
             let key = caseSensitive == false
@@ -847,13 +852,18 @@ extension CostUsageStore {
     }
 
     private func openDatabase() throws -> OpaquePointer {
-        let directory = self.databaseURL.deletingLastPathComponent()
+        let target = StoreSerialExecutor.canonicalLocation(for: self.databaseURL)
+        let directory = target.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let preflight = try Self.preflightDatabaseFile(self.databaseURL)
+        let preflight = try Self.preflightDatabaseFile(target)
+        if !preflight.hasSQLiteContent, target.path != self.databaseURL.standardizedFileURL.path {
+            // An alias must not hide an orphan sidecar beside either spelling of the database.
+            try Self.requireAbsentSidecars(for: self.databaseURL)
+        }
         let existed = preflight.hasSQLiteContent
         var opened: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
-        let result = sqlite3_open_v2(self.databaseURL.path, &opened, flags, nil)
+        let result = sqlite3_open_v2(target.path, &opened, flags, nil)
         guard result == SQLITE_OK, let opened else {
             if let opened {
                 sqlite3_close_v2(opened)

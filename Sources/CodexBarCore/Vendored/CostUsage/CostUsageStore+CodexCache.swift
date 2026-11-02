@@ -2778,9 +2778,11 @@ extension CostUsageStore {
                 exactInventoryFlatDirectoryOffsetByRoot: $0.exactInventoryFlatDirectoryOffsetByRoot,
                 exactInventoryCompletedFlatRootPaths: $0.exactInventoryCompletedFlatRootPaths,
                 exactCachedValidationLastPath: $0.exactCachedValidationLastPath,
+                exactExcludedCachePaths: $0.exactExcludedCachePaths,
                 cacheWideMigrationQueueActive: $0.cacheWideMigrationQueueActive,
                 priorityMigrationGenerationKey: $0.priorityMigrationGenerationKey,
-                priorityAdmissionDebt: $0.priorityAdmissionDebt)
+                priorityAdmissionDebt: $0.priorityAdmissionDebt,
+                forkDependencyValidationSeeded: $0.forkDependencyValidationSeeded)
         }
     }
 
@@ -2823,9 +2825,11 @@ extension CostUsageStore {
             exactInventoryFlatDirectoryOffsetByRoot: value.exactInventoryFlatDirectoryOffsetByRoot,
             exactInventoryCompletedFlatRootPaths: value.exactInventoryCompletedFlatRootPaths,
             exactCachedValidationLastPath: value.exactCachedValidationLastPath,
+            exactExcludedCachePaths: value.exactExcludedCachePaths,
             cacheWideMigrationQueueActive: value.cacheWideMigrationQueueActive,
             priorityMigrationGenerationKey: value.priorityMigrationGenerationKey,
-            priorityAdmissionDebt: value.priorityAdmissionDebt)
+            priorityAdmissionDebt: value.priorityAdmissionDebt,
+            forkDependencyValidationSeeded: value.forkDependencyValidationSeeded)
     }
 
     private static func tokenSnapshot(

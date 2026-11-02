@@ -159,7 +159,8 @@ struct CostUsageCatchUpStatusProjectionTests {
             codexSessionsRoot: env.codexSessionsRoot,
             claudeProjectsRoots: nil,
             cacheRoot: env.cacheRoot,
-            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"),
+            maxCodexScanBytesPerRefresh: 0)
         options.refreshMinIntervalSeconds = 0
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,

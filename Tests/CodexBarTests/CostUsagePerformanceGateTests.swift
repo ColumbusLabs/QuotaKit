@@ -161,6 +161,24 @@ struct CostUsagePerformanceGateTests {
             now: day,
             options: options)
 
+        // A newly populated cache now has a bounded archive-presence sweep. Complete it
+        // before measuring a steady-state refresh, rather than treating a partial sweep as warm.
+        var warmCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        var warmPass = 0
+        while warmCache.codexScanCatchUpPending == true, warmPass < 10 {
+            warmPass += 1
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(Double(warmPass)),
+                options: options)
+            warmCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        }
+        #expect(warmCache.files.count == corpusSize)
+        #expect(warmCache.codexSessionDiscovery?.metadataPresenceEstablished == true)
+        try #require(warmCache.codexScanCatchUpPending == false)
+
         let recorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = recorder
         let started = ContinuousClock.now
@@ -168,7 +186,7 @@ struct CostUsagePerformanceGateTests {
             provider: .codex,
             since: day,
             until: day,
-            now: day.addingTimeInterval(1),
+            now: day.addingTimeInterval(Double(warmPass + 1)),
             options: options)
         let elapsed = ContinuousClock.now - started
         let metrics = recorder.snapshot()

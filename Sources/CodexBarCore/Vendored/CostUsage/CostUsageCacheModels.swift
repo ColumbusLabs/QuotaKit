@@ -96,9 +96,13 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var exactInventoryFlatDirectoryOffsetByRoot: [String: Int64]?
     var exactInventoryCompletedFlatRootPaths: [String]?
     var exactCachedValidationLastPath: String?
+    /// Cached paths checked during this exact proof that resolve outside its roots.
+    var exactExcludedCachePaths: [String]?
     var cacheWideMigrationQueueActive: Bool?
     var priorityMigrationGenerationKey: String?
     var priorityAdmissionDebt: Int?
+    /// Seed inherited-baseline checks once per bounded lookback, then let its queue drain.
+    var forkDependencyValidationSeeded: Bool?
 }
 
 struct CostUsageCodexSessionDiscovery: Codable, Equatable {

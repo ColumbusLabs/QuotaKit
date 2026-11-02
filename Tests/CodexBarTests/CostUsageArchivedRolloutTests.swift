@@ -95,6 +95,39 @@ struct CostUsageArchivedRolloutTests {
     }
 
     @Test
+    func `an incomplete compressed rollout stays pending without losing cached usage`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 30)
+        let plain = try env.writeCodexSessionFile(
+            day: day,
+            filename: "incomplete.jsonl",
+            contents: Self.rollout(env, day))
+        #expect(try await Self.establish(env, day).sessionTokens == 330)
+        try Self.archive(plain)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let originalDays = cache.days
+        cache.files[plain.path]?.codexScanComplete = false
+        cache.codexScanCatchUpPending = true
+        var options = Self.options(env)
+        options.maxCodexScanDurationPerRefresh = 60
+        let roots = CostUsageScanner.codexSessionsRoots(options: options).map(\.path)
+        var lookback = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-08-30", rootPaths: roots)
+        lookback.pendingFilePaths = [plain.path]
+        cache.codexActiveLookbackState = lookback
+        _ = CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
+        for pass in 0..<3 {
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex, since: day, until: day, now: day.addingTimeInterval(Double(pass)), options: options)
+        }
+        let retained = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(retained.files[plain.path] != nil)
+        #expect(retained.days == originalDays)
+        #expect(retained.codexScanCatchUpPending == true)
+        #expect(FileManager.default.fileExists(atPath: plain.appendingPathExtension("zst").path))
+    }
+
+    @Test
     func `a compatible parser predecessor retains archived usage across home scans`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

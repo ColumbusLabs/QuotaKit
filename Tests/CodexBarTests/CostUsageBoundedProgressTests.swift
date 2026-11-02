@@ -28,6 +28,42 @@ struct CostUsageBoundedProgressTests {
         #expect(budget.yieldedBeforeFileAttempt == (kind == "empty"))
     }
 
+    #if DEBUG
+    @Test
+    func `fork dependency validation seeds without filesystem probes and drains across bounded pages`() throws {
+        let limit = CostUsageScanner.codexCatchUpScanCandidateLimit
+        var cache = CostUsageCache()
+        for index in 0..<(limit + 37) {
+            var usage = CostUsageFileUsage(mtimeUnixMs: 1, size: 1, days: [:])
+            usage.forkedFromId = "shared-parent"
+            usage.forkBaselineDependencyKey = "file|shared-parent|old-parent"
+            cache.files["/fixture/child-\(index).jsonl"] = usage
+        }
+        var state = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-05-10", rootPaths: ["/fixture"])
+        let counter = BoundedProgressCounter()
+        var hooks = CostUsageStoreTestHooks()
+        hooks.codexRolloutPresenceVisit = { counter.increment() }
+        CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageScanner.seedCodexForkDependencyValidation(cache: cache, state: &state)
+        }
+        #expect(counter.value == 0)
+        #expect(state.pendingFilePaths.count == limit + 37)
+        #expect(Set(state.pendingFilePaths).count == limit + 37)
+
+        let firstPage = Set(state.pendingFilePaths.prefix(limit))
+        state.pendingFilePaths.removeFirst(limit)
+        // A restart preserves the one-time seed marker and does not requeue the first page.
+        state = try JSONDecoder().decode(
+            CostUsageCodexActiveLookbackState.self, from: JSONEncoder().encode(state))
+        CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageScanner.seedCodexForkDependencyValidation(cache: cache, state: &state)
+        }
+        #expect(counter.value == 0)
+        #expect(state.pendingFilePaths.count == 37)
+        #expect(firstPage.isDisjoint(with: Set(state.pendingFilePaths)))
+    }
+    #endif
+
     private typealias Fixture = CostUsageBoundedProgressFixture
 
     @Test

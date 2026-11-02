@@ -157,7 +157,7 @@ extension CostUsageScanner {
         var removals: [String: Set<Int>] = [:]
         let retainedRequestOwners = Set((cache.codexHistoryHydrationRetries ?? [:]).values
             .flatMap { $0.requestOwnerPaths ?? [] })
-        let missingRequestOwners = retainedRequestOwners.filter { !FileManager.default.fileExists(atPath: $0) }
+        let missingRequestOwners = retainedRequestOwners.filter { Self.codexRolloutPresence($0) == .missing }
         func row(at location: (path: String, index: Int)) -> CodexUsageRow {
             (replacements[location.path] ?? cache.files[location.path]?.codexRows ?? [])[location.index]
         }
@@ -228,7 +228,7 @@ extension CostUsageScanner {
                     .compactMap({ owned[$0] }).first else { continue }
                 if retainedRequestOwners.contains(match.path),
                    context.requestReconciliationCandidatePaths.contains(path)
-                   || (missingRequestOwners.contains(match.path) && FileManager.default.fileExists(atPath: path))
+                   || (missingRequestOwners.contains(match.path) && Self.codexRolloutPresence(path) == .plain)
                 {
                     let canonical = row(at: match)
                     let promoted = Self.codexRequestRowPreservingLocalIdentity(
@@ -293,7 +293,7 @@ extension CostUsageScanner {
               owner.codexRequestReconciliation != nil || owner.codexTypedResponseIdentity == true
         else { return false }
         let siblings = cache.files.keys.filter {
-            $0 != path && cache.files[$0]?.sessionId == sessionID && FileManager.default.fileExists(atPath: $0)
+            $0 != path && cache.files[$0]?.sessionId == sessionID && Self.codexRolloutPresence($0) != .missing
         }
         guard !siblings.isEmpty else { return false }
         var retries = cache.codexHistoryHydrationRetries ?? [:]
@@ -318,14 +318,27 @@ extension CostUsageScanner {
 
     static func completeCodexRequestOwnerRetries(
         processedPaths: Set<String>,
+        observedOwnerRetries: [String: Set<String>],
         retries: inout [String: CodexHistoryHydrationRetry],
         cache: inout CostUsageCache) -> Set<String>
     {
         var completedOwners = Set<String>()
         var completedMissingTargets = Set<String>()
         for target in processedPaths {
-            guard var retry = retries[target], let owners = retry.requestOwnerPaths else { continue }
-            let missingSource = !FileManager.default.fileExists(atPath: target)
+            // Metadata discovery can register more missing owners after this target was scanned.
+            // Those owners need a later replay with their canonical rows present before retirement.
+            guard var retry = retries[target], let owners = retry.requestOwnerPaths,
+                  Set(owners).isSubset(of: observedOwnerRetries[target] ?? [])
+            else { continue }
+            let targetPresence = Self.codexRolloutPresence(target)
+            guard targetPresence == .plain || targetPresence == .missing else { continue }
+            // A temporarily inaccessible or compressed owner still contains accounting that
+            // cannot be reconstructed from the live target alone. Keep its retry protected.
+            guard owners.allSatisfy({
+                let presence = Self.codexRolloutPresence($0)
+                return presence == .plain || presence == .missing
+            }) else { continue }
+            let missingSource = targetPresence == .missing
             if !missingSource, let usage = cache.files[target] {
                 guard usage.codexScanComplete == true, usage.hasCurrentCodexParser,
                       !usage.hasPendingCodexReplacementScan else { continue }
@@ -347,7 +360,7 @@ extension CostUsageScanner {
         let retainedOwners = Set(retries.values.flatMap(\.retainedPaths))
         var retiredOwners = Set<String>()
         for owner in completedOwners.union(completedMissingTargets).subtracting(retainedOwners) {
-            guard !FileManager.default.fileExists(atPath: owner) else { continue }
+            guard Self.codexRolloutPresence(owner) == .missing else { continue }
             Self.dropCachedCodexFile(path: owner, cached: cache.files[owner], cache: &cache)
             retiredOwners.insert(owner)
         }

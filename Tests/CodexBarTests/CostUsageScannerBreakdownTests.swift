@@ -4289,7 +4289,7 @@ struct CostUsageScannerBreakdownTests {
                     total: (input: 20, cached: 5, output: 2)),
             ]))
 
-        _ = try env.writeCodexSessionFile(
+        let childURL = try env.writeCodexSessionFile(
             day: childDay,
             filename: "rollout-2026-03-11T12-00-00-\(childSessionId).jsonl",
             contents: env.jsonl([
@@ -4345,12 +4345,16 @@ struct CostUsageScannerBreakdownTests {
                     total: (input: 30, cached: 8, output: 3)),
             ]))
 
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanWorkRecorderForTesting = recorder
         let second = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: childDay,
             until: childDay,
             now: childDay.addingTimeInterval(1),
             options: options)
+        #expect(recorder.attemptedCodexFilePaths()
+            .contains(childURL.resolvingSymlinksInPath().standardizedFileURL.path))
         #expect(second.data.first?.inputTokens == 7)
         #expect(second.data.first?.cacheReadTokens == 2)
         #expect(second.data.first?.outputTokens == 2)

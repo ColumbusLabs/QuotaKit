@@ -47,7 +47,8 @@ struct CostUsageArchivePresenceSweepTests {
         let encoded = try JSONEncoder().encode(first)
         let decoded = try JSONDecoder().decode(CostUsageCodexSessionDiscovery.self, from: encoded)
         index = CostUsageScanner.CodexSessionFileIndex(files: files, roots: roots, cachedDiscovery: decoded)
-        _ = try visit(index)
+        let resumedCandidates = try visit(index)
+        #expect(!resumedCandidates.contains { $0.path == archive.path })
         var second = first
         second.metadataCandidateIndex = (first.metadataCandidateIndex ?? 0) + 1
         var firstCache = cache

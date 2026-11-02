@@ -1432,8 +1432,20 @@ extension CostUsageCodexRequestLedgerTests {
                 retainedPaths: [ownerPath, candidatePath], forceFullRescan: false, requestOwnerPaths: [ownerPath]),
             forkPath: forkRetry,
         ]
+        // A scan that preceded registration of this owner cannot retire its evidence.
+        let premature = CostUsageScanner.completeCodexRequestOwnerRetries(
+            processedPaths: [candidatePath],
+            observedOwnerRetries: [candidatePath: []],
+            retries: &retries,
+            cache: &cache)
+        #expect(premature.isEmpty)
+        #expect(cache.files[ownerPath] == owner)
+        #expect(retries[candidatePath]?.requestOwnerPaths == [ownerPath])
         let retired = CostUsageScanner.completeCodexRequestOwnerRetries(
-            processedPaths: [candidatePath], retries: &retries, cache: &cache)
+            processedPaths: [candidatePath],
+            observedOwnerRetries: [candidatePath: [ownerPath]],
+            retries: &retries,
+            cache: &cache)
         #expect(retired == [candidatePath])
         #expect(cache.files[candidatePath] == nil)
         #expect(cache.files[ownerPath] == owner)
