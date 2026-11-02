@@ -308,6 +308,171 @@ struct CostUsageArchivedRolloutTests {
         #expect(try await Self.establish(env, day).sessionTokens == 660)
     }
 
+    @Test(arguments: [false, true])
+    func `a restored plain source replaces archived usage when all file metadata matches`(
+        workingSet: Bool) async throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 30)
+        let metadata = try env.jsonl([[
+            "type": "session_meta",
+            "payload": ["id": "restored-metadata-match", "timestamp": env.isoString(for: day)],
+        ]])
+        let original = metadata + Self.rollout(env, day, tokens: 330)
+        let replacement = metadata + Self.rollout(env, day, tokens: 660)
+        #expect(original.utf8.count == replacement.utf8.count)
+        let plain = try env.writeCodexSessionFile(
+            day: day,
+            filename: "restored-metadata.jsonl",
+            contents: original)
+        let heldInode = env.root.appendingPathComponent("held-restored-inode")
+        try FileManager.default.linkItem(at: plain, to: heldInode)
+        let originalDate = try #require(
+            FileManager.default.attributesOfItem(atPath: plain.path)[.modificationDate] as? Date)
+        let originalMetadata = CostUsageScanner.codexFileMetadata(fileURL: plain)
+        func completedTokens() async throws -> Int? {
+            if workingSet { return try await Self.establish(env, day).sessionTokens }
+            var result: CostUsageDailyReport?
+            for _ in 0..<3 {
+                result = CostUsageScanner.loadDailyReport(
+                    provider: .codex, since: day, until: day, now: day, options: Self.options(env))
+            }
+            return result?.summary?.totalTokens
+        }
+        #expect(try await completedTokens() == 330)
+        try Self.archive(plain)
+        #expect(try await completedTokens() == 330)
+
+        let handle = try FileHandle(forWritingTo: heldInode)
+        try handle.write(contentsOf: Data(replacement.utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: heldInode.path)
+        try FileManager.default.linkItem(at: heldInode, to: plain)
+        let restoredMetadata = CostUsageScanner.codexFileMetadata(fileURL: plain)
+        #expect(restoredMetadata.fileId == originalMetadata.fileId)
+        #expect(restoredMetadata.mtimeUnixMs == originalMetadata.mtimeUnixMs)
+        #expect(restoredMetadata.size == originalMetadata.size)
+
+        #expect(try await completedTokens() == 660)
+        if workingSet { #expect(try await Self.establish(env, day).historyCoverageIsEstablished) }
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let persistedInput = cache.days.values.flatMap(\.values).reduce(0) { $0 + ($1.first ?? 0) }
+        #expect(persistedInput == 660)
+        #expect(cache.codexScanCatchUpPending == false)
+        #expect(FileManager.default.fileExists(atPath: plain.appendingPathExtension("zst").path))
+    }
+
+    @Test(arguments: [false, true])
+    func `same metadata parent restoration rebaselines an unchanged child through bounded catchup`(
+        archivedChild: Bool) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let parentDay = try env.makeLocalNoon(year: 2026, month: 8, day: 1)
+        let childDay = try env.makeLocalNoon(year: 2026, month: 8, day: 30)
+        let parentID = "0199f0a0-0000-7000-8000-000000000040"
+        let childID = "0199f0a0-0000-7000-8000-000000000041"
+        let original = Self.forkParentRollout(env: env, id: parentID, at: parentDay)
+        let replacement = original.replacingOccurrences(of: "1000", with: "1010")
+        #expect(original.utf8.count == replacement.utf8.count)
+        let parent = try env.writeCodexSessionFile(
+            day: parentDay,
+            filename: "rollout-2026-08-01T12-00-00-\(parentID).jsonl",
+            contents: original)
+        try FileManager.default.setAttributes([.modificationDate: parentDay], ofItemAtPath: parent.path)
+        let originalMetadata = CostUsageScanner.codexFileMetadata(fileURL: parent)
+        let held = env.root.appendingPathComponent("held-parent-inode")
+        try FileManager.default.linkItem(at: parent, to: held)
+        var options = Self.options(env)
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = 60
+        var clock = parentDay
+        func completed(on date: Date) throws -> CostUsageDailyReport {
+            for _ in 0..<80 {
+                clock.addTimeInterval(1)
+                let report = CostUsageScanner.loadDailyReport(
+                    provider: .codex, since: date, until: date, now: clock, options: options)
+                let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                if cache.codexScanCatchUpPending != true { return report }
+            }
+            throw NSError(domain: "ArchivedParentRestorationTests", code: 1)
+        }
+        #expect(try completed(on: parentDay).summary?.totalTokens == 1000)
+        let child = try env.writeCodexSessionFile(
+            day: childDay,
+            filename: "rollout-2026-08-30T12-00-00-\(childID).jsonl",
+            contents: Self.forkChildRollout(env: env, id: childID, parent: parentID, at: childDay))
+        let childMetadata = CostUsageScanner.codexFileMetadata(fileURL: child)
+        let heldChild = env.root.appendingPathComponent("held-child-inode")
+        clock = childDay
+        #expect(try completed(on: childDay).summary?.totalTokens == 20)
+        try Self.archive(parent)
+        #expect(try completed(on: childDay).summary?.totalTokens == 20)
+        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(before.files[parent.path]?.codexArchived == true)
+        if archivedChild {
+            try FileManager.default.linkItem(at: child, to: heldChild)
+            try Self.archive(child)
+            #expect(try completed(on: childDay).summary?.totalTokens == 20)
+        }
+
+        let handle = try FileHandle(forWritingTo: held)
+        try handle.write(contentsOf: Data(replacement.utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: parentDay], ofItemAtPath: held.path)
+        try FileManager.default.linkItem(at: held, to: parent)
+        let restoredMetadata = CostUsageScanner.codexFileMetadata(fileURL: parent)
+        #expect(restoredMetadata.fileId == originalMetadata.fileId)
+        #expect(restoredMetadata.mtimeUnixMs == originalMetadata.mtimeUnixMs)
+        #expect(restoredMetadata.size == originalMetadata.size)
+        options.maxCodexScanBytesPerRefresh = 256
+        clock.addTimeInterval(1)
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex, since: childDay, until: childDay, now: clock, options: options)
+        let interrupted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(interrupted.codexScanCatchUpPending == true)
+        #expect(interrupted.files[parent.path]?.codexForkSourceGeneration == nil)
+        #expect(interrupted.files[parent.path]?.codexArchived == true)
+        if archivedChild {
+            for _ in 0..<80 {
+                clock.addTimeInterval(1)
+                _ = CostUsageScanner.loadDailyReport(
+                    provider: .codex, since: childDay, until: childDay, now: clock, options: options)
+                let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                if pending.files[parent.path]?.codexForkSourceGeneration != nil,
+                   pending.files[child.path]?.hasPendingCodexScanWork == true
+                {
+                    break
+                }
+            }
+            let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            #expect(pending.files[parent.path]?.codexForkSourceGeneration != nil)
+            #expect(pending.files[child.path]?.codexReplacementScanPending == true)
+            #expect(pending.files[child.path]?.parsedBytes == 0)
+            #expect(pending.files[child.path]?.codexJSONLResumeState == nil)
+            #expect(pending.codexScanCatchUpPending == true)
+            let retained = pending.files[child.path]?.days.values.flatMap(\.values)
+                .reduce(0) { $0 + ($1.first ?? 0) }
+            #expect(retained == 20)
+            try FileManager.default.linkItem(at: heldChild, to: child)
+            let restoredChildMetadata = CostUsageScanner.codexFileMetadata(fileURL: child)
+            #expect(restoredChildMetadata.fileId == childMetadata.fileId)
+            #expect(restoredChildMetadata.mtimeUnixMs == childMetadata.mtimeUnixMs)
+            #expect(restoredChildMetadata.size == childMetadata.size)
+        }
+        #expect(try completed(on: childDay).summary?.totalTokens == 10)
+        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let generation = try #require(restored.files[parent.path]?.codexForkSourceGeneration)
+        #expect(restored.files[parent.path]?.codexArchived != true)
+        #expect(restored.files[child.path]?.forkBaselineDependencyKey?.contains(generation) == true)
+        for _ in 0..<2 {
+            #expect(try completed(on: childDay).summary?.totalTokens == 10)
+            let stable = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            #expect(stable.files[parent.path]?.codexForkSourceGeneration == generation)
+        }
+    }
+
     @Test
     func `forced and changed lookback windows retain archived accounting`() async throws {
         let env = try CostUsageTestEnvironment()

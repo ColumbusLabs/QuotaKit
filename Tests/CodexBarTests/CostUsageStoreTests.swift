@@ -1266,6 +1266,43 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test
+    func `fork source generation survives ordinary cache saves and compact reads`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        let legacyPath = "/rollouts/legacy.jsonl"
+        let markedPath = "/rollouts/marked.jsonl"
+        var cache = CostUsageCache()
+        cache.scanSinceKey = window.sinceKey
+        cache.scanUntilKey = window.untilKey
+        cache.files[legacyPath] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        cache.files[markedPath] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        let initial = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window)
+        #expect(!initial.catchUpRequired)
+        var restored = store.syncLoadCodexCache(calendar: calendar)
+        #expect(restored.files[legacyPath] != nil)
+        #expect(restored.files[legacyPath]?.codexForkSourceGeneration == nil)
+        #expect(restored.files[markedPath]?.codexForkSourceGeneration == nil)
+
+        restored.files[markedPath]?.codexForkSourceGeneration = "fork-source-generation-1"
+        for pass in 1...2 {
+            restored.files[markedPath]?.mtimeUnixMs = Int64(pass + 1)
+            let saved = store.syncSaveCodexCache(restored, calendar: calendar, requestedScanWindow: window)
+            #expect(!saved.catchUpRequired)
+            restored = store.syncLoadCodexCache(calendar: calendar)
+            #expect(restored.files[legacyPath] != nil)
+            #expect(restored.files[legacyPath]?.codexForkSourceGeneration == nil)
+            #expect(restored.files[markedPath]?.codexForkSourceGeneration == "fork-source-generation-1")
+            let compact = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
+            #expect(compact.files[legacyPath]?.codexForkSourceGeneration == nil)
+            #expect(compact.files[markedPath]?.codexForkSourceGeneration == "fork-source-generation-1")
+        }
+    }
+
+    @Test
     func `file state round trips all validation fields`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

@@ -407,6 +407,8 @@ struct CostUsageFileUsage: Codable, Equatable {
     var sessionId: String?
     var forkedFromId: String?
     var forkBaselineDependencyKey: String?
+    /// Changes only when a restored archived source commits a complete replacement.
+    var codexForkSourceGeneration: String?
     var projectPath: String?
     var canonicalProjectPath: String?
     var codexCostCacheComplete: Bool?

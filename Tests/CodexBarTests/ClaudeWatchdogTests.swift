@@ -5,6 +5,10 @@ import Testing
 @testable import CodexBarCore
 
 struct ClaudeWatchdogTests {
+    static func phase(_ name: String) {
+        FileHandle.standardError.write(Data("Watchdog fixture: \(name)\n".utf8))
+    }
+
     static func buildWatchdogExecutable(in directory: URL) async throws -> URL {
         let repoRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -15,9 +19,12 @@ struct ClaudeWatchdogTests {
         let compiler = Process()
         compiler.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         compiler.arguments = ["swiftc", sourceURL.path, "-o", outputURL.path]
+        Self.phase("compiler launch")
         try compiler.run()
+        Self.phase("compiler started")
         defer { if compiler.isRunning { compiler.terminate() } }
         try await Self.waitForExit(compiler, timeout: 60)
+        Self.phase("compiler exited")
         try #require(compiler.terminationStatus == 0)
         return outputURL
     }
@@ -288,15 +295,19 @@ struct ClaudeWatchdogTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
+        Self.phase("escalation compile")
         let watchdogURL = try await Self.buildWatchdogExecutable(in: directory)
+        Self.phase("escalation sentinel launch")
         let sentinel = Process()
         sentinel.executableURL = URL(fileURLWithPath: "/bin/sleep")
         sentinel.arguments = ["30"]
         try sentinel.run()
+        Self.phase("escalation sentinel started")
         let sentinelPID = sentinel.processIdentifier
         #expect(setpgid(sentinelPID, sentinelPID) == 0 || getpgid(sentinelPID) == sentinelPID)
         let sentinelIdentity = try #require(TTYProcessTreeTerminator.processIdentity(for: sentinelPID))
         defer {
+            Self.phase("escalation sentinel cleanup started")
             if sentinel.isRunning { sentinel.terminate() }
             let deadline = Date().addingTimeInterval(2)
             while sentinel.isRunning, Date() < deadline {
@@ -310,6 +321,7 @@ struct ClaudeWatchdogTests {
                 usleep(20000)
             }
             if !sentinel.isRunning { sentinel.waitUntilExit() }
+            Self.phase("escalation sentinel cleanup finished")
         }
 
         let readyFile = directory.appendingPathComponent("ready.txt")
@@ -343,11 +355,14 @@ struct ClaudeWatchdogTests {
         let watchdog = Process()
         watchdog.executableURL = watchdogURL
         watchdog.arguments = ["--", childScript.path, "\(sentinelPID)", readyFile.path, switchedFile.path]
+        Self.phase("escalation watchdog launch")
         try watchdog.run()
+        Self.phase("escalation watchdog started")
         let watchdogPID = watchdog.processIdentifier
         let watchdogIdentity = try #require(TTYProcessTreeTerminator.processIdentity(for: watchdogPID))
         var ownedDescendants: [TTYProcessTreeTerminator.ProcessIdentity] = []
         defer {
+            Self.phase("escalation watchdog cleanup started")
             if TTYProcessTreeTerminator.isCurrent(watchdogIdentity) {
                 ownedDescendants += TTYProcessTreeTerminator.descendantPIDs(of: watchdogPID).compactMap {
                     TTYProcessTreeTerminator.processIdentity(for: $0)
@@ -369,13 +384,16 @@ struct ClaudeWatchdogTests {
                 usleep(20000)
             }
             if !watchdog.isRunning { watchdog.waitUntilExit() }
+            Self.phase("escalation watchdog cleanup finished")
         }
 
+        Self.phase("escalation waiting for readiness")
         let startDeadline = Date().addingTimeInterval(5)
         while !FileManager.default.fileExists(atPath: readyFile.path), Date() < startDeadline {
             try await Task.sleep(for: .milliseconds(20))
         }
 
+        Self.phase("escalation readiness wait finished")
         let readyParts = try String(contentsOf: readyFile, encoding: .utf8)
             .split(whereSeparator: \.isWhitespace)
             .compactMap { pid_t($0) }
@@ -390,8 +408,10 @@ struct ClaudeWatchdogTests {
         #expect(initialChildPGID == childPID)
         #expect(initialChildPGID != sentinelPID)
 
+        Self.phase("escalation signalling watchdog")
         #expect(kill(watchdog.processIdentifier, SIGTERM) == 0)
         try await Self.waitForExit(watchdog)
+        Self.phase("escalation watchdog exited")
         #expect(watchdog.terminationStatus == 143)
 
         let switchedParts = try String(contentsOf: switchedFile, encoding: .utf8)
@@ -407,6 +427,7 @@ struct ClaudeWatchdogTests {
         #expect(kill(grandchildPID, 0) != 0)
         #expect(sentinel.isRunning)
         #expect(kill(sentinelPID, 0) == 0)
+        Self.phase("escalation assertions finished")
     }
 }
 #endif

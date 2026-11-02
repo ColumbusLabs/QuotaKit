@@ -129,6 +129,9 @@ extension CostUsageScanner {
             return
         }
         cache.files[input.metadata.path] = materialized.usage
+        if materialized.usage.codexForkSourceGeneration != plan.cached?.codexForkSourceGeneration {
+            context.resources.fileIndex.didCommitRestoredArchive(fileURL: input.fileURL)
+        }
         if !plan.replacementPending {
             Self.applyFileDays(
                 cache: &cache,
@@ -592,6 +595,9 @@ extension CostUsageScanner {
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
         usage.codexNextUsageRowIndex = parsed.nextUsageRowIndex
+        usage.codexArchived = plan.replacementPending ? input.cached?.codexArchived : nil
+        usage.codexForkSourceGeneration = !plan.replacementPending && input.cached?.codexArchived == true
+            ? UUID().uuidString : input.cached?.codexForkSourceGeneration
         Self.retainCodexSourcePricing(&usage, pricing: sourcePricing, anchor: plan.sourceAnchor)
         usage.codexPendingPricing = pendingPricing.isEmpty
             || (usage.codexScanComplete == true && !usage.hasBufferedCodexForkRetryLines) ? nil : pendingPricing

@@ -238,6 +238,7 @@ extension CostUsageScanner {
         sessionId: String? = nil,
         forkedFromId: String? = nil,
         forkBaselineDependencyKey: String? = nil,
+        codexForkSourceGeneration: String? = nil,
         projectPath: String? = nil,
         canonicalProjectPath: String? = nil,
         codexCostCacheComplete: Bool? = true,
@@ -284,6 +285,7 @@ extension CostUsageScanner {
             sessionId: sessionId,
             forkedFromId: forkedFromId,
             forkBaselineDependencyKey: forkBaselineDependencyKey,
+            codexForkSourceGeneration: codexForkSourceGeneration,
             projectPath: projectPath,
             canonicalProjectPath: canonicalProjectPath,
             codexCostCacheComplete: codexCostCacheComplete,
@@ -799,7 +801,7 @@ extension CostUsageScanner {
         let forceFullScan = context.forceFullScan
             || context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
             || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
-        guard let cached = input.cached, cached.hasCurrentCodexParser,
+        guard let cached = input.cached, cached.hasCurrentCodexParser, cached.codexArchived != true,
               !cached.hasPendingCodexForkRetry else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
               !Self.codexFileNeedsSourceRowRecovery(cached, context: context) else { return false }
@@ -930,7 +932,7 @@ extension CostUsageScanner {
         let forceFullScanForRetry = context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
             || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
         let forceFullScan = context.forceFullScan || forceFullScanForRetry
-        guard let cached = input.cached, cached.hasCurrentCodexParser,
+        guard let cached = input.cached, cached.hasCurrentCodexParser, cached.codexArchived != true,
               cached.sessionId != nil else { return false }
         let allowsBufferedForkRetry = !forceFullScanForRetry && Self.isValidatedSameSizeBufferedCodexForkRetry(
             metadata: input.metadata,
@@ -1290,6 +1292,7 @@ extension CostUsageScanner {
             codexBufferedUnresolvedForkLines: delta.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
         fileUsage.codexNextUsageRowIndex = delta.nextUsageRowIndex
+        fileUsage.codexForkSourceGeneration = cached.codexForkSourceGeneration
         Self.retainCodexSourcePricing(
             &fileUsage,
             pricing: sourcePricing,

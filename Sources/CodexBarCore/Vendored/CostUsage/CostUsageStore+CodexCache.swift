@@ -960,6 +960,7 @@ extension CostUsageStore {
         var hasExactUsageRowIndex: Bool?
         var forkAccountingState: CostUsageScanner.CodexForkAccountingState?
         var ledgerRevision: String?
+        var forkSourceGeneration: String?
         var requestLedgerState: CostUsageScanner.CodexRequestLedgerState?
         var requestReconciliation: CostUsageCodexRequestReconciliation?
     }
@@ -1221,6 +1222,7 @@ extension CostUsageStore {
                 sessionId: file.sessionID,
                 forkedFromId: forkedFromID,
                 forkBaselineDependencyKey: dependencyKey,
+                codexForkSourceGeneration: details.forkSourceGeneration,
                 projectPath: details.projectPath,
                 canonicalProjectPath: details.canonicalProjectPath,
                 codexCostCacheComplete: details.costCacheComplete,
@@ -1913,6 +1915,7 @@ extension CostUsageStore {
         details.requestLedgerState = usage.codexRequestLedgerState
         details.requestReconciliation = usage.codexRequestReconciliation
         details.ledgerRevision = replacementPending ? committedDetails?.ledgerRevision : UUID().uuidString
+        details.forkSourceGeneration = usage.codexForkSourceGeneration
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
             // carried by the accumulator/buffers, while old rows and snapshots stay in place.

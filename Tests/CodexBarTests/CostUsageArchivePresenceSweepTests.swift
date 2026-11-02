@@ -161,6 +161,74 @@ struct CostUsageArchivePresenceSweepTests {
     }
 
     @Test
+    func `current day admission leaves settled archive absence to the presence sweep`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 30)
+        let file = env.codexSessionsRoot.appendingPathComponent("archive-admission.jsonl")
+        var usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: Int64(day.timeIntervalSince1970 * 1000),
+            size: 10,
+            days: [:],
+            parsedBytes: 10,
+            codexScanFileId: "1:42",
+            codexScanComplete: true)
+        usage.codexArchived = true
+        var cache = CostUsageCache()
+        cache.files[file.path] = usage
+        let index = CostUsageScanner.CodexSessionFileIndex(files: [file], roots: [env.codexSessionsRoot])
+        var discovery = index.persistedState
+        discovery.metadataPresenceEstablished = true
+        discovery.metadataArchivedPaths = [file.path]
+        cache.codexSessionDiscovery = discovery
+        var metadata = CostUsageScanner.CodexFileMetadata(
+            path: file.path,
+            mtimeUnixMs: 0,
+            size: 0,
+            fileId: nil)
+        func candidates() -> [URL] {
+            CostUsageScanner.codexChangedCurrentDayCachedFiles(
+                cache: cache,
+                roots: [env.codexSessionsRoot],
+                dayKey: "2026-08-30",
+                calendar: .current,
+                metadata: { _ in metadata })
+        }
+        #expect(candidates().isEmpty)
+        #expect(candidates().isEmpty)
+
+        // Restoring the plain source invalidates archive reuse even if its metadata matches.
+        metadata = .init(
+            path: file.path,
+            mtimeUnixMs: usage.mtimeUnixMs,
+            size: usage.size,
+            fileId: usage.codexScanFileId)
+        #expect(candidates() == [file])
+        metadata = .init(path: file.path, mtimeUnixMs: usage.mtimeUnixMs, size: usage.size, fileId: "1:43")
+        #expect(candidates() == [file])
+        metadata = .init(path: file.path, mtimeUnixMs: 0, size: 0, fileId: nil)
+        cache.codexSessionDiscovery?.metadataPresenceEstablished = false
+        #expect(candidates() == [file])
+        cache.codexSessionDiscovery = discovery
+        cache.codexSessionDiscovery?.metadataUnavailablePaths = [file.path]
+        #expect(candidates() == [file])
+
+        // A stale saved archive classification cannot hide a deleted archive from the sweep.
+        cache.codexSessionDiscovery = discovery
+        let missing = try index.takeMetadataRefreshCandidates(
+            cache: &cache,
+            dayKey: "2026-08-30",
+            scanSinceKey: "2026-08-30",
+            calendar: .current,
+            visitLimit: 512,
+            restartCompletedSweep: true)
+        cache.codexSessionDiscovery = index.persistedState
+        #expect(missing.contains(file))
+        #expect(cache.files[file.path]?.codexArchived != true)
+        #expect(candidates() == [file])
+    }
+
+    @Test
     func `an empty invalidated inventory can establish presence without restarting a sweep`() throws {
         let index = CostUsageScanner.CodexSessionFileIndex(files: [], roots: [])
         var cache = CostUsageCache()
