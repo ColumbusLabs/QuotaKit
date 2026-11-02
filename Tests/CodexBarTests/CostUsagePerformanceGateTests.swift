@@ -1874,6 +1874,71 @@ extension CostUsagePerformanceGateTests {
     }
 
     @Test
+    func `staged old-parser replacement charges only validated remaining bytes`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let file = env.root.appendingPathComponent("staged-replacement.jsonl")
+        try Data(repeating: 0x41, count: 1000).write(to: file)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: file)
+        let parsed: Int64 = 400
+        var cached = CostUsageFileUsage(mtimeUnixMs: metadata.mtimeUnixMs, size: metadata.size, days: [:])
+        cached.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision - 1
+        cached.codexReplacementScanPending = true
+        cached.codexScanComplete = false
+        cached.codexScanFileId = metadata.fileId
+        cached.parsedBytes = parsed
+        cached.codexTokenIndexAnchor = try #require(CostUsageScanner.codexTokenIndexAnchor(
+            fileURL: file, indexedBytes: parsed))
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: metadata, cached: cached) == 600)
+
+        var wrongIdentity = cached
+        wrongIdentity.codexScanFileId = "different-file"
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: metadata, cached: wrongIdentity) == metadata.size)
+        var wrongOffset = cached
+        wrongOffset.parsedBytes = parsed + 1
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: metadata, cached: wrongOffset) == metadata.size)
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.write(contentsOf: Data([0x42]))
+        try handle.close()
+        let rewritten = CostUsageScanner.codexFileMetadata(fileURL: file)
+        #expect(rewritten.fileId == metadata.fileId)
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: rewritten, cached: cached) == metadata.size)
+    }
+
+    @Test
+    func `staged ordinary fork EOF replay is free while complete subagent replacement is charged`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let file = env.root.appendingPathComponent("staged-fork.jsonl")
+        try Data(repeating: 0x41, count: 1000).write(to: file)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: file)
+        var cached = CostUsageFileUsage(mtimeUnixMs: metadata.mtimeUnixMs, size: metadata.size, days: [:])
+        cached.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision - 1
+        cached.codexReplacementScanPending = true
+        cached.codexScanComplete = true
+        cached.codexScanFileId = metadata.fileId
+        cached.parsedBytes = metadata.size
+        cached.forkedFromId = "fixture-parent"
+        cached.codexTokenIndexAnchor = try #require(CostUsageScanner.codexTokenIndexAnchor(
+            fileURL: file, indexedBytes: metadata.size))
+        let session = CostUsageScanner.CodexSessionMetadata(
+            sessionId: "fixture-child",
+            forkedFromId: "fixture-parent",
+            forkTimestamp: nil,
+            projectPath: nil,
+            isSubagentThread: false,
+            subagentHistoryStartOrdinal: nil)
+        let line = CostUsageScanner.CodexBufferedFastLine(lineIndex: 0, ordinal: nil, line: .sessionMeta(session))
+        cached.codexBufferedUnresolvedForkLines = [line]
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: metadata, cached: cached) == 0)
+
+        var subagent = cached
+        subagent.codexBufferedUnresolvedForkLines = nil
+        subagent.codexBufferedSubagentLines = [line]
+        #expect(CostUsageScanner.pendingCodexScanWorkBytes(metadata: metadata, cached: subagent) == metadata.size)
+    }
+
+    @Test
     func `pending work bytes charge full file for forced rescans of unchanged cache entries`() {
         let metadata = CostUsageScanner.CodexFileMetadata(
             path: "/tmp/unchanged.jsonl",

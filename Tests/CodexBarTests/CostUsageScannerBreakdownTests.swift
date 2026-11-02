@@ -4358,6 +4358,11 @@ struct CostUsageScannerBreakdownTests {
         #expect(second.data.first?.inputTokens == 7)
         #expect(second.data.first?.cacheReadTokens == 2)
         #expect(second.data.first?.outputTokens == 2)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let child = try #require(cache.files[childURL.path])
+        let storedInput = child.days.values.flatMap(\.values).reduce(0) { $0 + ($1.first ?? 0) }
+        #expect(storedInput == 7)
+        #expect(cache.codexScanCatchUpPending == false)
     }
 
     @Test

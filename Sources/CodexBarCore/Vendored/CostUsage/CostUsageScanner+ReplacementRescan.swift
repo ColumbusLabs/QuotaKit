@@ -282,7 +282,7 @@ extension CostUsageScanner {
             stageParsedRows: stageParsedRows)
     }
 
-    private static func codexReplacementResumeOffset(input: CodexFileScanInput) -> Int64? {
+    static func codexReplacementResumeOffset(input: CodexFileScanInput) -> Int64? {
         guard let cached = input.cached,
               cached.codexReplacementScanPending == true,
               // A complete subagent replacement can change attribution when appended lineage
@@ -295,6 +295,7 @@ extension CostUsageScanner {
               parsedBytes > 0,
               parsedBytes <= input.metadata.size,
               cached.codexScanFileId == input.metadata.fileId,
+              cached.codexTokenIndexAnchor?.indexedBytes == parsedBytes,
               cached.codexTokenIndexAnchor.map({
                   Self.codexTokenIndexAnchorMatches(
                       $0,

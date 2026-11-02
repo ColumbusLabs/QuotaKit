@@ -42,6 +42,9 @@ struct CostUsageArchivePresenceSweepTests {
         _ = try visit(index)
         let first = index.persistedState
         #expect(first.metadataCandidateIndex == 512)
+        #expect(index.metadataPresenceVisits == 512)
+        #expect(index.remainingPresenceVisits(unlimited: false) == 0)
+        #expect(index.remainingPresenceVisits(unlimited: true) >= files.count)
         #expect(first.metadataPresenceEstablished == false)
         #expect(first.metadataUnavailablePaths?.contains(inaccessible.path) == true)
         let encoded = try JSONEncoder().encode(first)
@@ -117,6 +120,21 @@ struct CostUsageArchivePresenceSweepTests {
         }
         #expect(deletion.contains { $0.path == archive.path })
         #expect(index.persistedState.metadataArchivedPaths?.contains(archive.path) != true)
+    }
+
+    @Test
+    func `an empty invalidated inventory can establish presence without restarting a sweep`() throws {
+        let index = CostUsageScanner.CodexSessionFileIndex(files: [], roots: [])
+        var cache = CostUsageCache()
+        _ = try index.takeMetadataRefreshCandidates(
+            cache: &cache,
+            dayKey: "2026-08-30",
+            scanSinceKey: "2026-08-30",
+            calendar: .current,
+            visitLimit: 512,
+            restartCompletedSweep: false)
+        #expect(index.persistedState.metadataPresenceEstablished == true)
+        #expect(index.metadataPresenceVisits == 0)
     }
 
     @Test
