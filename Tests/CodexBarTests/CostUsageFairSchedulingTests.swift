@@ -39,7 +39,7 @@ struct CostUsageFairSchedulingTests {
         options.useCodexCatchUpWorkingSet = true
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: oldDay, until: today, now: oldDay, options: options)
-        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for path in historical {
             #expect((seeded.files[path.path]?.parsedBytes ?? 0) > 0)
             #expect(seeded.files[path.path]?.codexScanComplete == false)
@@ -76,12 +76,12 @@ struct CostUsageFairSchedulingTests {
                 options: options)
             #expect(recorder.attemptedCodexFilePaths().count == 1)
             if pass == 1 {
-                let afterFirst = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+                let afterFirst = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 #expect((afterFirst.files[fresh.path]?.parsedBytes ?? 0) > 0)
                 #expect((afterFirst.codexActiveLookbackState?.priorityAdmissionDebt ?? 0) > 0)
             }
         }
-        let final = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let final = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for path in historical {
             #expect((final.files[path.path]?.parsedBytes ?? 0) > (seeded.files[path.path]?.parsedBytes ?? 0))
         }
@@ -103,7 +103,7 @@ struct CostUsageFairSchedulingTests {
                 mtime: day.addingTimeInterval(Double(index)))
         }
         _ = Self.scan(day: day, pass: 0, options: options)
-        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for file in waiting {
             #expect((seeded.files[file.path]?.parsedBytes ?? 0) > 0)
             #expect(seeded.files[file.path]?.codexScanComplete == false)
@@ -127,7 +127,7 @@ struct CostUsageFairSchedulingTests {
             _ = Self.scan(day: day, pass: pass, options: options)
             #expect(budget.bytesConsumed <= slice)
         }
-        let final = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let final = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for file in waiting {
             #expect((final.files[file.path]?.parsedBytes ?? 0) > (seeded.files[file.path]?.parsedBytes ?? 0))
         }
@@ -155,7 +155,7 @@ struct CostUsageFairSchedulingTests {
         var options = Self.options(env: env, slice: 1024, budget: 2048)
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: oldDay, until: day, now: day, options: options)
-        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(before.files[old.path]?.codexScanComplete == false)
         #expect(before.files[recent.path]?.codexScanComplete == false)
 
@@ -167,7 +167,7 @@ struct CostUsageFairSchedulingTests {
             until: day,
             now: day.addingTimeInterval(1),
             options: options)
-        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect((after.files[old.path]?.parsedBytes ?? 0) > (before.files[old.path]?.parsedBytes ?? 0))
         #expect((after.files[recent.path]?.parsedBytes ?? 0) > (before.files[recent.path]?.parsedBytes ?? 0))
         #expect(budget.bytesConsumed <= 2048)
@@ -199,7 +199,7 @@ struct CostUsageFairSchedulingTests {
         options.useCodexCatchUpWorkingSet = true
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: liveDay, until: today, now: today, options: options)
-        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let seeded = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for file in [live, backlog, closed] {
             #expect((seeded.files[file.path]?.parsedBytes ?? 0) > 0)
             #expect(seeded.files[file.path]?.codexScanComplete == false)
@@ -229,7 +229,7 @@ struct CostUsageFairSchedulingTests {
                 options: options)
             #expect(budget.bytesConsumed <= 2 * slice)
         }
-        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for file in [live, backlog, closed] {
             #expect((after.files[file.path]?.parsedBytes ?? 0) > (seeded.files[file.path]?.parsedBytes ?? 0))
         }

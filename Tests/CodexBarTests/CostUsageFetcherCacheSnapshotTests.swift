@@ -94,7 +94,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
         options.refreshMinIntervalSeconds = 0
 
-        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL
         let fullSnapshotReads = LockIsolated(0)
         var hooks = CostUsageStoreTestHooks()
         hooks.snapshotRead = { readURL in
@@ -169,7 +169,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanTargetSize: fileMetadata.size,
             codexScanComplete: true)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -182,7 +182,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(projection.fileDayAggregates.first?.aggregate.requestCount == 2)
         #expect(projection.fileDayAggregates.first?.aggregate.reasoningTokens == 12)
 
-        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL
         let fullSnapshotReads = LockIsolated(0)
         var hooks = CostUsageStoreTestHooks()
         hooks.snapshotRead = { readURL in
@@ -297,7 +297,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanFileId: metadata.fileId,
             codexScanComplete: true)
         let compatibility = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: options.calendar)
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
@@ -373,7 +377,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             cache: cache,
             range: range,
             modelsDevCacheRoot: env.cacheRoot)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: options.calendar)
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
@@ -444,7 +452,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanFileId: metadata.fileId,
             codexScanComplete: true)
         let full = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: options.calendar)
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
@@ -495,12 +507,12 @@ struct CostUsageFetcherCacheSnapshotTests {
                 codexScanComplete: true)
         cache.days = fixtureDays
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
         let readCount = LockIsolated(0)
-        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL
         var hooks = CostUsageStoreTestHooks()
         hooks.snapshotRead = { readURL in
             guard readURL == databaseURL else { return }
@@ -535,7 +547,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.scanUntilKey = "2026-04-08"
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -567,7 +579,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.timeZoneIdentifier = options.calendar.timeZone.identifier
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -600,10 +612,11 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         // An older completed cache without persisted proof keeps its legacy empty state;
         // reading it must not manufacture authority for an explicit zero-day replacement.
-        let cleared = await CostUsageStore(cacheRoot: env.cacheRoot).withDatabase(default: false) { database in
-            try CostUsageStore.clearVerifiedDayAggregates(database)
-            return true
-        }
+        let cleared = await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .withDatabase(default: false) { database in
+                try CostUsageStore.clearVerifiedDayAggregates(database, home: env.codexStoreHome)
+                return true
+            }
         try #require(cleared)
         let legacy = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: now,
@@ -645,7 +658,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.timeZoneIdentifier = calendar.timeZone.identifier
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: calendar)
 
@@ -683,7 +696,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         cache.codexScanCatchUpPending = true
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -726,7 +739,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanComplete: true,
             codexBufferedUnresolvedForkLines: [line])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -807,7 +820,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
-        let establishedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let establishedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(established.historyCoverageIsEstablished)
         #expect(established.last30DaysTokens == 53)
         #expect(establishedCache.codexScanCatchUpPending != true)
@@ -842,7 +855,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             allowPricingRefresh: false,
             includePiSessions: false,
             scannerOptions: options)
-        let pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: appendedAt,
             historyDays: 30,
@@ -927,7 +940,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanTargetSize: fileMetadata.size,
             codexScanComplete: true)
         let establishedResult = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: established,
             calendar: options.calendar)
         #expect(!establishedResult.catchUpRequired)
@@ -939,7 +952,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         pending.codexScanCatchUpPending = true
         pending.days = [currentKey: days[currentKey] ?? [:]]
         let pendingResult = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: pending,
             calendar: options.calendar)
         #expect(!pendingResult.catchUpRequired)
@@ -1074,11 +1087,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: CostUsageScanner.codexSessionsRoots(options: options),
             filePaths: [currentURL.path, olderURL.path])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
-        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(persisted.codexSessionDiscovery?.isComplete == false)
         #expect(persisted.codexSessionDiscovery?.nextDirectoryIndex
             == persisted.codexSessionDiscovery?.directoryPaths.count)
@@ -1107,7 +1120,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{}\n")
         cache.lastScanUnixMs += 1000
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let adjacentPartitionBlocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -1123,7 +1136,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.lastScanUnixMs += 1000
         cache.files[currentURL.path]?.codexScanComplete = false
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let blocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -1209,7 +1222,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: roots,
             filePaths: [currentURL.path, olderURL.path])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -1334,12 +1347,12 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: CostUsageScanner.codexSessionsRoots(options: options),
             filePaths: [sessionURL.path])
         let saved = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         #expect(!saved.catchUpRequired)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
             store: store,
             day: dayKey,
@@ -1396,7 +1409,11 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: roots,
             dayKey: "2026-04-08",
             calendar: options.calendar) == .inventory)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: options.calendar)
 
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
@@ -1405,7 +1422,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             now: now,
             options: options)
 
-        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let discovery = try #require(persisted.codexSessionDiscovery)
         #expect(discovery.isComplete == false)
         #expect(discovery.generation == nil)
@@ -1414,7 +1431,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(Set(discovery.directoryPaths) == Set(discovery.directoryStamps.keys))
         #expect(Set([currentURL.path, olderURL.path]).isSubset(of: Set(discovery.filePaths)))
 
-        var backloggedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var backloggedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         backloggedCache.codexScanCatchUpPending = true
         backloggedCache.codexActiveLookbackState = CostUsageCodexActiveLookbackState(
             scanSinceKey: "2026-02-07",
@@ -1423,7 +1440,7 @@ struct CostUsageFetcherCacheSnapshotTests {
                 env.codexSessionsRoot.appendingPathComponent("historical-backlog-\($0).jsonl").path
             })
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: backloggedCache,
             calendar: options.calendar)
 
@@ -1459,11 +1476,12 @@ struct CostUsageFetcherCacheSnapshotTests {
             now: now.addingTimeInterval(1),
             options: options)
 
-        let rebuilt = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexSessionDiscovery)
+        let rebuilt = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexSessionDiscovery)
         #expect(rebuilt.nextDirectoryIndex == rebuilt.directoryPaths.count)
         #expect(Set(rebuilt.directoryPaths) == Set(rebuilt.directoryStamps.keys))
         #expect(rebuilt.filePaths.contains(addedURL.path))
-        let queuedAfterBacklog = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let queuedAfterBacklog = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .codexActiveLookbackState?.pendingFilePaths
         #expect(queuedAfterBacklog?.first == addedURL.path)
 
@@ -1474,7 +1492,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             now: now.addingTimeInterval(2),
             options: options)
 
-        let recoveredCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let recoveredCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(recoveredCache.files[addedURL.path]?.codexScanComplete == true)
         #expect(recoveredCache.files[addedURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 9)
         #expect(recoveredCache.codexActiveLookbackState?.pendingFilePaths.contains(addedURL.path) != true)
@@ -1540,13 +1558,13 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now,
             options: options)
-        var legacyCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var legacyCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var legacyDiscovery = try #require(legacyCache.codexSessionDiscovery)
         legacyDiscovery.metadataCandidateIndex = nil
         legacyDiscovery.nextFileIndex = legacyDiscovery.filePaths.count
         legacyCache.codexSessionDiscovery = legacyDiscovery
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             cache: legacyCache,
             calendar: options.calendar)
 
@@ -1580,7 +1598,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now.addingTimeInterval(20),
             options: options)
-        let afterLegacyCursor = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let afterLegacyCursor = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(afterLegacyCursor.files[firstURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 9)
         #expect(afterLegacyCursor.codexSessionDiscovery?.metadataCandidateIndex
             == afterLegacyCursor.codexSessionDiscovery?.filePaths.count)
@@ -1592,7 +1610,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now.addingTimeInterval(30),
             options: options)
-        let afterSecondSweep = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let afterSecondSweep = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(afterSecondSweep.files[secondURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 11)
         #expect(afterSecondSweep.codexSessionDiscovery?.metadataCandidateIndex
             == afterSecondSweep.codexSessionDiscovery?.filePaths.count)
@@ -1653,7 +1671,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now,
             options: options)
-        let initial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let initial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(initial.codexSessionDiscovery?.metadataInventoryEstablished == true)
         #expect(initial.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 3)
         #expect(initial.files[deletedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 5)
@@ -1669,7 +1687,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now.addingTimeInterval(10),
             options: options)
-        let afterAppend = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let afterAppend = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(afterAppend.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 10)
 
         try FileManager.default.removeItem(at: deletedURL)
@@ -1679,7 +1697,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             until: now,
             now: now.addingTimeInterval(20),
             options: options)
-        let afterDeletion = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let afterDeletion = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(afterDeletion.files[deletedURL.path] == nil)
         #expect(afterDeletion.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 10)
     }
@@ -1746,7 +1764,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             return url
         }
 
-        var afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for pass in 1...12 where !historicalURLs.allSatisfy({
             afterNarrowRefresh.files[$0.path] != nil
         }) {
@@ -1756,7 +1774,7 @@ struct CostUsageFetcherCacheSnapshotTests {
                 until: now,
                 now: now.addingTimeInterval(TimeInterval(pass * 10)),
                 options: options)
-            afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         }
         #expect(afterNarrowRefresh.scanSinceKey == "2025-04-10")
         #expect(historicalURLs.allSatisfy {
@@ -2102,7 +2120,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
 
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(cache.lastScanUnixMs > 0)
         let scanTime = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
 
@@ -2149,7 +2167,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options,
             piScannerOptions: piOptions)
 
-        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var piCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         #expect(nativeCache.lastScanUnixMs > 0)
         #expect(piCache.lastScanUnixMs > 0)
@@ -2245,7 +2263,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         piCache.lastScanUnixMs = 0
         PiSessionCostCacheIO.save(cache: piCache, cacheRoot: env.cacheRoot)
 
-        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(nativeCache.lastScanUnixMs > 0)
         let nativeScanTime = Date(
             timeIntervalSince1970: TimeInterval(nativeCache.lastScanUnixMs) / 1000)
@@ -2346,9 +2364,9 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(current?.projects.count == 1)
         #expect(current?.detailsAreComplete == true)
 
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         cache.codexProjectMetadataVersion = nil
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let legacy = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
@@ -2385,9 +2403,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
 
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         cache.roots = [env.root.appendingPathComponent("other/sessions", isDirectory: true).path: 0]
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
@@ -2503,9 +2521,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options,
             piScannerOptions: piOptions)
 
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         cache.roots = [env.root.appendingPathComponent("other/sessions", isDirectory: true).path: 0]
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
@@ -2648,14 +2666,17 @@ extension CostUsageFetcherCacheSnapshotTests {
         dayKey: String,
         verifiedAt: Date) throws
     {
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        let cache = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
         try #require(CostUsageScanner.codexCurrentDayProjectionCanPublish(
             cache: cache,
             roots: CostUsageScanner.codexSessionsRoots(options: options),
             dayKey: dayKey,
             calendar: options.calendar))
         #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
-            store: CostUsageStore(cacheRoot: env.cacheRoot),
+            store: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome),
             day: dayKey,
             calendar: options.calendar,
             verifiedAt: verifiedAt))

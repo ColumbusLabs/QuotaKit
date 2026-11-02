@@ -25,6 +25,7 @@ public struct PreferencesDocument: Codable, Sendable {
         "hidePersonalInfo", "randomBlinkEnabled", "confettiOnSessionLimitResetsEnabled",
         "confettiOnWeeklyLimitResetsEnabled", "limitResetNotificationsEnabled", "menuBarShowsHighestUsage",
         "menuBarColorByProvider",
+        "codexResetCreditExpiryNotificationsEnabled", "upcomingResetNotificationsEnabled",
         "showOptionalCreditsAndExtraUsage",
         "providerChangelogLinksEnabled", "providersSortedAlphabetically", "refreshAllProvidersOnMenuOpen",
         "mergeIcons", "mergeIconsStacked", "switcherShowsIcons",

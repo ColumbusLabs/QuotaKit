@@ -716,6 +716,8 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
 
         let env = JSValue(newObjectIn: self.context)!
         env.setObject(Self.normalizedTimeZoneIdentifier(timeZone), forKeyedSubscript: "timeZone" as NSString)
+        env.setObject(true, forKeyedSubscript: "supportsIconProvider" as NSString)
+        env.setObject(true, forKeyedSubscript: "supportsMenuBarItems" as NSString)
         ctx.setObject(env, forKeyedSubscript: "env" as NSString)
         self.installValueFormattingFunctions(on: host)
 

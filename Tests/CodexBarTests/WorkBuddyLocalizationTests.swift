@@ -21,6 +21,8 @@ struct WorkBuddyLocalizationTests {
             autoKey,
             "Reserved",
             "Left",
+            "Rewards",
+            "Reward expiry",
         ]
         let resources = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

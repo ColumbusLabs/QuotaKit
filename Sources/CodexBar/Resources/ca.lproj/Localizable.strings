@@ -1709,7 +1709,7 @@
 "Left" = "Restant";
 
 /* Selected browser profile */
-"Browser profile" = "Perfil del navegador";
+"Browser profile" = "Perfil de navegador";
 "Unavailable profile: %@" = "Perfil no disponible: %@";
 "Read only the selected %@ profile. Accounts are never selected automatically." = "Llegeix només el perfil de %@ seleccionat. Els comptes no se seleccionen mai automàticament.";
 
@@ -2854,3 +2854,37 @@
 "Other features" = "Altres funcions";
 "Kimi Code" = "Kimi Code";
 "OpenCode history stays on this Mac. Native Codex costs continue to sync to iPhone." = "L’historial d’OpenCode es queda en aquest Mac. Els costos natius de Codex es continuen sincronitzant amb l’iPhone.";
+
+"Copilot subscription ended" = "La subscripció a Copilot ha finalitzat";
+"Cursor app session expired — open Cursor to sign in again, or sign in to cursor.com in your browser." = "La sessió de l’app Cursor ha caducat — obre Cursor per tornar a iniciar sessió o inicia sessió a cursor.com al navegador.";
+"codex_reset_credit_expiry_notifications_title" = "Caducitat dels crèdits de reinici de Codex";
+"codex_reset_credit_expiry_notifications_subtitle" = "Afegeix recordatoris en actualitzar l’ús 1 dia i 1 hora abans del venciment.";
+"OpenDesign" = "OpenDesign";
+"Show OpenDesign usage" = "Mostra l’ús d’OpenDesign";
+"Sign in to OpenDesign, then refresh QuotaKit." = "Inicia sessió a OpenDesign i actualitza QuotaKit.";
+"OpenDesign usage response format changed." = "El format de la resposta d’ús d’OpenDesign ha canviat.";
+"OpenDesign billing access was denied." = "S’ha denegat l’accés a la facturació d’OpenDesign.";
+"OpenDesign request failed. Try again later." = "La sol·licitud a OpenDesign ha fallat. Torna-ho a provar més tard.";
+"OpenDesign subscription usage is unavailable for this workspace." = "L’ús de la subscripció d’OpenDesign no està disponible per a aquest espai de treball.";
+"Sign in to DeepSeek Platform in a Chromium-based browser for detailed usage." = "Inicieu la sessió a DeepSeek Platform en un navegador basat en Chromium per veure l'ús detallat.";
+"Select a DeepSeek browser profile in Settings." = "Seleccioneu un perfil de navegador de DeepSeek a Configuració.";
+"upcoming_reset_notifications_title" = "Avisos abans del restabliment";
+"upcoming_reset_notifications_subtitle" = "Avisa per a Codex abans que el límit setmanal es restableixi mentre quedi quota per usar.";
+"upcoming_reset_notification_title" = "Límit de %1$@ a punt de restablir-se (%2$@)";
+"upcoming_reset_notification_body" = "Queda %1$@ de la quota per usar. Es reinicia en %2$@ i la quota no usada es perd.";
+"upcoming_reset_notification_body_with_account" = "Compte %1$@. Queda %2$@ de la quota per usar. Es reinicia en %3$@ i la quota no usada es perd.";
+"menu_bar_layout_token_separator_glyph_accessibility" = "Separador %@";
+"menu_bar_layout_separator_pipe" = "Barra vertical";
+"menu_bar_layout_separator_slash" = "Barra inclinada";
+"menu_bar_layout_separator_hyphen" = "Guionet";
+"menu_bar_layout_separator_bullet" = "Pic";
+"menu_bar_layout_separator_diamond" = "Rombe ple";
+"menu_bar_layout_separator_hollowDiamond" = "Rombe buit";
+"menu_bar_layout_separator_tilde" = "Titlla";
+"menu_bar_layout_separator_doubleBar" = "Doble barra vertical";
+"Rename" = "Canvia el nom";
+"Rename account" = "Canvia el nom del compte";
+"Account name" = "Nom del compte";
+"Leave blank to use the default name." = "Deixa-ho en blanc per fer servir el nom per defecte.";
+"Rewards" = "Recompenses";
+"Reward expiry" = "Caducitat de les recompenses";

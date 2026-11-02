@@ -115,6 +115,23 @@ struct MenuBarLayoutProviderBalanceTests {
     }
 
     @Test
+    func `zai balance uses shared renderer without replacing subscription quotas`() throws {
+        let balance = try ProviderDetailSection(title: "Quota details", rows: [
+            .init(label: "Account balance", value: "¥8.66"),
+        ])
+        let snapshot = UsageSnapshot(primary: nil, secondary: nil, details: [balance], updatedAt: self.now)
+        #expect(self.data(provider: .zai, snapshot: snapshot).balance == "¥8.66")
+        #expect(self.data(provider: .zai, snapshot: snapshot).automaticText == "¥8.66")
+        let quota = UsageSnapshot(
+            primary: .init(usedPercent: 42, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            details: [balance],
+            updatedAt: self.now)
+        #expect(self.data(provider: .zai, snapshot: quota).balance == "¥8.66")
+        #expect(self.data(provider: .zai, snapshot: quota).automaticText == nil)
+    }
+
+    @Test
     func `provider descriptors select the intended balance detail labels`() throws {
         let cases: [(UsageProvider, String, String)] = [
             (.openrouter, "Remaining", "$1.25"),

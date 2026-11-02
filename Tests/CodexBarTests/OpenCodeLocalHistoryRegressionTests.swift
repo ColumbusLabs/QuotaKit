@@ -385,7 +385,9 @@ struct OpenCodeLocalHistoryRegressionTests {
         try fixture.session("external", cost: 7)
         let nativeRoot = fixture.root.appendingPathComponent("cache")
         let native = CostUsageStore(cacheRoot: nativeRoot)
-        let source = CostUsageStore(cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(nativeRoot))
+        let source = CostUsageStore(
+            cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(nativeRoot),
+            home: CodexHomeCostStoreScope.openCodeSource)
         let before = await native.readSnapshot()
         _ = try await OpenCodeLocalHistoryAdapter.runPass(databaseURL: fixture.url, store: source)
         let nativeAfter = await native.readSnapshot()

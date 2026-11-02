@@ -40,7 +40,7 @@ extension UsageStore {
     {
         // Provider-specific by design: Codex account cards retain health, credits and weekly publication holds.
         let health = CodexAccountHealth.status(for: account, error: accountSnapshot?.error)
-        return self.menuCardModel(
+        var model = self.menuCardModel(
             for: .codex,
             context: .account(.init(
                 snapshot: accountSnapshot?.snapshot,
@@ -50,6 +50,10 @@ extension UsageStore {
                 credits: accountSnapshot?.credits,
                 codexPublicationHold: UsageStore.codexQuotaPublicationHoldMessage(
                     evidence: accountSnapshot?.weeklyBoundaryEvidence))))
+        if account.customName != nil, !self.settings.hidePersonalInfo {
+            model.providerName = account.menuDisplayName
+        }
+        return model
     }
 
     /// Expand only the already-selected providers; account rows do not consume provider slots.

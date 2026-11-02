@@ -97,17 +97,20 @@ struct CostUsageCodexAutoReviewTests {
                 let isFree = creator == "account-fixture" && instant >= cutoff
                 for refresh in 0..<3 {
                     if refresh == 2 {
-                        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+                        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                         for path in legacy.files.keys {
                             legacy.files[path]?.codexSession = nil
                             legacy.files[path]?.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision - 1
                         }
-                        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: legacy).catchUpRequired)
+                        #expect(!CostUsageStoreAccess.replace(
+                            cacheRoot: env.cacheRoot,
+                            home: env.codexStoreHome,
+                            cache: legacy).catchUpRequired)
                     }
                     let scannedReport = CostUsageScanner.loadDailyReport(
                         provider: .codex, since: instant, until: instant, now: cutoff, options: options)
                     let report = CostUsageScanner.buildCodexReportFromCache(
-                        cache: CostUsageStoreAccess.read(cacheRoot: env.cacheRoot),
+                        cache: CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome),
                         range: .init(since: instant, until: instant),
                         modelsDevCatalog: ModelsDevCatalog(providers: [:]))
                     let entry = try #require(report.data.first)
@@ -332,8 +335,8 @@ struct CostUsageCodexAutoReviewTests {
             let full = CostUsageScanner.buildCodexReportFromCache(
                 cache: cache, range: range, modelsDevCacheRoot: env.cacheRoot)
             #expect(!CostUsageStoreAccess.replace(
-                cacheRoot: env.cacheRoot, cache: cache, calendar: calendar).catchUpRequired)
-            let store = CostUsageStore(cacheRoot: env.cacheRoot)
+                cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache, calendar: calendar).catchUpRequired)
+            let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             let projection = store.syncReadCodexReportProjection(calendar: calendar)
             let compact = CostUsageCodexReportProjectionBuilder.build(
                 projection: projection,
@@ -403,11 +406,12 @@ struct CostUsageCodexAutoReviewTests {
                 for _ in 0..<12 {
                     settled = CostUsageScanner.loadDailyReport(
                         provider: .codex, since: instant, until: now, now: now, options: options)
-                    if CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexScanCatchUpPending != true { break }
+                    if CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                        .codexScanCatchUpPending != true { break }
                 }
                 let expected = pricing == .empty ? 0.0 : 0.0006
                 #expect(abs((settled?.data.first?.costUSD ?? -1) - expected) < 1e-12)
-                let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+                let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 #expect(cache.codexScanCatchUpPending != true)
                 #expect(cache.files[file.path]?.codexRows?.first?.knownCostNanos == nil)
                 #expect(cache.files[file.path]?.codexRows?.first?.isIncludedInPlan == nil)

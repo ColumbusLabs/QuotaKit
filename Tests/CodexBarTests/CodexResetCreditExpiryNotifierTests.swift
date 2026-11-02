@@ -6,10 +6,35 @@ import Testing
 @MainActor
 struct CodexResetCreditExpiryNotifierTests {
     @Test
+    func `dropped credit notification retries and successful delivery records once`() {
+        let defaults = InMemoryUserDefaults()
+        let now = Date(timeIntervalSince1970: 1_900_000_000)
+        let snapshot = CodexRateLimitResetCreditsSnapshot(
+            credits: [Self.credit(id: "retry-fixture", expiresAt: now.addingTimeInterval(3600))],
+            availableCount: 1, updatedAt: now)
+        var completions: [@MainActor (Bool) -> Void] = []
+        let notifier = CodexResetCreditExpiryNotifier(
+            userDefaults: defaults,
+            ownerScope: "owner")
+        { _, _, _, completion in
+            completions.append(completion)
+        }
+        notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
+        notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
+        #expect(completions.count == 1)
+        #expect(defaults.stringArray(forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey) == nil)
+        completions[0](false)
+        notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
+        #expect(completions.count == 2)
+        completions[1](true)
+        notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
+        #expect(completions.count == 2)
+        #expect(defaults.stringArray(forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey)?.count == 1)
+    }
+
+    @Test
     func `posts one bounded summary without persisting or logging raw credit IDs`() throws {
-        let suite = "CodexResetCreditExpiryNotifierTests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = InMemoryUserDefaults()
         let now = Date(timeIntervalSince1970: 1_781_726_400)
         let rawID = "private-provider-credit-id"
         var posts: [(prefix: String, title: String, body: String)] = []
@@ -43,10 +68,8 @@ struct CodexResetCreditExpiryNotifierTests {
     }
 
     @Test
-    func `switching account inventories does not repeat either notification`() throws {
-        let suite = "CodexResetCreditExpiryNotifierAccountTests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+    func `switching account inventories does not repeat either notification`() {
+        let defaults = InMemoryUserDefaults()
         let now = Date(timeIntervalSince1970: 1_781_726_400)
         var postCount = 0
         let notifier = CodexResetCreditExpiryNotifier(userDefaults: defaults) { _, _, _ in
@@ -71,10 +94,8 @@ struct CodexResetCreditExpiryNotifierTests {
     }
 
     @Test
-    func `no-expiry inventory does not trigger an expiry notification`() throws {
-        let suite = "CodexResetCreditExpiryNotifierNoExpiryTests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+    func `no-expiry inventory does not trigger an expiry notification`() {
+        let defaults = InMemoryUserDefaults()
         let now = Date(timeIntervalSince1970: 1_781_726_400)
         var postCount = 0
         let notifier = CodexResetCreditExpiryNotifier(userDefaults: defaults) { _, _, _ in
@@ -91,6 +112,79 @@ struct CodexResetCreditExpiryNotifierTests {
 
         #expect(postCount == 0)
         #expect(defaults.stringArray(forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey) == nil)
+    }
+
+    @Test
+    func `countdowns supplement the existing summary without replacing its receipts`() throws {
+        let defaults = InMemoryUserDefaults()
+        let expiry = Date(timeIntervalSince1970: 1_900_000_000)
+        let snapshot = CodexRateLimitResetCreditsSnapshot(
+            credits: [Self.credit(id: "synthetic-credit", expiresAt: expiry)], availableCount: 1, updatedAt: expiry)
+        var prefixes: [String] = []
+        let notifier = CodexResetCreditExpiryNotifier(userDefaults: defaults) { prefix, _, _ in
+            prefixes.append(prefix)
+        }
+        notifier.postExpiringCreditsIfNeeded(
+            snapshot: snapshot, resetStyle: .countdown, now: expiry.addingTimeInterval(-3 * 86400))
+        let summaryReceipts = try #require(defaults.stringArray(
+            forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey))
+        // Frozen legacy receipt includes the credit model's existing stable-ID hashing.
+        #expect(summaryReceipts == ["a20b7ea82351883fddce8ebb9cc2763dc2b440e148a1b91fd447723fa739205e"])
+        for remaining in [86400.0, 86300, 43200, 3600, 3599, 1800, 600, 0, -1] {
+            // Recreate the notifier to verify that reminders use persisted receipts, including after a restart.
+            CodexResetCreditExpiryNotifier(userDefaults: defaults) { prefix, _, _ in prefixes.append(prefix) }
+                .postExpiringCreditsIfNeeded(
+                    snapshot: snapshot,
+                    countdownEnabled: true,
+                    resetStyle: .countdown,
+                    now: expiry.addingTimeInterval(-remaining))
+        }
+        #expect(prefixes == [
+            CodexResetCreditExpiryNotifier.notificationPrefix,
+            CodexResetCreditExpiryNotifier.countdownNotificationPrefix,
+            CodexResetCreditExpiryNotifier.countdownNotificationPrefix,
+        ])
+        let receipts = try #require(defaults.stringArray(forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey))
+        #expect(summaryReceipts.allSatisfy(receipts.contains))
+        #expect(receipts.allSatisfy { $0.count == 64 && !$0.contains("synthetic-credit") })
+    }
+
+    @Test
+    func `late first observation sends one notice and consumes earlier countdown stages`() {
+        let defaults = InMemoryUserDefaults()
+        let expiry = Date(timeIntervalSince1970: 1_900_000_000)
+        let snapshot = CodexRateLimitResetCreditsSnapshot(
+            credits: [Self.credit(id: "late", expiresAt: expiry)], availableCount: 1, updatedAt: expiry)
+        var posts = 0
+        let notifier = CodexResetCreditExpiryNotifier(userDefaults: defaults) { _, _, _ in posts += 1 }
+        for remaining in [1800.0, 1700, 7200, 1600] {
+            notifier.postExpiringCreditsIfNeeded(
+                snapshot: snapshot,
+                countdownEnabled: true,
+                resetStyle: .countdown,
+                now: expiry.addingTimeInterval(-remaining))
+        }
+        #expect(posts == 1)
+    }
+
+    @Test
+    func `countdown opt out leaves receipts available and credit display does not gate opt in`() {
+        let defaults = InMemoryUserDefaults()
+        let expiry = Date(timeIntervalSince1970: 1_900_000_000)
+        let snapshot = CodexRateLimitResetCreditsSnapshot(
+            credits: [Self.credit(id: "opt-in", expiresAt: expiry)], availableCount: 1, updatedAt: expiry)
+        var posts = 0
+        let notifier = CodexResetCreditExpiryNotifier(userDefaults: defaults) { _, _, _ in posts += 1 }
+        let now = expiry.addingTimeInterval(-3600)
+        notifier.postExpiringCreditsIfNeeded(
+            snapshot: snapshot, summaryEnabled: false, resetStyle: .countdown, now: now)
+        #expect(posts == 0)
+        #expect(defaults.object(forKey: CodexResetCreditExpiryNotifier.summaryFingerprintsKey) == nil)
+        notifier.postExpiringCreditsIfNeeded(
+            snapshot: snapshot, summaryEnabled: false, countdownEnabled: true, resetStyle: .countdown, now: now)
+        notifier.postExpiringCreditsIfNeeded(
+            snapshot: snapshot, summaryEnabled: false, countdownEnabled: true, resetStyle: .countdown, now: now)
+        #expect(posts == 1)
     }
 
     private static func credit(id: String, expiresAt: Date?) -> CodexRateLimitResetCredit {

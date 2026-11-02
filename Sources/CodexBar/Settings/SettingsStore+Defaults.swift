@@ -173,6 +173,19 @@ extension SettingsStore {
         set { self.setDefault(\.limitResetNotificationsEnabled, newValue, key: "limitResetNotificationsEnabled") }
     }
 
+    var codexResetCreditExpiryNotificationsEnabled: Bool {
+        get { self.defaultsState.codexResetCreditExpiryNotificationsEnabled }
+        set { self.setDefault(
+            \.codexResetCreditExpiryNotificationsEnabled,
+            newValue,
+            key: "codexResetCreditExpiryNotificationsEnabled") }
+    }
+
+    var upcomingResetNotificationsEnabled: Bool {
+        get { self.defaultsState.upcomingResetNotificationsEnabled }
+        set { self.setDefault(\.upcomingResetNotificationsEnabled, newValue, key: "upcomingResetNotificationsEnabled") }
+    }
+
     var quotaWarningNotificationsEnabled: Bool {
         get { self.defaultsState.quotaWarningNotificationsEnabled }
         set {
@@ -482,9 +495,8 @@ extension SettingsStore {
     }
 
     func menuBarLayout(forPlugin instanceID: ProviderInstanceID) -> MenuBarLayout {
-        // Plugins keep their automatic default independently of built-in/global layouts.
-        self.defaultsState.menuBarLayoutOverridesRaw[instanceID.rawValue]
-            ?? MenuBarLayout(lines: [[.percent(window: .automatic)]])
+        // Preserve every saved plugin layout, including the percentage-only default saved in 0.82.0.
+        self.defaultsState.menuBarLayoutOverridesRaw[instanceID.rawValue] ?? self.menuBarLayout
     }
 
     func setMenuBarLayout(_ layout: MenuBarLayout, forInstanceID instanceID: ProviderInstanceID) {
@@ -543,6 +555,7 @@ extension SettingsStore {
     private func persistMenuBarLayout(_ layout: MenuBarLayout) {
         guard let blobs = try? MenuBarLayoutPersistence.encoded(layout) else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)
+        self.userDefaults.set(blobs.v6, forKey: MenuBarLayoutUserDefaultsKey.layoutV6)
         self.userDefaults.set(blobs.v5, forKey: MenuBarLayoutUserDefaultsKey.layoutV5)
         self.userDefaults.set(blobs.v4, forKey: MenuBarLayoutUserDefaultsKey.layoutV4)
         self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.layoutV3)
@@ -555,6 +568,7 @@ extension SettingsStore {
             .encodedLibrary(self.defaultsState.menuBarLayoutConditionals)
         else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)
+        self.userDefaults.set(blobs.v6, forKey: MenuBarLayoutUserDefaultsKey.conditionalsV6)
         self.userDefaults.set(blobs.v5, forKey: MenuBarLayoutUserDefaultsKey.conditionalsV5)
         self.userDefaults.set(blobs.v4, forKey: MenuBarLayoutUserDefaultsKey.conditionalsV4)
         self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.conditionalsV3)
@@ -566,6 +580,7 @@ extension SettingsStore {
         guard let blobs = try? MenuBarLayoutPersistence.encodedOverrides(self.defaultsState.menuBarLayoutOverridesRaw)
         else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)
+        self.userDefaults.set(blobs.v6, forKey: MenuBarLayoutUserDefaultsKey.overridesV6)
         self.userDefaults.set(blobs.v5, forKey: MenuBarLayoutUserDefaultsKey.overridesV5)
         self.userDefaults.set(blobs.v4, forKey: MenuBarLayoutUserDefaultsKey.overridesV4)
         self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.overridesV3)

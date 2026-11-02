@@ -101,7 +101,7 @@ struct CodexLocalProjectUsageTests {
         let v10URL = costCacheRoot.appendingPathComponent("codex-v10.json", isDirectory: false)
         let v10Bytes = Data("recoverable-v10-cursor".utf8)
         try v10Bytes.write(to: v10URL)
-        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL
         #expect(!FileManager.default.fileExists(atPath: databaseURL.path))
 
         try self.writeCodexUsageFile(
@@ -128,7 +128,7 @@ struct CodexLocalProjectUsageTests {
         #expect(first.data.first?.totalTokens == 130)
         #expect(try Data(contentsOf: v10URL) == v10Bytes)
         #expect(FileManager.default.fileExists(atPath: databaseURL.path))
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.count == 1)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.count == 1)
 
         try self.writeCodexUsageFile(
             env: env,
@@ -149,7 +149,7 @@ struct CodexLocalProjectUsageTests {
             options: options)
 
         #expect(warm.data.first?.totalTokens == 180)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.count == 2)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.count == 2)
         #expect(try Data(contentsOf: v10URL) == v10Bytes)
     }
 
@@ -345,7 +345,7 @@ struct CodexLocalProjectUsageTests {
             dayKey: dayKey,
             fixture: fixture,
             costNanos: 1)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let snapshot = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(
             now: day,
@@ -407,7 +407,7 @@ struct CodexLocalProjectUsageTests {
                 cached: 10,
                 output: 25),
             costNanos: 1)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let snapshot = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(
             now: day,
@@ -679,7 +679,7 @@ struct CodexLocalProjectUsageTests {
             dayKey: dayKey,
             fixture: fixture,
             costNanos: 1)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
         let snapshot = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(
             now: day,
             historyDays: 1,
@@ -697,7 +697,7 @@ struct CodexLocalProjectUsageTests {
             scannerOptions: options)) != nil)
 
         cache.codexPricingKey = "pricing-b"
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         #expect(CodexLocalProjectUsageIndexer.cachedSnapshot(now: day, historyDays: 1, options: .init(
             scannerOptions: options))?.total.totalTokens == 130)
@@ -759,7 +759,7 @@ struct CodexLocalProjectUsageTests {
         partialUsage.days = [dayKey: [unavailableModel: [80, 0, 20]]]
         partialUsage.lastModel = unavailableModel
         cache.files[env.root.appendingPathComponent("partial.jsonl").path] = partialUsage
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let snapshot = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(
             now: day,
@@ -832,7 +832,7 @@ struct CodexLocalProjectUsageTests {
             dayKey: dayKey,
             fixture: chatFixture,
             costNanos: 1)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let snapshot = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(
             now: day,
@@ -881,7 +881,7 @@ struct CodexLocalProjectUsageTests {
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         cache.files[firstFileURL.path] = self.makeCachedFileUsage(dayKey: dayKey, fixture: firstFixture, costNanos: 1)
         cache.files[secondFileURL.path] = self.makeCachedFileUsage(dayKey: dayKey, fixture: secondFixture, costNanos: 1)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
 
         let recorder = ProgressRecorder()
         _ = try CodexLocalProjectUsageIndexer.buildSnapshotFromCostCache(

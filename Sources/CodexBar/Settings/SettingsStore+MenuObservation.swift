@@ -13,6 +13,8 @@ extension SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.limitResetNotificationsEnabled
+        _ = self.codexResetCreditExpiryNotificationsEnabled
+        _ = self.upcomingResetNotificationsEnabled
         _ = self.quotaWarningNotificationsEnabled
         _ = self.predictivePaceWarningNotificationsEnabled
         _ = self.quotaWarningThresholds

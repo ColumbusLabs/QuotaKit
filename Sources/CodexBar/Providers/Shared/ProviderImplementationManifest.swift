@@ -116,5 +116,6 @@ enum ProviderImplementationManifest {
         { PluginCookieProviderImplementation(spec: TraeCNProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: ChatboxProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: AbliterationProviderDescriptor.spec) },
+        { PluginCookieProviderImplementation(spec: OpenDesignProviderDescriptor.spec) },
     ]
 }

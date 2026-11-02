@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 110 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 111 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -831,3 +831,7 @@ See also: `docs/provider.md` for architecture notes.
 - Shows the provider-reported total credit balance and usage in USD; it does not infer a rate-window reset.
 - iPhone receives the billing detail, while quota alerts and burn-down widgets remain unavailable.
 - Details: [abliteration.ai](abliteration.md).
+
+## OpenDesign
+
+[OpenDesign](opendesign.md) reports measured subscription session and weekly quota from the selected web workspace. QuotaKit can import browser cookies or use an explicitly supplied Cookie header. The same numeric quota windows sync to iPhone; existing provider identifiers and notification zones stay stable.

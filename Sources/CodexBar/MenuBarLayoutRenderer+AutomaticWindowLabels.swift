@@ -8,18 +8,27 @@ extension MenuBarLayoutRenderer {
         token: MenuBarLayoutToken,
         data: MenuBarLayoutRenderData,
         options: MenuBarLayoutRenderOptions,
-        attributes: [NSAttributedString.Key: Any])
+        attributes: [NSAttributedString.Key: Any],
+        lineWindowLabel: inout String?)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         switch token {
         case .percent(window: .automatic), .pace(window: .automatic), .resetCountdown, .resetAbsolute,
              .windowResetCountdown(window: .automatic), .windowResetAbsolute(window: .automatic): break
-        default: return rendered
+        case .space, .separatorDot, .separator:
+            return rendered
+        default:
+            lineWindowLabel = rendered.value.length > 0
+                ? rendered.value.attribute(NSAttributedString.Key("CodexBarWindowPrefix"), at: 0, effectiveRange: nil)
+                as? String : nil
+            return rendered
         }
         guard let label = self.automaticWindowLabel(data: data) else { return rendered }
+        let showPrefix = options.showWindowLabels && label.short != lineWindowLabel
+        lineWindowLabel = label.short
         return (
             self.prefixedValue(
-                options.showWindowLabels ? label.short : "",
+                showPrefix ? label.short : "",
                 value: rendered.value,
                 attributes: attributes),
             rendered.accessibilityText.map { L("%@: %@", label.full, $0) })

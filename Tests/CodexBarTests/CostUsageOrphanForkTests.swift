@@ -51,7 +51,7 @@ struct CostUsageOrphanForkTests {
         let report = CostUsageScanner.loadDailyReport(
             provider: .codex, since: now, until: now, now: now, options: options)
         #expect(report.data.first?.inputTokens == 20)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: calendar)
         cache.codexPreviousReport = try #require(CostUsageCodexPreviousReport(
             report: report, cache: cache, reportSinceKey: range.sinceKey, reportUntilKey: range.untilKey))
@@ -98,9 +98,16 @@ struct CostUsageOrphanForkTests {
         cache.files[orphanURL.path] = orphan
         cache.files[currentURL.path]?.codexScanComplete = false
         cache.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: calendar)
 
-        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let persisted = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar)
         let previous = CostUsageScanner.codexPreviousReport(
             cache: persisted,
             range: range,
@@ -174,7 +181,10 @@ struct CostUsageOrphanForkTests {
                 clock.addTimeInterval(1)
                 _ = CostUsageScanner.loadDailyReport(
                     provider: .codex, since: old, until: now, now: clock, options: options)
-                let observed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+                let observed = CostUsageStoreAccess.read(
+                    cacheRoot: env.cacheRoot,
+                    home: env.codexStoreHome,
+                    calendar: calendar)
                 if verifyRestoredParentHistory,
                    let restoredParent = observed.files.values.first(where: { $0.sessionId == "missing-a" }),
                    restoredParent.codexScanComplete == true
@@ -185,7 +195,7 @@ struct CostUsageOrphanForkTests {
             }
         }
         scanUntilSettled()
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         #expect(cache.files.count == 4)
         #expect(cache.files.values.allSatisfy { $0.codexScanComplete == true && $0.parsedBytes == $0.size })
         let orphanFiles = cache.files.values.filter(\.hasBufferedCodexForkRetryLines)
@@ -198,7 +208,11 @@ struct CostUsageOrphanForkTests {
         #expect(cache.codexActiveLookbackState == nil)
         #expect(cache.codexScanCompletedFiles == 4)
         #expect(cache.codexScanTotalFiles == 4)
-        let view = CostUsageStoreAccess.readView(cacheRoot: env.cacheRoot, calendar: calendar, purpose: .report)
+        let view = CostUsageStoreAccess.readView(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar,
+            purpose: .report)
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: calendar)
         #expect(view.historyCoverageIsEstablished(
             range: range, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)) == !currentTokens)
@@ -206,7 +220,7 @@ struct CostUsageOrphanForkTests {
         #expect(!view.hasPendingScan)
         // Production freshness checks use the compact status view, which must retain
         // the same missing-parent lineage even though it omits event history.
-        let statusView = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexReadView(
+        let statusView = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).syncLoadCodexReadView(
             calendar: calendar, purpose: .status)
         #expect(statusView.historyCoverageIsEstablished(
             range: range, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)) == !currentTokens)
@@ -233,7 +247,8 @@ struct CostUsageOrphanForkTests {
             range: fullRange, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)))
         #expect(!statusView.historyCoverageIsEstablished(
             range: fullRange, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)))
-        let projection = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(calendar: calendar)
+        let projection = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncReadCodexReportProjection(calendar: calendar)
         #expect(projection.verifiedScanSinceKey.map { $0 > fullRange.sinceKey } ?? true)
         #expect(view.dailyReport(range: fullRange, cacheRoot: env.cacheRoot).data
             .reduce(0) { $0 + ($1.unmeteredRequestCount ?? 0) } == 3)
@@ -250,7 +265,7 @@ struct CostUsageOrphanForkTests {
         clock.addTimeInterval(1)
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: now, until: now, now: clock, options: options)
-        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         #expect(pending.codexScanCatchUpPending == true)
         #expect((pending.codexPreviousReport != nil) == !currentTokens)
         if !currentTokens {
@@ -274,7 +289,10 @@ struct CostUsageOrphanForkTests {
             atomically: true,
             encoding: .utf8)
         scanUntilSettled(verifyRestoredParentHistory: true)
-        let recovered = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let recovered = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar)
         #expect(recovered.codexScanCatchUpPending == false)
         #expect(recovered.files.count == 5)
         #expect(recovered.files.values.allSatisfy { !$0.hasBufferedCodexForkRetryLines })

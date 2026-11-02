@@ -49,12 +49,33 @@ struct ProviderPluginOptionalRequestTests {
         await #expect(throws: ProviderPluginError.self) { _ = try await runtime.fetchUsage() }
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `slow primary keeps a secondary that completed after the collection budget`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let runtime = try Self.runtime(engine: engine, collectionBudget: .milliseconds(200)) { request in
-            try await Task.sleep(for: request.url?.path == "/primary" ? .seconds(2) : .seconds(1))
+        let (budget, budgetExpired) = AsyncStream<Void>.makeStream()
+        let (optional, optionalCollected) = AsyncStream<Void>.makeStream()
+        defer {
+            budgetExpired.finish()
+            optionalCollected.finish()
+        }
+        let options = ProviderPluginContextOptions(
+            optionalRequestTimeoutSeconds: nil,
+            didCollectHTTPCompletion: { completion in
+                switch completion {
+                case .budgetExpired: budgetExpired.yield()
+                case .optional: optionalCollected.yield()
+                case .primary: break
+                }
+            })
+        let runtime = try Self.runtime(engine: engine, contextOptions: options) { request in
+            if request.url?.path == "/optional" {
+                var iterator = budget.makeAsyncIterator()
+                #expect(await iterator.next() != nil)
+            } else if request.url?.path == "/primary" {
+                var iterator = optional.makeAsyncIterator()
+                #expect(await iterator.next() != nil)
+            }
             return try Self.response(request, body: "ready")
         }
         #expect(try await runtime.fetchUsage().identity?.loginMethod == "ready")
@@ -126,6 +147,7 @@ struct ProviderPluginOptionalRequestTests {
         optionalURL: String = "https://example.test/optional",
         limit: Int = 1024,
         collectionBudget: Duration = .seconds(3),
+        contextOptions: ProviderPluginContextOptions? = nil,
         handler: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) throws -> ProviderPluginRuntime
     {
         try ProviderPluginRuntime(
@@ -144,7 +166,7 @@ struct ProviderPluginOptionalRequestTests {
             responseSizeLimit: limit,
             enforcesUserResponsePolicy: true,
             allowsDynamicID: true,
-            contextOptions: ProviderPluginContextOptions(
+            contextOptions: contextOptions ?? ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
                 optionalCollectionBudget: collectionBudget),
             engine: engine)

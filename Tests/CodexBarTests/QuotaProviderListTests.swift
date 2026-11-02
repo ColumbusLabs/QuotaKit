@@ -26,7 +26,7 @@ struct QuotaProviderListTests {
     ]
 
     @Test
-    func `Provider list has expected count (82 after Chatbox plan quota)`() {
+    func `Provider list has expected count (83 after OpenDesign quota)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -47,7 +47,7 @@ struct QuotaProviderListTests {
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 82)
+        #expect(QuotaProviderList.providers.count == 83)
     }
 
     @Test
@@ -109,6 +109,7 @@ struct QuotaProviderListTests {
             "gitkraken", "v0", "huggingface", "bifrost", "devpass", "aixy",
             "xkiro", "raycast", "helmcode", "nous", "muse", "museai", "workbuddy",
             "tavily", "cosmic", "aerostack", "claudeplatform", "futureagi", "munito", "soniox", "traecn", "chatbox",
+            "opendesign",
         ])
     }
 
@@ -140,7 +141,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 82 × 3 = 246 (depleted + restored + warning)`() {
+    func `iOS subscription count is 83 × 3 = 249 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -162,7 +163,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 246)
+        #expect(subscriptionCount == 249)
     }
 
     @Test
@@ -229,9 +230,16 @@ struct QuotaProviderListTests {
 
     @Test
     func `Future AGI and Munito append stable quota notification zones`() {
-        let providers = QuotaProviderList.providers.suffix(5)
-        #expect(providers.map(\.id) == ["futureagi", "munito", "soniox", "traecn", "chatbox"])
-        #expect(providers.map(\.displayName) == ["Future AGI", "Munito", "Soniox", "Trae CN", "Chatbox AI"])
+        let providers = QuotaProviderList.providers.suffix(6)
+        #expect(providers.map(\.id) == ["futureagi", "munito", "soniox", "traecn", "chatbox", "opendesign"])
+        #expect(providers.map(\.displayName) == [
+            "Future AGI",
+            "Munito",
+            "Soniox",
+            "Trae CN",
+            "Chatbox AI",
+            "OpenDesign",
+        ])
         for provider in providers {
             for state in ["depleted", "restored", "warning"] {
                 #expect(QuotaProviderList.quotaZoneName(providerID: provider.id, state: state)

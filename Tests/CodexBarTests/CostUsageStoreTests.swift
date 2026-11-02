@@ -2203,7 +2203,7 @@ extension CostUsageStoreTests {
             options: options)
         #expect(first.summary?.totalTokens == 110)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var cache = store.syncLoadCodexCache(calendar: .current)
         var staleDuplicate = try #require(cache.files[contributor.path])
         let metadata = CostUsageScanner.codexFileMetadata(fileURL: duplicate)
@@ -2220,7 +2220,8 @@ extension CostUsageStoreTests {
             cache,
             calendar: .current,
             requestedScanWindow: (sinceKey: dayKey, untilKey: dayKey))
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[duplicate.path]?.codexRows?.isEmpty == true)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files[duplicate.path]?
+            .codexRows?.isEmpty == true)
 
         let predecessorHash = "606a690018e2845e"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -2229,7 +2230,7 @@ extension CostUsageStoreTests {
         let connection = try SQLiteTestConnection(url: store.databaseURL)
         try connection.execute("UPDATE meta SET value = '\(predecessorHash)' WHERE key = 'parser_hash'")
         try connection.execute("PRAGMA user_version = \(predecessorVersion)")
-        let migrated = CostUsageStore(cacheRoot: env.cacheRoot)
+        let migrated = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let migratedCache = migrated.syncLoadCodexCache(calendar: .current)
         #expect(await migrated.rebuildCount == 0)
         #expect(migratedCache.files[duplicate.path]?.codexParserRevision == 2)
@@ -2243,7 +2244,7 @@ extension CostUsageStoreTests {
             now: day.addingTimeInterval(1),
             options: options)
         #expect(recovered.summary?.totalTokens == 110)
-        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(after.files[duplicate.path]?.codexParserRevision == CostUsageFileUsage.currentCodexParserRevision)
         #expect(after.files[duplicate.path]?.codexRows?.count == 1)
     }
@@ -3775,5 +3776,34 @@ private final class SQLiteTestConnection: @unchecked Sendable {
         }
         guard step == SQLITE_DONE else { throw TestError.sqlite(step) }
         return names
+    }
+}
+
+extension CostUsageStoreTests {
+    @Test
+    func `retention replacement and budget enforcement cannot change another home`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let first = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-a/sessions")
+        let second = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-b/sessions")
+        for (store, path) in [(first, "/fixture/a.jsonl"), (second, "/fixture/b.jsonl")] {
+            #expect(await store.upsertFile(Self.file(path: path, day: "2026-07-01")))
+            #expect(await store.appendTokenSnapshots([Self.snapshot(path: path, eventIndex: 0)]))
+            let aggregate = Self.aggregate(day: "2026-07-01", model: "fixture-model", scale: 1)
+            #expect(await store.replaceFileDayAggregates(path: path, aggregates: [aggregate]))
+            #expect(await store.replaceDayAggregates([aggregate]))
+            #expect(await store.setDiscoveryState(Self.discoveryState(paths: [path])))
+        }
+        let preserved = await first.readSnapshot()
+        #expect(preserved.dayAggregates.map(\.inputTokens) == [10])
+        #expect(await !(second.deleteFile(path: "/fixture/a.jsonl")))
+        #expect(await !(second.upsertFile(Self.file(path: "/fixture/a.jsonl", day: "2026-08-01"))))
+        #expect(await second.rebuildCount == 0)
+        _ = await second.retainDayWindow(sinceDay: "2026-08-01", untilDay: "2026-08-01")
+        #expect(await second.readSnapshot().files.isEmpty)
+        #expect(await second.replaceDayAggregates([]))
+        _ = await second.enforceBudgets(maxRows: 0, maxFileBytes: 0)
+        #expect(await first.readSnapshot() == preserved)
+        #expect(await first.rebuildCount == 0)
     }
 }

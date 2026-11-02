@@ -99,11 +99,12 @@ extension CostUsageStoreAccess {
 
     static func readCodexReportProjection(
         cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
         calendar: Calendar,
         temporalRange: (sinceDay: String, untilDay: String)? = nil,
         loadTemporal: Bool = true) async -> CostUsageStoreCodexReportProjection
     {
-        await CostUsageStore(cacheRoot: cacheRoot).readCodexReportProjection(
+        await CostUsageStore(cacheRoot: cacheRoot, home: home).readCodexReportProjection(
             calendar: calendar,
             temporalRange: temporalRange,
             loadTemporal: loadTemporal)

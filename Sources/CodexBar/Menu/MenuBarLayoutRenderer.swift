@@ -103,7 +103,7 @@ struct MenuBarLayoutRenderData: Hashable {
             return self.extraRateWindows.first { $0.id == id }?.title
         }
         return ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtras[id].map { title in
-            self.extraRateWindows.first { $0.id == id }?.title ?? L(title)
+            L(self.extraRateWindows.first { $0.id == id }?.title ?? title)
         }
     }
 
@@ -362,6 +362,7 @@ final class MenuBarLayoutRenderer {
     }
 
     private let cache: MenuBarLayoutTitleCache
+    let pluginSummary = PluginMenuBarSummaryRenderer()
 
     init(cache: MenuBarLayoutTitleCache = MenuBarLayoutTitleCache()) {
         self.cache = cache
@@ -442,6 +443,7 @@ final class MenuBarLayoutRenderer {
 
     func removeAll() {
         self.cache.removeAll()
+        self.pluginSummary.removeAll()
     }
 
     /// Joins two rows independently rendered for different providers (each with
@@ -570,6 +572,7 @@ final class MenuBarLayoutRenderer {
                 result.append(NSAttributedString(string: "\n", attributes: attributes))
             }
             var accessibilityParts: [String] = []
+            var lineWindowLabel: String?
             for (tokenIndex, token) in renderedLine.enumerated() {
                 // The leading icon is surfaced as `button.image` so AppKit applies the system's
                 // active/inactive display tinting; it is not repeated inside the attributed title,
@@ -593,7 +596,8 @@ final class MenuBarLayoutRenderer {
                     options: options,
                     providerTintColor: providerTintColor)
                 renderedItem = Self.labelAutomaticItem(
-                    renderedItem, token: token, data: data, options: options, attributes: attributes)
+                    renderedItem, token: token, data: data, options: options, attributes: attributes,
+                    lineWindowLabel: &lineWindowLabel)
                 result.append(renderedItem.value)
                 if let accessibilityText = renderedItem.accessibilityText {
                     accessibilityParts.append(accessibilityText)
@@ -640,38 +644,48 @@ final class MenuBarLayoutRenderer {
                   return false
               })
         else { return }
-        let separators: Set<MenuBarLayoutToken> = [.separatorDot, .space]
+        func isSpacing(_ token: MenuBarLayoutToken) -> Bool {
+            token.isVisibleSeparator || token == .space
+        }
         lines = lines.map { line in
             guard line.contains(.resetCountdown) || line.contains(.resetAbsolute) else { return line }
             var tokens = line
             while let index = tokens.firstIndex(where: { $0 == .resetCountdown || $0 == .resetAbsolute }) {
                 tokens.remove(at: index)
-                if tokens.prefix(index).allSatisfy(separators.contains) {
-                    while let first = tokens.first, separators.contains(first) {
+                if tokens.prefix(index).allSatisfy(isSpacing) {
+                    while let first = tokens.first, isSpacing(first) {
                         tokens.removeFirst()
                     }
-                } else if tokens.dropFirst(index).allSatisfy(separators.contains) {
-                    while let last = tokens.last, separators.contains(last) {
+                } else if tokens.dropFirst(index).allSatisfy(isSpacing) {
+                    while let last = tokens.last, isSpacing(last) {
                         tokens.removeLast()
                     }
                 } else {
                     var left = index
                     var right = index
-                    while left > 0, separators.contains(tokens[left - 1]) {
+                    while left > 0, isSpacing(tokens[left - 1]) {
                         left -= 1
                     }
-                    while right < tokens.count, separators.contains(tokens[right]) {
+                    while right < tokens.count, isSpacing(tokens[right]) {
                         right += 1
                     }
                     if left < index, right > index {
-                        let keepRight = tokens[index..<right].contains(.separatorDot)
-                            || !tokens[left..<index].contains(.separatorDot)
+                        let keepRight = tokens[index..<right].contains(where: \.isVisibleSeparator)
+                            || !tokens[left..<index].contains(where: \.isVisibleSeparator)
                         tokens.removeSubrange(keepRight ? left..<index : index..<right)
                     }
                 }
             }
             return tokens
         }.filter { !$0.isEmpty }
+    }
+
+    static func pluginSummaryTitle(
+        _ title: NSAttributedString, accessibilityLabel: String, highContrast: Bool) -> MenuBarLayoutRenderedTitle
+    {
+        MenuBarLayoutRenderedTitle(
+            attributedTitle: title, accessibilityLabel: accessibilityLabel, leadingIcon: nil,
+            statusImage: highContrast ? nil : self.statusImage(title: title, foregroundColor: .labelColor))
     }
 
     private static func statusImage(title: NSAttributedString, foregroundColor: NSColor) -> NSImage? {
@@ -722,6 +736,16 @@ final class MenuBarLayoutRenderer {
         depth: Int = 0)
         -> MenuBarLayoutToken?
     {
+        if data.provider == nil {
+            let missing: Bool = switch token {
+            case let .percent(window) where window == .session || window == .weekly:
+                self.window(window, data: data) == nil
+            case .lanePercent(lane: .tertiary): data.tertiary == nil
+            case let .extraPercent(id): data.extraWindow(id) == nil
+            default: false
+            }
+            if missing { return .percent(window: .automatic) }
+        }
         switch token {
         case .hidden: return nil
         case let .extraPercent(id): return data.extraTitle(id) == nil ? nil : token
@@ -799,19 +823,28 @@ final class MenuBarLayoutRenderer {
                 providerTintColor: providerTintColor)
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
+            let pace = Self.pace(window, data: data)
+            let neutralColor = Self.neutralForegroundColor(options)
             var attributes = style.attributes
-            attributes[.foregroundColor] = Self.neutralForegroundColor(options)
-            if options.colorPace, !options.highContrast,
-               let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0
-            {
-                let color: NSColor = delta < 0 ? .systemGreen : .systemRed
-                attributes[.foregroundColor] = options.isStale ? color.withAlphaComponent(0.5) : color
-            }
-            return self.optionalTextToken(
-                Self.pace(window, data: data),
+            attributes[.foregroundColor] = neutralColor
+            let rendered = self.optionalTextToken(
+                pace,
                 unavailableLabel: L("%@ unavailable", accessibilityPrefix),
                 accessibilityPrefix: accessibilityPrefix,
                 attributes: attributes)
+            guard options.colorPace, let pace, !pace.isEmpty else { return rendered }
+            var indicatorColor = neutralColor
+            var isMonochrome = true
+            if !options.highContrast, let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0 {
+                let color: NSColor = delta < 0 ? .systemGreen : .systemRed
+                indicatorColor = options.isStale ? color.withAlphaComponent(0.5) : color
+                isMonochrome = false
+            }
+            let result = NSMutableAttributedString(attributedString: Self.paceIndicator(
+                color: indicatorColor, style: style, isMonochrome: isMonochrome))
+            result.append(NSAttributedString(string: "\u{2009}", attributes: attributes))
+            result.append(rendered.value)
+            return (result, rendered.accessibilityText)
         case .resetCountdown, .resetAbsolute, .windowResetCountdown, .windowResetAbsolute:
             let window = item.resetWindow ?? .automatic
             let qualified = item != .resetCountdown && item != .resetAbsolute
@@ -851,6 +884,8 @@ final class MenuBarLayoutRenderer {
                 attributes: style.attributes)
         case .separatorDot:
             return self.textToken("·", accessibilityText: nil, attributes: style.attributes)
+        case let .separator(separator):
+            return self.textToken(separator.glyph, accessibilityText: nil, attributes: style.attributes)
         case .space:
             return self.textToken(" ", accessibilityText: nil, attributes: style.attributes)
         case .hidden:
@@ -1152,7 +1187,7 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        guard let provider = data.provider else { return nil }
+        guard let provider = data.provider else { return data.laneLabels.primary }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         let lane: MenuBarLayoutLane = descriptor.presentation.primarySemanticWindow == .session ? .primary : .secondary
@@ -1382,7 +1417,7 @@ extension MenuBarLayoutRenderer {
     {
         guard !prefix.isEmpty else { return value }
         let result = NSMutableAttributedString(string: "\(prefix) ", attributes: attributes)
-        result.addAttribute(self.windowPrefixKey, value: true, range: NSRange(location: 0, length: result.length))
+        result.addAttribute(self.windowPrefixKey, value: prefix, range: NSRange(location: 0, length: result.length))
         result.append(value)
         return result
     }
@@ -1411,6 +1446,24 @@ extension MenuBarLayoutRenderer {
         for prefix in prefixes {
             title.addAttribute(.kern, value: width - prefix.width, range: prefix.range)
         }
+    }
+
+    private static func paceIndicator(color: NSColor, style: TokenStyle, isMonochrome: Bool) -> NSAttributedString {
+        let height = style.font.capHeight
+        let size = NSSize(width: height / 2, height: height)
+        let image = NSImage(size: size, flipped: false) { rect in
+            color.setFill()
+            NSBezierPath(rect: rect).fill()
+            return true
+        }
+        image.isTemplate = isMonochrome
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = NSRect(
+            x: 0, y: Self.attachmentYOrigin(height: size.height, style: style), width: size.width, height: size.height)
+        let value = NSMutableAttributedString(attributedString: Self.attachmentText(attachment, style: style))
+        value.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: value.length))
+        return value
     }
 
     private static func progressBarSize(size: MenuBarLayoutSize, font: NSFont) -> NSSize {

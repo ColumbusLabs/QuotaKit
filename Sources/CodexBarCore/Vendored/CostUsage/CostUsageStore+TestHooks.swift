@@ -18,6 +18,8 @@ struct CostUsageStoreTestHooks: Sendable {
     var budgetMutationFailure: (@Sendable (URL) throws -> Void)?
     var verifiedLedgerMigrationFailure: (@Sendable (URL) throws -> Void)?
     var verifiedLedgerMigrationAttempt: (@Sendable (URL) -> Void)?
+    var rebuildAfterFileValidation: (@Sendable () -> Void)?
+    var rebuildSourceOpenFailure: (@Sendable (String) -> Bool)?
 
     var snapshotRead: (@Sendable (URL) -> Void)?
     var codexReadViewIntegrityCheck: (@Sendable (URL) -> Void)?

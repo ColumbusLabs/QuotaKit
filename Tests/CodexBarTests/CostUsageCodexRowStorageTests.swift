@@ -38,7 +38,7 @@ struct CostUsageCodexRowStorageTests {
     func `retained Codex rows share identical turn strings without changing their bytes`(mode: ReadMode) async throws {
         let fixture = try CostUsageTestEnvironment()
         defer { fixture.cleanup() }
-        let store = CostUsageStore(cacheRoot: fixture.cacheRoot)
+        let store = CostUsageStore(cacheRoot: fixture.cacheRoot, home: fixture.codexStoreHome)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         let turns: [String?] = [

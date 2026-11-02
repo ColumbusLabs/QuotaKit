@@ -175,6 +175,8 @@ public enum QuotaProviderList {
         Provider(id: "traecn", displayName: "Trae CN"),
         // Chatbox has a plan quota; prepaid, reward, and image pools never enter quota alerts.
         Provider(id: "chatbox", displayName: "Chatbox AI"),
+        // OpenDesign exposes measured session and weekly quota windows.
+        Provider(id: "opendesign", displayName: "OpenDesign"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

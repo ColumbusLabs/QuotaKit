@@ -30,7 +30,7 @@ struct CostUsageCoverageCompatibilityTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let predecessor = CostUsageStore(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: hash),
@@ -45,7 +45,7 @@ struct CostUsageCoverageCompatibilityTests {
         var metadata = await predecessor.fetchMetadata()
         metadata.previousReportPayload = payload
         #expect(await predecessor.setMetadata(metadata))
-        let current = CostUsageStore(cacheRoot: env.cacheRoot)
+        let current = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let adopted = await current.fetchMetadata()
         #expect(adopted.previousReportPayload == payload)
         #expect(await current.rebuildCount == 0)

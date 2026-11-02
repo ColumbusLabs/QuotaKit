@@ -27,7 +27,8 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 330)
 
-        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
+        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .databaseURL)
         let warm = try Self.withReadObservation(probe) {
             try Self.scan(day: day, options: options)
         }
@@ -61,7 +62,10 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 330)
 
-        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        let before = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
         let firstSnapshots = try #require(before.files[firstPath]?.codexTokenSnapshots)
         let untouchedSnapshots = try #require(before.files[secondPath]?.codexTokenSnapshots)
         #expect(firstSnapshots.count == 1)
@@ -73,7 +77,8 @@ struct CostUsageLazyScannerHistoryTests {
             day: day,
             env: env)
 
-        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
+        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .databaseURL)
         let updated = try Self.withReadObservation(probe) {
             try Self.scan(day: day, options: options)
         }
@@ -82,7 +87,10 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.snapshotTableReadCount == 1)
         #expect(probe.snapshotPaths == [firstPath])
 
-        let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        let reopened = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
         let updatedSnapshots = try #require(reopened.files[firstPath]?.codexTokenSnapshots)
         #expect(updatedSnapshots.count == 2)
         #expect(updatedSnapshots.first == firstSnapshots.first)
@@ -106,9 +114,9 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 110)
         let initialSnapshots = try #require(
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: options.calendar)
                 .files[path]?.codexTokenSnapshots)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let initialUsageRows = await store.fetchUsageRows(path: path)
         #expect(!initialUsageRows.isEmpty)
 
@@ -123,22 +131,28 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([path])])
         #expect(Self.totalTokens(deferred) == 110)
         let afterFailure = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterFailure.codexScanCatchUpPending == true)
         #expect(afterFailure.codexActiveLookbackState?.pendingFilePaths.contains(path) == true)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        #expect(CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
             .files[path]?.codexTokenSnapshots == initialSnapshots)
         #expect(await store.fetchUsageRows(path: path) == initialUsageRows)
 
         let retried = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(retried) == 110)
         let afterRetry = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterRetry.codexScanCatchUpPending == false)
         #expect(afterRetry.codexActiveLookbackState?.pendingFilePaths.contains(path) != true)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        #expect(CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
             .files[path]?.codexTokenSnapshots == initialSnapshots)
         // A successful full reparse can reorder JSON keys; retention failures above must preserve exact bytes.
         let retriedUsageRows = await store.fetchUsageRows(path: path)
@@ -164,9 +178,9 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 110)
         let initialSnapshots = try #require(
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: options.calendar)
                 .files[oldPath]?.codexTokenSnapshots)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let initialUsageRows = await store.fetchUsageRows(path: oldPath)
         #expect(!initialUsageRows.isEmpty)
 
@@ -187,10 +201,13 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([oldPath])])
         #expect(Self.totalTokens(deferred) == 110)
         let afterFailure = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterFailure.codexScanCatchUpPending == true)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        #expect(CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
             .files[oldPath]?.codexTokenSnapshots == initialSnapshots)
         #expect(await store.fetchUsageRows(path: oldPath) == initialUsageRows)
         let failedNewPathRows = await store.fetchUsageRows(path: newPath)
@@ -198,7 +215,10 @@ struct CostUsageLazyScannerHistoryTests {
 
         let retried = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(retried) == 110)
-        let reconciled = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        let reconciled = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
         #expect(reconciled.files[oldPath] == nil)
         #expect(reconciled.files[newPath]?.codexTokenSnapshots == initialSnapshots)
         let retriedNewPathRows = await store.fetchUsageRows(path: newPath)
@@ -222,7 +242,7 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(try Self.totalTokens(Self.scan(day: day, options: options)) == 110)
         let newURL = oldURL.deletingLastPathComponent().appendingPathComponent("deleted-after-rename.jsonl")
         try FileManager.default.moveItem(at: oldURL, to: newURL)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let probe = HistoryReadProbe(databaseURL: store.databaseURL)
         var forcedOptions = options
         forcedOptions.forceRescan = true
@@ -232,7 +252,7 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(Self.totalTokens(forcedReport) == 110)
         #expect(probe.injectedFailureCount == 1)
         #expect(CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar).codexScanCatchUpPending == true)
 
         try FileManager.default.removeItem(at: newURL)
@@ -240,7 +260,7 @@ struct CostUsageLazyScannerHistoryTests {
         retryOptions.useCodexCatchUpWorkingSet = useCatchUpWorkingSet
         #expect(try Self.totalTokens(Self.scan(day: day, options: retryOptions)) == 0)
         let finished = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(finished.codexScanCatchUpPending == false)
         #expect(finished.codexHistoryHydrationRetries?.isEmpty != false)
@@ -272,9 +292,9 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 110)
         let initialSnapshots = try #require(
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: options.calendar)
                 .files[path]?.codexTokenSnapshots)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let initialUsageRows = await store.fetchUsageRows(path: path)
         #expect(!initialUsageRows.isEmpty)
 
@@ -297,7 +317,7 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([path])])
         #expect(Self.totalTokens(deferred) == 110)
         #expect(CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot,
+            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
             calendar: options.calendar).codexScanCatchUpPending == true)
         #expect(await store.fetchFile(path: path) == malformedFile)
         #expect(await store.fetchTokenSnapshots(path: path) == retainedTokenRows)
@@ -305,7 +325,10 @@ struct CostUsageLazyScannerHistoryTests {
 
         let retried = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(retried) == 110)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        #expect(CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
             .files[path]?.codexTokenSnapshots == initialSnapshots)
         // A successful full reparse can reorder JSON keys; retention failures above must preserve exact bytes.
         let retriedUsageRows = await store.fetchUsageRows(path: path)
@@ -330,10 +353,14 @@ struct CostUsageLazyScannerHistoryTests {
         let options = Self.options(for: env)
         _ = try Self.scan(day: day, options: options)
 
-        let loaded = CostUsageStoreAccess.load(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        let loaded = CostUsageStoreAccess.load(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
         let storedRows = await loaded.store.fetchTokenSnapshots(path: path)
         #expect(!storedRows.isEmpty)
-        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
+        let probe = HistoryReadProbe(databaseURL: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .databaseURL)
         loaded.release()
         let hydrator = CodexScanHistoryHydrator(storeLoad: loaded, checkCancellation: nil)
         let hydration = try Self.withReadObservation(probe) {
@@ -364,9 +391,9 @@ struct CostUsageLazyScannerHistoryTests {
         let initial = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(initial) == 110)
         let storedSnapshots = try #require(
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: options.calendar)
                 .files[path]?.codexTokenSnapshots)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let storedUsageRows = await store.fetchUsageRows(path: path)
         #expect(!storedUsageRows.isEmpty)
 
@@ -392,7 +419,10 @@ struct CostUsageLazyScannerHistoryTests {
 
         #expect(probe.snapshotTableReadCount == 1)
         #expect(probe.snapshotPaths == [path])
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: options.calendar)
+        #expect(CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: options.calendar)
             .files[path]?.codexTokenSnapshots == storedSnapshots)
         #expect(await store.fetchUsageRows(path: path) == storedUsageRows)
     }

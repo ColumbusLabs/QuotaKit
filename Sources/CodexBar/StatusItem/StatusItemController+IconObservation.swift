@@ -6,30 +6,22 @@ extension StatusItemController {
         let showBrandPercent = self.settings.menuBarShowsBrandIconWithPercent
         let mergeIcons = self.shouldMergeIcons
         let visibleProviders = self.store.enabledProvidersForDisplay().map(\.rawValue).sorted().joined(separator: ",")
-        let providerSignatures: String
         let primaryProvider: ProviderInstanceID?
+        let providers: [ProviderInstanceID]
         if let stackedProviders = self.stackedMergeIconProvidersIfActive() {
             primaryProvider = stackedProviders.top.instanceID
-            providerSignatures = [stackedProviders.top, stackedProviders.bottom]
-                .map {
-                    self.providerStoreIconObservationSignature(for: $0.instanceID, showBrandPercent: showBrandPercent)
-                }
-                .joined(separator: "||")
+            providers = [stackedProviders.top.instanceID, stackedProviders.bottom.instanceID]
         } else if mergeIcons {
             let primary = self.primaryProviderInstanceForUnifiedIcon()
             primaryProvider = primary
-            providerSignatures = self.providerStoreIconObservationSignature(
-                for: primary,
-                showBrandPercent: showBrandPercent)
+            providers = [primary]
         } else {
             primaryProvider = nil
-            providerSignatures = UsageProvider.allCases
-                .filter { self.isVisible($0) }
-                .map {
-                    self.providerStoreIconObservationSignature(for: $0.instanceID, showBrandPercent: showBrandPercent)
-                }
-                .joined(separator: "||")
+            providers = UsageProvider.allCases.filter { self.isVisible($0) }.map(\.instanceID)
         }
+        let providerSignatures = providers.map {
+            self.providerStoreIconObservationSignature(for: $0, showBrandPercent: showBrandPercent)
+        }.joined(separator: "||")
         return [
             "merge=\(mergeIcons ? "1" : "0")",
             "visible=\(visibleProviders)",
@@ -49,11 +41,14 @@ extension StatusItemController {
         for instanceID: ProviderInstanceID, showBrandPercent: Bool) -> String
     {
         guard let provider = instanceID.firstPartyProvider else {
-            let percent = Self.pluginSwitcherMetricPercent(
-                snapshot: self.store.menuBarSnapshot(for: instanceID), showUsed: self.settings.usageBarsShowUsed)
-            let source = UserProviderPluginRegistry.plugin(for: instanceID)?.sourceHash ?? ""
-            return "\(instanceID.rawValue)|percent=\(Self.iconSignatureValue(percent))" +
-                "|error=\(self.store.errors[instanceID] != nil)|source=\(source)"
+            let layout = showBrandPercent ? self.menuBarLayoutRenderData(for: instanceID, now: Date()).hashValue : 0
+            let signature = Self.pluginStoreIconObservationSignature(
+                for: instanceID,
+                snapshot: self.store.menuBarSnapshot(for: instanceID),
+                settings: self.settings,
+                hasError: self.store.errors[instanceID] != nil,
+                sourceHash: UserProviderPluginRegistry.plugin(for: instanceID)?.sourceHash ?? "")
+            return "\(signature)|layout=\(layout)"
         }
         let snapshot = self.menuBarUsageSource(for: provider).snapshot
         let style = self.store.style(for: provider)
@@ -119,6 +114,26 @@ extension StatusItemController {
             "layoutSpend=\(layoutSpendSignature ?? "nil")",
             "layoutResets=\(layoutResetSignature ?? "nil")",
         ].joined(separator: "|")
+    }
+
+    static func pluginStoreIconObservationSignature(
+        for instanceID: ProviderInstanceID,
+        snapshot: UsageSnapshot?,
+        settings: SettingsStore,
+        hasError: Bool,
+        sourceHash: String) -> String
+    {
+        let preference = settings.menuBarShowsBrandIconWithPercent
+            ? MenuBarPercentWindowPreference.current(in: settings.menuBarLayout(forPlugin: instanceID)) ?? .automatic
+            : .automatic
+        let percent = Self.pluginSwitcherMetricPercent(
+            snapshot: snapshot, showUsed: settings.usageBarsShowUsed, preference: preference)
+        let icon = settings.menuBarShowsBrandIconWithPercent ? snapshot?.iconProvider?.rawValue ?? "" : ""
+        let summary = settings.menuBarShowsBrandIconWithPercent ? snapshot.map {
+            PluginMenuBarSummaryRenderer.elements(snapshot: $0, showUsed: settings.usageBarsShowUsed).hashValue
+        } : nil
+        return "\(instanceID.rawValue)|percent=\(Self.iconSignatureValue(percent))" +
+            "|error=\(hasError)|source=\(sourceHash)|icon=\(icon)|summary=\(summary ?? 0)"
     }
 
     private func storedMenuBarLayoutResetSignature(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {

@@ -52,9 +52,9 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
                 ofItemAtPath: historyFile.path)
         }
 
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         cache.codexPricingKey = "previous-pricing-generation"
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
         try Self.append(Self.tokenRecord(iso: iso, input: 200), to: today)
         let instant = ContinuousClock.now
         options.maxCodexScanDurationPerRefresh = 2
@@ -70,7 +70,7 @@ struct UsageStoreCodexCostCatchUpPublicationTests {
             until: now,
             now: now.addingTimeInterval(1),
             options: stagingOptions)
-        cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(cache.codexScanCatchUpPending == true)
         #expect((cache.codexActiveLookbackState?.pendingFilePaths.count ?? 0) >= pendingHistoryFileCount)
 

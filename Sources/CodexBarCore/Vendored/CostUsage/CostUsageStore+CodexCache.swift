@@ -136,28 +136,28 @@ extension CostUsageStore {
                     metadata: Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata") ?? .empty,
-                    files: Self.readFiles(database, includeBufferedPresence: true),
+                        table: "scan_metadata", home: self.home) ?? .empty,
+                    files: Self.readFiles(database, home: self.home, includeBufferedPresence: true),
                     tokenSnapshots: [],
                     usageRows: [],
                     fileDayAggregates: purpose == .status
-                        ? [] : Self.readFileDayAggregates(database, path: nil),
+                        ? [] : Self.readFileDayAggregates(database, path: nil, home: self.home),
                     dayAggregates: purpose == .status
-                        ? [] : Self.readDayAggregates(database, sinceDay: nil, untilDay: nil),
-                    forkLineage: Self.readForkLineage(database, path: nil),
+                        ? [] : Self.readDayAggregates(database, home: self.home, sinceDay: nil, untilDay: nil),
+                    forkLineage: Self.readForkLineage(database, path: nil, home: self.home),
                     bufferedLines: purpose == .report
-                        ? Self.readBufferedLines(database, path: nil, kind: nil) : [],
+                        ? Self.readBufferedLines(database, path: nil, home: self.home, kind: nil) : [],
                     discoveryState: Self.readSingleton(
                         CostUsageStoreDiscoveryState.self,
                         database: database,
-                        table: "discovery_state"),
+                        table: "discovery_state", home: self.home),
                     lookbackState: Self.readSingleton(
                         CostUsageStoreLookbackState.self,
                         database: database,
-                        table: "lookback_state"),
+                        table: "lookback_state", home: self.home),
                     accumulators: [])
                 snapshot.tokenSnapshotsLoaded = false
-                let usageRows = purpose == .report ? try Self.readDecodedUsageRows(database) : nil
+                let usageRows = purpose == .report ? try Self.readDecodedUsageRows(database, home: self.home) : nil
                 #if DEBUG
                 try CostUsageStoreTestHooks.current.codexReadViewCheckpoint?(self.databaseURL)
                 #endif
@@ -166,6 +166,7 @@ extension CostUsageStore {
                     : try Self.readCodexCatchUpProjection(
                         database,
                         metadata: snapshot.metadata,
+                        home: self.home,
                         discoveryState: snapshot.discoveryState,
                         lookbackState: snapshot.lookbackState)
                 return (snapshot: snapshot, usageRows: usageRows, catchUpProjection: catchUpProjection)
@@ -487,7 +488,7 @@ extension CostUsageStore {
                 timeZoneIdentifier: calendar.timeZone.identifier,
                 rootPaths: cache.roots?.keys.sorted())
             {
-                try Self.clearVerifiedDayAggregates(self.activeSaveDatabase())
+                try Self.clearVerifiedDayAggregates(self.activeSaveDatabase(), home: self.home)
                 Self.clearVerifiedCoverage(&metadata)
             }
             _ = self.setMetadata(metadata)
@@ -572,16 +573,21 @@ extension CostUsageStore {
                 // Day keys are calendar-derived. Keeping even one unhydrated file from the old
                 // zone while relabeling metadata would mix incompatible buckets, so invalidate
                 // the rebuildable cache atomically and let bounded discovery repopulate it.
-                try Self.execute(database, "DELETE FROM files")
-                try Self.execute(database, "DELETE FROM day_aggregates")
-                try Self.execute(database, "DELETE FROM discovery_state")
-                try Self.execute(database, "DELETE FROM lookback_state")
+                if try Self.readFiles(database, home: self.home).contains(where: {
+                    CostUsageScanner.isArchivedCodexRollout($0.path)
+                }) {
+                    throw StoreError.migration(StoreError.incompatibleSchema)
+                }
+                try Self.deleteHomeRows(database, table: "files", home: self.home)
+                try Self.deleteHomeRows(database, table: "day_aggregates", home: self.home)
+                try Self.deleteHomeRows(database, table: "discovery_state", home: self.home)
+                try Self.deleteHomeRows(database, table: "lookback_state", home: self.home)
             }
             if verifiedScopeChanged {
-                try Self.clearVerifiedDayAggregates(database)
+                try Self.clearVerifiedDayAggregates(database, home: self.home)
             }
             var persistedPathsByIdentity: [String: [String]] = [:]
-            for value in try Self.readCodexFileIdentities(database) {
+            for value in try Self.readCodexFileIdentities(database, home: self.home) {
                 guard let identity = Self.aliasIdentityKey(value.identity) else { continue }
                 persistedPathsByIdentity[identity, default: []].append(value.path)
             }
@@ -662,7 +668,7 @@ extension CostUsageStore {
                 invalidatedVerifiedDays: &invalidatedVerifiedDays)
             if maintainsSparseVerifiedDays {
                 try Self.clearVerifiedDayAggregates(
-                    database,
+                    database, home: self.home,
                     days: invalidatedVerifiedDays)
             }
             #if DEBUG
@@ -1296,8 +1302,14 @@ extension CostUsageStore {
         var completedIdentityValidationPaths: [String] = []
         var invalidatedIdentityValidationPaths: [String] = []
 
-        for file in persistence.files {
+        for file in persistence.files where !file.belongsToOpenCodeLocalHistory {
             guard var usage = cache.files[file.path] else { continue }
+            let archived: Bool? = CostUsageScanner.isArchivedCodexRollout(file.path) ? true : nil
+            if usage.codexArchived != archived {
+                usage.codexArchived = archived
+                cache.files[file.path] = usage
+            }
+            if archived == true { continue }
             let normalizedIdentity = Self.normalizedCodexFileIdentity(
                 file: file,
                 currentRootDevices: currentRootDevices)
@@ -2116,11 +2128,12 @@ extension CostUsageStore {
         return self.withDatabase(default: false) { database in
             let statement = try Self.prepare(database, """
             SELECT row_index, payload FROM usage_rows
-            WHERE file_id = (SELECT id FROM files WHERE path = ?)
+            WHERE file_id = (SELECT id FROM files WHERE path = ? AND home = ?)
             ORDER BY row_index
             """)
             defer { sqlite3_finalize(statement) }
             Self.bind(path, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 2)
             let decoder = JSONDecoder()
             var index = 0
             var result = sqlite3_step(statement)
@@ -2158,11 +2171,12 @@ extension CostUsageStore {
                    last_input, last_cached, last_output, last_reasoning,
                    total_input, total_cached, total_output, total_reasoning, end_offset
             FROM token_snapshots
-            WHERE file_id = (SELECT id FROM files WHERE path = ?)
+            WHERE file_id = (SELECT id FROM files WHERE path = ? AND home = ?)
             ORDER BY event_index
             """)
             defer { sqlite3_finalize(statement) }
             Self.bind(path, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 2)
             var index = 0
             var result = sqlite3_step(statement)
             while result == SQLITE_ROW {
@@ -2959,19 +2973,21 @@ struct CostUsageStoreLoad: @unchecked Sendable {
 enum CostUsageStoreAccess {
     private final class ScanStoreRegistry: @unchecked Sendable {
         private let lock = NSLock()
-        private var entries: [(path: String, store: CostUsageStore)] = []
+        private var entries: [(path: String, home: String, store: CostUsageStore)] = []
         private let capacity = 4
 
-        func store(cacheRoot: URL?) -> CostUsageStore {
-            let candidate = CostUsageStore(cacheRoot: cacheRoot)
+        func store(cacheRoot: URL?, home: String) -> CostUsageStore {
+            let candidate = CostUsageStore(cacheRoot: cacheRoot, home: home)
             let path = candidate.databaseURL.standardizedFileURL.path
             return self.lock.withLock {
-                let store: CostUsageStore = if let index = self.entries.firstIndex(where: { $0.path == path }) {
+                let store: CostUsageStore = if let index = self.entries
+                    .firstIndex(where: { $0.path == path && $0.home == home })
+                {
                     self.entries.remove(at: index).store
                 } else {
                     candidate
                 }
-                self.entries.append((path, store))
+                self.entries.append((path, home, store))
                 if self.entries.count > self.capacity { self.entries.removeFirst() }
                 return store
             }
@@ -2980,21 +2996,26 @@ enum CostUsageStoreAccess {
 
     private static let scanStores = ScanStoreRegistry()
 
-    static func sharedScanStore(cacheRoot: URL?) -> CostUsageStore {
-        self.scanStores.store(cacheRoot: cacheRoot)
+    static func sharedScanStore(cacheRoot: URL?, home: String = CodexHomeCostStoreScope.key()) -> CostUsageStore {
+        self.scanStores.store(cacheRoot: cacheRoot, home: home)
     }
 
-    static func load(cacheRoot: URL?, calendar: Calendar) -> CostUsageStoreLoad {
-        let store = self.scanStores.store(cacheRoot: cacheRoot)
+    static func load(
+        cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
+        calendar: Calendar) -> CostUsageStoreLoad
+    {
+        let store = self.scanStores.store(cacheRoot: cacheRoot, home: home)
         return store.syncLoadCodexScan(calendar: calendar)
     }
 
     static func loadCodexWorkingSet(
         cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
         calendar: Calendar,
         hydratingPaths: Set<String>? = Set<String>()) -> CostUsageStoreLoad
     {
-        let store = CostUsageStore(cacheRoot: cacheRoot)
+        let store = CostUsageStore(cacheRoot: cacheRoot, home: home)
         let cache = store.syncLoadCodexCache(
             calendar: calendar,
             hydratingPaths: hydratingPaths)
@@ -3016,22 +3037,31 @@ enum CostUsageStoreAccess {
         try store.syncPathsContainingCodexTurnIDs(turnIDs)
     }
 
-    static func read(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
-        CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexCache(calendar: calendar)
+    static func read(
+        cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
+        calendar: Calendar = .current) -> CostUsageCache
+    {
+        CostUsageStore(cacheRoot: cacheRoot, home: home).syncLoadCodexCache(calendar: calendar)
     }
 
     /// Cache read for reports that need priced rows and aggregates but not token histories.
-    static func readWithoutTokenSnapshots(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
-        CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexCache(
+    static func readWithoutTokenSnapshots(
+        cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
+        calendar: Calendar = .current) -> CostUsageCache
+    {
+        CostUsageStore(cacheRoot: cacheRoot, home: home).syncLoadCodexCache(
             calendar: calendar,
             loadTokenSnapshots: false)
     }
 
     static func readCodexCatchUpProjection(
         cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
         calendar: Calendar = .current) -> CostUsageStoreCatchUpProjection
     {
-        CostUsageStore(cacheRoot: cacheRoot).syncReadCodexCatchUpProjection(calendar: calendar)
+        CostUsageStore(cacheRoot: cacheRoot, home: home).syncReadCodexCatchUpProjection(calendar: calendar)
     }
 
     @discardableResult
@@ -3071,10 +3101,11 @@ enum CostUsageStoreAccess {
     @discardableResult
     static func replace(
         cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
         cache: CostUsageCache,
         calendar: Calendar = .current) -> CostUsageStoreBudgetResult
     {
-        let loaded = self.load(cacheRoot: cacheRoot, calendar: calendar)
+        let loaded = self.load(cacheRoot: cacheRoot, home: home, calendar: calendar)
         defer { loaded.release() }
         let since = cache.scanSinceKey ?? "0000-01-01"
         let until = cache.scanUntilKey ?? "9999-12-31"

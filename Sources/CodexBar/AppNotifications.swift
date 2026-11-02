@@ -15,7 +15,10 @@ final class AppNotifications {
     }
 
     func requestAuthorizationOnStartup() {
-        guard !Self.isRunningUnderTests else { return }
+        guard !Self.isRunningUnderTests else {
+            onCompletion?(false)
+            return
+        }
         _ = self.ensureAuthorizationTask()
     }
 

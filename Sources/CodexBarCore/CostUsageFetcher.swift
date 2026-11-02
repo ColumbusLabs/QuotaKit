@@ -8,6 +8,7 @@ public enum CostUsageError: LocalizedError, Sendable {
     case cursorPaginationIncomplete(expected: Int?, received: Int)
     case cursorPaginationInconsistent(expected: Int, received: Int)
     case cachedSnapshotUnavailable
+    case archivedHistoryTimeZoneConflict
 
     public var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ public enum CostUsageError: LocalizedError, Sendable {
             return "Cursor cost pagination was inconsistent (expected \(expected), received \(received) events)."
         case .cachedSnapshotUnavailable:
             return "The completed cost scan did not produce a readable cached snapshot."
+        case .archivedHistoryTimeZoneConflict:
+            return "Archived Codex history cannot be assigned to the current time zone without its original logs."
         }
     }
 }
@@ -497,6 +500,7 @@ public struct CostUsageFetcher: Sendable {
         }
         return CostUsageStoreAccess.readView(
             cacheRoot: options.cacheRoot,
+            home: CodexHomeCostStoreScope.key(options: options),
             calendar: options.calendar,
             purpose: .status)
             .catchUpStatus(roots: roots, rootsFingerprint: rootsFingerprint, requiredRange: requiredRange)
@@ -509,6 +513,7 @@ public struct CostUsageFetcher: Sendable {
         let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
         let view = CostUsageStoreAccess.readView(
             cacheRoot: options.cacheRoot,
+            home: CodexHomeCostStoreScope.key(options: options),
             calendar: options.calendar,
             purpose: .status)
         let status = view.catchUpStatus(
@@ -1139,7 +1144,9 @@ public struct CostUsageFetcher: Sendable {
         let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
         let range = CostUsageScanner.CostUsageDayRange(
             since: since, until: now, calendar: scanOptions.calendar)
-        let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
+        let projection = CostUsageStore(
+            cacheRoot: scanOptions.cacheRoot,
+            home: CodexHomeCostStoreScope.key(options: scanOptions))
             .syncReadCodexReportProjection(
                 calendar: scanOptions.calendar,
                 temporalRange: (range.sinceKey, range.untilKey))
@@ -1671,6 +1678,7 @@ public struct CostUsageFetcher: Sendable {
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
             let cache = CostUsageStoreAccess.readView(
                 cacheRoot: options.cacheRoot,
+                home: CodexHomeCostStoreScope.key(options: options),
                 calendar: options.calendar,
                 purpose: .activity)
                 .scoped(to: roots)
@@ -1759,6 +1767,7 @@ public struct CostUsageFetcher: Sendable {
             scope: sourceScope, cacheRoot: projectionOptions.cacheRoot, purpose: .activity)
         let persistedProjection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: projectionOptions.cacheRoot,
+            home: CodexHomeCostStoreScope.key(options: projectionOptions),
             calendar: projectionOptions.calendar,
             temporalRange: (projectionRange.sinceKey, projectionRange.untilKey))
 

@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-02)
+
+- Add OpenDesign subscription quotas to the Mac and iPhone provider catalog.
+- Improve provider recovery and billing details for Cursor, Claude, Kiro, MiniMax, OpenCode Go, DeepSeek, Copilot, Perplexity, WorkBuddy, LiteLLM, and z.ai.
+- Add plugin branding, multiple quota summaries, dashboard links, shared browser-cookie imports, and saved menu layouts with separator glyphs and pace indicators.
+- Add custom Codex account names, opt-in reminders before weekly quota resets and reset-credit expiry, and CLI requests for freshly measured usage.
+- Retry dropped CloudKit snapshot saves without letting delayed callbacks confirm a newer payload.
+
 ## Unreleased upstream integration (2026-10-27)
 
 - Add opt-in OpenCode local history to recorded Codex costs while keeping scoped accounts and verified native accounting separate.

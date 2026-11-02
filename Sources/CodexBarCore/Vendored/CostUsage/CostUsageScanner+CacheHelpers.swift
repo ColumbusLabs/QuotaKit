@@ -61,6 +61,15 @@ extension CostUsageScanner {
         self.codexIntByDayModel(cache: cache, range: range) { $0.codexPriorityTokens }
     }
 
+    /// Source qualification only. The collecting machine decides whether custom rates override it.
+    static func codexAutoReviewIsIncludedInPlan(
+        model: String, timestampUnixMs: Int64?, hasCreatorAccount: Bool) -> Bool
+    {
+        hasCreatorAccount
+            && timestampUnixMs.map { $0 >= 1_791_270_000_000 } == true // 2026-10-06 00:00 PDT.
+            && CostUsagePricing.normalizeCodexModel(model) == "codex-auto-review"
+    }
+
     static func codexReportDayKeys(cache: CostUsageCache, range: CostUsageDayRange) -> [String] {
         cache.days.keys.sorted().filter {
             CostUsageDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)

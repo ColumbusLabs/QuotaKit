@@ -211,13 +211,14 @@ actor CostUsageStore {
     // a tier split for their combined historical cost.
     // v6 persists resolved non-authoritative pricing. It is rebuilt whenever the pricing key
     // changes, preserving routed pricing-model and historical-date semantics compactly.
-    static let baseSchemaVersion = 6
+    static let baseSchemaVersion = 7
     static let schemaVersion = CostUsageStore.combinedSchemaVersion(
         base: CostUsageStore.baseSchemaVersion,
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "7d66d60c44b88609", // Resumed tier correction preserves parsed rows and checkpoints.
         "8d37b5425fe86c2a", // Selected-session inspection preserves existing parsed rows and checkpoints.
         "c939f17d29a7e29d", // Claude-only pricing preserves native Codex rows, checkpoints, and reports.
         "65175f55d6bacbca", // Exact byte-marker searches preserve native rows, checkpoints, and reports.
@@ -282,14 +283,8 @@ actor CostUsageStore {
         "7607317f30850961", // Lazy history materialization changes reads; persisted parser rows remain compatible.
         "d0d7da3636605240", // Read-only priority-database fallback changes no parsed session rows or checkpoints.
     ]
-    static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
-        "3f70d97998be5ff8", // Rebuild retained estimates after revision 9 ledger mirror correction.
-        "f22371c47d2e006f",
-        "dd19ffa2dcfa8d47",
-        "2d17f4981b78d07f",
-        "8050a4faf4fddb96",
-        "005a869f36400f7e", // Recompute the retained report after Codex alias pricing changes.
-    ]
+    // All earlier reports may contain estimates made before the Fast pricing correction.
+    static let incompatibleRetainedReportPredecessorParserHashes = CostUsageStore.compatiblePredecessorParserHashes
 
     nonisolated static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -311,6 +306,7 @@ actor CostUsageStore {
     #endif
 
     nonisolated let databaseURL: URL
+    nonisolated let home: String
     private let expectedSchemaVersion: Int32
     private let expectedParserHash: String
     private let busyTimeoutMilliseconds: Int32
@@ -392,11 +388,13 @@ actor CostUsageStore {
 
     init(
         cacheRoot: URL? = nil,
+        home: String = CodexHomeCostStoreScope.key(),
         schemaVersion: Int32 = CostUsageStore.schemaVersion,
         parserHash: String = CodexParserHash.value,
         busyTimeoutMilliseconds: Int32 = 5000)
     {
         self.databaseURL = Self.databaseURL(cacheRoot: cacheRoot)
+        self.home = home
         self.executor = StoreSerialExecutor.shared(for: self.databaseURL)
         self.expectedSchemaVersion = schemaVersion
         self.expectedParserHash = parserHash
@@ -441,6 +439,21 @@ extension CostUsageStore {
     {
         self.syncWithStoreIsolation { store in
             store.loadCodexCache(calendar: calendar, loadTokenSnapshots: loadTokenSnapshots)
+        }
+    }
+
+    nonisolated func syncCodexArchiveAvailabilityError(calendar: Calendar) -> CostUsageError? {
+        self.syncWithStoreIsolation { store in
+            store.withDatabase(default: Optional(CostUsageError.cachedSnapshotUnavailable)) { database in
+                let metadata = try Self.readSingleton(
+                    CostUsageStoreMetadata.self, database: database, table: "scan_metadata", home: store.home)
+                guard let savedTimeZone = metadata?.timeZoneIdentifier,
+                      savedTimeZone != calendar.timeZone.identifier else { return nil }
+                let hasArchive = try Self.readFiles(database, home: store.home).contains {
+                    !$0.belongsToOpenCodeLocalHistory && CostUsageScanner.isArchivedCodexRollout($0.path)
+                }
+                return hasArchive ? .archivedHistoryTimeZoneConflict : nil
+            }
         }
     }
 
@@ -849,7 +862,7 @@ extension CostUsageStore {
                 // The verified aggregate ledger is an additive migration. Keep the existing
                 // database usable if a transient filesystem/SQLite failure prevents creating
                 // it; the legacy metadata payload remains readable as a compatibility fallback.
-                if try Self.verifiedLedgerMigrationNeeded(opened) {
+                if try Self.verifiedLedgerMigrationNeeded(opened, home: self.home) {
                     do {
                         try self.migrateVerifiedDayAggregates(opened)
                     } catch {
@@ -875,6 +888,12 @@ extension CostUsageStore {
         do {
             state = try self.databaseCompatibilityState(database)
             guard state.isCurrent || state.canAdoptPredecessor else {
+                if try Self.readFiles(database).contains(where: {
+                    CostUsageScanner.isArchivedCodexRollout($0.path)
+                }) {
+                    // Compressed histories cannot be rebuilt. Fail closed and keep the database intact.
+                    throw StoreError.migration(StoreError.incompatibleSchema)
+                }
                 throw StoreError.incompatibleSchema
             }
             #if DEBUG
@@ -927,10 +946,11 @@ extension CostUsageStore {
         let predecessorVersion = Self.combinedSchemaVersion(
             base: Self.baseSchemaVersion,
             parserHash: storedHash)
+        let legacyVersion = Self.combinedSchemaVersion(base: 6, parserHash: storedHash)
         let canAdoptPredecessor = self.expectedParserHash == CodexParserHash.value
             && self.expectedSchemaVersion == Self.schemaVersion
-            && Self.compatiblePredecessorParserHashes.contains(storedHash)
-            && actualVersion == Int64(predecessorVersion)
+            && (Self.compatiblePredecessorParserHashes.contains(storedHash) || storedHash == self.expectedParserHash)
+            && (actualVersion == Int64(predecessorVersion) || actualVersion == Int64(legacyVersion))
         return (storedHash, isCurrent, canAdoptPredecessor)
     }
 
@@ -944,21 +964,32 @@ extension CostUsageStore {
     }
 
     private func adoptCompatiblePredecessor(_ database: OpaquePointer, storedHash: String) throws {
-        if Self.incompatibleRetainedReportPredecessorParserHashes.contains(storedHash),
-           var metadata = try Self.readSingleton(
-               CostUsageStoreMetadata.self,
-               database: database,
-               table: "scan_metadata")
+        if try Self.scalarInt(database, "PRAGMA user_version")
+            == Int64(Self.combinedSchemaVersion(base: 6, parserHash: storedHash))
         {
-            metadata.previousReportPayload = nil
-            let payload = try JSONEncoder().encode(metadata)
-            let metadataStatement = try Self.prepare(
-                database,
-                "UPDATE scan_metadata SET payload = ? WHERE id = 1")
-            defer { sqlite3_finalize(metadataStatement) }
-            Self.bind(payload, to: metadataStatement, at: 1)
-            try Self.stepDone(metadataStatement, database: database)
-            guard sqlite3_changes(database) == 1 else { throw StoreError.incompatibleSchema }
+            do {
+                try self.migrateHomeScope(database)
+            } catch {
+                throw StoreError.migration(error)
+            }
+        }
+        if Self.incompatibleRetainedReportPredecessorParserHashes.contains(storedHash) {
+            let rows = try Self.prepare(database, "SELECT home, payload FROM scan_metadata")
+            var values: [(String, CostUsageStoreMetadata)] = []
+            var step = sqlite3_step(rows)
+            while step == SQLITE_ROW {
+                guard let home = Self.columnText(rows, at: 0), let payload = Self.columnData(rows, at: 1)
+                else { sqlite3_finalize(rows); throw StoreError.invalidData }
+                var metadata = try JSONDecoder().decode(CostUsageStoreMetadata.self, from: payload)
+                metadata.previousReportPayload = nil
+                values.append((home, metadata))
+                step = sqlite3_step(rows)
+            }
+            sqlite3_finalize(rows)
+            guard step == SQLITE_DONE else { throw StoreError.sqlite(step) }
+            for (home, metadata) in values {
+                try Self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+            }
         }
         let statement = try Self.prepare(database, "UPDATE meta SET value = ? WHERE key = 'parser_hash'")
         defer { sqlite3_finalize(statement) }
@@ -984,17 +1015,134 @@ extension CostUsageStore {
         self.failureGeneration = UUID()
         self.connection?.close()
         self.connection = nil
-        for suffix in ["", "-wal", "-shm"] {
-            let path = self.databaseURL.path + suffix
-            if FileManager.default.fileExists(atPath: path) {
-                try? FileManager.default.removeItem(atPath: path)
+        guard FileManager.default.fileExists(atPath: self.databaseURL.path) else {
+            if let database = try? self.openDatabase() {
+                self.connection = SQLiteConnection(handle: database, path: self.databaseURL.path)
             }
+            return
         }
-        self.rebuildCount += 1
-        Self.log.warning("cost-usage store rebuilt (count \(self.rebuildCount)): \(reason)")
-        if let database = try? self.openDatabase() {
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(self.databaseURL.path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+            == SQLITE_OK, let database = handle
+        else {
+            if let handle { sqlite3_close_v2(handle) }
+            return
+        }
+        var retained = false
+        defer { if !retained { sqlite3_close_v2(database) } }
+        do {
+            try Self.configure(database, busyTimeoutMilliseconds: self.busyTimeoutMilliseconds)
+            // The proof and replacement share one writer lock; no other process can change
+            // the stored inventory between checking it and replacing the derived schema.
+            try Self.execute(database, "PRAGMA foreign_keys=OFF")
+            try Self.execute(database, "BEGIN IMMEDIATE")
+            do {
+                guard try Self.scalarText(database, "PRAGMA quick_check") == "ok",
+                      let storedHash = try Self.scalarText(database, "SELECT value FROM meta WHERE key = 'parser_hash'")
+                else { throw StoreError.migration(StoreError.incompatibleSchema) }
+                let actualVersion = try Self.scalarInt(database, "PRAGMA user_version")
+                let knownShapes = [6, Self.baseSchemaVersion].map {
+                    Int64(Self.combinedSchemaVersion(base: $0, parserHash: storedHash))
+                }
+                guard knownShapes.contains(actualVersion) else {
+                    throw StoreError.migration(StoreError.incompatibleSchema)
+                }
+                let files = try Self.readFiles(database)
+                for file in files {
+                    #if DEBUG
+                    if CostUsageStoreTestHooks.current.rebuildSourceOpenFailure?(file.path) == true {
+                        throw StoreError.migration(StoreError.invalidData)
+                    }
+                    #endif
+                    guard !file.belongsToOpenCodeLocalHistory,
+                          let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+                          attributes[.type] as? FileAttributeType == .typeRegular,
+                          let source = try? FileHandle(forReadingFrom: URL(fileURLWithPath: file.path))
+                    else { throw StoreError.migration(StoreError.invalidData) }
+                    try source.close()
+                }
+                #if DEBUG
+                CostUsageStoreTestHooks.current.rebuildAfterFileValidation?()
+                #endif
+                // The source process can compress a rollout after our filesystem check.
+                // Keep a durable SQLite snapshot before discarding its cached contribution.
+                try Self.saveRecoverySnapshot(of: self.databaseURL)
+                let tables = try Self.prepare(database, """
+                SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                """)
+                var names: [String] = []
+                var result = sqlite3_step(tables)
+                while result == SQLITE_ROW {
+                    guard let name = Self.columnText(tables, at: 0),
+                          name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" })
+                    else { sqlite3_finalize(tables); throw StoreError.invalidData }
+                    names.append(name)
+                    result = sqlite3_step(tables)
+                }
+                sqlite3_finalize(tables)
+                guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+                for name in names {
+                    try Self.execute(database, "DROP TABLE \(name)")
+                }
+                try self.createSchema(database)
+                try Self.ensureTemporalAggregateTables(database)
+                try Self.execute(database, "COMMIT")
+            } catch {
+                try? Self.execute(database, "ROLLBACK")
+                throw error
+            }
+            try Self.execute(database, "PRAGMA foreign_keys=ON")
+            self.rebuildCount += 1
+            Self.log.warning("cost-usage store rebuilt (count \(self.rebuildCount)): \(reason)")
             self.connection = SQLiteConnection(handle: database, path: self.databaseURL.path)
+            retained = true
+        } catch {
+            Self.log.warning("cost-usage store retained because safe rebuild could not be proven: \(error)")
         }
+    }
+
+    /// Snapshot the committed ledger while the caller holds its writer lock. Recovery copies
+    /// remain user-owned evidence: they are never overwritten or removed by this process.
+    static func saveRecoverySnapshot(of sourceURL: URL) throws {
+        let target = sourceURL.deletingLastPathComponent().appendingPathComponent(
+            "cost-usage-recovery-\(UUID().uuidString).sqlite")
+        guard FileManager.default.createFile(
+            atPath: target.path, contents: nil, attributes: [.posixPermissions: 0o600])
+        else {
+            throw StoreError.migration(StoreError.invalidData)
+        }
+        var sourceHandle: OpaquePointer?
+        guard sqlite3_open_v2(sourceURL.path, &sourceHandle, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil)
+            == SQLITE_OK, let source = sourceHandle
+        else {
+            if let sourceHandle { sqlite3_close_v2(sourceHandle) }
+            throw StoreError.migration(StoreError.invalidData)
+        }
+        defer { sqlite3_close_v2(source) }
+        var targetHandle: OpaquePointer?
+        guard sqlite3_open_v2(target.path, &targetHandle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+            == SQLITE_OK, let destination = targetHandle
+        else {
+            if let targetHandle { sqlite3_close_v2(targetHandle) }
+            throw StoreError.migration(StoreError.invalidData)
+        }
+        guard let backup = sqlite3_backup_init(destination, "main", source, "main") else {
+            sqlite3_close_v2(destination)
+            throw StoreError.migration(StoreError.invalidData)
+        }
+        let step = sqlite3_backup_step(backup, -1)
+        let finish = sqlite3_backup_finish(backup)
+        let closeResult = sqlite3_close_v2(destination)
+        guard step == SQLITE_DONE, finish == SQLITE_OK, closeResult == SQLITE_OK else {
+            throw StoreError.migration(StoreError.sqlite(step))
+        }
+        let file = try FileHandle(forWritingTo: target)
+        defer { try? file.close() }
+        try file.synchronize()
+        let directoryFD = target.deletingLastPathComponent().path.withCString { open($0, O_RDONLY) }
+        guard directoryFD >= 0 else { throw StoreError.migration(StoreError.invalidData) }
+        defer { _ = close(directoryFD) }
+        guard fsync(directoryFD) == 0 else { throw StoreError.migration(StoreError.invalidData) }
     }
 
     /// Keep the legacy artifact during the SQLite cutover. It is not read by the new store,
@@ -1018,11 +1166,14 @@ extension CostUsageStore {
         value TEXT NOT NULL
     );
     CREATE TABLE scan_metadata (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        payload BLOB NOT NULL
+        home TEXT NOT NULL,
+        id INTEGER NOT NULL CHECK (id = 1),
+        payload BLOB NOT NULL,
+        PRIMARY KEY(home, id)
     );
     CREATE TABLE files (
         id INTEGER PRIMARY KEY,
+        home TEXT NOT NULL,
         path TEXT NOT NULL UNIQUE,
         inode INTEGER,
         mtime_ms INTEGER NOT NULL,
@@ -1040,6 +1191,7 @@ extension CostUsageStore {
         updated_at_ms INTEGER NOT NULL
     );
     CREATE INDEX files_path_idx ON files(path);
+    CREATE INDEX files_home_path_idx ON files(home, path);
     CREATE INDEX files_session_idx ON files(session_id);
     CREATE INDEX files_coverage_idx ON files(coverage_since_day, coverage_until_day);
     CREATE INDEX files_updated_idx ON files(updated_at_ms);
@@ -1099,6 +1251,7 @@ extension CostUsageStore {
     CREATE INDEX file_day_aggregates_day_idx ON file_day_aggregates(day);
     CREATE INDEX file_day_aggregates_model_day_idx ON file_day_aggregates(model, day);
     CREATE TABLE day_aggregates (
+        home TEXT NOT NULL,
         day TEXT NOT NULL,
         model TEXT NOT NULL,
         input_tokens INTEGER NOT NULL,
@@ -1122,12 +1275,13 @@ extension CostUsageStore {
         priority_resolved_cost_nanos INTEGER NOT NULL,
         standard_unresolved_pricing_count INTEGER NOT NULL,
         priority_unresolved_pricing_count INTEGER NOT NULL,
-        PRIMARY KEY(day, model)
+        PRIMARY KEY(home, day, model)
     );
     CREATE INDEX day_aggregates_day_idx ON day_aggregates(day);
     CREATE INDEX day_aggregates_model_idx ON day_aggregates(model);
     CREATE INDEX day_aggregates_model_day_idx ON day_aggregates(model, day);
     CREATE TABLE verified_day_aggregates (
+        home TEXT NOT NULL,
         day TEXT NOT NULL,
         model TEXT NOT NULL,
         input_tokens INTEGER NOT NULL,
@@ -1151,7 +1305,7 @@ extension CostUsageStore {
         priority_resolved_cost_nanos INTEGER NOT NULL,
         standard_unresolved_pricing_count INTEGER NOT NULL,
         priority_unresolved_pricing_count INTEGER NOT NULL,
-        PRIMARY KEY(day, model)
+        PRIMARY KEY(home, day, model)
     );
     CREATE INDEX verified_day_aggregates_day_idx ON verified_day_aggregates(day);
     CREATE INDEX verified_day_aggregates_model_day_idx ON verified_day_aggregates(model, day);
@@ -1176,12 +1330,16 @@ extension CostUsageStore {
     );
     CREATE INDEX buffered_lines_file_idx ON buffered_lines(file_id, kind, line_index);
     CREATE TABLE discovery_state (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        payload BLOB NOT NULL
+        home TEXT NOT NULL,
+        id INTEGER NOT NULL CHECK (id = 1),
+        payload BLOB NOT NULL,
+        PRIMARY KEY(home, id)
     );
     CREATE TABLE lookback_state (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        payload BLOB NOT NULL
+        home TEXT NOT NULL,
+        id INTEGER NOT NULL CHECK (id = 1),
+        payload BLOB NOT NULL,
+        PRIMARY KEY(home, id)
     );
     CREATE TABLE accumulators (
         file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,

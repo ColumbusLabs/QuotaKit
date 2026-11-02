@@ -148,6 +148,8 @@ Payload environment variables are `QUOTAKIT_EVENT`, `QUOTAKIT_PROVIDER`, `QUOTAK
 aliases remain available for upstream-compatible scripts. Enabling Hide personal info omits both account variables
 and the matching JSON field.
 
+When Codex reports a raw plan, `usage_updated` includes `plan`, `planSource`, and `planObservedAt`; corresponding `QUOTAKIT_PLAN`, `QUOTAKIT_PLAN_SOURCE`, and `QUOTAKIT_PLAN_OBSERVED_AT` environment variables also have legacy `CODEXBAR_` aliases. The plan is the provider's raw identifier, not a display label or allowance multiplier. Sources are `usage_response`, `oauth_claims`, `pat_whoami`, and `local_rpc`. The timestamp is when QuotaKit observed the value, not when it took effect. Fields are omitted if the provider did not report a raw plan. Because hooks are throttled, these samples are not a complete transition history.
+
 The stdin JSON uses the same camel-case field names without the `QUOTAKIT_` prefix. Dates are UTC ISO 8601 strings,
 usage percentages are `0...1` fractions, unavailable optional fields are omitted rather than encoded as `null`, and
 keys are emitted in sorted order. A `quota_reached` payload is exactly shaped like this (the timestamps vary):

@@ -7,6 +7,16 @@ import UniformTypeIdentifiers
 
 struct MenuBarLayoutEditorTests {
     @Test
+    func `separator accessibility speaks names instead of punctuation`() {
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(MenuBarLayoutToken.separator(.pipe).editorAccessibilityLabel(provider: nil)
+                == "Separator Vertical bar")
+            #expect(MenuBarLayoutToken.separator(.slash).editorAccessibilityLabel(provider: nil)
+                == "Separator Slash")
+        }
+    }
+
+    @Test
     func `time palette and conditional branches include explicit reset windows`() {
         let session = MenuBarLayoutToken.windowResetCountdown(window: .session)
         let weekly = MenuBarLayoutToken.windowResetAbsolute(window: .weekly)

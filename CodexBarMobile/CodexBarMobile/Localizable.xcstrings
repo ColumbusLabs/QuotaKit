@@ -1,6 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenDesign のサブスクリプション使用量が、プロバイダーのアイコンと使用量アラートとともに QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenDesign 订阅配额现可从 QuotaKit Mac 同步到 iPhone，并提供服务商标识和配额提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenDesign 訂閱配額現可從 QuotaKit Mac 同步到 iPhone，並提供服務商標誌和配額提醒。"
+          }
+        }
+      }
+    },
     "Kimi Code": {
       "localizations": {
         "en": {

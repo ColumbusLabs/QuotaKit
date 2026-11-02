@@ -274,6 +274,27 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.tokenError(for: .codex) != nil)
     }
 
+    @Test(arguments: [false, true])
+    func `archived cache errors preserve an established Codex snapshot`(timeZoneConflict: Bool) async throws {
+        let store = try Self.makeStore(suite: "archive-preservation-\(timeZoneConflict)")
+        let established = Self.tokenSnapshot(cost: 130, now: Date())
+        store.publishTokenSnapshot(established, for: .codex)
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, _, _, _ in
+            if timeZoneConflict { throw CostUsageError.archivedHistoryTimeZoneConflict }
+            throw CostUsageError.cachedSnapshotUnavailable
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: false, progressKey: "complete")
+        }
+
+        await store.refreshTokenUsage(.codex, force: true)
+        await store.refreshTokenUsage(.codex, force: true)
+
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == established.last30DaysCostUSD)
+        #expect(store.tokenSnapshot(for: .codex)?.historyCoverageIsEstablished == true)
+        #expect(store.tokenError(for: .codex) != nil)
+    }
+
     @Test
     func `cold partial catch-up publishes only monotonic lower-bound progress`() throws {
         var calendar = Calendar(identifier: .gregorian)

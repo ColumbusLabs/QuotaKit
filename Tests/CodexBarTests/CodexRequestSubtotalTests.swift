@@ -45,7 +45,7 @@ struct CodexRequestSubtotalTests {
             outputTokens: 0,
             reasoningTokens: nil) }
         let report = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { local },
@@ -143,7 +143,7 @@ struct CodexRequestSubtotalTests {
     func `invalid source contracts and overflowing subtotals are rejected`(invalid: String) throws {
         var source = Self.ledger()
         switch invalid {
-        case "schema": source.schemaVersion = 2
+        case "schema": source.schemaVersion = 3
         case "provider": source.provider = "claude"
         case "window": source.endUnixMs += 1
         case "digest": source.conflictingIDs = ["raw-session-id"]
@@ -281,7 +281,7 @@ struct CodexRequestSubtotalTests {
             environment: ["UNRELATED_TOKEN": "fixture-secret"])
         #expect(received.records == ledger.records)
         let combined = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { ledger },
@@ -289,7 +289,7 @@ struct CodexRequestSubtotalTests {
         #expect(combined.allSourcesAvailable)
         #expect(combined.subtotal?.totalTokens == 110)
         let report = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { ledger },
@@ -301,7 +301,7 @@ struct CodexRequestSubtotalTests {
         #expect(report.reports[1].ledger == nil)
         let cancelled = Task {
             try await CodexBarCLI.collectCodexIdentifiedUsage(
-                remote: "fixture-host",
+                remotes: ["fixture-host"],
                 startUnixMs: Self.start,
                 endUnixMs: Self.end,
                 local: { throw CancellationError() },

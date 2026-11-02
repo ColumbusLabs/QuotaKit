@@ -381,7 +381,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
-    static let currentCodexParserRevision = 13
+    static let currentCodexParserRevision = 14
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -459,8 +459,11 @@ struct CostUsageFileUsage: Codable, Equatable {
         return nil
     }
 
+    /// An archive can preserve already parsed history but cannot be reparsed.
+    var codexArchived: Bool?
+
     var hasCurrentCodexParser: Bool {
-        self.codexParserRevision == Self.currentCodexParserRevision
+        self.codexArchived == true || self.codexParserRevision == Self.currentCodexParserRevision
     }
 
     var hasBufferedCodexForkRetryLines: Bool {

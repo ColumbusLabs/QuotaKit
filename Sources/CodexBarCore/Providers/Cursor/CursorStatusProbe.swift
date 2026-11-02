@@ -650,6 +650,7 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
     case costRequestForbidden
     case parseFailed(String)
     case noSessionCookie
+    case appSessionExpired
 
     static let safariFullDiskAccessHint =
         "If you use Safari, grant QuotaKit Full Disk Access in System Settings ▸ Privacy & Security."
@@ -669,6 +670,8 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
             "Cursor API error: HTTP 403"
         case let .parseFailed(msg):
             "Could not parse Cursor usage: \(msg)"
+        case .appSessionExpired:
+            "Cursor app session expired — open Cursor to sign in again, or sign in to cursor.com in your browser."
         case .noSessionCookie:
             #if os(macOS)
             "No Cursor session found. \(Self.safariFullDiskAccessHint) "

@@ -1,5 +1,5 @@
-import Commander
 import CodexBarCore
+import Commander
 import Foundation
 import Testing
 @testable import CodexBarCLI
@@ -8,11 +8,11 @@ struct DashboardAllAccountsTests {
     @Test
     func `all account expansion is an explicit serve only option`() throws {
         let program = Program(descriptors: CodexBarCLI.commandDescriptors())
-        let ordinary = try program.resolve(argv: ["serve"])
-        let expanded = try program.resolve(argv: ["serve", "--all-accounts"])
+        let ordinary = try program.resolve(arguments: ["serve"])
+        let expanded = try program.resolve(arguments: ["serve", "--all-accounts"])
         #expect(!ordinary.parsedValues.flags.contains("allAccounts"))
         #expect(expanded.parsedValues.flags.contains("allAccounts"))
-        #expect(throws: (any Error).self) { try program.resolve(argv: ["dashboard", "--all-accounts"]) }
+        #expect(throws: (any Error).self) { try program.resolve(arguments: ["dashboard", "--all-accounts"]) }
     }
 
     @Test
@@ -98,7 +98,7 @@ struct DashboardAllAccountsTests {
 
     @Test(arguments: [true, false])
     func `live system selection stays active on its matched managed account`(fetchSucceeds: Bool) throws {
-        let managedID = UUID(uuidString: "9e122a52-b3db-4a7e-a7a7-c3b8fc9d01e9")!
+        let managedID = try #require(UUID(uuidString: "9e122a52-b3db-4a7e-a7a7-c3b8fc9d01e9"))
         let visibleAccount = CodexVisibleAccount(
             id: "live:workspace",
             email: "current@example.test",
@@ -186,9 +186,9 @@ struct DashboardAllAccountsTests {
         #expect(CodexBarCLI.serveUsageOperationFingerprint(
             configFingerprint: "fixture",
             includeAllCodexAccounts: true) != CodexBarCLI.serveUsageOperationFingerprint(
-                configFingerprint: "fixture",
-                includeAllCodexAccounts: true,
-                includeAllAccounts: true))
+            configFingerprint: "fixture",
+            includeAllCodexAccounts: true,
+            includeAllAccounts: true))
     }
 
     @Test

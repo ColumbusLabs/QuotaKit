@@ -26,7 +26,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
         try CostUsageSQLiteFixtures.insertTestLogs(dbURL: dbURL, rows: rows)
 
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
-        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(persisted.databasePath == dbURL.path)
         #expect(persisted.lastRowID == 51)
         let firstMemo = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
@@ -58,7 +59,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
         #expect(relaunched.lastRowID == firstMemo.lastRowID + 1)
         #expect(relaunched.anchorRowID == relaunched.lastRowID)
         #expect(relaunched.anchorDigest != firstMemo.anchorDigest)
-        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(reloaded.lastRowID == firstMemo.lastRowID + 1)
         #expect(reloaded.databasePath == dbURL.path)
         #expect(reloaded.anchorRowID == relaunched.anchorRowID)
@@ -81,7 +83,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             body: Self.priorityRequestBody(threadID: "thread-stable", turnID: "turn-stable"))
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
 
-        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let before = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let cursor = try #require(before.codexPriorityTurnsCursor)
         let publishedKeys = try #require(before.codexPriorityTurnKeys)
         let publishedIDs = try #require(before.codexPriorityTurnIDsByDay)
@@ -91,7 +93,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         try Data("not a SQLite database".utf8).write(to: dbURL, options: .atomic)
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now.addingTimeInterval(1))
 
-        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(after.codexPriorityTurnsCursor == cursor)
         #expect(after.codexPriorityTurnKeys == publishedKeys)
         #expect(after.codexPriorityTurnIDsByDay == publishedIDs)
@@ -117,7 +119,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-b", turnID: "turn-b"))
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
-        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(persisted.fileIdentity != nil)
         #expect(persisted.turns.keys.sorted() == ["turn-a", "turn-b"])
 
@@ -141,7 +144,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
         #expect(replaced.turns.keys.sorted() == ["turn-c", "turn-d"])
         #expect(replaced.lastRowID == 2)
         #expect(replaced.fileIdentity != persisted.fileIdentity)
-        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(reloaded.turns.keys.sorted() == ["turn-c", "turn-d"])
         #expect(reloaded.fileIdentity == replaced.fileIdentity)
     }
@@ -298,7 +302,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
             now: today)
         let narrowMemo = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(narrowMemo.turns.keys.sorted() == ["turn-new"])
-        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(persisted.coverageSinceEpoch == narrowMemo.coverageSinceEpoch)
         #expect(persisted.turns.keys.sorted() == ["turn-new"])
 
@@ -329,7 +334,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             timestamp: ISO8601DateFormatter().string(from: now),
             body: Self.priorityRequestBody(threadID: "thread-cold", turnID: "turn-cold"))
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var metadata = CostUsageStoreMetadata.empty
         metadata.priorityTurnStatePayload = Data(
             #"{"turnKeys":{"turn-a":"priority"},"turnIDsByDay":{"2026-05-10":["turn-a"]}}"#.utf8)
@@ -342,7 +347,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
         let memo = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(memo.turns.keys.sorted() == ["turn-cold"])
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let expectedKeys = try #require(Self.expectedPriorityTurnKeys(memo.turns))
         #expect(cache.codexPriorityTurnsCursor != nil)
         #expect(cache.codexPriorityTurnsCursor?.turns.keys.sorted() == ["turn-cold"])
@@ -462,8 +467,10 @@ struct CostUsageScannerCodexPriorityCursorTests {
 
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now.addingTimeInterval(1))
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexScanCatchUpPending != true)
-        let firstCursor = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexScanCatchUpPending != true)
+        let firstCursor = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(firstCursor.lastRowID == 1)
 
         let persistedFileCount = LockIsolated(0)
@@ -476,7 +483,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
             Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now.addingTimeInterval(2))
 
             #expect(persistedFileCount.value == 0)
-            let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+            let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .codexPriorityTurnsCursor)
             #expect(reloaded.lastRowID == firstCursor.lastRowID + 3)
             #expect(reloaded.turns.keys.sorted() == ["turn-a"])
         }
@@ -487,7 +495,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var metadata = CostUsageStoreMetadata.empty
         metadata.priorityTurnStatePayload = Data("""
         {
@@ -518,7 +526,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
             timestamp: ISO8601DateFormatter().string(from: now),
             body: Self.priorityRequestBody(threadID: "thread-cold", turnID: "turn-cold"))
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var metadata = CostUsageStoreMetadata.empty
         metadata.priorityTurnStatePayload = Data("""
         {
@@ -549,7 +557,7 @@ struct CostUsageScannerCodexPriorityCursorTests {
         #expect(memo.turns.keys.sorted() == ["turn-cold"])
         #expect(memo.anchorRowID == memo.lastRowID)
         #expect(!memo.anchorDigest.isEmpty)
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let expectedKeys = try #require(Self.expectedPriorityTurnKeys(memo.turns))
         let persisted = try #require(cache.codexPriorityTurnsCursor)
         #expect(persisted.turns.keys.sorted() == ["turn-cold"])
@@ -580,7 +588,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
             timestamp: timestamp,
             body: Self.priorityRequestBody(threadID: "thread-b", turnID: "turn-b"))
         Self.loadCodexDailyReport(env: env, databaseURL: dbURL, now: now)
-        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let persisted = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(persisted.lastRowID == 2)
         #expect(persisted.turns.keys.sorted() == ["turn-a", "turn-b"])
 
@@ -598,7 +607,8 @@ struct CostUsageScannerCodexPriorityCursorTests {
         let rebuilt = try #require(CostUsageScanner.codexPriorityTurnsMemoState(forPath: dbURL.path))
         #expect(rebuilt.turns.keys.sorted() == ["turn-b", "turn-mutated"])
         #expect(rebuilt.lastRowID == 2)
-        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexPriorityTurnsCursor)
+        let reloaded = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .codexPriorityTurnsCursor)
         #expect(reloaded.turns.keys.sorted() == ["turn-b", "turn-mutated"])
         #expect(reloaded.lastRowID == 2)
     }
