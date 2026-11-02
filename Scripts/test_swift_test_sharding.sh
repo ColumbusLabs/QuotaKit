@@ -188,18 +188,18 @@ grep -Fq "failed with exit code 1; retrying group once" "${TEMP_DIR}/retry.log"
 grep -Fq "Swift test timing summary:" "${TEMP_DIR}/retry.log"
 grep -Fq '| Discovered selections | `11` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected selections | `11` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected groups | `3` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| First-pass successful groups | `2` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `5` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| First-pass successful groups | `4` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Full-group retries | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Recovered groups | `1` |' "${GITHUB_STEP_SUMMARY}"
-[[ "$(grep -c '^test --skip-build --no-parallel' "${FAKE_SWIFT_LOG}")" -eq 4 ]]
+[[ "$(grep -c '^test --skip-build --no-parallel' "${FAKE_SWIFT_LOG}")" -eq 6 ]]
 grep -Fq "CodexBarTests\\.Alpha" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\.Beta" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top\\ level\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq '^CodexBarTests\.StatusMenuTests/Presentation/' "${FAKE_SWIFT_LOG}"
-[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 5 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 7 ]]
 
 reset_case private-home
 export FAKE_SWIFT_MODE=success
@@ -254,49 +254,51 @@ CODEXBAR_TEST_GROUP_SIZE=4 \
 keep_going_status=$?
 set -e
 [[ "${keep_going_status}" -eq 1 ]]
-[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 4 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 6 ]]
 grep -Fq '| First-pass failed groups | `3` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq 'Group 1/3 (exit 1): CodexBarTests.Alpha' "${TEMP_DIR}/keep-going.log"
-grep -Fq 'Group 2/3 (exit 1):' "${TEMP_DIR}/keep-going.log"
-grep -Fq 'Group 3/3 (exit 1):' "${GITHUB_STEP_SUMMARY}"
+grep -Fq 'Group 1/5 (exit 1): CodexBarTests.Alpha' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 2/5 (exit 1):' "${TEMP_DIR}/keep-going.log"
+grep -Fq 'Group 5/5 (exit 1):' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-0
 export FAKE_SWIFT_MODE=success
 run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 2 > "${TEMP_DIR}/shard-0.log"
 grep -Fq '| Shard | `1/2` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `7` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected groups | `2` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `8` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `3` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-1
 run_harness --group-size 4 --timeout 10 --shard-index 1 --shard-count 2 > "${TEMP_DIR}/shard-1.log"
 grep -Fq '| Shard | `2/2` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `3` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-4-0
 run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 4 > "${TEMP_DIR}/shard-4-0.log"
 grep -Fq '| Shard | `1/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `7` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `2` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-4-1
 run_harness --group-size 4 --timeout 10 --shard-index 1 --shard-count 4 > "${TEMP_DIR}/shard-4-1.log"
 grep -Fq '| Shard | `2/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `2` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-4-2
 run_harness --group-size 4 --timeout 10 --shard-index 2 --shard-count 4 > "${TEMP_DIR}/shard-4-2.log"
 grep -Fq '| Shard | `3/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `3` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
+# Presentation is the deliberately isolated selection in this shard.
+grep -Fq '^CodexBarTests\.StatusMenuTests/Presentation/' "${FAKE_SWIFT_LOG}"
 
 reset_case shard-4-3
 run_harness --group-size 4 --timeout 10 --shard-index 3 --shard-count 4 > "${TEMP_DIR}/shard-4-3.log"
 grep -Fq '| Shard | `4/4` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected selections | `0` |' "${GITHUB_STEP_SUMMARY}"
-grep -Fq '| Selected groups | `0` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected selections | `1` |' "${GITHUB_STEP_SUMMARY}"
+grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
 reset_case shard-list-all
 run_harness --group-size 4 --timeout 10 --list-only \
