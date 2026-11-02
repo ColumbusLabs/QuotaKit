@@ -274,8 +274,14 @@ struct CostUsageCodexSessionTierTests {
     @Test
     func `priority learned from a trace survives reparse after the trace disappears`() throws {
         let row = CostUsageScanner.CodexUsageRow(
-            day: "2026-10-01", model: "gpt-6.1-sol", turnID: "turn", eventIndex: 0,
-            input: 100, cached: 20, output: 10, pricingMode: "standard")
+            day: "2026-10-01",
+            model: "gpt-6.1-sol",
+            turnID: "turn",
+            eventIndex: 0,
+            input: 100,
+            cached: 20,
+            output: 10,
+            pricingMode: "standard")
         let trace = CostUsageScanner.CodexPriorityTurnMetadata(
             threadID: "fixture", turnID: "turn", model: "gpt-6.1-sol", timestamp: nil)
         let prior = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
@@ -306,8 +312,14 @@ struct CostUsageCodexSessionTierTests {
         #expect(!originalTrace.validationPending)
         #expect(originalTrace.turns["turn"] != nil)
         let row = CostUsageScanner.CodexUsageRow(
-            day: "2026-10-01", model: "gpt-6.1-sol", turnID: "turn", eventIndex: 0,
-            input: 100, cached: 20, output: 10, pricingMode: "standard")
+            day: "2026-10-01",
+            model: "gpt-6.1-sol",
+            turnID: "turn",
+            eventIndex: 0,
+            input: 100,
+            cached: 20,
+            output: 10,
+            pricingMode: "standard")
         let prior = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
             [row], priorityTurns: originalTrace.turns).first)
         #expect(prior.pricingMode == "priority")

@@ -32,8 +32,12 @@ struct CostUsageArchivePresenceSweepTests {
         var index = CostUsageScanner.CodexSessionFileIndex(files: files, roots: roots)
         func visit(_ index: CostUsageScanner.CodexSessionFileIndex) throws -> [URL] {
             try index.takeMetadataRefreshCandidates(
-                cache: &cache, dayKey: "2026-08-30", scanSinceKey: "2026-08-30", calendar: .current,
-                visitLimit: 512, restartCompletedSweep: true)
+                cache: &cache,
+                dayKey: "2026-08-30",
+                scanSinceKey: "2026-08-30",
+                calendar: .current,
+                visitLimit: 512,
+                restartCompletedSweep: true)
         }
         _ = try visit(index)
         let first = index.persistedState
@@ -85,8 +89,12 @@ struct CostUsageArchivePresenceSweepTests {
         #expect(legacyIndex.persistedState.metadataPresenceEstablished == true)
         let beforeZero = legacyIndex.persistedState
         _ = try legacyIndex.takeMetadataRefreshCandidates(
-            cache: &cache, dayKey: "2026-08-30", scanSinceKey: "2026-08-30", calendar: .current,
-            visitLimit: 0, restartCompletedSweep: true)
+            cache: &cache,
+            dayKey: "2026-08-30",
+            scanSinceKey: "2026-08-30",
+            calendar: .current,
+            visitLimit: 0,
+            restartCompletedSweep: true)
         #expect(legacyIndex.persistedState == beforeZero)
         var legacy = index.persistedState
         legacy.metadataPresenceEstablished = nil
@@ -114,10 +122,19 @@ struct CostUsageArchivePresenceSweepTests {
     func `repeated status checks do not probe unchanged file presence`() {
         let files = (0..<1025).map { index in
             CostUsageStoreCatchUpFile(
-                path: "/synthetic/\(index).jsonl", inode: 1, mtimeUnixMs: 1, size: 1,
-                fileIdentity: "1:1", parsedBytes: 1, scanTargetSize: 1, resumeOffset: nil,
-                scanComplete: true, forkedFromID: nil, forkBaselineDependencyKey: nil,
-                hasBufferedSubagentLines: false, hasBufferedUnresolvedForkLines: false)
+                path: "/synthetic/\(index).jsonl",
+                inode: 1,
+                mtimeUnixMs: 1,
+                size: 1,
+                fileIdentity: "1:1",
+                parsedBytes: 1,
+                scanTargetSize: 1,
+                resumeOffset: nil,
+                scanComplete: true,
+                forkedFromID: nil,
+                forkBaselineDependencyKey: nil,
+                hasBufferedSubagentLines: false,
+                hasBufferedUnresolvedForkLines: false)
         }
         let counter = ArchivePresenceCounter()
         var hooks = CostUsageStoreTestHooks()

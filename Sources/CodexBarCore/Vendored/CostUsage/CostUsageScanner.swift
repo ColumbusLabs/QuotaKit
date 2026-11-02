@@ -3256,7 +3256,12 @@ enum CostUsageScanner {
             var info = stat()
             let result = candidate.withCString { lstat($0, &info) }
             guard result == 0 else { return errno }
-            return info.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) ? 0 : EINVAL
+            #if canImport(Glibc)
+            let isRegular = info.st_mode & mode_t(Glibc.S_IFMT) == mode_t(Glibc.S_IFREG)
+            #else
+            let isRegular = info.st_mode & mode_t(Darwin.S_IFMT) == mode_t(Darwin.S_IFREG)
+            #endif
+            return isRegular ? 0 : EINVAL
         }
         let plain = inspect(path)
         if plain == 0 { return .plain }
