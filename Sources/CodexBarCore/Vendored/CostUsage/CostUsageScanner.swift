@@ -7836,22 +7836,20 @@ enum CostUsageScanner {
             aliasIndex: context.resources.cachePathAliasIndex,
             existingAliases: existingAliases)
 
+        guard try Self.prepareCodexReplacementForkResume(
+            fileURL: fileURL,
+            metadata: metadata,
+            context: context,
+            cache: &cache)
+        else {
+            state.deferredCachePaths.insert(metadata.path)
+            return .deferred
+        }
         let cached = cache.files[metadata.path]
 
         // Queue a present but unresolved parent before retrying its child. Confirmed missing
         // ancestry must still let the child finish parsing and settle its scheduling state.
-        if let cached,
-           let parentID = cached.forkedFromId,
-           let buffered = cached.codexBufferedUnresolvedForkLines,
-           let forkTimestamp = buffered.compactMap({ line -> String? in
-               guard case let .sessionMeta(metadata) = line.line else { return nil }
-               return metadata.forkTimestamp
-           }).first,
-           case .unresolved = try context.resources.inheritedResolver.inheritedTotals(
-               for: parentID, atOrBefore: forkTimestamp),
-           context.resources.inheritedResolver.dependencyKeyUsed(for: parentID)
-               .map(Self.codexDependencyIsMissing) != true
-        {
+        if try Self.codexBufferedForkWaitsForParent(cached, inheritedResolver: context.resources.inheritedResolver) {
             return .deferred
         }
 
@@ -7966,13 +7964,14 @@ enum CostUsageScanner {
             fullRescanAllowedBytes = fullRescanWorkBytes
         }
 
-        try Self.rescanCodexFile(
+        let committed = try Self.rescanCodexFile(
             input: input,
             context: context,
             cache: &cache,
             state: &state,
             maxBytesToRead: fullRescanAllowedBytes)
         context.scanBudget?.consume(workBytes: fullRescanAllowedBytes)
+        guard committed else { return .deferred }
         state.completedHistoryRetryTargets.insert(Self.codexResolvedPath(fileURL))
         cache.codexMalformedDetailsPaths?.remove(metadata.path)
         return .processed

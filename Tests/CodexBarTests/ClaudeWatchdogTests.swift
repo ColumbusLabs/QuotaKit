@@ -298,31 +298,61 @@ struct ClaudeWatchdogTests {
         Self.phase("escalation compile")
         let watchdogURL = try await Self.buildWatchdogExecutable(in: directory)
         Self.phase("escalation sentinel launch")
-        let sentinel = Process()
-        sentinel.executableURL = URL(fileURLWithPath: "/bin/sleep")
-        sentinel.arguments = ["30"]
-        try sentinel.run()
+        var sentinelAttr: posix_spawnattr_t?
+        try #require(posix_spawnattr_init(&sentinelAttr) == 0)
+        defer { posix_spawnattr_destroy(&sentinelAttr) }
+        try #require(posix_spawnattr_setflags(&sentinelAttr, Int16(POSIX_SPAWN_SETPGROUP)) == 0)
+        try #require(posix_spawnattr_setpgroup(&sentinelAttr, 0) == 0)
+        let sentinelArgs = [strdup("/bin/sleep"), strdup("30"), nil]
+        defer { sentinelArgs.forEach { if let arg = $0 { free(arg) } } }
+        var sentinelPID: pid_t = 0
+        let sentinelSpawn = sentinelArgs.withUnsafeBufferPointer { buffer in
+            posix_spawn(
+                &sentinelPID,
+                "/bin/sleep",
+                nil,
+                &sentinelAttr,
+                UnsafeMutablePointer(mutating: buffer.baseAddress),
+                environ)
+        }
+        try #require(sentinelSpawn == 0)
         Self.phase("escalation sentinel started")
-        let sentinelPID = sentinel.processIdentifier
-        #expect(setpgid(sentinelPID, sentinelPID) == 0 || getpgid(sentinelPID) == sentinelPID)
-        let sentinelIdentity = try #require(TTYProcessTreeTerminator.processIdentity(for: sentinelPID))
+        let sentinelIdentity = TTYProcessTreeTerminator.processIdentity(for: sentinelPID)
+        var sentinelReaped = false
+        func pollSentinel() -> Bool {
+            guard !sentinelReaped else { return false }
+            let result = waitpid(sentinelPID, nil, WNOHANG)
+            if result == sentinelPID || (result == -1 && errno == ECHILD) {
+                sentinelReaped = true
+                return false
+            }
+            return result == 0 || (result == -1 && errno == EINTR)
+        }
+        /// An unreaped direct child reserves its PID even when identity lookup failed.
+        func sentinelIsOwned() -> Bool {
+            sentinelIdentity.map { TTYProcessTreeTerminator.isCurrent($0) } ?? true
+        }
         defer {
             Self.phase("escalation sentinel cleanup started")
-            if sentinel.isRunning { sentinel.terminate() }
+            if pollSentinel(), sentinelIsOwned() {
+                kill(sentinelPID, SIGTERM)
+            }
             let deadline = Date().addingTimeInterval(2)
-            while sentinel.isRunning, Date() < deadline {
+            while pollSentinel(), Date() < deadline {
                 usleep(20000)
             }
-            if sentinel.isRunning, TTYProcessTreeTerminator.isCurrent(sentinelIdentity) {
+            if pollSentinel(), sentinelIsOwned() {
                 kill(sentinelPID, SIGKILL)
             }
             let killDeadline = Date().addingTimeInterval(2)
-            while sentinel.isRunning, Date() < killDeadline {
+            while pollSentinel(), Date() < killDeadline {
                 usleep(20000)
             }
-            if !sentinel.isRunning { sentinel.waitUntilExit() }
+            #expect(sentinelReaped, "Synthetic sentinel did not exit before cleanup deadline")
             Self.phase("escalation sentinel cleanup finished")
         }
+        try #require(sentinelIdentity != nil)
+        #expect(getpgid(sentinelPID) == sentinelPID)
 
         let readyFile = directory.appendingPathComponent("ready.txt")
         let switchedFile = directory.appendingPathComponent("switched.txt")
@@ -425,7 +455,7 @@ struct ClaudeWatchdogTests {
         }
         #expect(kill(childPID, 0) != 0)
         #expect(kill(grandchildPID, 0) != 0)
-        #expect(sentinel.isRunning)
+        #expect(pollSentinel())
         #expect(kill(sentinelPID, 0) == 0)
         Self.phase("escalation assertions finished")
     }

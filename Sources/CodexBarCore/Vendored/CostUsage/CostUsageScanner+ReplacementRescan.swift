@@ -16,6 +16,8 @@ extension CostUsageScanner {
         let sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?
         let sourceAnchor: CostUsageCodexTokenIndexAnchor?
         let stageParsedRows: Bool
+        let resumedForkDependencyKey: String?
+        let resumedForkOriginInvalid: Bool
 
         init(
             cached: CostUsageFileUsage?,
@@ -29,7 +31,9 @@ extension CostUsageScanner {
             usageDays: [String: [String: [Int]]],
             sourcePricing: [CodexSourcePricingKey: CodexPricingEvidence]?,
             sourceAnchor: CostUsageCodexTokenIndexAnchor?,
-            stageParsedRows: Bool)
+            stageParsedRows: Bool,
+            resumedForkDependencyKey: String?,
+            resumedForkOriginInvalid: Bool)
         {
             self.cached = cached
             self.migratedCached = migratedCached
@@ -43,6 +47,8 @@ extension CostUsageScanner {
             self.sourcePricing = sourcePricing
             self.sourceAnchor = sourceAnchor
             self.stageParsedRows = stageParsedRows
+            self.resumedForkDependencyKey = resumedForkDependencyKey
+            self.resumedForkOriginInvalid = resumedForkOriginInvalid
         }
     }
 
@@ -96,12 +102,21 @@ extension CostUsageScanner {
         context: CodexFileScanContext,
         cache: inout CostUsageCache,
         state: inout CodexScanState,
-        maxBytesToRead: Int64? = nil) throws
+        maxBytesToRead: Int64? = nil) throws -> Bool
     {
         let plan = try Self.codexRescanPlan(
             input: input,
             context: context,
             maxBytesToRead: maxBytesToRead)
+        if plan.resumedForkOriginInvalid {
+            _ = try Self.prepareCodexReplacementForkResume(
+                fileURL: input.fileURL,
+                metadata: input.metadata,
+                context: context,
+                cache: &cache)
+            state.deferredCachePaths.insert(input.metadata.path)
+            return false
+        }
         if plan.replacementGeneration,
            !plan.replacementPending,
            Self.dropStaleCodexSessionAliases(
@@ -114,7 +129,7 @@ extension CostUsageScanner {
                    size: input.metadata.size),
                cache: &cache)
         {
-            return
+            return true
         }
         if !plan.replacementPending, let cached = plan.cached {
             Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
@@ -126,7 +141,7 @@ extension CostUsageScanner {
             state: &state)
         else {
             cache.files.removeValue(forKey: input.metadata.path)
-            return
+            return true
         }
         cache.files[input.metadata.path] = materialized.usage
         if materialized.usage.codexForkSourceGeneration != plan.cached?.codexForkSourceGeneration {
@@ -144,6 +159,7 @@ extension CostUsageScanner {
             rows: materialized.rows,
             context: context,
             state: &state)
+        return true
     }
 
     private static func codexRescanAccounting(
@@ -240,17 +256,26 @@ extension CostUsageScanner {
         // Preparation and assembly copy large cached usage values. Finish those phases
         // outside the parser's call frame so inherited-baseline callbacks have stack room.
         let preparation = Self.prepareCodexRescan(input: input, context: context)
+        let resumesInheritedFork = Self.codexReplacementResumeOffset(input: input) != nil
+            && input.cached?.codexForkAccountingState != nil
+            && input.cached?.forkBaselineDependencyKey != Self.codexForkDependencyNotRequiredKey
         let parsed = try Self.parseCodexReplacement(
             input: input,
             context: context,
             includeInitialBufferedTokenSnapshots: input.cached?.codexReplacementScanPending == true
                 && !preparation.stageParsedRows,
             maxBytesToRead: maxBytesToRead)
+        #if DEBUG
+        try CostUsageStoreTestHooks.current.codexReplacementSourceRead?(input.metadata.path)
+        #endif
+        let resumedForkDependencyKey = resumesInheritedFork
+            ? try Self.codexResumedReplacementForkDependencyKey(input: input, context: context) : nil
         return Self.makeCodexRescanPlan(
             input: input,
             context: context,
             preparation: preparation,
-            parsed: parsed)
+            parsed: parsed,
+            resumedForkOrigin: (resumedForkDependencyKey, resumesInheritedFork && resumedForkDependencyKey == nil))
     }
 
     private static func prepareCodexRescan(
@@ -355,7 +380,8 @@ extension CostUsageScanner {
         input: CodexFileScanInput,
         context: CodexFileScanContext,
         preparation: CodexRescanPreparation,
-        parsed: CodexParseResult) -> CodexRescanPlan
+        parsed: CodexParseResult,
+        resumedForkOrigin: (dependencyKey: String?, isInvalid: Bool)) -> CodexRescanPlan
     {
         let cached = input.cached
         let replacementWasPending = cached?.codexReplacementScanPending == true
@@ -392,7 +418,9 @@ extension CostUsageScanner {
             usageDays: usageDays,
             sourcePricing: preparation.sourcePricing,
             sourceAnchor: preparation.sourceAnchor,
-            stageParsedRows: preparation.stageParsedRows)
+            stageParsedRows: preparation.stageParsedRows,
+            resumedForkDependencyKey: resumedForkOrigin.dependencyKey,
+            resumedForkOriginInvalid: resumedForkOrigin.isInvalid)
     }
 
     private static func codexRescanSessionMetadata(
@@ -514,6 +542,11 @@ extension CostUsageScanner {
             context: context,
             uniqueRows: classifiedRows,
             sessionId: sessionId)
+        let forkDependencyKey = Self.codexForkBaselineDependencyKey(
+            parentSessionId: parsed.forkedFromId,
+            dependsOnParentTotals: parsed.dependsOnParentTotals,
+            hasResolvedForkBaseline: parsed.forkBaselineResolved,
+            inheritedResolver: context.resources.inheritedResolver)
         var usage = try Self.makeFileUsage(
             mtimeUnixMs: input.metadata.mtimeUnixMs,
             size: input.metadata.size,
@@ -530,11 +563,7 @@ extension CostUsageScanner {
             lastCodexTurnID: parsed.lastCodexTurnID,
             sessionId: sessionId,
             forkedFromId: parsedCodexSession.forkedFromId ?? parsed.forkedFromId,
-            forkBaselineDependencyKey: Self.codexForkBaselineDependencyKey(
-                parentSessionId: parsed.forkedFromId,
-                dependsOnParentTotals: parsed.dependsOnParentTotals,
-                hasResolvedForkBaseline: parsed.forkBaselineResolved,
-                inheritedResolver: context.resources.inheritedResolver),
+            forkBaselineDependencyKey: plan.resumedForkDependencyKey ?? forkDependencyKey,
             projectPath: projectPath,
             canonicalProjectPath: canonicalProjectPath,
             codexSession: parsedCodexSession.isEmpty ? nil : parsedCodexSession,
