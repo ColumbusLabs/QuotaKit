@@ -15,6 +15,7 @@ import Testing
 struct CostUsagePriorityDrainPerformanceGateTests {
     @Test
     func `working set durably drains priority paths beyond one candidate prefix`() async throws {
+        let setupStarted = ProcessInfo.processInfo.systemUptime
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
@@ -45,6 +46,7 @@ struct CostUsagePriorityDrainPerformanceGateTests {
             maxCodexSessionFileBytes: 0,
             maxCodexScanBytesPerRefresh: 0)
         options.refreshMinIntervalSeconds = 0
+        print("Priority drain phase setup: \(ProcessInfo.processInfo.systemUptime - setupStarted)s")
 
         func readMetadataOnlyCache() throws -> CostUsageCache {
             let cache = CostUsageStoreAccess.loadCodexWorkingSet(
@@ -56,13 +58,18 @@ struct CostUsagePriorityDrainPerformanceGateTests {
             return cache
         }
 
+        let initialScanStarted = ProcessInfo.processInfo.systemUptime
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
             now: day,
             options: options)
+        print("Priority drain phase initial scan: \(ProcessInfo.processInfo.systemUptime - initialScanStarted)s")
+        let initialReadStarted = ProcessInfo.processInfo.systemUptime
         let originalCache = try readMetadataOnlyCache()
+        print(
+            "Priority drain phase initial metadata read: \(ProcessInfo.processInfo.systemUptime - initialReadStarted)s")
         let originalTurnKeys = originalCache.codexPriorityTurnKeys
         let originalCursor = originalCache.codexPriorityTurnsCursor
 
@@ -79,13 +86,18 @@ struct CostUsagePriorityDrainPerformanceGateTests {
         let maximumPasses = (fileCount + CostUsageScanner.codexCatchUpHydrationPathLimit - 1)
             / CostUsageScanner.codexCatchUpHydrationPathLimit + 2
         for pass in 1...maximumPasses {
+            let scanStarted = ProcessInfo.processInfo.systemUptime
             _ = CostUsageScanner.loadDailyReport(
                 provider: .codex,
                 since: day,
                 until: day,
                 now: day.addingTimeInterval(TimeInterval(pass)),
                 options: options)
+            print("Priority drain phase catch-up scan \(pass): \(ProcessInfo.processInfo.systemUptime - scanStarted)s")
+            let readStarted = ProcessInfo.processInfo.systemUptime
             cache = try readMetadataOnlyCache()
+            let readElapsed = ProcessInfo.processInfo.systemUptime - readStarted
+            print("Priority drain phase catch-up metadata read \(pass): \(readElapsed)s")
             if cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false {
                 sawPendingTail = true
                 #expect(cache.codexPriorityTurnKeys == originalTurnKeys)
@@ -98,11 +110,13 @@ struct CostUsagePriorityDrainPerformanceGateTests {
         #expect(sawPendingTail)
         #expect(cache.codexActiveLookbackState?.pendingFilePaths.isEmpty != false)
         #expect(cache.codexPriorityTurnKeys != originalTurnKeys)
+        let finalSnapshotStarted = ProcessInfo.processInfo.systemUptime
         let completed = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: day,
             historyDays: 1,
             includePiSessions: false,
             scannerOptions: options)
+        print("Priority drain phase final snapshot: \(ProcessInfo.processInfo.systemUptime - finalSnapshotStarted)s")
         #expect(completed?.snapshot.daily.first?.modelBreakdowns?.first?.priorityTokens == fileCount * 110)
     }
 }

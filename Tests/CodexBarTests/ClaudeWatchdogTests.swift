@@ -378,8 +378,9 @@ struct ClaudeWatchdogTests {
                 f.write(f"{os.getpid()} {os.getpgrp()}\\n")
 
         signal.signal(signal.SIGTERM, on_term)
-        with open(ready_path, "w") as f:
+        with open(ready_path + ".tmp", "w") as f:
             f.write(f"{os.getpid()} {os.getpgrp()} {grandchild.pid}\\n")
+        os.replace(ready_path + ".tmp", ready_path)
 
         deadline = time.time() + 30.0
         while time.time() < deadline:
