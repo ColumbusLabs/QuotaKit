@@ -72,8 +72,8 @@ struct CopilotMenuBarPaceTests {
     private static func store() -> UsageStore {
         let settings = testSettingsStore(
             suiteName: "copilot-menu-bar-pace",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         return UsageStore(fetcher: UsageFetcher(), browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)

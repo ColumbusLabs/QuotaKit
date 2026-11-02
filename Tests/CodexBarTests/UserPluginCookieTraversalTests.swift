@@ -99,13 +99,13 @@ struct UserPluginCookieTraversalTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let url = root.appendingPathComponent("manual.js")
-        let source = Self.source("""
+        let pluginSource = Self.source("""
         for await (const session of ctx.browser.sessions("example.test")) {
           return { identity: { loginMethod: session.header === "session=manual" ? "manual" : "wrong" } };
         }
         throw new Error("missing manual session");
         """).replacingOccurrences(of: "id: \"synthetic\"", with: "id: \"manual-cookie-fixture\"")
-        try Data(source.utf8).write(to: url)
+        try Data(pluginSource.utf8).write(to: url)
         let plugin = try UserProviderPluginLoader(
             providersDirectory: root, cacheDirectory: root.appendingPathComponent("cache")).load(fileURL: url)
         let approvals = ProviderPluginApprovalStore(fileURL: root.appendingPathComponent("approvals.json"))

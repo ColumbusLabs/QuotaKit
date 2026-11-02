@@ -50,7 +50,7 @@ struct BrowserLocalStorageAPI: Sendable {
         }
     }
 
-    private static func loadProfiles(
+    static func loadProfiles(
         origin: String,
         root: URL,
         browserID: String,
