@@ -37,6 +37,28 @@ struct ClaudeWatchdogTests {
         try #require(!process.isRunning, "Synthetic process did not exit before the deadline")
     }
 
+    private static func spawnSentinel() throws -> pid_t {
+        var sentinelAttr: posix_spawnattr_t?
+        try #require(posix_spawnattr_init(&sentinelAttr) == 0)
+        defer { posix_spawnattr_destroy(&sentinelAttr) }
+        try #require(posix_spawnattr_setflags(&sentinelAttr, Int16(POSIX_SPAWN_SETPGROUP)) == 0)
+        try #require(posix_spawnattr_setpgroup(&sentinelAttr, 0) == 0)
+        let sentinelArgs = [strdup("/bin/sleep"), strdup("30"), nil]
+        defer { sentinelArgs.forEach { if let arg = $0 { free(arg) } } }
+        var sentinelPID: pid_t = 0
+        let sentinelSpawn = sentinelArgs.withUnsafeBufferPointer { buffer in
+            posix_spawn(
+                &sentinelPID,
+                "/bin/sleep",
+                nil,
+                &sentinelAttr,
+                UnsafeMutablePointer(mutating: buffer.baseAddress),
+                environ)
+        }
+        try #require(sentinelSpawn == 0)
+        return sentinelPID
+    }
+
     @Test
     func `watchdog isolates child process group at spawn and preserves caller group during teardown`() async throws {
         let directory = FileManager.default.temporaryDirectory
@@ -298,24 +320,7 @@ struct ClaudeWatchdogTests {
         Self.phase("escalation compile")
         let watchdogURL = try await Self.buildWatchdogExecutable(in: directory)
         Self.phase("escalation sentinel launch")
-        var sentinelAttr: posix_spawnattr_t?
-        try #require(posix_spawnattr_init(&sentinelAttr) == 0)
-        defer { posix_spawnattr_destroy(&sentinelAttr) }
-        try #require(posix_spawnattr_setflags(&sentinelAttr, Int16(POSIX_SPAWN_SETPGROUP)) == 0)
-        try #require(posix_spawnattr_setpgroup(&sentinelAttr, 0) == 0)
-        let sentinelArgs = [strdup("/bin/sleep"), strdup("30"), nil]
-        defer { sentinelArgs.forEach { if let arg = $0 { free(arg) } } }
-        var sentinelPID: pid_t = 0
-        let sentinelSpawn = sentinelArgs.withUnsafeBufferPointer { buffer in
-            posix_spawn(
-                &sentinelPID,
-                "/bin/sleep",
-                nil,
-                &sentinelAttr,
-                UnsafeMutablePointer(mutating: buffer.baseAddress),
-                environ)
-        }
-        try #require(sentinelSpawn == 0)
+        let sentinelPID = try Self.spawnSentinel()
         Self.phase("escalation sentinel started")
         let sentinelIdentity = TTYProcessTreeTerminator.processIdentity(for: sentinelPID)
         var sentinelReaped = false
