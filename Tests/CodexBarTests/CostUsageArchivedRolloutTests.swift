@@ -70,7 +70,8 @@ struct CostUsageArchivedRolloutTests {
             range: .init(since: later, until: later),
             isForceRescan: true)
         #expect(plainCache.files[plain.path] == nil)
-        let usage = try #require(cache.files.removeValue(forKey: plain.path))
+        let removedUsage = cache.files.removeValue(forKey: plain.path)
+        let usage = try #require(removedUsage)
         let loop = env.root.appendingPathComponent("unavailable-loop")
         try FileManager.default.createSymbolicLink(atPath: loop.path, withDestinationPath: loop.path)
         let unavailable = loop.appendingPathComponent("keep.jsonl").path
