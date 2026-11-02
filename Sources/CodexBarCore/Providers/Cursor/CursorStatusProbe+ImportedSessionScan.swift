@@ -1,7 +1,7 @@
 import Foundation
 import SweetCookieKit
 
-#if os(macOS) || os(Linux)
+#if os(macOS)
 extension CursorStatusProbe {
     func scanBrowsers(
         _ browsers: [Browser],

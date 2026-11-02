@@ -1006,17 +1006,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let olderDay = try env.makeLocalNoon(year: 2026, month: 2, day: 7)
         let currentDayKey = "2026-04-08"
-        let currentURL = try env.writeCodexSessionFile(
-            day: now,
-            filename: "current-complete.jsonl",
-            contents: "{}\n")
-        let olderURL = try env.writeCodexSessionFile(
-            day: olderDay,
-            filename: "historical-pending.jsonl",
-            contents: "{}\n")
-        try FileManager.default.setAttributes(
-            [.modificationDate: olderDay],
-            ofItemAtPath: olderURL.path)
+        let (currentURL, olderURL) = try Self.pendingHistoryFiles(env: env, currentDay: now, olderDay: olderDay)
 
         let options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
@@ -2674,6 +2664,23 @@ extension CostUsageFetcherCacheSnapshotTests {
                     ],
                 ],
             ]))
+    }
+
+    private static func pendingHistoryFiles(
+        env: CostUsageTestEnvironment,
+        currentDay: Date,
+        olderDay: Date) throws -> (URL, URL)
+    {
+        let current = try env.writeCodexSessionFile(
+            day: currentDay,
+            filename: "current-complete.jsonl",
+            contents: "{}\n")
+        let older = try env.writeCodexSessionFile(
+            day: olderDay,
+            filename: "historical-pending.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes([.modificationDate: olderDay], ofItemAtPath: older.path)
+        return (current, older)
     }
 
     private static func recordIndependentlyVerifiedDay(

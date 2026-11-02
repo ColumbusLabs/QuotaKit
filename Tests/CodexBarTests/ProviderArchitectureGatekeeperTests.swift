@@ -4555,6 +4555,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "openai",
                 "opencode",
                 "opencodego",
+                "opendesign",
                 "openrouter",
                 "perplexity",
                 "pi",
@@ -4587,7 +4588,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 96,
+            expectedReferenceCount: 97,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4685,6 +4686,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "xapi@38",
                 "abliteration@39",
                 "chatbox@39",
+                "opendesign@39",
             ],
             reason: "Cost-estimation badges follow provider-specific model-family knowledge; these provider-native and balance-only additions never use local model pricing."),
         AllowedProviderConstruct(
