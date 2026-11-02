@@ -672,8 +672,11 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
         let idPrefix = "upcoming-reset-\(provider.rawValue)"
         self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
         AppNotifications.shared.post(
-            idPrefix: idPrefix, title: copy.title, body: copy.body,
-            isCurrent: isCurrent, onCompletion: onCompletion)
+            idPrefix: idPrefix,
+            title: copy.title,
+            body: copy.body,
+            isCurrent: isCurrent,
+            onCompletion: onCompletion)
     }
 }
 

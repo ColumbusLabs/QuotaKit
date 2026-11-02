@@ -506,7 +506,9 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 99)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
     }
+}
 
+extension UsageStoreCodexCostCatchUpTests {
     @Test(arguments: [false, true])
     func `terminal pauses coalesce same scope refresh and allow explicit resume`(throwsError: Bool) async throws {
         let store = try Self.makeStore(suite: "terminal-queued-restart-\(throwsError)")

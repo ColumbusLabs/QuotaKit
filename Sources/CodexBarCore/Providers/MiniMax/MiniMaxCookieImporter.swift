@@ -81,8 +81,13 @@ public enum MiniMaxCookieImporter {
         try BrowserCookieImportSupport.collectSessions(
             from: minimaxCookieImportOrder.lazyCookieImportCandidates(using: browserDetection),
             missingError: MiniMaxCookieImportError.noCookies,
-            logger: { self.emit($0, logger: logger) },
-            load: { try self.importSessions(from: $0, region: region, logger: logger) })
+            logger: { self.emit(
+                $0,
+                logger: logger) },
+            load: { try self.importSessions(
+                from: $0,
+                region: region,
+                logger: logger) })
     }
 
     public static func importSessions(
@@ -117,8 +122,12 @@ public enum MiniMaxCookieImporter {
                 let cookies = BrowserCookieClient.makeHTTPCookies(originalRecords, origin: query.origin)
                 log("Found \(scoped.count) MiniMax cookies in \(label) for \(first.domain)")
                 sessions.append(SessionInfo(
-                    cookies: cookies, records: scoped, authority: authority,
-                    scopeDomain: first.domain, hostOnly: first.hostOnly, sourceLabel: label))
+                    cookies: cookies,
+                    records: scoped,
+                    authority: authority,
+                    scopeDomain: first.domain,
+                    hostOnly: first.hostOnly,
+                    sourceLabel: label))
             }
         }
         return sessions

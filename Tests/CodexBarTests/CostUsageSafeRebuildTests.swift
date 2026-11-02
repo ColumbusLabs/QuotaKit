@@ -197,10 +197,10 @@ struct CostUsageSafeRebuildTests {
 
 private final class RebuildOpenProbe: @unchecked Sendable {
     private let lock = NSLock()
-    private var count = 0
+    private var called = false
 
-    func record() { self.lock.withLock { self.count += 1 } }
+    func record() { self.lock.withLock { self.called = true } }
     var wasCalled: Bool {
-        self.lock.withLock { self.count > 0 }
+        self.lock.withLock { self.called }
     }
 }

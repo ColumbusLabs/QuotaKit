@@ -11,7 +11,8 @@ struct CodexResetCreditExpiryNotifierTests {
         let now = Date(timeIntervalSince1970: 1_900_000_000)
         let snapshot = CodexRateLimitResetCreditsSnapshot(
             credits: [Self.credit(id: "retry-fixture", expiresAt: now.addingTimeInterval(3600))],
-            availableCount: 1, updatedAt: now)
+            availableCount: 1,
+            updatedAt: now)
         var completions: [@MainActor (Bool) -> Void] = []
         let notifier = CodexResetCreditExpiryNotifier(
             userDefaults: defaults,

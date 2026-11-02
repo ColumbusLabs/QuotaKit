@@ -10074,6 +10074,22 @@ enum CostUsageScanner {
         try fileIndex.resumePendingDiscovery()
     }
 
+    private static func pruneDaysKeepingArchives(
+        cache: inout CostUsageCache,
+        sinceKey: String,
+        untilKey: String)
+    {
+        pruneDays(cache: &cache, sinceKey: sinceKey, untilKey: untilKey)
+        for usage in cache.files.values where usage.codexArchived == true {
+            Self.applyFileDays(
+                cache: &cache,
+                fileDays: usage.days.filter {
+                    !CostUsageDayRange.isInRange(dayKey: $0.key, since: sinceKey, until: untilKey)
+                },
+                sign: 1)
+        }
+    }
+
     private static func finalizeCodexDailyProgress(
         _ state: CodexDailyLoadState,
         preparation: CodexDailyScanPreparation,
@@ -10124,15 +10140,7 @@ enum CostUsageScanner {
             && !cacheWideMigrationNeedsQueueReseed
             && cachedSinceKey == retainedSinceKey
             && cachedUntilKey == retainedUntilKey
-        Self.pruneDays(cache: &cache, sinceKey: retainedSinceKey, untilKey: retainedUntilKey)
-        for usage in cache.files.values where usage.codexArchived == true {
-            Self.applyFileDays(
-                cache: &cache,
-                fileDays: usage.days.filter {
-                    !CostUsageDayRange.isInRange(dayKey: $0.key, since: retainedSinceKey, until: retainedUntilKey)
-                },
-                sign: 1)
-        }
+        Self.pruneDaysKeepingArchives(cache: &cache, sinceKey: retainedSinceKey, untilKey: retainedUntilKey)
         cache.roots = plan.rootsFingerprint
         cache.scanSinceKey = retainedSinceKey
         cache.scanUntilKey = retainedUntilKey

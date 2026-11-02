@@ -88,7 +88,8 @@ struct CodexLocalProjectUsageCacheScopeTests {
         #expect(snapshot.projects.isEmpty)
         #expect(snapshot.sessions.isEmpty)
         #expect(CostUsageStoreAccess.read(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: scannerOptions.calendar).roots == CostUsageScanner.codexRootsFingerprint(options: scannerOptions))
         #expect(CodexLocalProjectUsageIndexer.cachedSnapshot(
             now: now,

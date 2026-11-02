@@ -140,22 +140,8 @@ struct CostUsageOrphanForkTests {
         calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
         let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 12)))
         let old = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 15, hour: 12)))
-        for (session, parent) in [("fork-b", "missing-a"), ("fork-c", "missing-a"), ("fork-d", "fork-b")] {
-            let forkTime = session == "fork-d" ? "2026-08-15T04:00:02Z" : "2026-08-15T04:00:00Z"
-            let tokenTime = currentTokens ? "2026-09-30T04:00:00Z" : "2026-08-15T04:00:03Z"
-            let contents = """
-            {"type":"session_meta","payload":{"id":"\(session)","forked_from_id":"\(parent)","timestamp":"\(forkTime)"}}
-            {"type":"turn_context","payload":{"model":"gpt-5.4"}}
-            {"type":"event_msg","timestamp":"\(tokenTime)","payload":{"type":"token_count",\
-            "info":{"total_token_usage":{"input_tokens":100,"output_tokens":10}}}}
-            {"type":"event_msg","timestamp":"2026-09-30T04:00:00Z","payload":{"type":"task_complete"}}
+        try Self.writeForkFixtures(env: env, currentTokens: currentTokens)
 
-            """
-            try contents.write(
-                to: env.codexArchivedSessionsRoot.appendingPathComponent("rollout-2026-08-15-\(session).jsonl"),
-                atomically: true,
-                encoding: .utf8)
-        }
         let currentFile = try env.writeCodexSessionFile(
             day: now,
             filename: "rollout-2026-09-30-current.jsonl",
@@ -275,7 +261,7 @@ struct CostUsageOrphanForkTests {
         scanUntilSettled()
 
         if useWorkingSet, byteBudget == 512 {
-            try Self.prioritizeNestedFork(cacheRoot: env.cacheRoot, calendar: calendar)
+            try Self.prioritizeNestedFork(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         }
 
         try """
@@ -302,10 +288,29 @@ struct CostUsageOrphanForkTests {
         }
     }
 
-    private static func prioritizeNestedFork(cacheRoot: URL, calendar: Calendar) throws {
+    private static func writeForkFixtures(env: CostUsageTestEnvironment, currentTokens: Bool) throws {
+        for (session, parent) in [("fork-b", "missing-a"), ("fork-c", "missing-a"), ("fork-d", "fork-b")] {
+            let forkTime = session == "fork-d" ? "2026-08-15T04:00:02Z" : "2026-08-15T04:00:00Z"
+            let tokenTime = currentTokens ? "2026-09-30T04:00:00Z" : "2026-08-15T04:00:03Z"
+            let contents = """
+            {"type":"session_meta","payload":{"id":"\(session)","forked_from_id":"\(parent)","timestamp":"\(forkTime)"}}
+            {"type":"turn_context","payload":{"model":"gpt-5.4"}}
+            {"type":"event_msg","timestamp":"\(tokenTime)","payload":{"type":"token_count",\
+            "info":{"total_token_usage":{"input_tokens":100,"output_tokens":10}}}}
+            {"type":"event_msg","timestamp":"2026-09-30T04:00:00Z","payload":{"type":"task_complete"}}
+
+            """
+            try contents.write(
+                to: env.codexArchivedSessionsRoot.appendingPathComponent("rollout-2026-08-15-\(session).jsonl"),
+                atomically: true,
+                encoding: .utf8)
+        }
+    }
+
+    private static func prioritizeNestedFork(cacheRoot: URL, home: String, calendar: Calendar) throws {
         // A nested child can lead a persisted queue. Its immediate parent still needs the
         // restored ancestor, whose detail history must survive compact-only dependency scans.
-        var reordered = CostUsageStoreAccess.read(cacheRoot: cacheRoot, calendar: calendar)
+        var reordered = CostUsageStoreAccess.read(cacheRoot: cacheRoot, home: home, calendar: calendar)
         let roots = try #require(reordered.roots).keys.sorted()
         let reversePaths = ["fork-d", "fork-c", "fork-b"].compactMap { sessionID in
             reordered.files.first { $0.value.sessionId == sessionID }?.key
@@ -316,6 +321,6 @@ struct CostUsageOrphanForkTests {
             completedRootPaths: roots,
             pendingFilePaths: reversePaths)
         reordered.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: cacheRoot, cache: reordered, calendar: calendar)
+        CostUsageStoreAccess.replace(cacheRoot: cacheRoot, home: home, cache: reordered, calendar: calendar)
     }
 }

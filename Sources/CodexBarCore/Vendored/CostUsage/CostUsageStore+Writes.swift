@@ -549,7 +549,8 @@ extension CostUsageStore {
         var metadata = try self.readSingleton(
             CostUsageStoreMetadata.self,
             database: database,
-            table: "scan_metadata", home: home) ?? .empty
+            table: "scan_metadata",
+            home: home) ?? .empty
         // Retention may have required catch-up after the caller's preflight. Recheck
         // under this writer lock so stale freshness can never mask that recovery state.
         guard !metadata.catchUpPending else { return true }

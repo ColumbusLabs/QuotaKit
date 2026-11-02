@@ -596,7 +596,9 @@ final class MenuBarLayoutRenderer {
                     options: options,
                     providerTintColor: providerTintColor)
                 renderedItem = Self.labelAutomaticItem(
-                    renderedItem, token: token, data: data, options: options, attributes: attributes,
+                    renderedItem,
+                    token: token,
+                    context: AutomaticWindowLabelContext(data: data, options: options, attributes: attributes),
                     lineWindowLabel: &lineWindowLabel)
                 result.append(renderedItem.value)
                 if let accessibilityText = renderedItem.accessibilityText {
@@ -684,7 +686,9 @@ final class MenuBarLayoutRenderer {
         _ title: NSAttributedString, accessibilityLabel: String, highContrast: Bool) -> MenuBarLayoutRenderedTitle
     {
         MenuBarLayoutRenderedTitle(
-            attributedTitle: title, accessibilityLabel: accessibilityLabel, leadingIcon: nil,
+            attributedTitle: title,
+            accessibilityLabel: accessibilityLabel,
+            leadingIcon: nil,
             statusImage: highContrast ? nil : self.statusImage(title: title, foregroundColor: .labelColor))
     }
 
@@ -726,43 +730,34 @@ final class MenuBarLayoutRenderer {
         return image
     }
 
-    /// nil == resolved to .hidden (render nothing, no separator). A returned .conditional
-    /// means the id is dangling or the depth cap was hit; renderItem shows the placeholder.
-    private static func resolvedDisplayToken(
-        _ token: MenuBarLayoutToken,
+    private static func renderIcon(
+        _ icon: NSImage?,
         data: MenuBarLayoutRenderData,
-        conditionals: [UUID: MenuBarLayoutConditional],
-        outcomes: [UUID: Bool],
-        depth: Int = 0)
-        -> MenuBarLayoutToken?
+        style: TokenStyle,
+        providerTintColor: NSColor?) -> (value: NSAttributedString, accessibilityText: String?)
     {
-        if data.provider == nil {
-            let missing: Bool = switch token {
-            case let .percent(window) where window == .session || window == .weekly:
-                self.window(window, data: data) == nil
-            case .lanePercent(lane: .tertiary): data.tertiary == nil
-            case let .extraPercent(id): data.extraWindow(id) == nil
-            default: false
-            }
-            if missing { return .percent(window: .automatic) }
+        guard let icon else {
+            return self.textToken(
+                self.missingValue,
+                accessibilityText: L("Icon unavailable"),
+                attributes: style.attributes)
         }
-        switch token {
-        case .hidden: return nil
-        case let .extraPercent(id): return data.extraTitle(id) == nil ? nil : token
-        case let .conditional(id):
-            guard depth < MenuBarLayoutToken.maxConditionalDepth,
-                  let conditional = conditionals[id],
-                  let isTrue = outcomes[id]
-            else { return token }
-            let branch = isTrue ? conditional.thenToken : conditional.elseToken
-            return self.resolvedDisplayToken(
-                branch,
-                data: data,
-                conditionals: conditionals,
-                outcomes: outcomes,
-                depth: depth + 1)
-        default: return token
-        }
+        let attachment = NSTextAttachment()
+        let tintColor = providerTintColor ?? style.foregroundColor
+        attachment.image = Self.attachmentImage(
+            icon,
+            tint: tintColor,
+            isMonochrome: providerTintColor == nil)
+        let height = style.iconHeight
+        let width = icon.size.height > 0 ? icon.size.width * height / icon.size.height : height
+        attachment.bounds = NSRect(
+            x: 0,
+            y: ((style.font.capHeight - height) / 2).rounded(),
+            width: width,
+            height: height)
+        let value = NSMutableAttributedString(attachment: attachment)
+        value.addAttributes(style.attributes, range: NSRange(location: 0, length: value.length))
+        return (value, Self.iconAccessibilityText(data: data))
     }
 
     private static func renderItem(
@@ -792,28 +787,7 @@ final class MenuBarLayoutRenderer {
 
         switch item {
         case .icon:
-            guard let icon else {
-                return self.textToken(
-                    self.missingValue,
-                    accessibilityText: L("Icon unavailable"),
-                    attributes: style.attributes)
-            }
-            let attachment = NSTextAttachment()
-            let tintColor = providerTintColor ?? style.foregroundColor
-            attachment.image = Self.attachmentImage(
-                icon,
-                tint: tintColor,
-                isMonochrome: providerTintColor == nil)
-            let height = style.iconHeight
-            let width = icon.size.height > 0 ? icon.size.width * height / icon.size.height : height
-            attachment.bounds = NSRect(
-                x: 0,
-                y: ((style.font.capHeight - height) / 2).rounded(),
-                width: width,
-                height: height)
-            let value = NSMutableAttributedString(attachment: attachment)
-            value.addAttributes(style.attributes, range: NSRange(location: 0, length: value.length))
-            return (value, Self.iconAccessibilityText(data: data))
+            return self.renderIcon(icon, data: data, style: style, providerTintColor: providerTintColor)
         case let .percent(window):
             return self.renderPercent(
                 window,

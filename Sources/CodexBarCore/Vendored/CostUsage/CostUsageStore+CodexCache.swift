@@ -136,7 +136,8 @@ extension CostUsageStore {
                     metadata: Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata", home: self.home) ?? .empty,
+                        table: "scan_metadata",
+                        home: self.home) ?? .empty,
                     files: Self.readFiles(database, home: self.home, includeBufferedPresence: true),
                     tokenSnapshots: [],
                     usageRows: [],
@@ -150,11 +151,13 @@ extension CostUsageStore {
                     discoveryState: Self.readSingleton(
                         CostUsageStoreDiscoveryState.self,
                         database: database,
-                        table: "discovery_state", home: self.home),
+                        table: "discovery_state",
+                        home: self.home),
                     lookbackState: Self.readSingleton(
                         CostUsageStoreLookbackState.self,
                         database: database,
-                        table: "lookback_state", home: self.home),
+                        table: "lookback_state",
+                        home: self.home),
                     accumulators: [])
                 snapshot.tokenSnapshotsLoaded = false
                 let usageRows = purpose == .report ? try Self.readDecodedUsageRows(database, home: self.home) : nil
@@ -533,6 +536,18 @@ extension CostUsageStore {
 
     // swiftlint:enable function_body_length
 
+    /// Preserve compressed-only history when day buckets cannot be rebuilt in the new zone.
+    private func resetCodexCacheForTimeZoneChange(_ database: OpaquePointer) throws {
+        if try Self.readFiles(database, home: self.home).contains(where: {
+            CostUsageScanner.isArchivedCodexRollout($0.path)
+        }) {
+            throw StoreError.migration(StoreError.incompatibleSchema)
+        }
+        for table in ["files", "day_aggregates", "discovery_state", "lookback_state"] {
+            try Self.deleteHomeRows(database, table: table, home: self.home)
+        }
+    }
+
     /// Persists one bounded scanner pass without reconstructing the complete event ledger. The
     /// caller supplies the explicit working set that was hydrated before scanning. Manifest,
     /// discovery, lookback, and global aggregate metadata are updated as usual; per-file detail
@@ -570,18 +585,7 @@ extension CostUsageStore {
                 timeZoneIdentifier: calendar.timeZone.identifier,
                 rootPaths: cache.roots?.keys.sorted())
             if timeZoneChanged {
-                // Day keys are calendar-derived. Keeping even one unhydrated file from the old
-                // zone while relabeling metadata would mix incompatible buckets, so invalidate
-                // the rebuildable cache atomically and let bounded discovery repopulate it.
-                if try Self.readFiles(database, home: self.home).contains(where: {
-                    CostUsageScanner.isArchivedCodexRollout($0.path)
-                }) {
-                    throw StoreError.migration(StoreError.incompatibleSchema)
-                }
-                try Self.deleteHomeRows(database, table: "files", home: self.home)
-                try Self.deleteHomeRows(database, table: "day_aggregates", home: self.home)
-                try Self.deleteHomeRows(database, table: "discovery_state", home: self.home)
-                try Self.deleteHomeRows(database, table: "lookback_state", home: self.home)
+                try self.resetCodexCacheForTimeZoneChange(database)
             }
             if verifiedScopeChanged {
                 try Self.clearVerifiedDayAggregates(database, home: self.home)
@@ -668,7 +672,8 @@ extension CostUsageStore {
                 invalidatedVerifiedDays: &invalidatedVerifiedDays)
             if maintainsSparseVerifiedDays {
                 try Self.clearVerifiedDayAggregates(
-                    database, home: self.home,
+                    database,
+                    home: self.home,
                     days: invalidatedVerifiedDays)
             }
             #if DEBUG

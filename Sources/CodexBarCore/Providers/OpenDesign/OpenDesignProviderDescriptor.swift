@@ -20,10 +20,10 @@ public enum OpenDesignProviderDescriptor {
         confetti: [0x202020, 0x999999],
         progressColorStyle: .label,
         noDataMessage: "No cost history data.",
+        menuBarMetrics: .init(supported: [.automatic, .primary, .secondary]),
         // The website's active workspace can change between refreshes.
         history: .unavailable,
         burnDownWidgetSelectable: false,
-        menuBarMetrics: .init(supported: [.automatic, .primary, .secondary]),
         aliases: ["open-design"],
         webSource: .init(
             settingsSection: .init(OpenDesignProviderSettingsKey.self, cookieSettings: CookieProviderSettings.self),

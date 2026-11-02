@@ -1187,7 +1187,10 @@ extension CLIServeTimeoutTests {
         await normalSource.waitForStarts(1)
         let forced = Task {
             await CodexBarCLI.cachedServeResponse(
-                key: "usage:claude", cache: cache, refreshInterval: 60, requestTimeout: 0,
+                key: "usage:claude",
+                cache: cache,
+                refreshInterval: 60,
+                requestTimeout: 0,
                 forceRefresh: true) { fresh }
         }
         await self.waitForOperationCount(2, coordinator: cache.operations)

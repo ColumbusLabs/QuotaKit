@@ -191,6 +191,7 @@ extension CostUsageStore {
     func pathsContainingCodexTurnIDs(_ turnIDs: Set<String>) throws -> Set<String> {
         guard !turnIDs.isEmpty else { return [] }
         let database = try self.ensureDatabase()
+        let home = self.home
         return try Self.inReadTransaction(database) {
             var paths: Set<String> = []
             let sortedTurnIDs = turnIDs.sorted()
@@ -205,7 +206,7 @@ extension CostUsageStore {
                 ORDER BY f.path
                 """)
                 defer { sqlite3_finalize(statement) }
-                Self.bind(self.home, to: statement, at: 1)
+                Self.bind(home, to: statement, at: 1)
                 for (index, turnID) in chunk.enumerated() {
                     Self.bind(turnID, to: statement, at: Int32(index + 2))
                 }
@@ -232,7 +233,8 @@ extension CostUsageStore {
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata", home: self.home) ?? .empty
+                    table: "scan_metadata",
+                    home: self.home) ?? .empty
                 let aggregates = try Self.readDayAggregates(
                     database,
                     home: self.home,
@@ -255,11 +257,13 @@ extension CostUsageStore {
                 let discoveryState = try Self.readSingleton(
                     CostUsageStoreDiscoveryState.self,
                     database: database,
-                    table: "discovery_state", home: self.home)
+                    table: "discovery_state",
+                    home: self.home)
                 let lookbackState = try Self.readSingleton(
                     CostUsageStoreLookbackState.self,
                     database: database,
-                    table: "lookback_state", home: self.home)
+                    table: "lookback_state",
+                    home: self.home)
                 return CostUsageStoreCatchUpProjection(
                     rootMtimes: metadata.rootMtimes,
                     catchUpPending: metadata.catchUpPending,
@@ -530,7 +534,8 @@ extension CostUsageStore {
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata", home: self.home) ?? .empty
+                    table: "scan_metadata",
+                    home: self.home) ?? .empty
                 let temporalSince = temporalRange?.sinceDay ?? metadata.scanSinceDay
                 let temporalUntil = temporalRange?.untilDay ?? metadata.scanUntilDay
                 let fileTemporal: [CostUsageStoreTemporalAggregate]
@@ -596,11 +601,13 @@ extension CostUsageStore {
                     discoveryState: Self.readSingleton(
                         CostUsageStoreDiscoveryState.self,
                         database: database,
-                        table: "discovery_state", home: self.home),
+                        table: "discovery_state",
+                        home: self.home),
                     lookbackState: Self.readSingleton(
                         CostUsageStoreLookbackState.self,
                         database: database,
-                        table: "lookback_state", home: self.home),
+                        table: "lookback_state",
+                        home: self.home),
                     accumulators: Self.readAccumulators(
                         database,
                         paths: hydratedPaths,
@@ -661,9 +668,10 @@ extension CostUsageStore {
         }
     }
 
-    private func readSingleton<Value: Decodable>(_ type: Value.Type, table: String) -> Value? {
-        self.withDatabase(default: nil) { database in
-            try Self.readSingleton(type, database: database, table: table, home: self.home)
+    private func readSingleton<Value: Decodable & Sendable>(_ type: Value.Type, table: String) -> Value? {
+        let home = self.home
+        return self.withDatabase(default: nil) { database in
+            try Self.readSingleton(type, database: database, table: table, home: home)
         }
     }
 }
@@ -732,7 +740,8 @@ extension CostUsageStore {
             metadata: self.readSingleton(
                 CostUsageStoreMetadata.self,
                 database: database,
-                table: "scan_metadata", home: home) ?? .empty,
+                table: "scan_metadata",
+                home: home) ?? .empty,
             files: self.readFiles(database, home: home),
             tokenSnapshots: loadTokenSnapshots
                 ? self.readTokenSnapshots(database, path: nil, home: home, storeURL: storeURL) : [],
@@ -744,11 +753,13 @@ extension CostUsageStore {
             discoveryState: self.readSingleton(
                 CostUsageStoreDiscoveryState.self,
                 database: database,
-                table: "discovery_state", home: home),
+                table: "discovery_state",
+                home: home),
             lookbackState: self.readSingleton(
                 CostUsageStoreLookbackState.self,
                 database: database,
-                table: "lookback_state", home: home),
+                table: "lookback_state",
+                home: home),
             accumulators: self.readAccumulators(database, path: nil, home: home))
     }
 
@@ -947,7 +958,8 @@ extension CostUsageStore {
         let statement = try Self.prepare(database, """
         SELECT r.row_index, substr(r.payload, 1, 8193)
         FROM usage_rows r
-        WHERE r.file_id = (SELECT id FROM files WHERE path = ? \(home == nil ? "" : "AND home = ?")) AND r.row_index IN (\(placeholders))
+        WHERE r.file_id = (SELECT id FROM files WHERE path = ? \(home == nil ? "" : "AND home = ?"))
+          AND r.row_index IN (\(placeholders))
         """)
         defer { sqlite3_finalize(statement) }
         Self.bind(path, to: statement, at: 1)

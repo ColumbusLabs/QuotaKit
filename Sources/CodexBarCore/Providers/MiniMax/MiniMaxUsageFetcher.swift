@@ -22,6 +22,20 @@ public struct MiniMaxUsageFetcher: Sendable {
         let transport: any ProviderHTTPTransport
     }
 
+    struct WebFetchInput {
+        let cookieHeader: String
+        let authorizationToken: String?
+        let groupID: String?
+        let region: MiniMaxAPIRegion
+        @ProcessEnvironment private(set) var environment: [String: String]
+        let includeBillingHistory: Bool
+        let transport: any ProviderHTTPTransport
+        let now: Date
+        let browserCookieRecords: [ProviderPluginCookieRecord]?
+        let authorizationOrigin: String?
+        var useSessionBearer = false
+    }
+
     public static func fetchUsage(
         cookieHeader: String,
         authorizationToken: String? = nil,
@@ -32,34 +46,33 @@ public struct MiniMaxUsageFetcher: Sendable {
         session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         now: Date = Date()) async throws -> MiniMaxUsageSnapshot
     {
-        try await self.fetchUsage(
+        try await self.fetchUsage(WebFetchInput(
             cookieHeader: cookieHeader,
             authorizationToken: authorizationToken,
             groupID: groupID,
             region: region,
             environment: environment,
             includeBillingHistory: includeBillingHistory,
-            session: transport,
+            transport: transport,
             now: now,
             browserCookieRecords: nil,
-            authorizationOrigin: nil)
+            authorizationOrigin: nil))
     }
 
     /// Browser imports retain cookie domain/path metadata and a bearer-token origin. Manual
     /// overrides continue to use the explicit header supplied by the user.
-    static func fetchUsage(
-        cookieHeader: String,
-        authorizationToken: String?,
-        groupID: String?,
-        region: MiniMaxAPIRegion,
-        environment: [String: String],
-        includeBillingHistory: Bool,
-        session transport: any ProviderHTTPTransport,
-        now: Date,
-        browserCookieRecords: [ProviderPluginCookieRecord]?,
-        authorizationOrigin: String?,
-        useSessionBearer: Bool = false) async throws -> MiniMaxUsageSnapshot
-    {
+    static func fetchUsage(_ input: WebFetchInput) async throws -> MiniMaxUsageSnapshot {
+        let cookieHeader = input.cookieHeader
+        let authorizationToken = input.authorizationToken
+        let groupID = input.groupID
+        let region = input.region
+        let environment = input.environment
+        let includeBillingHistory = input.includeBillingHistory
+        let transport = input.transport
+        let now = input.now
+        let browserCookieRecords = input.browserCookieRecords
+        let authorizationOrigin = input.authorizationOrigin
+        let useSessionBearer = input.useSessionBearer
         guard let cookie = MiniMaxCookieHeader.normalized(from: cookieHeader) else {
             throw MiniMaxUsageError.invalidCredentials
         }

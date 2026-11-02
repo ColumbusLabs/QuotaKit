@@ -26,8 +26,10 @@ enum MiniMaxLocalStorageImporter {
                 let snapshot = self.readLocalStorage(from: candidate.url, origin: origin, logger: logger)
                 for token in snapshot.tokens {
                     tokens.append(TokenInfo(
-                        accessToken: token, groupID: snapshot.groupID ?? self.groupID(fromJWT: token),
-                        sourceLabel: candidate.label, origin: origin))
+                        accessToken: token,
+                        groupID: snapshot.groupID ?? self.groupID(fromJWT: token),
+                        sourceLabel: candidate.label,
+                        origin: origin))
                 }
             }
         }
@@ -35,8 +37,10 @@ enum MiniMaxLocalStorageImporter {
             for origin in origins {
                 for token in self.readSessionStorageTokens(from: candidate.url, origin: origin, logger: logger) {
                     tokens.append(TokenInfo(
-                        accessToken: token, groupID: self.groupID(fromJWT: token),
-                        sourceLabel: candidate.label, origin: origin))
+                        accessToken: token,
+                        groupID: self.groupID(fromJWT: token),
+                        sourceLabel: candidate.label,
+                        origin: origin))
                 }
             }
         }
@@ -46,8 +50,10 @@ enum MiniMaxLocalStorageImporter {
             else { continue }
             for token in self.readIndexedDBTokens(from: candidate.url, logger: logger) {
                 tokens.append(TokenInfo(
-                    accessToken: token, groupID: self.groupID(fromJWT: token),
-                    sourceLabel: candidate.label, origin: origin))
+                    accessToken: token,
+                    groupID: self.groupID(fromJWT: token),
+                    sourceLabel: candidate.label,
+                    origin: origin))
             }
         }
         return tokens
@@ -85,7 +91,9 @@ enum MiniMaxLocalStorageImporter {
         "https://minimaxi.com",
     ]
     static let indexedDBStorage = ChromiumLocalStorageDiscovery.Storage.indexedDB(
-        originPrefixes: Self.origins.map { $0.replacingOccurrences(of: "://", with: "_") + "_" })
+        originPrefixes: Self.origins.map { $0.replacingOccurrences(
+            of: "://",
+            with: "_") + "_" })
 
     static func storageCandidates(
         browserDetection: BrowserDetection,
@@ -124,7 +132,9 @@ enum MiniMaxLocalStorageImporter {
     {
         // Preserve the exact origin: free-text and raw-token scans cannot prove ownership.
         let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
-            for: origin, in: levelDBURL, logger: logger)
+            for: origin,
+            in: levelDBURL,
+            logger: logger)
         var seen: Set<String> = []
         var tokens: [String] = []
         var groupID: String?

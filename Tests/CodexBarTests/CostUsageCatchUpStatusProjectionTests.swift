@@ -31,7 +31,8 @@ struct CostUsageCatchUpStatusProjectionTests {
             codexScanTargetSize: 100,
             codexScanComplete: false)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 

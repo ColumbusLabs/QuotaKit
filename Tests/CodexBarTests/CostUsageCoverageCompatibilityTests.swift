@@ -30,7 +30,8 @@ struct CostUsageCoverageCompatibilityTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let predecessor = CostUsageStore(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: hash),

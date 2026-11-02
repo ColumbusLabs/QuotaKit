@@ -83,7 +83,10 @@ public enum MiniMaxProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .minimax),
                 iconResourceName: "ProviderIcon-minimax",
-                color: ProviderColor(red: 239 / 255, green: 68 / 255, blue: 68 / 255),
+                color: ProviderColor(
+                    red: 239 / 255,
+                    green: 68 / 255,
+                    blue: 68 / 255),
                 confettiPalette: [
                     ProviderColor(hex: 0x181E25),
                     ProviderColor(hex: 0x86909C),
@@ -141,7 +144,10 @@ public enum MiniMaxProviderDescriptor {
         let apiKeyKind = MiniMaxAPISettingsReader.apiKeyKind(token: apiToken)
         let authMode = MiniMaxAuthMode.resolve(
             apiToken: apiToken,
-            cookieHeader: ProviderTokenResolver.token(for: .minimax, kind: .secondary, environment: context.env))
+            cookieHeader: ProviderTokenResolver.token(
+                for: .minimax,
+                kind: .secondary,
+                environment: context.env))
         if authMode.usesAPIToken {
             if apiKeyKind == .standard {
                 return [MiniMaxCodingPlanFetchStrategy()]
@@ -158,8 +164,13 @@ struct MiniMaxAPIFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         let authMode = MiniMaxAuthMode.resolve(
-            apiToken: ProviderTokenResolver.token(for: .minimax, environment: context.env),
-            cookieHeader: ProviderTokenResolver.token(for: .minimax, kind: .secondary, environment: context.env))
+            apiToken: ProviderTokenResolver.token(
+                for: .minimax,
+                environment: context.env),
+            cookieHeader: ProviderTokenResolver.token(
+                for: .minimax,
+                kind: .secondary,
+                environment: context.env))
         if let kind = MiniMaxAPISettingsReader.apiKeyKind(environment: context.env),
            kind == .standard
         {
@@ -208,7 +219,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
             return false
         }
         return (try? MiniMaxCookieImporter.sessionCandidates(
-            browserDetection: context.browserDetection, region: region).first(where: { _ in true })) != nil
+            browserDetection: context.browserDetection,
+            region: region).first(where: { _ in true })) != nil
         #else
         return false
         #endif
@@ -256,7 +268,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         }
 
         let sessions = (try? MiniMaxCookieImporter.sessionCandidates(
-            browserDetection: context.browserDetection, region: fetchContext.region)) ?? AnySequence([])
+            browserDetection: context.browserDetection,
+            region: fetchContext.region)) ?? AnySequence([])
         var tokenContexts: [String: ([MiniMaxLocalStorageImporter.TokenInfo], [String: String])] = [:]
         for session in sessions {
             guard let authority = session.authority, let scopeDomain = session.scopeDomain,
@@ -264,21 +277,28 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
             if tokenContexts[authority] == nil {
                 tokenContexts[authority] = (
                     MiniMaxLocalStorageImporter.importAccessTokens(
-                        browserDetection: context.browserDetection, authority: authority),
+                        browserDetection: context.browserDetection,
+                        authority: authority),
                     MiniMaxLocalStorageImporter.importGroupIDs(
-                        browserDetection: context.browserDetection, authority: authority))
+                        browserDetection: context.browserDetection,
+                        authority: authority))
             }
             guard let (tokens, groups) = tokenContexts[authority] else { continue }
             let candidates = tokens.filter {
                 Self.normalizeStorageLabel($0.sourceLabel) == Self.normalizeStorageLabel(session.sourceLabel)
                     && URL(string: $0.origin)?.host?.lowercased() == scopeDomain
                     && Self.matchesCookieAccount(
-                        token: $0.accessToken, groupID: $0.groupID,
-                        origin: $0.origin, records: session.scopedRecords)
+                        token: $0.accessToken,
+                        groupID: $0.groupID,
+                        origin: $0.origin,
+                        records: session.scopedRecords)
             }
             var attempts: [(String?, String?, String?, Bool)] = candidates.map { candidate in
                 let matchedGroup = Self.matchesCookieAccount(
-                    token: nil, groupID: candidate.groupID, origin: candidate.origin, records: session.scopedRecords)
+                    token: nil,
+                    groupID: candidate.groupID,
+                    origin: candidate.origin,
+                    records: session.scopedRecords)
                     ? candidate.groupID : nil
                 return (candidate.accessToken, matchedGroup, candidate.origin, false)
             }
@@ -297,9 +317,14 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
             attempts.append((nil, nil, nil, false))
             for (token, groupID, origin, useSessionBearer) in attempts {
                 let scoped = ScopedBrowserCache(
-                    authority: authority, scopeDomain: scopeDomain, hostOnly: hostOnly,
-                    sourceLabel: session.sourceLabel, records: session.scopedRecords,
-                    authorizationToken: token, authorizationOrigin: origin, groupID: groupID,
+                    authority: authority,
+                    scopeDomain: scopeDomain,
+                    hostOnly: hostOnly,
+                    sourceLabel: session.sourceLabel,
+                    records: session.scopedRecords,
+                    authorizationToken: token,
+                    authorizationOrigin: origin,
+                    groupID: groupID,
                     useSessionBearer: useSessionBearer)
                 do {
                     let snapshot = try await Self.fetchScoped(scoped, context: fetchContext)
@@ -342,7 +367,10 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     }
 
     static func matchesCookieAccount(
-        token: String?, groupID: String?, origin: String, records: [ProviderPluginCookieRecord]) -> Bool
+        token: String?,
+        groupID: String?,
+        origin: String,
+        records: [ProviderPluginCookieRecord]) -> Bool
     {
         guard let url = URL(string: origin),
               let header = ProviderPluginCookieRecord.header(records, for: url) else { return false }
@@ -378,9 +406,15 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
               cache.authorizationOrigin == nil || cache.authorizationOrigin.flatMap({ URL(string: $0) })
                   .flatMap(\.host)?.lowercased() == cache.scopeDomain,
                   cache.authorizationToken == nil || cache.authorizationOrigin.map({ self.matchesCookieAccount(
-                      token: cache.authorizationToken, groupID: nil, origin: $0, records: cache.records) }) == true,
+                      token: cache.authorizationToken,
+                      groupID: nil,
+                      origin: $0,
+                      records: cache.records) }) == true,
                   cache.groupID == nil || cache.authorizationOrigin.map({ self.matchesCookieAccount(
-                      token: nil, groupID: cache.groupID, origin: $0, records: cache.records) }) == true
+                      token: nil,
+                      groupID: cache.groupID,
+                      origin: $0,
+                      records: cache.records) }) == true
         else { return nil }
         return cache
     }
@@ -390,19 +424,28 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     {
         guard let data = try? JSONEncoder().encode(cache) else { return }
         _ = CookieHeaderCache.storeIfCurrent(
-            provider: .minimax, scope: self.cacheScope(region: region), expected: expected,
-            cookieHeader: "scoped=" + data.base64EncodedString(), sourceLabel: cache.sourceLabel)
+            provider: .minimax,
+            scope: self.cacheScope(region: region),
+            expected: expected,
+            cookieHeader: "scoped=" + data.base64EncodedString(),
+            sourceLabel: cache.sourceLabel)
     }
 
     private static func fetchScoped(_ cache: ScopedBrowserCache, context: FetchContext) async throws
         -> MiniMaxUsageSnapshot
     {
-        try await MiniMaxUsageFetcher.fetchUsage(
-            cookieHeader: "scoped=1", authorizationToken: cache.authorizationToken,
-            groupID: cache.groupID, region: context.region, environment: context.environment,
-            includeBillingHistory: context.includeBillingHistory, session: ProviderHTTPClient.shared, now: Date(),
-            browserCookieRecords: cache.records, authorizationOrigin: cache.authorizationOrigin,
-            useSessionBearer: cache.useSessionBearer)
+        try await MiniMaxUsageFetcher.fetchUsage(MiniMaxUsageFetcher.WebFetchInput(
+            cookieHeader: "scoped=1",
+            authorizationToken: cache.authorizationToken,
+            groupID: cache.groupID,
+            region: context.region,
+            environment: context.environment,
+            includeBillingHistory: context.includeBillingHistory,
+            transport: ProviderHTTPClient.shared,
+            now: Date(),
+            browserCookieRecords: cache.records,
+            authorizationOrigin: cache.authorizationOrigin,
+            useSessionBearer: cache.useSessionBearer))
     }
     #endif
 

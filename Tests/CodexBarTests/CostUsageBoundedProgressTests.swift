@@ -1315,19 +1315,11 @@ struct CostUsageQueuePriorityAndMigrationTests {
         // The durable metadata index has the correct parent path, while the compact cached
         // parent entry has lost its session ID. Keep the file's size, identity, and mtime stable
         // so bounded metadata refresh cannot discover the mismatch by stat alone.
-        let originalParentData = try Data(contentsOf: parentURL)
-        let originalParentText = try #require(String(bytes: originalParentData, encoding: .utf8))
-        let updatedParentText = originalParentText.replacingOccurrences(
-            of: #"session_id":"\#(initialParentSessionID)"#,
-            with: #"session_id":"\#(parentSessionID)"#)
-        #expect(updatedParentText != originalParentText)
-        #expect(updatedParentText.utf8.count == originalParentData.count)
-        let parentHandle = try FileHandle(forWritingTo: parentURL)
-        try parentHandle.seek(toOffset: 0)
-        try parentHandle.write(contentsOf: Data(updatedParentText.utf8))
-        try parentHandle.close()
-        let parentMtime = Date(timeIntervalSince1970: TimeInterval(initialParent.mtimeUnixMs) / 1000)
-        try FileManager.default.setAttributes([.modificationDate: parentMtime], ofItemAtPath: parentURL.path)
+        try Fixture.rewriteParentSessionID(
+            at: parentURL,
+            from: initialParentSessionID,
+            to: parentSessionID,
+            mtimeUnixMs: initialParent.mtimeUnixMs)
 
         var staleParentCache = initial
         var staleParent = initialParent
@@ -1578,7 +1570,8 @@ struct CostUsageQueuePriorityAndMigrationTests {
         pendingCache.codexScanInventoryPaths = nil
         pendingCache.codexScanCatchUpPending = true
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: pendingCache,
             calendar: options.calendar)
 
@@ -2077,6 +2070,27 @@ struct CostUsageQueuePriorityAndMigrationTests {
 }
 
 private enum CostUsageBoundedProgressFixture {
+    static func rewriteParentSessionID(
+        at parentURL: URL,
+        from originalID: String,
+        to newID: String,
+        mtimeUnixMs: Int64) throws
+    {
+        let originalParentData = try Data(contentsOf: parentURL)
+        let originalParentText = try #require(String(bytes: originalParentData, encoding: .utf8))
+        let updatedParentText = originalParentText.replacingOccurrences(
+            of: #"session_id":"\#(originalID)"#,
+            with: #"session_id":"\#(newID)"#)
+        #expect(updatedParentText != originalParentText)
+        #expect(updatedParentText.utf8.count == originalParentData.count)
+        let parentHandle = try FileHandle(forWritingTo: parentURL)
+        try parentHandle.seek(toOffset: 0)
+        try parentHandle.write(contentsOf: Data(updatedParentText.utf8))
+        try parentHandle.close()
+        let parentMtime = Date(timeIntervalSince1970: TimeInterval(mtimeUnixMs) / 1000)
+        try FileManager.default.setAttributes([.modificationDate: parentMtime], ofItemAtPath: parentURL.path)
+    }
+
     static func completedLookbackState(
         cache: CostUsageCache,
         options: CostUsageScanner.Options,

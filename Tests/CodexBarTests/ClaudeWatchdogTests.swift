@@ -40,11 +40,12 @@ struct ClaudeWatchdogTests {
         let watchdogURL = try await Self.buildWatchdogExecutable(in: directory)
         let pidsFile = directory.appendingPathComponent("pids.txt")
         let childScript = directory.appendingPathComponent("child.sh")
+        let readinessFile = directory.appendingPathComponent("grandchild-ready").path
         try """
         #!/bin/sh
-        /bin/sh -c 'trap "" TERM; touch "\(directory.appendingPathComponent("grandchild-ready").path)"; exec /bin/sleep 30' &
+        /bin/sh -c 'trap "" TERM; touch "\(readinessFile)"; exec /bin/sleep 30' &
         grandchild=$!
-        while [ ! -f '\(directory.appendingPathComponent("grandchild-ready").path)' ]; do /bin/sleep 0.02; done
+        while [ ! -f '\(readinessFile)' ]; do /bin/sleep 0.02; done
         printf '%s %s\\n' "$$" "$grandchild" > '\(pidsFile.path)'
         wait "$grandchild"
         """.write(to: childScript, atomically: true, encoding: .utf8)

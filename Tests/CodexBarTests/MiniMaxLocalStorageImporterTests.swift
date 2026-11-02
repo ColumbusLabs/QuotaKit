@@ -13,7 +13,8 @@ struct MiniMaxLocalStorageImporterTests {
         let databaseName = "https_platform.minimax.io_0.indexeddb.leveldb"
         for path in ["Local Storage/leveldb", "Session Storage", "IndexedDB/\(databaseName)"] {
             try FileManager.default.createDirectory(
-                at: profile.appendingPathComponent(path), withIntermediateDirectories: true)
+                at: profile.appendingPathComponent(path),
+                withIntermediateDirectories: true)
         }
         let detection = BrowserDetection(homeDirectory: home.path)
         let fixtures: [(ChromiumLocalStorageDiscovery.Storage, String, String)] = [
@@ -23,7 +24,9 @@ struct MiniMaxLocalStorageImporterTests {
         ]
         for (storage, path, suffix) in fixtures {
             let candidates = MiniMaxLocalStorageImporter.storageCandidates(
-                browserDetection: detection, storage: storage, homeDirectories: [home])
+                browserDetection: detection,
+                storage: storage,
+                homeDirectories: [home])
             #expect(candidates.map { $0.url.resolvingSymlinksInPath().path } == [
                 profile.appendingPathComponent(path).resolvingSymlinksInPath().path,
             ])
@@ -56,7 +59,9 @@ struct MiniMaxLocalStorageImporterTests {
         let nonDirectory = root.appendingPathComponent("Default/IndexedDB/https_minimax.io_1.indexeddb.leveldb")
         try Data().write(to: nonDirectory)
         let candidates = ChromiumLocalStorageDiscovery.profileCandidates(
-            root: root, labelPrefix: "Fixture", storage: MiniMaxLocalStorageImporter.indexedDBStorage)
+            root: root,
+            labelPrefix: "Fixture",
+            storage: MiniMaxLocalStorageImporter.indexedDBStorage)
         #expect(candidates.count == 27)
         #expect(Set(candidates.map(\.url.lastPathComponent)) == Set(allowed))
         #expect(candidates.map(\.label) == ["Default", "Profile 2", "user-work"].flatMap { profile in
@@ -135,17 +140,35 @@ struct MiniMaxLocalStorageImporterTests {
                 expires: nil),
         ]
         #expect(MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: "account-a", groupID: nil, origin: origin, records: records))
+            token: "account-a",
+            groupID: nil,
+            origin: origin,
+            records: records))
         #expect(MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: nil, groupID: "12345", origin: origin, records: records))
+            token: nil,
+            groupID: "12345",
+            origin: origin,
+            records: records))
         #expect(!MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: "other-account", groupID: "12345", origin: origin, records: records))
+            token: "other-account",
+            groupID: "12345",
+            origin: origin,
+            records: records))
         #expect(!MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: "other-account", groupID: "67890", origin: origin, records: records))
+            token: "other-account",
+            groupID: "67890",
+            origin: origin,
+            records: records))
         #expect(!MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: "unproved-bearer", groupID: nil, origin: origin, records: records))
+            token: "unproved-bearer",
+            groupID: nil,
+            origin: origin,
+            records: records))
         #expect(!MiniMaxCodingPlanFetchStrategy.matchesCookieAccount(
-            token: "account-a", groupID: nil, origin: "https://www.minimax.cn", records: records))
+            token: "account-a",
+            groupID: nil,
+            origin: "https://www.minimax.cn",
+            records: records))
     }
 
     @Test
@@ -159,18 +182,30 @@ struct MiniMaxLocalStorageImporterTests {
             secure: true,
             expires: nil)
         let cache = MiniMaxCodingPlanFetchStrategy.ScopedBrowserCache(
-            authority: "minimax.cn", scopeDomain: "www.minimax.cn", hostOnly: true,
-            sourceLabel: "Fixture", records: [record], authorizationToken: "fixture",
-            authorizationOrigin: "https://www.minimax.cn", groupID: nil, useSessionBearer: false)
+            authority: "minimax.cn",
+            scopeDomain: "www.minimax.cn",
+            hostOnly: true,
+            sourceLabel: "Fixture",
+            records: [record],
+            authorizationToken: "fixture",
+            authorizationOrigin: "https://www.minimax.cn",
+            groupID: nil,
+            useSessionBearer: false)
         let encoded = try JSONEncoder().encode(cache).base64EncodedString()
         let entry = CookieHeaderCacheEntry(cookieHeader: "scoped=" + encoded, storedAt: .now, sourceLabel: "Fixture")
         #expect(MiniMaxCodingPlanFetchStrategy.decodeScopedCache(entry, region: .chinaMainland)?.scopeDomain ==
             "www.minimax.cn")
         #expect(MiniMaxCodingPlanFetchStrategy.decodeScopedCache(entry, region: .global) == nil)
         let mismatchedGroup = MiniMaxCodingPlanFetchStrategy.ScopedBrowserCache(
-            authority: "minimax.cn", scopeDomain: "www.minimax.cn", hostOnly: true,
-            sourceLabel: "Fixture", records: [record], authorizationToken: "fixture",
-            authorizationOrigin: "https://www.minimax.cn", groupID: "98765", useSessionBearer: false)
+            authority: "minimax.cn",
+            scopeDomain: "www.minimax.cn",
+            hostOnly: true,
+            sourceLabel: "Fixture",
+            records: [record],
+            authorizationToken: "fixture",
+            authorizationOrigin: "https://www.minimax.cn",
+            groupID: "98765",
+            useSessionBearer: false)
         let badData = try JSONEncoder().encode(mismatchedGroup).base64EncodedString()
         let badEntry = CookieHeaderCacheEntry(cookieHeader: "scoped=" + badData, storedAt: .now, sourceLabel: "Fixture")
         #expect(MiniMaxCodingPlanFetchStrategy.decodeScopedCache(badEntry, region: .chinaMainland) == nil)

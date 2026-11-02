@@ -143,7 +143,8 @@ extension UsageStore {
                 state.firedStages.formUnion(crossed.state.firedStages)
                 latest[key] = state
                 self.persistPlanUtilizationStates(
-                    latest, defaultsKey: Self.upcomingResetNotificationStatesDefaultsKey,
+                    latest,
+                    defaultsKey: Self.upcomingResetNotificationStatesDefaultsKey,
                     logName: "Upcoming reset notifications")
             })
     }

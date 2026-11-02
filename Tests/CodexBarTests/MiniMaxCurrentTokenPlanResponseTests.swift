@@ -93,13 +93,23 @@ struct MiniMaxCurrentTokenPlanResponseTests {
         }
         let records = [
             ProviderPluginCookieRecord(
-                name: "session", value: "www-only", domain: "www.minimax.cn", hostOnly: true,
-                path: "/", secure: true, expires: nil),
+                name: "session",
+                value: "www-only",
+                domain: "www.minimax.cn",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil),
             ProviderPluginCookieRecord(
-                name: "foreign", value: "never-send", domain: "platform.minimaxi.com", hostOnly: true,
-                path: "/other", secure: true, expires: nil),
+                name: "foreign",
+                value: "never-send",
+                domain: "platform.minimaxi.com",
+                hostOnly: true,
+                path: "/other",
+                secure: true,
+                expires: nil),
         ]
-        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(MiniMaxUsageFetcher.WebFetchInput(
             cookieHeader: "session=placeholder",
             authorizationToken: "platform-token",
             groupID: "platform-account",
@@ -107,10 +117,10 @@ struct MiniMaxCurrentTokenPlanResponseTests {
             region: .chinaMainland,
             environment: [:],
             includeBillingHistory: false,
-            session: transport,
+            transport: transport,
             now: Date(),
             browserCookieRecords: records,
-            authorizationOrigin: "https://platform.minimax.cn")
+            authorizationOrigin: "https://platform.minimax.cn"))
         #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 4)
         #expect(await transport.requests().allSatisfy { $0.url?.host == "www.minimax.cn" })
     }
@@ -124,18 +134,35 @@ struct MiniMaxCurrentTokenPlanResponseTests {
         }
         let records = [
             ProviderPluginCookieRecord(
-                name: "HERTZ-SESSION", value: "first", domain: "www.minimax.cn", hostOnly: true,
-                path: "/", secure: true, expires: nil),
+                name: "HERTZ-SESSION",
+                value: "first",
+                domain: "www.minimax.cn",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil),
             ProviderPluginCookieRecord(
-                name: "HERTZ-SESSION", value: "second", domain: "minimax.cn", hostOnly: false,
-                path: "/backend", secure: true, expires: nil),
+                name: "HERTZ-SESSION",
+                value: "second",
+                domain: "minimax.cn",
+                hostOnly: false,
+                path: "/backend",
+                secure: true,
+                expires: nil),
         ]
         // Platform has no matching session cookie; www has two conflicting sessions.
         await #expect(throws: MiniMaxUsageError.self) {
-            _ = try await MiniMaxUsageFetcher.fetchUsage(
-                cookieHeader: "session=placeholder", authorizationToken: nil, groupID: nil,
-                region: .chinaMainland, environment: [:], includeBillingHistory: false, session: transport,
-                now: Date(), browserCookieRecords: records, authorizationOrigin: nil)
+            _ = try await MiniMaxUsageFetcher.fetchUsage(MiniMaxUsageFetcher.WebFetchInput(
+                cookieHeader: "session=placeholder",
+                authorizationToken: nil,
+                groupID: nil,
+                region: .chinaMainland,
+                environment: [:],
+                includeBillingHistory: false,
+                transport: transport,
+                now: Date(),
+                browserCookieRecords: records,
+                authorizationOrigin: nil))
         }
         #expect(await transport.requests().isEmpty)
     }
@@ -143,25 +170,34 @@ struct MiniMaxCurrentTokenPlanResponseTests {
     @Test
     func `scoped session bearer stays on matching default HTTPS origin`() throws {
         let records = [ProviderPluginCookieRecord(
-            name: "HERTZ-SESSION", value: "fixture-session", domain: "www.minimax.cn", hostOnly: true,
-            path: "/", secure: true, expires: nil)]
+            name: "HERTZ-SESSION",
+            value: "fixture-session",
+            domain: "www.minimax.cn",
+            hostOnly: true,
+            path: "/",
+            secure: true,
+            expires: nil)]
         let context = MiniMaxUsageFetcher.WebFetchContext(
-            cookie: "scoped=1", authorizationToken: nil, browserCookieRecords: records,
-            authorizationOrigin: nil, useSessionBearer: true, region: .chinaMainland,
-            environment: [:], transport: ProviderHTTPClient.shared)
-        var try normal =
-            URLRequest(
-                url: #require(URL(string: "https://www.minimax.cn/backend/account/token_plan/remains_percent")))
+            cookie: "scoped=1",
+            authorizationToken: nil,
+            browserCookieRecords: records,
+            authorizationOrigin: nil,
+            useSessionBearer: true,
+            region: .chinaMainland,
+            environment: [:],
+            transport: ProviderHTTPClient.shared)
+        let normalURL = try #require(URL(string: "https://www.minimax.cn/backend/account/token_plan/remains_percent"))
+        var normal = URLRequest(url: normalURL)
         try MiniMaxUsageFetcher.applyWebCredentials(context, to: &normal)
         #expect(normal.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-session")
-        var try wrongPort =
-            URLRequest(
-                url: #require(
-                    URL(string: "https://www.minimax.cn:8443/backend/account/token_plan/remains_percent")))
+        let wrongPortURL =
+            try #require(URL(string: "https://www.minimax.cn:8443/backend/account/token_plan/remains_percent"))
+        var wrongPort = URLRequest(url: wrongPortURL)
         #expect(throws: MiniMaxUsageError.self) { try MiniMaxUsageFetcher.applyWebCredentials(context, to: &wrongPort) }
         #expect(wrongPort.value(forHTTPHeaderField: "Cookie") == nil)
         #expect(wrongPort.value(forHTTPHeaderField: "Authorization") == nil)
-        var wrongHost = try URLRequest(url: #require(URL(string: "https://platform.minimax.cn/console/usage")))
+        let wrongHostURL = try #require(URL(string: "https://platform.minimax.cn/console/usage"))
+        var wrongHost = URLRequest(url: wrongHostURL)
         #expect(throws: MiniMaxUsageError.self) { try MiniMaxUsageFetcher.applyWebCredentials(context, to: &wrongHost) }
     }
 
@@ -177,8 +213,12 @@ struct MiniMaxCurrentTokenPlanResponseTests {
             return Self.httpResponse(url: url, body: Self.percentBasedRemainsJSON, contentType: "application/json")
         }
         let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
-            cookieHeader: "session=manual", authorizationToken: "manual-token", region: .chinaMainland,
-            environment: [:], includeBillingHistory: false, session: transport)
+            cookieHeader: "session=manual",
+            authorizationToken: "manual-token",
+            region: .chinaMainland,
+            environment: [:],
+            includeBillingHistory: false,
+            session: transport)
         #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 4)
     }
 

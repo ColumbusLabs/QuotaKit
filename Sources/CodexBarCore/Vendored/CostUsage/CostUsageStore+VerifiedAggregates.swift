@@ -27,7 +27,8 @@ extension CostUsageStore {
         guard try Self.readSingleton(
             CostUsageStoreMetadata.self,
             database: database,
-            table: "scan_metadata", home: home) != nil
+            table: "scan_metadata",
+            home: home) != nil
         else {
             // A newly-created store has no scan metadata yet and therefore needs no migration.
             return false
@@ -69,7 +70,8 @@ extension CostUsageStore {
     }
 
     static func readVerifiedDayStatus(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [String]
     {
@@ -109,7 +111,8 @@ extension CostUsageStore {
     /// Reads only positive-revision proof rows. Legacy status membership deliberately does not
     /// become evidence during the additive table migration.
     static func readVerifiedDayEvidence(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [String: CostUsageDayEvidence]
     {
@@ -164,7 +167,8 @@ extension CostUsageStore {
     /// includes aggregate/status changes in the same SQLite transaction.
     @discardableResult
     static func persistVerifiedDayEvidence(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         days: [String],
         scopeID: String,
         verifiedAt: Date = Date(),
@@ -173,7 +177,8 @@ extension CostUsageStore {
         let uniqueDays = Array(Set(days)).sorted()
         guard !uniqueDays.isEmpty else { return false }
         let existing = try Self.readVerifiedDayEvidence(
-            database, home: home,
+            database,
+            home: home,
             sinceDay: uniqueDays[0],
             untilDay: uniqueDays[uniqueDays.count - 1])
         let lineageID = try Self.optionalMetaValue(
@@ -281,7 +286,8 @@ extension CostUsageStore {
     }
 
     static func clearVerifiedDayEvidence(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String) throws
     {
@@ -322,7 +328,8 @@ extension CostUsageStore {
     /// revision. Repeated polling writes at most once per five minutes per day.
     @discardableResult
     static func refreshVerifiedDayEvidenceTimestamps(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         days: [String],
         scopeID: String,
         lineageID: String,
@@ -382,7 +389,8 @@ extension CostUsageStore {
     }
 
     static func markVerifiedDayStatus(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         calendar: Calendar) throws
@@ -395,7 +403,8 @@ extension CostUsageStore {
         var date = since
         while date <= until {
             try Self.markVerifiedDayStatus(
-                database, home: home,
+                database,
+                home: home,
                 day: CostUsageScanner.CostUsageDayRange.dayKey(from: date, calendar: dayCalendar))
             guard let next = dayCalendar.date(byAdding: .day, value: 1, to: date), next > date else {
                 throw StoreError.invalidData
@@ -405,7 +414,8 @@ extension CostUsageStore {
     }
 
     static func readVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [CostUsageStoreDayAggregate]
     {
@@ -474,7 +484,8 @@ extension CostUsageStore {
     }
 
     static func insertVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
         guard !aggregates.isEmpty else { return }
@@ -488,7 +499,9 @@ extension CostUsageStore {
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
             priority_unresolved_pricing_count, home
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+        ) VALUES (
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+            ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
         ON CONFLICT(home, day, model) DO UPDATE SET
             input_tokens = excluded.input_tokens,
             cached_tokens = excluded.cached_tokens,
@@ -525,7 +538,8 @@ extension CostUsageStore {
     }
 
     static func replaceVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
         guard try scalarInt(
@@ -543,7 +557,8 @@ extension CostUsageStore {
     /// complete-history coverage markers. A bounded catch-up pass can therefore retain a sparse
     /// set of safe day rows while its full inventory proof is still pending.
     static func replaceVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         day: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
@@ -574,7 +589,8 @@ extension CostUsageStore {
                     var metadata = try Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata", home: self.home) ?? .empty
+                        table: "scan_metadata",
+                        home: self.home) ?? .empty
                     guard Self.matchesCodexScanCommit(expectedCommit, metadata: metadata) else {
                         throw StoreError.invalidData
                     }
@@ -586,22 +602,26 @@ extension CostUsageStore {
                         rootPaths: rootPaths,
                         calendar: calendar)
                     let aggregates = try Self.readDayAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     let priorAggregates = try Self.readVerifiedDayAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     let hasStatus = try Self.readVerifiedDayStatus(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day).contains(day)
                     let lineageID = try Self.optionalMetaValue(
                         database,
                         key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: self.home))
                     let proof = try Self.readVerifiedDayEvidence(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)[day]
                     let proofMatches = proof.map {
@@ -616,7 +636,8 @@ extension CostUsageStore {
                     guard aggregatesChanged || statusChanged || proofChanged else {
                         guard let lineageID else { throw StoreError.invalidData }
                         _ = try Self.refreshVerifiedDayEvidenceTimestamps(
-                            database, home: self.home,
+                            database,
+                            home: self.home,
                             days: [day],
                             scopeID: scopeID,
                             lineageID: lineageID,
@@ -626,19 +647,22 @@ extension CostUsageStore {
 
                     if aggregatesChanged {
                         try Self.replaceVerifiedDayAggregates(
-                            database, home: self.home,
+                            database,
+                            home: self.home,
                             day: day,
                             aggregates: aggregates)
                     }
                     try Self.replaceVerifiedTemporalAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     if statusChanged {
                         try Self.markVerifiedDayStatus(database, home: self.home, day: day)
                     }
                     _ = try Self.persistVerifiedDayEvidence(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         days: [day],
                         scopeID: scopeID,
                         verifiedAt: verifiedAt,
@@ -677,7 +701,8 @@ extension CostUsageStore {
                     var metadata = try Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata", home: self.home) ?? .empty
+                        table: "scan_metadata",
+                        home: self.home) ?? .empty
                     guard Self.matchesCodexScanCommit(expectedCommit, metadata: metadata) else {
                         throw StoreError.invalidData
                     }
@@ -707,11 +732,13 @@ extension CostUsageStore {
                         rootPaths: rootPaths,
                         calendar: calendar)
                     let aggregates = try Self.readDayAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     let priorAggregates = try Self.readVerifiedDayAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     let currentByDay = Dictionary(grouping: aggregates, by: \.day)
@@ -720,12 +747,14 @@ extension CostUsageStore {
                         currentByDay[$0, default: []] != priorByDay[$0, default: []]
                     })
                     let existingStatuses = try Set(Self.readVerifiedDayStatus(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay))
                     let statusChangedDays = Set(days.filter { !existingStatuses.contains($0) })
                     let existingEvidence = try Self.readVerifiedDayEvidence(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     let lineageID = try Self.optionalMetaValue(
@@ -746,7 +775,8 @@ extension CostUsageStore {
                     guard !changedDays.isEmpty else {
                         guard let lineageID else { throw StoreError.invalidData }
                         _ = try Self.refreshVerifiedDayEvidenceTimestamps(
-                            database, home: self.home,
+                            database,
+                            home: self.home,
                             days: days,
                             scopeID: scopeID,
                             lineageID: lineageID,
@@ -756,7 +786,8 @@ extension CostUsageStore {
 
                     for day in aggregateChangedDays.sorted() {
                         try Self.replaceVerifiedDayAggregates(
-                            database, home: self.home,
+                            database,
+                            home: self.home,
                             day: day,
                             aggregates: currentByDay[day, default: []])
                     }
@@ -771,11 +802,13 @@ extension CostUsageStore {
                         try Self.markVerifiedDayStatus(database, home: self.home, day: day)
                     }
                     try Self.replaceVerifiedTemporalAggregates(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     _ = try Self.persistVerifiedDayEvidence(
-                        database, home: self.home,
+                        database,
+                        home: self.home,
                         days: Array(changedDays),
                         scopeID: scopeID,
                         verifiedAt: verifiedAt,
@@ -817,7 +850,8 @@ extension CostUsageStore {
     /// Removes sparse verification rows for days whose hydrated source files changed. Complete
     /// coverage markers are left to the caller because a complete baseline may still be valid.
     static func clearVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         days: Set<String>) throws
     {
         guard !days.isEmpty,
@@ -848,7 +882,8 @@ extension CostUsageStore {
         try Self.clearVerifiedDayEvidence(database, home: home, days: Set(sortedDays))
         for day in sortedDays {
             try Self.clearVerifiedTemporalAggregates(
-                database, home: home,
+                database,
+                home: home,
                 sinceDay: day,
                 untilDay: day)
         }
@@ -856,7 +891,8 @@ extension CostUsageStore {
     }
 
     static func clearVerifiedDayAggregates(
-        _ database: OpaquePointer, home: String,
+        _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         preserveTemporalCoverage: Bool = false) throws
@@ -884,7 +920,8 @@ extension CostUsageStore {
         try Self.stepDone(status, database: database)
         try Self.clearVerifiedDayEvidence(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
         try Self.clearVerifiedTemporalAggregates(
-            database, home: home,
+            database,
+            home: home,
             sinceDay: sinceDay,
             untilDay: untilDay)
         if !preserveTemporalCoverage {
@@ -945,7 +982,8 @@ extension CostUsageStore {
             var metadata = try Self.readSingleton(
                 CostUsageStoreMetadata.self,
                 database: database,
-                table: "scan_metadata", home: self.home) ?? .empty
+                table: "scan_metadata",
+                home: self.home) ?? .empty
             let countQuery = try Self.prepare(database, "SELECT COUNT(*) FROM verified_day_aggregates WHERE home = ?")
             defer { sqlite3_finalize(countQuery) }
             Self.bind(self.home, to: countQuery, at: 1)

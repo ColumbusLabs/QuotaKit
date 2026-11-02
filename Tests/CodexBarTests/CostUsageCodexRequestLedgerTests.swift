@@ -1311,18 +1311,7 @@ extension CostUsageCodexRequestLedgerTests {
             #expect(abs((recovered.summary?.totalCostUSD ?? -1) - 0.51) < 0.000001)
         }
         #expect(fetch().summary == recovered.summary)
-        let handle = try FileHandle(forWritingTo: survivor)
-        try handle.seekToEnd()
-        try handle.write(contentsOf: Data(env.jsonl([
-            Self.record(id: "priced-response-0", usage: [100, 20, 10, 4], total: [100, 20, 10, 4]),
-            Self.record(
-                id: "new-after-recovery",
-                timestamp: Self.timestampC,
-                usage: [60, 20, 6, 3],
-                total: [560, 120, 56, 23]),
-            Self.legacy(timestamp: Self.timestampC, usage: [60, 20, 6, 3], total: [560, 120, 56, 23]),
-        ]).utf8))
-        try handle.close()
+        try Self.appendPostRecoveryRequests(to: survivor, env: env)
         #expect(settle().summary?.totalTokens == 616 + (appendBeforeReplay ? 66 : 0))
     }
 
@@ -1547,5 +1536,20 @@ extension CostUsageCodexRequestLedgerTests {
                 "last_token_usage": self.tokens(usage), "total_token_usage": self.tokens(total),
             ],
         ]]
+    }
+
+    private static func appendPostRecoveryRequests(to survivor: URL, env: CostUsageTestEnvironment) throws {
+        let handle = try FileHandle(forWritingTo: survivor)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(env.jsonl([
+            Self.record(id: "priced-response-0", usage: [100, 20, 10, 4], total: [100, 20, 10, 4]),
+            Self.record(
+                id: "new-after-recovery",
+                timestamp: Self.timestampC,
+                usage: [60, 20, 6, 3],
+                total: [560, 120, 56, 23]),
+            Self.legacy(timestamp: Self.timestampC, usage: [60, 20, 6, 3], total: [560, 120, 56, 23]),
+        ]).utf8))
+        try handle.close()
     }
 }

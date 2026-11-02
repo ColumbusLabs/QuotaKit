@@ -457,7 +457,8 @@ struct CostUsagePerformanceGateTests {
         let cache = CostUsageStoreAccess.read(cacheRoot: coldCacheRoot, calendar: coldOptions.calendar)
         let predecessorHash = "43609cc56f76a003"
         let predecessorStore = CostUsageStore(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: predecessorHash),

@@ -654,7 +654,9 @@ struct CostUsageCodexSourceRecoveryTests {
         case model
         case monetary
     }
+}
 
+extension CostUsageCodexSourceRecoveryTests {
     @Test(arguments: [(append: false, partial: false), (append: true, partial: false), (append: false, partial: true)])
     func `stale parser revision keeps priority pricing when traces are gone`(
         _ scenario: (append: Bool, partial: Bool)) throws

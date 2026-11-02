@@ -169,7 +169,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanTargetSize: fileMetadata.size,
             codexScanComplete: true)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -507,7 +508,8 @@ struct CostUsageFetcherCacheSnapshotTests {
                 codexScanComplete: true)
         cache.days = fixtureDays
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -547,7 +549,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.scanUntilKey = "2026-04-08"
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -579,7 +582,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.timeZoneIdentifier = options.calendar.timeZone.identifier
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -658,7 +662,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.timeZoneIdentifier = calendar.timeZone.identifier
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: calendar)
 
@@ -696,7 +701,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
         cache.codexScanCatchUpPending = true
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -739,7 +745,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanComplete: true,
             codexBufferedUnresolvedForkLines: [line])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -940,7 +947,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexScanTargetSize: fileMetadata.size,
             codexScanComplete: true)
         let establishedResult = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: established,
             calendar: options.calendar)
         #expect(!establishedResult.catchUpRequired)
@@ -952,7 +960,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         pending.codexScanCatchUpPending = true
         pending.days = [currentKey: days[currentKey] ?? [:]]
         let pendingResult = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: pending,
             calendar: options.calendar)
         #expect(!pendingResult.catchUpRequired)
@@ -1087,7 +1096,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: CostUsageScanner.codexSessionsRoots(options: options),
             filePaths: [currentURL.path, olderURL.path])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -1120,7 +1130,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             contents: "{}\n")
         cache.lastScanUnixMs += 1000
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let adjacentPartitionBlocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -1136,7 +1147,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         cache.lastScanUnixMs += 1000
         cache.files[currentURL.path]?.codexScanComplete = false
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         let blocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
@@ -1222,7 +1234,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: roots,
             filePaths: [currentURL.path, olderURL.path])
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
@@ -1347,7 +1360,8 @@ struct CostUsageFetcherCacheSnapshotTests {
             roots: CostUsageScanner.codexSessionsRoots(options: options),
             filePaths: [sessionURL.path])
         let saved = CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
         #expect(!saved.catchUpRequired)
@@ -1440,7 +1454,8 @@ struct CostUsageFetcherCacheSnapshotTests {
                 env.codexSessionsRoot.appendingPathComponent("historical-backlog-\($0).jsonl").path
             })
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: backloggedCache,
             calendar: options.calendar)
 
@@ -1564,7 +1579,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         legacyDiscovery.nextFileIndex = legacyDiscovery.filePaths.count
         legacyCache.codexSessionDiscovery = legacyDiscovery
         CostUsageStoreAccess.replace(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: legacyCache,
             calendar: options.calendar)
 

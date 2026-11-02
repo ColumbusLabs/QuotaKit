@@ -131,7 +131,8 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([path])])
         #expect(Self.totalTokens(deferred) == 110)
         let afterFailure = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterFailure.codexScanCatchUpPending == true)
         #expect(afterFailure.codexActiveLookbackState?.pendingFilePaths.contains(path) == true)
@@ -145,7 +146,8 @@ struct CostUsageLazyScannerHistoryTests {
         let retried = try Self.scan(day: day, options: options)
         #expect(Self.totalTokens(retried) == 110)
         let afterRetry = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterRetry.codexScanCatchUpPending == false)
         #expect(afterRetry.codexActiveLookbackState?.pendingFilePaths.contains(path) != true)
@@ -201,7 +203,8 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([oldPath])])
         #expect(Self.totalTokens(deferred) == 110)
         let afterFailure = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(afterFailure.codexScanCatchUpPending == true)
         #expect(CostUsageStoreAccess.read(
@@ -252,7 +255,8 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(Self.totalTokens(forcedReport) == 110)
         #expect(probe.injectedFailureCount == 1)
         #expect(CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar).codexScanCatchUpPending == true)
 
         try FileManager.default.removeItem(at: newURL)
@@ -260,7 +264,8 @@ struct CostUsageLazyScannerHistoryTests {
         retryOptions.useCodexCatchUpWorkingSet = useCatchUpWorkingSet
         #expect(try Self.totalTokens(Self.scan(day: day, options: retryOptions)) == 0)
         let finished = CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(finished.codexScanCatchUpPending == false)
         #expect(finished.codexHistoryHydrationRetries?.isEmpty != false)
@@ -317,7 +322,8 @@ struct CostUsageLazyScannerHistoryTests {
         #expect(probe.injectedPaths == [Set([path])])
         #expect(Self.totalTokens(deferred) == 110)
         #expect(CostUsageStoreAccess.readWithoutTokenSnapshots(
-            cacheRoot: env.cacheRoot, home: env.codexStoreHome,
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar).codexScanCatchUpPending == true)
         #expect(await store.fetchFile(path: path) == malformedFile)
         #expect(await store.fetchTokenSnapshots(path: path) == retainedTokenRows)

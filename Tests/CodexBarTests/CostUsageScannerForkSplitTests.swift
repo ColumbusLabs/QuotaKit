@@ -94,7 +94,8 @@ struct CostUsageScannerForkSplitTests {
 
         let predecessorHash = "43609cc56f76a003"
         let predecessorStore = CostUsageStore(
-            cacheRoot: environment.cacheRoot, home: environment.codexStoreHome,
+            cacheRoot: environment.cacheRoot,
+            home: environment.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: predecessorHash),

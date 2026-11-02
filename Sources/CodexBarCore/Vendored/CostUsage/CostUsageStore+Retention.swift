@@ -180,7 +180,10 @@ extension CostUsageStore {
 
             let deleteFileAggregates = try self.prepare(
                 database,
-                "DELETE FROM file_day_aggregates WHERE (day < ? OR day > ?) AND file_id IN (SELECT id FROM files WHERE home = ?)")
+                """
+                DELETE FROM file_day_aggregates WHERE (day < ? OR day > ?)
+                AND file_id IN (SELECT id FROM files WHERE home = ?)
+                """)
             defer { sqlite3_finalize(deleteFileAggregates) }
             self.bind(sinceDay, to: deleteFileAggregates, at: 1)
             self.bind(untilDay, to: deleteFileAggregates, at: 2)
@@ -189,7 +192,10 @@ extension CostUsageStore {
 
             let deleteFileTemporal = try self.prepare(
                 database,
-                "DELETE FROM file_temporal_aggregates WHERE (day < ? OR day > ?) AND file_id IN (SELECT id FROM files WHERE home = ?)")
+                """
+                DELETE FROM file_temporal_aggregates WHERE (day < ? OR day > ?)
+                AND file_id IN (SELECT id FROM files WHERE home = ?)
+                """)
             defer { sqlite3_finalize(deleteFileTemporal) }
             self.bind(sinceDay, to: deleteFileTemporal, at: 1)
             self.bind(untilDay, to: deleteFileTemporal, at: 2)
@@ -210,7 +216,8 @@ extension CostUsageStore {
                 var metadata = try self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata", home: home) ?? .empty
+                    table: "scan_metadata",
+                    home: home) ?? .empty
                 metadata.scanSinceDay = sinceDay
                 metadata.scanUntilDay = untilDay
                 try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
@@ -352,7 +359,8 @@ extension CostUsageStore {
               var state = try self.readSingleton(
                   CostUsageStoreDiscoveryState.self,
                   database: database,
-                  table: "discovery_state", home: home)
+                  table: "discovery_state",
+                  home: home)
         else { return }
         let paths = Set(candidates.map(\.path))
         let sessionIDs = Set(candidates.compactMap(\.sessionID))
@@ -425,7 +433,8 @@ extension CostUsageStore {
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata", home: self.home)
+                    table: "scan_metadata",
+                    home: self.home)
                 let sinceDay = requestedSinceDay ?? metadata?.scanSinceDay
                 let untilDay = requestedUntilDay ?? metadata?.scanUntilDay
                 let rowLimit = max(0, maxRows)
@@ -460,8 +469,7 @@ extension CostUsageStore {
                     guard try Self.deleteOldestRetainedFile(
                         database,
                         home: self.home,
-                        sinceDay: sinceDay,
-                        untilDay: untilDay,
+                        window: (sinceDay, untilDay),
                         calendar: calendar,
                         protectRequestedWindow: true) else { break }
                     #if DEBUG
@@ -474,8 +482,7 @@ extension CostUsageStore {
                     guard try Self.deleteOldestRetainedFile(
                         database,
                         home: self.home,
-                        sinceDay: sinceDay,
-                        untilDay: untilDay,
+                        window: (sinceDay, untilDay),
                         calendar: calendar,
                         protectRequestedWindow: true)
                     else { break }
@@ -491,7 +498,8 @@ extension CostUsageStore {
                         var updatedMetadata = try Self.readSingleton(
                             CostUsageStoreMetadata.self,
                             database: database,
-                            table: "scan_metadata", home: self.home) ?? .empty
+                            table: "scan_metadata",
+                            home: self.home) ?? .empty
                         if updatedMetadata.previousReportPayload == nil {
                             updatedMetadata.previousReportPayload = previousReportPayload
                             try Self.writeSingleton(
@@ -655,11 +663,12 @@ extension CostUsageStore {
     private static func deleteOldestRetainedFile(
         _ database: OpaquePointer,
         home: String,
-        sinceDay: String?,
-        untilDay: String?,
+        window: (sinceDay: String?, untilDay: String?),
         calendar: Calendar,
         protectRequestedWindow: Bool) throws -> Bool
     {
+        let sinceDay = window.sinceDay
+        let untilDay = window.untilDay
         let statement = try self.prepare(database, """
         WITH staged_fork_parents AS MATERIALIZED (
             SELECT id AS file_id,
@@ -757,7 +766,8 @@ extension CostUsageStore {
         var metadata = try self.readSingleton(
             CostUsageStoreMetadata.self,
             database: database,
-            table: "scan_metadata", home: home) ?? .empty
+            table: "scan_metadata",
+            home: home) ?? .empty
         metadata.catchUpPending = true
         metadata.lastScanUnixMs = 0
         metadata.scanInventoryPaths = nil
