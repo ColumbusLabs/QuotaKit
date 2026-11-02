@@ -25,7 +25,7 @@ struct ClaudeCLISleepInhibitorTests {
               '\(companion.path)' 30 &
               companion=$!
               /bin/sleep 0.1
-              printf 'Probe ready: %s %s %s %s\\n' "$$" "$PPID" "$inhibitor" "$companion"
+              printf 'Probe ready: %s %s %s %s Probe complete\\n' "$$" "$PPID" "$inhibitor" "$companion"
               ;;
           esac
         done
@@ -57,7 +57,7 @@ struct ClaudeCLISleepInhibitorTests {
                         binary: script.path,
                         timeout: 8,
                         environment: environment,
-                        stopOnSubstrings: ["Probe ready:"])
+                        stopOnSubstrings: ["Probe complete"])
                 }
                 let line = try #require(output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") })
                 let pids = line.split(separator: " ")
@@ -113,7 +113,7 @@ struct ClaudeCLISleepInhibitorTests {
         while IFS= read -r line; do
           case "$line" in
             *"/status"*)
-              printf 'Probe ready: %s %s\\n' "$$" "$descendant"
+              printf 'Probe ready: %s %s Probe complete\\n' "$$" "$descendant"
               ;;
           esac
         done
@@ -144,7 +144,7 @@ struct ClaudeCLISleepInhibitorTests {
                     binary: script.path,
                     timeout: 8,
                     environment: environment,
-                    stopOnSubstrings: ["Probe ready:"])
+                    stopOnSubstrings: ["Probe complete"])
             }
             let line = try #require(output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") })
             let pids = line.split(separator: " ")
@@ -192,7 +192,7 @@ struct ClaudeCLISleepInhibitorTests {
               inhibitor=$(/bin/cat "\(inhibitorFile.path)")
               /bin/sleep 0.1
               ppid=$(/bin/ps -o ppid= -p "$inhibitor" | /usr/bin/tr -d ' ')
-              printf 'Probe ready: %s %s\\n' "$inhibitor" "$ppid"
+              printf 'Probe ready: %s %s Probe complete\\n' "$inhibitor" "$ppid"
               ;;
           esac
         done
@@ -221,7 +221,7 @@ struct ClaudeCLISleepInhibitorTests {
                     binary: script.path,
                     timeout: 8,
                     environment: environment,
-                    stopOnSubstrings: ["Probe ready:"])
+                    stopOnSubstrings: ["Probe complete"])
             }
             let line = try #require(output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") })
             let values = line.split(separator: " ")
@@ -269,25 +269,27 @@ struct ClaudeCLISleepInhibitorTests {
         try """
         #!/bin/sh
         trap '' TERM
-        while IFS= read -r line; do
-          case "$line" in
-            *"/status"*)
-              /usr/bin/python3 -c '
+        /bin/stty -echo || exit 1
+        /usr/bin/python3 -c '
         import os, signal, sys, time
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         os.setpgid(0, int(sys.argv[1]))
-        with open(sys.argv[2], "w") as f:
+        with open(sys.argv[2] + ".tmp", "w") as f:
             f.write(f"{os.getpid()} {os.getpgrp()}\\n")
+        os.replace(sys.argv[2] + ".tmp", sys.argv[2])
         time.sleep(30)
         ' "\(sentinelPID)" "\(escapedFile.path)" >/dev/null 2>&1 &
-              attempts=0
-              while [ ! -s "\(escapedFile.path)" ] && [ "$attempts" -lt 250 ]; do
-                /bin/sleep 0.02
-                attempts=$((attempts + 1))
-              done
-              [ -s "\(escapedFile.path)" ] || exit 1
-              escaped_info=$(/bin/cat "\(escapedFile.path)")
-              printf 'Probe ready: %s %s\\n' "$$" "$escaped_info"
+        attempts=0
+        while [ ! -s "\(escapedFile.path)" ] && [ "$attempts" -lt 250 ]; do
+          /bin/sleep 0.02
+          attempts=$((attempts + 1))
+        done
+        [ -s "\(escapedFile.path)" ] || exit 1
+        escaped_info=$(/bin/cat "\(escapedFile.path)")
+        while IFS= read -r line; do
+          case "$line" in
+            *"/status"*)
+              printf 'Probe ready: %s %s Probe complete\\n' "$$" "$escaped_info"
               ;;
           esac
         done
@@ -308,9 +310,11 @@ struct ClaudeCLISleepInhibitorTests {
                     binary: script.path,
                     timeout: 8,
                     environment: environment,
-                    stopOnSubstrings: ["Probe ready:"])
+                    stopOnSubstrings: ["Probe complete"])
             }
-            let line = try #require(output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") })
+            let line = try #require(
+                output.components(separatedBy: "\n").first { $0.contains("Probe ready: ") },
+                "Missing synthetic readiness output: \(output)")
             let values = line.split(separator: " ")
                 .compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
             #expect(values.count == 3)
