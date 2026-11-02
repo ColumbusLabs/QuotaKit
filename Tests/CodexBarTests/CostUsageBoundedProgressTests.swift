@@ -453,12 +453,27 @@ struct CostUsageBoundedProgressTests {
             cache: narrowed, options: options, pendingFilePaths: [])
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: narrowed)
 
-        // swiftlint:disable multiline_arguments
-        _ = CostUsageControlledClockScanner.loadDailyReport(
-            provider: .codex, since: currentDay, until: currentDay,
-            now: currentDay.addingTimeInterval(2), options: options)
-        // swiftlint:enable multiline_arguments
-        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        // Presence and filesystem inventory can each consume a bounded page before
+        // exact validation reaches the old partition. Require the changed row to
+        // enter the queue while proof remains pending, within a finite number of pages.
+        var pending = narrowed
+        for pass in 0..<12 {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageControlledClockScanner.loadDailyReport(
+                provider: .codex,
+                since: currentDay,
+                until: currentDay,
+                now: currentDay.addingTimeInterval(TimeInterval(2 + pass)),
+                options: options)
+            let metrics = recorder.snapshot()
+            #expect(metrics.codexDiscoveryVisits + metrics.codexProgressAccountingVisits
+                <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+            pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            #expect(pending.codexScanCatchUpPending == true)
+            if pending.codexActiveLookbackState?.pendingFilePaths.contains(changedPath) == true { break }
+            #expect(pending.files[changedPath]?.days.keys.contains("2026-05-10") == false)
+        }
         #expect(pending.codexActiveLookbackState?.pendingFilePaths.contains(changedPath) == true)
         #expect(pending.codexScanCatchUpPending == true)
 
@@ -466,7 +481,7 @@ struct CostUsageBoundedProgressTests {
             env: env,
             day: currentDay,
             options: &options,
-            startingAt: 3)
+            startingAt: 20)
 
         // Completed proof resumes normal retention; keep the changed old file and current file.
         #expect(converged.files.count == 2)

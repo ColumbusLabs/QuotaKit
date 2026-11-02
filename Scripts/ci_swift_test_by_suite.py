@@ -451,6 +451,33 @@ def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection
         yield items[index : index + size]
 
 
+# These menu selections exceeded the shared group deadline on hosted macOS despite
+# passing individually. Keep the same deadline and run each in its own group.
+HEAVY_MENU_SUITES = frozenset({
+    "CodexBarTests.StatusMenuTests/OpenRefresh",
+    "CodexBarTests.StatusMenuTests/Overview",
+    "CodexBarTests.StatusMenuTests/Presentation",
+    "CodexBarTests.StatusMenuTokenAccountSwitcherTests",
+})
+
+
+def isolate_heavy_menu_suites(groups: Iterable[list[TestSelection]]) -> list[list[TestSelection]]:
+    result = []
+    for group in groups:
+        pending = []
+        for selection in group:
+            if selection.suite_name in HEAVY_MENU_SUITES:
+                if pending:
+                    result.append(pending)
+                    pending = []
+                result.append([selection])
+            else:
+                pending.append(selection)
+        if pending:
+            result.append(pending)
+    return result
+
+
 def shard_groups(groups: list[list[TestSelection]], shard_index: int | None, shard_count: int | None) -> list[list[TestSelection]]:
     if shard_index is None and shard_count is None:
         return groups
@@ -598,7 +625,7 @@ def main() -> int:
             stats.discovery_seconds = time.monotonic() - discovery_started
         stats.discovered_selections = len(suites)
 
-        suite_groups = list(chunks(suites, args.group_size))
+        suite_groups = isolate_heavy_menu_suites(chunks(suites, args.group_size))
         try:
             suite_groups = shard_groups(suite_groups, args.shard_index, args.shard_count)
         except ValueError as error:

@@ -612,11 +612,35 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
         serial.assert_not_called()
         direct.assert_not_called()
 
+    def test_heavy_menu_groups_are_isolated_and_sharded_exactly_once(self):
+        names = [
+            "CodexBarTests.Alpha",
+            "CodexBarTests.StatusMenuTests/OpenRefresh",
+            "CodexBarTests.StatusMenuTests/Overview",
+            "CodexBarTests.StatusMenuTests/Presentation",
+            "CodexBarTests.StatusMenuTokenAccountSwitcherTests",
+            "CodexBarTests.StatusMenuTests/Other",
+            "CodexBarTests.Omega",
+        ]
+        selections = [runner.TestSelection(name, f"^{name}/", name) for name in names]
+        groups = runner.isolate_heavy_menu_suites(runner.chunks(selections, 4))
+        self.assertEqual([item for group in groups for item in group], selections)
+        for group in groups:
+            if any(item.name in runner.HEAVY_MENU_SUITES for item in group):
+                self.assertEqual(len(group), 1)
+        for shard_count in [1, 2, 4]:
+            sharded = [group for index in range(shard_count)
+                       for group in runner.shard_groups(groups, index, shard_count)]
+            self.assertCountEqual(sharded, groups)
+            self.assertCountEqual([item for group in sharded for item in group], selections)
+
     def test_direct_and_serial_shards_keep_identical_ordered_groups(self):
         selections = [runner.TestSelection(name, f"^{name}/", name) for name in [
             "CodexBarTests.Alpha", "CodexBarTests.CLIEntryTests", "CodexBarTests.CostUsagePerformanceGateTests",
             "CodexBarTests.Delta", "CodexBarTests.Epsilon", "CodexBarTests.Zeta", "CodexBarTests.Eta",
-            "CodexBarTests.Theta"]]
+            "CodexBarTests.Theta", "CodexBarTests.StatusMenuTests/OpenRefresh",
+            "CodexBarTests.StatusMenuTests/Overview", "CodexBarTests.StatusMenuTests/Presentation",
+            "CodexBarTests.StatusMenuTokenAccountSwitcherTests"]]
         for shard_count in [2, 3, 4]:
             for shard_index in range(shard_count):
                 serial_groups = []

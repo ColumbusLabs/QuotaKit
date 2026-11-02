@@ -123,6 +123,44 @@ struct CostUsageArchivePresenceSweepTests {
     }
 
     @Test
+    func `completed archive inventory requires established proof and a settled generation`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let path = env.codexSessionsRoot.appendingPathComponent("archive.jsonl").path
+        var cache = CostUsageCache()
+        var usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1,
+            size: 10,
+            days: [:],
+            parsedBytes: 10,
+            codexScanFileId: "1:42",
+            codexScanComplete: true)
+        usage.codexArchived = true
+        usage.codexParserRevision = 0 // A compatible predecessor remains valid for archived history.
+        cache.files[path] = usage
+        cache.codexScanInventoryPaths = [path]
+        let index = CostUsageScanner.CodexSessionFileIndex(files: [URL(fileURLWithPath: path)], roots: [])
+        var discovery = index.persistedState
+        discovery.metadataPresenceEstablished = true
+        discovery.metadataArchivedPaths = [path]
+        cache.codexSessionDiscovery = discovery
+        let completed = CostUsageStore.completedCodexScanInventory(cache: cache, expectedTotalFiles: 1)
+        #expect(completed?.fileCount == 1)
+        #expect(completed?.totalBytes == 10)
+        cache.codexSessionDiscovery?.metadataPresenceEstablished = false
+        #expect(CostUsageStore.completedCodexScanInventory(cache: cache, expectedTotalFiles: 1)?.fileCount == nil)
+        cache.codexSessionDiscovery?.metadataPresenceEstablished = true
+        cache.codexSessionDiscovery?.metadataUnavailablePaths = [path]
+        #expect(CostUsageStore.completedCodexScanInventory(cache: cache, expectedTotalFiles: 1)?.fileCount == nil)
+        cache.codexSessionDiscovery?.metadataUnavailablePaths = nil
+        cache.files[path]?.codexReplacementScanPending = true
+        #expect(CostUsageStore.completedCodexScanInventory(cache: cache, expectedTotalFiles: 1)?.fileCount == nil)
+        cache.files[path]?.codexReplacementScanPending = false
+        cache.files[path]?.codexHasBufferedUnresolvedForkLines = true
+        #expect(CostUsageStore.completedCodexScanInventory(cache: cache, expectedTotalFiles: 1)?.fileCount == nil)
+    }
+
+    @Test
     func `an empty invalidated inventory can establish presence without restarting a sweep`() throws {
         let index = CostUsageScanner.CodexSessionFileIndex(files: [], roots: [])
         var cache = CostUsageCache()

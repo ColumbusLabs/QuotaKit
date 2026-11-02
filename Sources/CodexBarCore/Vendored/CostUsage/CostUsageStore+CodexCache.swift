@@ -1670,7 +1670,7 @@ extension CostUsageStore {
         return nil
     }
 
-    private static func completedCodexScanInventory(
+    static func completedCodexScanInventory(
         cache: CostUsageCache,
         expectedTotalFiles: Int) -> (fileCount: Int, totalBytes: Int64)?
     {
@@ -1693,8 +1693,22 @@ extension CostUsageStore {
 
         var seenIdentities: Set<String> = []
         var totalBytes: Int64 = 0
+        let discovery = cache.codexSessionDiscovery
+        let archivedPaths = Set((discovery?.metadataArchivedPaths ?? []).map(Self.normalizedCodexPath))
+        let unavailablePaths = Set((discovery?.metadataUnavailablePaths ?? []).map(Self.normalizedCodexPath))
         for path in inventoryPaths {
             let fileURL = URL(fileURLWithPath: path)
+            let key = Self.normalizedCodexPath(path)
+            let cached = cache.files[path] ?? cachedFilesByNormalizedPath[key]
+            let hasArchiveProof = discovery?.metadataPresenceEstablished == true
+                && archivedPaths.contains(key) && !unavailablePaths.contains(key)
+            if let cached, let identity = CostUsageScanner.codexCompletedArchivedIdentity(
+                cached, presenceIsEstablished: hasArchiveProof)
+            {
+                guard seenIdentities.insert(identity).inserted else { continue }
+                totalBytes += max(0, cached.size)
+                continue
+            }
             let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
             guard let fileId = metadata.fileId else { return nil }
             guard seenIdentities.insert(fileId).inserted else { continue }

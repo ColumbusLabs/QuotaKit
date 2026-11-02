@@ -26,8 +26,20 @@ struct CostUsageArchivedRolloutTests {
         #expect(after.sessionTokens == before.sessionTokens)
         #expect(after.sessionCostUSD == before.sessionCostUSD)
         #expect(after.historyCoverageIsEstablished)
+        let archivedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(archivedCache.codexScanCatchUpPending == false)
+        #expect(archivedCache.codexSessionDiscovery?.metadataPresenceEstablished == true)
+        #expect(archivedCache.codexSessionDiscovery?.metadataUnavailablePaths?.isEmpty != false)
+        #expect(archivedCache.codexHistoryHydrationRetries?.isEmpty != false)
+        #expect(archivedCache.codexActiveLookbackState?.pendingFilePaths.isEmpty != false)
         try FileManager.default.removeItem(at: first.appendingPathExtension("zst"))
-        #expect(try await Self.establish(env, day).sessionTokens == 70)
+        let afterDeletion = try await Self.establish(env, day)
+        #expect(afterDeletion.sessionTokens == 70)
+        let deletedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(deletedCache.files[first.path] == nil)
+        let cachedInput = deletedCache.days.values.flatMap(\.values).reduce(0) { $0 + ($1.first ?? 0) }
+        #expect(cachedInput == 70)
+        #expect(deletedCache.codexScanCatchUpPending == false)
     }
 
     @Test

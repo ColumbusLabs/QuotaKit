@@ -10501,6 +10501,9 @@ enum CostUsageScanner {
             : filePathsInScan.intersection(Set(cache.files.keys.map {
                 Self.codexPathKey(URL(fileURLWithPath: $0))
             }))
+        // Presence is established by the metadata sweep in this pass. Progress must
+        // use that same proof rather than the previous persisted discovery snapshot.
+        cache.codexSessionDiscovery = fileIndex.persistedState
         let progressUpdate = Self.updateCodexScanProgress(
             cache: &cache,
             context: CodexScanProgressUpdateContext(
@@ -10519,7 +10522,6 @@ enum CostUsageScanner {
         cache.codexScanTotalBytes = scanProgress.totalBytes
         cache.codexScanCompletedFiles = scanProgress.completedFiles
         cache.codexScanTotalFiles = scanProgress.totalFiles
-        cache.codexSessionDiscovery = fileIndex.persistedState
         let catchUpPending = !canValidateExactInventory
             || scanProgress.completedFiles < scanProgress.totalFiles
             || cache.files.values.contains(where: \.hasPendingCodexScanWork)
@@ -10763,6 +10765,21 @@ enum CostUsageScanner {
         }
     }
 
+    /// A compressed-only file can retain an already completed generation only
+    /// when a completed presence sweep classified it as archived in this home.
+    static func codexCompletedArchivedIdentity(
+        _ usage: CostUsageFileUsage,
+        presenceIsEstablished: Bool) -> String?
+    {
+        guard presenceIsEstablished, usage.codexArchived == true,
+              usage.hasCurrentCodexParser, usage.codexScanComplete == true,
+              usage.codexReplacementScanPending != true, !usage.hasBufferedCodexForkRetryLines,
+              usage.codexRequestReconciliation?.pendingPaths.isEmpty != false,
+              let identity = usage.codexScanFileId, (usage.parsedBytes ?? 0) >= usage.size
+        else { return nil }
+        return identity
+    }
+
     private static func codexScanProgress(
         paths: Set<String>,
         cache: CostUsageCache,
@@ -10773,17 +10790,38 @@ enum CostUsageScanner {
         var completedFiles = 0
         var totalFiles = 0
         var seenIdentities: Set<String> = []
+        let discovery = cache.codexSessionDiscovery
+        let archivedPaths = Set((discovery?.metadataArchivedPaths ?? []).map {
+            Self.codexPathKey(URL(fileURLWithPath: $0))
+        })
+        let unavailablePaths = Set((discovery?.metadataUnavailablePaths ?? []).map {
+            Self.codexPathKey(URL(fileURLWithPath: $0))
+        })
 
         for path in paths.sorted() {
             workRecorder?.recordCodexProgressAccountingVisit()
             let fileURL = URL(fileURLWithPath: path)
+            let usage = cache.files[path] ?? cache.files[fileURL.standardizedFileURL.path]
+            let pathKey = Self.codexPathKey(fileURL)
+            let hasArchiveProof = discovery?.metadataPresenceEstablished == true
+                && archivedPaths.contains(pathKey) && !unavailablePaths.contains(pathKey)
+            if let usage, let identity = Self.codexCompletedArchivedIdentity(
+                usage, presenceIsEstablished: hasArchiveProof)
+            {
+                guard seenIdentities.insert(identity).inserted else { continue }
+                let bytes = max(0, usage.size)
+                totalFiles += 1
+                completedFiles += 1
+                totalBytes += bytes
+                processedBytes += bytes
+                continue
+            }
             let metadata = Self.codexFileMetadata(fileURL: fileURL)
             let identity = metadata.fileId ?? fileURL.standardizedFileURL.path
             guard seenIdentities.insert(identity).inserted else { continue }
             totalFiles += 1
             totalBytes += max(0, metadata.size)
 
-            let usage = cache.files[path] ?? cache.files[fileURL.standardizedFileURL.path]
             guard let usage else { continue }
             let identityMatches = usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId
             guard identityMatches,
