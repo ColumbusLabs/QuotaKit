@@ -278,6 +278,10 @@ struct ProviderRegistryTests {
             [.grok, .abliteration],
             [.parallel, .abliteration],
             [.grok, .parallel],
+            // OpenDesign retains its upstream neutral #202020 brand accent.
+            [.grok, .opendesign],
+            [.parallel, .opendesign],
+            [.abliteration, .opendesign],
             [.deepgram, .fal],
             [.v0, .flora],
             [.typesafe, .flora],

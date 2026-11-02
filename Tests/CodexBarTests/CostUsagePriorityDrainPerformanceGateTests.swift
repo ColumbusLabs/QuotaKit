@@ -49,6 +49,7 @@ struct CostUsagePriorityDrainPerformanceGateTests {
         func readMetadataOnlyCache() throws -> CostUsageCache {
             let cache = CostUsageStoreAccess.loadCodexWorkingSet(
                 cacheRoot: env.cacheRoot,
+                home: env.codexStoreHome,
                 calendar: options.calendar,
                 hydratingPaths: Set<String>()).cache
             try #require(cache.files.count == fileCount)

@@ -31,6 +31,69 @@ struct CostUsageArchivedRolloutTests {
     }
 
     @Test
+    func `rollout presence distinguishes deletion from inaccessible paths`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let plain = env.codexSessionsRoot.appendingPathComponent("presence.jsonl")
+        #expect(CostUsageScanner.codexRolloutPresence(plain.path) == .missing)
+        try Data().write(to: plain.appendingPathExtension("zst"))
+        #expect(CostUsageScanner.codexRolloutPresence(plain.path) == .archived)
+        try Data().write(to: plain)
+        #expect(CostUsageScanner.codexRolloutPresence(plain.path) == .plain)
+        let loop = env.root.appendingPathComponent("loop")
+        try FileManager.default.createSymbolicLink(atPath: loop.path, withDestinationPath: loop.path)
+        #expect(CostUsageScanner.codexRolloutPresence(loop.appendingPathComponent("test.jsonl").path) == .unavailable)
+        let leaf = env.codexSessionsRoot.appendingPathComponent("leaf.jsonl")
+        try FileManager.default.createSymbolicLink(atPath: leaf.path, withDestinationPath: leaf.path)
+        #expect(CostUsageScanner.codexRolloutPresence(leaf.path) == .unavailable)
+        try FileManager.default.removeItem(at: leaf)
+        try FileManager.default.createDirectory(at: leaf, withIntermediateDirectories: false)
+        #expect(CostUsageScanner.codexRolloutPresence(leaf.path) == .unavailable)
+        try FileManager.default.removeItem(at: leaf)
+        try FileManager.default.createSymbolicLink(
+            atPath: leaf.appendingPathExtension("zst").path, withDestinationPath: leaf.path)
+        #expect(CostUsageScanner.codexRolloutPresence(leaf.path) == .unavailable)
+    }
+
+    @Test
+    func `inaccessible history survives force rescan pruning and retention`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 1)
+        let later = day.addingTimeInterval(30 * 86400)
+        let plain = try env.writeCodexSessionFile(day: day, filename: "keep.jsonl", contents: Self.rollout(env, day))
+        #expect(try await Self.establish(env, day).sessionTokens == 330)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        var plainCache = cache
+        CostUsageScanner.pruneForceRescanFilesOutsideWindow(
+            cache: &plainCache,
+            range: .init(since: later, until: later),
+            isForceRescan: true)
+        #expect(plainCache.files[plain.path] == nil)
+        let usage = try #require(cache.files.removeValue(forKey: plain.path))
+        let loop = env.root.appendingPathComponent("unavailable-loop")
+        try FileManager.default.createSymbolicLink(atPath: loop.path, withDestinationPath: loop.path)
+        let unavailable = loop.appendingPathComponent("keep.jsonl").path
+        cache.files[unavailable] = usage
+        let days = cache.days
+        CostUsageScanner.pruneForceRescanFilesOutsideWindow(
+            cache: &cache,
+            range: .init(since: later, until: later),
+            isForceRescan: true)
+        #expect(cache.files[unavailable] != nil)
+        #expect(cache.days == days)
+        _ = CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        _ = await store.retainDayWindow(sinceDay: "2026-08-30", untilDay: "2026-08-31")
+        _ = await store.enforceBudgets(
+            maxRows: 0, maxFileBytes: 0, requestedSinceDay: "2026-08-30", requestedUntilDay: "2026-08-31")
+        let retained = await store.readSnapshot()
+        #expect(retained.files.contains { $0.path == unavailable })
+        #expect(!retained.fileDayAggregates.isEmpty)
+        #expect(!retained.dayAggregates.isEmpty)
+    }
+
+    @Test
     func `a compatible parser predecessor retains archived usage across home scans`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -379,10 +442,11 @@ struct CostUsageArchivedRolloutTests {
             + #""thread_source":"user","timestamp":"\#(env.isoString(for: date))"\#(fork)}}"#
     }
 
-    private static func forkTokens(env: CostUsageTestEnvironment, _ input: Int, last: Int, at date: Date) -> String {
-        #"{"type":"event_msg","timestamp":"\#(env.isoString(for: date))","payload":{"type":"token_count","#
-            + #""info":{"model":"gpt-5.4","total_token_usage":{"input_tokens":\#(input),"output_tokens":0},"#
-            + #""last_token_usage":{"input_tokens":\#(last),"output_tokens":0}}}}"#
+    private static func forkTokens(env: CostUsageTestEnvironment, _ input: Int, last: Int?, at date: Date) -> String {
+        let lastUsage = last.map { #","last_token_usage":{"input_tokens":\#($0),"output_tokens":0}"# } ?? ""
+        return #"{"type":"event_msg","timestamp":"\#(env.isoString(for: date))","payload":{"type":"token_count","#
+            + #""info":{"model":"gpt-5.4","total_token_usage":{"input_tokens":\#(input),"output_tokens":0}"#
+            + #"\#(lastUsage)}}}"#
     }
 
     /// A parent session that used 1,000 tokens.
@@ -405,7 +469,7 @@ struct CostUsageArchivedRolloutTests {
     {
         [
             self.forkMetadata(env: env, id: id, parent: parent, at: date),
-            self.forkTokens(env: env, inherited, last: inherited, at: date.addingTimeInterval(1)),
+            self.forkTokens(env: env, inherited, last: nil, at: date.addingTimeInterval(1)),
             self.forkTokens(env: env, inherited + added, last: added, at: date.addingTimeInterval(2)),
         ].joined(separator: "\n") + "\n"
     }

@@ -116,6 +116,7 @@ struct CostUsageSafeRebuildTests {
             try #require(sqlite3_open_v2(backupURL.path, &backup, SQLITE_OPEN_READONLY, nil) == SQLITE_OK)
             guard let backup else { throw CostUsageStore.StoreError.invalidData }
             defer { sqlite3_close(backup) }
+            #expect(try CostUsageStore.scalarText(backup, "PRAGMA journal_mode")?.lowercased() == "delete")
             #expect(try CostUsageStore.scalarInt(backup, "SELECT COUNT(*) FROM files") == 1)
         } else {
             #expect(!result)
@@ -172,8 +173,42 @@ struct CostUsageSafeRebuildTests {
         try #require(sqlite3_open_v2(backupURL.path, &backup, SQLITE_OPEN_READONLY, nil) == SQLITE_OK)
         guard let backup else { throw CostUsageStore.StoreError.invalidData }
         defer { sqlite3_close(backup) }
+        #expect(try CostUsageStore.scalarText(backup, "PRAGMA journal_mode")?.lowercased() == "delete")
         #expect(try CostUsageStore.scalarInt(backup, "PRAGMA user_version") == Int64(version))
         #expect(try CostUsageStore.scalarInt(backup, "SELECT id FROM files") == 31)
+    }
+
+    @Test
+    func `an empty store with a WAL remains untouched`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let url = CostUsageStore.databaseURL(cacheRoot: env.cacheRoot)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let walURL = URL(fileURLWithPath: url.path + "-wal")
+        let wal = Data("unproven ledger wal".utf8)
+        try Data().write(to: url)
+        try wal.write(to: walURL)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(await store.configuration() == nil)
+        #expect(await store.rebuildCount == 0)
+        #expect(try Data(contentsOf: url).isEmpty)
+        #expect(try Data(contentsOf: walURL) == wal)
+    }
+
+    @Test(arguments: ["-wal", "-shm"])
+    func `an orphan sidecar remains untouched without creating a main database`(suffix: String) async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let url = CostUsageStore.databaseURL(cacheRoot: env.cacheRoot)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let sidecarURL = URL(fileURLWithPath: url.path + suffix)
+        let sidecar = Data("orphan sqlite sidecar".utf8)
+        try sidecar.write(to: sidecarURL)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(await store.configuration() == nil)
+        #expect(await store.rebuildCount == 0)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(try Data(contentsOf: sidecarURL) == sidecar)
     }
 
     @Test

@@ -134,7 +134,11 @@ struct CostUsageStoreReadView: Sendable {
             files: scopedFiles,
             rootMtimes: projection.rootMtimes)
         let hasIncompleteFile = scopedFiles.contains { !$0.scanComplete }
-        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation
+        let discovery = projection.discoveryState?.payload.flatMap {
+            try? JSONDecoder().decode(CostUsageCodexSessionDiscovery.self, from: $0)
+        }
+        let presencePending = !scopedFiles.isEmpty && discovery?.metadataPresenceEstablished != true
+        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation || presencePending
         let staleSnapshotUpdatedAt = projection.previousReportUpdatedAtUnixMs.flatMap { timestamp -> Date? in
             guard timestamp > 0 else { return nil }
             return Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)

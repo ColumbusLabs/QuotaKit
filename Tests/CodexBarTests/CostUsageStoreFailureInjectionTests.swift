@@ -10,9 +10,8 @@ import CSQLite3
 
 /// Adversarial failure injection for the SQLite cost-usage store: constraint failures,
 /// disk-full class errors, mid-file corruption, sidecar (-wal/-shm) damage, schema
-/// downgrades, and pathological database files. The invariant under test: only
-/// corruption or schema drift may destroy the database; every transient or data-shape
-/// failure must preserve existing history.
+/// downgrades, and pathological database files. Unprovable or corrupt history stays
+/// intact; recoverable empty files may be initialized without discarding ledger data.
 struct CostUsageStoreFailureInjectionTests {
     // MARK: - Error classification
 
@@ -127,7 +126,7 @@ struct CostUsageStoreFailureInjectionTests {
     // MARK: - On-disk damage
 
     @Test
-    func `structural corruption in the middle of the file is detected on open`() async throws {
+    func `structural corruption is detected and the original store is preserved`() async throws {
         let fixture = try FailureFixture()
         defer { fixture.remove() }
         let url = try await Self.populateAndClose(root: fixture.root, files: 8)
@@ -147,11 +146,12 @@ struct CostUsageStoreFailureInjectionTests {
         }
         try bytes.write(to: url)
 
+        let damagedBytes = try Data(contentsOf: url)
         let store = CostUsageStore(cacheRoot: fixture.root)
         #expect(await store.readSnapshot().files.isEmpty)
-        #expect(await store.rebuildCount == 1)
-        // The rebuilt store must be fully usable.
-        #expect(await store.upsertFile(Self.file(path: "/rollouts/new.jsonl")))
+        #expect(await store.rebuildCount == 0)
+        #expect(await !(store.upsertFile(Self.file(path: "/rollouts/new.jsonl"))))
+        #expect(try Data(contentsOf: url) == damagedBytes)
     }
 
     @Test
@@ -197,30 +197,35 @@ struct CostUsageStoreFailureInjectionTests {
     }
 
     @Test
-    func `database path occupied by a directory recovers`() async throws {
+    func `database path occupied by a directory is preserved`() async throws {
         let fixture = try FailureFixture()
         defer { fixture.remove() }
         try FileManager.default.createDirectory(
             at: fixture.databaseURL,
             withIntermediateDirectories: true)
 
+        let sentinel = fixture.databaseURL.appendingPathComponent("preserve.txt")
+        try Data("preserve".utf8).write(to: sentinel)
         let store = CostUsageStore(cacheRoot: fixture.root)
         let file = Self.file(path: "/rollouts/a.jsonl")
-        #expect(await store.upsertFile(file))
-        #expect(await store.fetchFile(path: file.path) == file)
+        #expect(await !(store.upsertFile(file)))
+        #expect(await store.fetchFile(path: file.path) == nil)
+        #expect(try Data(contentsOf: sentinel) == Data("preserve".utf8))
     }
 
     @Test
-    func `future schema version on disk rebuilds instead of misreading`() async throws {
+    func `future schema version on disk remains intact and unreadable`() async throws {
         let fixture = try FailureFixture()
         defer { fixture.remove() }
         let url = try await Self.populateAndClose(root: fixture.root, files: 2)
         try Self.execute(at: url, sql: "PRAGMA user_version = \(CostUsageStore.schemaVersion &+ 1)")
 
+        let originalBytes = try Data(contentsOf: url)
         let store = CostUsageStore(cacheRoot: fixture.root)
         #expect(await store.readSnapshot().files.isEmpty)
-        #expect(await store.rebuildCount == 1)
-        #expect(await store.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        #expect(await store.rebuildCount == 0)
+        #expect(await store.configuration() == nil)
+        #expect(try Data(contentsOf: url) == originalBytes)
     }
 }
 

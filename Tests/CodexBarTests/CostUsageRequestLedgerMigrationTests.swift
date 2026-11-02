@@ -290,7 +290,7 @@ struct CostUsageRequestLedgerMigrationTests {
         var coldOptions = options
         coldOptions.cacheRoot = env.root.appendingPathComponent("cold-cache")
         _ = report(coldOptions)
-        var cold = try CostUsageStoreAccess.read(cacheRoot: #require(coldOptions.cacheRoot))
+        var cold = try CostUsageStoreAccess.read(cacheRoot: #require(coldOptions.cacheRoot), home: env.codexStoreHome)
         let prices = try #require(completed.files[file.path]?.codexRows)
         var coldFile = try #require(cold.files[file.path])
         coldFile.codexRows = coldFile.codexRows?.enumerated().map { index, row in
@@ -299,7 +299,8 @@ struct CostUsageRequestLedgerMigrationTests {
             return row
         }
         cold.files[file.path] = coldFile
-        #expect(try !CostUsageStoreAccess.replace(cacheRoot: #require(coldOptions.cacheRoot), cache: cold)
+        #expect(try !CostUsageStoreAccess.replace(
+            cacheRoot: #require(coldOptions.cacheRoot), home: env.codexStoreHome, cache: cold)
             .catchUpRequired)
         let expected = report(coldOptions)
         // Independent cache stores issue their own proof lineage, revision and verification time.

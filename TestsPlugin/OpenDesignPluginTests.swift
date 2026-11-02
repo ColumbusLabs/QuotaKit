@@ -178,9 +178,19 @@ struct OpenDesignPluginTests {
         func nextSession() -> ProviderPluginCookieSession? {
             self.sessions += 1
             guard self.sessions <= 2 else { return nil }
+            let value = "synthetic-cookie-\(self.sessions)"
             return .init(
-                header: "__Secure-better-auth.session_token=synthetic-cookie-\(self.sessions)",
-                source: "Synthetic", origin: "https://amr-api.open-design.ai")
+                header: "__Secure-better-auth.session_token=\(value)",
+                source: "Synthetic",
+                origin: "https://amr-api.open-design.ai",
+                records: [ProviderPluginCookieRecord(
+                    name: "__Secure-better-auth.session_token",
+                    value: value,
+                    domain: "amr-api.open-design.ai",
+                    hostOnly: true,
+                    path: "/",
+                    secure: true,
+                    expires: nil)])
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {

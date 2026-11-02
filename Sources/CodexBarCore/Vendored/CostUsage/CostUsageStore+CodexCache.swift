@@ -539,7 +539,8 @@ extension CostUsageStore {
     /// Preserve compressed-only history when day buckets cannot be rebuilt in the new zone.
     private func resetCodexCacheForTimeZoneChange(_ database: OpaquePointer) throws {
         if try Self.readFiles(database, home: self.home).contains(where: {
-            CostUsageScanner.isArchivedCodexRollout($0.path)
+            let presence = CostUsageScanner.codexRolloutPresence($0.path)
+            return presence == .archived || presence == .unavailable
         }) {
             throw StoreError.migration(StoreError.incompatibleSchema)
         }
@@ -1307,9 +1308,12 @@ extension CostUsageStore {
         var completedIdentityValidationPaths: [String] = []
         var invalidatedIdentityValidationPaths: [String] = []
 
+        let archivedPaths = Set(cache.codexSessionDiscovery?.metadataArchivedPaths ?? [])
+        let unavailablePaths = Set(cache.codexSessionDiscovery?.metadataUnavailablePaths ?? [])
         for file in persistence.files where !file.belongsToOpenCodeLocalHistory {
             guard var usage = cache.files[file.path] else { continue }
-            let archived: Bool? = CostUsageScanner.isArchivedCodexRollout(file.path) ? true : nil
+            if unavailablePaths.contains(file.path) { continue }
+            let archived: Bool? = archivedPaths.contains(file.path) ? true : nil
             if usage.codexArchived != archived {
                 usage.codexArchived = archived
                 cache.files[file.path] = usage
@@ -1499,6 +1503,19 @@ extension CostUsageStore {
             CostUsageStoreTestHooks.current.codexCatchUpReconciliationVisit?()
             #endif
 
+            let presence = CostUsageScanner.codexRolloutPresence(file.path)
+            if presence == .missing || presence == .unavailable { return true }
+            if presence == .archived,
+               CostUsageScanner.isArchivedCodexRollout(file.path),
+               !file.replacementScanPending,
+               !file.hasBufferedSubagentLines,
+               !file.hasBufferedUnresolvedForkLines,
+               (file.parsedBytes ?? 0) >= file.size
+            {
+                // Only an already completed, unbuffered persisted generation can retain
+                // its pre-archive identity. A missing archive still needs validation.
+                continue
+            }
             let metadata = CostUsageScanner.codexFileMetadata(
                 fileURL: URL(fileURLWithPath: file.path, isDirectory: false))
             guard normalizedIdentity == metadata.fileId,

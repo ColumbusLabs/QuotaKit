@@ -17,7 +17,9 @@ struct CLIProviderAuthenticationTests {
         #expect(openai.environmentVariables.contains("OPENAI_ADMIN_KEY"))
         let copilot = try #require(results.first { $0.provider == "copilot" }?.authentication)
         #expect(copilot.sourceModes == ["api", "auto"])
-        #expect(copilot.supportsConfigCookieHeader)
+        // The Mac budget cookie setting is not a CLI config-cookie consumer.
+        #expect(!copilot.supportsConfigCookieHeader)
+        #expect(!CodexBarCLI.readsConfigCookieHeader(.copilot))
         #expect(copilot.loginCommand == "quotakit config login --provider copilot")
         #expect(copilot.tokenAccounts?.setupHint == CopilotProviderDescriptor.descriptor.credentials?
             .tokenAccountSupport?.subtitle)

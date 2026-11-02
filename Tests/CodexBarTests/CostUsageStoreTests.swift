@@ -841,9 +841,11 @@ extension CostUsageStoreTests {
         #expect(store.syncRecordVerifiedCodexDay(day: "2026-08-01", calendar: calendar))
 
         let database = try SQLiteTestConnection(url: store.databaseURL)
+        let lineageKey = CostUsageStore.verifiedMetaKey("verified_day_lineage_id", home: store.home)
+        let revisionKey = CostUsageStore.verifiedMetaKey("verified_day_revision", home: store.home)
         #expect(try database.scalarInt("""
         SELECT COUNT(*) FROM meta
-        WHERE key IN ('verified_day_lineage_id', 'verified_day_revision')
+        WHERE key IN ('\(lineageKey)', '\(revisionKey)')
         """) == 2)
         #expect(try database.scalarInt("""
         SELECT COUNT(*) FROM verified_day_evidence WHERE day = '2026-08-01' AND revision > 0
@@ -884,8 +886,9 @@ extension CostUsageStoreTests {
         let beforePendingWork = try SQLiteTestConnection(url: store.databaseURL)
         #expect(try beforePendingWork.scalarInt(
             "SELECT COUNT(*) FROM verified_day_evidence WHERE day = '\(firstDay)'") == 1)
+        let revisionKey = CostUsageStore.verifiedMetaKey("verified_day_revision", home: store.home)
         let priorRevision = try beforePendingWork.scalarInt(
-            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'")
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = '\(revisionKey)'")
         #expect(priorRevision > 0)
 
         let pendingPath = "/sessions/buffered.jsonl"
@@ -922,7 +925,7 @@ extension CostUsageStoreTests {
         #expect(try afterPendingWork.scalarInt(
             "SELECT COUNT(*) FROM verified_day_evidence WHERE day = '\(firstDay)'") == 1)
         #expect(try afterPendingWork.scalarInt(
-            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'") == priorRevision)
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = '\(revisionKey)'") == priorRevision)
     }
 
     @Test
@@ -1188,8 +1191,10 @@ extension CostUsageStoreTests {
         let proof = try #require(priorProjection.verifiedDayEvidence[day])
         #expect(proof.revision > 0)
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        let revisionKey = CostUsageStore.verifiedMetaKey("verified_day_revision", home: predecessor.home)
+        let lineageKey = CostUsageStore.verifiedMetaKey("verified_day_lineage_id", home: predecessor.home)
         let priorCounter = try connection.scalarInt(
-            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'")
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = '\(revisionKey)'")
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         #expect(await current.readSnapshot() == before)
@@ -1202,9 +1207,9 @@ extension CostUsageStoreTests {
         #expect(try connection.scalarInt(
             "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
         #expect(try connection.scalarInt(
-            "SELECT COUNT(*) FROM meta WHERE key = 'verified_day_lineage_id' AND value = '\(proof.lineageID)'") == 1)
+            "SELECT COUNT(*) FROM meta WHERE key = '\(lineageKey)' AND value = '\(proof.lineageID)'") == 1)
         #expect(try connection.scalarInt(
-            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'verified_day_revision'") == priorCounter)
+            "SELECT CAST(value AS INTEGER) FROM meta WHERE key = '\(revisionKey)'") == priorCounter)
         #expect(try connection.scalarInt("SELECT COUNT(*) FROM verified_day_evidence") == 1)
     }
 
@@ -2328,6 +2333,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == Set(Self.testedPredecessorParserHashes).union([
+            "7d66d60c44b88609",
             "36872d2d0ebf9818",
             "7c53241287d9fe21",
             "4c666659fa05e700",
@@ -2412,11 +2418,9 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        if predecessorHash == "3f70d97998be5ff8" || predecessorHash == "005a869f36400f7e" {
-            // Revision 9's mirror correction and the alias-pricing correction invalidate only
-            // the derived report; every parsed row, pricing aggregate, and resume cursor survives.
-            before.metadata.previousReportPayload = nil
-        }
+        // Existing reports predate the Fast pricing correction. Preserve source rows and scan
+        // state, but discard the derived report so it is repriced from the retained evidence.
+        before.metadata.previousReportPayload = nil
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         let after = await current.readSnapshot()
@@ -2465,7 +2469,8 @@ extension CostUsageStoreTests {
         let metadata = Self.metadata()
         #expect(await predecessor.upsertFile(file))
         #expect(await predecessor.setMetadata(metadata))
-        let before = await predecessor.readSnapshot()
+        var before = await predecessor.readSnapshot()
+        before.metadata.previousReportPayload = nil
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         #expect(await current.readSnapshot() == before)
@@ -2557,12 +2562,15 @@ extension CostUsageStoreTests {
             parserHash: predecessorHash)
         let metadata = Self.metadata()
         #expect(await predecessor.setMetadata(metadata))
+        var expectedMetadata = metadata
+        expectedMetadata.previousReportPayload = nil
+        let expected = expectedMetadata
 
         let stores = (0..<16).map { _ in CostUsageStore(cacheRoot: fixture.root) }
         await withTaskGroup(of: Void.self) { group in
             for store in stores {
                 group.addTask {
-                    #expect(await store.fetchMetadata() == metadata)
+                    #expect(await store.fetchMetadata() == expected)
                     #expect(await store.rebuildCount == 0)
                 }
             }
@@ -2574,7 +2582,7 @@ extension CostUsageStoreTests {
     }
 
     @Test
-    func `version mismatch drops and recreates`() async throws {
+    func `unknown schema version is retained without destructive rebuild`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let url = fixture.databaseURL
@@ -2583,12 +2591,12 @@ extension CostUsageStoreTests {
         let store = CostUsageStore(cacheRoot: fixture.root)
 
         #expect(await store.fetchMetadata() == .empty)
-        #expect(await store.rebuildCount == 1)
-        #expect(await store.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        #expect(await store.rebuildCount == 0)
+        #expect(try SQLiteTestConnection(url: url, readOnly: true).scalarInt("PRAGMA user_version") == 7)
     }
 
     @Test
-    func `parser hash mismatch drops and recreates`() async throws {
+    func `parser hash mismatch preserves an unrecognized partial schema`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let url = fixture.databaseURL
@@ -2603,11 +2611,13 @@ extension CostUsageStoreTests {
         let store = CostUsageStore(cacheRoot: fixture.root)
 
         #expect(await store.fetchMetadata() == .empty)
-        #expect(await store.rebuildCount == 1)
+        #expect(await store.rebuildCount == 0)
+        #expect(try SQLiteTestConnection(url: url, readOnly: true).scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = 'old-parser'") == 1)
     }
 
     @Test
-    func `tokscale value-changing parser hash forces a rebuild`() async throws {
+    func `tokscale value-changing parser preserves unavailable source history`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let previousParserHash = "76877b47a94fe28c"
@@ -2623,11 +2633,12 @@ extension CostUsageStoreTests {
         let currentStore = CostUsageStore(cacheRoot: fixture.root)
 
         #expect(await currentStore.fetchFile(path: cachedFile.path) == nil)
-        #expect(await currentStore.rebuildCount == 1)
-        #expect(await currentStore.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        #expect(await currentStore.rebuildCount == 0)
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
         #expect(try connection.scalarInt(
-            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
+            "SELECT COUNT(*) FROM files WHERE path = '\(cachedFile.path)'") == 1)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(previousParserHash)'") == 1)
     }
 
     @Test
@@ -2656,7 +2667,7 @@ extension CostUsageStoreTests {
     }
 
     @Test
-    func `compatible predecessor hash with mismatched version still rebuilds`() async throws {
+    func `compatible predecessor hash with mismatched version is retained`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let predecessorHash = "b975eb705f905b9a"
@@ -2674,11 +2685,14 @@ extension CostUsageStoreTests {
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         #expect(await current.fetchMetadata() == .empty)
-        #expect(await current.rebuildCount == 1)
+        #expect(await current.rebuildCount == 0)
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt("PRAGMA user_version") == Int64(predecessorVersion + 1))
+        #expect(try connection.scalarInt("SELECT COUNT(*) FROM scan_metadata") == 1)
     }
 
     @Test
-    func `compatible predecessor hash without incremental auto vacuum still rebuilds`() async throws {
+    func `compatible predecessor hash without incremental auto vacuum preserves the old store`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let predecessorHash = "b975eb705f905b9a"
@@ -2696,22 +2710,27 @@ extension CostUsageStoreTests {
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         #expect(await current.fetchMetadata() == .empty)
-        #expect(await current.rebuildCount == 1)
-        #expect(await current.configuration()?.autoVacuumMode == 2)
+        #expect(await current.rebuildCount == 0)
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt("PRAGMA auto_vacuum") == 0)
+        #expect(try connection.scalarInt("PRAGMA user_version") == Int64(predecessorVersion))
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(predecessorHash)'") == 1)
     }
 
     @Test
-    func `garbage database recovers by rebuild`() async throws {
+    func `garbage database remains intact for recovery`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         let url = fixture.databaseURL
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("not a sqlite database".utf8).write(to: url)
+        let original = Data("not a sqlite database".utf8)
+        try original.write(to: url)
         let store = CostUsageStore(cacheRoot: fixture.root)
 
         #expect(await store.fetchMetadata() == .empty)
-        #expect(await store.rebuildCount == 1)
-        #expect(await store.configuration()?.journalMode.lowercased() == "wal")
+        #expect(await store.rebuildCount == 0)
+        #expect(try Data(contentsOf: url) == original)
     }
 
     @Test

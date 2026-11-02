@@ -406,6 +406,8 @@ extension CostUsageScanner {
         rows.map { row in
             let retained = retainedPricing?(row)
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
+            // Saved Priority can originate from an authoritative trace that is no longer available.
+            // Without persisted provenance, do not downgrade it based on a later Standard observation.
             let isPriority = priorityMetadata != nil
                 || retained?.pricingMode == "priority"
                 || row.pricingMode == "priority"

@@ -48,7 +48,7 @@ extension MenuBarLayoutRenderer {
         depth: Int = 0)
         -> MenuBarLayoutToken?
     {
-        if data.provider == nil {
+        if data.laneLabels.isPlugin {
             let missing: Bool = switch token {
             case let .percent(window) where window == .session || window == .weekly:
                 self.window(window, data: data) == nil

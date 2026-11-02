@@ -117,7 +117,7 @@ struct PiNativeProjectionTests {
         #expect(freshNative.hourly.map(\.totalTokens) == [25])
         #expect(freshNative.quotaSlices.map(\.timestamp) == [fixture.events[1]])
 
-        let reopened = CostUsageStore(cacheRoot: fixture.env.cacheRoot)
+        let reopened = CostUsageStore(cacheRoot: fixture.env.cacheRoot, home: fixture.env.codexStoreHome)
             .syncReadCodexReportProjection(calendar: fixture.calendar)
         #expect(reopened.fileTemporalCoverageIsComplete)
         #expect(reopened.cache.files.values.allSatisfy {
@@ -147,15 +147,17 @@ struct PiNativeProjectionTests {
         let baseline = try await fixture.load(includePi: false)
         var legacyCache = CostUsageStoreAccess.read(
             cacheRoot: fixture.env.cacheRoot,
+            home: fixture.env.codexStoreHome,
             calendar: fixture.calendar)
         for path in legacyCache.files.keys {
             legacyCache.files[path]?.codexParserRevision = 6
         }
         #expect(!CostUsageStoreAccess.replace(
             cacheRoot: fixture.env.cacheRoot,
+            home: fixture.env.codexStoreHome,
             cache: legacyCache,
             calendar: fixture.calendar).catchUpRequired)
-        let databaseURL = CostUsageStore(cacheRoot: fixture.env.cacheRoot).databaseURL
+        let databaseURL = CostUsageStore(cacheRoot: fixture.env.cacheRoot, home: fixture.env.codexStoreHome).databaseURL
         var database: OpaquePointer?
         #expect(sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK)
         let opened = try #require(database)
@@ -199,7 +201,7 @@ struct PiNativeProjectionTests {
         _ = try await fixture.load(includePi: false)
         let day = try #require(fixture.calendar.date(byAdding: .day, value: 1, to: fixture.now))
         let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day, calendar: fixture.calendar)
-        let store = CostUsageStore(cacheRoot: fixture.env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: fixture.env.cacheRoot, home: fixture.env.codexStoreHome)
         #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
             store: store,
             day: dayKey,

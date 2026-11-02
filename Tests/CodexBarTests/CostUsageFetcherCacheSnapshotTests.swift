@@ -176,6 +176,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(projection.cache.days == cache.days)
         #expect(projection.cache.roots == cache.roots)
@@ -306,6 +307,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         let compact = CostUsageCodexReportProjectionBuilder.build(
             projection: projection,
@@ -386,6 +388,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         let compact = CostUsageCodexReportProjectionBuilder.build(
             projection: projection,
@@ -461,6 +464,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         let compact = CostUsageCodexReportProjectionBuilder.build(
             projection: projection,
@@ -968,6 +972,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let reloadedProjection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(reloadedProjection.verifiedScanSinceKey == wideRange.sinceKey)
         #expect(reloadedProjection.verifiedScanUntilKey == wideRange.untilKey)
@@ -1245,6 +1250,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         let projection = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(projection.verifiedDayAggregates.isEmpty)
         #expect(projection.verifiedDayEvidence.isEmpty)
@@ -1363,6 +1369,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             calendar: options.calendar))
         let persisted = await CostUsageStoreAccess.readCodexReportProjection(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: options.calendar)
         #expect(persisted.verifiedDayAggregates.map(\.day) == [dayKey])
         #expect(persisted.verifiedScanSinceKey == nil)

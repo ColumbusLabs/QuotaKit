@@ -1507,7 +1507,7 @@ struct ProviderArchitectureGatekeeperTests {
     private static let allowedProviderConstructs: [AllowedProviderConstruct] = [
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Menu/MenuBarLayout.swift",
-            line: 701,
+            line: 677,
             anchor: "let windows = provider == .cursor",
             expectedProviderIDs: ["cursor"],
             expectedReferenceCount: 1,
@@ -1571,7 +1571,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Menu/MenuBarLayout.swift",
-            line: 1115,
+            line: 1091,
             anchor: "ProviderDescriptorRegistry.descriptor(for: provider ?? .codex).presentation.primarySemanticWindow)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -2493,7 +2493,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore/UsageStore+MenuCardModel.swift",
-            line: 123,
+            line: 112,
             anchor: "?? (provider == .codex ? account?.codexPublicationHold",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2703,12 +2703,12 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceCount: 7,
             expectedReferenceFingerprint: [
                 "claude@0",
-                "codex@5",
-                "claude@10",
-                "claude@11",
-                "codex@13",
-                "deepseek@19",
-                "xai@26",
+                "codex@9",
+                "claude@14",
+                "claude@15",
+                "codex@17",
+                "deepseek@23",
+                "xai@30",
             ],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
@@ -5444,6 +5444,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "llmman",
                 "munito",
                 "museai",
+                "opendesign",
                 "parallel",
                 "sailresearch",
                 "sofya",
@@ -5456,7 +5457,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "workbuddy",
                 "xkiro",
             ],
-            expectedReferenceCount: 33,
+            expectedReferenceCount: 34,
             expectedReferenceFingerprint: [
                 "v0@0",
                 "v0@0",
@@ -5491,6 +5492,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "traecn@28",
                 "chatbox@29",
                 "abliteration@30",
+                "opendesign@31",
             ],
             reason: "AppIntents needs literal per-provider titles for this widget selector; snapshot data separately decides provider eligibility."),
         AllowedProviderConstruct(

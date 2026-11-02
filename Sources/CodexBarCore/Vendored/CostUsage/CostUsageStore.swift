@@ -449,10 +449,14 @@ extension CostUsageStore {
                     CostUsageStoreMetadata.self, database: database, table: "scan_metadata", home: store.home)
                 guard let savedTimeZone = metadata?.timeZoneIdentifier,
                       savedTimeZone != calendar.timeZone.identifier else { return nil }
-                let hasArchive = try Self.readFiles(database, home: store.home).contains {
-                    !$0.belongsToOpenCodeLocalHistory && CostUsageScanner.isArchivedCodexRollout($0.path)
+                for file in try Self.readFiles(database, home: store.home) where !file.belongsToOpenCodeLocalHistory {
+                    switch CostUsageScanner.codexRolloutPresence(file.path) {
+                    case .archived: return .archivedHistoryTimeZoneConflict
+                    case .unavailable: return .cachedSnapshotUnavailable
+                    case .plain, .missing: continue
+                    }
                 }
-                return hasArchive ? .archivedHistoryTimeZoneConflict : nil
+                return nil
             }
         }
     }
@@ -845,7 +849,8 @@ extension CostUsageStore {
     private func openDatabase() throws -> OpaquePointer {
         let directory = self.databaseURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let existed = FileManager.default.fileExists(atPath: self.databaseURL.path)
+        let preflight = try Self.preflightDatabaseFile(self.databaseURL)
+        let existed = preflight.hasSQLiteContent
         var opened: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
         let result = sqlite3_open_v2(self.databaseURL.path, &opened, flags, nil)
@@ -875,10 +880,54 @@ extension CostUsageStore {
                 try self.createSchema(opened)
             }
             try Self.ensureTemporalAggregateTables(opened)
+            if preflight.wasEmptyFile { self.rebuildCount += 1 }
             return opened
         } catch {
             sqlite3_close_v2(opened)
             throw error
+        }
+    }
+
+    /// Reject unreadable and non-SQLite files before SQLite can interpret or modify a WAL.
+    /// Missing or empty main files may be initialized only when no SQLite sidecar exists.
+    private static func preflightDatabaseFile(_ url: URL) throws -> (
+        hasSQLiteContent: Bool,
+        wasEmptyFile: Bool)
+    {
+        var info = stat()
+        if url.path.withCString({ lstat($0, &info) }) != 0 {
+            guard errno == ENOENT else { throw StoreError.migration(StoreError.invalidData) }
+            try Self.requireAbsentSidecars(for: url)
+            return (false, false)
+        }
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            guard attributes[.type] as? FileAttributeType == .typeRegular,
+                  let size = (attributes[.size] as? NSNumber)?.int64Value
+            else { throw StoreError.migration(StoreError.invalidData) }
+            if size == 0 {
+                try Self.requireAbsentSidecars(for: url)
+                return (false, true)
+            }
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            let header = try handle.read(upToCount: 16)
+            guard header == Data("SQLite format 3\0".utf8) else {
+                throw StoreError.migration(StoreError.invalidData)
+            }
+            return (true, false)
+        } catch let error as StoreError {
+            throw error
+        } catch {
+            throw StoreError.migration(error)
+        }
+    }
+
+    private static func requireAbsentSidecars(for url: URL) throws {
+        for suffix in ["-wal", "-shm"] {
+            var info = stat()
+            let result = (url.path + suffix).withCString { lstat($0, &info) }
+            guard result != 0, errno == ENOENT else { throw StoreError.migration(StoreError.invalidData) }
         }
     }
 
@@ -1132,9 +1181,23 @@ extension CostUsageStore {
         }
         let step = sqlite3_backup_step(backup, -1)
         let finish = sqlite3_backup_finish(backup)
-        let closeResult = sqlite3_close_v2(destination)
-        guard step == SQLITE_DONE, finish == SQLITE_OK, closeResult == SQLITE_OK else {
+        guard step == SQLITE_DONE, finish == SQLITE_OK else {
+            sqlite3_close_v2(destination)
             throw StoreError.migration(StoreError.sqlite(step))
+        }
+        // SQLite's online backup copies the WAL journal flag in page one. Convert the
+        // destination to a standalone rollback-journal database before closing it, so the
+        // retained snapshot remains readable without writable WAL/SHM sidecars.
+        do {
+            guard try Self.scalarText(destination, "PRAGMA journal_mode=DELETE")?.lowercased() == "delete" else {
+                throw StoreError.migration(StoreError.invalidData)
+            }
+        } catch {
+            sqlite3_close_v2(destination)
+            throw error
+        }
+        guard sqlite3_close_v2(destination) == SQLITE_OK else {
+            throw StoreError.migration(StoreError.invalidData)
         }
         let file = try FileHandle(forWritingTo: target)
         defer { try? file.close() }

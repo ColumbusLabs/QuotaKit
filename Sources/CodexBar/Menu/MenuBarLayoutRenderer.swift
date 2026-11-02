@@ -933,7 +933,7 @@ final class MenuBarLayoutRenderer {
         case .weekly:
             String(data.laneLabels.secondary.prefix(1)).uppercased()
         case .scopedWeekly:
-            data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
+            data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? (data.laneLabels.isPlugin ? "" : "F")
         case .automatic:
             ""
         case .spend:
@@ -1161,7 +1161,7 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        guard let provider = data.provider else { return data.laneLabels.primary }
+        guard let provider = data.provider else { return data.laneLabels.isPlugin ? data.laneLabels.primary : nil }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         let lane: MenuBarLayoutLane = descriptor.presentation.primarySemanticWindow == .session ? .primary : .secondary

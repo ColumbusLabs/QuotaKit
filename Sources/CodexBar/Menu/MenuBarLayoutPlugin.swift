@@ -1,6 +1,63 @@
 import AppKit
 import CodexBarCore
 
+struct MenuBarLayoutLaneLabels: Hashable {
+    private enum Label: Hashable {
+        case localized(String)
+        case supplied(String)
+
+        var value: String {
+            switch self {
+            case let .localized(key): L(key)
+            case let .supplied(text): text
+            }
+        }
+    }
+
+    let isPlugin: Bool
+    private let primaryLabel: Label
+    private let secondaryLabel: Label
+    private let tertiaryLabel: Label
+
+    var primary: String {
+        self.primaryLabel.value
+    }
+
+    var secondary: String {
+        self.secondaryLabel.value
+    }
+
+    var tertiary: String {
+        self.tertiaryLabel.value
+    }
+
+    init(provider: UsageProvider, snapshot: UsageSnapshot?) {
+        self.isPlugin = false
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let labels = snapshot.map {
+            descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: $0)
+        }
+        self.primaryLabel = .localized(labels?.primary ?? descriptor.metadata.sessionLabel)
+        self.secondaryLabel = .localized(labels?.secondary ?? descriptor.metadata.weeklyLabel)
+        self.tertiaryLabel = .localized(labels?.tertiary ?? descriptor.metadata.opusLabel ?? "Tertiary")
+    }
+
+    init(pluginSnapshot: UsageSnapshot?) {
+        self.isPlugin = true
+        self.primaryLabel = (pluginSnapshot?.primary?.title).map(Label.supplied) ?? .localized("Primary")
+        self.secondaryLabel = (pluginSnapshot?.secondary?.title).map(Label.supplied) ?? .localized("Secondary")
+        self.tertiaryLabel = (pluginSnapshot?.tertiary?.title).map(Label.supplied) ?? .localized("Tertiary")
+    }
+
+    func label(for lane: MenuBarLayoutLane) -> String {
+        switch lane {
+        case .primary: self.primary
+        case .secondary: self.secondary
+        case .tertiary: self.tertiary
+        }
+    }
+}
+
 extension MenuBarLayoutRenderData {
     static func plugin(
         instanceID: ProviderInstanceID,
@@ -81,13 +138,5 @@ extension StatusItemController {
             for: button,
             gap: self.settings.menuBarLayoutGap)
         return false
-    }
-}
-
-extension MenuBarLayoutLaneLabels {
-    init(pluginSnapshot: UsageSnapshot?) {
-        self.primary = pluginSnapshot?.primary?.title ?? L("Primary")
-        self.secondary = pluginSnapshot?.secondary?.title ?? L("Secondary")
-        self.tertiary = pluginSnapshot?.tertiary?.title ?? L("Tertiary")
     }
 }

@@ -128,6 +128,10 @@ struct CostUsageCodexSessionDiscovery: Codable, Equatable {
     var nextFileIndex: Int
     var metadataCandidateIndex: Int?
     var metadataInventoryEstablished: Bool?
+    /// Paths whose presence could not be established; retried in bounded rotating pages.
+    var metadataUnavailablePaths: [String]? = nil
+    var metadataArchivedPaths: [String]? = nil
+    var metadataPresenceEstablished: Bool? = nil
     var fileStamps: [String: FileStamp]
     var headScan: HeadScan?
     var filePathBySessionId: [String: String]

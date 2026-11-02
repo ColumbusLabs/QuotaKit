@@ -235,6 +235,7 @@ private struct PricingRaceFixture {
     func readReport() -> CostUsageDailyReport {
         let cache = CostUsageStoreAccess.read(
             cacheRoot: self.environment.cacheRoot,
+            home: self.environment.codexStoreHome,
             calendar: self.range.calendar)
         return CostUsageScanner.buildCodexReportFromCache(
             cache: cache,

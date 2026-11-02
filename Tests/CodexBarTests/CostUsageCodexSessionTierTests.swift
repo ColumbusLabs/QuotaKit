@@ -264,10 +264,68 @@ struct CostUsageCodexSessionTierTests {
         let migrated = CostUsageScanner.loadDailyReport(
             provider: .codex, since: day, until: day, now: day.addingTimeInterval(40), options: options)
         let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
-        #expect(restored.files[file.path]?.codexRows?.map(\.pricingMode) == ["standard", "priority", "standard"])
+        // Old Priority could have come from a trace that has since expired. Without saved provenance,
+        // preserve it during revision migration even when the newly parsed context says Standard.
+        #expect(restored.files[file.path]?.codexRows?.map(\.pricingMode) == ["standard", "priority", "priority"])
         #expect(migrated.summary?.totalTokens == 3300)
-        #expect(try abs(#require(migrated.summary?.totalCostUSD) - 0.00592) < 1e-12)
+        #expect(try abs(#require(migrated.summary?.totalCostUSD) - 0.0074) < 1e-12)
     }
+
+    @Test
+    func `priority learned from a trace survives reparse after the trace disappears`() throws {
+        let row = CostUsageScanner.CodexUsageRow(
+            day: "2026-10-01", model: "gpt-6.1-sol", turnID: "turn", eventIndex: 0,
+            input: 100, cached: 20, output: 10, pricingMode: "standard")
+        let trace = CostUsageScanner.CodexPriorityTurnMetadata(
+            threadID: "fixture", turnID: "turn", model: "gpt-6.1-sol", timestamp: nil)
+        let prior = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
+            [row], priorityTurns: ["turn": trace]).first)
+        #expect(prior.pricingMode == "priority")
+        let retained = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: prior.pricingModel, pricingMode: prior.pricingMode)
+        let reparsed = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
+            [row], priorityTurns: [:], preservingPricingFrom: { _ in retained }).first)
+        #expect(reparsed.pricingMode == "priority")
+        #expect(reparsed.pricingModel == prior.pricingModel)
+    }
+
+    #if canImport(SQLite3)
+    @Test
+    func `priority evidence survives trace database rotation before a reparse`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let database = env.root.appendingPathComponent("logs_2.sqlite")
+        CostUsageScanner.dropCodexPriorityTurnsMemo(databaseURL: database)
+        defer { CostUsageScanner.dropCodexPriorityTurnsMemo(databaseURL: database) }
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: database)
+        let body = "thread_id=fixture turn.id=turn websocket request: "
+            + #"{"type":"response.create","model":"gpt-6.1-sol","service_tier":"priority"}"#
+        try CostUsageSQLiteFixtures.insertTestLog(
+            dbURL: database, epochSeconds: Int64(Date().timeIntervalSince1970), body: body)
+        let originalTrace = CostUsageScanner.resolveCodexPriorityTurns(databaseURL: database)
+        #expect(!originalTrace.validationPending)
+        #expect(originalTrace.turns["turn"] != nil)
+        let row = CostUsageScanner.CodexUsageRow(
+            day: "2026-10-01", model: "gpt-6.1-sol", turnID: "turn", eventIndex: 0,
+            input: 100, cached: 20, output: 10, pricingMode: "standard")
+        let prior = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
+            [row], priorityTurns: originalTrace.turns).first)
+        #expect(prior.pricingMode == "priority")
+
+        // Keep the old inode alive while installing a valid empty replacement at the same path.
+        try FileManager.default.moveItem(at: database, to: env.root.appendingPathComponent("rotated.sqlite"))
+        try CostUsageSQLiteFixtures.createTestLogsDatabase(at: database)
+        let replacementTrace = CostUsageScanner.resolveCodexPriorityTurns(databaseURL: database)
+        #expect(!replacementTrace.validationPending)
+        #expect(replacementTrace.turns.isEmpty)
+        let retained = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: prior.pricingModel, pricingMode: prior.pricingMode)
+        let reparsed = try #require(CostUsageScanner.codexRowsWithPricingMetadata(
+            [row], priorityTurns: replacementTrace.turns, preservingPricingFrom: { _ in retained }).first)
+        #expect(reparsed.pricingMode == "priority")
+        #expect(reparsed.pricingModel == prior.pricingModel)
+    }
+    #endif
 
     private static func cost(serviceTier: String, usageKind: String) throws -> Double {
         let env = try CostUsageTestEnvironment()

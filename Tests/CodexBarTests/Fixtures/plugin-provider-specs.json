@@ -109,7 +109,8 @@
     "munito",
     "traecn",
     "chatbox",
-    "abliteration"
+    "abliteration",
+    "opendesign"
   ],
   "order": [
     "codex",
@@ -221,7 +222,8 @@
     "munito",
     "traecn",
     "chatbox",
-    "abliteration"
+    "abliteration",
+    "opendesign"
   ],
   "providers": [
     {

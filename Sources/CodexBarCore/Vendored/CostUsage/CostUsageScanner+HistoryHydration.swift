@@ -203,8 +203,9 @@ extension CostUsageScanner {
     {
         guard isForceRescan else { return }
         for key in cache.files.keys {
-            guard !preservingPaths.contains(key), let old = cache.files[key],
-                  old.codexArchived != true else { continue }
+            guard !preservingPaths.contains(key), let old = cache.files[key] else { continue }
+            let presence = Self.codexRolloutPresence(key)
+            guard presence == .plain || presence == .missing else { continue }
             guard !old.touchesCodexScanWindow(
                 sinceKey: range.scanSinceKey,
                 untilKey: range.scanUntilKey,

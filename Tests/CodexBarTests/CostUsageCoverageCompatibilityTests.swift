@@ -26,7 +26,7 @@ struct CostUsageCoverageCompatibilityTests {
     }
 
     @Test(arguments: ["1718c75982e86913", "3d2771687ba0133f", "cfd84d13ad7d4cfa"])
-    func `reviewed predecessors retain actual previous report payloads without rebuilding`(hash: String) async throws {
+    func `reviewed predecessors invalidate stale reports without rebuilding`(hash: String) async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let predecessor = CostUsageStore(
@@ -43,15 +43,8 @@ struct CostUsageCoverageCompatibilityTests {
          "timeZoneIdentifier":"GMT","roots":{"/synthetic/root":1}}
         """
         let payload = Data(json.utf8)
-        var metadata = await predecessor.fetchMetadata()
-        metadata.previousReportPayload = payload
-        #expect(await predecessor.setMetadata(metadata))
-        let current = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
-        let adopted = await current.fetchMetadata()
-        #expect(adopted.previousReportPayload == payload)
-        #expect(await current.rebuildCount == 0)
-        let retained = try JSONDecoder().decode(
-            CostUsageCodexPreviousReport.self, from: #require(adopted.previousReportPayload))
+        // The predecessor payload remains decodable, but its cost predates the Fast pricing correction.
+        let retained = try JSONDecoder().decode(CostUsageCodexPreviousReport.self, from: payload)
         #expect(retained.report.data.first?.pricedRequestCount == nil)
         #expect(retained.report.data.first?.coverageCounts.priced == 1)
         #expect(retained.report.data.first?.costUSD == 12)
@@ -60,5 +53,14 @@ struct CostUsageCoverageCompatibilityTests {
             scanUntilKey: "2026-08-01",
             timeZoneIdentifier: "GMT",
             roots: ["/synthetic/root": 1]))
+        var metadata = await predecessor.fetchMetadata()
+        metadata.lastScanUnixMs = 1234
+        metadata.previousReportPayload = payload
+        #expect(await predecessor.setMetadata(metadata))
+        let current = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let adopted = await current.fetchMetadata()
+        #expect(adopted.previousReportPayload == nil)
+        #expect(adopted.lastScanUnixMs == 1234)
+        #expect(await current.rebuildCount == 0)
     }
 }

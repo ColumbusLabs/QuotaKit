@@ -18,9 +18,11 @@ struct ClaudeCLIScopedWeeklyUsageTests {
         let fetcher = ClaudeUsageFetcher(
             browserDetection: BrowserDetection(cacheTTL: 0), environment: [:], dataSource: .cli)
         let fetchOverride: ClaudeStatusProbe.FetchOverride = { _, _, _ in status }
-        let usage = try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
-            try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                try await fetcher.loadLatestUsage(model: "sonnet")
+        let usage = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
+                try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                    try await fetcher.loadLatestUsage(model: "sonnet")
+                }
             }
         }
         let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: usage)

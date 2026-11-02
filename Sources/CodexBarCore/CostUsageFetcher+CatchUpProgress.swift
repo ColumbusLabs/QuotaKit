@@ -35,6 +35,11 @@ extension CostUsageFetcher {
                CostUsageCodexSessionDiscovery.self,
                from: discoveryPayload)
         {
+            progressHasher.combine(discovery.metadataCandidateIndex)
+            progressHasher.combine(discovery.metadataInventoryEstablished)
+            progressHasher.combine(discovery.metadataPresenceEstablished)
+            progressHasher.combine(discovery.metadataUnavailablePaths?.sorted())
+            progressHasher.combine(discovery.metadataArchivedPaths?.sorted())
             progressHasher.combine(discovery.headScan?.path)
             progressHasher.combine(discovery.headScan?.offset)
             progressHasher.combine(discovery.headScan?.resumeState?.offset)

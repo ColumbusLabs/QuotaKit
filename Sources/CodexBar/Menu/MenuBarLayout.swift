@@ -480,30 +480,6 @@ struct LenientMenuBarLayoutConditional: Decodable {
     }
 }
 
-struct MenuBarLayoutLaneLabels: Hashable {
-    let primary: String
-    let secondary: String
-    let tertiary: String
-
-    init(provider: UsageProvider, snapshot: UsageSnapshot?) {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        let labels = snapshot.map {
-            descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: $0)
-        }
-        self.primary = L(labels?.primary ?? descriptor.metadata.sessionLabel)
-        self.secondary = L(labels?.secondary ?? descriptor.metadata.weeklyLabel)
-        self.tertiary = L(labels?.tertiary ?? descriptor.metadata.opusLabel ?? "Tertiary")
-    }
-
-    func label(for lane: MenuBarLayoutLane) -> String {
-        switch lane {
-        case .primary: self.primary
-        case .secondary: self.secondary
-        case .tertiary: self.tertiary
-        }
-    }
-}
-
 /// Visible glyphs for the separator chips. Raw values are persisted discriminators and must never change.
 enum MenuBarLayoutSeparator: String, Codable, CaseIterable, Sendable {
     case pipe

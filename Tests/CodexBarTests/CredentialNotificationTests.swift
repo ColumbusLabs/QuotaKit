@@ -44,6 +44,7 @@ struct CredentialNotificationTests {
         let expired = Result<ProviderFetchResult, Error>.failure(AugmentStatusProbeError.sessionExpired)
         store.handleCredentialOutcome(provider: .augment, result: expired)
         let episodes = store.credentialNotificationEpisodes
+        #expect(episodes.count == 1)
         settings.credentialExpiryNotificationsEnabled = false
         store.handleCredentialOutcome(provider: .augment, result: expired)
         settings.credentialExpiryNotificationsEnabled = true
@@ -241,11 +242,15 @@ struct CredentialNotificationTests {
     }
 
     private static func store(_ settings: SettingsStore) -> UsageStore {
-        UsageStore(
+        let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing)
+        // State-machine fixtures simulate a successful delivery. Tests covering failed or
+        // stale callbacks replace this with their own controlled completion handler.
+        store._test_credentialNotificationPost = { _, completion in completion(true) }
+        return store
     }
 
     private static func result(source: String = "oauth", diagnostic: String? = nil) -> ProviderFetchResult {

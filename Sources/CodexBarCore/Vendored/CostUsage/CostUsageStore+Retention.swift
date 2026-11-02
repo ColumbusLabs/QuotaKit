@@ -9,6 +9,9 @@ import CSQLite3
 // MARK: - Retention
 
 extension CostUsageStore {
+    private static let noRetentionChanges = CostUsageStoreRetentionResult(
+        deletedFiles: 0, deletedTokenSnapshots: 0, deletedFileDayAggregates: 0, deletedDayAggregates: 0)
+
     /// Full-ledger publication needs accounting coverage as well as scan completion.
     /// Scoped day/window publication separately proves disjoint ranges in the scanner.
     static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer, home: String) throws -> Bool {
@@ -94,25 +97,37 @@ extension CostUsageStore {
         updateMetadata: Bool = true) throws -> CostUsageStoreRetentionResult
     {
         try self.inTransaction(database) {
+            let activeWindow = self.activeWindowMs(sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
+            // Snapshot rows can only disappear through cascading file deletion. Avoid scanning
+            // the complete token ledger twice when no file qualifies for retention.
+            let mayDeleteFiles = try !self.retentionCandidates(
+                database,
+                home: home,
+                sinceDay: sinceDay,
+                untilDay: untilDay,
+                activeWindow: activeWindow).isEmpty
+            if !mayDeleteFiles, try !self.retentionWorkExists(
+                database, home: home, sinceDay: sinceDay, untilDay: untilDay)
+            {
+                if updateMetadata {
+                    try self.updateRetentionWindow(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
+                }
+                return Self.noRetentionChanges
+            }
             // A compressed-only rollout cannot be reconstructed. Retain its file rows and
             // day aggregates even when a smaller lookback window is requested.
             if try Self.readFiles(database, home: home).contains(where: {
-                !$0.belongsToOpenCodeLocalHistory && CostUsageScanner.isArchivedCodexRollout($0.path)
+                guard !$0.belongsToOpenCodeLocalHistory else { return false }
+                let presence = CostUsageScanner.codexRolloutPresence($0.path)
+                return presence == .archived || presence == .unavailable
             }) {
-                return CostUsageStoreRetentionResult(
-                    deletedFiles: 0,
-                    deletedTokenSnapshots: 0,
-                    deletedFileDayAggregates: 0,
-                    deletedDayAggregates: 0)
+                return Self.noRetentionChanges
             }
             let beforeFiles = try self.scopedScalarInt(
                 database,
                 home: home,
                 sql: "SELECT COUNT(*) FROM files WHERE home = ?")
-            let beforeSnapshots = try self.scopedScalarInt(
-                database,
-                home: home,
-                sql: "SELECT COUNT(*) FROM token_snapshots WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
+            let beforeSnapshots = try self.snapshotCountIfNeeded(database, home: home, needed: mayDeleteFiles)
             let beforeFileAggregates = try self.scopedScalarInt(
                 database,
                 home: home,
@@ -122,7 +137,6 @@ extension CostUsageStore {
                 home: home,
                 sql: "SELECT COUNT(*) FROM day_aggregates WHERE home = ?")
 
-            let activeWindow = self.activeWindowMs(sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
             if activeWindow != nil {
                 // Native rows retain their session-level policy. A registered database can
                 // contain both recent and expired turns, so prune its usage rows individually.
@@ -160,7 +174,7 @@ extension CostUsageStore {
             // Iterate to a fixpoint: deleting a stale child releases the fork protection on
             // its stale parent, which must then be pruned in the same pass instead of
             // lingering as an unreferenced out-of-window row.
-            while true {
+            while mayDeleteFiles {
                 let round = try self.retentionCandidates(
                     database,
                     home: home,
@@ -213,24 +227,14 @@ extension CostUsageStore {
 
             try self.pruneDiscovery(database, home: home, candidates: candidates)
             if updateMetadata {
-                var metadata = try self.readSingleton(
-                    CostUsageStoreMetadata.self,
-                    database: database,
-                    table: "scan_metadata",
-                    home: home) ?? .empty
-                metadata.scanSinceDay = sinceDay
-                metadata.scanUntilDay = untilDay
-                try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+                try self.updateRetentionWindow(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
             }
 
             let afterFiles = try self.scopedScalarInt(
                 database,
                 home: home,
                 sql: "SELECT COUNT(*) FROM files WHERE home = ?")
-            let afterSnapshots = try self.scopedScalarInt(
-                database,
-                home: home,
-                sql: "SELECT COUNT(*) FROM token_snapshots WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
+            let afterSnapshots = try self.snapshotCountIfNeeded(database, home: home, needed: mayDeleteFiles)
             let afterFileAggregates = try self.scopedScalarInt(
                 database,
                 home: home,
@@ -245,6 +249,58 @@ extension CostUsageStore {
                 deletedFileDayAggregates: Int(beforeFileAggregates - afterFileAggregates),
                 deletedDayAggregates: Int(beforeAggregates - afterAggregates))
         }
+    }
+
+    /// Skip the expensive ledger and aggregate counts when no row can be removed.
+    private static func retentionWorkExists(
+        _ database: OpaquePointer,
+        home: String,
+        sinceDay: String,
+        untilDay: String) throws -> Bool
+    {
+        let statement = try self.prepare(database, """
+        SELECT EXISTS(SELECT 1 FROM files f WHERE f.home = ?1
+            AND json_extract(CAST(f.scan_state AS TEXT), '$.source') = 'opencodeLocalHistory')
+        OR EXISTS(SELECT 1 FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
+            WHERE f.home = ?1 AND (a.day < ?2 OR a.day > ?3))
+        OR EXISTS(SELECT 1 FROM file_temporal_aggregates a JOIN files f ON f.id = a.file_id
+            WHERE f.home = ?1 AND (a.day < ?2 OR a.day > ?3))
+        OR EXISTS(SELECT 1 FROM day_aggregates WHERE home = ?1 AND (day < ?2 OR day > ?3))
+        """)
+        defer { sqlite3_finalize(statement) }
+        self.bind(home, to: statement, at: 1)
+        self.bind(sinceDay, to: statement, at: 2)
+        self.bind(untilDay, to: statement, at: 3)
+        guard sqlite3_step(statement) == SQLITE_ROW else { throw self.sqliteError(database) }
+        return sqlite3_column_int(statement, 0) != 0
+    }
+
+    private static func updateRetentionWindow(
+        _ database: OpaquePointer,
+        home: String,
+        sinceDay: String,
+        untilDay: String) throws
+    {
+        var metadata = try self.readSingleton(
+            CostUsageStoreMetadata.self,
+            database: database,
+            table: "scan_metadata",
+            home: home) ?? .empty
+        metadata.scanSinceDay = sinceDay
+        metadata.scanUntilDay = untilDay
+        try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+    }
+
+    private static func snapshotCountIfNeeded(
+        _ database: OpaquePointer,
+        home: String,
+        needed: Bool) throws -> Int64
+    {
+        guard needed else { return 0 }
+        return try self.scopedScalarInt(
+            database,
+            home: home,
+            sql: "SELECT COUNT(*) FROM token_snapshots WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
     }
 
     private struct RetentionCandidate {
@@ -444,7 +500,9 @@ extension CostUsageStore {
                 {
                     // Budget eviction cannot reconstruct an archive outside the report window.
                     let hasArchives = try Self.readFiles(database, home: self.home).contains {
-                        !$0.belongsToOpenCodeLocalHistory && CostUsageScanner.isArchivedCodexRollout($0.path)
+                        guard !$0.belongsToOpenCodeLocalHistory else { return false }
+                        let presence = CostUsageScanner.codexRolloutPresence($0.path)
+                        return presence == .archived || presence == .unavailable
                     }
                     if !hasArchives {
                         let pruned = try Self.prune(
@@ -716,8 +774,8 @@ extension CostUsageStore {
             } else {
                 false
             }
-            let archived = self.columnText(statement, at: 1).map(CostUsageScanner.isArchivedCodexRollout) == true
-            let protected = zeroDayRecentlyActive || archived
+            let presence = self.columnText(statement, at: 1).map(CostUsageScanner.codexRolloutPresence)
+            let protected = zeroDayRecentlyActive || presence == .archived || presence == .unavailable
                 || (protectRequestedWindow && (touchesWindow || recentlyActive))
             if !protected {
                 let fileID = sqlite3_column_int64(statement, 0)

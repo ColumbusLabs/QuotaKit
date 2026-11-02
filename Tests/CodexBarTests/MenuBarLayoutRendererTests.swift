@@ -111,9 +111,13 @@ struct MenuBarLayoutRendererTests {
                 data: self.data(),
                 icon: nil,
                 options: self.options(colorPace: true))
-            #expect(colored.attributedTitle.string == plain.attributedTitle.string)
+            #expect(colored.attributedTitle.string == "\u{FFFC}\u{2009}" + plain.attributedTitle.string)
+            #expect(colored.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
             #expect(colored.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
                 == expected)
+            #expect(colored.attributedTitle.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor
+                == .controlTextColor)
+            #expect(colored.accessibilityLabel == plain.accessibilityLabel)
         }
     }
 
@@ -124,8 +128,11 @@ struct MenuBarLayoutRendererTests {
             data: self.data(),
             icon: nil,
             options: self.options(isStale: stale, colorPace: true, highContrast: true))
-        #expect(output.attributedTitle.string == "+11%")
+        #expect(output.attributedTitle.string == "\u{FFFC}\u{2009}+11%")
+        #expect(output.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
         #expect(output.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+            == .labelColor)
+        #expect(output.attributedTitle.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor
             == .labelColor)
     }
 
