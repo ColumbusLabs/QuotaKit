@@ -8661,8 +8661,7 @@ enum CostUsageScanner {
     private static func codexExactValidationSummary(
         cache: CostUsageCache,
         generation: String,
-        sinceKey: String,
-        untilKey: String,
+        window: (since: String, until: String),
         roots: [URL],
         excludingPaths: Set<String>) -> CodexScanProgressSummary
     {
@@ -8674,7 +8673,7 @@ enum CostUsageScanner {
         for (path, usage) in cache.files
             where !excludingPaths.contains(path)
             && usage.codexInventoryValidationGeneration == generation
-            && Self.codexUsageTouchesWindow(usage, sinceKey: sinceKey, untilKey: untilKey)
+            && Self.codexUsageTouchesWindow(usage, sinceKey: window.since, untilKey: window.until)
         {
             guard let identity = usage.codexScanFileId, identities.insert(identity).inserted else { continue }
             totalBytes += max(0, usage.size)
@@ -8812,8 +8811,7 @@ enum CostUsageScanner {
                             summary: Self.codexExactValidationSummary(
                                 cache: cache,
                                 generation: generation,
-                                sinceKey: scanSinceKey,
-                                untilKey: scanUntilKey,
+                                window: (since: scanSinceKey, until: scanUntilKey),
                                 roots: roots,
                                 excludingPaths: Set(state.exactExcludedCachePaths ?? [])),
                             isComplete: false)
@@ -8872,18 +8870,14 @@ enum CostUsageScanner {
                             summary: Self.codexExactValidationSummary(
                                 cache: cache,
                                 generation: generation,
-                                sinceKey: scanSinceKey,
-                                untilKey: scanUntilKey,
+                                window: (since: scanSinceKey, until: scanUntilKey),
                                 roots: roots,
                                 excludingPaths: Set(state.exactExcludedCachePaths ?? [])),
                             isComplete: false)
                     }
                 }
-                if page.isUnavailable {
+                if page.isUnavailable || page.nextOffset != nil {
                     state.exactInventoryFlatDirectoryOffsetByRoot?[rootPath] = page.nextOffset
-                    state.directoryPendingNamesByCursor?[flatCursorKey] = page.pendingNames
-                } else if let nextOffset = page.nextOffset {
-                    state.exactInventoryFlatDirectoryOffsetByRoot?[rootPath] = nextOffset
                     state.directoryPendingNamesByCursor?[flatCursorKey] = page.pendingNames
                 } else {
                     completedFlatRoots.insert(rootPath)
@@ -8900,8 +8894,7 @@ enum CostUsageScanner {
                 summary: Self.codexExactValidationSummary(
                     cache: cache,
                     generation: generation,
-                    sinceKey: scanSinceKey,
-                    untilKey: scanUntilKey,
+                    window: (since: scanSinceKey, until: scanUntilKey),
                     roots: roots,
                     excludingPaths: Set(state.exactExcludedCachePaths ?? [])),
                 isComplete: false)
@@ -8927,8 +8920,7 @@ enum CostUsageScanner {
                     summary: Self.codexExactValidationSummary(
                         cache: cache,
                         generation: generation,
-                        sinceKey: scanSinceKey,
-                        untilKey: scanUntilKey,
+                        window: (since: scanSinceKey, until: scanUntilKey),
                         roots: roots,
                         excludingPaths: excludedPaths),
                     isComplete: false)
@@ -8951,8 +8943,7 @@ enum CostUsageScanner {
                     summary: Self.codexExactValidationSummary(
                         cache: cache,
                         generation: generation,
-                        sinceKey: scanSinceKey,
-                        untilKey: scanUntilKey,
+                        window: (since: scanSinceKey, until: scanUntilKey),
                         roots: roots,
                         excludingPaths: Set(state.exactExcludedCachePaths ?? [])),
                     isComplete: false)
@@ -8974,8 +8965,7 @@ enum CostUsageScanner {
         let summary = Self.codexExactValidationSummary(
             cache: cache,
             generation: generation,
-            sinceKey: scanSinceKey,
-            untilKey: scanUntilKey,
+            window: (since: scanSinceKey, until: scanUntilKey),
             roots: roots,
             excludingPaths: Set(state.exactExcludedCachePaths ?? []))
         return CodexExactValidationResult(
