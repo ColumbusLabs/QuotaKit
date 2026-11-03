@@ -95,7 +95,7 @@ enum ProviderPluginHTTPResponse {
         }
     }
 
-    private enum Completion: Sendable {
+    enum Completion: Sendable {
         case primary(ProviderHTTPResponse)
         case optional(ProviderHTTPResponse?)
         case budgetExpired
@@ -162,6 +162,7 @@ enum ProviderPluginHTTPResponse {
                     optionalFinished = true
                 case .budgetExpired: budgetExpired = true
                 }
+                contextOptions.didCollectHTTPCompletion?(completion)
                 // After expiry, retain optional results only while the required request is still pending.
                 if let primary, optionalFinished || budgetExpired || !(200..<300).contains(primary.statusCode) {
                     break

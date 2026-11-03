@@ -39,7 +39,8 @@ struct CostUsageCodexAppendProofTests {
         let initial = CostUsageScanner.loadDailyReport(
             provider: .codex, since: day, until: day, now: day.addingTimeInterval(51), options: options)
         #expect(initial.summary?.totalTokens == 500)
-        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[file.path]?.codexLedgerRevision != nil)
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files[file.path]?
+            .codexLedgerRevision != nil)
 
         let comparedPrefixItems = LockIsolated(0)
         var hooks = CostUsageStoreTestHooks()
@@ -61,7 +62,7 @@ struct CostUsageCodexAppendProofTests {
                 #expect(report.summary?.totalTokens == index * 10)
             }
             #expect(comparedPrefixItems.value == 0)
-            let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             #expect(reopened.files[file.path]?.codexRows?.count == 55)
             #expect(reopened.files[file.path]?.codexTokenSnapshots?.count == 55)
 
@@ -92,8 +93,9 @@ struct CostUsageCodexAppendProofTests {
                 requestMirrorKeys: first.requestMirrorKeys)
             repricedUsage.codexRows = rows
             repriced.files[file.path] = repricedUsage
-            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: repriced).catchUpRequired)
-            #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: repriced)
+                .catchUpRequired)
+            #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 .files[file.path]?.codexLedgerRevision != oldRevision)
 
             var staleAppend = original
@@ -125,7 +127,8 @@ struct CostUsageCodexAppendProofTests {
             var staleCache = reopened
             staleCache.files[file.path] = staleAppend
             comparedPrefixItems.setValue(0)
-            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache).catchUpRequired)
+            #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: staleCache)
+                .catchUpRequired)
             #expect(comparedPrefixItems.value >= 55)
         }
     }

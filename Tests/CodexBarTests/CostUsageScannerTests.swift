@@ -1543,6 +1543,10 @@ struct CostUsageTestEnvironment {
     let cacheRoot: URL
     let codexHomeRoot: URL
     let codexSessionsRoot: URL
+    var codexStoreHome: String {
+        CodexHomeCostStoreScope.key(sessionsRoot: self.codexSessionsRoot)
+    }
+
     let codexArchivedSessionsRoot: URL
     let claudeProjectsRoot: URL
     let piSessionsRoot: URL

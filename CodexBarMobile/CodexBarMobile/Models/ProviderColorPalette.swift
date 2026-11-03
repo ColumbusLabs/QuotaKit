@@ -125,6 +125,7 @@ enum ProviderColorPalette {
             (["cursor"], RawColor(red: 245 / 255, green: 78 / 255, blue: 0)),
             (["opencode"], RawColor(red: 14 / 255, green: 165 / 255, blue: 233 / 255)),
             (["opencodego"], RawColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255)),
+            (["opendesign"], RawColor(red: 32 / 255, green: 32 / 255, blue: 32 / 255)),
             (["alibaba", "bailian"], RawColor(red: 1, green: 106 / 255, blue: 0)),
             (
                 ["alibabatokenplan", "alibabatoken", "bailiantokenplan"],

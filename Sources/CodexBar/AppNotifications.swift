@@ -29,7 +29,10 @@ final class AppNotifications {
         isCurrent: @escaping @MainActor () -> Bool = { true },
         onCompletion: (@MainActor (Bool) -> Void)? = nil)
     {
-        guard !Self.isRunningUnderTests else { return }
+        guard !Self.isRunningUnderTests else {
+            onCompletion?(false)
+            return
+        }
         let center = self.centerProvider()
         let logger = self.logger
 

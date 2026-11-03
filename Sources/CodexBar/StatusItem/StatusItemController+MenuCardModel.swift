@@ -188,8 +188,12 @@ extension StatusItemController {
                     historySelection: historySelectionOverride,
                     usesLiveAccount: surface == .liveCard)
                 : [])
-        return UsageMenuCardView.Model.make(input).applyingUsageItemVisibility(
+        var model = UsageMenuCardView.Model.make(input).applyingUsageItemVisibility(
             hiddenItemIDs: self.settings.hiddenUsageItemIDs(for: target))
+        if surface == .liveCard, let name = self.store.codexMenuAccountName(for: target, context: .menu) {
+            model.providerName = name
+        }
+        return model
     }
 
     private func menuCardSnapshot(

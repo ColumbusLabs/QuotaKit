@@ -61,6 +61,15 @@ extension CostUsageScanner {
         self.codexIntByDayModel(cache: cache, range: range) { $0.codexPriorityTokens }
     }
 
+    /// Source qualification only. The collecting machine decides whether custom rates override it.
+    static func codexAutoReviewIsIncludedInPlan(
+        model: String, timestampUnixMs: Int64?, hasCreatorAccount: Bool) -> Bool
+    {
+        hasCreatorAccount
+            && timestampUnixMs.map { $0 >= 1_791_270_000_000 } == true // 2026-10-06 00:00 PDT.
+            && CostUsagePricing.normalizeCodexModel(model) == "codex-auto-review"
+    }
+
     static func codexReportDayKeys(cache: CostUsageCache, range: CostUsageDayRange) -> [String] {
         cache.days.keys.sorted().filter {
             CostUsageDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
@@ -229,6 +238,7 @@ extension CostUsageScanner {
         sessionId: String? = nil,
         forkedFromId: String? = nil,
         forkBaselineDependencyKey: String? = nil,
+        codexForkSourceGeneration: String? = nil,
         projectPath: String? = nil,
         canonicalProjectPath: String? = nil,
         codexCostCacheComplete: Bool? = true,
@@ -275,6 +285,7 @@ extension CostUsageScanner {
             sessionId: sessionId,
             forkedFromId: forkedFromId,
             forkBaselineDependencyKey: forkBaselineDependencyKey,
+            codexForkSourceGeneration: codexForkSourceGeneration,
             projectPath: projectPath,
             canonicalProjectPath: canonicalProjectPath,
             codexCostCacheComplete: codexCostCacheComplete,
@@ -397,6 +408,8 @@ extension CostUsageScanner {
         rows.map { row in
             let retained = retainedPricing?(row)
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
+            // Saved Priority can originate from an authoritative trace that is no longer available.
+            // Without persisted provenance, do not downgrade it based on a later Standard observation.
             let isPriority = priorityMetadata != nil
                 || retained?.pricingMode == "priority"
                 || row.pricingMode == "priority"
@@ -788,7 +801,7 @@ extension CostUsageScanner {
         let forceFullScan = context.forceFullScan
             || context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
             || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
-        guard let cached = input.cached, cached.hasCurrentCodexParser,
+        guard let cached = input.cached, cached.hasCurrentCodexParser, cached.codexArchived != true,
               !cached.hasPendingCodexForkRetry else { return false }
         guard !context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(input.fileURL)),
               !Self.codexFileNeedsSourceRowRecovery(cached, context: context) else { return false }
@@ -919,7 +932,7 @@ extension CostUsageScanner {
         let forceFullScanForRetry = context.forceFullScanPathKeys.contains(Self.codexPathKey(input.fileURL))
             || cache.codexHistoryHydrationRetries?[Self.codexResolvedPath(input.fileURL)]?.forceFullRescan == true
         let forceFullScan = context.forceFullScan || forceFullScanForRetry
-        guard let cached = input.cached, cached.hasCurrentCodexParser,
+        guard let cached = input.cached, cached.hasCurrentCodexParser, cached.codexArchived != true,
               cached.sessionId != nil else { return false }
         let allowsBufferedForkRetry = !forceFullScanForRetry && Self.isValidatedSameSizeBufferedCodexForkRetry(
             metadata: input.metadata,
@@ -1279,6 +1292,7 @@ extension CostUsageScanner {
             codexBufferedUnresolvedForkLines: delta.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
         fileUsage.codexNextUsageRowIndex = delta.nextUsageRowIndex
+        fileUsage.codexForkSourceGeneration = cached.codexForkSourceGeneration
         Self.retainCodexSourcePricing(
             &fileUsage,
             pricing: sourcePricing,

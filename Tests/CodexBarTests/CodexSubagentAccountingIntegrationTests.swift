@@ -200,7 +200,7 @@ struct CodexSubagentAccountingIntegrationTests {
             options: options)
         #expect(report.data.first?.totalTokens == 165)
 
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let childUsages = cache.files.values.filter { $0.sessionId?.hasPrefix("marker-child") == true }
         #expect(childUsages.count == 3)
         #expect(childUsages.allSatisfy {
@@ -713,7 +713,7 @@ struct CodexSubagentAccountingIntegrationTests {
             options: options)
         #expect(second.data.first?.totalTokens == 55)
 
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let usage = try #require(cache.files.values.first { $0.sessionId == "growing-child" })
         #expect(usage.sessionId == "growing-child")
         #expect(usage.forkedFromId == "growing-parent")
@@ -741,9 +741,9 @@ struct CodexSubagentAccountingIntegrationTests {
             now: day,
             options: cleanOptions)
         let actualLedger = try PersistedCodexLedger.read(
-            databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
+            databaseURL: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL)
         let cleanLedger = try PersistedCodexLedger.read(
-            databaseURL: CostUsageStore(cacheRoot: cleanEnv.cacheRoot).databaseURL)
+            databaseURL: CostUsageStore(cacheRoot: cleanEnv.cacheRoot, home: cleanEnv.codexStoreHome).databaseURL)
         #expect(actualLedger.usageRows == cleanLedger.usageRows)
     }
 
@@ -841,7 +841,10 @@ extension CodexSubagentAccountingIntegrationTests {
         var offsets: [Int64] = []
         var boundedReport: CostUsageDailyReport?
         for pass in 0..<12 {
-            let reopened = CostUsageStoreAccess.load(cacheRoot: env.cacheRoot, calendar: options.calendar)
+            let reopened = CostUsageStoreAccess.load(
+                cacheRoot: env.cacheRoot,
+                home: env.codexStoreHome,
+                calendar: options.calendar)
             if let previous = offsets.last {
                 #expect(reopened.cache.files.values.first?.parsedBytes == previous)
             }
@@ -852,7 +855,7 @@ extension CodexSubagentAccountingIntegrationTests {
                 now: day.addingTimeInterval(Double(pass + 1)),
                 options: options)
             let usage = try #require(
-                CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.values.first {
+                CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.values.first {
                     $0.sessionId == "ordinary-long"
                 })
             let parsedBytes = try #require(usage.parsedBytes)
@@ -885,17 +888,17 @@ extension CodexSubagentAccountingIntegrationTests {
             now: day,
             options: cleanOptions)
         let cleanUsage = try #require(
-            CostUsageStoreAccess.read(cacheRoot: cleanEnv.cacheRoot).files.values.first {
+            CostUsageStoreAccess.read(cacheRoot: cleanEnv.cacheRoot, home: cleanEnv.codexStoreHome).files.values.first {
                 $0.sessionId == "ordinary-long"
             })
         let cleanLedger = try PersistedCodexLedger.read(
-            databaseURL: CostUsageStore(cacheRoot: cleanEnv.cacheRoot).databaseURL)
+            databaseURL: CostUsageStore(cacheRoot: cleanEnv.cacheRoot, home: cleanEnv.codexStoreHome).databaseURL)
         let finalUsage = try #require(
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files.values.first {
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.values.first {
                 $0.sessionId == "ordinary-long"
             })
         let finalLedger = try PersistedCodexLedger.read(
-            databaseURL: CostUsageStore(cacheRoot: env.cacheRoot).databaseURL)
+            databaseURL: CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL)
         #expect(boundedReport.map { entriesWithoutDayEvidence($0.data) } == entriesWithoutDayEvidence(cleanReport.data))
         #expect(boundedReport.map { hasValidCodexDayEvidence($0.data, options: options) } == true)
         #expect(hasValidCodexDayEvidence(cleanReport.data, options: cleanOptions))
@@ -974,12 +977,14 @@ private final class GrowingSubagentReplacementScenario {
                 options: options)
             let committedEntry = try #require(committed.data.first)
             #expect(committedEntry.totalTokens == 2200)
-            let storeURL = CostUsageStore(cacheRoot: environment.cacheRoot).databaseURL
+            let storeURL = CostUsageStore(cacheRoot: environment.cacheRoot, home: environment.codexStoreHome)
+                .databaseURL
             let committedLedger = try PersistedCodexLedger.read(databaseURL: storeURL)
             let committedParsedBytes = try #require(
-                CostUsageStoreAccess.read(cacheRoot: environment.cacheRoot).files.values.first {
-                    $0.sessionId == childID
-                }?.parsedBytes)
+                CostUsageStoreAccess.read(cacheRoot: environment.cacheRoot, home: environment.codexStoreHome).files
+                    .values.first {
+                        $0.sessionId == childID
+                    }?.parsedBytes)
 
             self.env = environment
             self.day = day
@@ -1026,6 +1031,7 @@ private final class GrowingSubagentReplacementScenario {
         for (pass, chunk) in self.appendChunks.enumerated() {
             let reopened = CostUsageStoreAccess.load(
                 cacheRoot: self.env.cacheRoot,
+                home: self.env.codexStoreHome,
                 calendar: self.options.calendar)
             let reopenedUsage = try #require(reopened.cache.files.values.first { $0.sessionId == self.childID })
             #expect(reopenedUsage.parsedBytes == lastParsedBytes)
@@ -1045,7 +1051,7 @@ private final class GrowingSubagentReplacementScenario {
                 options: self.options)
             let entry = try #require(report.data.first)
             #expect(entry == self.committedEntry)
-            let pendingCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot)
+            let pendingCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot, home: self.env.codexStoreHome)
             let pendingUsage = try #require(pendingCache.files.values.first { $0.sessionId == self.childID })
             #expect(pendingUsage.codexReplacementScanPending == true)
             #expect(pendingUsage.parsedBytes ?? 0 > lastStagedParsedBytes)
@@ -1088,10 +1094,11 @@ private final class GrowingSubagentReplacementScenario {
             now: self.day,
             options: options)
         let usage = try #require(
-            CostUsageStoreAccess.read(cacheRoot: environment.cacheRoot).files.values.first {
-                $0.sessionId == self.childID
-            })
-        let storeURL = CostUsageStore(cacheRoot: environment.cacheRoot).databaseURL
+            CostUsageStoreAccess.read(cacheRoot: environment.cacheRoot, home: environment.codexStoreHome).files.values
+                .first {
+                    $0.sessionId == self.childID
+                })
+        let storeURL = CostUsageStore(cacheRoot: environment.cacheRoot, home: environment.codexStoreHome).databaseURL
         let ledger = try PersistedCodexLedger.read(databaseURL: storeURL)
         return (
             report,
@@ -1119,7 +1126,7 @@ private final class GrowingSubagentReplacementScenario {
         #expect(hasValidCodexDayEvidence(finalReport.data, options: self.options))
         #expect(hasValidCodexDayEvidence(clean.report.data, scopeID: clean.evidenceScopeID))
         #expect(finalReport.summary == clean.report.summary)
-        let finalCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot)
+        let finalCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot, home: self.env.codexStoreHome)
         let finalUsage = try #require(finalCache.files.values.first { $0.sessionId == self.childID })
         #expect(finalUsage.codexRows == clean.usage.codexRows)
         #expect(finalUsage.codexTokenSnapshots == clean.usage.codexTokenSnapshots)
@@ -1138,7 +1145,7 @@ private final class GrowingSubagentReplacementScenario {
             options: self.options)
         #expect(idempotentReport.data == finalReport.data)
         #expect(idempotentReport.summary == finalReport.summary)
-        let idempotentCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot)
+        let idempotentCache = CostUsageStoreAccess.read(cacheRoot: self.env.cacheRoot, home: self.env.codexStoreHome)
         let idempotentUsage = try #require(idempotentCache.files.values.first { $0.sessionId == self.childID })
         #expect(idempotentUsage.codexRows == finalUsage.codexRows)
         #expect(idempotentUsage.codexTokenSnapshots == finalUsage.codexTokenSnapshots)
@@ -1378,9 +1385,9 @@ private struct PersistedCodexLedger: Equatable {
         let fileDayAggregates = try connection.rows(
             "SELECT * FROM file_day_aggregates ORDER BY file_id,day,model")
         let dayAggregates = try connection.rows(
-            "SELECT * FROM day_aggregates ORDER BY day,model")
+            "SELECT * FROM day_aggregates ORDER BY day,model", excludingHome: true)
         let verifiedDayAggregates = try connection.rows(
-            "SELECT * FROM verified_day_aggregates ORDER BY day,model")
+            "SELECT * FROM verified_day_aggregates ORDER BY day,model", excludingHome: true)
         return Self(
             usageRows: usageRows,
             tokenSnapshots: tokenSnapshots,
@@ -1409,7 +1416,7 @@ private final class SQLiteLedgerConnection: @unchecked Sendable {
         }
     }
 
-    func rows(_ sql: String) throws -> [String] {
+    func rows(_ sql: String, excludingHome: Bool = false) throws -> [String] {
         var statement: OpaquePointer?
         let prepareResult = sqlite3_prepare_v2(database, sql, -1, &statement, nil)
         guard prepareResult == SQLITE_OK, let statement else {
@@ -1433,6 +1440,9 @@ private final class SQLiteLedgerConnection: @unchecked Sendable {
 
             var fields = [String]()
             for column in 0..<sqlite3_column_count(statement) {
+                if excludingHome, let name = sqlite3_column_name(statement, column), String(cString: name) == "home" {
+                    continue
+                }
                 switch sqlite3_column_type(statement, column) {
                 case SQLITE_NULL:
                     fields.append("NULL")

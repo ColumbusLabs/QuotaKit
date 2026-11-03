@@ -3,6 +3,114 @@ import Testing
 @testable import CodexBarCore
 
 struct CodexDirectForkBaselineTests {
+    #if DEBUG
+    @Test(arguments: [false, true])
+    func `replacement fork resume replays its source when ancestry changes between pages`(
+        mutationDuringRead: Bool) throws
+    {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let parentDay = try env.makeLocalNoon(year: 2026, month: 9, day: 16)
+        let childDay = try env.makeLocalNoon(year: 2026, month: 9, day: 17)
+        func token(_ total: Int, last: Int?, at date: Date) -> [String: Any] {
+            var info: [String: Any] = [
+                "model": "gpt-5.4", "total_token_usage": ["input_tokens": total, "output_tokens": 0],
+            ]
+            if let last { info["last_token_usage"] = ["input_tokens": last, "output_tokens": 0] }
+            return [
+                "type": "event_msg", "timestamp": env.isoString(for: date),
+                "payload": ["type": "token_count", "info": info],
+            ]
+        }
+        func parentContents(_ total: Int) throws -> String {
+            try env.jsonl([
+                ["type": "session_meta", "payload": ["id": "parent"]],
+                token(total, last: total, at: parentDay),
+            ])
+        }
+        let parent = try env.writeCodexSessionFile(
+            day: parentDay,
+            filename: "parent.jsonl",
+            contents: parentContents(1000))
+        let child = try env.writeCodexSessionFile(
+            day: childDay,
+            filename: "child.jsonl",
+            contents: env.jsonl([
+                ["type": "session_meta", "payload": [
+                    "id": "child", "forked_from_id": "parent",
+                    "timestamp": env.isoString(for: parentDay.addingTimeInterval(1)),
+                ]],
+                token(1000, last: nil, at: childDay),
+                token(1100, last: 100, at: childDay.addingTimeInterval(1)),
+            ]))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
+        options.refreshMinIntervalSeconds = 0
+        var clock = childDay
+        func scan() -> CostUsageDailyReport {
+            clock.addTimeInterval(1)
+            return CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: childDay,
+                until: childDay,
+                now: clock,
+                options: options)
+        }
+        #expect(scan().summary?.totalTokens == 100)
+        options.forceRescan = true
+        options.maxCodexScanBytesPerRefresh = 256
+        _ = scan()
+        options.forceRescan = false
+        let prefix = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let staged = try #require(prefix.files[child.path])
+        #expect(staged.codexReplacementScanPending == true)
+        #expect(staged.codexForkAccountingState != nil)
+        let originalKey = try #require(staged.forkBaselineDependencyKey)
+        #expect((staged.parsedBytes ?? 0) > 0)
+        #expect((staged.parsedBytes ?? 0) < staged.size)
+
+        let updatedParent = try parentContents(1010)
+        if mutationDuringRead {
+            let mutation = ForkResumeMutationGate()
+            var hooks = CostUsageStoreTestHooks()
+            hooks.codexReplacementSourceRead = { path in
+                guard path == child.path, mutation.claim() else { return }
+                try updatedParent.write(to: parent, atomically: true, encoding: .utf8)
+            }
+            _ = CostUsageStoreTestHooks.$current.withValue(hooks) { scan() }
+            #expect(mutation.didFire)
+        } else {
+            try updatedParent.write(to: parent, atomically: true, encoding: .utf8)
+            _ = scan()
+        }
+        let changed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(changed.codexScanCatchUpPending == true)
+        #expect(changed.files[child.path]?.codexReplacementScanPending == true)
+        #expect(Self.inputTokens(in: changed.files[child.path]?.days ?? [:]) == 100)
+        if mutationDuringRead { #expect(changed.files[child.path]?.parsedBytes == 0) }
+        var report: CostUsageDailyReport?
+        for _ in 0..<80 {
+            report = scan()
+            let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            if cache.codexScanCatchUpPending != true { break }
+        }
+        let complete = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        let replayed = try #require(complete.files[child.path])
+        #expect(complete.codexScanCatchUpPending == false)
+        #expect(report?.summary?.totalTokens == 90)
+        #expect(Self.inputTokens(in: replayed.days) == 90)
+        let currentKey = try #require(replayed.forkBaselineDependencyKey)
+        #expect(currentKey != originalKey)
+        let resolver = CostUsageScanner.CodexInheritedTotalsResolver(
+            fileIndex: .init(files: [parent, child], roots: [], cachedSessionFiles: ["parent": parent]),
+            checkCancellation: nil,
+            cachedFiles: complete.files)
+        #expect(try resolver.currentDependencyKey(for: "parent") == currentKey)
+    }
+    #endif
+
     @Test(arguments: [0, 3, 8], [false, true])
     func `direct fork chains preserve cumulative inheritance`(parentEventTime: Int, bounded: Bool) throws {
         let env = try CostUsageTestEnvironment()
@@ -58,15 +166,15 @@ struct CodexDirectForkBaselineTests {
         var clock = day
         for pass in 0..<4 {
             if pass == 2 {
-                var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+                var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 for path in legacy.files.keys {
                     legacy.files[path]?.codexParserRevision = 5
                 }
-                CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: legacy)
+                CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: legacy)
             }
             options.forceRescan = pass == 3
             let report = try self.completedScan(env: env, day: day, options: options, clock: &clock)
-            let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             let child = try #require(cache.files.values.first { $0.sessionId == "child" })
             let expected = 1020 + (parentEventTime > 0 ? 40 : 0)
             #expect(child.codexRows?.map(\.input) == [20])
@@ -85,7 +193,7 @@ struct CodexDirectForkBaselineTests {
         }
         #expect(totals?.input == inherited)
         if parentEventTime == 3, !bounded {
-            let cached = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let cached = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             var independent = try #require(cached.files[parentFile.path])
             #expect(independent.codexForkAccountingState != nil)
             independent.forkBaselineDependencyKey = CostUsageScanner.codexForkDependencyNotRequiredKey
@@ -136,7 +244,7 @@ struct CodexDirectForkBaselineTests {
             }
             options.forceRescan = false
             _ = try self.completedScan(env: env, day: day, options: options, clock: &clock)
-            let child = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let child = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 .files.values.first { $0.sessionId == "child" })
             #expect(child.codexRows?.map(\.input) == [10])
         }
@@ -220,7 +328,7 @@ struct CodexDirectForkBaselineTests {
             _ = CostUsageScanner.loadDailyReport(
                 provider: .codex, since: day, until: day, now: clock, options: options)
         }
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let child = try #require(cache.files.values.first { $0.sessionId == "child" })
         #expect(child.codexRows?.isEmpty != false)
         #expect(child.hasBufferedCodexForkRetryLines)
@@ -240,7 +348,7 @@ struct CodexDirectForkBaselineTests {
             let report = CostUsageScanner.loadDailyReport(
                 provider: .codex, since: day, until: day, now: clock, options: options)
             options.forceRescan = false
-            let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             if cache.files.count == 3, cache.codexScanCatchUpPending != true,
                cache.files.values.allSatisfy({
                    $0.codexScanComplete == true && $0.hasCurrentCodexParser && !$0.hasBufferedCodexForkRetryLines
@@ -256,3 +364,22 @@ struct CodexDirectForkBaselineTests {
         days.values.flatMap(\.values).reduce(0) { $0 + ($1.first ?? 0) }
     }
 }
+
+#if DEBUG
+private final class ForkResumeMutationGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fired = false
+
+    func claim() -> Bool {
+        self.lock.withLock {
+            guard !self.fired else { return false }
+            self.fired = true
+            return true
+        }
+    }
+
+    var didFire: Bool {
+        self.lock.withLock { self.fired }
+    }
+}
+#endif

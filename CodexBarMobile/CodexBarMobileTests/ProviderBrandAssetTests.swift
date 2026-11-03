@@ -8,6 +8,7 @@ struct ProviderBrandAssetTests {
     @Test
     func `Known providers resolve to provider icon assets`() {
         #expect(ProviderBrandAsset.assetName(for: "codex") == "ProviderIcon-codex")
+        #expect(ProviderBrandAsset.assetName(for: "opendesign") == "ProviderIcon-opendesign")
         #expect(ProviderBrandAsset.assetName(for: "chatbox") == "ProviderIcon-chatbox")
         #expect(ProviderBrandAsset.assetName(for: "Chatbox AI") == "ProviderIcon-chatbox")
         #expect(ProviderBrandAsset.assetName(for: "abliteration") == "ProviderIcon-abliteration")

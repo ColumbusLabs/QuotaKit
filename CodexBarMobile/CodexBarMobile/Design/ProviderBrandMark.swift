@@ -74,6 +74,7 @@ enum ProviderBrandAsset {
         "ollama",
         "opencode",
         "opencodego",
+        "opendesign",
         "openrouter",
         "perplexity",
         "poe",

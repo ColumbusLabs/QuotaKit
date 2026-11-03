@@ -22,9 +22,11 @@ struct SpendDashboardLoadLivenessTests {
             .init(mode: .refreshMissing, request: Self.request(revisionD, mode: .refreshMissing)),
         ])
         let loader = SpendDashboardLivenessLoaderGate()
+        let publicationGate = SpendDashboardLivenessModelPublicationGate()
         let controller = SpendDashboardController(
             requestBuilder: { mode in await builder.next(mode) },
-            loader: { request in await loader.load(request) })
+            loader: { request in await loader.load(request) },
+            publicationHandler: { publicationGate.observe($0) })
 
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
@@ -39,7 +41,7 @@ struct SpendDashboardLoadLivenessTests {
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
-        await Self.waitForModelDerivation(controller)
+        await publicationGate.waitForTotalCost(5)
 
         // The identity-safe completed result must become visible even though
         // newer same-owner revisions arrived while it ran.
@@ -50,8 +52,9 @@ struct SpendDashboardLoadLivenessTests {
         #expect(controller.generation == 2)
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        await publicationGate.waitForTotalCost(9)
 
+        #expect(!controller.isRefreshing && !controller.isModelDerivationInFlight)
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == revisionD)
         #expect(builder.modes == [.refreshMissing, .refreshMissing])

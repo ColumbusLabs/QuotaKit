@@ -1,6 +1,70 @@
 import Foundation
 
 extension CostUsageScanner {
+    /// A replacement prefix owns one inherited baseline. Validate it before admission,
+    /// so a changed ancestor restarts both accounting and the charged source-byte range.
+    static func prepareCodexReplacementForkResume(
+        fileURL: URL,
+        metadata: CodexFileMetadata,
+        context: CodexFileScanContext,
+        cache: inout CostUsageCache) throws -> Bool
+    {
+        let input = CodexFileScanInput(fileURL: fileURL, metadata: metadata, cached: cache.files[metadata.path])
+        guard var cached = input.cached,
+              cached.codexReplacementScanPending == true,
+              cached.codexForkAccountingState != nil,
+              cached.forkBaselineDependencyKey != Self.codexForkDependencyNotRequiredKey,
+              Self.codexReplacementResumeOffset(input: input) != nil,
+              let parentID = cached.forkedFromId
+        else { return true }
+        guard let current = try context.resources.inheritedResolver.currentDependencyKey(for: parentID)
+        else { return false }
+        guard current != cached.forkBaselineDependencyKey else { return true }
+
+        // These fields belong to the uncommitted replacement only. Its committed rows,
+        // snapshots, prices, and aggregate contribution remain intact until replay completes.
+        cached.parsedBytes = 0
+        cached.codexScanComplete = false
+        cached.codexJSONLResumeState = nil
+        cached.codexTokenIndexAnchor = nil
+        cached.codexForkAccountingState = nil
+        cached.forkBaselineDependencyKey = nil
+        cached.codexStagedRecoveryRows = nil
+        cached.codexStagedRecoverySnapshots = nil
+        cached.codexBufferedUnresolvedForkLines = nil
+        cached.codexHasBufferedUnresolvedForkLines = nil
+        cache.files[metadata.path] = cached
+        context.resources.inheritedResolver.updateCachedUsage(fileURL: fileURL, usage: cached)
+        return true
+    }
+
+    static func codexResumedReplacementForkDependencyKey(
+        input: CodexFileScanInput,
+        context: CodexFileScanContext) throws -> String?
+    {
+        guard codexReplacementResumeOffset(input: input) != nil,
+              let cached = input.cached,
+              try canResumeCodexForkAccounting(cached, context: context)
+        else { return nil }
+        return cached.forkBaselineDependencyKey
+    }
+
+    static func codexBufferedForkWaitsForParent(
+        _ cached: CostUsageFileUsage?,
+        inheritedResolver: CodexInheritedTotalsResolver) throws -> Bool
+    {
+        guard let cached,
+              let parentID = cached.forkedFromId,
+              let buffered = cached.codexBufferedUnresolvedForkLines,
+              let forkTimestamp = buffered.compactMap({ line -> String? in
+                  guard case let .sessionMeta(metadata) = line.line else { return nil }
+                  return metadata.forkTimestamp
+              }).first,
+              case .unresolved = try inheritedResolver.inheritedTotals(for: parentID, atOrBefore: forkTimestamp)
+        else { return false }
+        return inheritedResolver.dependencyKeyUsed(for: parentID).map(Self.codexDependencyIsMissing) != true
+    }
+
     static func codexBufferedForkHasMetadata(_ cached: CostUsageFileUsage) -> Bool {
         ((cached.codexBufferedUnresolvedForkLines ?? []) + (cached.codexBufferedSubagentLines ?? []))
             .contains { buffered in

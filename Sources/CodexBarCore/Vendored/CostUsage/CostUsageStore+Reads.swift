@@ -11,9 +11,10 @@ import CSQLite3
 extension CostUsageStore {
     func fetchFile(path: String) -> CostUsageStoreFile? {
         self.withDatabase(default: nil) { database in
-            let statement = try Self.prepare(database, Self.fileSelectSQL + " WHERE path = ?")
+            let statement = try Self.prepare(database, Self.fileSelectSQL + " WHERE path = ? AND home = ?")
             defer { sqlite3_finalize(statement) }
             Self.bind(path, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 2)
             guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
             return try Self.decodeFile(statement)
         }
@@ -21,7 +22,7 @@ extension CostUsageStore {
 
     func fetchTokenSnapshots(path: String) -> [CostUsageStoreTokenSnapshot] {
         self.withDatabase(default: []) { database in
-            try Self.readTokenSnapshots(database, path: path, storeURL: self.databaseURL)
+            try Self.readTokenSnapshots(database, path: path, home: self.home, storeURL: self.databaseURL)
         }
     }
 
@@ -61,8 +62,9 @@ extension CostUsageStore {
                     snapshots: Self.readTokenSnapshots(
                         database,
                         paths: unloadedPaths,
+                        home: self.home,
                         storeURL: self.databaseURL),
-                    counts: Self.readTokenSnapshotCounts(database, paths: unloadedPaths))
+                    counts: Self.readTokenSnapshotCounts(database, paths: unloadedPaths, home: self.home))
             }
         }
         guard let read else { return .unavailable }
@@ -116,7 +118,7 @@ extension CostUsageStore {
 
     func fetchUsageRows(path: String) -> [CostUsageStoreUsageRow] {
         self.withDatabase(default: []) { database in
-            try Self.readUsageRows(database, path: path)
+            try Self.readUsageRows(database, path: path, home: self.home)
         }
     }
 
@@ -126,10 +128,11 @@ extension CostUsageStore {
             SELECT
                 (SELECT COUNT(*) FROM token_snapshots WHERE file_id = f.id),
                 (SELECT COUNT(*) FROM usage_rows WHERE file_id = f.id)
-            FROM files f WHERE f.path = ?
+            FROM files f WHERE f.path = ? AND f.home = ?
             """)
             defer { sqlite3_finalize(statement) }
             Self.bind(path, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 2)
             guard sqlite3_step(statement) == SQLITE_ROW else { return (0, 0) }
             return (Int(sqlite3_column_int64(statement, 0)), Int(sqlite3_column_int64(statement, 1)))
         }
@@ -138,19 +141,19 @@ extension CostUsageStore {
     func fetchDayAggregates(sinceDay: String, untilDay: String) -> [CostUsageStoreDayAggregate] {
         guard sinceDay <= untilDay else { return [] }
         return self.withDatabase(default: []) { database in
-            try Self.readDayAggregates(database, sinceDay: sinceDay, untilDay: untilDay)
+            try Self.readDayAggregates(database, home: self.home, sinceDay: sinceDay, untilDay: untilDay)
         }
     }
 
     func fetchFileDayAggregates(path: String) -> [CostUsageStoreDayAggregate] {
         self.withDatabase(default: []) { database in
-            try Self.readFileDayAggregates(database, path: path).map(\.aggregate)
+            try Self.readFileDayAggregates(database, path: path, home: self.home).map(\.aggregate)
         }
     }
 
     func fetchForkLineage(path: String) -> CostUsageStoreForkLineage? {
         self.withDatabase(default: nil) { database in
-            let values = try Self.readForkLineage(database, path: path)
+            let values = try Self.readForkLineage(database, path: path, home: self.home)
             return values.first
         }
     }
@@ -160,7 +163,7 @@ extension CostUsageStore {
         kind: CostUsageStoreBufferedLineKind? = nil) -> [CostUsageStoreBufferedLine]
     {
         self.withDatabase(default: []) { database in
-            try Self.readBufferedLines(database, path: path, kind: kind)
+            try Self.readBufferedLines(database, path: path, home: self.home, kind: kind)
         }
     }
 
@@ -178,7 +181,7 @@ extension CostUsageStore {
 
     func fetchAccumulator(path: String) -> CostUsageStoreAccumulator? {
         self.withDatabase(default: nil) { database in
-            try Self.readAccumulators(database, path: path).first
+            try Self.readAccumulators(database, path: path, home: self.home).first
         }
     }
 
@@ -188,6 +191,7 @@ extension CostUsageStore {
     func pathsContainingCodexTurnIDs(_ turnIDs: Set<String>) throws -> Set<String> {
         guard !turnIDs.isEmpty else { return [] }
         let database = try self.ensureDatabase()
+        let home = self.home
         return try Self.inReadTransaction(database) {
             var paths: Set<String> = []
             let sortedTurnIDs = turnIDs.sorted()
@@ -198,12 +202,13 @@ extension CostUsageStore {
                 SELECT DISTINCT f.path
                 FROM usage_rows r
                 JOIN files f ON f.id = r.file_id
-                WHERE json_extract(r.payload, '$.turnID') IN (\(placeholders))
+                WHERE f.home = ? AND json_extract(r.payload, '$.turnID') IN (\(placeholders))
                 ORDER BY f.path
                 """)
                 defer { sqlite3_finalize(statement) }
+                Self.bind(home, to: statement, at: 1)
                 for (index, turnID) in chunk.enumerated() {
-                    Self.bind(turnID, to: statement, at: Int32(index + 1))
+                    Self.bind(turnID, to: statement, at: Int32(index + 2))
                 }
                 var result = sqlite3_step(statement)
                 while result == SQLITE_ROW {
@@ -228,9 +233,11 @@ extension CostUsageStore {
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata") ?? .empty
+                    table: "scan_metadata",
+                    home: self.home) ?? .empty
                 let aggregates = try Self.readDayAggregates(
                     database,
+                    home: self.home,
                     sinceDay: sinceDay,
                     untilDay: untilDay)
                 return CostUsageStoreReport(metadata: metadata, aggregates: aggregates)
@@ -241,20 +248,22 @@ extension CostUsageStore {
     func readCodexCatchUpProjection(calendar: Calendar) -> CostUsageStoreCatchUpProjection {
         self.withDatabase(default: .empty) { database in
             try Self.inReadTransaction(database) {
-                let metadata = try Self.readCodexCatchUpMetadata(database)
+                let metadata = try Self.readCodexCatchUpMetadata(database, home: self.home)
                 guard metadata.timeZoneIdentifier == nil
                     || metadata.timeZoneIdentifier == calendar.timeZone.identifier
                 else { return .empty }
 
-                let files = try Self.readCodexCatchUpFiles(database)
+                let files = try Self.readCodexCatchUpFiles(database, home: self.home)
                 let discoveryState = try Self.readSingleton(
                     CostUsageStoreDiscoveryState.self,
                     database: database,
-                    table: "discovery_state")
+                    table: "discovery_state",
+                    home: self.home)
                 let lookbackState = try Self.readSingleton(
                     CostUsageStoreLookbackState.self,
                     database: database,
-                    table: "lookback_state")
+                    table: "lookback_state",
+                    home: self.home)
                 return CostUsageStoreCatchUpProjection(
                     rootMtimes: metadata.rootMtimes,
                     catchUpPending: metadata.catchUpPending,
@@ -276,6 +285,7 @@ extension CostUsageStore {
     static func readCodexCatchUpProjection(
         _ database: OpaquePointer,
         metadata: CostUsageStoreMetadata,
+        home: String,
         discoveryState: CostUsageStoreDiscoveryState?,
         lookbackState: CostUsageStoreLookbackState?) throws -> CostUsageStoreCatchUpProjection
     {
@@ -290,7 +300,7 @@ extension CostUsageStore {
             previousReportUpdatedAtUnixMs: try? metadata.previousReportPayload.flatMap { payload in
                 try JSONDecoder().decode(PreviousReportTimestamp.self, from: payload).updatedAtUnixMs
             },
-            files: readCodexCatchUpFiles(database),
+            files: readCodexCatchUpFiles(database, home: home),
             discoveryState: discoveryState,
             lookbackState: lookbackState)
     }
@@ -303,6 +313,7 @@ extension CostUsageStore {
             try Self.inReadTransaction(database) {
                 try Self.readSnapshot(
                     database,
+                    home: self.home,
                     loadTokenSnapshots: loadTokenSnapshots,
                     storeURL: self.databaseURL)
             }
@@ -329,6 +340,7 @@ extension CostUsageStore {
                 usageRowCountsByPath: [String: Int]?) in
                 var snapshot = try Self.readSnapshot(
                     database,
+                    home: self.home,
                     loadTokenSnapshots: loadTokenSnapshots,
                     loadUsageRows: false,
                     storeURL: self.databaseURL)
@@ -352,13 +364,13 @@ extension CostUsageStore {
                     }
                     if !fallbackPaths.isEmpty {
                         try counts.merge(
-                            Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
+                            Self.readTokenSnapshotCounts(database, paths: fallbackPaths, home: self.home),
                             uniquingKeysWith: { _, exact in exact })
                     }
                     snapshot.tokenSnapshotCounts = counts
                     snapshot.tokenSnapshotsLoaded = false
                 }
-                let usageRows = try Self.readDecodedUsageRows(database)
+                let usageRows = try Self.readDecodedUsageRows(database, home: self.home)
                 usageRowsByPath = usageRows.rowsByPath
                 usageRowCountsByPath = usageRows.rowCountsByPath
                 return (snapshot, usageRowsByPath, usageRowCountsByPath)
@@ -376,7 +388,8 @@ extension CostUsageStore {
     /// hydrated under its retained scan receipt.
     private static func readTokenSnapshotCounts(
         _ database: OpaquePointer,
-        paths: Set<String>? = nil) throws -> [String: Int]
+        paths: Set<String>? = nil,
+        home: String? = nil) throws -> [String: Int]
     {
         if let paths, paths.isEmpty { return [:] }
         let pathGroups: [[String]?]
@@ -395,17 +408,23 @@ extension CostUsageStore {
             FROM files f
             LEFT JOIN token_snapshots t ON t.file_id = f.id
             """
+            var conditions: [String] = []
+            if home != nil { conditions.append("f.home = ?") }
             if let pathGroup {
-                sql += " WHERE f.path IN (" + Array(repeating: "?", count: pathGroup.count).joined(separator: ",") + ")"
+                conditions
+                    .append("f.path IN (" + Array(repeating: "?", count: pathGroup.count).joined(separator: ",") + ")")
                 counts.merge(
                     Dictionary(uniqueKeysWithValues: pathGroup.map { ($0, 0) }),
                     uniquingKeysWith: { old, _ in old })
             }
+            if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
             sql += " GROUP BY f.id ORDER BY f.path"
             let statement = try Self.prepare(database, sql)
             defer { sqlite3_finalize(statement) }
+            if let home { Self.bind(home, to: statement, at: 1) }
+            let offset = home == nil ? 1 : 2
             for (index, path) in (pathGroup ?? []).enumerated() {
-                Self.bind(path, to: statement, at: Int32(index + 1))
+                Self.bind(path, to: statement, at: Int32(index + offset))
             }
             var result = sqlite3_step(statement)
             while result == SQLITE_ROW {
@@ -424,7 +443,7 @@ extension CostUsageStore {
     /// its writer lock so content identity and the following write share one SQLite snapshot.
     func readSnapshotInCurrentTransaction() -> CostUsageStoreSnapshot {
         self.withDatabase(default: Self.emptySnapshot) { database in
-            try Self.readSnapshot(database, storeURL: self.databaseURL)
+            try Self.readSnapshot(database, home: self.home, storeURL: self.databaseURL)
         }
     }
 
@@ -448,6 +467,7 @@ extension CostUsageStore {
             #endif
             var snapshot = try Self.readSnapshot(
                 database,
+                home: self.home,
                 loadTokenSnapshots: loadTokenSnapshots,
                 loadUsageRows: false,
                 storeURL: self.databaseURL)
@@ -469,13 +489,14 @@ extension CostUsageStore {
                 }
                 if !fallbackPaths.isEmpty {
                     try counts.merge(
-                        Self.readTokenSnapshotCounts(database, paths: fallbackPaths),
+                        Self.readTokenSnapshotCounts(database, paths: fallbackPaths, home: self.home),
                         uniquingKeysWith: { _, exact in exact })
                 }
                 if !loadedTokenSnapshotPaths.isEmpty {
                     let loadedSnapshots = try Self.readTokenSnapshots(
                         database,
                         paths: loadedTokenSnapshotPaths,
+                        home: self.home,
                         storeURL: self.databaseURL)
                     snapshot.tokenSnapshots = loadedSnapshots
                     let loadedCounts = Dictionary(grouping: loadedSnapshots, by: \.path).mapValues(\.count)
@@ -486,7 +507,7 @@ extension CostUsageStore {
                 snapshot.tokenSnapshotCounts = counts
             }
             snapshot.tokenSnapshotsLoaded = loadTokenSnapshots
-            let usageRows = try Self.readDecodedUsageRows(database)
+            let usageRows = try Self.readDecodedUsageRows(database, home: self.home)
             guard let after = self.currentCodexScanStamp(), before == after else { return nil }
             return (
                 snapshot: snapshot,
@@ -507,13 +528,14 @@ extension CostUsageStore {
     {
         self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
-                let files = try Self.readFiles(database, includeBufferedPresence: true)
+                let files = try Self.readFiles(database, home: self.home, includeBufferedPresence: true)
                 let paths = hydratingPaths.map { Set($0) }
                 let hydratedPaths = paths ?? Set(files.map(\.path))
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata") ?? .empty
+                    table: "scan_metadata",
+                    home: self.home) ?? .empty
                 let temporalSince = temporalRange?.sinceDay ?? metadata.scanSinceDay
                 let temporalUntil = temporalRange?.untilDay ?? metadata.scanUntilDay
                 let fileTemporal: [CostUsageStoreTemporalAggregate]
@@ -521,11 +543,13 @@ extension CostUsageStore {
                 if loadTemporal, let temporalSince, let temporalUntil, temporalSince <= temporalUntil {
                     fileTemporal = try Self.readTemporalAggregates(
                         database,
+                        home: self.home,
                         verified: false,
                         sinceDay: temporalSince,
                         untilDay: temporalUntil)
                     verifiedTemporal = try Self.readTemporalAggregates(
                         database,
+                        home: self.home,
                         verified: true,
                         sinceDay: temporalSince,
                         untilDay: temporalUntil)
@@ -539,46 +563,55 @@ extension CostUsageStore {
                     tokenSnapshots: Self.readTokenSnapshots(
                         database,
                         paths: hydratedPaths,
+                        home: self.home,
                         storeURL: self.databaseURL),
                     usageRows: Self.readUsageRows(
                         database,
-                        paths: hydratedPaths),
-                    fileDayAggregates: Self.readFileDayAggregates(database, path: nil),
+                        paths: hydratedPaths,
+                        home: self.home),
+                    fileDayAggregates: Self.readFileDayAggregates(database, path: nil, home: self.home),
                     dayAggregates: Self.readDayAggregates(
                         database,
+                        home: self.home,
                         sinceDay: nil,
                         untilDay: nil),
-                    verifiedDayAggregates: Self.readVerifiedDayAggregates(database),
+                    verifiedDayAggregates: Self.readVerifiedDayAggregates(database, home: self.home),
                     verifiedDayKeys: Self.readVerifiedDayStatus(
                         database,
+                        home: self.home,
                         sinceDay: temporalSince,
                         untilDay: temporalUntil),
                     verifiedDayEvidence: Self.readVerifiedDayEvidence(
                         database,
+                        home: self.home,
                         sinceDay: temporalSince,
                         untilDay: temporalUntil),
                     fileTemporalAggregates: fileTemporal,
                     verifiedTemporalAggregates: verifiedTemporal,
                     fileTemporalCoverageIsComplete: loadTemporal
-                        ? Self.temporalFileCoverageIsComplete(database) : true,
+                        ? Self.temporalFileCoverageIsComplete(database, home: self.home) : true,
                     verifiedTemporalCoverageIsComplete: loadTemporal
-                        ? Self.verifiedTemporalCoverageIsComplete(database) : false,
-                    forkLineage: Self.readForkLineage(database, path: nil),
+                        ? Self.verifiedTemporalCoverageIsComplete(database, home: self.home) : false,
+                    forkLineage: Self.readForkLineage(database, path: nil, home: self.home),
                     bufferedLines: Self.readBufferedLines(
                         database,
                         paths: hydratedPaths,
+                        home: self.home,
                         kind: nil),
                     discoveryState: Self.readSingleton(
                         CostUsageStoreDiscoveryState.self,
                         database: database,
-                        table: "discovery_state"),
+                        table: "discovery_state",
+                        home: self.home),
                     lookbackState: Self.readSingleton(
                         CostUsageStoreLookbackState.self,
                         database: database,
-                        table: "lookback_state"),
+                        table: "lookback_state",
+                        home: self.home),
                     accumulators: Self.readAccumulators(
                         database,
-                        paths: hydratedPaths))
+                        paths: hydratedPaths,
+                        home: self.home))
             }
         }
     }
@@ -635,9 +668,10 @@ extension CostUsageStore {
         }
     }
 
-    private func readSingleton<Value: Decodable>(_ type: Value.Type, table: String) -> Value? {
-        self.withDatabase(default: nil) { database in
-            try Self.readSingleton(type, database: database, table: table)
+    private func readSingleton<Value: Decodable & Sendable>(_ type: Value.Type, table: String) -> Value? {
+        let home = self.home
+        return self.withDatabase(default: nil) { database in
+            try Self.readSingleton(type, database: database, table: table, home: home)
         }
     }
 }
@@ -697,6 +731,7 @@ extension CostUsageStore {
 
     private static func readSnapshot(
         _ database: OpaquePointer,
+        home: String,
         loadTokenSnapshots: Bool = true,
         loadUsageRows: Bool = true,
         storeURL: URL) throws -> CostUsageStoreSnapshot
@@ -705,24 +740,27 @@ extension CostUsageStore {
             metadata: self.readSingleton(
                 CostUsageStoreMetadata.self,
                 database: database,
-                table: "scan_metadata") ?? .empty,
-            files: self.readFiles(database),
+                table: "scan_metadata",
+                home: home) ?? .empty,
+            files: self.readFiles(database, home: home),
             tokenSnapshots: loadTokenSnapshots
-                ? self.readTokenSnapshots(database, path: nil, storeURL: storeURL) : [],
-            usageRows: loadUsageRows ? self.readUsageRows(database, path: nil) : [],
-            fileDayAggregates: self.readFileDayAggregates(database, path: nil),
-            dayAggregates: self.readDayAggregates(database, sinceDay: nil, untilDay: nil),
-            forkLineage: self.readForkLineage(database, path: nil),
-            bufferedLines: self.readBufferedLines(database, path: nil, kind: nil),
+                ? self.readTokenSnapshots(database, path: nil, home: home, storeURL: storeURL) : [],
+            usageRows: loadUsageRows ? self.readUsageRows(database, path: nil, home: home) : [],
+            fileDayAggregates: self.readFileDayAggregates(database, path: nil, home: home),
+            dayAggregates: self.readDayAggregates(database, home: home, sinceDay: nil, untilDay: nil),
+            forkLineage: self.readForkLineage(database, path: nil, home: home),
+            bufferedLines: self.readBufferedLines(database, path: nil, home: home, kind: nil),
             discoveryState: self.readSingleton(
                 CostUsageStoreDiscoveryState.self,
                 database: database,
-                table: "discovery_state"),
+                table: "discovery_state",
+                home: home),
             lookbackState: self.readSingleton(
                 CostUsageStoreLookbackState.self,
                 database: database,
-                table: "lookback_state"),
-            accumulators: self.readAccumulators(database, path: nil))
+                table: "lookback_state",
+                home: home),
+            accumulators: self.readAccumulators(database, path: nil, home: home))
     }
 
     static let fileSelectSQL = """
@@ -751,7 +789,7 @@ extension CostUsageStore {
     """
 
     private static func readCodexCatchUpFiles(
-        _ database: OpaquePointer) throws -> [CostUsageStoreCatchUpFile]
+        _ database: OpaquePointer, home: String) throws -> [CostUsageStoreCatchUpFile]
     {
         let statement = try self.prepare(database, """
         SELECT f.path, f.inode, f.mtime_ms, f.size,
@@ -771,9 +809,11 @@ extension CostUsageStore {
                )
         FROM files f
         LEFT JOIN fork_lineage l ON l.file_id = f.id
+        WHERE f.home = ?
         ORDER BY f.path
         """)
         defer { sqlite3_finalize(statement) }
+        self.bind(home, to: statement, at: 1)
         var values: [CostUsageStoreCatchUpFile] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -807,15 +847,16 @@ extension CostUsageStore {
     }
 
     static func readCodexFileIdentities(
-        _ database: OpaquePointer) throws -> [(path: String, identity: String)]
+        _ database: OpaquePointer, home: String) throws -> [(path: String, identity: String)]
     {
         let statement = try self.prepare(database, """
         SELECT path, json_extract(scan_state, '$.fileIdentity')
         FROM files
-        WHERE json_extract(scan_state, '$.fileIdentity') IS NOT NULL
+        WHERE home = ? AND json_extract(scan_state, '$.fileIdentity') IS NOT NULL
         ORDER BY path
         """)
         defer { sqlite3_finalize(statement) }
+        self.bind(home, to: statement, at: 1)
         var values: [(path: String, identity: String)] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -830,7 +871,7 @@ extension CostUsageStore {
     }
 
     private static func readCodexCatchUpMetadata(
-        _ database: OpaquePointer) throws -> CatchUpMetadata
+        _ database: OpaquePointer, home: String) throws -> CatchUpMetadata
     {
         let statement = try self.prepare(database, """
         SELECT json_extract(payload, '$.timeZoneIdentifier'),
@@ -843,9 +884,10 @@ extension CostUsageStore {
                json_extract(payload, '$.scanInventoryPaths'),
                json_extract(payload, '$.previousReportPayload')
         FROM scan_metadata
-        WHERE id = 1
+        WHERE id = 1 AND home = ?
         """)
         defer { sqlite3_finalize(statement) }
+        self.bind(home, to: statement, at: 1)
         let result = sqlite3_step(statement)
         if result == SQLITE_DONE {
             return .empty
@@ -875,10 +917,13 @@ extension CostUsageStore {
 
     static func readFiles(
         _ database: OpaquePointer,
+        home: String? = nil,
         includeBufferedPresence: Bool = false) throws -> [CostUsageStoreFile]
     {
-        let statement = try self.prepare(database, self.fileSelectSQL + " ORDER BY path")
+        let scope = home == nil ? "" : " WHERE home = ?"
+        let statement = try self.prepare(database, self.fileSelectSQL + scope + " ORDER BY path")
         defer { sqlite3_finalize(statement) }
+        if let home { self.bind(home, to: statement, at: 1) }
         var values: [CostUsageStoreFile] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -889,10 +934,13 @@ extension CostUsageStore {
         return values
     }
 
-    static func readFile(_ database: OpaquePointer, path: String) throws -> CostUsageStoreFile? {
-        let statement = try self.prepare(database, self.fileSelectSQL + " WHERE path = ?")
+    static func readFile(_ database: OpaquePointer, path: String, home: String? = nil) throws -> CostUsageStoreFile? {
+        let statement = try self.prepare(
+            database,
+            self.fileSelectSQL + " WHERE path = ?" + (home == nil ? "" : " AND home = ?"))
         defer { sqlite3_finalize(statement) }
         self.bind(path, to: statement, at: 1)
+        if let home { self.bind(home, to: statement, at: 2) }
         let result = sqlite3_step(statement)
         if result == SQLITE_DONE { return nil }
         guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
@@ -902,19 +950,22 @@ extension CostUsageStore {
     static func readUsagePayloads(
         _ database: OpaquePointer,
         path: String,
-        rowIndices: [Int64]) throws -> [Int64: Data]
+        rowIndices: [Int64],
+        home: String? = nil) throws -> [Int64: Data]
     {
         guard !rowIndices.isEmpty else { return [:] }
         let placeholders = rowIndices.map { _ in "?" }.joined(separator: ",")
         let statement = try Self.prepare(database, """
         SELECT r.row_index, substr(r.payload, 1, 8193)
         FROM usage_rows r
-        WHERE r.file_id = (SELECT id FROM files WHERE path = ?) AND r.row_index IN (\(placeholders))
+        WHERE r.file_id = (SELECT id FROM files WHERE path = ? \(home == nil ? "" : "AND home = ?"))
+          AND r.row_index IN (\(placeholders))
         """)
         defer { sqlite3_finalize(statement) }
         Self.bind(path, to: statement, at: 1)
+        if let home { Self.bind(home, to: statement, at: 2) }
         for (index, value) in rowIndices.enumerated() {
-            sqlite3_bind_int64(statement, Int32(index + 2), Int64(value))
+            sqlite3_bind_int64(statement, Int32(index + (home == nil ? 2 : 3)), Int64(value))
         }
         var values: [Int64: Data] = [:]
         var result = sqlite3_step(statement)
@@ -992,6 +1043,7 @@ extension CostUsageStore {
     static func readTokenSnapshots(
         _ database: OpaquePointer,
         path: String?,
+        home: String? = nil,
         storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
         #if DEBUG
@@ -1004,15 +1056,16 @@ extension CostUsageStore {
                t.total_input, t.total_cached, t.total_output, t.total_reasoning, t.end_offset
         FROM token_snapshots t JOIN files f ON f.id = t.file_id
         """
-        if path != nil {
-            sql += " WHERE f.path = ?"
-        }
+        var scope: [String] = []
+        if path != nil { scope.append("f.path = ?") }
+        if home != nil { scope.append("f.home = ?") }
+        if !scope.isEmpty { sql += " WHERE " + scope.joined(separator: " AND ") }
         sql += " ORDER BY f.path, t.event_index"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let path {
-            self.bind(path, to: statement, at: 1)
-        }
+        var binding: Int32 = 1
+        if let path { self.bind(path, to: statement, at: binding); binding += 1 }
+        if let home { self.bind(home, to: statement, at: binding) }
         var values: [CostUsageStoreTokenSnapshot] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -1038,20 +1091,22 @@ extension CostUsageStore {
     private static func readTokenSnapshots(
         _ database: OpaquePointer,
         paths: Set<String>,
+        home: String? = nil,
         storeURL: URL) throws -> [CostUsageStoreTokenSnapshot]
     {
         guard !paths.isEmpty else { return [] }
         return try paths.sorted().flatMap {
-            try self.readTokenSnapshots(database, path: $0, storeURL: storeURL)
+            try self.readTokenSnapshots(database, path: $0, home: home, storeURL: storeURL)
         }
     }
 
     static func readUsageRows(
         _ database: OpaquePointer,
-        path: String?) throws -> [CostUsageStoreUsageRow]
+        path: String?,
+        home: String? = nil) throws -> [CostUsageStoreUsageRow]
     {
         var values: [CostUsageStoreUsageRow] = []
-        _ = try self.forEachUsageRow(database, path: path) { values.append($0) }
+        _ = try self.forEachUsageRow(database, path: path, home: home) { values.append($0) }
         return values
     }
 
@@ -1062,21 +1117,23 @@ extension CostUsageStore {
     static func forEachUsageRow(
         _ database: OpaquePointer,
         path: String?,
+        home: String? = nil,
         _ visit: (CostUsageStoreUsageRow) throws -> Void) throws -> Int
     {
         var sql = """
         SELECT f.path, r.row_index, r.payload
         FROM usage_rows r JOIN files f ON f.id = r.file_id
         """
-        if path != nil {
-            sql += " WHERE f.path = ?"
-        }
+        var scope: [String] = []
+        if path != nil { scope.append("f.path = ?") }
+        if home != nil { scope.append("f.home = ?") }
+        if !scope.isEmpty { sql += " WHERE " + scope.joined(separator: " AND ") }
         sql += " ORDER BY f.path, r.row_index"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let path {
-            self.bind(path, to: statement, at: 1)
-        }
+        var binding: Int32 = 1
+        if let path { self.bind(path, to: statement, at: binding); binding += 1 }
+        if let home { self.bind(home, to: statement, at: binding) }
         var physicalRowCount = 0
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -1093,7 +1150,7 @@ extension CostUsageStore {
     }
 
     static func readDecodedUsageRows(
-        _ database: OpaquePointer) throws -> (
+        _ database: OpaquePointer, home: String? = nil) throws -> (
         rowsByPath: [String: [CostUsageScanner.CodexUsageRow]],
         rowCountsByPath: [String: Int])
     {
@@ -1101,7 +1158,7 @@ extension CostUsageStore {
         let rowStrings = CostUsageRowStringPool()
         var rowsByPath: [String: [CostUsageScanner.CodexUsageRow]] = [:]
         var rowCountsByPath: [String: Int] = [:]
-        try self.forEachUsageRow(database, path: nil) { row in
+        try self.forEachUsageRow(database, path: nil, home: home) { row in
             rowCountsByPath[row.path, default: 0] += 1
             let decoded = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: row.payload)
             #if DEBUG
@@ -1121,16 +1178,18 @@ extension CostUsageStore {
 
     private static func readUsageRows(
         _ database: OpaquePointer,
-        paths: Set<String>) throws -> [CostUsageStoreUsageRow]
+        paths: Set<String>,
+        home: String? = nil) throws -> [CostUsageStoreUsageRow]
     {
         guard !paths.isEmpty else { return [] }
         return try paths.sorted().flatMap {
-            try self.readUsageRows(database, path: $0)
+            try self.readUsageRows(database, path: $0, home: home)
         }
     }
 
     static func readDayAggregates(
         _ database: OpaquePointer,
+        home: String? = nil,
         sinceDay: String?,
         untilDay: String?) throws -> [CostUsageStoreDayAggregate]
     {
@@ -1145,15 +1204,19 @@ extension CostUsageStore {
                priority_unresolved_pricing_count
         FROM day_aggregates
         """
-        if sinceDay != nil, untilDay != nil {
-            sql += " WHERE day >= ? AND day <= ?"
+        var clauses: [String] = []
+        var valuesToBind: [String] = []
+        if let home { clauses.append("home = ?"); valuesToBind.append(home) }
+        if let sinceDay, let untilDay {
+            clauses.append("day >= ? AND day <= ?")
+            valuesToBind.append(contentsOf: [sinceDay, untilDay])
         }
+        if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         sql += " ORDER BY day, model"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let sinceDay, let untilDay {
-            self.bind(sinceDay, to: statement, at: 1)
-            self.bind(untilDay, to: statement, at: 2)
+        for (index, value) in valuesToBind.enumerated() {
+            self.bind(value, to: statement, at: Int32(index + 1))
         }
         var values: [CostUsageStoreDayAggregate] = []
         var result = sqlite3_step(statement)
@@ -1194,6 +1257,7 @@ extension CostUsageStore {
     static func readFileDayAggregates(
         _ database: OpaquePointer,
         path: String?,
+        home: String? = nil,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [CostUsageStoreFileDayAggregate]
     {
@@ -1214,6 +1278,7 @@ extension CostUsageStore {
             : " FROM files f CROSS JOIN file_day_aggregates a ON f.id = a.file_id"
         var conditions: [String] = []
         var boundValues: [String] = []
+        if let home { conditions.append("f.home = ?"); boundValues.append(home) }
         if let path {
             conditions.append("f.path = ?")
             boundValues.append(path)
@@ -1276,22 +1341,24 @@ extension CostUsageStore {
 extension CostUsageStore {
     static func readForkLineage(
         _ database: OpaquePointer,
-        path: String?) throws -> [CostUsageStoreForkLineage]
+        path: String?,
+        home: String? = nil) throws -> [CostUsageStoreForkLineage]
     {
         var sql = """
         SELECT f.path, l.session_id, l.forked_from_id, l.fork_timestamp,
                l.dependency_key, l.subagent_state, l.accounting_state
         FROM fork_lineage l JOIN files f ON f.id = l.file_id
         """
-        if path != nil {
-            sql += " WHERE f.path = ?"
-        }
+        var scope: [String] = []
+        if path != nil { scope.append("f.path = ?") }
+        if home != nil { scope.append("f.home = ?") }
+        if !scope.isEmpty { sql += " WHERE " + scope.joined(separator: " AND ") }
         sql += " ORDER BY f.path"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let path {
-            self.bind(path, to: statement, at: 1)
-        }
+        var binding: Int32 = 1
+        if let path { self.bind(path, to: statement, at: binding); binding += 1 }
+        if let home { self.bind(home, to: statement, at: binding) }
         var values: [CostUsageStoreForkLineage] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -1313,6 +1380,7 @@ extension CostUsageStore {
     static func readBufferedLines(
         _ database: OpaquePointer,
         path: String?,
+        home: String? = nil,
         kind: CostUsageStoreBufferedLineKind?) throws -> [CostUsageStoreBufferedLine]
     {
         var sql = """
@@ -1320,6 +1388,7 @@ extension CostUsageStore {
         FROM buffered_lines b JOIN files f ON f.id = b.file_id
         """
         var clauses: [String] = []
+        if home != nil { clauses.append("f.home = ?") }
         if path != nil {
             clauses.append("f.path = ?")
         }
@@ -1333,6 +1402,7 @@ extension CostUsageStore {
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
         var index: Int32 = 1
+        if let home { self.bind(home, to: statement, at: index); index += 1 }
         if let path {
             self.bind(path, to: statement, at: index)
             index += 1
@@ -1365,17 +1435,19 @@ extension CostUsageStore {
     private static func readBufferedLines(
         _ database: OpaquePointer,
         paths: Set<String>,
+        home: String? = nil,
         kind: CostUsageStoreBufferedLineKind?) throws -> [CostUsageStoreBufferedLine]
     {
         guard !paths.isEmpty else { return [] }
         return try paths.sorted().flatMap {
-            try self.readBufferedLines(database, path: $0, kind: kind)
+            try self.readBufferedLines(database, path: $0, home: home, kind: kind)
         }
     }
 
     static func readAccumulators(
         _ database: OpaquePointer,
-        path: String?) throws -> [CostUsageStoreAccumulator]
+        path: String?,
+        home: String? = nil) throws -> [CostUsageStoreAccumulator]
     {
         var sql = """
         SELECT f.path, a.event_count, a.next_usage_row_index,
@@ -1385,15 +1457,16 @@ extension CostUsageStore {
                a.saw_divergent, a.saw_interleaved, a.seen_raw_totals, a.updated_at_ms
         FROM accumulators a JOIN files f ON f.id = a.file_id
         """
-        if path != nil {
-            sql += " WHERE f.path = ?"
-        }
+        var scope: [String] = []
+        if path != nil { scope.append("f.path = ?") }
+        if home != nil { scope.append("f.home = ?") }
+        if !scope.isEmpty { sql += " WHERE " + scope.joined(separator: " AND ") }
         sql += " ORDER BY f.path"
         let statement = try self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
-        if let path {
-            self.bind(path, to: statement, at: 1)
-        }
+        var binding: Int32 = 1
+        if let path { self.bind(path, to: statement, at: binding); binding += 1 }
+        if let home { self.bind(home, to: statement, at: binding) }
         var values: [CostUsageStoreAccumulator] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -1421,11 +1494,12 @@ extension CostUsageStore {
 
     private static func readAccumulators(
         _ database: OpaquePointer,
-        paths: Set<String>) throws -> [CostUsageStoreAccumulator]
+        paths: Set<String>,
+        home: String? = nil) throws -> [CostUsageStoreAccumulator]
     {
         guard !paths.isEmpty else { return [] }
         return try paths.sorted().compactMap {
-            try self.readAccumulators(database, path: $0).first
+            try self.readAccumulators(database, path: $0, home: home).first
         }
     }
 }
@@ -1436,10 +1510,13 @@ extension CostUsageStore {
     static func readSingleton<Value: Decodable>(
         _ type: Value.Type,
         database: OpaquePointer,
-        table: String) throws -> Value?
+        table: String,
+        home: String? = nil) throws -> Value?
     {
-        let statement = try self.prepare(database, "SELECT payload FROM \(table) WHERE id = 1")
+        let suffix = home == nil ? "" : " AND home = ?"
+        let statement = try self.prepare(database, "SELECT payload FROM \(table) WHERE id = 1" + suffix)
         defer { sqlite3_finalize(statement) }
+        if let home { self.bind(home, to: statement, at: 1) }
         let result = sqlite3_step(statement)
         if result == SQLITE_DONE {
             return nil

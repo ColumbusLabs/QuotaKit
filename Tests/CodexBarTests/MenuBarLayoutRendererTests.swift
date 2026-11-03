@@ -111,9 +111,13 @@ struct MenuBarLayoutRendererTests {
                 data: self.data(),
                 icon: nil,
                 options: self.options(colorPace: true))
-            #expect(colored.attributedTitle.string == plain.attributedTitle.string)
+            #expect(colored.attributedTitle.string == "\u{FFFC}\u{2009}" + plain.attributedTitle.string)
+            #expect(colored.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
             #expect(colored.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
                 == expected)
+            #expect(colored.attributedTitle.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor
+                == .controlTextColor)
+            #expect(colored.accessibilityLabel == plain.accessibilityLabel)
         }
     }
 
@@ -124,8 +128,11 @@ struct MenuBarLayoutRendererTests {
             data: self.data(),
             icon: nil,
             options: self.options(isStale: stale, colorPace: true, highContrast: true))
-        #expect(output.attributedTitle.string == "+11%")
+        #expect(output.attributedTitle.string == "\u{FFFC}\u{2009}+11%")
+        #expect(output.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
         #expect(output.attributedTitle.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+            == .labelColor)
+        #expect(output.attributedTitle.attribute(.foregroundColor, at: 2, effectiveRange: nil) as? NSColor
             == .labelColor)
     }
 
@@ -152,6 +159,14 @@ struct MenuBarLayoutRendererTests {
             (.costToday, "$1.25"),
             (.costWindow, "$20.00"),
             (.separatorDot, "·"),
+            (.separator(.pipe), "|"),
+            (.separator(.slash), "/"),
+            (.separator(.hyphen), "-"),
+            (.separator(.bullet), "•"),
+            (.separator(.diamond), "◆"),
+            (.separator(.hollowDiamond), "◇"),
+            (.separator(.tilde), "~"),
+            (.separator(.doubleBar), "‖"),
             (.space, " "),
         ]
 
@@ -484,6 +499,18 @@ struct MenuBarLayoutRendererTests {
             icon: nil,
             options: self.options())
         #expect(result.attributedTitle.string == "¥100.00\u{2009}·\u{2009}$1.25")
+    }
+
+    @Test
+    func `duplicate reset removal keeps the glyph of a new separator`() {
+        let result = MenuBarLayoutRenderer().render(
+            layout: MenuBarLayout(lines: [[
+                .percent(window: .automatic), .separator(.pipe), .resetCountdown, .separator(.pipe), .costToday,
+            ]]),
+            data: self.data(automaticText: "¥100.00", automaticBalanceFallback: "¥100.00"),
+            icon: nil,
+            options: self.options())
+        #expect(result.attributedTitle.string == "¥100.00\u{2009}|\u{2009}$1.25")
     }
 
     @Test

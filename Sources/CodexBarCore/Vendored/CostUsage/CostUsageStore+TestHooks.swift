@@ -13,11 +13,15 @@ struct CostUsageStoreTestHooks: Sendable {
     var identicalContentPreLockCheckpoint: (databaseURL: URL, checkpoint: @Sendable () -> Void)?
     var identicalContentPostCommitCheckpoint: (databaseURL: URL, checkpoint: @Sendable () -> Void)?
     var codexCatchUpReconciliationVisit: (@Sendable () -> Void)?
+    var codexRolloutPresenceVisit: (@Sendable () -> Void)?
+    var codexReplacementSourceRead: (@Sendable (String) throws -> Void)?
     var codexPrefixComparisonVisit: (@Sendable (String, Int) -> Void)?
     var codexCatchUpDeltaFailure: (@Sendable (URL) throws -> Void)?
     var budgetMutationFailure: (@Sendable (URL) throws -> Void)?
     var verifiedLedgerMigrationFailure: (@Sendable (URL) throws -> Void)?
     var verifiedLedgerMigrationAttempt: (@Sendable (URL) -> Void)?
+    var rebuildAfterFileValidation: (@Sendable () -> Void)?
+    var rebuildSourceOpenFailure: (@Sendable (String) -> Bool)?
 
     var snapshotRead: (@Sendable (URL) -> Void)?
     var codexReadViewIntegrityCheck: (@Sendable (URL) -> Void)?

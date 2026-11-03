@@ -834,6 +834,11 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             loginMethod: usage.loginMethod,
             widgetAccountOwnerID: usage.accountID)
         var details = includeResetCredits ? usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [] : []
+        if let notice = usage.rawText.flatMap({ ClaudeStatusProbe.modelBreakdownNotice(in: $0) }) {
+            details.append(.makeSection(rows: [
+                .makeRow(id: "claude-model-breakdown", label: "Status", value: notice),
+            ]))
+        }
         if includeOptionalUsage {
             details += usage.cloudCredits?.detailSections(now: usage.updatedAt) ?? []
         }

@@ -447,6 +447,39 @@ struct SyncCoordinatorProviderDetailsTests {
 @Suite(.serialized)
 struct SyncCoordinatorProviderBillingDetailsTests {
     @Test
+    func `OpenDesign session and weekly windows reach mobile without credential data`() async throws {
+        let suite = "SyncCoordinatorOpenDesign-\(UUID().uuidString)"
+        let settings = testSettingsStore(suiteName: suite, config: testConfigWithAllProvidersDisabled())
+        settings.iCloudSyncEnabled = true
+        settings.accountWidgetsEnabled = false
+        try settings.setProviderEnabled(
+            provider: .opendesign,
+            metadata: #require(ProviderDefaults.metadata[.opendesign]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 60, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+            provider: .opendesign)
+        let pusher = MockSyncPusher()
+        await SyncCoordinator(store: store, settings: settings, syncManager: pusher).pushCurrentSnapshot()
+        let provider = try #require(pusher.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == "opendesign"
+        }?.provider)
+        #expect(provider.primary?.usedPercent == 25)
+        #expect(provider.secondary?.usedPercent == 60)
+        #expect(provider.rateWindows.count == 2)
+        let wire = try #require(String(bytes: JSONEncoder().encode(provider), encoding: .utf8))
+        #expect(!wire.lowercased().contains("cookie"))
+    }
+
+    @Test
     func `prepaid provider meters sync billing details without exporting quota windows`() async throws {
         let suite = "SyncCoordinatorPrepaidMeterTests-\(UUID().uuidString)"
         let settings = testSettingsStore(suiteName: suite, config: testConfigWithAllProvidersDisabled())

@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -333,10 +334,27 @@ def non_overlapping_suite_selections(selections: Iterable[TestSelection]) -> lis
     return non_overlapping
 
 
+def cleanup_discovery_home(home: str) -> None:
+    if sys.platform == "darwin":
+        def raise_walk_error(error: OSError) -> None:
+            raise error
+
+        # Xcode can mount a read-only Metal toolchain inside the isolated home.
+        # Unmount only volumes rooted here; never descend into them or follow symlinks.
+        for directory, children, _ in os.walk(home, onerror=raise_walk_error):
+            for child in children[:]:
+                path = Path(directory) / child
+                if not path.is_symlink() and os.path.ismount(path):
+                    subprocess.run(["/usr/sbin/diskutil", "unmount", str(path)], check=True, timeout=60)
+                    children.remove(child)
+    shutil.rmtree(home)
+
+
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
     command = [*swift_command, "test", "list", *swiftpm_path_arguments()]
     # Test listing loads native test products, so isolate it from the caller's app caches.
-    with tempfile.TemporaryDirectory(prefix="quotakit-test-discovery-") as home:
+    home = tempfile.mkdtemp(prefix="quotakit-test-discovery-")
+    try:
         environment = os.environ.copy()
         environment.update({
             "HOME": home,
@@ -349,6 +367,8 @@ def swift_test_list(swift_command: list[str], inventory: list[str] | None = None
             if repair_sparkle_test_runtime(swift_command, environment=environment):
                 print("Recovered SwiftPM Sparkle test runtime; retrying discovery once.", flush=True)
                 result = subprocess.run(command, capture_output=True, text=True, env=environment)
+    finally:
+        cleanup_discovery_home(home)
     if result.returncode != 0:
         print(f"+ {swift_command[0]} test list", flush=True)
         if result.stdout:
@@ -429,6 +449,33 @@ def print_timing_summary(stats: RunStats) -> None:
 def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection]]:
     for index in range(0, len(items), size):
         yield items[index : index + size]
+
+
+# These menu selections exceeded the shared group deadline on hosted macOS despite
+# passing individually. Keep the same deadline and run each in its own group.
+HEAVY_MENU_SUITES = frozenset({
+    "CodexBarTests.StatusMenuTests/OpenRefresh",
+    "CodexBarTests.StatusMenuTests/Overview",
+    "CodexBarTests.StatusMenuTests/Presentation",
+    "CodexBarTests.StatusMenuTokenAccountSwitcherTests",
+})
+
+
+def isolate_heavy_menu_suites(groups: Iterable[list[TestSelection]]) -> list[list[TestSelection]]:
+    result = []
+    for group in groups:
+        pending = []
+        for selection in group:
+            if selection.suite_name in HEAVY_MENU_SUITES:
+                if pending:
+                    result.append(pending)
+                    pending = []
+                result.append([selection])
+            else:
+                pending.append(selection)
+        if pending:
+            result.append(pending)
+    return result
 
 
 def shard_groups(groups: list[list[TestSelection]], shard_index: int | None, shard_count: int | None) -> list[list[TestSelection]]:
@@ -578,7 +625,7 @@ def main() -> int:
             stats.discovery_seconds = time.monotonic() - discovery_started
         stats.discovered_selections = len(suites)
 
-        suite_groups = list(chunks(suites, args.group_size))
+        suite_groups = isolate_heavy_menu_suites(chunks(suites, args.group_size))
         try:
             suite_groups = shard_groups(suite_groups, args.shard_index, args.shard_count)
         except ValueError as error:

@@ -32,10 +32,12 @@ struct CostUsageCatchUpStatusProjectionTests {
             codexScanComplete: false)
         CostUsageStoreAccess.replace(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             cache: cache,
             calendar: options.calendar)
 
-        let targetDatabase = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL.standardizedFileURL
+        let targetDatabase = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).databaseURL
+            .standardizedFileURL
         let snapshotReads = SnapshotReadCounter(targetDatabase: targetDatabase)
         var hooks = CostUsageStoreTestHooks()
         hooks.snapshotRead = { snapshotReads.record(databaseURL: $0) }
@@ -157,7 +159,8 @@ struct CostUsageCatchUpStatusProjectionTests {
             codexSessionsRoot: env.codexSessionsRoot,
             claudeProjectsRoots: nil,
             cacheRoot: env.cacheRoot,
-            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"),
+            maxCodexScanBytesPerRefresh: 0)
         options.refreshMinIntervalSeconds = 0
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex,
@@ -170,7 +173,7 @@ struct CostUsageCatchUpStatusProjectionTests {
         let initialStatus = await fetcher.codexScanCatchUpStatus()
         #expect(!initialStatus.pending)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let snapshot = await store.readSnapshot()
         #expect(snapshot.files.count == corpusSize)
         for var file in snapshot.files {

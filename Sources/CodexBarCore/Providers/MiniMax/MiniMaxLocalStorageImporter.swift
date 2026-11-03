@@ -9,122 +9,113 @@ enum MiniMaxLocalStorageImporter {
         let accessToken: String
         let groupID: String?
         let sourceLabel: String
+        let origin: String
     }
 
     static func importAccessTokens(
         browserDetection: BrowserDetection,
+        authority: String,
         logger: ((String) -> Void)? = nil) -> [TokenInfo]
     {
-        let log: (String) -> Void = { msg in logger?("[minimax-storage] \(msg)") }
+        let origins = self.origins
+            .filter { URL(string: $0).flatMap(\.host).flatMap { MiniMaxCookieImporter.authority(for: $0) } == authority
+            }
         var tokens: [TokenInfo] = []
-
-        let chromeCandidates = self.storageCandidates(browserDetection: browserDetection, storage: .localStorage)
-        if !chromeCandidates.isEmpty {
-            log("Chrome local storage candidates: \(chromeCandidates.count)")
-        }
-
-        for candidate in chromeCandidates {
-            let snapshot = self.readLocalStorage(from: candidate.url, logger: log)
-            if !snapshot.tokens.isEmpty {
-                let groupID = snapshot.groupID ?? self.groupID(fromJWT: snapshot.tokens.first ?? "")
-                if groupID != nil {
-                    log("Found MiniMax group id in \(candidate.label)")
-                }
+        for candidate in self.storageCandidates(browserDetection: browserDetection, storage: .localStorage) {
+            for origin in origins {
+                let snapshot = self.readLocalStorage(from: candidate.url, origin: origin, logger: logger)
                 for token in snapshot.tokens {
-                    let hint = token.contains(".") ? "jwt" : "opaque"
-                    log("Found MiniMax access token in \(candidate.label): \(token.count) chars (\(hint))")
-                    tokens.append(TokenInfo(accessToken: token, groupID: groupID, sourceLabel: candidate.label))
+                    tokens.append(TokenInfo(
+                        accessToken: token,
+                        groupID: snapshot.groupID ?? self.groupID(fromJWT: token),
+                        sourceLabel: candidate.label,
+                        origin: origin))
                 }
             }
         }
-
-        if tokens.isEmpty {
-            let sessionCandidates = self.storageCandidates(browserDetection: browserDetection, storage: .sessionStorage)
-            if !sessionCandidates.isEmpty {
-                log("Chrome session storage candidates: \(sessionCandidates.count)")
-            }
-            for candidate in sessionCandidates {
-                let sessionTokens = self.readSessionStorageTokens(from: candidate.url, logger: log)
-                guard !sessionTokens.isEmpty else { continue }
-                for token in sessionTokens {
-                    let hint = token.contains(".") ? "jwt" : "opaque"
-                    log("Found MiniMax access token in \(candidate.label): \(token.count) chars (\(hint))")
-                    let groupID = self.groupID(fromJWT: token)
-                    tokens.append(TokenInfo(accessToken: token, groupID: groupID, sourceLabel: candidate.label))
+        for candidate in self.storageCandidates(browserDetection: browserDetection, storage: .sessionStorage) {
+            for origin in origins {
+                for token in self.readSessionStorageTokens(from: candidate.url, origin: origin, logger: logger) {
+                    tokens.append(TokenInfo(
+                        accessToken: token,
+                        groupID: self.groupID(fromJWT: token),
+                        sourceLabel: candidate.label,
+                        origin: origin))
                 }
             }
         }
-
-        if tokens.isEmpty {
-            let indexedCandidates = self.storageCandidates(
-                browserDetection: browserDetection,
-                storage: self.indexedDBStorage)
-            if !indexedCandidates.isEmpty {
-                log("Chrome IndexedDB candidates: \(indexedCandidates.count)")
-            }
-            for candidate in indexedCandidates {
-                let indexedTokens = self.readIndexedDBTokens(from: candidate.url, logger: log)
-                guard !indexedTokens.isEmpty else { continue }
-                for token in indexedTokens {
-                    let hint = token.contains(".") ? "jwt" : "opaque"
-                    log("Found MiniMax access token in \(candidate.label): \(token.count) chars (\(hint))")
-                    let groupID = self.groupID(fromJWT: token)
-                    tokens.append(TokenInfo(accessToken: token, groupID: groupID, sourceLabel: candidate.label))
-                }
+        for candidate in self.storageCandidates(browserDetection: browserDetection, storage: self.indexedDBStorage) {
+            guard let origin = origins
+                .first(where: { self.indexedDBName(candidate.url.lastPathComponent, matches: $0) })
+            else { continue }
+            for token in self.readIndexedDBTokens(from: candidate.url, logger: logger) {
+                tokens.append(TokenInfo(
+                    accessToken: token,
+                    groupID: self.groupID(fromJWT: token),
+                    sourceLabel: candidate.label,
+                    origin: origin))
             }
         }
-
-        if tokens.isEmpty {
-            log("No MiniMax access token found in browser storage")
-        }
-
         return tokens
     }
 
     static func importGroupIDs(
         browserDetection: BrowserDetection,
+        authority: String,
         logger: ((String) -> Void)? = nil) -> [String: String]
     {
-        let log: (String) -> Void = { msg in logger?("[minimax-storage] \(msg)") }
         var results: [String: String] = [:]
-
-        let chromeCandidates = self.storageCandidates(browserDetection: browserDetection, storage: .localStorage)
-        if !chromeCandidates.isEmpty {
-            log("Chrome local storage candidates: \(chromeCandidates.count)")
-        }
-
-        for candidate in chromeCandidates {
-            let snapshot = self.readLocalStorage(from: candidate.url, logger: log)
-            if let groupID = snapshot.groupID, results[candidate.label] == nil {
-                log("Found MiniMax group id in \(candidate.label)")
-                results[candidate.label] = groupID
+        let origins = self.origins
+            .filter { URL(string: $0).flatMap(\.host).flatMap { MiniMaxCookieImporter.authority(for: $0) } == authority
+            }
+        for candidate in self.storageCandidates(browserDetection: browserDetection, storage: .localStorage) {
+            for origin in origins {
+                let snapshot = self.readLocalStorage(from: candidate.url, origin: origin, logger: logger)
+                if let groupID = snapshot.groupID { results["\(candidate.label)|\(origin)"] = groupID }
             }
         }
-
         return results
     }
 
     // MARK: - Chromium storage discovery
 
-    static let indexedDBStorage = ChromiumLocalStorageDiscovery.Storage.indexedDB(originPrefixes: [
-        "https_platform.minimax.io_",
-        "https_www.minimax.io_",
-        "https_minimax.io_",
-        "https_platform.minimaxi.com_",
-        "https_minimaxi.com_",
-        "https_www.minimaxi.com_",
-    ])
+    private static let origins = [
+        "https://platform.minimax.io",
+        "https://www.minimax.io",
+        "https://minimax.io",
+        "https://platform.minimax.cn",
+        "https://www.minimax.cn",
+        "https://minimax.cn",
+        "https://platform.minimaxi.com",
+        "https://www.minimaxi.com",
+        "https://minimaxi.com",
+    ]
+    static let indexedDBStorage = ChromiumLocalStorageDiscovery.Storage.indexedDB(
+        originPrefixes: Self.origins.map { $0.replacingOccurrences(
+            of: "://",
+            with: "_") + "_" })
 
     static func storageCandidates(
         browserDetection: BrowserDetection,
         storage: ChromiumLocalStorageDiscovery.Storage,
         homeDirectories: [URL]? = nil) -> [ChromiumLocalStorageDiscovery.Candidate]
     {
-        ChromiumLocalStorageDiscovery.candidates(
+        let candidates = ChromiumLocalStorageDiscovery.candidates(
             browserDetection: browserDetection,
             browsers: ChromiumLocalStorageDiscovery.defaultBrowsers,
             storage: storage,
             homeDirectories: homeDirectories)
+        guard case .indexedDB = storage else { return candidates }
+        return candidates.filter { self.isAllowedIndexedDBName($0.url.lastPathComponent) }
+    }
+
+    static func isAllowedIndexedDBName(_ name: String) -> Bool {
+        self.origins.contains { self.indexedDBName(name, matches: $0) }
+    }
+
+    private static func indexedDBName(_ name: String, matches origin: String) -> Bool {
+        let encoded = origin.replacingOccurrences(of: "://", with: "_")
+        return name == "\(encoded)_0.indexeddb.leveldb" || name == "\(encoded)_443.indexeddb.leveldb"
     }
 
     // MARK: - Token extraction
@@ -136,111 +127,29 @@ enum MiniMaxLocalStorageImporter {
 
     private static func readLocalStorage(
         from levelDBURL: URL,
+        origin: String,
         logger: ((String) -> Void)? = nil) -> LocalStorageSnapshot
     {
-        let origins = [
-            "https://platform.minimax.io",
-            "https://www.minimax.io",
-            "https://minimax.io",
-            "https://platform.minimaxi.com",
-            "https://www.minimaxi.com",
-            "https://minimaxi.com",
-        ]
-        var entries: [SweetCookieKit.ChromiumLocalStorageEntry] = []
-        for origin in origins {
-            entries.append(contentsOf: SweetCookieKit.ChromiumLocalStorageReader.readEntries(
-                for: origin,
-                in: levelDBURL,
-                logger: logger))
-        }
-
+        // Preserve the exact origin: free-text and raw-token scans cannot prove ownership.
+        let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
+            for: origin,
+            in: levelDBURL,
+            logger: logger)
+        var seen: Set<String> = []
         var tokens: [String] = []
-        var seen = Set<String>()
         var groupID: String?
-        var hasMinimaxSignal = !entries.isEmpty
-
         for entry in entries {
-            let extracted = self.extractAccessTokens(from: entry.value)
-            for token in extracted where !seen.contains(token) {
-                seen.insert(token)
+            for token in self.extractAccessTokens(from: entry.value) where seen.insert(token).inserted {
                 tokens.append(token)
             }
-            if groupID == nil, let match = self.extractGroupID(from: entry.value) {
-                groupID = match
-            }
+            if groupID == nil { groupID = self.extractGroupID(from: entry.value) }
         }
-
-        if tokens.isEmpty {
-            let textEntries = SweetCookieKit.ChromiumLocalStorageReader.readTextEntries(
-                in: levelDBURL,
-                logger: logger)
-            let candidateEntries = textEntries.filter { entry in
-                let key = entry.key.lowercased()
-                let value = entry.value.lowercased()
-                return key.contains("minimax.io") || value.contains("minimax.io") ||
-                    key.contains("minimaxi.com") || value.contains("minimaxi.com")
-            }
-            if !candidateEntries.isEmpty {
-                logger?("[minimax-storage] Local storage text entries: \(candidateEntries.count)")
-                hasMinimaxSignal = true
-            }
-            for entry in candidateEntries {
-                let extracted = self.extractAccessTokens(from: entry.value)
-                for token in extracted where !seen.contains(token) {
-                    if token.contains("."), !self.isMiniMaxJWT(token) {
-                        continue
-                    }
-                    seen.insert(token)
-                    tokens.append(token)
-                }
-                if groupID == nil, let match = self.extractGroupID(from: entry.value) {
-                    groupID = match
-                }
-            }
-        }
-
-        if tokens.isEmpty, hasMinimaxSignal {
-            let rawCandidates = SweetCookieKit.ChromiumLocalStorageReader.readTokenCandidates(
-                in: levelDBURL,
-                minimumLength: 60,
-                logger: logger)
-            if !rawCandidates.isEmpty {
-                logger?("[minimax-storage] Local storage raw token candidates: \(rawCandidates.count)")
-            }
-            for candidate in rawCandidates
-                where self.looksLikeToken(candidate) && self.isMiniMaxJWT(candidate) && !seen.contains(candidate)
-            {
-                seen.insert(candidate)
-                tokens.append(candidate)
-                if groupID == nil {
-                    groupID = self.groupID(fromJWT: candidate)
-                }
-            }
-        }
-
-        if tokens.isEmpty, !entries.isEmpty {
-            let sample = entries.prefix(6).map { "\($0.key) (\($0.value.count) chars)" }
-            logger?("[minimax-storage] Local storage key sample: \(sample.joined(separator: ", "))")
-            for entry in entries
-                where entry.key == "user_detail" || entry.key == "persist:root" || entry.key == "access_token"
-            {
-                let preview = entry.value.prefix(200)
-                if entry.key == "access_token" {
-                    logger?("[minimax-storage] \(entry.key) preview: \(preview) (raw \(entry.rawValueLength) bytes)")
-                } else {
-                    logger?("[minimax-storage] \(entry.key) preview: \(preview)")
-                }
-                if entry.key == "persist:root" {
-                    self.logPersistRootKeys(entry.value, logger: logger)
-                }
-            }
-        }
-
         return LocalStorageSnapshot(tokens: tokens, groupID: groupID)
     }
 
     private static func readSessionStorageTokens(
         from levelDBURL: URL,
+        origin: String,
         logger: ((String) -> Void)? = nil) -> [String]
     {
         let entries = SweetCookieKit.ChromiumLocalStorageReader.readTextEntries(
@@ -248,15 +157,7 @@ enum MiniMaxLocalStorageImporter {
             logger: logger)
         guard !entries.isEmpty else { return [] }
 
-        let origins = [
-            "https://platform.minimax.io",
-            "https://www.minimax.io",
-            "https://minimax.io",
-            "https://platform.minimaxi.com",
-            "https://www.minimaxi.com",
-            "https://minimaxi.com",
-        ]
-        let mapIDs = self.sessionStorageMapIDs(in: entries, origins: origins, logger: logger)
+        let mapIDs = self.sessionStorageMapIDs(in: entries, origin: origin, logger: logger)
         if mapIDs.isEmpty {
             logger?("[minimax-storage] No MiniMax session storage namespaces found")
             return []
@@ -271,17 +172,6 @@ enum MiniMaxLocalStorageImporter {
             return []
         }
 
-        let tokenKeySample = mapEntries
-            .filter { entry in
-                entry.key.localizedCaseInsensitiveContains("token") ||
-                    entry.key.localizedCaseInsensitiveContains("auth")
-            }
-            .prefix(8)
-            .map(\.key)
-        if !tokenKeySample.isEmpty {
-            logger?("[minimax-storage] MiniMax session storage token keys: \(tokenKeySample.joined(separator: ", "))")
-        }
-
         var tokens: [String] = []
         var seen = Set<String>()
         for entry in mapEntries {
@@ -290,13 +180,6 @@ enum MiniMaxLocalStorageImporter {
                 seen.insert(token)
                 tokens.append(token)
             }
-        }
-
-        if tokens.isEmpty {
-            let sample = mapEntries.prefix(8).map { entry in
-                "\(entry.key) (\(entry.value.count) chars)"
-            }
-            logger?("[minimax-storage] MiniMax session storage sample: \(sample.joined(separator: ", "))")
         }
 
         return tokens
@@ -335,28 +218,18 @@ enum MiniMaxLocalStorageImporter {
             }
         }
 
-        if tokens.isEmpty {
-            let sample = entries.prefix(8).map { entry in
-                "\(entry.key) (\(entry.value.count) chars)"
-            }
-            if !sample.isEmpty {
-                logger?("[minimax-storage] IndexedDB sample: \(sample.joined(separator: ", "))")
-            }
-        }
         return tokens
     }
 
-    private static func sessionStorageMapIDs(
+    static func sessionStorageMapIDs(
         in entries: [SweetCookieKit.ChromiumLevelDBTextEntry],
-        origins: [String],
+        origin: String? = nil,
         logger: ((String) -> Void)? = nil) -> Set<Int>
     {
         var mapIDs = Set<Int>()
-        for entry in entries where entry.key.hasPrefix("namespace-") {
-            for origin in origins where entry.key.localizedCaseInsensitiveContains(origin) {
-                if let mapID = self.sessionStorageMapID(fromValue: entry.value) {
-                    mapIDs.insert(mapID)
-                }
+        for entry in entries where self.isAllowedSessionStorageNamespace(entry.key, origin: origin) {
+            if let mapID = Int(entry.value.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                mapIDs.insert(mapID)
             }
         }
         if !mapIDs.isEmpty {
@@ -366,9 +239,24 @@ enum MiniMaxLocalStorageImporter {
         return mapIDs
     }
 
-    private static func sessionStorageMapID(fromValue value: String) -> Int? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return Int(trimmed)
+    private static func isAllowedSessionStorageNamespace(_ key: String, origin expectedOrigin: String?) -> Bool {
+        guard key.hasPrefix("namespace-"),
+              let delimiter = key.range(of: "-https://", options: .caseInsensitive),
+              delimiter.lowerBound > key.index(key.startIndex, offsetBy: "namespace-".count)
+        else { return false }
+        let rawOrigin = String(key[key.index(after: delimiter.lowerBound)...])
+        guard let origin = URLComponents(string: rawOrigin),
+              origin.scheme?.lowercased() == "https",
+              let host = origin.host?.lowercased(),
+              origin.port == nil || origin.port == 443,
+              origin.user == nil, origin.password == nil,
+              origin.query == nil, origin.fragment == nil,
+              origin.path.isEmpty || origin.path == "/"
+        else { return false }
+        guard self.origins.contains(where: { URLComponents(string: $0)?.host?.lowercased() == host }) else {
+            return false
+        }
+        return expectedOrigin == nil || URLComponents(string: expectedOrigin ?? "")?.host?.lowercased() == host
     }
 
     private static func sessionStorageMapID(fromKey key: String) -> Int? {
@@ -465,31 +353,6 @@ enum MiniMaxLocalStorageImporter {
         return trimmed.count >= 60 && trimmed.range(of: #"^[A-Za-z0-9._\-+=/]+$"#, options: .regularExpression) != nil
     }
 
-    private static func logPersistRootKeys(_ value: String, logger: ((String) -> Void)?) {
-        guard let data = value.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data, options: []),
-              let root = json as? [String: Any]
-        else { return }
-
-        let rootKeys = root.keys.sorted()
-        if !rootKeys.isEmpty {
-            let sample = rootKeys.prefix(10).joined(separator: ", ")
-            logger?("[minimax-storage] persist:root keys: \(sample)")
-        }
-
-        if let authString = root["auth"] as? String,
-           let authData = authString.data(using: .utf8),
-           let authJSON = try? JSONSerialization.jsonObject(with: authData, options: []),
-           let auth = authJSON as? [String: Any]
-        {
-            let authKeys = auth.keys.sorted()
-            if !authKeys.isEmpty {
-                let sample = authKeys.prefix(10).joined(separator: ", ")
-                logger?("[minimax-storage] persist:root auth keys: \(sample)")
-            }
-        }
-    }
-
     private static func matchJWTs(in value: String) -> [String]? {
         let pattern = #"[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
@@ -570,8 +433,7 @@ enum MiniMaxLocalStorageImporter {
     }
 
     private static func groupID(fromJWT token: String) -> String? {
-        guard token.contains(".") else { return nil }
-        guard let claims = self.decodeJWTClaims(token) else { return nil }
+        guard token.contains("."), let claims = self.decodeJWTClaims(token) else { return nil }
 
         let directKeys = [
             "group_id",
@@ -602,8 +464,8 @@ enum MiniMaxLocalStorageImporter {
         let parts = token.split(separator: ".")
         guard parts.count >= 2 else { return nil }
         let payload = String(parts[1])
-        guard let data = self.base64URLDecode(payload) else { return nil }
-        guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
+        guard let data = self.base64URLDecode(payload),
+              let object = try? JSONSerialization.jsonObject(with: data, options: []),
               let dict = object as? [String: Any]
         else { return nil }
         return dict

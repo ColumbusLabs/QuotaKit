@@ -650,6 +650,7 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
     case costRequestForbidden
     case parseFailed(String)
     case noSessionCookie
+    case appSessionExpired
 
     static let safariFullDiskAccessHint =
         "If you use Safari, grant QuotaKit Full Disk Access in System Settings ▸ Privacy & Security."
@@ -669,6 +670,8 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
             "Cursor API error: HTTP 403"
         case let .parseFailed(msg):
             "Could not parse Cursor usage: \(msg)"
+        case .appSessionExpired:
+            "Cursor app session expired — open Cursor to sign in again, or sign in to cursor.com in your browser."
         case .noSessionCookie:
             #if os(macOS)
             "No Cursor session found. \(Self.safariFullDiskAccessHint) "
@@ -1268,53 +1271,6 @@ public struct CursorStatusProbe: Sendable {
     enum ImportedSessionScanResult {
         case succeeded(CursorStatusSnapshot)
         case exhausted(CursorStatusProbeError?)
-    }
-
-    func scanBrowsers(
-        _ browsers: [Browser],
-        importSessions: (Browser) -> [CursorCookieImporter.SessionInfo],
-        attemptFetch: (CursorCookieImporter.SessionInfo) async -> ImportedSessionFetchOutcome) async
-        -> ImportedSessionScanResult
-    {
-        var firstFailure: CursorStatusProbeError?
-
-        for browser in browsers {
-            let sessions = importSessions(browser)
-            guard !sessions.isEmpty else { continue }
-            for session in sessions {
-                switch await attemptFetch(session) {
-                case let .succeeded(snapshot):
-                    return .succeeded(snapshot)
-                case .tryNextBrowser:
-                    continue
-                case let .failed(error):
-                    firstFailure = firstFailure ?? error
-                }
-            }
-        }
-
-        return .exhausted(firstFailure)
-    }
-
-    func scanImportedSessions(
-        _ sessions: [CursorCookieImporter.SessionInfo],
-        attemptFetch: (CursorCookieImporter.SessionInfo) async -> ImportedSessionFetchOutcome) async
-        -> ImportedSessionScanResult
-    {
-        var firstFailure: CursorStatusProbeError?
-
-        for session in sessions {
-            switch await attemptFetch(session) {
-            case let .succeeded(snapshot):
-                return .succeeded(snapshot)
-            case .tryNextBrowser:
-                continue
-            case let .failed(error):
-                firstFailure = firstFailure ?? error
-            }
-        }
-
-        return .exhausted(firstFailure)
     }
 
     enum ResolvedSessionFetchOutcome<Value> {

@@ -274,3 +274,9 @@ dynamic dependency table.
 ### App source organization
 
 `Sources/CodexBar` groups provider-owned glue under `Providers/`, menu models and charts under `Menu/`, status-item behavior under `StatusItem/`, settings under `Settings/`, spend views under `SpendDashboard/`, and usage refresh/cache behavior under `UsageStore/`. QuotaKit-specific sync remains under `Sync/`; source-based tooling and tests use the same paths.
+
+## Upstream integration validation
+
+Printf argument positions are shared by ordinary values, plural references, and star width or precision arguments. The locale validator preserves their positions across reordered translations.
+
+Test discovery uses an isolated home. If Xcode mounts a toolchain beneath that home, cleanup unmounts that owned volume before removal, skips symlinks, and reports traversal, unmount, or deletion failures. Optional plugin request fixtures synchronize on collection events rather than wall-clock sleeps.

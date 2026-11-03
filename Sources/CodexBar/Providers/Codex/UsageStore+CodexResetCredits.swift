@@ -17,13 +17,56 @@ extension UsageStore {
     }
 
     func handleCodexResetCreditNotifications(snapshot: UsageSnapshot) {
-        guard self.settings.showOptionalCreditsAndExtraUsage,
-              let resetCredits = snapshot.codexResetCredits
+        guard let resetCredits = snapshot.codexResetCredits
         else {
             return
         }
-        CodexResetCreditExpiryNotifier().postExpiringCreditsIfNeeded(
+        let publicationRevision = self.providerPublicationRevision(for: .codex)
+        let configRevision = self.settings.providerConfigRevision(for: .codex)
+        let source = self.settings.codexActiveSource
+        let accountEmail = snapshot.accountEmail(for: .codex)
+        let accountID = snapshot.identity?.accountID
+        let accountOrganization = snapshot.identity?.accountOrganization
+        let visibleAccountID = self.settings.codexVisibleAccountProjectionForMenuDisplay?.activeVisibleAccountID
+        let expected = resetCredits.availableInventory(at: Date()).credits.filter { credit in
+            guard let expiry = credit.expiresAt else { return false }
+            return expiry.timeIntervalSinceNow <= CodexResetCreditExpiryNotifier.expiryWindow
+        }
+        CodexResetCreditExpiryNotifier(
+            userDefaults: self.settings.userDefaults,
+            ownerScope: "\(source):\(accountEmail ?? ""):\(accountID ?? "")",
+            deliveryPoster: { [weak self] prefix, title, body, completion in
+                AppNotifications.shared.post(
+                    idPrefix: prefix,
+                    title: title,
+                    body: body,
+                    isCurrent: { [weak self] in
+                        guard let self, self.isEnabled(.codex),
+                              self.providerPublicationRevisionIsCurrent(publicationRevision, for: .codex),
+                              self.settings.providerConfigRevision(for: .codex) == configRevision,
+                              self.settings.codexActiveSource == source,
+                              let current = self.snapshots[.codex],
+                              current.accountEmail(for: .codex) == accountEmail,
+                              current.identity?.accountID == accountID,
+                              current.identity?.accountOrganization == accountOrganization,
+                              self.settings.codexVisibleAccountProjectionForMenuDisplay?
+                                  .activeVisibleAccountID == visibleAccountID,
+                                  let currentCredits = current.codexResetCredits
+                        else { return false }
+                        let available = currentCredits.availableInventory(at: Date()).credits
+                        guard !expected.isEmpty, expected.allSatisfy({ expectedCredit in
+                            available
+                                .contains { $0.id == expectedCredit.id && $0.expiresAt == expectedCredit.expiresAt }
+                        }) else { return false }
+                        return prefix == CodexResetCreditExpiryNotifier.countdownNotificationPrefix
+                            ? self.settings.codexResetCreditExpiryNotificationsEnabled
+                            : self.settings.showOptionalCreditsAndExtraUsage
+                    },
+                    onCompletion: completion)
+            }).postExpiringCreditsIfNeeded(
             snapshot: resetCredits,
+            summaryEnabled: self.settings.showOptionalCreditsAndExtraUsage,
+            countdownEnabled: self.settings.codexResetCreditExpiryNotificationsEnabled,
             resetStyle: self.settings.resetTimeDisplayStyle)
     }
 

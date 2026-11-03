@@ -123,6 +123,35 @@ extension CostUsageStoreExecutorTests {
             == ObjectIdentifier(alias.executorForTesting))
     }
 
+    @Test(arguments: ["target-wal", "target-shm", "alias-wal", "alias-shm"])
+    func `database file links reject orphan sidecars without modifying either path`(scenario: String) async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cost-executor-sidecar-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = CostUsageStore(cacheRoot: root.appendingPathComponent("real"))
+        let aliasRoot = root.appendingPathComponent("alias")
+        let aliasDirectory = aliasRoot.appendingPathComponent("cost-usage")
+        try FileManager.default.createDirectory(at: aliasDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: original.databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let aliasURL = aliasDirectory.appendingPathComponent(CostUsageStore.databaseFilename)
+        try FileManager.default.createSymbolicLink(
+            atPath: aliasURL.path, withDestinationPath: "../../real/cost-usage/\(CostUsageStore.databaseFilename)")
+        let suffix = scenario.hasSuffix("wal") ? "-wal" : "-shm"
+        let sidecarBase = scenario.hasPrefix("target") ? original.databaseURL : aliasURL
+        let sidecar = URL(fileURLWithPath: sidecarBase.path + suffix)
+        let bytes = Data("orphan-sidecar".utf8)
+        try bytes.write(to: sidecar)
+
+        let store = CostUsageStore(cacheRoot: aliasRoot)
+        #expect(await store.configuration() == nil)
+        #expect(await store.rebuildCount == 0)
+        #expect(!FileManager.default.fileExists(atPath: original.databaseURL.path))
+        #expect(try Data(contentsOf: sidecar) == bytes)
+        #expect(try FileManager.default.destinationOfSymbolicLink(atPath: aliasURL.path)
+            == "../../real/cost-usage/\(CostUsageStore.databaseFilename)")
+    }
+
     @Test
     func `concurrent aliases share an executor before and after the database exists`() async throws {
         let root = FileManager.default.temporaryDirectory

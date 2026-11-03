@@ -123,6 +123,9 @@ struct ProvidersPane: View {
                             Task { @MainActor in
                                 await self.addManagedCodexAccount()
                             }
+                        },
+                        renameAccount: { account, name in
+                            self.settings.renameCodexAccount(account, to: name)
                         })
                 }
             })
@@ -268,7 +271,8 @@ struct ProvidersPane: View {
             isRemovingManagedAccount: self.managedCodexAccountCoordinator.isRemovingManagedAccount,
             isAuthenticatingLiveAccount: self.isAuthenticatingLiveCodexAccount,
             isPromotingSystemAccount: self.codexAccountPromotionCoordinator.isPromotingSystemAccount,
-            notice: self.codexAccountsNotice ?? degradedNotice)
+            notice: self.codexAccountsNotice ?? degradedNotice,
+            hidePersonalInfo: self.settings.hidePersonalInfo)
     }
 
     func selectCodexVisibleAccount(id: String) async {

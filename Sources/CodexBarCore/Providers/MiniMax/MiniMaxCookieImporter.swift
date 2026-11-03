@@ -9,21 +9,55 @@ private let minimaxCookieImportOrder: BrowserCookieImportOrder =
 public enum MiniMaxCookieImporter {
     private static let log = CodexBarLog.logger(LogCategories.provider(.minimax, scope: "cookie"))
     private static let cookieClient = BrowserCookieClient()
-    private static let cookieDomains = [
-        "platform.minimax.io",
-        "openplatform.minimax.io",
-        "minimax.io",
-        "platform.minimaxi.com",
-        "openplatform.minimaxi.com",
-        "minimaxi.com",
-    ]
+    static var cookieQuery: BrowserCookieQuery {
+        BrowserCookieQuery(domains: [
+            "platform.minimax.io",
+            "openplatform.minimax.io",
+            "account.minimax.io",
+            "www.minimax.io",
+            "minimax.io",
+            "platform.minimax.cn",
+            "account.minimax.cn",
+            "www.minimax.cn",
+            "minimax.cn",
+            "platform.minimaxi.com",
+            "openplatform.minimaxi.com",
+            "account.minimaxi.com",
+            "www.minimaxi.com",
+            "minimaxi.com",
+        ], domainMatch: .exact)
+    }
 
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
         public let sourceLabel: String
+        let scopedRecords: [ProviderPluginCookieRecord]
+        let authority: String?
+        let scopeDomain: String?
+        let hostOnly: Bool?
 
         public init(cookies: [HTTPCookie], sourceLabel: String) {
             self.cookies = cookies
+            self.sourceLabel = sourceLabel
+            self.scopedRecords = []
+            self.authority = nil
+            self.scopeDomain = nil
+            self.hostOnly = nil
+        }
+
+        init(
+            cookies: [HTTPCookie],
+            records: [ProviderPluginCookieRecord],
+            authority: String,
+            scopeDomain: String,
+            hostOnly: Bool,
+            sourceLabel: String)
+        {
+            self.cookies = cookies
+            self.scopedRecords = records
+            self.authority = authority
+            self.scopeDomain = scopeDomain
+            self.hostOnly = hostOnly
             self.sourceLabel = sourceLabel
         }
 
@@ -41,20 +75,27 @@ public enum MiniMaxCookieImporter {
 
     static func sessionCandidates(
         browserDetection: BrowserDetection,
+        region: MiniMaxAPIRegion? = nil,
         logger: ((String) -> Void)? = nil) throws -> AnySequence<SessionInfo>
     {
         try BrowserCookieImportSupport.collectSessions(
             from: minimaxCookieImportOrder.lazyCookieImportCandidates(using: browserDetection),
             missingError: MiniMaxCookieImportError.noCookies,
-            logger: { self.emit($0, logger: logger) },
-            load: { try self.importSessions(from: $0, logger: logger) })
+            logger: { self.emit(
+                $0,
+                logger: logger) },
+            load: { try self.importSessions(
+                from: $0,
+                region: region,
+                logger: logger) })
     }
 
     public static func importSessions(
         from browserSource: Browser,
+        region: MiniMaxAPIRegion? = nil,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
-        let query = BrowserCookieQuery(domains: self.cookieDomains)
+        let query = self.cookieQuery
         let log: (String) -> Void = { msg in self.emit(msg, logger: logger) }
         let sources = try Self.cookieClient.codexBarRecords(
             matching: query,
@@ -71,15 +112,23 @@ public enum MiniMaxCookieImporter {
             let label = self.mergedLabel(for: group)
             let mergedRecords = self.mergeRecords(group)
             guard !mergedRecords.isEmpty else { continue }
-            let httpCookies = BrowserCookieClient.makeHTTPCookies(mergedRecords, origin: query.origin)
-            guard !httpCookies.isEmpty else { continue }
-            log("Found \(httpCookies.count) MiniMax cookies in \(label)")
-            log("\(label) cookie names: \(self.cookieNames(from: httpCookies))")
-            if let token = httpCookies.first(where: { $0.name == "HERTZ-SESSION" })?.value {
-                let hint = token.contains(".") ? "jwt" : "opaque"
-                log("\(label) HERTZ-SESSION: \(token.count) chars (\(hint))")
+            let records = mergedRecords.map(ProviderPluginCookieRecord.init(record:))
+            for scoped in self.scopedGroups(records, region: region) {
+                guard let first = scoped.first, let authority = self.authority(for: first.domain) else { continue }
+                let originalRecords = mergedRecords.filter {
+                    let item = ProviderPluginCookieRecord(record: $0)
+                    return item.domain == first.domain && item.hostOnly == first.hostOnly
+                }
+                let cookies = BrowserCookieClient.makeHTTPCookies(originalRecords, origin: query.origin)
+                log("Found \(scoped.count) MiniMax cookies in \(label) for \(first.domain)")
+                sessions.append(SessionInfo(
+                    cookies: cookies,
+                    records: scoped,
+                    authority: authority,
+                    scopeDomain: first.domain,
+                    hostOnly: first.hostOnly,
+                    sourceLabel: label))
             }
-            sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: label))
         }
         return sessions
     }
@@ -102,6 +151,31 @@ public enum MiniMaxCookieImporter {
         } catch {
             return false
         }
+    }
+
+    static func scopedGroups(
+        _ records: [ProviderPluginCookieRecord], region: MiniMaxAPIRegion?) -> [[ProviderPluginCookieRecord]]
+    {
+        // Parent-domain and host-only accounts can coexist in one browser profile.
+        let groups = Dictionary(grouping: records) { "\($0.domain)|\($0.hostOnly ? "host" : "domain")" }
+        return groups.keys.sorted().compactMap { key in
+            guard let group = groups[key], let first = group.first,
+                  let authority = self.authority(for: first.domain),
+                  self.isAllowed(authority: authority, region: region) else { return nil }
+            return group
+        }
+    }
+
+    static func authority(for rawDomain: String) -> String? {
+        let domain = rawDomain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return ["minimax.io", "minimax.cn", "minimaxi.com"].first {
+            domain == $0 || domain.hasSuffix("." + $0)
+        }
+    }
+
+    static func isAllowed(authority: String, region: MiniMaxAPIRegion?) -> Bool {
+        guard let region else { return true }
+        return region == .global ? authority == "minimax.io" : ["minimax.cn", "minimaxi.com"].contains(authority)
     }
 
     private static func cookieNames(from cookies: [HTTPCookie]) -> String {

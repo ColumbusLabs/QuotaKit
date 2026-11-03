@@ -524,6 +524,12 @@ protocol SessionQuotaNotifying: AnyObject {
         window: QuotaWarningWindow,
         accountDisplayName: String?,
         isCurrent: @escaping @MainActor () -> Bool)
+    func postUpcomingResetWarning(
+        event: UpcomingResetWarningEvent,
+        provider: UsageProvider,
+        now: Date,
+        isCurrent: @escaping @MainActor () -> Bool,
+        onCompletion: @escaping @MainActor (Bool) -> Void)
 }
 
 @MainActor
@@ -542,6 +548,14 @@ extension SessionQuotaNotifying {
         accountDisplayName _: String?,
         isCurrent _: @escaping @MainActor () -> Bool)
     {}
+
+    func postUpcomingResetWarning(
+        event _: UpcomingResetWarningEvent,
+        provider _: UsageProvider,
+        now _: Date,
+        isCurrent _: @escaping @MainActor () -> Bool,
+        onCompletion: @escaping @MainActor (Bool) -> Void)
+    { onCompletion(false) }
 }
 
 @MainActor
@@ -641,6 +655,28 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
             self.alertOverlay.show(title: copy.title, message: copy.body)
         }
         AppNotifications.shared.post(idPrefix: idPrefix, title: copy.title, body: copy.body, soundEnabled: false)
+    }
+
+    func postUpcomingResetWarning(
+        event: UpcomingResetWarningEvent,
+        provider: UsageProvider,
+        now: Date,
+        isCurrent: @escaping @MainActor () -> Bool,
+        onCompletion: @escaping @MainActor (Bool) -> Void)
+    {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let copy = UpcomingResetNotificationLogic.notificationCopy(
+            providerName: providerName,
+            event: event,
+            now: now)
+        let idPrefix = "upcoming-reset-\(provider.rawValue)"
+        self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
+        AppNotifications.shared.post(
+            idPrefix: idPrefix,
+            title: copy.title,
+            body: copy.body,
+            isCurrent: isCurrent,
+            onCompletion: onCompletion)
     }
 }
 

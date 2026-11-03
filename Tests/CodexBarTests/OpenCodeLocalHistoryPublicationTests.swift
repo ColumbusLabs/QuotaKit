@@ -80,7 +80,9 @@ struct OpenCodeLocalHistoryPublicationTests {
         try #require(appendResult == SQLITE_OK)
         _ = try await OpenCodeLocalHistoryAdapter.runPass(
             databaseURL: url,
-            store: CostUsageStore(cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(options.cacheRoot)),
+            store: CostUsageStore(
+                cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(options.cacheRoot),
+                home: CodexHomeCostStoreScope.openCodeSource),
             rowBudget: 1,
             calendar: calendar)
         let fetcher = CostUsageFetcher(scannerOptions: options)

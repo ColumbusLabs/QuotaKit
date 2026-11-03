@@ -36,18 +36,21 @@ struct MenuBarLayoutV6PersistenceTests {
         settings.menuBarLayoutConditionals = [.makeDefault()]
         let keys = [
             MenuBarLayoutUserDefaultsKey.layoutCurrent,
+            MenuBarLayoutUserDefaultsKey.layoutV6,
             MenuBarLayoutUserDefaultsKey.layoutV5,
             MenuBarLayoutUserDefaultsKey.layoutV4,
             MenuBarLayoutUserDefaultsKey.layoutV3,
             MenuBarLayoutUserDefaultsKey.layoutReleased,
             MenuBarLayoutUserDefaultsKey.layout,
             MenuBarLayoutUserDefaultsKey.overridesCurrent,
+            MenuBarLayoutUserDefaultsKey.overridesV6,
             MenuBarLayoutUserDefaultsKey.overridesV5,
             MenuBarLayoutUserDefaultsKey.overridesV4,
             MenuBarLayoutUserDefaultsKey.overridesV3,
             MenuBarLayoutUserDefaultsKey.overridesReleased,
             MenuBarLayoutUserDefaultsKey.overrides,
             MenuBarLayoutUserDefaultsKey.conditionalsCurrent,
+            MenuBarLayoutUserDefaultsKey.conditionalsV6,
             MenuBarLayoutUserDefaultsKey.conditionalsV5,
             MenuBarLayoutUserDefaultsKey.conditionalsV4,
             MenuBarLayoutUserDefaultsKey.conditionalsV3,
@@ -213,7 +216,7 @@ struct MenuBarLayoutV6PersistenceTests {
         settings.setMenuBarLayout(Self.spendLayout, for: nil)
         settings.setMenuBarLayout(Self.spendLayout, for: .claude)
         settings.setMenuBarLayout(Self.spendLayout, for: .cursor)
-        let full = try #require(defaults.data(forKey: "menuBarLayoutV6"))
+        let full = try #require(defaults.data(forKey: "menuBarLayoutV7"))
 
         // 0.75.0 decodes every V5 key, so its startup finds all its generations and rewrites nothing.
         let decoder = JSONDecoder()
@@ -233,7 +236,7 @@ struct MenuBarLayoutV6PersistenceTests {
         #expect(returned.menuBarLayoutOverrides[.claude] == Self.spendLayout)
         #expect(returned.menuBarLayoutConditionals == [readable, spendRule])
 
-        // An edit saved by 0.75.0 writes V5 and older, leaving the unknown V6 keys untouched.
+        // An edit saved by 0.75.0 writes V5 and older, leaving the unknown V7 keys untouched.
         let edited = MenuBarLayout(lines: [[.usageBar]])
         let projected = try decoder.decode(MenuBarLayout.self, from: #require(defaults.data(forKey: "menuBarLayoutV5")))
         var editedRule = readable
@@ -243,7 +246,7 @@ struct MenuBarLayoutV6PersistenceTests {
             overrides: ["claude": edited, "cursor": projected],
             rules: [editedRule],
             defaults: defaults)
-        #expect(defaults.data(forKey: "menuBarLayoutV6") == full)
+        #expect(defaults.data(forKey: "menuBarLayoutV7") == full)
         let editedReturn = testSettingsStore(suiteName: "spend-v6-edited-return", userDefaults: defaults)
         #expect(editedReturn.menuBarLayout == edited)
         #expect(editedReturn.menuBarLayoutOverrides[.claude] == edited)

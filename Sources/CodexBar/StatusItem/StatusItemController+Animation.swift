@@ -297,6 +297,31 @@ extension StatusItemController {
         guard let primaryProvider = selected.firstPartyProvider else {
             guard let plugin = UserProviderPluginRegistry.plugin(for: selected) else { return false }
             let snapshot = self.store.menuBarSnapshot(for: selected)
+            if showBrandPercent, let snapshot, !snapshot.menuBarItems.isEmpty {
+                let elements = PluginMenuBarSummaryRenderer.elements(snapshot: snapshot, showUsed: showUsed)
+                let options = PluginMenuBarSummaryRenderer.Options(
+                    sourceHash: plugin.sourceHash,
+                    monospaced: self.settings.menuBarLayoutMonospacedDigits,
+                    highContrast: self.shouldUseHighContrastStatusItemContent,
+                    appearance: button.effectiveAppearance.name.rawValue)
+                let rendered = self.menuBarLayoutRenderer.pluginSummary.render(
+                    elements: elements, options: options, fallbackIcon: {
+                        Self.userPluginSwitcherIcon(for: plugin, snapshot: nil, brandIcon: self.brandIcon)
+                    })
+                let cached = button.image === rendered.statusImage
+                    && (rendered.statusImage != nil || button.attributedTitle.isEqual(to: rendered.attributedTitle))
+                self.lastAppliedMergedIconRenderSignature = nil
+                self.statusItem.length = Self.applyMenuBarLayoutContent(
+                    rendered, for: button, gap: self.settings.menuBarLayoutGap)
+                self.noteIconPerfRender(skipped: cached)
+                return cached
+            }
+            if showBrandPercent, let result = self.applyPluginMenuBarLayout(
+                instanceID: selected, icon: self.userPluginSwitcherIcon(for: plugin))
+            {
+                self.noteIconPerfRender(skipped: result)
+                return result
+            }
             let percent = Self.pluginSwitcherMetricPercent(
                 snapshot: snapshot,
                 showUsed: showUsed,
@@ -952,6 +977,11 @@ extension StatusItemController {
     }
 
     private func setButtonContent(image: NSImage, title: String?, tint: NSColor? = nil, for button: NSStatusBarButton) {
+        if let label = self.menuBarLayoutRenderer.pluginSummary.lastAccessibilityLabel,
+           button.accessibilityTitle() == label
+        {
+            button.setAccessibilityTitle(nil)
+        }
         let image = tint.map { MenuBarLayoutRenderer.attachmentImage(image, tint: $0, isMonochrome: false) } ?? image
         let isDebugApp = Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier)
         let value = Self.buttonTitle(

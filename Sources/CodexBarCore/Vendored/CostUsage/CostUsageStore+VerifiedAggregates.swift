@@ -19,7 +19,7 @@ extension CostUsageStore {
     private static let verifiedDayRevisionKey = "verified_day_revision"
     private static let verifiedDayEvidenceRefreshIntervalMs: Int64 = 5 * 60 * 1000
 
-    static func verifiedLedgerMigrationNeeded(_ database: OpaquePointer) throws -> Bool {
+    static func verifiedLedgerMigrationNeeded(_ database: OpaquePointer, home: String) throws -> Bool {
         let hasTable = try Self.scalarInt(
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
@@ -27,14 +27,14 @@ extension CostUsageStore {
         guard try Self.readSingleton(
             CostUsageStoreMetadata.self,
             database: database,
-            table: "scan_metadata") != nil
+            table: "scan_metadata",
+            home: home) != nil
         else {
             // A newly-created store has no scan metadata yet and therefore needs no migration.
             return false
         }
-        let marker = try Self.scalarText(
-            database,
-            "SELECT COALESCE((SELECT value FROM meta WHERE key = '\(Self.verifiedLedgerMarkerKey)'), '')")
+        let marker = try Self.optionalMetaValue(
+            database, key: Self.verifiedMetaKey(Self.verifiedLedgerMarkerKey, home: home))
         guard let marker, !marker.isEmpty else {
             // Older stores have the table but no marker. They need one additive migration;
             // newly-created stores have no metadata and took the fast path above.
@@ -43,38 +43,49 @@ extension CostUsageStore {
         return marker != String(Self.verifiedLedgerVersion)
     }
 
-    static func clearVerifiedDayAggregates(_ database: OpaquePointer) throws {
+    static func clearVerifiedDayAggregates(_ database: OpaquePointer, home: String) throws {
         guard try scalarInt(
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
         else { return }
-        try execute(database, "DELETE FROM verified_day_aggregates")
-        try clearVerifiedTemporalAggregates(database)
-        try execute(database, "DELETE FROM verified_day_status")
+        let clearAggregates = try Self.prepare(database, "DELETE FROM verified_day_aggregates WHERE home = ?")
+        defer { sqlite3_finalize(clearAggregates) }
+        Self.bind(home, to: clearAggregates, at: 1)
+        try Self.stepDone(clearAggregates, database: database)
+        try clearVerifiedTemporalAggregates(database, home: home)
+        let clearStatus = try Self.prepare(database, "DELETE FROM verified_day_status WHERE home = ?")
+        defer { sqlite3_finalize(clearStatus) }
+        Self.bind(home, to: clearStatus, at: 1)
+        try Self.stepDone(clearStatus, database: database)
         if try scalarInt(
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_evidence'") > 0
         {
-            try execute(database, "DELETE FROM verified_day_evidence")
+            let clearEvidence = try Self.prepare(database, "DELETE FROM verified_day_evidence WHERE home = ?")
+            defer { sqlite3_finalize(clearEvidence) }
+            Self.bind(home, to: clearEvidence, at: 1)
+            try Self.stepDone(clearEvidence, database: database)
         }
-        try invalidateVerifiedTemporalCoverage(database)
+        try invalidateVerifiedTemporalCoverage(database, home: home)
     }
 
     static func readVerifiedDayStatus(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [String]
     {
-        var sql = "SELECT day FROM verified_day_status"
+        var sql = "SELECT day FROM verified_day_status WHERE home = ?1"
         if sinceDay != nil, untilDay != nil {
-            sql += " WHERE day >= ? AND day <= ?"
+            sql += " AND day >= ?2 AND day <= ?3"
         }
         sql += " ORDER BY day"
         let statement = try Self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
+        Self.bind(home, to: statement, at: 1)
         if let sinceDay, let untilDay {
-            Self.bind(sinceDay, to: statement, at: 1)
-            Self.bind(untilDay, to: statement, at: 2)
+            Self.bind(sinceDay, to: statement, at: 2)
+            Self.bind(untilDay, to: statement, at: 3)
         }
         var days: [String] = []
         var result = sqlite3_step(statement)
@@ -87,10 +98,13 @@ extension CostUsageStore {
         return days
     }
 
-    static func markVerifiedDayStatus(_ database: OpaquePointer, day: String) throws {
-        let statement = try Self.prepare(database, "INSERT OR IGNORE INTO verified_day_status(day) VALUES (?)")
+    static func markVerifiedDayStatus(_ database: OpaquePointer, home: String, day: String) throws {
+        let statement = try Self.prepare(
+            database,
+            "INSERT OR IGNORE INTO verified_day_status(home, day) VALUES (?1, ?2)")
         defer { sqlite3_finalize(statement) }
-        Self.bind(day, to: statement, at: 1)
+        Self.bind(home, to: statement, at: 1)
+        Self.bind(day, to: statement, at: 2)
         try Self.stepDone(statement, database: database)
     }
 
@@ -98,6 +112,7 @@ extension CostUsageStore {
     /// become evidence during the additive table migration.
     static func readVerifiedDayEvidence(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [String: CostUsageDayEvidence]
     {
@@ -109,17 +124,18 @@ extension CostUsageStore {
         var sql = """
         SELECT day, source_kind, scope_id, lineage_id, revision, verified_at_ms
         FROM verified_day_evidence
-        WHERE revision > 0
+        WHERE home = ?1 AND revision > 0
         """
         if sinceDay != nil, untilDay != nil {
-            sql += " AND day >= ? AND day <= ?"
+            sql += " AND day >= ?2 AND day <= ?3"
         }
         sql += " ORDER BY day"
         let statement = try Self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
+        Self.bind(home, to: statement, at: 1)
         if let sinceDay, let untilDay {
-            Self.bind(sinceDay, to: statement, at: 1)
-            Self.bind(untilDay, to: statement, at: 2)
+            Self.bind(sinceDay, to: statement, at: 2)
+            Self.bind(untilDay, to: statement, at: 3)
         }
         var values: [String: CostUsageDayEvidence] = [:]
         var result = sqlite3_step(statement)
@@ -152,6 +168,7 @@ extension CostUsageStore {
     @discardableResult
     static func persistVerifiedDayEvidence(
         _ database: OpaquePointer,
+        home: String,
         days: [String],
         scopeID: String,
         verifiedAt: Date = Date(),
@@ -161,9 +178,12 @@ extension CostUsageStore {
         guard !uniqueDays.isEmpty else { return false }
         let existing = try Self.readVerifiedDayEvidence(
             database,
+            home: home,
             sinceDay: uniqueDays[0],
             untilDay: uniqueDays[uniqueDays.count - 1])
-        let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+        let lineageID = try Self.optionalMetaValue(
+            database,
+            key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: home))
         let changedDays = uniqueDays.filter { day in
             guard !forceUpdateDays.contains(day),
                   let lineageID,
@@ -181,10 +201,15 @@ extension CostUsageStore {
             stableLineageID = lineageID
         } else {
             stableLineageID = UUID().uuidString.lowercased()
-            try Self.writeMetaValue(stableLineageID, key: Self.verifiedDayLineageKey, database: database)
+            try Self.writeMetaValue(
+                stableLineageID,
+                key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: home),
+                database: database)
         }
 
-        let previousRevisionText = try Self.optionalMetaValue(database, key: Self.verifiedDayRevisionKey)
+        let previousRevisionText = try Self.optionalMetaValue(
+            database,
+            key: Self.verifiedMetaKey(Self.verifiedDayRevisionKey, home: home))
         let previousRevision: Int64
         if let previousRevisionText {
             guard let parsed = Int64(previousRevisionText), parsed >= 0 else {
@@ -196,7 +221,10 @@ extension CostUsageStore {
         }
         guard previousRevision < Int64.max else { throw StoreError.invalidData }
         let revision = previousRevision + 1
-        try Self.writeMetaValue(String(revision), key: Self.verifiedDayRevisionKey, database: database)
+        try Self.writeMetaValue(
+            String(revision),
+            key: Self.verifiedMetaKey(Self.verifiedDayRevisionKey, home: home),
+            database: database)
 
         let timestamp = verifiedAt.timeIntervalSince1970 * 1000
         guard timestamp.isFinite,
@@ -206,9 +234,9 @@ extension CostUsageStore {
         let verifiedAtMs = Int64(timestamp.rounded())
         let statement = try Self.prepare(database, """
         INSERT INTO verified_day_evidence(
-            day, source_kind, scope_id, lineage_id, revision, verified_at_ms
-        ) VALUES (?, 'codexLocalLedger', ?, ?, ?, ?)
-        ON CONFLICT(day) DO UPDATE SET
+            day, source_kind, scope_id, lineage_id, revision, verified_at_ms, home
+        ) VALUES (?1, 'codexLocalLedger', ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(home, day) DO UPDATE SET
             source_kind = excluded.source_kind,
             scope_id = excluded.scope_id,
             lineage_id = excluded.lineage_id,
@@ -224,12 +252,13 @@ extension CostUsageStore {
             Self.bind(stableLineageID, to: statement, at: 3)
             sqlite3_bind_int64(statement, 4, revision)
             sqlite3_bind_int64(statement, 5, verifiedAtMs)
+            Self.bind(home, to: statement, at: 6)
             try Self.stepDone(statement, database: database)
         }
         return true
     }
 
-    private static func writeMetaValue(
+    static func writeMetaValue(
         _ value: String,
         key: String,
         database: OpaquePointer) throws
@@ -244,19 +273,21 @@ extension CostUsageStore {
         try Self.stepDone(statement, database: database)
     }
 
-    static func clearVerifiedDayEvidence(_ database: OpaquePointer, day: String) throws {
+    static func clearVerifiedDayEvidence(_ database: OpaquePointer, home: String, day: String) throws {
         guard try scalarInt(
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_evidence'") > 0
         else { return }
-        let statement = try Self.prepare(database, "DELETE FROM verified_day_evidence WHERE day = ?")
+        let statement = try Self.prepare(database, "DELETE FROM verified_day_evidence WHERE day = ?1 AND home = ?2")
         defer { sqlite3_finalize(statement) }
         Self.bind(day, to: statement, at: 1)
+        Self.bind(home, to: statement, at: 2)
         try Self.stepDone(statement, database: database)
     }
 
     static func clearVerifiedDayEvidence(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String) throws
     {
@@ -266,14 +297,15 @@ extension CostUsageStore {
         else { return }
         let statement = try Self.prepare(
             database,
-            "DELETE FROM verified_day_evidence WHERE day >= ? AND day <= ?")
+            "DELETE FROM verified_day_evidence WHERE day >= ?1 AND day <= ?2 AND home = ?3")
         defer { sqlite3_finalize(statement) }
         Self.bind(sinceDay, to: statement, at: 1)
         Self.bind(untilDay, to: statement, at: 2)
+        Self.bind(home, to: statement, at: 3)
         try Self.stepDone(statement, database: database)
     }
 
-    static func clearVerifiedDayEvidence(_ database: OpaquePointer, days: Set<String>) throws {
+    static func clearVerifiedDayEvidence(_ database: OpaquePointer, home: String, days: Set<String>) throws {
         guard !days.isEmpty,
               try scalarInt(
                   database,
@@ -283,11 +315,12 @@ extension CostUsageStore {
         let placeholders = sortedDays.map { _ in "?" }.joined(separator: ",")
         let statement = try Self.prepare(
             database,
-            "DELETE FROM verified_day_evidence WHERE day IN (\(placeholders))")
+            "DELETE FROM verified_day_evidence WHERE day IN (\(placeholders)) AND home = ?")
         defer { sqlite3_finalize(statement) }
         for (index, day) in sortedDays.enumerated() {
             Self.bind(day, to: statement, at: Int32(index + 1))
         }
+        Self.bind(home, to: statement, at: Int32(sortedDays.count + 1))
         try Self.stepDone(statement, database: database)
     }
 
@@ -296,6 +329,7 @@ extension CostUsageStore {
     @discardableResult
     static func refreshVerifiedDayEvidenceTimestamps(
         _ database: OpaquePointer,
+        home: String,
         days: [String],
         scopeID: String,
         lineageID: String,
@@ -321,6 +355,7 @@ extension CostUsageStore {
           AND revision > 0
           AND verified_at_ms <= ?
           AND verified_at_ms < ?
+          AND home = ?
         """)
         defer { sqlite3_finalize(statement) }
         var changed = false
@@ -333,6 +368,7 @@ extension CostUsageStore {
             Self.bind(lineageID, to: statement, at: 4)
             sqlite3_bind_int64(statement, 5, cutoffMs)
             sqlite3_bind_int64(statement, 6, verifiedAtMs)
+            Self.bind(home, to: statement, at: 7)
             try Self.stepDone(statement, database: database)
             changed = changed || sqlite3_changes(database) > 0
         }
@@ -354,6 +390,7 @@ extension CostUsageStore {
 
     static func markVerifiedDayStatus(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         calendar: Calendar) throws
@@ -367,6 +404,7 @@ extension CostUsageStore {
         while date <= until {
             try Self.markVerifiedDayStatus(
                 database,
+                home: home,
                 day: CostUsageScanner.CostUsageDayRange.dayKey(from: date, calendar: dayCalendar))
             guard let next = dayCalendar.date(byAdding: .day, value: 1, to: date), next > date else {
                 throw StoreError.invalidData
@@ -377,6 +415,7 @@ extension CostUsageStore {
 
     static func readVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String? = nil,
         untilDay: String? = nil) throws -> [CostUsageStoreDayAggregate]
     {
@@ -395,16 +434,18 @@ extension CostUsageStore {
                priority_resolved_cost_nanos, standard_unresolved_pricing_count,
                priority_unresolved_pricing_count
         FROM verified_day_aggregates
+        WHERE home = ?1
         """
         if sinceDay != nil, untilDay != nil {
-            sql += " WHERE day >= ? AND day <= ?"
+            sql += " AND day >= ?2 AND day <= ?3"
         }
         sql += " ORDER BY day, model"
         let statement = try Self.prepare(database, sql)
         defer { sqlite3_finalize(statement) }
+        Self.bind(home, to: statement, at: 1)
         if let sinceDay, let untilDay {
-            Self.bind(sinceDay, to: statement, at: 1)
-            Self.bind(untilDay, to: statement, at: 2)
+            Self.bind(sinceDay, to: statement, at: 2)
+            Self.bind(untilDay, to: statement, at: 3)
         }
         var values: [CostUsageStoreDayAggregate] = []
         var result = sqlite3_step(statement)
@@ -444,6 +485,7 @@ extension CostUsageStore {
 
     static func insertVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
         guard !aggregates.isEmpty else { return }
@@ -456,9 +498,11 @@ extension CostUsageStore {
             priority_input_tokens, priority_cached_tokens, priority_output_tokens,
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-            priority_unresolved_pricing_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(day, model) DO UPDATE SET
+            priority_unresolved_pricing_count, home
+        ) VALUES (
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+            ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+        ON CONFLICT(home, day, model) DO UPDATE SET
             input_tokens = excluded.input_tokens,
             cached_tokens = excluded.cached_tokens,
             output_tokens = excluded.output_tokens,
@@ -488,20 +532,25 @@ extension CostUsageStore {
             Self.bind(aggregate.day, to: statement, at: 1)
             Self.bind(aggregate.model, to: statement, at: 2)
             Self.bindAggregateValues(aggregate, to: statement, startingAt: 3)
+            Self.bind(home, to: statement, at: 24)
             try Self.stepDone(statement, database: database)
         }
     }
 
     static func replaceVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
         guard try scalarInt(
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
         else { throw CostUsageStore.StoreError.migration(CostUsageStore.StoreError.invalidData) }
-        try execute(database, "DELETE FROM verified_day_aggregates")
-        try self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+        let clearAggregates = try Self.prepare(database, "DELETE FROM verified_day_aggregates WHERE home = ?")
+        defer { sqlite3_finalize(clearAggregates) }
+        Self.bind(home, to: clearAggregates, at: 1)
+        try Self.stepDone(clearAggregates, database: database)
+        try self.insertVerifiedDayAggregates(database, home: home, aggregates: aggregates)
     }
 
     /// Replaces the independently verified evidence for one local day without changing the
@@ -509,6 +558,7 @@ extension CostUsageStore {
     /// set of safe day rows while its full inventory proof is still pending.
     static func replaceVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         day: String,
         aggregates: [CostUsageStoreDayAggregate]) throws
     {
@@ -516,11 +566,12 @@ extension CostUsageStore {
             database,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
         else { throw CostUsageStore.StoreError.migration(CostUsageStore.StoreError.invalidData) }
-        let delete = try Self.prepare(database, "DELETE FROM verified_day_aggregates WHERE day = ?")
+        let delete = try Self.prepare(database, "DELETE FROM verified_day_aggregates WHERE day = ?1 AND home = ?2")
         defer { sqlite3_finalize(delete) }
         Self.bind(day, to: delete, at: 1)
+        Self.bind(home, to: delete, at: 2)
         try Self.stepDone(delete, database: database)
-        try self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+        try self.insertVerifiedDayAggregates(database, home: home, aggregates: aggregates)
     }
 
     /// Persists one independently verified day from the compact aggregate table. This method
@@ -538,7 +589,8 @@ extension CostUsageStore {
                     var metadata = try Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata") ?? .empty
+                        table: "scan_metadata",
+                        home: self.home) ?? .empty
                     guard Self.matchesCodexScanCommit(expectedCommit, metadata: metadata) else {
                         throw StoreError.invalidData
                     }
@@ -551,19 +603,25 @@ extension CostUsageStore {
                         calendar: calendar)
                     let aggregates = try Self.readDayAggregates(
                         database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     let priorAggregates = try Self.readVerifiedDayAggregates(
                         database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     let hasStatus = try Self.readVerifiedDayStatus(
                         database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day).contains(day)
-                    let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+                    let lineageID = try Self.optionalMetaValue(
+                        database,
+                        key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: self.home))
                     let proof = try Self.readVerifiedDayEvidence(
                         database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)[day]
                     let proofMatches = proof.map {
@@ -579,6 +637,7 @@ extension CostUsageStore {
                         guard let lineageID else { throw StoreError.invalidData }
                         _ = try Self.refreshVerifiedDayEvidenceTimestamps(
                             database,
+                            home: self.home,
                             days: [day],
                             scopeID: scopeID,
                             lineageID: lineageID,
@@ -589,18 +648,21 @@ extension CostUsageStore {
                     if aggregatesChanged {
                         try Self.replaceVerifiedDayAggregates(
                             database,
+                            home: self.home,
                             day: day,
                             aggregates: aggregates)
                     }
                     try Self.replaceVerifiedTemporalAggregates(
                         database,
+                        home: self.home,
                         sinceDay: day,
                         untilDay: day)
                     if statusChanged {
-                        try Self.markVerifiedDayStatus(database, day: day)
+                        try Self.markVerifiedDayStatus(database, home: self.home, day: day)
                     }
                     _ = try Self.persistVerifiedDayEvidence(
                         database,
+                        home: self.home,
                         days: [day],
                         scopeID: scopeID,
                         verifiedAt: verifiedAt,
@@ -612,7 +674,7 @@ extension CostUsageStore {
                         ?? calendar.timeZone.identifier
                     metadata.verifiedRootPaths = rootPaths
                     guard self.setMetadata(metadata) else { throw StoreError.invalidData }
-                    try Self.writeVerifiedLedgerMarker(database)
+                    try Self.writeVerifiedLedgerMarker(database, home: self.home)
                 }
                 return true
             } catch {
@@ -639,7 +701,8 @@ extension CostUsageStore {
                     var metadata = try Self.readSingleton(
                         CostUsageStoreMetadata.self,
                         database: database,
-                        table: "scan_metadata") ?? .empty
+                        table: "scan_metadata",
+                        home: self.home) ?? .empty
                     guard Self.matchesCodexScanCommit(expectedCommit, metadata: metadata) else {
                         throw StoreError.invalidData
                     }
@@ -670,10 +733,12 @@ extension CostUsageStore {
                         calendar: calendar)
                     let aggregates = try Self.readDayAggregates(
                         database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     let priorAggregates = try Self.readVerifiedDayAggregates(
                         database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     let currentByDay = Dictionary(grouping: aggregates, by: \.day)
@@ -683,14 +748,18 @@ extension CostUsageStore {
                     })
                     let existingStatuses = try Set(Self.readVerifiedDayStatus(
                         database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay))
                     let statusChangedDays = Set(days.filter { !existingStatuses.contains($0) })
                     let existingEvidence = try Self.readVerifiedDayEvidence(
                         database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
-                    let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+                    let lineageID = try Self.optionalMetaValue(
+                        database,
+                        key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: self.home))
                     let evidenceChangedDays = Set(days.filter { day in
                         guard let proof = existingEvidence[day],
                               let lineageID
@@ -707,6 +776,7 @@ extension CostUsageStore {
                         guard let lineageID else { throw StoreError.invalidData }
                         _ = try Self.refreshVerifiedDayEvidenceTimestamps(
                             database,
+                            home: self.home,
                             days: days,
                             scopeID: scopeID,
                             lineageID: lineageID,
@@ -717,6 +787,7 @@ extension CostUsageStore {
                     for day in aggregateChangedDays.sorted() {
                         try Self.replaceVerifiedDayAggregates(
                             database,
+                            home: self.home,
                             day: day,
                             aggregates: currentByDay[day, default: []])
                     }
@@ -728,20 +799,22 @@ extension CostUsageStore {
                     metadata.verifiedRootPaths = metadata.verifiedRootPaths
                         ?? rootPaths
                     for day in statusChangedDays {
-                        try Self.markVerifiedDayStatus(database, day: day)
+                        try Self.markVerifiedDayStatus(database, home: self.home, day: day)
                     }
                     try Self.replaceVerifiedTemporalAggregates(
                         database,
+                        home: self.home,
                         sinceDay: sinceDay,
                         untilDay: untilDay)
                     _ = try Self.persistVerifiedDayEvidence(
                         database,
+                        home: self.home,
                         days: Array(changedDays),
                         scopeID: scopeID,
                         verifiedAt: verifiedAt,
                         forceUpdateDays: aggregateChangedDays.union(statusChangedDays))
                     guard self.setMetadata(metadata) else { throw StoreError.invalidData }
-                    try Self.writeVerifiedLedgerMarker(database)
+                    try Self.writeVerifiedLedgerMarker(database, home: self.home)
                 }
                 return true
             } catch {
@@ -778,6 +851,7 @@ extension CostUsageStore {
     /// coverage markers are left to the caller because a complete baseline may still be valid.
     static func clearVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         days: Set<String>) throws
     {
         guard !days.isEmpty,
@@ -789,32 +863,36 @@ extension CostUsageStore {
         let placeholders = sortedDays.map { _ in "?" }.joined(separator: ",")
         let statement = try Self.prepare(
             database,
-            "DELETE FROM verified_day_aggregates WHERE day IN (\(placeholders))")
+            "DELETE FROM verified_day_aggregates WHERE day IN (\(placeholders)) AND home = ?")
         defer { sqlite3_finalize(statement) }
         for (index, day) in sortedDays.enumerated() {
             Self.bind(day, to: statement, at: Int32(index + 1))
         }
+        Self.bind(home, to: statement, at: Int32(sortedDays.count + 1))
         try Self.stepDone(statement, database: database)
         let status = try Self.prepare(
             database,
-            "DELETE FROM verified_day_status WHERE day IN (\(placeholders))")
+            "DELETE FROM verified_day_status WHERE day IN (\(placeholders)) AND home = ?")
         defer { sqlite3_finalize(status) }
         for (index, day) in sortedDays.enumerated() {
             Self.bind(day, to: status, at: Int32(index + 1))
         }
+        Self.bind(home, to: status, at: Int32(sortedDays.count + 1))
         try Self.stepDone(status, database: database)
-        try Self.clearVerifiedDayEvidence(database, days: Set(sortedDays))
+        try Self.clearVerifiedDayEvidence(database, home: home, days: Set(sortedDays))
         for day in sortedDays {
             try Self.clearVerifiedTemporalAggregates(
                 database,
+                home: home,
                 sinceDay: day,
                 untilDay: day)
         }
-        try Self.invalidateVerifiedTemporalCoverage(database)
+        try Self.invalidateVerifiedTemporalCoverage(database, home: home)
     }
 
     static func clearVerifiedDayAggregates(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         preserveTemporalCoverage: Bool = false) throws
@@ -826,25 +904,28 @@ extension CostUsageStore {
         else { return }
         let statement = try Self.prepare(
             database,
-            "DELETE FROM verified_day_aggregates WHERE day >= ? AND day <= ?")
+            "DELETE FROM verified_day_aggregates WHERE day >= ?1 AND day <= ?2 AND home = ?3")
         defer { sqlite3_finalize(statement) }
         Self.bind(sinceDay, to: statement, at: 1)
         Self.bind(untilDay, to: statement, at: 2)
+        Self.bind(home, to: statement, at: 3)
         try Self.stepDone(statement, database: database)
         let status = try Self.prepare(
             database,
-            "DELETE FROM verified_day_status WHERE day >= ? AND day <= ?")
+            "DELETE FROM verified_day_status WHERE day >= ?1 AND day <= ?2 AND home = ?3")
         defer { sqlite3_finalize(status) }
         Self.bind(sinceDay, to: status, at: 1)
         Self.bind(untilDay, to: status, at: 2)
+        Self.bind(home, to: status, at: 3)
         try Self.stepDone(status, database: database)
-        try Self.clearVerifiedDayEvidence(database, sinceDay: sinceDay, untilDay: untilDay)
+        try Self.clearVerifiedDayEvidence(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
         try Self.clearVerifiedTemporalAggregates(
             database,
+            home: home,
             sinceDay: sinceDay,
             untilDay: untilDay)
         if !preserveTemporalCoverage {
-            try Self.invalidateVerifiedTemporalCoverage(database)
+            try Self.invalidateVerifiedTemporalCoverage(database, home: home)
         }
     }
 
@@ -862,6 +943,7 @@ extension CostUsageStore {
             #endif
             try Self.execute(database, """
             CREATE TABLE IF NOT EXISTS verified_day_aggregates (
+                home TEXT NOT NULL,
                 day TEXT NOT NULL,
                 model TEXT NOT NULL,
                 input_tokens INTEGER NOT NULL,
@@ -885,28 +967,33 @@ extension CostUsageStore {
                 priority_resolved_cost_nanos INTEGER NOT NULL,
                 standard_unresolved_pricing_count INTEGER NOT NULL,
                 priority_unresolved_pricing_count INTEGER NOT NULL,
-                PRIMARY KEY(day, model)
+                PRIMARY KEY(home, day, model)
             )
             """)
             try Self.execute(database, """
             CREATE INDEX IF NOT EXISTS verified_day_aggregates_day_idx
-            ON verified_day_aggregates(day)
+            ON verified_day_aggregates(home, day)
             """)
             try Self.execute(database, """
             CREATE INDEX IF NOT EXISTS verified_day_aggregates_model_day_idx
-            ON verified_day_aggregates(model, day)
+            ON verified_day_aggregates(home, model, day)
             """)
 
             var metadata = try Self.readSingleton(
                 CostUsageStoreMetadata.self,
                 database: database,
-                table: "scan_metadata") ?? .empty
-            let count = try Self.scalarInt(database, "SELECT COUNT(*) FROM verified_day_aggregates")
+                table: "scan_metadata",
+                home: self.home) ?? .empty
+            let countQuery = try Self.prepare(database, "SELECT COUNT(*) FROM verified_day_aggregates WHERE home = ?")
+            defer { sqlite3_finalize(countQuery) }
+            Self.bind(self.home, to: countQuery, at: 1)
+            guard sqlite3_step(countQuery) == SQLITE_ROW else { throw StoreError.invalidData }
+            let count = sqlite3_column_int64(countQuery, 0)
             if count == 0 {
-                if !metadata.catchUpPending, try !Self.hasUnresolvedCodexForkBaseline(database) {
-                    try Self.execute(database, """
+                if !metadata.catchUpPending, try !Self.hasUnresolvedCodexForkBaseline(database, home: self.home) {
+                    let copy = try Self.prepare(database, """
                     INSERT INTO verified_day_aggregates
-                    SELECT day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
+                    SELECT ?1, day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
                            request_count, unpriced_request_count, authoritative_cost_nanos,
                            standard_authoritative_cost_nanos, priority_authoritative_cost_nanos,
                            standard_input_tokens, standard_cached_tokens, standard_output_tokens,
@@ -914,8 +1001,11 @@ extension CostUsageStore {
                            standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                            priority_resolved_cost_nanos, standard_unresolved_pricing_count,
                            priority_unresolved_pricing_count
-                    FROM day_aggregates
+                    FROM day_aggregates WHERE home = ?1
                     """)
+                    defer { sqlite3_finalize(copy) }
+                    Self.bind(self.home, to: copy, at: 1)
+                    try Self.stepDone(copy, database: database)
                     metadata.verifiedScanSinceDay = metadata.scanSinceDay
                     metadata.verifiedScanUntilDay = metadata.scanUntilDay
                     metadata.verifiedUpdatedAtUnixMs = metadata.lastScanUnixMs > 0
@@ -924,7 +1014,7 @@ extension CostUsageStore {
                     metadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
                 } else if let payload = metadata.previousReportPayload {
                     let aggregates = Self.verifiedAggregates(from: payload)
-                    try Self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+                    try Self.insertVerifiedDayAggregates(database, home: self.home, aggregates: aggregates)
                     if let previous = try? JSONDecoder().decode(
                         CostUsageCodexPreviousReport.self,
                         from: payload)
@@ -940,13 +1030,14 @@ extension CostUsageStore {
             }
             let metadataPayload = try JSONEncoder().encode(metadata)
             let statement = try Self.prepare(database, """
-            INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+            INSERT INTO scan_metadata(home, id, payload) VALUES (?1, 1, ?2)
+            ON CONFLICT(home, id) DO UPDATE SET payload = excluded.payload
             """)
             defer { sqlite3_finalize(statement) }
-            Self.bind(metadataPayload, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 1)
+            Self.bind(metadataPayload, to: statement, at: 2)
             try Self.stepDone(statement, database: database)
-            try Self.writeVerifiedLedgerMarker(database)
+            try Self.writeVerifiedLedgerMarker(database, home: self.home)
             try Self.execute(database, "COMMIT")
         } catch {
             try? Self.execute(database, "ROLLBACK")
@@ -954,13 +1045,14 @@ extension CostUsageStore {
         }
     }
 
-    static func writeVerifiedLedgerMarker(_ database: OpaquePointer) throws {
+    static func writeVerifiedLedgerMarker(_ database: OpaquePointer, home: String) throws {
         let statement = try Self.prepare(database, """
-        INSERT INTO meta(key, value) VALUES ('\(Self.verifiedLedgerMarkerKey)', ?)
+        INSERT INTO meta(key, value) VALUES (?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
         """)
         defer { sqlite3_finalize(statement) }
-        Self.bind(String(Self.verifiedLedgerVersion), to: statement, at: 1)
+        Self.bind(Self.verifiedMetaKey(Self.verifiedLedgerMarkerKey, home: home), to: statement, at: 1)
+        Self.bind(String(Self.verifiedLedgerVersion), to: statement, at: 2)
         try Self.stepDone(statement, database: database)
     }
 

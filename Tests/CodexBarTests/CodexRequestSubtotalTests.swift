@@ -45,7 +45,7 @@ struct CodexRequestSubtotalTests {
             outputTokens: 0,
             reasoningTokens: nil) }
         let report = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { local },
@@ -143,7 +143,7 @@ struct CodexRequestSubtotalTests {
     func `invalid source contracts and overflowing subtotals are rejected`(invalid: String) throws {
         var source = Self.ledger()
         switch invalid {
-        case "schema": source.schemaVersion = 2
+        case "schema": source.schemaVersion = 3
         case "provider": source.provider = "claude"
         case "window": source.endUnixMs += 1
         case "digest": source.conflictingIDs = ["raw-session-id"]
@@ -170,7 +170,7 @@ struct CodexRequestSubtotalTests {
         }
     }
 
-    @Test(arguments: ["same", "contradiction", "invalid", "future-invalid", "reasoning"])
+    @Test(arguments: ["same", "contradiction", "timestamp", "invalid", "future-invalid", "reasoning"])
     func `native copies resumes exact UTC bounds and unidentified rows use the real parser`(variant: String)
         throws
     {
@@ -197,12 +197,12 @@ struct CodexRequestSubtotalTests {
         }
         let original = metadata + "\n" + request("copied") + "\n"
         try Data(original.utf8).write(to: root.appendingPathComponent("original.jsonl"))
-        let contradiction = ["contradiction", "invalid", "reasoning"].contains(variant)
+        let contradiction = ["contradiction", "timestamp", "invalid", "reasoning"].contains(variant)
         let resumed = request(
             "copied",
             input: variant == "contradiction" ? 101 : (variant == "invalid" ? 19 : 100),
             reasoning: variant == "reasoning" ? 4 : 3,
-            timestamp: "2026-08-31T11:00:00Z")
+            timestamp: variant == "timestamp" ? "2026-08-31T11:00:00Z" : "2026-08-31T12:00:00Z")
         let resume = original + resumed + "\n"
             + request("new", timestamp: "2026-08-31T00:00:00Z") + "\n"
             + request("exact-end", timestamp: "2026-08-31T12:00:00.003Z") + "\n"
@@ -229,8 +229,10 @@ struct CodexRequestSubtotalTests {
         #expect(ledger.excludedCount > 0)
         let wire = try #require(String(bytes: JSONEncoder().encode(ledger), encoding: .utf8))
         #expect(!wire.contains("fixture-session"))
-        #expect(!wire.contains("gpt-5"))
+        #expect(!wire.contains("fixture-child"))
+        #expect(!wire.contains("copied"))
         #expect(!wire.contains(root.path))
+        #expect(wire.contains("\"model\":\"gpt-5\""))
     }
 
     @Test(arguments: ["missing", "empty", "truncated", "malformed", "oversized"])
@@ -281,7 +283,7 @@ struct CodexRequestSubtotalTests {
             environment: ["UNRELATED_TOKEN": "fixture-secret"])
         #expect(received.records == ledger.records)
         let combined = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { ledger },
@@ -289,7 +291,7 @@ struct CodexRequestSubtotalTests {
         #expect(combined.allSourcesAvailable)
         #expect(combined.subtotal?.totalTokens == 110)
         let report = try await CodexBarCLI.collectCodexIdentifiedUsage(
-            remote: "fixture-host",
+            remotes: ["fixture-host"],
             startUnixMs: Self.start,
             endUnixMs: Self.end,
             local: { ledger },
@@ -301,7 +303,7 @@ struct CodexRequestSubtotalTests {
         #expect(report.reports[1].ledger == nil)
         let cancelled = Task {
             try await CodexBarCLI.collectCodexIdentifiedUsage(
-                remote: "fixture-host",
+                remotes: ["fixture-host"],
                 startUnixMs: Self.start,
                 endUnixMs: Self.end,
                 local: { throw CancellationError() },

@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.
+
 - Kimi monthly usage breakdown now syncs from Mac to iPhone as details of the existing quota.
 
 - Chatbox plan quotas and abliteration.ai credit balances now sync from QuotaKit Mac to iPhone.

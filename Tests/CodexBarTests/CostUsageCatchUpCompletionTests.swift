@@ -57,7 +57,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(180),
             options: options)
 
-        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(completedCache.files[oldURL.path] == nil)
         #expect(completedCache.files[currentURL.path] != nil)
         #expect(proofRecorder.snapshot().codexProgressAccountingVisits == 1)
@@ -78,7 +78,7 @@ struct CostUsageCatchUpCompletionTests {
             completedCurrentWindowFlatRootPaths: roots)
         damagedCache.codexScanInventoryPaths = nil
         damagedCache.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: damagedCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: damagedCache)
 
         options.codexScanWorkRecorderForTesting = nil
         _ = CostUsageScanner.loadDailyReport(
@@ -87,7 +87,7 @@ struct CostUsageCatchUpCompletionTests {
             until: day,
             now: day.addingTimeInterval(181),
             options: options)
-        let repairedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let repairedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(repairedCache.codexActiveLookbackState == nil)
         #expect(repairedCache.codexScanCatchUpPending == false)
     }
@@ -134,7 +134,7 @@ struct CostUsageCatchUpCompletionTests {
         try cachedHandle.write(contentsOf: Data("\n".utf8))
         try cachedHandle.close()
 
-        var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
             .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
             .sorted()
@@ -146,7 +146,7 @@ struct CostUsageCatchUpCompletionTests {
             completedCurrentWindowRootPaths: roots,
             completedCurrentWindowFlatRootPaths: roots)
         pendingCache.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pendingCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: pendingCache)
 
         options.maxCodexScanBytesPerRefresh = 1
         options.maxCodexScanDurationPerRefresh = 60
@@ -157,7 +157,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(1),
             options: options)
 
-        let deferredCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let deferredCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(deferredCache.files[pendingURL.path] == nil)
         #expect(deferredCache.codexActiveLookbackState?.pendingFilePaths.contains(pendingURL.path) == true)
         #expect(deferredCache.codexScanCatchUpPending == true)
@@ -194,7 +194,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day,
             options: options)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let snapshot = await store.readSnapshot()
         #expect(snapshot.files.count == corpusSize)
         for var file in snapshot.files {
@@ -209,10 +209,10 @@ struct CostUsageCatchUpCompletionTests {
         var hooks = CostUsageStoreTestHooks.current
         hooks.codexCatchUpReconciliationVisit = { counter.increment() }
         let restored = CostUsageStoreTestHooks.$current.withValue(hooks) {
-            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         }
         #else
-        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #endif
 
         #expect(counter.value == CostUsageScanner.codexCatchUpScanCandidateLimit)
@@ -256,7 +256,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day,
             options: options)
 
-        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(staleCache.files.count == 2)
         let currentPath = try #require(staleCache.files.keys.first(where: {
             $0.hasSuffix("current-window.jsonl")
@@ -269,13 +269,13 @@ struct CostUsageCatchUpCompletionTests {
         staleCache.codexScanCatchUpPending = true
         staleCache.codexActiveLookbackState = nil
 
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: staleCache)
 
-        let retainedPendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let retainedPendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(retainedPendingCache.files.count == 1)
         #expect(retainedPendingCache.codexScanCatchUpPending == true)
         #expect(retainedPendingCache.codexScanCompletedFiles == 0)
-        #expect(await CostUsageStore(cacheRoot: env.cacheRoot).fetchMetadata().catchUpPending)
+        #expect(await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).fetchMetadata().catchUpPending)
     }
 
     @Test
@@ -304,7 +304,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day,
             options: options)
 
-        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let path = try #require(staleCache.files.keys.first)
         var usage = try #require(staleCache.files[path])
         let identity = try #require(usage.codexScanFileId)
@@ -321,9 +321,9 @@ struct CostUsageCatchUpCompletionTests {
             pendingFilePaths: [path])
         staleCache.codexScanCatchUpPending = true
         try FileManager.default.removeItem(at: fileURL)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: staleCache)
 
-        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(restored.codexActiveLookbackState?.pendingFilePaths == [path])
         #expect(restored.codexScanCatchUpPending == true)
     }
@@ -356,7 +356,7 @@ struct CostUsageCatchUpCompletionTests {
                 filename: "queued-\(index).jsonl",
                 contents: "").standardizedFileURL.path
         }
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var metadata = await store.fetchMetadata()
         metadata.scanSinceDay = "2026-05-09"
         metadata.catchUpPending = true
@@ -385,7 +385,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(1),
             options: options)
 
-        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let restored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(recorder.snapshot().codexFileScanAttempts == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(restored.codexActiveLookbackState?.pendingFilePaths.count
             == pendingPaths.count - CostUsageScanner.codexCatchUpScanCandidateLimit)
@@ -425,7 +425,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day,
             options: options)
 
-        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var staleCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
             .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
             .sorted()
@@ -451,10 +451,11 @@ struct CostUsageCatchUpCompletionTests {
             completedRootPaths: roots,
             pendingFilePaths: [path, normalizedPath])
         staleCache.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleCache)
-        #expect(await CostUsageStore(cacheRoot: env.cacheRoot).fetchMetadata().catchUpPending == true)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: staleCache)
+        #expect(await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).fetchMetadata()
+            .catchUpPending == true)
 
-        let repairedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let repairedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(repairedCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
         #expect(repairedCache.codexScanCatchUpPending == true)
         #expect(repairedCache.files[path]?.codexScanFileId == currentIdentity)
@@ -469,7 +470,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(1),
             options: options)
 
-        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(recorder.snapshot().codexFileScanAttempts == 1)
         #expect(completedCache.codexActiveLookbackState == nil)
         #expect(completedCache.codexScanCatchUpPending == false)
@@ -484,13 +485,13 @@ struct CostUsageCatchUpCompletionTests {
         staleProgressCache.codexScanCatchUpPending = true
         staleProgressCache.codexScanProcessedBytes = 0
         staleProgressCache.codexScanCompletedFiles = 0
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: staleProgressCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: staleProgressCache)
         let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
         try handle.seekToEnd()
         try handle.write(contentsOf: Data("\n".utf8))
         try handle.close()
 
-        let normalizedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let normalizedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(normalizedCache.files[path]?.codexScanFileId == currentIdentity)
         #expect(normalizedCache.files[path]?.codexScanComplete == false)
 
@@ -503,7 +504,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(2),
             options: options)
 
-        let normalizedCompletedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let normalizedCompletedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(normalizedRecorder.snapshot().codexFileScanAttempts == 1)
         #expect(normalizedCompletedCache.codexScanCatchUpPending == false)
         #expect(normalizedCompletedCache.codexScanProcessedBytes == normalizedCompletedCache.codexScanTotalBytes)
@@ -513,14 +514,18 @@ struct CostUsageCatchUpCompletionTests {
         appendedWhilePendingCache.codexScanCatchUpPending = true
         appendedWhilePendingCache.codexScanProcessedBytes = 0
         appendedWhilePendingCache.codexScanCompletedFiles = 0
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: appendedWhilePendingCache)
-        #expect(await CostUsageStore(cacheRoot: env.cacheRoot).fetchMetadata().catchUpPending == false)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: appendedWhilePendingCache)
+        #expect(await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).fetchMetadata()
+            .catchUpPending == false)
         let secondHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
         try secondHandle.seekToEnd()
         try secondHandle.write(contentsOf: Data("\n".utf8))
         try secondHandle.close()
 
-        let repairedPendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let repairedPendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(repairedPendingCache.codexScanCatchUpPending == false)
         #expect(repairedPendingCache.codexScanProcessedBytes == repairedPendingCache.codexScanTotalBytes)
         #expect(repairedPendingCache.codexScanCompletedFiles == repairedPendingCache.codexScanTotalFiles)
@@ -534,7 +539,7 @@ struct CostUsageCatchUpCompletionTests {
             now: day.addingTimeInterval(3),
             options: options)
 
-        let appendedCompletedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let appendedCompletedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(appendedRecorder.snapshot().codexFileScanAttempts == 1)
         #expect(appendedCompletedCache.codexScanCatchUpPending == false)
         #expect(appendedCompletedCache.codexScanProcessedBytes == appendedCompletedCache.codexScanTotalBytes)

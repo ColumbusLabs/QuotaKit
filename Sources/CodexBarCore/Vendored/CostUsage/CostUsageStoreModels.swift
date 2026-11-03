@@ -244,9 +244,11 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var exactInventoryFlatDirectoryOffsetByRoot: [String: Int64]?
     var exactInventoryCompletedFlatRootPaths: [String]?
     var exactCachedValidationLastPath: String?
+    var exactExcludedCachePaths: [String]?
     var cacheWideMigrationQueueActive: Bool?
     var priorityMigrationGenerationKey: String?
     var priorityAdmissionDebt: Int?
+    var forkDependencyValidationSeeded: Bool?
 }
 
 struct CostUsageStoreAccumulator: Codable, Equatable, Sendable {

@@ -164,6 +164,33 @@ extension UsageFormatterTests {
 
     @Test
     @MainActor
+    func `menu lane labels follow language while plugin supplied titles remain literal`() {
+        let labels = CodexBarLocalizationOverride.$appLanguage.withValue("uk") {
+            MenuBarLayoutLaneLabels(provider: .codex, snapshot: nil)
+        }
+        let plugin = MenuBarLayoutLaneLabels(pluginSnapshot: UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 25,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil,
+                title: "Session"),
+            secondary: nil,
+            updatedAt: Date()))
+        CodexBarLocalizationOverride.$appLanguage.withValue("uk") {
+            #expect(labels.primary == L("Session"))
+            #expect(plugin.primary == "Session")
+            #expect(plugin.secondary == L("Secondary"))
+        }
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(labels.primary == "Session")
+            #expect(plugin.primary == "Session")
+            #expect(plugin.secondary == "Secondary")
+        }
+    }
+
+    @Test
+    @MainActor
     func `menu bar absolute reset cache rolls over at local midnight`() throws {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())

@@ -157,7 +157,7 @@ struct CostUsageCodexRequestLedgerTests {
         }
         let initial = try await fetch(sameWindow ? end : start)
         #expect(initial.sessionTokens == (sameWindow ? 0 : 1100))
-        _ = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
+        _ = await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).readSnapshot()
         let handle = try FileHandle(forWritingTo: file)
         try handle.seekToEnd()
         try handle.write(contentsOf: Data(env.jsonl([
@@ -180,12 +180,12 @@ struct CostUsageCodexRequestLedgerTests {
         try handle.close()
         let resumed = try await fetch(end)
         #expect(resumed.sessionTokens == 132)
-        let saved = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
+        let saved = await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).readSnapshot()
         #expect(saved.files.allSatisfy { $0.scanState.isComplete == true })
         #expect(saved.usageRows.count == 3)
         let stable = try await fetch(end.addingTimeInterval(120))
         #expect(stable.daily == resumed.daily)
-        let reopened = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
+        let reopened = await CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).readSnapshot()
         #expect(reopened.usageRows == saved.usageRows)
     }
 
@@ -351,7 +351,7 @@ struct CostUsageCodexRequestLedgerTests {
                 provider: .codex, since: date, until: date, now: date, options: selected)
         }
         #expect(fetch().summary?.totalTokens == 110)
-        let prefix = try #require(CostUsageStore(cacheRoot: env.cacheRoot)
+        let prefix = try #require(CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar).files[file.path])
         let record = Self.record(
             id: "second",
@@ -381,7 +381,8 @@ struct CostUsageCodexRequestLedgerTests {
         #expect(delta.rows.reduce(0) { $0 + $1.input + $1.output } == 66)
         let resumed = fetch()
         #expect(resumed.summary?.totalTokens == 176)
-        let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(cache.files[file.path]?.codexRows?.compactMap(\.responseID) == ["first", "second"])
         #expect(cache.files[file.path]?.codexRows?.count == 2)
         #expect(fetch().data == resumed.data)
@@ -414,7 +415,7 @@ struct CostUsageCodexRequestLedgerTests {
             var report = CostUsageScanner.loadDailyReport(
                 provider: .codex, since: date, until: date, now: date, options: options)
             for _ in 0..<60 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = CostUsageScanner.loadDailyReport(
@@ -423,7 +424,8 @@ struct CostUsageCodexRequestLedgerTests {
             return report
         }
         _ = fetch()
-        var saved = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var saved = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         var cached = try #require(saved.files[file.path])
         var rows = try #require(cached.codexRows)
         #expect(rows.count == 1)
@@ -433,7 +435,11 @@ struct CostUsageCodexRequestLedgerTests {
         if pricing == "unpriced" { rows[0].unpricedTokens = 110_000 }
         cached.codexRows = rows
         saved.files[file.path] = cached
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: saved, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: saved,
+            calendar: calendar)
             .catchUpRequired)
         let expectedCost = CostUsageScanner.codexResolvedCostUSD(
             for: rows[0], modelsDevCatalog: nil, modelsDevCacheRoot: nil)
@@ -445,7 +451,8 @@ struct CostUsageCodexRequestLedgerTests {
             total: differentTotals ? [200_000, 40000, 20000, 8000] : usage)]).utf8))
         try handle.close()
         let resumed = fetch()
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         let replaced = try #require(reopened.files[file.path]?.codexRows)
         #expect(replaced.count == 1)
         let row = try #require(replaced.first)
@@ -639,7 +646,7 @@ struct CostUsageCodexRequestLedgerTests {
             var report = CostUsageScanner.loadDailyReport(
                 provider: .codex, since: start, until: end, now: end, options: options)
             for _ in 0..<60 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = CostUsageScanner.loadDailyReport(
@@ -648,10 +655,11 @@ struct CostUsageCodexRequestLedgerTests {
             return report
         }
         _ = fetch()
-        let legacyManifest = CostUsageStore(cacheRoot: env.cacheRoot)
+        let legacyManifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(legacyManifest.files[legacyFile.path]?.codexTypedResponseIdentity == false)
-        var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         var file = try #require(cache.files[legacyFile.path])
         var savedPrice = try #require(file.codexRows?.first)
         savedPrice.pricingModel = "gpt-5.4"
@@ -660,7 +668,11 @@ struct CostUsageCodexRequestLedgerTests {
         if pricing == "unpriced" { savedPrice.unpricedTokens = 110 }
         file.codexRows = [savedPrice]
         cache.files[legacyFile.path] = file
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: calendar)
             .catchUpRequired)
         // The paired page proves which legacy observation mirrors this response across midnight.
         _ = try env.writeCodexSessionFile(
@@ -670,7 +682,8 @@ struct CostUsageCodexRequestLedgerTests {
         let report = fetch()
         #expect(report.summary?.totalTokens == 110)
         #expect(report.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-30"])
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         let rows = reopened.files.values.flatMap { $0.codexRows ?? [] }
         #expect(rows.compactMap(\.responseID) == ["owned"])
         let row = try #require(rows.first)
@@ -729,7 +742,8 @@ struct CostUsageCodexRequestLedgerTests {
         let report = CostUsageScanner.loadDailyReport(
             provider: .codex, since: day, until: day, now: day, options: options)
         #expect(report.summary?.totalTokens == 110)
-        let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+        let cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: .current)
         let rows: [CostUsageScanner.CodexUsageRow] = cache.files.values.flatMap { $0.codexRows ?? [] }
         let responseIDs: [String] = rows.compactMap(\CostUsageScanner.CodexUsageRow.responseID)
         #expect(responseIDs == ["partial"])
@@ -766,9 +780,13 @@ extension CostUsageCodexRequestLedgerTests {
         seed.scanUntilKey = "2026-08-30"
         seed.days = usage.days
         seed.files[path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: seed, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: seed,
+            calendar: calendar)
             .catchUpRequired)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let baseline = try #require(store.syncLoadCodexCache(calendar: calendar).files[path])
         var compact = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(compact.files[path]?.codexRows == nil)
@@ -789,7 +807,7 @@ extension CostUsageCodexRequestLedgerTests {
             calendar: calendar,
             requestedScanWindow: window,
             hydratedPaths: [path]).catchUpRequired)
-        let reopenedStore = CostUsageStore(cacheRoot: env.cacheRoot)
+        let reopenedStore = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var reopened = reopenedStore.syncLoadCodexCache(calendar: calendar)
         let preserved = try #require(reopened.files[path])
         #expect(preserved.codexRows == baseline.codexRows)
@@ -817,7 +835,7 @@ extension CostUsageCodexRequestLedgerTests {
             calendar: calendar,
             requestedScanWindow: window,
             hydratedPaths: [path]).catchUpRequired)
-        let cleared = try #require(CostUsageStore(cacheRoot: env.cacheRoot)
+        let cleared = try #require(CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar).files[path])
         #expect(cleared.codexRows?.isEmpty == true)
         #expect(cleared.codexTokenSnapshots?.isEmpty == true)
@@ -929,7 +947,7 @@ extension CostUsageCodexRequestLedgerTests {
         func settle() -> CostUsageDailyReport {
             var report = fetch()
             for _ in 0..<100 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = fetch()
@@ -970,7 +988,7 @@ extension CostUsageCodexRequestLedgerTests {
         options.codexScanWorkRecorderForTesting = recorder
         _ = fetch()
         #expect(recorder.snapshot().codexHydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
-        let partial = CostUsageStore(cacheRoot: env.cacheRoot)
+        let partial = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(partial.codexScanCatchUpPending == true)
         #expect(partial.files[page.path]?.codexRequestReconciliation?.pendingPaths.isEmpty == false)
@@ -978,7 +996,8 @@ extension CostUsageCodexRequestLedgerTests {
         let reconciled = settle()
         #expect(reconciled.summary?.totalTokens == 770)
         #expect(reconciled.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(reopened.codexScanCatchUpPending != true)
         #expect(reopened.files.values.flatMap { $0.codexRows ?? [] }.compactMap(\.responseID).count == 7)
         #expect(reopened.files.values.contains {
@@ -1004,7 +1023,8 @@ extension CostUsageCodexRequestLedgerTests {
         // A proven adjacent mirror may carry a different timestamp from its typed response.
         // Its alias must move with the canonical response before the rowless source disappears.
         let aliasOwnerPath = try #require(aliasOwner).path
-        let aliasCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let aliasCache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(aliasCache.files[aliasOwnerPath]?.codexRows?.isEmpty == true)
         try FileManager.default.removeItem(atPath: aliasOwnerPath)
         #expect(settle().summary?.totalTokens == 836)
@@ -1012,10 +1032,12 @@ extension CostUsageCodexRequestLedgerTests {
             day: start, filename: "aa-late-legacy-copy.jsonl", contents: env.jsonl(Self.header() + [Self.legacy(
                 timestamp: Self.timestampC, usage: [100, 20, 10, 4], total: [100, 20, 10, 4])]))
         #expect(settle().summary?.totalTokens == 836)
-        let aliasRecovered = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let aliasRecovered = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(aliasRecovered.files.values.flatMap { $0.codexRows ?? [] }.count == 8)
 
-        var pricedCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var pricedCache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         var owner = try #require(pricedCache.files[page.path])
         owner.codexRows = owner.codexRows?.map { row in
             var row = row
@@ -1026,9 +1048,14 @@ extension CostUsageCodexRequestLedgerTests {
             return row
         }
         pricedCache.files[page.path] = owner
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pricedCache, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: pricedCache,
+            calendar: calendar)
             .catchUpRequired)
-        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
         #expect(savedPricing.files[page.path]?.codexRows?.first { $0.responseID == "response-0" }?
             .knownCostNanos == 123_000_000)
@@ -1036,14 +1063,15 @@ extension CostUsageCodexRequestLedgerTests {
         try FileManager.default.removeItem(at: page)
         try FileManager.default.removeItem(at: settledCopyURL)
         _ = fetch()
-        let queuedRecovery = CostUsageStore(cacheRoot: env.cacheRoot)
+        let queuedRecovery = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(queuedRecovery.codexScanCatchUpPending == true)
         #expect(queuedRecovery.files[page.path] != nil)
         let recovered = settle()
         #expect(recovered.summary?.totalTokens == 770)
         #expect(recovered.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
-        let recoveredCache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let recoveredCache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(recoveredCache.files[page.path] == nil)
         #expect(recoveredCache.codexScanCatchUpPending != true)
         #expect(recoveredCache.codexHistoryHydrationRetries?.isEmpty != false)
@@ -1084,7 +1112,7 @@ extension CostUsageCodexRequestLedgerTests {
         func settle() -> CostUsageDailyReport {
             var report = fetch()
             for _ in 0..<150 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = fetch()
@@ -1105,7 +1133,7 @@ extension CostUsageCodexRequestLedgerTests {
                 contents: env.jsonl(Self.header() + [record, mirror])))
         }
         #expect(settle().summary?.totalTokens == ownerCount * 110)
-        let compact = CostUsageStore(cacheRoot: env.cacheRoot)
+        let compact = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         for file in files {
             let owner = try #require(compact.files[file.path])
@@ -1126,14 +1154,15 @@ extension CostUsageCodexRequestLedgerTests {
         }
         if let queuedSource {
             _ = fetch()
-            let queued = CostUsageStore(cacheRoot: env.cacheRoot)
+            let queued = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
             #expect(queued.codexScanCatchUpPending == true)
             #expect(queued.codexHistoryHydrationRetries?[queuedSource.path]?.requestOwnerPaths?.isEmpty == false)
             try FileManager.default.removeItem(at: queuedSource)
         }
         #expect((settle().summary?.totalTokens ?? 0) == 0)
-        let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(cache.files.isEmpty)
         #expect(cache.codexScanCatchUpPending != true)
         #expect(cache.codexHistoryHydrationRetries?.isEmpty != false)
@@ -1170,7 +1199,7 @@ extension CostUsageCodexRequestLedgerTests {
         func settle() -> CostUsageDailyReport {
             var report = fetch()
             for _ in 0..<150 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = fetch()
@@ -1206,7 +1235,8 @@ extension CostUsageCodexRequestLedgerTests {
         let survivor = try env.writeCodexSessionFile(
             day: start, filename: "z-legacy-survivor.jsonl", contents: env.jsonl(survivorHeader + mirrors))
         #expect(settle().summary?.totalTokens == 550)
-        var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         for (index, path) in owners.enumerated() {
             var owner = try #require(cache.files[path.path])
             owner.codexRows = owner.codexRows?.map { row in
@@ -1217,9 +1247,14 @@ extension CostUsageCodexRequestLedgerTests {
             }
             cache.files[path.path] = owner
         }
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: calendar)
             .catchUpRequired)
-        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
         for (index, path) in owners.enumerated() {
             #expect(savedPricing.files[path.path]?.codexRows?.first?.knownCostNanos
@@ -1240,13 +1275,13 @@ extension CostUsageCodexRequestLedgerTests {
             try handle.close()
         }
         _ = fetch()
-        let pending = CostUsageStore(cacheRoot: env.cacheRoot)
+        let pending = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(pending.codexScanCatchUpPending == true)
         var recovered = fetch()
         var transferredIDs = Set<String>()
         for _ in 0..<150 {
-            let checkpoint = CostUsageStore(cacheRoot: env.cacheRoot)
+            let checkpoint = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                 .syncLoadCodexCache(calendar: calendar, hydratingPaths: [survivor.path])
             transferredIDs = try Self.assertTransferredRequestAccounting(
                 rows: checkpoint.files[survivor.path]?.codexRows ?? [],
@@ -1258,7 +1293,8 @@ extension CostUsageCodexRequestLedgerTests {
         let canonicalDay = try #require(recovered.data.first { $0.date == "2026-08-29" })
         #expect(canonicalDay.totalTokens == 550)
         #expect(abs((canonicalDay.costUSD ?? -1) - 0.51) < 0.000001)
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(owners.allSatisfy { reopened.files[$0.path] == nil })
         #expect(reopened.codexHistoryHydrationRetries?.isEmpty != false)
         #expect(reopened.codexScanCatchUpPending != true)
@@ -1275,18 +1311,7 @@ extension CostUsageCodexRequestLedgerTests {
             #expect(abs((recovered.summary?.totalCostUSD ?? -1) - 0.51) < 0.000001)
         }
         #expect(fetch().summary == recovered.summary)
-        let handle = try FileHandle(forWritingTo: survivor)
-        try handle.seekToEnd()
-        try handle.write(contentsOf: Data(env.jsonl([
-            Self.record(id: "priced-response-0", usage: [100, 20, 10, 4], total: [100, 20, 10, 4]),
-            Self.record(
-                id: "new-after-recovery",
-                timestamp: Self.timestampC,
-                usage: [60, 20, 6, 3],
-                total: [560, 120, 56, 23]),
-            Self.legacy(timestamp: Self.timestampC, usage: [60, 20, 6, 3], total: [560, 120, 56, 23]),
-        ]).utf8))
-        try handle.close()
+        try Self.appendPostRecoveryRequests(to: survivor, env: env)
         #expect(settle().summary?.totalTokens == 616 + (appendBeforeReplay ? 66 : 0))
     }
 
@@ -1318,7 +1343,7 @@ extension CostUsageCodexRequestLedgerTests {
         func settle() -> CostUsageDailyReport {
             var report = fetch()
             for _ in 0..<100 {
-                let manifest = CostUsageStore(cacheRoot: env.cacheRoot)
+                let manifest = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
                     .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
                 if manifest.codexScanCatchUpPending != true { break }
                 report = fetch()
@@ -1342,7 +1367,8 @@ extension CostUsageCodexRequestLedgerTests {
             filename: "c-surviving-mirror.jsonl",
             contents: env.jsonl(Self.header() + [secondMirror]))
         #expect(settle().summary?.totalTokens == 220)
-        var cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        var cache = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         var secondUsage = try #require(cache.files[second.path])
         #expect(secondUsage.codexRows?.contains { $0.responseID == "second-request" } == true)
         secondUsage.codexRows = secondUsage.codexRows?.map { row in
@@ -1352,15 +1378,20 @@ extension CostUsageCodexRequestLedgerTests {
             return row
         }
         cache.files[second.path] = secondUsage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+        #expect(!CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: calendar)
             .catchUpRequired)
-        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let savedPricing = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         #expect(savedPricing.timeZoneIdentifier == calendar.timeZone.identifier)
         #expect(savedPricing.files[second.path]?.codexRows?.first?.knownCostNanos == 123_000_000)
         _ = settle()
         try FileManager.default.removeItem(at: first)
         _ = fetch()
-        let queued = CostUsageStore(cacheRoot: env.cacheRoot)
+        let queued = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             .syncLoadCodexCache(calendar: calendar, hydratingPaths: [])
         #expect(queued.codexHistoryHydrationRetries?[second.path]?.requestOwnerPaths?.isEmpty == false)
         #expect(queued.codexScanCatchUpPending == true)
@@ -1369,7 +1400,8 @@ extension CostUsageCodexRequestLedgerTests {
         #expect(recovered.summary?.totalTokens == 110)
         #expect(abs((recovered.summary?.totalCostUSD ?? 0) - 0.123) < 0.000_001)
         #expect(recovered.data.filter { ($0.totalTokens ?? 0) > 0 }.map(\.date) == ["2026-08-29"])
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: calendar)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: calendar)
         let row = try #require(reopened.files[survivor.path]?.codexRows?.first)
         #expect(row.responseID == "second-request")
         #expect(row.knownCostNanos == 123_000_000)
@@ -1400,8 +1432,20 @@ extension CostUsageCodexRequestLedgerTests {
                 retainedPaths: [ownerPath, candidatePath], forceFullRescan: false, requestOwnerPaths: [ownerPath]),
             forkPath: forkRetry,
         ]
+        // A scan that preceded registration of this owner cannot retire its evidence.
+        let premature = CostUsageScanner.completeCodexRequestOwnerRetries(
+            processedPaths: [candidatePath],
+            observedOwnerRetries: [candidatePath: []],
+            retries: &retries,
+            cache: &cache)
+        #expect(premature.isEmpty)
+        #expect(cache.files[ownerPath] == owner)
+        #expect(retries[candidatePath]?.requestOwnerPaths == [ownerPath])
         let retired = CostUsageScanner.completeCodexRequestOwnerRetries(
-            processedPaths: [candidatePath], retries: &retries, cache: &cache)
+            processedPaths: [candidatePath],
+            observedOwnerRetries: [candidatePath: [ownerPath]],
+            retries: &retries,
+            cache: &cache)
         #expect(retired == [candidatePath])
         #expect(cache.files[candidatePath] == nil)
         #expect(cache.files[ownerPath] == owner)

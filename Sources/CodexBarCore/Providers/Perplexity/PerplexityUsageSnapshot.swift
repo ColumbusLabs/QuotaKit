@@ -7,6 +7,8 @@ public struct PerplexityUsageSnapshot: Sendable {
     public let promoUsed: Double
     public let purchasedTotal: Double
     public let purchasedUsed: Double
+    public let orgUsed: Double?
+    public let orgAvailable: Double?
     public let balanceCents: Double
     public let totalUsageCents: Double
     public let renewalDate: Date
@@ -35,6 +37,16 @@ public struct PerplexityUsageSnapshot: Sendable {
         let usedFromRecurring = min(remaining, recurringSum); remaining -= usedFromRecurring
         let usedFromPurchased = min(remaining, purchasedSum); remaining -= usedFromPurchased
         let usedFromPromo = min(remaining, promoSum)
+
+        if response.orgPoolDrawsCents != nil || response.orgUserCapCents != nil {
+            let personalLeft = (recurringSum - usedFromRecurring) + (purchasedSum - usedFromPurchased)
+                + (promoSum - usedFromPromo)
+            self.orgUsed = max(0, response.orgPoolDrawsCents ?? 0)
+            self.orgAvailable = response.isOrgPoolDepleted == true ? 0 : max(0, response.balanceCents - personalLeft)
+        } else {
+            self.orgUsed = nil
+            self.orgAvailable = nil
+        }
 
         self.recurringTotal = recurringSum
         self.recurringUsed = usedFromRecurring
@@ -143,6 +155,19 @@ extension PerplexityUsageSnapshot {
             resetDescription: Self.creditDescription(
                 used: self.purchasedUsed, total: self.purchasedTotal, unit: "credits"))
 
+        let orgWindows: [NamedRateWindow]? = {
+            guard let orgUsed, let orgAvailable else { return nil }
+            let total = orgUsed + orgAvailable
+            return [NamedRateWindow(
+                id: "org-credits",
+                title: "Organization",
+                window: RateWindow(
+                    usedPercent: total > 0 ? min(100, max(0, orgUsed / total * 100)) : 100,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: Self.creditDescription(used: orgUsed, total: total, unit: "credits")))]
+        }()
+
         let identity = ProviderIdentitySnapshot(
             providerID: .perplexity,
             accountEmail: nil,
@@ -153,6 +178,7 @@ extension PerplexityUsageSnapshot {
             primary: primaryWindow,
             secondary: secondary,
             tertiary: tertiary,
+            extraRateWindows: orgWindows,
             providerCost: nil,
             // Pass the rich structured snapshot through to iOS via the
             // escape-hatch pattern (mirrors zaiUsage / minimaxUsage /

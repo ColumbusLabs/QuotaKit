@@ -2,27 +2,79 @@ import AppKit
 import CodexBarCore
 import Foundation
 
+struct AutomaticWindowLabelContext {
+    let data: MenuBarLayoutRenderData
+    let options: MenuBarLayoutRenderOptions
+    let attributes: [NSAttributedString.Key: Any]
+}
+
 extension MenuBarLayoutRenderer {
     static func labelAutomaticItem(
         _ rendered: (value: NSAttributedString, accessibilityText: String?),
         token: MenuBarLayoutToken,
-        data: MenuBarLayoutRenderData,
-        options: MenuBarLayoutRenderOptions,
-        attributes: [NSAttributedString.Key: Any])
+        context: AutomaticWindowLabelContext,
+        lineWindowLabel: inout String?)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         switch token {
         case .percent(window: .automatic), .pace(window: .automatic), .resetCountdown, .resetAbsolute,
              .windowResetCountdown(window: .automatic), .windowResetAbsolute(window: .automatic): break
-        default: return rendered
+        case .space, .separatorDot, .separator:
+            return rendered
+        default:
+            lineWindowLabel = rendered.value.length > 0
+                ? rendered.value.attribute(NSAttributedString.Key("CodexBarWindowPrefix"), at: 0, effectiveRange: nil)
+                as? String : nil
+            return rendered
         }
-        guard let label = self.automaticWindowLabel(data: data) else { return rendered }
+        guard let label = self.automaticWindowLabel(data: context.data) else { return rendered }
+        let showPrefix = context.options.showWindowLabels && label.short != lineWindowLabel
+        lineWindowLabel = label.short
         return (
             self.prefixedValue(
-                options.showWindowLabels ? label.short : "",
+                showPrefix ? label.short : "",
                 value: rendered.value,
-                attributes: attributes),
+                attributes: context.attributes),
             rendered.accessibilityText.map { L("%@: %@", label.full, $0) })
+    }
+
+    /// nil == resolved to .hidden (render nothing, no separator). A returned .conditional
+    /// means the id is dangling or the depth cap was hit; renderItem shows the placeholder.
+    static func resolvedDisplayToken(
+        _ token: MenuBarLayoutToken,
+        data: MenuBarLayoutRenderData,
+        conditionals: [UUID: MenuBarLayoutConditional],
+        outcomes: [UUID: Bool],
+        depth: Int = 0)
+        -> MenuBarLayoutToken?
+    {
+        if data.laneLabels.isPlugin {
+            let missing: Bool = switch token {
+            case let .percent(window) where window == .session || window == .weekly:
+                self.window(window, data: data) == nil
+            case .lanePercent(lane: .tertiary): data.tertiary == nil
+            case let .extraPercent(id): data.extraWindow(id) == nil
+            default: false
+            }
+            if missing { return .percent(window: .automatic) }
+        }
+        switch token {
+        case .hidden: return nil
+        case let .extraPercent(id): return data.extraTitle(id) == nil ? nil : token
+        case let .conditional(id):
+            guard depth < MenuBarLayoutToken.maxConditionalDepth,
+                  let conditional = conditionals[id],
+                  let isTrue = outcomes[id]
+            else { return token }
+            let branch = isTrue ? conditional.thenToken : conditional.elseToken
+            return self.resolvedDisplayToken(
+                branch,
+                data: data,
+                conditionals: conditionals,
+                outcomes: outcomes,
+                depth: depth + 1)
+        default: return token
+        }
     }
 
     private static func automaticWindowLabel(data: MenuBarLayoutRenderData) -> (short: String, full: String)? {

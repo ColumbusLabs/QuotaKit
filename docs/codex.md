@@ -9,6 +9,8 @@ read_when:
 
 # Codex provider
 
+In **Settings → Providers → Codex**, choose **Rename** beside an account to set a custom label. Clear it to restore the default. Labels are stored per login and workspace and do not change authentication or the system account. **Hide personal info** hides custom names in menus and settings. Renaming leaves usage fetches and caches intact.
+
 Enable **Settings → Menu Bar → Show all accounts in Overview** to include this provider’s cached account
 cards in Overview. The existing account source and provider selection remain unchanged; see
 [Overview account rows](configuration.md#menu-bar-controls).
@@ -251,10 +253,12 @@ pricing provenance, missing values, and incomplete-request counts. Only bounded 
 the local result and returns a nonzero exit code. See [CLI host reporting](cli.md) for the versioned summary contract.
 
 - A queued refresh does not restart a cost-history worker after it exits paused. A later explicit refresh can retry.
-For copied or resumed histories, `cost --provider codex --identified-only --format json --remote <ssh-host>`
-reports an **identified-request subtotal** over one UTC window. Strong native session/response identities are
-deduplicated; conflicting identities and legacy/unidentified usage are excluded and reported. Combined prices are
-unavailable (`costUSD: null`). This opt-in CLI mode does not change ordinary cost reports or account quota.
+For copied or resumed histories, `quotakit cost --provider codex --identified-only --format json --remote <ssh-host>`
+reports an **identified-request subtotal** over one UTC window. Repeat `--remote` to include multiple hosts.
+Strong native session/response identities are deduplicated; conflicting identities and legacy/unidentified usage
+are excluded and reported. Schema-2 peers provide evidence for API-price estimates using the collecting host's
+pricing snapshot. Requests with unknown or conflicting pricing remain unpriced, and the total is null when any
+accepted request is unpriced. This opt-in mode does not change ordinary cost reports or account quota.
 
 - Menu source selection:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
@@ -272,6 +276,13 @@ unavailable (`costUSD: null`). This opt-in CLI mode does not change ordinary cos
     - `~/.codex/sessions/YYYY/MM/DD/*.jsonl`
     - `~/.codex/archived_sessions/*.jsonl` (flat; date inferred from filename when present)
     - Or `$CODEX_HOME/sessions/...` + `$CODEX_HOME/archived_sessions/...` if `CODEX_HOME` is set.
+  - Previously scanned Codex rollouts retained as `X.jsonl.zst` keep their cached usage in either Codex root.
+    If the plain `X.jsonl` is restored, it takes precedence and the rollout is counted once. QuotaKit does not
+    decompress archives or backfill archives it never scanned as plain files. Narrower history windows retain
+    cached archive rows. Clearing the cost cache removes this retained history. If the reporting time zone changes
+    and the plain logs are unavailable, refresh reports an error and preserves the cache; restore the original logs
+    or use the previous time zone to resume. An unrecognized incompatible cache producer also leaves compressed-only
+    history untouched and unavailable rather than reconstructing dates or usage.
   - Supported pi sessions:
     - `~/.pi/agent/sessions/**/*.jsonl`
 - Scanner:
@@ -409,3 +420,7 @@ Known request subtotals may remain visible alongside incomplete pricing. Unprice
 Routine reports, projects and sessions use QuotaKit's compact saved file-day aggregates together, avoiding repeated model resolution or full raw-row materialization. Remaining raw baseline/read paths stream rows and count physical persisted rows, including malformed rows, so corruption cannot manufacture completeness.
 
 Catch-up pauses persist across refreshes. Recovery distinguishes a pass yielding before an attempt from a stuck attempted scan. Completion requires authoritative coverage for the pinned history window and account/configuration context; an unavailable status cannot establish completion. Codex account promotion revalidates its destination and preserved credentials immediately before replacing the live auth file.
+
+### Optional reset reminders
+
+In Settings → Notifications, **Upcoming reset warnings** warns at one day and one hour before a measured Codex weekly quota resets with unused allowance. **Codex reset credit expiry** separately enables reminders at one day and one hour before reset credits expire. Both preferences default off and run on usage refresh. Existing optional-credit summary receipts remain intact. Reset-credit reminders never redeem or modify credits.

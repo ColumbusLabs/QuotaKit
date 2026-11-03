@@ -134,7 +134,11 @@ struct CostUsageStoreReadView: Sendable {
             files: scopedFiles,
             rootMtimes: projection.rootMtimes)
         let hasIncompleteFile = scopedFiles.contains { !$0.scanComplete }
-        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation
+        let discovery = projection.discoveryState?.payload.flatMap {
+            try? JSONDecoder().decode(CostUsageCodexSessionDiscovery.self, from: $0)
+        }
+        let presencePending = !scopedFiles.isEmpty && discovery?.metadataPresenceEstablished != true
+        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation || presencePending
         let staleSnapshotUpdatedAt = projection.previousReportUpdatedAtUnixMs.flatMap { timestamp -> Date? in
             guard timestamp > 0 else { return nil }
             return Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
@@ -179,23 +183,25 @@ extension CostUsageStoreAccess {
     /// Separate from the scanner registry so read projections never share writer baselines.
     final class ReadStoreRegistry: @unchecked Sendable {
         private let lock = NSLock()
-        private var entries: [(path: String, store: CostUsageStore)] = []
+        private var entries: [(path: String, home: String, store: CostUsageStore)] = []
         private let capacity: Int
 
         init(capacity: Int = 4) {
             self.capacity = max(1, capacity)
         }
 
-        func store(cacheRoot: URL?) -> CostUsageStore {
-            let candidate = CostUsageStore(cacheRoot: cacheRoot)
+        func store(cacheRoot: URL?, home: String = CodexHomeCostStoreScope.key()) -> CostUsageStore {
+            let candidate = CostUsageStore(cacheRoot: cacheRoot, home: home)
             let path = candidate.databaseURL.standardizedFileURL.path
             return self.lock.withLock {
-                let store: CostUsageStore = if let index = self.entries.firstIndex(where: { $0.path == path }) {
+                let store: CostUsageStore = if let index = self.entries
+                    .firstIndex(where: { $0.path == path && $0.home == home })
+                {
                     self.entries.remove(at: index).store
                 } else {
                     candidate
                 }
-                self.entries.append((path, store))
+                self.entries.append((path, home, store))
                 if self.entries.count > self.capacity { self.entries.removeFirst() }
                 return store
             }
@@ -206,10 +212,11 @@ extension CostUsageStoreAccess {
 
     static func readView(
         cacheRoot: URL?,
+        home: String = CodexHomeCostStoreScope.key(),
         calendar: Calendar,
         purpose: CostUsageStoreReadPurpose) -> CostUsageStoreReadView
     {
-        self.readStores.store(cacheRoot: cacheRoot)
+        self.readStores.store(cacheRoot: cacheRoot, home: home)
             .syncLoadCodexReadView(calendar: calendar, purpose: purpose)
     }
 }

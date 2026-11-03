@@ -238,11 +238,29 @@ extension MiniMaxUsageFetcher {
         context: WebFetchContext,
         groupID: String?) async throws -> MiniMaxUsageSnapshot
     {
-        let resolvedGroupID = groupID ?? MiniMaxCookieHeader.override(from: context.cookie)?.groupID
-        guard resolvedGroupID?.isEmpty == false else { return snapshot }
         do {
+            let cookieHeader: String
+            let resolvedGroupID: String?
+            if context.browserCookieRecords != nil {
+                let url = try MiniMaxSubscriptionMetadataFetcher.resolveComboURL(
+                    region: context.region, environment: context.environment)
+                var request = URLRequest(url: url)
+                try Self.applyWebCredentials(context, to: &request)
+                guard let scopedCookie = request.value(forHTTPHeaderField: "Cookie") else { return snapshot }
+                cookieHeader = scopedCookie
+                let origin = context.authorizationOrigin.flatMap(URL.init(string:))
+                let groupIsScoped = origin?.scheme?.lowercased() == url.scheme?.lowercased()
+                    && origin?.host?.lowercased() == url.host?.lowercased()
+                    && (origin?.port ?? 443) == (url.port ?? 443)
+                resolvedGroupID = (groupIsScoped ? groupID : nil)
+                    ?? MiniMaxCookieHeader.override(from: scopedCookie)?.groupID
+            } else {
+                cookieHeader = context.cookie
+                resolvedGroupID = groupID ?? MiniMaxCookieHeader.override(from: cookieHeader)?.groupID
+            }
+            guard resolvedGroupID?.isEmpty == false else { return snapshot }
             let metadata = try await MiniMaxSubscriptionMetadataFetcher.fetch(
-                cookieHeader: context.cookie,
+                cookieHeader: cookieHeader,
                 groupID: resolvedGroupID,
                 region: context.region,
                 environment: context.environment,

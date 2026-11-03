@@ -877,6 +877,10 @@ extension UsageStore {
             hookAccountDiscriminator: warningAccounts.source,
             requiresKnownAccount: provider == .claude &&
                 (result.strategyKind == .oauth || result.strategyKind == .cli))
+        self.handleUpcomingResetWarning(
+            provider: provider,
+            snapshot: backfilled,
+            accountDiscriminator: warningAccounts.quota)
         let sessionRestored = self.handleSessionQuotaTransition(
             provider: provider,
             snapshot: backfilled,

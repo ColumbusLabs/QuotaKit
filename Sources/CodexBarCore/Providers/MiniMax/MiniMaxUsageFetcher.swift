@@ -14,9 +14,26 @@ public struct MiniMaxUsageFetcher: Sendable {
     struct WebFetchContext {
         let cookie: String
         let authorizationToken: String?
+        let browserCookieRecords: [ProviderPluginCookieRecord]?
+        let authorizationOrigin: String?
+        let useSessionBearer: Bool
         let region: MiniMaxAPIRegion
         @ProcessEnvironment private(set) var environment: [String: String]
         let transport: any ProviderHTTPTransport
+    }
+
+    struct WebFetchInput {
+        let cookieHeader: String
+        let authorizationToken: String?
+        let groupID: String?
+        let region: MiniMaxAPIRegion
+        @ProcessEnvironment private(set) var environment: [String: String]
+        let includeBillingHistory: Bool
+        let transport: any ProviderHTTPTransport
+        let now: Date
+        let browserCookieRecords: [ProviderPluginCookieRecord]?
+        let authorizationOrigin: String?
+        var useSessionBearer = false
     }
 
     public static func fetchUsage(
@@ -29,6 +46,33 @@ public struct MiniMaxUsageFetcher: Sendable {
         session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         now: Date = Date()) async throws -> MiniMaxUsageSnapshot
     {
+        try await self.fetchUsage(WebFetchInput(
+            cookieHeader: cookieHeader,
+            authorizationToken: authorizationToken,
+            groupID: groupID,
+            region: region,
+            environment: environment,
+            includeBillingHistory: includeBillingHistory,
+            transport: transport,
+            now: now,
+            browserCookieRecords: nil,
+            authorizationOrigin: nil))
+    }
+
+    /// Browser imports retain cookie domain/path metadata and a bearer-token origin. Manual
+    /// overrides continue to use the explicit header supplied by the user.
+    static func fetchUsage(_ input: WebFetchInput) async throws -> MiniMaxUsageSnapshot {
+        let cookieHeader = input.cookieHeader
+        let authorizationToken = input.authorizationToken
+        let groupID = input.groupID
+        let region = input.region
+        let environment = input.environment
+        let includeBillingHistory = input.includeBillingHistory
+        let transport = input.transport
+        let now = input.now
+        let browserCookieRecords = input.browserCookieRecords
+        let authorizationOrigin = input.authorizationOrigin
+        let useSessionBearer = input.useSessionBearer
         guard let cookie = MiniMaxCookieHeader.normalized(from: cookieHeader) else {
             throw MiniMaxUsageError.invalidCredentials
         }
@@ -39,6 +83,9 @@ public struct MiniMaxUsageFetcher: Sendable {
         let context = WebFetchContext(
             cookie: cookie,
             authorizationToken: authorizationToken,
+            browserCookieRecords: browserCookieRecords,
+            authorizationOrigin: authorizationOrigin,
+            useSessionBearer: useSessionBearer,
             region: region,
             environment: environment,
             transport: transport)
@@ -81,24 +128,27 @@ public struct MiniMaxUsageFetcher: Sendable {
                 includeBillingHistory: includeBillingHistory,
                 now: now)
         } catch let error as MiniMaxUsageError {
-            if case .parseFailed = error {
-                Self.log.debug("MiniMax coding plan HTML parse failed, trying remains API")
-                let snapshot = try await self.attachingSubscriptionMetadataIfAvailable(
-                    to: self.fetchCodingPlanRemains(
-                        context: context,
-                        remainsContext: RemainsContext(
-                            authorizationToken: authorizationToken,
-                            groupID: groupID),
-                        now: now),
-                    context: context,
-                    groupID: groupID)
-                return try await self.attachingBillingIfAvailable(
-                    to: snapshot,
-                    context: context,
-                    includeBillingHistory: includeBillingHistory,
-                    now: now)
+            switch error {
+            case .parseFailed:
+                break
+            case let .apiError(message) where ["HTTP 302", "HTTP 404", "HTTP 405"].contains(where: message.contains):
+                break
+            default:
+                throw error
             }
-            throw error
+            Self.log.debug("MiniMax coding plan page unavailable, trying remains API")
+            let snapshot = try await self.attachingSubscriptionMetadataIfAvailable(
+                to: self.fetchCodingPlanRemains(
+                    context: context,
+                    remainsContext: RemainsContext(authorizationToken: authorizationToken, groupID: groupID),
+                    now: now),
+                context: context,
+                groupID: groupID)
+            return try await self.attachingBillingIfAvailable(
+                to: snapshot,
+                context: context,
+                includeBillingHistory: includeBillingHistory,
+                now: now)
         }
     }
 
@@ -237,10 +287,58 @@ public struct MiniMaxUsageFetcher: Sendable {
         case .invalidCredentials:
             retryRejectedCredentials
         case let .apiError(message):
-            message.contains("HTTP 404") || message.contains("HTTP 405")
+            message.contains("HTTP 302") || message.contains("HTTP 404") || message.contains("HTTP 405")
         case .networkError, .parseFailed:
             true
         }
+    }
+
+    /// Applies imported cookies only where their browser scope permits them. Refusing a
+    /// request with no matching cookie allows endpoint fallback without sending a raw jar
+    /// or a bearer token to another host. Explicit manual overrides retain their semantics.
+    static func applyWebCredentials(_ context: WebFetchContext, to request: inout URLRequest) throws {
+        guard let url = request.url else { throw URLError(.badURL) }
+        if let records = context.browserCookieRecords {
+            let now = Date()
+            let sessionValues = Set(records.filter {
+                $0.name == "HERTZ-SESSION" && $0.hasSafeHeaderFields && $0.matches(url, now: now)
+            }.map(\.value))
+            guard sessionValues.count <= 1 else {
+                throw MiniMaxUsageError.parseFailed("Conflicting imported browser sessions for this endpoint.")
+            }
+            guard url.scheme?.lowercased() == "https", (url.port ?? 443) == 443,
+                  url.user == nil, url.password == nil, url.fragment == nil,
+                  let header = ProviderPluginCookieRecord.header(records, for: url, now: now), !header.isEmpty
+            else { throw MiniMaxUsageError.parseFailed("No imported browser session matches this endpoint.") }
+            request.setValue(header, forHTTPHeaderField: "Cookie")
+            if let token = context.authorizationToken,
+               let origin = context.authorizationOrigin.flatMap(URL.init(string:)),
+               self.sameCredentialOrigin(origin, url)
+            {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            } else if context.useSessionBearer, let token = sessionValues.first {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+        } else {
+            request.setValue(context.cookie, forHTTPHeaderField: "Cookie")
+            if let token = context.authorizationToken {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+        }
+    }
+
+    static func scopedGroupID(_ groupID: String?, context: WebFetchContext, url: URL) -> String? {
+        guard context.browserCookieRecords != nil else { return groupID }
+        guard let origin = context.authorizationOrigin.flatMap(URL.init(string:)),
+              self.sameCredentialOrigin(origin, url) else { return nil }
+        return groupID
+    }
+
+    private static func sameCredentialOrigin(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.scheme?.lowercased() == "https" && rhs.scheme?.lowercased() == "https"
+            && lhs.host?.lowercased() == rhs.host?.lowercased()
+            && (lhs.port ?? 443) == (rhs.port ?? 443)
+            && lhs.user == nil && lhs.password == nil
     }
 
     private static func fetchCodingPlanHTML(
@@ -250,10 +348,7 @@ public struct MiniMaxUsageFetcher: Sendable {
         let url = self.resolveCodingPlanURL(region: context.region, environment: context.environment)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue(context.cookie, forHTTPHeaderField: "Cookie")
-        if let authorizationToken = context.authorizationToken {
-            request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
-        }
+        try self.applyWebCredentials(context, to: &request)
         let acceptHeader = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
         request.setValue(acceptHeader, forHTTPHeaderField: "accept")
         let userAgent =
@@ -339,22 +434,26 @@ public struct MiniMaxUsageFetcher: Sendable {
         remainsContext: RemainsContext,
         now: Date) async throws -> MiniMaxUsageSnapshot
     {
-        let remainsURL = self.appendGroupID(remainsContext.groupID, to: baseRemainsURL)
+        let isCurrentChinaEndpoint = baseRemainsURL.path == "/backend/account/token_plan/remains_percent"
+        let groupID = self.scopedGroupID(remainsContext.groupID, context: context, url: baseRemainsURL)
+        let remainsURL = isCurrentChinaEndpoint ? baseRemainsURL : self.appendGroupID(groupID, to: baseRemainsURL)
         var request = URLRequest(url: remainsURL)
         request.httpMethod = "GET"
-        request.setValue(context.cookie, forHTTPHeaderField: "Cookie")
-        if let authorizationToken = remainsContext.authorizationToken {
-            request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
-        }
+        try self.applyWebCredentials(context, to: &request)
         let acceptHeader = "application/json, text/plain, */*"
         request.setValue(acceptHeader, forHTTPHeaderField: "accept")
         request.setValue("XMLHttpRequest", forHTTPHeaderField: "x-requested-with")
+        if isCurrentChinaEndpoint, let groupID, !groupID.isEmpty {
+            request.setValue(groupID, forHTTPHeaderField: "X-Group-Id")
+        }
         let userAgent =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
         request.setValue(userAgent, forHTTPHeaderField: "user-agent")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "accept-language")
-        let origin = self.originURL(from: baseRemainsURL)
+        let origin = isCurrentChinaEndpoint
+            ? self.originURL(from: self.resolveCodingPlanURL(region: context.region, environment: context.environment))
+            : self.originURL(from: baseRemainsURL)
         request.setValue(origin.absoluteString, forHTTPHeaderField: "origin")
         request.setValue(
             self.resolveCodingPlanRefererURL(region: context.region, environment: context.environment).absoluteString,
@@ -492,10 +591,7 @@ public struct MiniMaxUsageFetcher: Sendable {
     {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue(context.cookie, forHTTPHeaderField: "Cookie")
-        if let authorizationToken = context.authorizationToken {
-            request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
-        }
+        try self.applyWebCredentials(context, to: &request)
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "accept")
         request.setValue("XMLHttpRequest", forHTTPHeaderField: "x-requested-with")
         let userAgent =
@@ -517,8 +613,8 @@ public struct MiniMaxUsageFetcher: Sendable {
     }
 
     private static func appendGroupID(_ groupID: String?, to url: URL) -> URL {
-        guard let groupID, !groupID.isEmpty else { return url }
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        guard let groupID, !groupID.isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         var queryItems = components.queryItems ?? []
         queryItems.append(URLQueryItem(name: "GroupId", value: groupID))
         components.queryItems = queryItems
@@ -575,7 +671,9 @@ public struct MiniMaxUsageFetcher: Sendable {
         }
 
         let webFallback = URL(string: region.webBaseURLString)!.appendingPathComponent(MiniMaxAPIRegion.remainsPath)
-        return self.deduplicated([region.remainsURL, webFallback])
+        let currentChinaURL = URL(string: "https://www.minimax.cn/backend/account/token_plan/remains_percent")!
+        let current = region == .chinaMainland ? [currentChinaURL] : []
+        return self.deduplicated(current + [region.remainsURL, webFallback])
     }
 
     private static func deduplicated(_ urls: [URL]) -> [URL] {
@@ -875,7 +973,8 @@ enum MiniMaxUsageParser {
             if let intervalService = self.makeServiceUsage(
                 ServiceUsageInput(
                     serviceType: serviceTypeIdentifier,
-                    windowTypeOverride: nil,
+                    isWebPercentSchema: item.hasIntervalUsedPercent,
+                    windowTypeOverride: item.hasIntervalUsedPercent && item.startTime == nil ? "5 hours" : nil,
                     total: item.currentIntervalTotalCount,
                     remaining: item.currentIntervalUsageCount,
                     remainingPercent: item.currentIntervalRemainingPercent,
@@ -894,6 +993,7 @@ enum MiniMaxUsageParser {
                let weeklyService = self.makeServiceUsage(
                    ServiceUsageInput(
                        serviceType: serviceTypeIdentifier,
+                       isWebPercentSchema: item.hasWeeklyUsedPercent,
                        windowTypeOverride: "Weekly",
                        total: item.currentWeeklyTotalCount,
                        remaining: item.currentWeeklyUsageCount,
@@ -1009,6 +1109,7 @@ enum MiniMaxUsageParser {
             item.modelName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "video" &&
                 self.isUnavailableQuotaPlaceholder(ServiceUsageInput(
                     serviceType: "Text to Video",
+                    isWebPercentSchema: false,
                     windowTypeOverride: nil,
                     total: item.currentIntervalTotalCount,
                     remaining: item.currentIntervalUsageCount,
@@ -1105,8 +1206,8 @@ enum MiniMaxUsageParser {
 
     private static func nextDataJSONData(fromHTML html: String) -> Data? {
         let data = Data(html.utf8)
-        guard let idRange = data.range(of: self.nextDataNeedle) else { return nil }
-        guard let openTagEnd = data[idRange.upperBound...].firstIndex(of: UInt8(ascii: ">")) else { return nil }
+        guard let idRange = data.range(of: self.nextDataNeedle),
+              let openTagEnd = data[idRange.upperBound...].firstIndex(of: UInt8(ascii: ">")) else { return nil }
         let contentStart = data.index(after: openTagEnd)
         guard let closeRange = data.range(
             of: self.scriptCloseNeedle,
@@ -1126,9 +1227,8 @@ enum MiniMaxUsageParser {
         let unitRaw = match[2]
 
         let prompts = Int(promptsRaw.replacingOccurrences(of: ",", with: "")) ?? 0
-        guard prompts > 0 else { return nil }
-
-        guard let duration = Double(durationRaw),
+        guard prompts > 0,
+              let duration = Double(durationRaw),
               let windowMinutes = self.minutes(from: duration, unit: unitRaw),
               windowMinutes > 0 else { return nil }
         return (prompts, windowMinutes)
@@ -1454,6 +1554,7 @@ enum MiniMaxUsageParser {
 
     private struct ServiceUsageInput {
         let serviceType: String
+        let isWebPercentSchema: Bool
         let windowTypeOverride: String?
         let total: Int?
         let remaining: Int?
@@ -1541,6 +1642,9 @@ enum MiniMaxUsageParser {
         let normalizedService = input.serviceType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let normalizedWindow = windowType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let unlimitedServices = ["text generation", "general"]
+        if input.isWebPercentSchema, input.status == 3, unlimitedServices.contains(normalizedService) {
+            return true
+        }
         return input.status == 3 &&
             unlimitedServices.contains(normalizedService) &&
             normalizedWindow == "weekly" &&

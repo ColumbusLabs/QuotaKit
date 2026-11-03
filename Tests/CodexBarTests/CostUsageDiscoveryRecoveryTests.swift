@@ -29,7 +29,7 @@ struct CostUsageDiscoveryRecoveryTests {
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
         options.refreshMinIntervalSeconds = 0
         _ = CostUsageScanner.loadDailyReport(provider: .codex, since: day, until: day, now: day, options: options)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let controlDays = try #require(cache.files[control.path]).days
         #expect(!controlDays.isEmpty)
         for child in children {
@@ -56,9 +56,9 @@ struct CostUsageDiscoveryRecoveryTests {
         cache.codexSessionDiscovery = discovery
         cache.codexScanCatchUpPending = true
         cache.codexScanInventoryPaths = nil
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
         if removeCachedRows {
-            let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             #expect(children.allSatisfy { reopened.files[$0.path] == nil })
         }
         CostUsageScanner.resetCodexDirectoryCursorsForTesting(under: env.root)
@@ -73,7 +73,7 @@ struct CostUsageDiscoveryRecoveryTests {
                 until: day,
                 now: day.addingTimeInterval(Double(pass)),
                 options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             if cache.codexScanCatchUpPending == false {
                 break
             }
@@ -106,7 +106,7 @@ struct CostUsageDiscoveryRecoveryTests {
                 until: day,
                 now: day.addingTimeInterval(20),
                 options: options)
-            let resolvedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            let resolvedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             let resolvedChild = try #require(resolvedCache.files[sibling.path])
             #expect(!resolvedChild.days.isEmpty)
             #expect(!resolvedChild.hasBufferedCodexForkRetryLines)
@@ -118,8 +118,131 @@ struct CostUsageDiscoveryRecoveryTests {
                 options: options)
             #expect(stable.summary?.totalTokens == resolved.summary?.totalTokens)
             #expect(stable.summary?.totalCostUSD == resolved.summary?.totalCostUSD)
-            #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[sibling.path]?.days == resolvedChild.days)
+            #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome).files[sibling.path]?
+                .days == resolvedChild.days)
         }
+    }
+
+    @Test
+    func `exact validation preserves inaccessible history then removes confirmed missing history`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let loop = env.root.appendingPathComponent("exact-unavailable")
+        try FileManager.default.createSymbolicLink(atPath: loop.path, withDestinationPath: loop.path)
+        let path = loop.appendingPathComponent("rollout.jsonl")
+        let days = ["2026-05-10": ["gpt-5.4": [100, 0, 0, 0]]]
+        var cache = CostUsageCache()
+        cache.files[path.path] = CostUsageScanner.makeFileUsage(mtimeUnixMs: 1, size: 1, days: days, parsedBytes: 1)
+        cache.days = days
+        var state = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-05-10", rootPaths: [])
+        state.exactInventoryGeneration = "old-proof"
+        #expect(!CostUsageScanner.validateCodexExactFile(
+            path, generation: "old-proof", cache: &cache, state: &state))
+        #expect(cache.files[path.path] != nil)
+        #expect(cache.days == days)
+        #expect(state.exactInventoryGeneration == nil)
+        try FileManager.default.removeItem(at: loop)
+        try FileManager.default.createDirectory(at: loop, withIntermediateDirectories: false)
+        #expect(CostUsageScanner.validateCodexExactFile(
+            path, generation: "new-proof", cache: &cache, state: &state))
+        #expect(cache.files[path.path] == nil)
+        #expect(cache.days.isEmpty)
+    }
+
+    @Test
+    func `exact validation pages raw aliases and revisits rows inserted before cursor`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let alias = env.root.appendingPathComponent("sessions-alias")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: env.codexSessionsRoot)
+        // The persisted alias is not lexically under the currently configured root.
+        let roots = [env.codexSessionsRoot]
+        let root = CostUsageScanner.codexResolvedPath(env.codexSessionsRoot)
+        var state = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-05-10", rootPaths: [root])
+        state.exactInventoryGeneration = "generation"
+        state.exactInventoryScanSinceKey = "2026-05-10"
+        state.exactInventoryScanUntilKey = "2026-05-10"
+        state.exactInventoryCompletedRootPaths = [root]
+        state.exactInventoryCompletedFlatRootPaths = [root]
+        var cache = CostUsageCache()
+        let usage = CostUsageScanner.makeFileUsage(mtimeUnixMs: 1, size: 1, days: [:], parsedBytes: 1)
+        for index in 0..<513 {
+            cache.files[alias.appendingPathComponent(String(format: "file-%04d.jsonl", index)).path] = usage
+        }
+        let firstRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        #expect(try !CostUsageScanner.advanceCodexExactValidationForTesting(
+            cache: &cache, roots: roots, state: &state, recorder: firstRecorder))
+        #expect(firstRecorder.snapshot().codexProgressAccountingVisits == 512)
+        #expect(cache.files.count == 1)
+        state = try JSONDecoder().decode(
+            CostUsageCodexActiveLookbackState.self, from: JSONEncoder().encode(state))
+        let inserted = alias.appendingPathComponent("000-before-cursor.jsonl").path
+        cache.files[inserted] = usage
+        let secondRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        #expect(try !CostUsageScanner.advanceCodexExactValidationForTesting(
+            cache: &cache, roots: roots, state: &state, recorder: secondRecorder))
+        #expect(secondRecorder.snapshot().codexProgressAccountingVisits == 1)
+        #expect(state.exactCachedValidationLastPath == nil)
+        #expect(cache.files.keys.contains(inserted))
+        let finalRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        #expect(try CostUsageScanner.advanceCodexExactValidationForTesting(
+            cache: &cache, roots: roots, state: &state, recorder: finalRecorder))
+        #expect(finalRecorder.snapshot().codexProgressAccountingVisits == 1)
+        #expect(cache.files.isEmpty)
+        let foreign = env.root.appendingPathComponent("foreign/missing.jsonl").path
+        cache.files[foreign] = usage
+        state.exactCachedValidationLastPath = nil
+        let foreignRecorder = CostUsageScanner.CodexScanWorkRecorder()
+        #expect(try CostUsageScanner.advanceCodexExactValidationForTesting(
+            cache: &cache, roots: roots, state: &state, recorder: foreignRecorder))
+        #expect(foreignRecorder.snapshot().codexProgressAccountingVisits == 1)
+        #expect(cache.files[foreign] != nil)
+        #expect(state.exactExcludedCachePaths == [foreign])
+    }
+
+    @Test(arguments: [false, true])
+    func `exact scope cannot classify an inaccessible alias as foreign`(dangling: Bool) throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let loop = env.root.appendingPathComponent("old-alias")
+        let target = dangling ? env.codexSessionsRoot.appendingPathComponent("missing-directory").path : loop.path
+        try FileManager.default.createSymbolicLink(atPath: loop.path, withDestinationPath: target)
+        let path = loop.appendingPathComponent("rollout.jsonl").path
+        let roots = [env.codexSessionsRoot]
+        let root = CostUsageScanner.codexResolvedPath(env.codexSessionsRoot)
+        var state = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-05-10", rootPaths: [root])
+        state.exactInventoryGeneration = "generation"
+        state.exactInventoryScanSinceKey = "2026-05-10"
+        state.exactInventoryScanUntilKey = "2026-05-10"
+        state.exactInventoryCompletedRootPaths = [root]
+        state.exactInventoryCompletedFlatRootPaths = [root]
+        var cache = CostUsageCache()
+        cache.files[path] = CostUsageScanner.makeFileUsage(mtimeUnixMs: 1, size: 1, days: [:], parsedBytes: 1)
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        #expect(try !CostUsageScanner.advanceCodexExactValidationForTesting(
+            cache: &cache, roots: roots, state: &state, recorder: recorder))
+        #expect(recorder.snapshot().codexProgressAccountingVisits == 1)
+        #expect(cache.files[path] != nil)
+        #expect(state.exactExcludedCachePaths?.contains(path) != true)
+        #expect(state.exactInventoryGeneration == nil)
+    }
+
+    @Test
+    func `exact scope and fork queue markers survive Codable and store round trips`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        var lookback = CostUsageCodexActiveLookbackState(scanSinceKey: "2026-05-10", rootPaths: ["/root"])
+        lookback.exactExcludedCachePaths = ["/outside/foreign.jsonl"]
+        lookback.forkDependencyValidationSeeded = true
+        let decoded = try JSONDecoder().decode(
+            CostUsageCodexActiveLookbackState.self, from: JSONEncoder().encode(lookback))
+        #expect(decoded == lookback)
+        var cache = CostUsageCache()
+        cache.codexActiveLookbackState = lookback
+        _ = CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: cache)
+        let reopened = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(reopened.codexActiveLookbackState?.exactExcludedCachePaths == lookback.exactExcludedCachePaths)
+        #expect(reopened.codexActiveLookbackState?.forkDependencyValidationSeeded == true)
     }
 
     @Test(arguments: [false, true])

@@ -514,3 +514,22 @@ exported to iPhone sync, fleet CloudKit account snapshots, or widgets: its owner
 [Exa](exa.md) reports selected-key monthly spend through Team Management with a support-enabled service key and API key ID.
 [TinyApi](tinyapi.md) reads aggregate available credits through its website session and QuotaKit's shared cookie host.
 These providers omit undocumented reset dates, credit-bucket splits, and live request-rate headroom.
+
+### Plugin display and dashboard
+
+A plugin may declare `dashboardURL` as a fixed URL or a reference to a plain setting. The destination is part of
+plugin approval: changing it requires approval again. Settings-derived URLs must use an approved endpoint origin;
+fixed URLs must use HTTPS unless a matching approved private-network endpoint permits HTTP. URLs with credentials,
+fragments, or unsupported schemes are rejected. An approved link appears as **Usage Dashboard** and opens only when
+selected.
+
+A plugin may return `iconProvider` with a built-in provider ID to select its bundled icon without changing plugin
+identity or access. It may return up to eight `menuBarItems`, each with a `title`, optional `iconProvider`, and
+`windowID` naming an existing extra window. Missing or unmeasured windows remain unavailable. The summary respects
+used/remaining preferences and takes precedence over the plugin layout in merged Icon & percent mode. Omit these
+fields unless `ctx.env.supportsIconProvider` or `ctx.env.supportsMenuBarItems` advertises support.
+
+Plugins without a saved menu-bar override inherit the global layout; saved overrides remain in effect. Window titles,
+reset times, and conditional data come from the plugin snapshot. User plugins with approved cookie domains use the
+shared supported-browser order. Their header and session callbacks share a per-fetch cursor; rejecting an expired
+candidate advances to the next without invalidating a newer session. Cookie headers are never persisted by this path.

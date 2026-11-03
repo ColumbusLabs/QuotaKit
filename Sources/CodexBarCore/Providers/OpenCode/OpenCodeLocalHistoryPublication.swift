@@ -18,7 +18,8 @@ extension OpenCodeLocalHistoryAdapter {
         calendar: Calendar) async throws -> Bool
     {
         guard let scope else { return true }
-        let store = CostUsageStoreAccess.sharedScanStore(cacheRoot: self.sourceCacheRoot(cacheRoot))
+        let store = CostUsageStoreAccess.sharedScanStore(
+            cacheRoot: self.sourceCacheRoot(cacheRoot), home: CodexHomeCostStoreScope.openCodeSource)
         do {
             let outcome = try await self.runPass(
                 databaseURL: URL(fileURLWithPath: scope.path),
@@ -69,7 +70,8 @@ extension OpenCodeLocalHistoryAdapter {
         purpose: CostUsageStoreReadPurpose) async -> StoredSummary?
     {
         guard let scope else { return nil }
-        let store = CostUsageStoreAccess.sharedScanStore(cacheRoot: self.sourceCacheRoot(cacheRoot))
+        let store = CostUsageStoreAccess.sharedScanStore(
+            cacheRoot: self.sourceCacheRoot(cacheRoot), home: CodexHomeCostStoreScope.openCodeSource)
         return await store.readOpenCodeSummary(scope: scope, purpose: purpose)
     }
 

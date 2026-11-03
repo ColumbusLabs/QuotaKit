@@ -193,6 +193,55 @@ extension StatusItemController {
             showWindowLabels: self.settings.menuBarLayoutShowWindowLabels)
     }
 
+    func menuBarLayoutRenderOptions(
+        forInstanceID instanceID: ProviderInstanceID,
+        button: NSButton?,
+        now: Date) -> MenuBarLayoutRenderOptions
+    {
+        if let provider = instanceID.firstPartyProvider {
+            return self.menuBarLayoutRenderOptions(for: provider, button: button, now: now)
+        }
+        let appearanceName = (button?.effectiveAppearance ?? NSApp.effectiveAppearance).name.rawValue
+        let highlighted = (self.shouldMergeIcons ? self.mergedMenu : self.providerMenus[instanceID])
+            .map { self.menuSession.menuInteractionGeneration(for: ObjectIdentifier($0)) != nil }
+            ?? (button?.isHighlighted == true)
+        return MenuBarLayoutRenderOptions(
+            size: self.settings.menuBarLayoutSize,
+            highContrast: self.shouldUseHighContrastStatusItemContent
+                || (self.settings.menuBarColorByProvider && (self.settings.menuBarHighContrastOnInactiveDisplays
+                        || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)),
+            showUsed: self.settings.usageBarsShowUsed,
+            conditionals: self.settings.menuBarLayoutConditionals,
+            appearanceName: appearanceName,
+            isDebugApp: Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier),
+            isStale: self.store.errors[instanceID] != nil,
+            isHighlighted: highlighted,
+            now: now,
+            verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment,
+            colorPace: self.settings.menuBarColorPace,
+            colorByProvider: self.settings.menuBarColorByProvider,
+            monospacedDigits: self.settings.menuBarLayoutMonospacedDigits,
+            showWindowLabels: self.settings.menuBarLayoutShowWindowLabels)
+    }
+
+    func menuBarLayoutResetDates(
+        forInstanceID instanceID: ProviderInstanceID,
+        now: Date,
+        absolute: Bool? = nil) -> [Date]
+    {
+        if let provider = instanceID.firstPartyProvider {
+            return self.menuBarLayoutResetDates(for: provider, now: now, absolute: absolute)
+        }
+        let data = self.menuBarLayoutRenderData(for: instanceID, now: now)
+        let tokens = self.renderedMenuBarLayoutResolution(forInstanceID: instanceID).layout
+            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let selections = Set(tokens.filter { absolute == nil || $0.resetIsAbsolute == absolute }
+            .compactMap(\.resetWindow))
+        return PercentWindow.allCases.filter(selections.contains).compactMap {
+            MenuBarLayoutRenderer.window($0, data: data)?.resetsAt
+        }
+    }
+
     func menuBarLayoutRenderData(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,

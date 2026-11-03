@@ -9,15 +9,19 @@ import CSQLite3
 // MARK: - Retention
 
 extension CostUsageStore {
+    private static let noRetentionChanges = CostUsageStoreRetentionResult(
+        deletedFiles: 0, deletedTokenSnapshots: 0, deletedFileDayAggregates: 0, deletedDayAggregates: 0)
+
     /// Full-ledger publication needs accounting coverage as well as scan completion.
     /// Scoped day/window publication separately proves disjoint ranges in the scanner.
-    static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer) throws -> Bool {
-        try scalarInt(database, """
+    static func hasUnresolvedCodexForkBaseline(_ database: OpaquePointer, home: String) throws -> Bool {
+        try scopedScalarInt(database, home: home, sql: """
         SELECT EXISTS (
             SELECT 1 FROM (
                 SELECT \(effectiveCodexForkedFromIDSQL) AS forked_from_id,
                        \(effectiveCodexForkDependencySQL) AS dependency_key
                 FROM files f LEFT JOIN fork_lineage l ON l.file_id = f.id
+                WHERE f.home = ?
             )
             WHERE forked_from_id IS NOT NULL
               AND (dependency_key IS NULL OR substr(dependency_key, 1, 8) = 'missing|'
@@ -28,16 +32,16 @@ extension CostUsageStore {
 
     /// Full-ledger publication waits for persisted parser work across every file.
     /// Scoped day proofs apply their own range-specific completeness checks.
-    static func hasIncompleteCodexScanWork(_ database: OpaquePointer) throws -> Bool {
-        try scalarInt(database, """
+    static func hasIncompleteCodexScanWork(_ database: OpaquePointer, home: String) throws -> Bool {
+        try scopedScalarInt(database, home: home, sql: """
         SELECT EXISTS (
             SELECT 1
             FROM files f
-            WHERE f.scan_complete = 0
+            WHERE f.home = ? AND (f.scan_complete = 0
                OR json_extract(f.scan_state, '$.replacementScanPending') = 1
                OR EXISTS (
                    SELECT 1 FROM buffered_lines b WHERE b.file_id = f.id
-               )
+               ))
         )
         """) != 0
     }
@@ -64,6 +68,7 @@ extension CostUsageStore {
         return self.withDatabase(default: fallback) { database in
             try Self.prune(
                 database,
+                home: self.home,
                 sinceDay: sinceDay,
                 untilDay: untilDay,
                 calendar: calendar,
@@ -74,9 +79,10 @@ extension CostUsageStore {
     @discardableResult
     func deleteFile(path: String) -> Bool {
         self.withDatabase(default: false) { database in
-            let statement = try Self.prepare(database, "DELETE FROM files WHERE path = ?")
+            let statement = try Self.prepare(database, "DELETE FROM files WHERE path = ? AND home = ?")
             defer { sqlite3_finalize(statement) }
             Self.bind(path, to: statement, at: 1)
+            Self.bind(self.home, to: statement, at: 2)
             try Self.stepDone(statement, database: database)
             return sqlite3_changes(database) > 0
         }
@@ -84,37 +90,72 @@ extension CostUsageStore {
 
     private static func prune(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         calendar: Calendar,
         updateMetadata: Bool = true) throws -> CostUsageStoreRetentionResult
     {
         try self.inTransaction(database) {
-            let beforeFiles = try self.scalarInt(database, "SELECT COUNT(*) FROM files")
-            let beforeSnapshots = try self.scalarInt(database, "SELECT COUNT(*) FROM token_snapshots")
-            let beforeFileAggregates = try self.scalarInt(database, "SELECT COUNT(*) FROM file_day_aggregates")
-            let beforeAggregates = try self.scalarInt(database, "SELECT COUNT(*) FROM day_aggregates")
-
             let activeWindow = self.activeWindowMs(sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
+            // Snapshot rows can only disappear through cascading file deletion. Avoid scanning
+            // the complete token ledger twice when no file qualifies for retention.
+            let mayDeleteFiles = try !self.retentionCandidates(
+                database,
+                home: home,
+                sinceDay: sinceDay,
+                untilDay: untilDay,
+                activeWindow: activeWindow).isEmpty
+            if !mayDeleteFiles, try !self.retentionWorkExists(
+                database, home: home, sinceDay: sinceDay, untilDay: untilDay)
+            {
+                if updateMetadata {
+                    try self.updateRetentionWindow(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
+                }
+                return Self.noRetentionChanges
+            }
+            // A compressed-only rollout cannot be reconstructed. Retain its file rows and
+            // day aggregates even when a smaller lookback window is requested.
+            if try Self.readFiles(database, home: home).contains(where: {
+                guard !$0.belongsToOpenCodeLocalHistory else { return false }
+                let presence = CostUsageScanner.codexRolloutPresence($0.path)
+                return presence == .archived || presence == .unavailable
+            }) {
+                return Self.noRetentionChanges
+            }
+            let beforeFiles = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM files WHERE home = ?")
+            let beforeSnapshots = try self.snapshotCountIfNeeded(database, home: home, needed: mayDeleteFiles)
+            let beforeFileAggregates = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM file_day_aggregates WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
+            let beforeAggregates = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM day_aggregates WHERE home = ?")
+
             if activeWindow != nil {
                 // Native rows retain their session-level policy. A registered database can
                 // contain both recent and expired turns, so prune its usage rows individually.
                 let source = "json_extract(CAST(scan_state AS TEXT), '$.source') = 'opencodeLocalHistory'"
                 let outside = """
                 (COALESCE(json_extract(CAST(r.payload AS TEXT), '$.day'),
-                   strftime('%Y-%m-%d', json_extract(CAST(r.payload AS TEXT), '$.createdMs') / 1000, 'unixepoch')) < ?
+                   strftime('%Y-%m-%d', json_extract(CAST(r.payload AS TEXT), '$.createdMs') / 1000, 'unixepoch')) < ?1
                  OR COALESCE(json_extract(CAST(r.payload AS TEXT), '$.day'),
-                   strftime('%Y-%m-%d', json_extract(CAST(r.payload AS TEXT), '$.createdMs') / 1000, 'unixepoch')) > ?)
+                   strftime('%Y-%m-%d', json_extract(CAST(r.payload AS TEXT), '$.createdMs') / 1000, 'unixepoch')) > ?2)
                 """
                 let statements = [
                     """
                     UPDATE files SET scan_complete = 0,
                       scan_state = json_remove(CAST(scan_state AS TEXT), '$.resumePayload')
-                    WHERE \(source) AND EXISTS (
+                    WHERE home = ?3 AND \(source) AND EXISTS (
                       SELECT 1 FROM usage_rows r WHERE r.file_id = files.id AND \(outside))
                     """,
                     """
-                    DELETE FROM usage_rows AS r WHERE r.file_id IN (SELECT id FROM files WHERE \(source))
+                    DELETE FROM usage_rows AS r WHERE r.file_id IN (SELECT id FROM files WHERE home = ?3 AND \(source))
                     AND \(outside)
                     """,
                 ]
@@ -123,18 +164,20 @@ extension CostUsageStore {
                     defer { sqlite3_finalize(statement) }
                     Self.bind(sinceDay, to: statement, at: 1)
                     Self.bind(untilDay, to: statement, at: 2)
+                    Self.bind(home, to: statement, at: 3)
                     try Self.stepDone(statement, database: database)
                 }
             }
-            let deleteFile = try self.prepare(database, "DELETE FROM files WHERE path = ?")
+            let deleteFile = try self.prepare(database, "DELETE FROM files WHERE path = ? AND home = ?")
             defer { sqlite3_finalize(deleteFile) }
             var candidates: [RetentionCandidate] = []
             // Iterate to a fixpoint: deleting a stale child releases the fork protection on
             // its stale parent, which must then be pruned in the same pass instead of
             // lingering as an unreferenced out-of-window row.
-            while true {
+            while mayDeleteFiles {
                 let round = try self.retentionCandidates(
                     database,
+                    home: home,
                     sinceDay: sinceDay,
                     untilDay: untilDay,
                     activeWindow: activeWindow)
@@ -143,6 +186,7 @@ extension CostUsageStore {
                     sqlite3_reset(deleteFile)
                     sqlite3_clear_bindings(deleteFile)
                     self.bind(candidate.path, to: deleteFile, at: 1)
+                    self.bind(home, to: deleteFile, at: 2)
                     try self.stepDone(deleteFile, database: database)
                 }
                 candidates += round
@@ -150,49 +194,113 @@ extension CostUsageStore {
 
             let deleteFileAggregates = try self.prepare(
                 database,
-                "DELETE FROM file_day_aggregates WHERE day < ? OR day > ?")
+                """
+                DELETE FROM file_day_aggregates WHERE (day < ? OR day > ?)
+                AND file_id IN (SELECT id FROM files WHERE home = ?)
+                """)
             defer { sqlite3_finalize(deleteFileAggregates) }
             self.bind(sinceDay, to: deleteFileAggregates, at: 1)
             self.bind(untilDay, to: deleteFileAggregates, at: 2)
+            self.bind(home, to: deleteFileAggregates, at: 3)
             try self.stepDone(deleteFileAggregates, database: database)
 
             let deleteFileTemporal = try self.prepare(
                 database,
-                "DELETE FROM file_temporal_aggregates WHERE day < ? OR day > ?")
+                """
+                DELETE FROM file_temporal_aggregates WHERE (day < ? OR day > ?)
+                AND file_id IN (SELECT id FROM files WHERE home = ?)
+                """)
             defer { sqlite3_finalize(deleteFileTemporal) }
             self.bind(sinceDay, to: deleteFileTemporal, at: 1)
             self.bind(untilDay, to: deleteFileTemporal, at: 2)
+            self.bind(home, to: deleteFileTemporal, at: 3)
             try self.stepDone(deleteFileTemporal, database: database)
 
             let deleteAggregates = try self.prepare(
                 database,
-                "DELETE FROM day_aggregates WHERE day < ? OR day > ?")
+                "DELETE FROM day_aggregates WHERE (day < ? OR day > ?) AND home = ?")
             defer { sqlite3_finalize(deleteAggregates) }
             self.bind(sinceDay, to: deleteAggregates, at: 1)
             self.bind(untilDay, to: deleteAggregates, at: 2)
+            self.bind(home, to: deleteAggregates, at: 3)
             try self.stepDone(deleteAggregates, database: database)
 
-            try self.pruneDiscovery(database, candidates: candidates)
+            try self.pruneDiscovery(database, home: home, candidates: candidates)
             if updateMetadata {
-                var metadata = try self.readSingleton(
-                    CostUsageStoreMetadata.self,
-                    database: database,
-                    table: "scan_metadata") ?? .empty
-                metadata.scanSinceDay = sinceDay
-                metadata.scanUntilDay = untilDay
-                try self.writeSingleton(metadata, database: database, table: "scan_metadata")
+                try self.updateRetentionWindow(database, home: home, sinceDay: sinceDay, untilDay: untilDay)
             }
 
-            let afterFiles = try self.scalarInt(database, "SELECT COUNT(*) FROM files")
-            let afterSnapshots = try self.scalarInt(database, "SELECT COUNT(*) FROM token_snapshots")
-            let afterFileAggregates = try self.scalarInt(database, "SELECT COUNT(*) FROM file_day_aggregates")
-            let afterAggregates = try self.scalarInt(database, "SELECT COUNT(*) FROM day_aggregates")
+            let afterFiles = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM files WHERE home = ?")
+            let afterSnapshots = try self.snapshotCountIfNeeded(database, home: home, needed: mayDeleteFiles)
+            let afterFileAggregates = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM file_day_aggregates WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
+            let afterAggregates = try self.scopedScalarInt(
+                database,
+                home: home,
+                sql: "SELECT COUNT(*) FROM day_aggregates WHERE home = ?")
             return CostUsageStoreRetentionResult(
                 deletedFiles: Int(beforeFiles - afterFiles),
                 deletedTokenSnapshots: Int(beforeSnapshots - afterSnapshots),
                 deletedFileDayAggregates: Int(beforeFileAggregates - afterFileAggregates),
                 deletedDayAggregates: Int(beforeAggregates - afterAggregates))
         }
+    }
+
+    /// Skip the expensive ledger and aggregate counts when no row can be removed.
+    private static func retentionWorkExists(
+        _ database: OpaquePointer,
+        home: String,
+        sinceDay: String,
+        untilDay: String) throws -> Bool
+    {
+        let statement = try self.prepare(database, """
+        SELECT EXISTS(SELECT 1 FROM files f WHERE f.home = ?1
+            AND json_extract(CAST(f.scan_state AS TEXT), '$.source') = 'opencodeLocalHistory')
+        OR EXISTS(SELECT 1 FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
+            WHERE f.home = ?1 AND (a.day < ?2 OR a.day > ?3))
+        OR EXISTS(SELECT 1 FROM file_temporal_aggregates a JOIN files f ON f.id = a.file_id
+            WHERE f.home = ?1 AND (a.day < ?2 OR a.day > ?3))
+        OR EXISTS(SELECT 1 FROM day_aggregates WHERE home = ?1 AND (day < ?2 OR day > ?3))
+        """)
+        defer { sqlite3_finalize(statement) }
+        self.bind(home, to: statement, at: 1)
+        self.bind(sinceDay, to: statement, at: 2)
+        self.bind(untilDay, to: statement, at: 3)
+        guard sqlite3_step(statement) == SQLITE_ROW else { throw self.sqliteError(database) }
+        return sqlite3_column_int(statement, 0) != 0
+    }
+
+    private static func updateRetentionWindow(
+        _ database: OpaquePointer,
+        home: String,
+        sinceDay: String,
+        untilDay: String) throws
+    {
+        var metadata = try self.readSingleton(
+            CostUsageStoreMetadata.self,
+            database: database,
+            table: "scan_metadata",
+            home: home) ?? .empty
+        metadata.scanSinceDay = sinceDay
+        metadata.scanUntilDay = untilDay
+        try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+    }
+
+    private static func snapshotCountIfNeeded(
+        _ database: OpaquePointer,
+        home: String,
+        needed: Bool) throws -> Int64
+    {
+        guard needed else { return 0 }
+        return try self.scopedScalarInt(
+            database,
+            home: home,
+            sql: "SELECT COUNT(*) FROM token_snapshots WHERE file_id IN (SELECT id FROM files WHERE home = ?)")
     }
 
     private struct RetentionCandidate {
@@ -237,6 +345,7 @@ extension CostUsageStore {
 
     private static func retentionCandidates(
         _ database: OpaquePointer,
+        home: String,
         sinceDay: String,
         untilDay: String,
         activeWindow: Range<Int64>?) throws -> [RetentionCandidate]
@@ -251,14 +360,14 @@ extension CostUsageStore {
             SELECT id AS file_id,
                    json_extract(scan_state, '$.replacementForkLineage.forkedFromID') AS parent_id
             FROM files
-            WHERE json_extract(scan_state, '$.replacementScanPending') = 1
+            WHERE home = ?5 AND json_extract(scan_state, '$.replacementScanPending') = 1
               AND json_extract(scan_state, '$.replacementForkLineage.forkedFromID') IS NOT NULL
               AND (json_extract(scan_state, '$.replacementForkLineage.dependencyKey') IS NULL
                    OR json_extract(scan_state, '$.replacementForkLineage.dependencyKey') != ?4)
         )
         SELECT f.path, f.session_id, f.mtime_ms
         FROM files f
-        WHERE f.scan_complete = 1
+        WHERE f.home = ?5 AND f.scan_complete = 1
           AND f.coverage_since_day IS NOT NULL
           AND f.coverage_until_day IS NOT NULL
           AND (f.coverage_until_day < ?1 OR f.coverage_since_day > ?2)
@@ -267,6 +376,7 @@ extension CostUsageStore {
               f.session_id IS NULL OR NOT EXISTS (
                   SELECT 1 FROM fork_lineage l
                   WHERE l.forked_from_id = f.session_id AND l.file_id != f.id
+                    AND l.file_id IN (SELECT id FROM files WHERE home = ?5)
                     AND (l.dependency_key IS NULL OR l.dependency_key != ?3)
               )
           )
@@ -281,6 +391,7 @@ extension CostUsageStore {
         self.bind(untilDay, to: statement, at: 2)
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 3)
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 4)
+        self.bind(home, to: statement, at: 5)
         var values: [RetentionCandidate] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -297,13 +408,15 @@ extension CostUsageStore {
 
     private static func pruneDiscovery(
         _ database: OpaquePointer,
+        home: String,
         candidates: [RetentionCandidate]) throws
     {
         guard !candidates.isEmpty,
               var state = try self.readSingleton(
                   CostUsageStoreDiscoveryState.self,
                   database: database,
-                  table: "discovery_state")
+                  table: "discovery_state",
+                  home: home)
         else { return }
         let paths = Set(candidates.map(\.path))
         let sessionIDs = Set(candidates.compactMap(\.sessionID))
@@ -342,7 +455,7 @@ extension CostUsageStore {
             discovery.isComplete = false
             state.payload = (try? JSONEncoder().encode(discovery)) ?? state.payload
         }
-        try self.writeSingleton(state, database: database, table: "discovery_state")
+        try self.writeSingleton(state, database: database, table: "discovery_state", home: home)
     }
 }
 
@@ -371,12 +484,13 @@ extension CostUsageStore {
             catchUpRequired: true)
         return self.withDatabase(default: fallback) { database in
             var result = try Self.inTransaction(database) {
-                let initialRows = try Self.rowCount(database)
+                let initialRows = try Self.rowCount(database, home: self.home)
                 let initialBytes = Self.fileSize(at: self.databaseURL)
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
-                    table: "scan_metadata")
+                    table: "scan_metadata",
+                    home: self.home)
                 let sinceDay = requestedSinceDay ?? metadata?.scanSinceDay
                 let untilDay = requestedUntilDay ?? metadata?.scanUntilDay
                 let rowLimit = max(0, maxRows)
@@ -384,15 +498,24 @@ extension CostUsageStore {
                 if initialRows > Int64(rowLimit) || initialBytes > byteLimit,
                    let sinceDay, let untilDay, sinceDay <= untilDay
                 {
-                    let pruned = try Self.prune(
-                        database,
-                        sinceDay: sinceDay,
-                        untilDay: untilDay,
-                        calendar: calendar)
-                    if pruned.deletedFiles > 0 {
-                        #if DEBUG
-                        try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
-                        #endif
+                    // Budget eviction cannot reconstruct an archive outside the report window.
+                    let hasArchives = try Self.readFiles(database, home: self.home).contains {
+                        guard !$0.belongsToOpenCodeLocalHistory else { return false }
+                        let presence = CostUsageScanner.codexRolloutPresence($0.path)
+                        return presence == .archived || presence == .unavailable
+                    }
+                    if !hasArchives {
+                        let pruned = try Self.prune(
+                            database,
+                            home: self.home,
+                            sinceDay: sinceDay,
+                            untilDay: untilDay,
+                            calendar: calendar)
+                        if pruned.deletedFiles > 0 {
+                            #if DEBUG
+                            try CostUsageStoreTestHooks.current.budgetMutationFailure?(self.databaseURL)
+                            #endif
+                        }
                     }
                 }
 
@@ -400,11 +523,11 @@ extension CostUsageStore {
                 // The row and byte budgets only remove files outside the requested window. Once
                 // only protected data remains, preserving report fidelity takes precedence over
                 // forcing the database under its best-effort byte cap.
-                while try Self.rowCount(database) > Int64(rowLimit) {
+                while try Self.rowCount(database, home: self.home) > Int64(rowLimit) {
                     guard try Self.deleteOldestRetainedFile(
                         database,
-                        sinceDay: sinceDay,
-                        untilDay: untilDay,
+                        home: self.home,
+                        window: (sinceDay, untilDay),
                         calendar: calendar,
                         protectRequestedWindow: true) else { break }
                     #if DEBUG
@@ -416,8 +539,8 @@ extension CostUsageStore {
                 while fileBytes > byteLimit {
                     guard try Self.deleteOldestRetainedFile(
                         database,
-                        sinceDay: sinceDay,
-                        untilDay: untilDay,
+                        home: self.home,
+                        window: (sinceDay, untilDay),
                         calendar: calendar,
                         protectRequestedWindow: true)
                     else { break }
@@ -428,28 +551,33 @@ extension CostUsageStore {
                     fileBytes = try Self.logicalFileBytes(database)
                 }
                 if catchUpRequired {
-                    try Self.rebuildDayAggregates(database)
+                    try Self.rebuildDayAggregates(database, home: self.home)
                     if let previousReportPayload {
                         var updatedMetadata = try Self.readSingleton(
                             CostUsageStoreMetadata.self,
                             database: database,
-                            table: "scan_metadata") ?? .empty
+                            table: "scan_metadata",
+                            home: self.home) ?? .empty
                         if updatedMetadata.previousReportPayload == nil {
                             updatedMetadata.previousReportPayload = previousReportPayload
-                            try Self.writeSingleton(updatedMetadata, database: database, table: "scan_metadata")
+                            try Self.writeSingleton(
+                                updatedMetadata,
+                                database: database,
+                                table: "scan_metadata",
+                                home: self.home)
                         }
                     }
-                    try Self.markCatchUpRequired(database)
+                    try Self.markCatchUpRequired(database, home: self.home)
                 } else if let metadata,
                           !metadata.catchUpPending,
-                          try !Self.hasUnresolvedCodexForkBaseline(database),
-                          try !Self.hasIncompleteCodexScanWork(database)
+                          try !Self.hasUnresolvedCodexForkBaseline(database, home: self.home),
+                          try !Self.hasIncompleteCodexScanWork(database, home: self.home)
                 {
                     // Publish the complete normalized view only after pruning/budget checks
                     // succeed. A pending pass must leave the prior verified ledger untouched.
-                    try Self.publishVerifiedLedger(database, metadata: metadata, calendar: calendar)
+                    try Self.publishVerifiedLedger(database, home: self.home, metadata: metadata, calendar: calendar)
                 }
-                let finalRows = try Self.rowCount(database)
+                let finalRows = try Self.rowCount(database, home: self.home)
                 return CostUsageStoreBudgetResult(
                     deletedRows: Int(max(0, initialRows - finalRows)),
                     rowCount: Int(finalRows),
@@ -464,15 +592,17 @@ extension CostUsageStore {
 
     private static func publishVerifiedLedger(
         _ database: OpaquePointer,
+        home: String,
         metadata: CostUsageStoreMetadata,
         calendar: Calendar) throws
     {
         let aggregates = try Self.readDayAggregates(
             database,
+            home: home,
             sinceDay: nil,
             untilDay: nil)
         var updatedMetadata = metadata
-        let existingVerified = try Self.readVerifiedDayAggregates(database)
+        let existingVerified = try Self.readVerifiedDayAggregates(database, home: home)
         let verifiedDays: [String] = if let sinceDay = metadata.scanSinceDay,
                                         let untilDay = metadata.scanUntilDay
         {
@@ -488,16 +618,18 @@ extension CostUsageStore {
             let prior = existingVerified.filter { $0.day == day }
             return current != prior
         })
-        let existingStatuses = try Set(Self.readVerifiedDayStatus(database))
+        let existingStatuses = try Set(Self.readVerifiedDayStatus(database, home: home))
         let statusChangedDays = Set(verifiedDays.filter { !existingStatuses.contains($0) })
         let staleStatusDays = existingStatuses.subtracting(Set(verifiedDays))
         let roots = metadata.rootMtimes?.keys.sorted() ?? []
         let scopeID = CostUsageScanner.codexDayEvidenceScopeID(
             rootPaths: roots,
             calendar: calendar)
-        let existingEvidence = try Self.readVerifiedDayEvidence(database)
+        let existingEvidence = try Self.readVerifiedDayEvidence(database, home: home)
         let staleEvidenceDays = Set(existingEvidence.keys).subtracting(Set(verifiedDays))
-        let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+        let lineageID = try Self.optionalMetaValue(
+            database,
+            key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: home))
         let evidenceChangedDays = Set(verifiedDays.filter { day in
             guard let proof = existingEvidence[day],
                   let lineageID
@@ -511,15 +643,15 @@ extension CostUsageStore {
             && metadata.verifiedScanUntilDay == metadata.scanUntilDay
             && metadata.verifiedTimeZoneIdentifier == metadata.timeZoneIdentifier
             && metadata.verifiedRootPaths == metadata.rootMtimes?.keys.sorted()
-        let temporalFilesComplete = try Self.temporalFileCoverageIsComplete(database)
-        let temporalVerified = try Self.verifiedTemporalCoverageIsComplete(database)
+        let temporalFilesComplete = try Self.temporalFileCoverageIsComplete(database, home: home)
+        let temporalVerified = try Self.verifiedTemporalCoverageIsComplete(database, home: home)
         let temporalNeedsRefresh = temporalFilesComplete && !temporalVerified
         if existingVerified != aggregates || !scopeMatches || temporalNeedsRefresh
             || !statusChangedDays.isEmpty || !evidenceChangedDays.isEmpty
             || !staleStatusDays.isEmpty || !staleEvidenceDays.isEmpty
         {
             if existingVerified != aggregates {
-                try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
+                try Self.replaceVerifiedDayAggregates(database, home: home, aggregates: aggregates)
             }
             updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
             updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
@@ -527,49 +659,48 @@ extension CostUsageStore {
                 ? metadata.lastScanUnixMs : nil
             updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
             updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
-            try Self.writeVerifiedLedgerMarker(database)
-            try Self.execute(database, "DELETE FROM verified_day_status")
-            try Self.clearVerifiedDayEvidence(database, days: staleEvidenceDays)
+            try Self.writeVerifiedLedgerMarker(database, home: home)
+            try Self.executeForHome(database, home: home, sql: "DELETE FROM verified_day_status WHERE home = ?")
+            try Self.clearVerifiedDayEvidence(database, home: home, days: staleEvidenceDays)
             if let sinceDay = metadata.scanSinceDay,
                let untilDay = metadata.scanUntilDay
             {
                 try Self.markVerifiedDayStatus(
                     database,
+                    home: home,
                     sinceDay: sinceDay,
                     untilDay: untilDay,
                     calendar: calendar)
                 try Self.replaceVerifiedTemporalAggregates(
                     database,
+                    home: home,
                     sinceDay: sinceDay,
                     untilDay: untilDay)
             }
             _ = try Self.persistVerifiedDayEvidence(
                 database,
+                home: home,
                 days: verifiedDays,
                 scopeID: scopeID,
                 forceUpdateDays: aggregateChangedDays.union(statusChangedDays))
             if temporalFilesComplete {
-                try Self.markVerifiedTemporalCoverageComplete(database)
+                try Self.markVerifiedTemporalCoverageComplete(database, home: home)
             }
         }
         if !verifiedDays.isEmpty,
-           let lineageID = try Self.optionalMetaValue(database, key: Self.verifiedDayLineageKey)
+           let lineageID = try Self.optionalMetaValue(
+               database,
+               key: Self.verifiedMetaKey(Self.verifiedDayLineageKey, home: home))
         {
             _ = try Self.refreshVerifiedDayEvidenceTimestamps(
                 database,
+                home: home,
                 days: verifiedDays,
                 scopeID: scopeID,
                 lineageID: lineageID)
         }
         if updatedMetadata != metadata {
-            let payload = try JSONEncoder().encode(updatedMetadata)
-            let statement = try Self.prepare(database, """
-            INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
-            """)
-            defer { sqlite3_finalize(statement) }
-            Self.bind(payload, to: statement, at: 1)
-            try Self.stepDone(statement, database: database)
+            try Self.writeSingleton(updatedMetadata, database: database, table: "scan_metadata", home: home)
         }
     }
 
@@ -589,29 +720,32 @@ extension CostUsageStore {
 
     private static func deleteOldestRetainedFile(
         _ database: OpaquePointer,
-        sinceDay: String?,
-        untilDay: String?,
+        home: String,
+        window: (sinceDay: String?, untilDay: String?),
         calendar: Calendar,
         protectRequestedWindow: Bool) throws -> Bool
     {
+        let sinceDay = window.sinceDay
+        let untilDay = window.untilDay
         let statement = try self.prepare(database, """
         WITH staged_fork_parents AS MATERIALIZED (
             SELECT id AS file_id,
                    json_extract(scan_state, '$.replacementForkLineage.forkedFromID') AS parent_id
             FROM files
-            WHERE json_extract(scan_state, '$.replacementScanPending') = 1
+            WHERE home = ?3 AND json_extract(scan_state, '$.replacementScanPending') = 1
               AND json_extract(scan_state, '$.replacementForkLineage.forkedFromID') IS NOT NULL
               AND (json_extract(scan_state, '$.replacementForkLineage.dependencyKey') IS NULL
                    OR json_extract(scan_state, '$.replacementForkLineage.dependencyKey') != ?2)
         )
         SELECT f.id, f.path, f.mtime_ms, f.coverage_since_day, f.coverage_until_day
         FROM files f
-        WHERE f.scan_complete = 1
+        WHERE f.home = ?3 AND f.scan_complete = 1
           AND NOT EXISTS (SELECT 1 FROM buffered_lines b WHERE b.file_id = f.id)
           AND NOT EXISTS (
               SELECT 1 FROM fork_lineage child
               JOIN fork_lineage parent ON parent.session_id = child.forked_from_id
               WHERE parent.file_id = f.id
+                AND child.file_id IN (SELECT id FROM files WHERE home = ?3)
                 AND child.file_id != f.id
                 AND (child.dependency_key IS NULL OR child.dependency_key != ?1)
           )
@@ -624,6 +758,7 @@ extension CostUsageStore {
         defer { sqlite3_finalize(statement) }
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 1)
         self.bind(CostUsageScanner.codexForkDependencyNotRequiredKey, to: statement, at: 2)
+        self.bind(home, to: statement, at: 3)
         let activeWindow = self.activeWindowMs(sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
@@ -639,7 +774,8 @@ extension CostUsageStore {
             } else {
                 false
             }
-            let protected = zeroDayRecentlyActive
+            let presence = self.columnText(statement, at: 1).map(CostUsageScanner.codexRolloutPresence)
+            let protected = zeroDayRecentlyActive || presence == .archived || presence == .unavailable
                 || (protectRequestedWindow && (touchesWindow || recentlyActive))
             if !protected {
                 let fileID = sqlite3_column_int64(statement, 0)
@@ -652,15 +788,15 @@ extension CostUsageStore {
         return false
     }
 
-    private static func rowCount(_ database: OpaquePointer) throws -> Int64 {
-        try self.scalarInt(database, "SELECT COUNT(*) FROM files")
+    private static func rowCount(_ database: OpaquePointer, home: String) throws -> Int64 {
+        try self.scopedScalarInt(database, home: home, sql: "SELECT COUNT(*) FROM files WHERE home = ?")
     }
 
-    private static func rebuildDayAggregates(_ database: OpaquePointer) throws {
-        try self.execute(database, "DELETE FROM day_aggregates")
-        try self.execute(database, """
+    private static func rebuildDayAggregates(_ database: OpaquePointer, home: String) throws {
+        try self.executeForHome(database, home: home, sql: "DELETE FROM day_aggregates WHERE home = ?")
+        try self.executeForHome(database, home: home, sql: """
         INSERT INTO day_aggregates (
-            day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
+            home, day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
             request_count, unpriced_request_count, authoritative_cost_nanos,
             standard_authoritative_cost_nanos, priority_authoritative_cost_nanos,
             standard_input_tokens, standard_cached_tokens, standard_output_tokens,
@@ -669,7 +805,7 @@ extension CostUsageStore {
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
             priority_unresolved_pricing_count
         )
-        SELECT day, model, SUM(input_tokens), SUM(cached_tokens), SUM(output_tokens),
+        SELECT f.home, a.day, a.model, SUM(input_tokens), SUM(cached_tokens), SUM(output_tokens),
                SUM(reasoning_tokens), SUM(request_count), SUM(unpriced_request_count),
                SUM(authoritative_cost_nanos),
                SUM(standard_authoritative_cost_nanos), SUM(priority_authoritative_cost_nanos),
@@ -678,20 +814,38 @@ extension CostUsageStore {
                SUM(standard_tokens), SUM(priority_tokens),
                SUM(standard_resolved_cost_nanos), SUM(priority_resolved_cost_nanos),
                SUM(standard_unresolved_pricing_count), SUM(priority_unresolved_pricing_count)
-        FROM file_day_aggregates
-        GROUP BY day, model
+        FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
+        WHERE f.home = ?
+        GROUP BY f.home, a.day, a.model
         """)
     }
 
-    private static func markCatchUpRequired(_ database: OpaquePointer) throws {
+    private static func markCatchUpRequired(_ database: OpaquePointer, home: String) throws {
         var metadata = try self.readSingleton(
             CostUsageStoreMetadata.self,
             database: database,
-            table: "scan_metadata") ?? .empty
+            table: "scan_metadata",
+            home: home) ?? .empty
         metadata.catchUpPending = true
         metadata.lastScanUnixMs = 0
         metadata.scanInventoryPaths = nil
-        try self.writeSingleton(metadata, database: database, table: "scan_metadata")
+        try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+    }
+
+    private static func scopedScalarInt(_ database: OpaquePointer, home: String, sql: String) throws -> Int64 {
+        let statement = try Self.prepare(database, sql)
+        defer { sqlite3_finalize(statement) }
+        Self.bind(home, to: statement, at: 1)
+        let result = sqlite3_step(statement)
+        guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
+        return sqlite3_column_int64(statement, 0)
+    }
+
+    private static func executeForHome(_ database: OpaquePointer, home: String, sql: String) throws {
+        let statement = try Self.prepare(database, sql)
+        defer { sqlite3_finalize(statement) }
+        Self.bind(home, to: statement, at: 1)
+        try Self.stepDone(statement, database: database)
     }
 
     private static func reclaimFreePages(_ database: OpaquePointer) throws {
@@ -713,18 +867,20 @@ extension CostUsageStore {
 // MARK: - Singleton write helper
 
 extension CostUsageStore {
-    private static func writeSingleton(
+    static func writeSingleton(
         _ value: some Encodable,
         database: OpaquePointer,
-        table: String) throws
+        table: String,
+        home: String) throws
     {
         let payload = try JSONEncoder().encode(value)
         let statement = try self.prepare(database, """
-        INSERT INTO \(table)(id, payload) VALUES (1, ?)
-        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+        INSERT INTO \(table)(home, id, payload) VALUES (?, 1, ?)
+        ON CONFLICT(home, id) DO UPDATE SET payload = excluded.payload
         """)
         defer { sqlite3_finalize(statement) }
-        self.bind(payload, to: statement, at: 1)
+        self.bind(home, to: statement, at: 1)
+        self.bind(payload, to: statement, at: 2)
         try self.stepDone(statement, database: database)
     }
 }

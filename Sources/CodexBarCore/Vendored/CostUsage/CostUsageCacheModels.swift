@@ -96,9 +96,13 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var exactInventoryFlatDirectoryOffsetByRoot: [String: Int64]?
     var exactInventoryCompletedFlatRootPaths: [String]?
     var exactCachedValidationLastPath: String?
+    /// Cached paths checked during this exact proof that resolve outside its roots.
+    var exactExcludedCachePaths: [String]?
     var cacheWideMigrationQueueActive: Bool?
     var priorityMigrationGenerationKey: String?
     var priorityAdmissionDebt: Int?
+    /// Seed inherited-baseline checks once per bounded lookback, then let its queue drain.
+    var forkDependencyValidationSeeded: Bool?
 }
 
 struct CostUsageCodexSessionDiscovery: Codable, Equatable {
@@ -128,6 +132,10 @@ struct CostUsageCodexSessionDiscovery: Codable, Equatable {
     var nextFileIndex: Int
     var metadataCandidateIndex: Int?
     var metadataInventoryEstablished: Bool?
+    /// Paths whose presence could not be established; retried in bounded rotating pages.
+    var metadataUnavailablePaths: [String]?
+    var metadataArchivedPaths: [String]?
+    var metadataPresenceEstablished: Bool?
     var fileStamps: [String: FileStamp]
     var headScan: HeadScan?
     var filePathBySessionId: [String: String]
@@ -381,7 +389,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
-    static let currentCodexParserRevision = 13
+    static let currentCodexParserRevision = 14
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -399,6 +407,8 @@ struct CostUsageFileUsage: Codable, Equatable {
     var sessionId: String?
     var forkedFromId: String?
     var forkBaselineDependencyKey: String?
+    /// Changes only when a restored archived source commits a complete replacement.
+    var codexForkSourceGeneration: String?
     var projectPath: String?
     var canonicalProjectPath: String?
     var codexCostCacheComplete: Bool?
@@ -459,8 +469,11 @@ struct CostUsageFileUsage: Codable, Equatable {
         return nil
     }
 
+    /// An archive can preserve already parsed history but cannot be reparsed.
+    var codexArchived: Bool?
+
     var hasCurrentCodexParser: Bool {
-        self.codexParserRevision == Self.currentCodexParserRevision
+        self.codexArchived == true || self.codexParserRevision == Self.currentCodexParserRevision
     }
 
     var hasBufferedCodexForkRetryLines: Bool {

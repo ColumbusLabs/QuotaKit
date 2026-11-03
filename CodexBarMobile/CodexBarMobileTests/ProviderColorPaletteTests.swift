@@ -26,6 +26,7 @@ struct ProviderColorPaletteTests {
             ("claudeplatform", 204 / 255, 124 / 255, 94 / 255),
             ("opencode", 14 / 255, 165 / 255, 233 / 255),
             ("opencodego", 52 / 255, 211 / 255, 153 / 255),
+            ("opendesign", 32 / 255, 32 / 255, 32 / 255),
             ("alibaba", 1, 106 / 255, 0),
             ("alibabatokenplan", 1, 176 / 255, 32 / 255),
             ("qwencloud", 147 / 255, 51 / 255, 234 / 255),

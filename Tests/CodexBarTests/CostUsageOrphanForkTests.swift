@@ -51,7 +51,7 @@ struct CostUsageOrphanForkTests {
         let report = CostUsageScanner.loadDailyReport(
             provider: .codex, since: now, until: now, now: now, options: options)
         #expect(report.data.first?.inputTokens == 20)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: calendar)
         cache.codexPreviousReport = try #require(CostUsageCodexPreviousReport(
             report: report, cache: cache, reportSinceKey: range.sinceKey, reportUntilKey: range.untilKey))
@@ -98,9 +98,16 @@ struct CostUsageOrphanForkTests {
         cache.files[orphanURL.path] = orphan
         cache.files[currentURL.path]?.codexScanComplete = false
         cache.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: calendar)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            cache: cache,
+            calendar: calendar)
 
-        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let persisted = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar)
         let previous = CostUsageScanner.codexPreviousReport(
             cache: persisted,
             range: range,
@@ -133,22 +140,8 @@ struct CostUsageOrphanForkTests {
         calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
         let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 12)))
         let old = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 15, hour: 12)))
-        for (session, parent) in [("fork-b", "missing-a"), ("fork-c", "missing-a"), ("fork-d", "fork-b")] {
-            let forkTime = session == "fork-d" ? "2026-08-15T04:00:02Z" : "2026-08-15T04:00:00Z"
-            let tokenTime = currentTokens ? "2026-09-30T04:00:00Z" : "2026-08-15T04:00:03Z"
-            let contents = """
-            {"type":"session_meta","payload":{"id":"\(session)","forked_from_id":"\(parent)","timestamp":"\(forkTime)"}}
-            {"type":"turn_context","payload":{"model":"gpt-5.4"}}
-            {"type":"event_msg","timestamp":"\(tokenTime)","payload":{"type":"token_count",\
-            "info":{"total_token_usage":{"input_tokens":100,"output_tokens":10}}}}
-            {"type":"event_msg","timestamp":"2026-09-30T04:00:00Z","payload":{"type":"task_complete"}}
+        try Self.writeForkFixtures(env: env, currentTokens: currentTokens)
 
-            """
-            try contents.write(
-                to: env.codexArchivedSessionsRoot.appendingPathComponent("rollout-2026-08-15-\(session).jsonl"),
-                atomically: true,
-                encoding: .utf8)
-        }
         let currentFile = try env.writeCodexSessionFile(
             day: now,
             filename: "rollout-2026-09-30-current.jsonl",
@@ -174,7 +167,10 @@ struct CostUsageOrphanForkTests {
                 clock.addTimeInterval(1)
                 _ = CostUsageScanner.loadDailyReport(
                     provider: .codex, since: old, until: now, now: clock, options: options)
-                let observed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+                let observed = CostUsageStoreAccess.read(
+                    cacheRoot: env.cacheRoot,
+                    home: env.codexStoreHome,
+                    calendar: calendar)
                 if verifyRestoredParentHistory,
                    let restoredParent = observed.files.values.first(where: { $0.sessionId == "missing-a" }),
                    restoredParent.codexScanComplete == true
@@ -185,7 +181,7 @@ struct CostUsageOrphanForkTests {
             }
         }
         scanUntilSettled()
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         #expect(cache.files.count == 4)
         #expect(cache.files.values.allSatisfy { $0.codexScanComplete == true && $0.parsedBytes == $0.size })
         let orphanFiles = cache.files.values.filter(\.hasBufferedCodexForkRetryLines)
@@ -198,7 +194,11 @@ struct CostUsageOrphanForkTests {
         #expect(cache.codexActiveLookbackState == nil)
         #expect(cache.codexScanCompletedFiles == 4)
         #expect(cache.codexScanTotalFiles == 4)
-        let view = CostUsageStoreAccess.readView(cacheRoot: env.cacheRoot, calendar: calendar, purpose: .report)
+        let view = CostUsageStoreAccess.readView(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar,
+            purpose: .report)
         let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: calendar)
         #expect(view.historyCoverageIsEstablished(
             range: range, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)) == !currentTokens)
@@ -206,7 +206,7 @@ struct CostUsageOrphanForkTests {
         #expect(!view.hasPendingScan)
         // Production freshness checks use the compact status view, which must retain
         // the same missing-parent lineage even though it omits event history.
-        let statusView = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexReadView(
+        let statusView = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome).syncLoadCodexReadView(
             calendar: calendar, purpose: .status)
         #expect(statusView.historyCoverageIsEstablished(
             range: range, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)) == !currentTokens)
@@ -233,7 +233,8 @@ struct CostUsageOrphanForkTests {
             range: fullRange, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)))
         #expect(!statusView.historyCoverageIsEstablished(
             range: fullRange, rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)))
-        let projection = CostUsageStore(cacheRoot: env.cacheRoot).syncReadCodexReportProjection(calendar: calendar)
+        let projection = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncReadCodexReportProjection(calendar: calendar)
         #expect(projection.verifiedScanSinceKey.map { $0 > fullRange.sinceKey } ?? true)
         #expect(view.dailyReport(range: fullRange, cacheRoot: env.cacheRoot).data
             .reduce(0) { $0 + ($1.unmeteredRequestCount ?? 0) } == 3)
@@ -250,7 +251,7 @@ struct CostUsageOrphanForkTests {
         clock.addTimeInterval(1)
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: now, until: now, now: clock, options: options)
-        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         #expect(pending.codexScanCatchUpPending == true)
         #expect((pending.codexPreviousReport != nil) == !currentTokens)
         if !currentTokens {
@@ -260,7 +261,7 @@ struct CostUsageOrphanForkTests {
         scanUntilSettled()
 
         if useWorkingSet, byteBudget == 512 {
-            try Self.prioritizeNestedFork(cacheRoot: env.cacheRoot, calendar: calendar)
+            try Self.prioritizeNestedFork(cacheRoot: env.cacheRoot, home: env.codexStoreHome, calendar: calendar)
         }
 
         try """
@@ -274,7 +275,10 @@ struct CostUsageOrphanForkTests {
             atomically: true,
             encoding: .utf8)
         scanUntilSettled(verifyRestoredParentHistory: true)
-        let recovered = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: calendar)
+        let recovered = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: calendar)
         #expect(recovered.codexScanCatchUpPending == false)
         #expect(recovered.files.count == 5)
         #expect(recovered.files.values.allSatisfy { !$0.hasBufferedCodexForkRetryLines })
@@ -284,10 +288,29 @@ struct CostUsageOrphanForkTests {
         }
     }
 
-    private static func prioritizeNestedFork(cacheRoot: URL, calendar: Calendar) throws {
+    private static func writeForkFixtures(env: CostUsageTestEnvironment, currentTokens: Bool) throws {
+        for (session, parent) in [("fork-b", "missing-a"), ("fork-c", "missing-a"), ("fork-d", "fork-b")] {
+            let forkTime = session == "fork-d" ? "2026-08-15T04:00:02Z" : "2026-08-15T04:00:00Z"
+            let tokenTime = currentTokens ? "2026-09-30T04:00:00Z" : "2026-08-15T04:00:03Z"
+            let contents = """
+            {"type":"session_meta","payload":{"id":"\(session)","forked_from_id":"\(parent)","timestamp":"\(forkTime)"}}
+            {"type":"turn_context","payload":{"model":"gpt-5.4"}}
+            {"type":"event_msg","timestamp":"\(tokenTime)","payload":{"type":"token_count",\
+            "info":{"total_token_usage":{"input_tokens":100,"output_tokens":10}}}}
+            {"type":"event_msg","timestamp":"2026-09-30T04:00:00Z","payload":{"type":"task_complete"}}
+
+            """
+            try contents.write(
+                to: env.codexArchivedSessionsRoot.appendingPathComponent("rollout-2026-08-15-\(session).jsonl"),
+                atomically: true,
+                encoding: .utf8)
+        }
+    }
+
+    private static func prioritizeNestedFork(cacheRoot: URL, home: String, calendar: Calendar) throws {
         // A nested child can lead a persisted queue. Its immediate parent still needs the
         // restored ancestor, whose detail history must survive compact-only dependency scans.
-        var reordered = CostUsageStoreAccess.read(cacheRoot: cacheRoot, calendar: calendar)
+        var reordered = CostUsageStoreAccess.read(cacheRoot: cacheRoot, home: home, calendar: calendar)
         let roots = try #require(reordered.roots).keys.sorted()
         let reversePaths = ["fork-d", "fork-c", "fork-b"].compactMap { sessionID in
             reordered.files.first { $0.value.sessionId == sessionID }?.key
@@ -298,6 +321,6 @@ struct CostUsageOrphanForkTests {
             completedRootPaths: roots,
             pendingFilePaths: reversePaths)
         reordered.codexScanCatchUpPending = true
-        CostUsageStoreAccess.replace(cacheRoot: cacheRoot, cache: reordered, calendar: calendar)
+        CostUsageStoreAccess.replace(cacheRoot: cacheRoot, home: home, cache: reordered, calendar: calendar)
     }
 }

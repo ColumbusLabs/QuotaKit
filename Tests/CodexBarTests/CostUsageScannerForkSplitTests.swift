@@ -95,6 +95,7 @@ struct CostUsageScannerForkSplitTests {
         let predecessorHash = "43609cc56f76a003"
         let predecessorStore = CostUsageStore(
             cacheRoot: environment.cacheRoot,
+            home: environment.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: predecessorHash),
@@ -103,7 +104,7 @@ struct CostUsageScannerForkSplitTests {
             cache,
             calendar: range.calendar,
             requestedScanWindow: (sinceKey: dayKey, untilKey: dayKey))
-        let currentStore = CostUsageStore(cacheRoot: environment.cacheRoot)
+        let currentStore = CostUsageStore(cacheRoot: environment.cacheRoot, home: environment.codexStoreHome)
         let restored = currentStore.syncLoadCodexCache(calendar: range.calendar)
         let warmReport = CostUsageScanner.buildCodexReportFromCache(cache: restored, range: range)
         #expect(await currentStore.rebuildCount == 0)
@@ -863,7 +864,10 @@ extension CostUsageScannerForkSplitTests {
             range: range,
             dayKey: range.sinceKey,
             model: model,
-            cache: CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: range.calendar),
+            cache: CostUsageStoreAccess.read(
+                cacheRoot: env.cacheRoot,
+                home: env.codexStoreHome,
+                calendar: range.calendar),
             options: options)
     }
 

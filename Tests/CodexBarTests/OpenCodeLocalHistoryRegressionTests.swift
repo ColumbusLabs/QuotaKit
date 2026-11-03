@@ -79,7 +79,11 @@ struct OpenCodeLocalHistoryRegressionTests {
             """)
         }
 
-        func store() -> CostUsageStore { CostUsageStore(cacheRoot: self.root.appendingPathComponent("cache")) }
+        func store() -> CostUsageStore {
+            CostUsageStore(
+                cacheRoot: self.root.appendingPathComponent("cache"),
+                home: CodexHomeCostStoreScope.openCodeSource)
+        }
 
         func pass(_ budget: Int = 100) async throws -> OpenCodeLocalHistoryAdapter.PassOutcome? {
             try await OpenCodeLocalHistoryAdapter.runPass(
@@ -385,7 +389,9 @@ struct OpenCodeLocalHistoryRegressionTests {
         try fixture.session("external", cost: 7)
         let nativeRoot = fixture.root.appendingPathComponent("cache")
         let native = CostUsageStore(cacheRoot: nativeRoot)
-        let source = CostUsageStore(cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(nativeRoot))
+        let source = CostUsageStore(
+            cacheRoot: OpenCodeLocalHistoryAdapter.sourceCacheRoot(nativeRoot),
+            home: CodexHomeCostStoreScope.openCodeSource)
         let before = await native.readSnapshot()
         _ = try await OpenCodeLocalHistoryAdapter.runPass(databaseURL: fixture.url, store: source)
         let nativeAfter = await native.readSnapshot()
@@ -407,7 +413,10 @@ struct OpenCodeLocalHistoryRegressionTests {
         let maximumAggregate = maximum
         let inserted = await store.withDatabase(default: false) { database in
             try CostUsageStore.inTransaction(database) {
-                try CostUsageStore.mergeDayAggregatesIn(database, deltas: [maximumAggregate])
+                try CostUsageStore.mergeDayAggregatesIn(
+                    database,
+                    deltas: [maximumAggregate],
+                    home: CodexHomeCostStoreScope.openCodeSource)
             }
             return true
         }
@@ -422,7 +431,10 @@ struct OpenCodeLocalHistoryRegressionTests {
         let overflowAggregate = overflow
         let accepted = await store.withDatabase(default: false) { database in
             try CostUsageStore.inTransaction(database) {
-                try CostUsageStore.mergeDayAggregatesIn(database, deltas: [overflowAggregate])
+                try CostUsageStore.mergeDayAggregatesIn(
+                    database,
+                    deltas: [overflowAggregate],
+                    home: CodexHomeCostStoreScope.openCodeSource)
             }
             return true
         }

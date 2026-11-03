@@ -89,6 +89,7 @@ struct CodexLocalProjectUsageCacheScopeTests {
         #expect(snapshot.sessions.isEmpty)
         #expect(CostUsageStoreAccess.read(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             calendar: scannerOptions.calendar).roots == CostUsageScanner.codexRootsFingerprint(options: scannerOptions))
         #expect(CodexLocalProjectUsageIndexer.cachedSnapshot(
             now: now,
@@ -154,7 +155,10 @@ private struct CacheScopeFixture {
             options: options)
         #expect(!baseline.sessions.isEmpty)
         #expect((baseline.total.totalTokens ?? 0) > 0)
-        let rawCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, calendar: scannerOptions.calendar)
+        let rawCache = CostUsageStoreAccess.read(
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
+            calendar: scannerOptions.calendar)
         let sidecar = CodexWorkspaceUsageSidecar(cacheRoot: env.cacheRoot)
         let sidecarSources = try sidecar.usageCache(roots: baseline.rootsFingerprint)
         #expect(!sidecarSources.files.isEmpty)
