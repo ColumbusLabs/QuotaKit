@@ -217,8 +217,12 @@ struct KeychainPromptSafetyAuditTests {
         #expect(!importer.contains("KeychainSecurity.copyMatching"))
         #expect(!importer.contains("SecItemCopyMatching"))
         let cursor = try Self.readRepoFile("Sources/CodexBarCore/Providers/Cursor/CursorAppAuth.swift")
-        #expect(cursor.contains("KeychainAccessPreflight.checkGenericPassword"))
-        #expect(cursor.contains("ChromiumSafeStorage.password(service: \"Cursor Safe Storage\", account: \"Cursor\")"))
+        #expect(cursor.contains("!KeychainAccessGate.isDisabled\n        {\n" +
+                "            for account in [\"Cursor Key\", \"Cursor\"] {"))
+        #expect(cursor.contains("guard KeychainAccessPreflight.checkGenericPassword(\n" +
+                "                    service: \"Cursor Safe Storage\", account: account) == .allowed,\n" +
+                "                    let password = ChromiumSafeStorage.password(" +
+                "service: \"Cursor Safe Storage\", account: account),"))
         #expect(!cursor.contains("KeychainSecurity.copyMatching"))
         #expect(!cursor.contains("SecItemCopyMatching"))
 
@@ -233,6 +237,8 @@ struct KeychainPromptSafetyAuditTests {
         }
         let window = Self.window(lines: lines, endingAt: readIndex, maxDistance: 20)
         #expect(window.contains("guard !KeychainAccessGate.isDisabled"))
+        #expect(window.contains("kSecAttrService as String: service"))
+        #expect(window.contains("kSecAttrAccount as String: account"))
         #expect(window.contains("KeychainNoUIQuery.apply(to: &query)"))
         #expect(!window.contains("KeychainPromptHandler"))
     }
