@@ -191,15 +191,16 @@ struct CursorAppAuthEncryptionTests {
     func `wrong current Safe Storage password falls back to legacy key without UI`() throws {
         let envelope = try Self.envelope(makeCursorAppAuthToken())
         let reads = LockIsolated<[String]>([])
+        let lookup: @Sendable ([String: Any]) -> (OSStatus, Data?) = { query in
+            Self.expectNoUI(query)
+            let account = query[kSecAttrAccount as String] as? String ?? ""
+            reads.setValue(reads.value + [account])
+            let password = account == "Cursor Key" ? "wrong-synthetic-password" : Self.password
+            return (errSecSuccess, Data(password.utf8))
+        }
         try KeychainAccessGate.withTaskOverrideForTesting(false) {
             try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
-                try ChromiumSafeStorage.$readOverrideForTesting.withValue { query in
-                    Self.expectNoUI(query)
-                    let account = query[kSecAttrAccount as String] as? String ?? ""
-                    reads.withValue { $0.append(account) }
-                    let password = account == "Cursor Key" ? "wrong-synthetic-password" : Self.password
-                    return (errSecSuccess, Data(password.utf8))
-                } operation: {
+                try ChromiumSafeStorage.$readOverrideForTesting.withValue(lookup) {
                     let session = try #require(try Self.load(envelope))
                     #expect(session.isUsable)
                 }
