@@ -193,13 +193,13 @@ struct CursorAppAuthEncryptionTests {
         let reads = LockIsolated<[String]>([])
         try KeychainAccessGate.withTaskOverrideForTesting(false) {
             try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
-                try ChromiumSafeStorage.$readOverrideForTesting.withValue({ query in
+                try ChromiumSafeStorage.$readOverrideForTesting.withValue { query in
                     Self.expectNoUI(query)
                     let account = query[kSecAttrAccount as String] as? String ?? ""
                     reads.withValue { $0.append(account) }
                     let password = account == "Cursor Key" ? "wrong-synthetic-password" : Self.password
                     return (errSecSuccess, Data(password.utf8))
-                }) {
+                } operation: {
                     let session = try #require(try Self.load(envelope))
                     #expect(session.isUsable)
                 }
