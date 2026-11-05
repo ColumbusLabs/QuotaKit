@@ -205,7 +205,9 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
   hard request deadline from 1 through 90 seconds; the default is 15 seconds. Each attempt’s deadline starts when
   its transport task begins, so scheduler delays do not consume the request budget. Queued work remains bounded
   by the overall fetch deadline and cancellation. An override does not extend that overall deadline; bundled
-  strategies that need a longer request must also supply a sufficient fetch budget.
+  strategies that need a longer request must also supply a sufficient fetch budget. Timeout and cancellation
+  results return without waiting for a transport's cancellation handler. Cancellation of already-started network work
+  is best effort; this does not guarantee recovery from a stuck networking session.
 - `opts.retryPolicy: "transientIdempotent"` opts GET into the native single-retry policy: 408, 429, 500, 502, 503, 504,
   timeout, lost connection, connection failure, and DNS failures. The delay is one second or numeric `Retry-After`,
   capped at ten seconds. POST, offline, TLS, and cancellation failures are not retried. This replaces the automatic
@@ -418,9 +420,9 @@ error and can also be deleted.
 
 ## Security and limitations
 
-User-plugin HTTP sessions are scoped to one request and released after success or failure. Reloading or removing a
-plugin does not leave an inactive session retained by its delegate. Redirect and credential-isolation rules remain
-unchanged.
+User plugins share one process-lifetime HTTP session with a stateless delegate. Each request has its own response
+buffer and byte limit; completion or cancellation removes its state. The session retains no plugin runtime or client.
+Cookies, caches, and credential storage remain disabled, redirects are refused, and both session timeouts remain 15 seconds.
 
 Treat a plugin like code you run locally, even though its host capabilities are narrow. Read the manifest and source,
 verify every origin, and avoid installing files from untrusted repositories. Approval grants the listed origin network

@@ -343,11 +343,15 @@ enum ProviderPluginHTTPResponse {
         let bounded = ProviderHTTPTransportHandler { request in
             try Task.checkCancellation()
             let (starts, started) = AsyncStream<ContinuousClock.Instant>.makeStream()
+            let cancellation = AdmissionCancellation()
             let task = Task {
                 defer { started.finish() }
-                try await beforeAttempt?()
+                try cancellation.check()
                 try Task.checkCancellation()
+                try await beforeAttempt?()
                 started.yield(.now)
+                try cancellation.check()
+                try Task.checkCancellation()
                 return try await transport.data(for: request)
             }
             return try await withTaskCancellationHandler {
@@ -364,10 +368,25 @@ enum ProviderPluginHTTPResponse {
                 case .timedOut: throw URLError(.timedOut)
                 }
             } onCancel: {
-                task.cancel()
+                cancellation.cancel()
+                // Transport cancellation may block the calling thread.
+                DispatchQueue.global().async { task.cancel() }
             }
         }
         return try await bounded.response(for: request, retryPolicy: retryPolicy)
+    }
+
+    private final class AdmissionCancellation: @unchecked Sendable {
+        private let lock = NSLock()
+        private var cancelled = false
+
+        func cancel() {
+            self.lock.withLock { self.cancelled = true }
+        }
+
+        func check() throws {
+            if self.lock.withLock({ self.cancelled }) { throw CancellationError() }
+        }
     }
 
     struct StatusFailure: LocalizedError {

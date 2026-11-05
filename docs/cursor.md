@@ -39,9 +39,9 @@ Linux. Explicit `web` mode never reads app credentials; Linux requires a configu
 4) **Cursor local auth** (first automatic source on macOS; last fallback on Linux)
    - Reads Cursor.app's VS Code-style global state DB for the local app bearer token. On macOS it supports plain
      JWTs and `cursor-safe-storage:v1:` encrypted tokens. Plain tokens do not access Keychain; encrypted tokens use
-     the `Cursor Safe Storage` item (account `Cursor`) only with prompt-free access. Unreadable or malformed
-     envelopes fall back to cookies without reviving an older persisted app identity; user ID and expiry validation
-     still apply after decryption.
+     the `Cursor Safe Storage` item (account `Cursor Key`, then legacy account `Cursor`) only with prompt-free access.
+     Unreadable or malformed envelopes fall back to cookies without reviving an older persisted app identity; user ID
+     and expiry validation still apply after decryption.
    - Files consulted by read-only SQLite:
      - macOS: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`
      - Linux: absolute `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb`; otherwise absolute `$HOME/.config/Cursor/User/globalStorage/state.vscdb`, then the account home's `.config` directory.
