@@ -96,6 +96,50 @@ This disables Keychain reads and writes from QuotaKit. Browser-cookie-based prov
 QuotaKit can no longer decrypt browser cookies. Manual cookie headers, API keys, and CLI/OAuth flows that do not rely
 on Keychain can still work where the provider supports them.
 
+## CLI and external dashboards
+
+Set `CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1` in the environment of the separately launched CLI on macOS:
+
+```sh
+CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1 /absolute/path/to/quotakit usage --provider claude --format json
+```
+
+Ordinary `usage` and `cards` fetches already use noninteractive browser-cookie access, including in a terminal.
+A browser that requires a new Safe Storage grant is skipped; an existing grant can still be used without UI. The
+six-hour denial cooldown remains in force across invocations. An explicit `cookie refresh --allow-keychain-prompt`
+can bypass the cooldown.
+
+The environment opt-out also blocks already-authorized QuotaKit Keychain reads and Keychain-dependent Chromium
+cookie decryption. A provider can fall back to another configured source or report an error. Manual credentials and
+supported file-backed sources can still work. A provider-owned CLI, such as Claude Code, can use its own credential
+store and may prompt. See the [Claude source guide](claude.md) and [CLI guide](cli.md).
+
+Configure the variable in the environment of the actual launcher or dashboard. Exporting it in a separate terminal
+does not change an already-running process. For a `launchd` job, add this entry to the job plist's top-level
+dictionary, or add the variable to its existing `EnvironmentVariables` dictionary:
+
+```xml
+<key>EnvironmentVariables</key>
+<dict>
+    <key>CODEXBAR_DISABLE_KEYCHAIN_ACCESS</key>
+    <string>1</string>
+</dict>
+```
+
+Reload and restart the job using its normal setup procedure. The app's Advanced preference can also affect
+compatible CLI builds through shared preferences. The environment variable explicitly disables access for that
+invocation only when its value is exactly `1`; `0` leaves saved preferences in force.
+
+For an unexpected prompt, check the executable your terminal resolves:
+
+```sh
+command -v quotakit
+quotakit --version
+```
+
+A dashboard or service may use a different PATH or an absolute path; inspect its configured executable and its
+`--version` output as well.
+
 ## Browser Safe Storage prompts
 
 If an interactive Chromium-family Safe Storage read is denied, QuotaKit pauses further interactive cookie reads for

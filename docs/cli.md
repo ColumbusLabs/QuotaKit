@@ -456,6 +456,11 @@ Note: Using CLI fallback
 
 ## Notes
 - CLI uses the config file for enabled providers, ordering, and secrets.
+- Ordinary `usage` and `cards` use noninteractive browser-cookie access even in a terminal. A browser Safe Storage
+  item requiring a new grant is skipped, and providers fall back or report an error.
+- On macOS, `CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1` in the CLI launcher's environment disables QuotaKit-owned
+  Keychain operations and Chromium Safe Storage decryption. Provider-owned CLIs may still use their own credentials
+  and prompt. See [CLI and external dashboards](keychain-prompts.md#cli-and-external-dashboards).
 - CLI binary discovery checks explicit overrides, captured login PATH, inherited PATH, and known install paths before falling back to an interactive shell probe.
 - Automatic executable discovery and child PATHs use absolute directories only; empty, `.` and relative entries are ignored. Install CLIs in an absolute PATH directory. Explicit executable overrides and shell startup files remain trusted user configuration.
 - Bundled helpers and plugin resources are located relative to the resolved running executable, including symlinked CLI installations, rather than the invocation directory.

@@ -11,10 +11,10 @@ import Testing
 struct CursorAppAuthEncryptionTests {
     static let password = "synthetic-cursor-safe-storage-password"
 
-    @Test
-    func `encrypted app token retains JWT identity expiry and session cookie`() throws {
+    @Test(arguments: ["Cursor Key", "Cursor"])
+    func `encrypted app token retains JWT identity expiry and session cookie`(account: String) throws {
         let token = try makeCursorAppAuthToken(subject: "auth0|encrypted-account")
-        let session = try Self.withKeychain { try #require(try Self.load(Self.envelope(token))) }
+        let session = try Self.withKeychain(account: account) { try #require(try Self.load(Self.envelope(token))) }
         #expect(session.accessToken == token)
         #expect(session.isUsable)
         #expect(session.identity?.requestUsageUserID == "encrypted-account")
@@ -156,12 +156,66 @@ struct CursorAppAuthEncryptionTests {
         #expect(reads.value == 0)
     }
 
+    @Test
+    func `missing Safe Storage accounts never read a secret`() throws {
+        let envelope = try Self.envelope(makeCursorAppAuthToken())
+        try Self.withKeychain(preflight: .notFound) { _ in
+            Issue.record("Missing items must not request a secret")
+            return (errSecSuccess, nil)
+        } operation: {
+            let session = try #require(try Self.load(envelope))
+            #expect(!session.isUsable)
+        }
+    }
+
+    @Test
+    func `disabled Keychain skips both Safe Storage account preflights`() throws {
+        let envelope = try Self.envelope(makeCursorAppAuthToken())
+        try Self.withKeychain { _ in
+            Issue.record("Disabled Keychain must not read a secret")
+            return (errSecSuccess, nil)
+        } operation: {
+            try KeychainAccessGate.withTaskOverrideForTesting(true) {
+                try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    Issue.record("Disabled Keychain must not inspect an item")
+                    return .notFound
+                } operation: {
+                    let session = try #require(try Self.load(envelope))
+                    #expect(!session.isUsable)
+                }
+            }
+        }
+    }
+
+    @Test
+    func `wrong current Safe Storage password falls back to legacy key without UI`() throws {
+        let envelope = try Self.envelope(makeCursorAppAuthToken())
+        let reads = LockIsolated<[String]>([])
+        let lookup: @Sendable ([String: Any]) -> (OSStatus, Data?) = { query in
+            Self.expectNoUI(query)
+            let account = query[kSecAttrAccount as String] as? String ?? ""
+            reads.setValue(reads.value + [account])
+            let password = account == "Cursor Key" ? "wrong-synthetic-password" : Self.password
+            return (errSecSuccess, Data(password.utf8))
+        }
+        try KeychainAccessGate.withTaskOverrideForTesting(false) {
+            try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
+                try ChromiumSafeStorage.$readOverrideForTesting.withValue(lookup) {
+                    let session = try #require(try Self.load(envelope))
+                    #expect(session.isUsable)
+                }
+            }
+        }
+        #expect(reads.value == ["Cursor Key", "Cursor"])
+    }
+
     private static func expectNoUI(_ query: [String: Any]) {
         #expect((query[kSecUseAuthenticationContext as String] as? LAContext)?.interactionNotAllowed == true)
         #expect(query[kSecUseAuthenticationUI as String] as? String == KeychainNoUIQuery.uiFailPolicyForTesting())
     }
 
     static func withKeychain<T>(
+        account: String = "Cursor Key",
         preflight: KeychainAccessPreflight.Outcome = .allowed,
         interaction: ProviderInteraction = .background,
         read: @escaping @Sendable ([String: Any]) -> (OSStatus, Data?) = { query in
@@ -172,7 +226,7 @@ struct CursorAppAuthEncryptionTests {
     {
         let lookup: @Sendable ([String: Any]) -> (OSStatus, Data?) = { query in
             #expect(query[kSecAttrService as String] as? String == "Cursor Safe Storage")
-            #expect(query[kSecAttrAccount as String] as? String == "Cursor")
+            #expect(query[kSecAttrAccount as String] as? String == account)
             #expect(query[kSecReturnData as String] as? Bool == true)
             return read(query)
         }
@@ -181,10 +235,10 @@ struct CursorAppAuthEncryptionTests {
         defer { BrowserCookieKeychainPromptHandler.handler = promptHandler }
         return try KeychainAccessGate.withTaskOverrideForTesting(false) {
             try BrowserCookieAccessGate.withIsolatedStateForTesting {
-                try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { service, account in
+                try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { service, queriedAccount in
                     #expect(service == "Cursor Safe Storage")
-                    #expect(account == "Cursor")
-                    return preflight
+                    #expect(["Cursor Key", "Cursor"].contains(queriedAccount ?? ""))
+                    return queriedAccount == account ? preflight : .notFound
                 } operation: {
                     try ChromiumSafeStorage.$readOverrideForTesting.withValue(lookup) {
                         try ProviderInteractionContext.$current.withValue(interaction, operation: operation)

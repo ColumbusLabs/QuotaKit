@@ -5,6 +5,13 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-05)
+
+- Find Cursor's local sign-in encryption key under both current and legacy account names while preserving noninteractive background access.
+- Share a stateless HTTP session across user plugins with separate request buffers, byte limits, and cancellation cleanup.
+- Deliver bounded HTTP deadlines and cancellation without waiting for a blocked transport cancellation handler.
+- Document Keychain opt-out settings for separately launched CLI tools and dashboards.
+
 ## Unreleased upstream integration (2026-11-02)
 
 - Add OpenDesign subscription quotas to the Mac and iPhone provider catalog.
