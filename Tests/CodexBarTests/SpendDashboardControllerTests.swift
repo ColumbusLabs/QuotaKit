@@ -443,6 +443,7 @@ struct SpendDashboardControllerTests {
         #expect(store.tokenSnapshot(for: .claude)?.last30DaysCostUSD == 3)
 
         let reopenedController = Self.dashboardController(settings: settings, store: store)
+        reopenedController.activateHistoryDemandForVisibleDashboard()
         reopenedController.update(configuration: replacementConfiguration)
         await Self.waitUntil { !reopenedController.isRefreshing && !reopenedController.isModelDerivationInFlight }
         #expect(reopenedController.model.groups.isEmpty)
@@ -652,6 +653,7 @@ struct SpendDashboardControllerTests {
         #expect(controller.failedSourceCount == 1)
 
         let reopenedController = Self.dashboardController(settings: settings, store: store)
+        reopenedController.activateHistoryDemandForVisibleDashboard()
         reopenedController.update(configuration: reenabledConfiguration)
         await Self.waitUntil { !reopenedController.isRefreshing && !reopenedController.isModelDerivationInFlight }
         #expect(reopenedController.model.groups.isEmpty)
