@@ -40,6 +40,120 @@ struct UsageStoreMenuCardModelTests {
     }
 
     @Test
+    func `non Claude errors and diagnostics keep separate refresh outcomes`() {
+        let store = self.makeStore()
+        store.snapshots[.mistral] = self.snapshot()
+        store.errors[.mistral] = "Mistral request failed"
+        let model = store.menuCardModel(for: .mistral)
+        #expect(model.subtitleText == store.userFacingError(for: .mistral))
+        #expect(model.subtitleText == "Mistral request failed")
+        #expect(model.lastKnownUsageText == nil)
+        #expect(model.showsRetainedMeasurement)
+
+        store.errors[.mistral] = nil
+        store.diagnostics[.mistral] = "Fallback succeeded"
+        let recovered = store.menuCardModel(for: .mistral)
+        #expect(recovered.subtitleText == "Fallback succeeded")
+        #expect(!recovered.showsRetainedMeasurement)
+    }
+
+    @Test
+    func `Claude account card keeps its own stale timestamp and error`() {
+        let store = self.makeStore()
+        let snapshot = self.snapshot()
+        let model = store.menuCardModel(for: .claude, context: .account(.init(
+            snapshot: snapshot,
+            error: "Account request failed",
+            lastKnownUsageCapturedAt: snapshot.updatedAt)))
+        #expect(model.subtitleText == "Account request failed")
+        #expect(model.lastKnownUsageText != nil)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func `failed account switch does not dim successfully refreshed Claude quotas`(
+        usageFailed: Bool,
+        adapterFailed: Bool)
+    {
+        let store = self.makeStore()
+        let snapshot = self.snapshot()
+        let account = ProviderAccountUsageSnapshot(
+            id: ProviderAccountIdentity(source: "claude-swap", opaqueID: "2"),
+            provider: .claude,
+            displayLabel: "account@example.com",
+            isActive: true,
+            usesLastKnownUsage: usageFailed,
+            snapshot: snapshot,
+            error: usageFailed ? "Quota refresh failed" : nil,
+            sourceLabel: "claude-swap")
+        let context = ClaudeSwapAccountMenuDisplay.cardContext(
+            for: account,
+            planLabel: nil,
+            adapterError: adapterFailed ? "Account list refresh failed" : nil,
+            switchError: "Activation failed")
+
+        let model = store.menuCardModel(for: .claude, context: context, now: snapshot.updatedAt)
+
+        #expect(model.subtitleText == "Account switch failed: Activation failed")
+        #expect(!model.metrics.isEmpty)
+        #expect(model.showsRetainedMeasurement == (usageFailed || adapterFailed))
+    }
+
+    @Test(arguments: ClaudeSwapAccountSource.allCases)
+    func `current exhausted account quotas keep their tint despite a limit notice`(
+        source: ClaudeSwapAccountSource) throws
+    {
+        let store = self.makeStore()
+        store.settings.usageBarsShowUsed = true
+        let now = self.snapshot().updatedAt
+        let list = ClaudeSwapAccountList(
+            activeAccountNumber: 2,
+            accounts: [ClaudeSwapAccountRow(
+                number: 2,
+                email: "account@example.com",
+                isActive: true,
+                usageStatus: .unavailable,
+                fiveHour: ClaudeSwapUsageWindow(usedPercent: 100, resetsAt: now.addingTimeInterval(3600)),
+                sevenDay: nil)])
+        let account = try #require(ClaudeSwapAccountProjection.accountSnapshots(
+            from: list, source: source, now: now).first)
+        #expect(!account.usesLastKnownUsage)
+        #expect(account.error != nil)
+        let context = ClaudeSwapAccountMenuDisplay.cardContext(
+            for: account, planLabel: nil, adapterError: nil, switchError: nil)
+
+        let model = store.menuCardModel(for: .claude, context: context, now: now)
+
+        #expect(model.subtitleText.contains("Session limit reached."))
+        #expect(model.metrics.first?.percent == 100)
+        #expect(!model.showsRetainedMeasurement)
+    }
+
+    @Test(arguments: [UsageProvider.claude, .grok])
+    func `empty account context cannot borrow live usage identity or cost`(provider: UsageProvider) {
+        let store = self.makeStore()
+        store.settings.costUsageEnabled = true
+        store.settings.hidePersonalInfo = false
+        store.snapshots[provider.instanceID] = self.snapshot()
+        store.errors[provider.instanceID] = "Live account failed"
+        store._setTokenSnapshotForTesting(.init(
+            sessionTokens: 100,
+            sessionCostUSD: 2,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 2,
+            daily: [],
+            updatedAt: Date()), provider: provider)
+
+        let model = store.menuCardModel(for: provider, context: .account(.init()))
+
+        #expect(model.metrics.isEmpty)
+        #expect(model.email.isEmpty)
+        #expect(model.tokenUsage == nil)
+        #expect(model.subtitleStyle != .error)
+        #expect(!model.usesLiveSubtitle)
+        #expect(store.menuCardModel(for: provider).subtitleStyle == .error)
+    }
+
+    @Test
     func `settings catalogue exposes gated Claude extra usage without changing rendered preferences`() {
         let store = self.makeStore()
         let now = Date(timeIntervalSince1970: 1_782_000_000)

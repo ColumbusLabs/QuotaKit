@@ -542,3 +542,5 @@ validation, and a locked commit that rejects a removed or changed account.
 `hooks watch --provider <id|both|all>` accepts repeated selections. `both` selects the primary providers; `all` selects the full registry, including providers disabled in config. Defaults remain the enabled providers. Commands requiring a concrete provider omit group aliases from their help.
 
 Usage JSON includes optional `resetCredits` with `available` and `nextExpiresAt`, derived from the shared unexpired, available reset-credit inventory. The compact summary omits credit identifiers.
+
+The Settings CLI install status reports successful installs alongside conflicts and protected or unwritable destinations.

@@ -1279,7 +1279,8 @@
 "QuotaKit will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din Augment-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Clear" = "Rensa";
 "No matching providers" = "Inga matchande leverantörer";
-"Search providers" = "Sök leverantörer";
+"No matching settings or providers" = "Inga matchande inställningar eller leverantörer";
+"Search settings" = "Sök i inställningar";
 
 "language_vietnamese" = "Vietnamesiska";
 "language_arabic" = "العربية";
