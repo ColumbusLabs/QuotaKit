@@ -286,9 +286,11 @@ extension CostUsageStore {
             database: database,
             table: "scan_metadata",
             home: home) ?? .empty
-        metadata.scanSinceDay = sinceDay
-        metadata.scanUntilDay = untilDay
-        try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+        if metadata.scanSinceDay != sinceDay || metadata.scanUntilDay != untilDay {
+            metadata.scanSinceDay = sinceDay
+            metadata.scanUntilDay = untilDay
+            try self.writeSingleton(metadata, database: database, table: "scan_metadata", home: home)
+        }
     }
 
     private static func snapshotCountIfNeeded(
