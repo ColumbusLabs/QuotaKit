@@ -782,7 +782,9 @@ public struct CostUsageFetcher: Sendable {
                 } catch OpenCodeGoLocalUsageError.notDetected {
                     return CostUsageTokenResult(snapshot: Self.tokenSnapshot(
                         from: CostUsageDailyReport(data: [], summary: nil),
-                        now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar,
+                        now: now,
+                        historyDays: clampedHistoryDays,
+                        calendar: fallbackCalendar,
                         historyCoverageIsEstablished: false))
                 }
             }
