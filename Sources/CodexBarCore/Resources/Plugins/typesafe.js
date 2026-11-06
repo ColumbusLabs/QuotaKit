@@ -82,7 +82,9 @@ defineProvider({
     // A signed-out console can answer with an HTML login page instead of JSON.
     const body = response.bodyText.trim();
     if (body.startsWith("<")) {
-      if (/(?:login|sign[-\s]?in|\(auth\))/i.test(body)) expired();
+      const loginHeading = /<(?:title|h1)\b[^>]*>\s*(?:log\s*in|sign\s*in)\b/i;
+      const loginPrompt = /<(?:body|p)\b[^>]*>\s*(?:log|sign)\s+in\s+to\s+continue\b/i;
+      if (loginHeading.test(body) || loginPrompt.test(body)) expired();
       throw ctx.fail.apiFailure(overviewFailure);
     }
     let payload;

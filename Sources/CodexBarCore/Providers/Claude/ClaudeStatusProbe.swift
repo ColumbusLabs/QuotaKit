@@ -882,7 +882,7 @@ extension ClaudeStatusProbe {
         allowFuzzy: Bool = false) -> Bool
     {
         let normalizedLine = self.normalizedForLabelSearch(line)
-        guard normalizedLine.hasPrefix("current") else { return false }
+        guard normalizedLine.hasPrefix("current") || self.isFuzzySessionHeading(normalizedLine) else { return false }
         guard let expectedModel = self.weeklyModelName(from: labelSubstring) else {
             return !self.matchesNonWeeklyLabel(normalizedLine, label: normalizedLabel, allowFuzzy: allowFuzzy)
         }
@@ -897,7 +897,12 @@ extension ClaudeStatusProbe {
 
     private static func matchesNonWeeklyLabel(_ line: String, label: String, allowFuzzy: Bool) -> Bool {
         // Recover a garbled session heading without borrowing the first weekly percentage.
-        line.contains(label) || (allowFuzzy && label == "currentsession" && self.editDistance(line, label) <= 1)
+        line.contains(label) || (allowFuzzy && label == "currentsession" && self.isFuzzySessionHeading(line))
+    }
+
+    private static func isFuzzySessionHeading(_ line: String) -> Bool {
+        let label = "currentsession"
+        return abs(line.count - label.count) <= 1 && self.editDistance(line, label) <= 1
     }
 
     private static func weeklyModelName(from line: String) -> String? {

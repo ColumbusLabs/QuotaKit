@@ -119,7 +119,10 @@ struct TypeSafePluginTests {
 
     @Test(arguments: BundledPluginTestSupport.engines)
     func `non-login HTML remains an integration failure`(engine: ProviderPluginEngineKind) async {
-        await Self.expectFailure(.apiFailure, engine: engine, body: "<html>Billing moved</html>")
+        await Self.expectFailure(
+            .apiFailure,
+            engine: engine,
+            body: #"<html><h1>Billing temporarily unavailable</h1><a href="/login">Sign in</a></html>"#)
     }
 
     @Test(arguments: [401, 403], BundledPluginTestSupport.engines)

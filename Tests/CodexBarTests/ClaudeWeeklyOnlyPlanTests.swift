@@ -50,6 +50,18 @@ struct ClaudeWeeklyOnlyPlanTests {
     }
 
     @Test
+    func `an incomplete weekly row cannot borrow a garbled session value`() throws {
+        let parsed = try ClaudeStatusProbe.parse(text: """
+        Current week (all models)
+        Loading
+        Curret session
+        7% used
+        """)
+        #expect(parsed.sessionPercentLeft == 93)
+        #expect(parsed.weeklyPercentLeft == nil)
+    }
+
+    @Test
     func `weekly only claude plan shows weekly row without a session row`() throws {
         let now = Date(timeIntervalSince1970: 1_793_000_000)
         let metadata = try #require(ProviderDefaults.metadata[.claude])
