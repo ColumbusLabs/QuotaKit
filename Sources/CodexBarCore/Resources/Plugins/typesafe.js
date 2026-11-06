@@ -130,23 +130,25 @@ defineProvider({
     const availableRows = 24 - rows.length;
     const creditRows = [];
     let creditCount = 0;
-    for (const item of Array.isArray(billing.credits) ? billing.credits : []) {
-      const credit = record(item);
-      const amount = number(_optionalChain([credit, "optionalAccess", (_11) => _11.amount]));
-      const remaining = number(_optionalChain([credit, "optionalAccess", (_12) => _12.remaining]));
-      const expiresAt =
-        typeof _optionalChain([credit, "optionalAccess", (_13) => _13.expiresAt]) === "string"
-          ? credit.expiresAt
-          : undefined;
-      if (amount === undefined || remaining === undefined || remaining <= 0 || !expiresAt) continue;
-      const expires = Date.parse(expiresAt);
-      if (!Number.isFinite(expires)) continue;
-      creditCount++;
-      if (creditRows.length >= availableRows) continue;
-      creditRows.push({
-        label: "Credit",
-        value: `${ctx.format.number(remaining)} of ${ctx.format.number(amount)}, expires ${ctx.format.monthDay(expires)}`,
-      });
+    if (Array.isArray(billing.credits)) {
+      for (const item of billing.credits) {
+        const credit = record(item);
+        const amount = number(_optionalChain([credit, "optionalAccess", (_11) => _11.amount]));
+        const remaining = number(_optionalChain([credit, "optionalAccess", (_12) => _12.remaining]));
+        const expiresAt =
+          typeof _optionalChain([credit, "optionalAccess", (_13) => _13.expiresAt]) === "string"
+            ? credit.expiresAt
+            : undefined;
+        if (amount === undefined || remaining === undefined || remaining <= 0 || !expiresAt) continue;
+        const expires = Date.parse(expiresAt);
+        if (!Number.isFinite(expires)) continue;
+        creditCount++;
+        if (creditRows.length >= availableRows) continue;
+        creditRows.push({
+          label: "Credit",
+          value: `${ctx.format.number(remaining)} of ${ctx.format.number(amount)}, expires ${ctx.format.monthDay(expires)}`,
+        });
+      }
     }
     if (creditCount > availableRows) {
       const shown = availableRows - 1;

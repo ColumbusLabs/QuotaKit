@@ -258,7 +258,8 @@ defineProvider({
         try {
           const groupTotal = amount(group.CycleTotalCapacity, "CycleTotalCapacity");
           const groupRemaining = amount(group.CycleRemainCapacity, "CycleRemainCapacity");
-          if (!Number.isFinite(rewardTotal + groupTotal) || !Number.isFinite(rewardRemaining + groupRemaining)) continue;
+          if (!Number.isFinite(rewardTotal + groupTotal) || !Number.isFinite(rewardRemaining + groupRemaining))
+            continue;
           rewardTotal += groupTotal;
           rewardRemaining += groupRemaining;
         } catch (error) {
