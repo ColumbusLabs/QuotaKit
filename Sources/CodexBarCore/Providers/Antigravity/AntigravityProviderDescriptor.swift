@@ -652,19 +652,22 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     static func agyVersion(
         binary: String,
         environment: [String: String],
-        resolver: AgyVersionResolver = AgyVersionResolver()) async -> (UInt, UInt, UInt)?
+        resolver: AgyVersionResolver = AgyVersionResolver(),
+        versionCache: AgyVersionCache = .shared) async -> (UInt, UInt, UInt)?
     {
         do {
             return try await resolver.resolve {
-                let result = try await SubprocessRunner.run(
-                    binary: binary,
-                    arguments: ["--version"],
-                    environment: Self.childEnvironment(environment),
-                    timeout: 3,
-                    maxOutputBytes: 4096,
-                    standardInput: FileHandle.nullDevice,
-                    label: "antigravity-cli-version")
-                return Self.parseVersion(result.stdout)
+                try await versionCache.resolve(binary: binary) {
+                    let result = try await SubprocessRunner.run(
+                        binary: binary,
+                        arguments: ["--version"],
+                        environment: Self.childEnvironment(environment),
+                        timeout: 3,
+                        maxOutputBytes: 4096,
+                        standardInput: FileHandle.nullDevice,
+                        label: "antigravity-cli-version")
+                    return Self.parseVersion(result.stdout)
+                }
             }
         } catch {
             return nil
@@ -762,11 +765,44 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         return snapshot
     }
 
+    actor AgyVersionCache {
+        static let shared = AgyVersionCache()
+        private struct ExecutableIdentity: Equatable {
+            let path: String
+            let modified: Date
+            let size: UInt64
+            let inode: UInt64
+        }
+
+        private var cached: (identity: ExecutableIdentity, version: (UInt, UInt, UInt))?
+
+        func resolve(
+            binary: String,
+            probe: @Sendable () async throws -> (UInt, UInt, UInt)?) async throws -> (UInt, UInt, UInt)?
+        {
+            try Task.checkCancellation()
+            let path = URL(fileURLWithPath: binary).resolvingSymlinksInPath().path
+            guard FileManager.default.isExecutableFile(atPath: path),
+                  let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+                  let modified = attributes[.modificationDate] as? Date,
+                  let size = (attributes[.size] as? NSNumber)?.uint64Value,
+                  let inode = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value
+            else { return try await probe() }
+            let identity = ExecutableIdentity(path: path, modified: modified, size: size, inode: inode)
+            if let cached, cached.identity == identity { return cached.version }
+            let version = try await probe()
+            try Task.checkCancellation()
+            if let version { self.cached = (identity, version) }
+            return version
+        }
+    }
+
     /// Shares one version subprocess between the legacy CSRF gate and print-usage fallback per refresh.
     actor AgyVersionResolver {
         private var outcome: Result<(UInt, UInt, UInt)?, Error>?
 
-        func resolve(_ probe: () async throws -> (UInt, UInt, UInt)?) async throws -> (UInt, UInt, UInt)? {
+        func resolve(_ probe: @Sendable () async throws -> (UInt, UInt, UInt)?) async throws -> (UInt, UInt, UInt)? {
+            try Task.checkCancellation()
             if let outcome = self.outcome { return try outcome.get() }
             do {
                 let version = try await probe()

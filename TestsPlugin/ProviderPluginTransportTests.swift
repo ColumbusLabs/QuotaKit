@@ -252,6 +252,27 @@ struct ProviderPluginTransportTests {
         #expect(await transport.count == 2)
     }
 
+    @Test(.timeLimit(.minutes(1)), arguments: Self.engines)
+    func `request deadline applies to each retry attempt`(engine: ProviderPluginEngineKind) async throws {
+        let counter = PluginStatusTransport(status: 200)
+        let runtime = try Self.runtime(
+            engine,
+            body: """
+            await ctx.http.get('https://example.com', { timeoutSeconds: 1, retryPolicy: 'transientIdempotent' });
+            return { identity: { loginMethod: 'ok' } };
+            """,
+            transport: ProviderHTTPTransportHandler { request in
+                let response = try await counter.data(for: request)
+                let (pending, release) = AsyncStream<Void>.makeStream()
+                defer { release.finish() }
+                for await _ in pending {}
+                try Task.checkCancellation()
+                return response
+            })
+        await #expect(throws: URLError(.timedOut)) { try await runtime.fetchUsage() }
+        #expect(await counter.count == 2)
+    }
+
     @Test(arguments: Self.engines)
     func `offline and TLS failures do not retry`(engine: ProviderPluginEngineKind) async throws {
         for code in [URLError.notConnectedToInternet, .secureConnectionFailed, .cancelled] {
