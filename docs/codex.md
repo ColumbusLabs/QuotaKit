@@ -140,6 +140,7 @@ is limited, using additional rows when needed.
 - Scraper URL: `https://chatgpt.com/codex/cloud/settings/analytics#usage`.
 - The app's **Usage Dashboard** action opens `https://chatgpt.com/settings/usage?tab=overview`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
+- Clears disposable WebKit disk/memory caches at launch and at most daily after background use, preserving cookies and session storage. See [WebKit storage and cleanup](webkit.md#persistent-data-and-cache-maintenance).
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
 - Page preparation and JavaScript extraction share the refresh deadline. At expiry, QuotaKit asks WebKit to terminate the page and marks it for eviction once active work unwinds. A verified API snapshot can be returned when page work times out. Timeout diagnostics do not start more JavaScript.

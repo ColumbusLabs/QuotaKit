@@ -175,6 +175,25 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(bothWindows.map(\.window), [window])
     }
 
+    func testWeeklyOnlyClaudeAndSyntheticSnapshotsHaveNoWidgetSession() throws {
+        let reset = Date(timeIntervalSince1970: 1_803_604_800)
+        for providerID in ["claude", "synthetic"] {
+            // The Mac writes the first available window into the legacy primary field as well.
+            let weekly = SyncRateWindow(
+                label: "Weekly",
+                usedPercent: 67,
+                windowMinutes: 10080,
+                resetsAt: reset,
+                resetDescription: nil,
+                identity: .weekly)
+            let provider = try self.makeWidgetProvider(providerID: providerID, window: weekly)
+            XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session))
+            let rows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
+            XCTAssertEqual(rows.map(\.mode), [.weekly])
+            XCTAssertEqual(rows.first?.window.resetsAt, reset)
+        }
+    }
+
     func testWidgetTreatsMonthlyCursorLegacyWeeklyIdentitiesAsSessionWindows() throws {
         for label in ["Plan", "aUtO", "API", "Requests", "Total"] {
             let window = SyncRateWindow(

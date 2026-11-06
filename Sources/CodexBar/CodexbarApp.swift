@@ -485,6 +485,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.hasStartedKeychainMigration = true
             self.startKeychainMigration()
         }
+        Task { await OpenAIDashboardWebsiteDataStore.clearNetworkCaches() }
         #if DEBUG
         self.installDebugMemoryPressureObserverIfNeeded()
         #endif

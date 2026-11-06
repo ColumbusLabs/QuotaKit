@@ -165,8 +165,10 @@ to another credential source.
     `claude-code/<detected-version>` identity.
 - Mapping:
   - `five_hour` → session window.
-  - `seven_day` → weekly window; also becomes the primary fallback when `five_hour` is absent or has no utilization.
-  - `seven_day_sonnet` / `seven_day_opus` → model-specific weekly window.
+  - `seven_day` → weekly window, including when `five_hour` is absent or has no utilization.
+  - `seven_day_sonnet` / `seven_day_opus` → the first measured model-specific weekly window.
+  - Weekly-only plans leave the session row absent. The CLI waits for a visible quota refresh to finish before
+    accepting the redrawn usage panel.
   - `limits[].weekly_scoped` → model-specific weekly windows; generic `All models` scopes stay in the main weekly row.
   - `seven_day_routines` / `seven_day_cowork` → Daily Routines extra window.
   - Claude Design/Omelette keys are ignored because Claude Design shares the main Claude usage limit.

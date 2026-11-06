@@ -825,7 +825,7 @@ extension ClaudeOAuthTests {
     func `uses all models scoped limit when legacy weekly window is absent`() throws {
         let json = """
         {
-          "five_hour": { "utilization": 11.0, "resets_at": "2026-07-03T00:30:00Z" },
+          "five_hour": null,
           "seven_day": null,
           "limits": [
             {
@@ -839,6 +839,7 @@ extension ClaudeOAuthTests {
 
         let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
 
+        #expect(snap.primary == nil)
         #expect(snap.secondary?.usedPercent == 37)
         #expect(snap.extraRateWindows.contains { $0.id.contains("all-models") } == false)
     }
