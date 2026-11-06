@@ -180,6 +180,7 @@ struct SpendDashboardDetailStabilityTests {
                 failedSourceIDs: []) },
             loader: { _ in await (try? gate.load()) ?? .init(inputs: [], failedSourceIDs: []) },
             nowProvider: { Self.now })
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration.value)
         try await gate.waitForPendingCount(1)
         gate.resume(returning: .init(inputs: [old], failedSourceIDs: []))
@@ -275,6 +276,7 @@ struct SpendDashboardDetailStabilityTests {
             cachedLoader: { _ in .init(inputs: [old], failedSourceIDs: []) },
             loader: { _ in await (try? gate.load()) ?? .init(inputs: [], failedSourceIDs: []) },
             nowProvider: { Self.now })
+        controller.activateHistoryDemandForVisibleDashboard()
         for (index, input) in next.enumerated() {
             configuration.value = SpendDashboardConfiguration(
                 costUsageEnabled: true,

@@ -673,6 +673,7 @@ struct SpendDashboardCodexHistoryHorizonTests {
             result: SpendDashboardLoadResult(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForLoaderPendingCount(1, gate: loader)
         #expect(controller.model.groups.isEmpty)
+        #expect(!controller.publication.inputs.contains { $0.snapshot.last30DaysCostUSD == 5 })
         #expect(controller.isRefreshing)
         #expect(controller.configuration == routineConfiguration)
 
@@ -680,7 +681,11 @@ struct SpendDashboardCodexHistoryHorizonTests {
             at: 0,
             result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
-        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.publication.configuration == routineConfiguration)
+        #expect(controller.publication.inputs.count == 1)
+        #expect(controller.publication.inputs.first?.provider == .codex)
+        #expect(controller.publication.inputs.first?.snapshot.last30DaysCostUSD == 9)
         #expect(controller.configuration == routineConfiguration)
         #expect(controller.configuration?.codexHistoryDays == 30)
         store.cancelSpendDashboardCodexCostCatchUp()
@@ -723,7 +728,11 @@ struct SpendDashboardCodexHistoryHorizonTests {
             at: 0,
             result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
-        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.publication.configuration == routineConfiguration)
+        #expect(controller.publication.inputs.count == 1)
+        #expect(controller.publication.inputs.first?.provider == .codex)
+        #expect(controller.publication.inputs.first?.snapshot.last30DaysCostUSD == 9)
         #expect(controller.configuration == routineConfiguration)
         store.cancelSpendDashboardCodexCostCatchUp()
     }

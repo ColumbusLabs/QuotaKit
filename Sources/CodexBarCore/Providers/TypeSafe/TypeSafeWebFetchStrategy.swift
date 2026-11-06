@@ -33,11 +33,16 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
         usageLoader: UsageLoader? = nil,
         sessionLoader: SessionLoader? = nil,
         sessionCandidateLoader: SessionCandidateLoader? = nil,
-        cacheLoader: @escaping CacheLoader = { CookieHeaderCache.observeForConditionalMutation(provider: .typesafe) },
-        cacheClearer: @escaping CacheClearer = { CookieHeaderCache.clearIfCurrent(provider: .typesafe, expected: $0) },
+        cacheLoader: @escaping CacheLoader = {
+            CookieHeaderCache.observeForConditionalMutation(provider: .typesafe, scope: .typesafeBilling)
+        },
+        cacheClearer: @escaping CacheClearer = {
+            CookieHeaderCache.clearIfCurrent(provider: .typesafe, scope: .typesafeBilling, expected: $0)
+        },
         cacheWriter: @escaping CacheWriter = { expected, session in
             CookieHeaderCache.storeIfObservationCurrent(
                 provider: .typesafe,
+                scope: .typesafeBilling,
                 expected: expected,
                 cookieHeader: session.cookieHeader,
                 sourceLabel: session.sourceLabel)
@@ -160,7 +165,7 @@ final class TypeSafeWebFetchStrategy: ProviderFetchStrategy, @unchecked Sendable
     }
 }
 
-/// Flattened imported cookies are scoped to the original billing path, including on the same host.
+/// Flattened imported cookies are scoped to the `/api/billing/overview` route, including on the same host.
 final class TypeSafeRedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
     func urlSession(
         _: URLSession,
@@ -182,7 +187,7 @@ enum TypeSafeCredentialError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .missingCookie:
-            "No TypeSafe session cookies found. Sign in at console.typesafe.ai/settings/billing or paste a Cookie header."
+            "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header."
         case .invalidCookie:
             "TypeSafe needs a nonempty Cookie header from the billing page."
         case .disabled:
@@ -191,4 +196,11 @@ enum TypeSafeCredentialError: LocalizedError, Equatable {
             "TypeSafe's saved session is temporarily unavailable. Unlock the Keychain and retry."
         }
     }
+}
+
+extension CookieHeaderCache.Scope {
+    /// TypeSafe cached headers are flattened and keep no cookie-path provenance. The `/api/billing/overview`
+    /// destination owns this dedicated key so headers cached for older billing routes stay unused.
+    public static let typesafeBilling = CookieHeaderCache.Scope
+        .providerVariant("typesafe.billing./api/billing/overview")
 }

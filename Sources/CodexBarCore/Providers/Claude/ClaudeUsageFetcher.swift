@@ -654,12 +654,9 @@ extension ClaudeUsageFetcher {
                 resetDescription: resetText)
         }
 
-        guard let session = makeWindow(
+        let session = makeWindow(
             firstWindowDict(["session_5h"]),
             windowMinutes: Self.sessionWindowMinutes)
-        else {
-            throw ClaudeUsageError.parseFailed("missing session data")
-        }
         let weekAll = makeWindow(
             firstWindowDict(["week_all_models", "week_all"]),
             windowMinutes: Self.weeklyWindowMinutes)
@@ -679,6 +676,9 @@ extension ClaudeUsageFetcher {
                 "week_opus",
             ]),
             windowMinutes: Self.weeklyWindowMinutes)
+        guard session != nil || weekAll != nil || opusWindow != nil else {
+            throw ClaudeUsageError.parseFailed("missing session data")
+        }
         return ClaudeUsageSnapshot(
             primary: session,
             secondary: weekAll,
@@ -937,32 +937,27 @@ extension ClaudeUsageFetcher {
         let loginMethod = ClaudePlan.oauthLoginMethod(
             subscriptionType: credentials.subscriptionType,
             rateLimitTier: credentials.rateLimitTier)
-        let scopedWeeklyFallback = Self.oauthAllModelsRateWindow(from: usage)
-        let primaryWindow = makeWindow(usage.fiveHour, windowMinutes: 5 * 60)
-            ?? makeWindow(usage.sevenDay, windowMinutes: 7 * 24 * 60)
-            ?? makeWindow(usage.sevenDayOAuthApps, windowMinutes: 7 * 24 * 60)
-            ?? makeWindow(usage.sevenDaySonnet, windowMinutes: 7 * 24 * 60)
-            ?? makeWindow(usage.sevenDayOpus, windowMinutes: 7 * 24 * 60)
-            ?? scopedWeeklyFallback
-        let treatAsSpendLimit = primaryWindow == nil && usage.extraUsage?.isEnabled == true
+        let primary = makeWindow(usage.fiveHour, windowMinutes: Self.sessionWindowMinutes)
+        let weekly = makeWindow(usage.sevenDay, windowMinutes: Self.weeklyWindowMinutes)
+            ?? Self.oauthAllModelsRateWindow(from: usage)
+            ?? makeWindow(usage.sevenDayOAuthApps, windowMinutes: Self.weeklyWindowMinutes)
+        let modelSpecific = makeWindow(usage.sevenDaySonnet, windowMinutes: Self.weeklyWindowMinutes)
+            ?? makeWindow(usage.sevenDayOpus, windowMinutes: Self.weeklyWindowMinutes)
+        let extraRateWindows = Self.oauthExtraRateWindows(from: usage)
+        let hasUsageWindow = primary != nil || weekly != nil || modelSpecific != nil
+            || extraRateWindows.contains { $0.id.hasPrefix("claude-weekly-scoped-") && $0.usageKnown }
         let providerCost = Self.oauthExtraUsageCost(
             usage.extraUsage,
             loginMethod: loginMethod,
-            treatAsSpendLimit: treatAsSpendLimit)
-        guard primaryWindow != nil || (providerCost?.limit ?? 0) > 0 else {
+            treatAsSpendLimit: !hasUsageWindow && usage.extraUsage?.isEnabled == true)
+
+        guard hasUsageWindow || (providerCost?.limit ?? 0) > 0 else {
             throw ClaudeUsageError.parseFailed("missing session data")
         }
 
-        let weekly = makeWindow(usage.sevenDay, windowMinutes: 7 * 24 * 60)
-            ?? scopedWeeklyFallback
-        let modelSpecific = makeWindow(
-            usage.sevenDaySonnet ?? usage.sevenDayOpus,
-            windowMinutes: 7 * 24 * 60)
-        let extraRateWindows = Self.oauthExtraRateWindows(from: usage)
-
         let updatedAt = Date()
         return ClaudeUsageSnapshot(
-            primary: primaryWindow,
+            primary: primary,
             secondary: weekly,
             opus: modelSpecific,
             extraRateWindows: extraRateWindows,
@@ -1168,7 +1163,9 @@ extension ClaudeUsageFetcher {
         from snap: ClaudeStatusSnapshot,
         now: Date = .init()) throws -> ClaudeUsageSnapshot
     {
-        guard let sessionPctLeft = snap.sessionPercentLeft else {
+        guard snap.sessionPercentLeft != nil || snap.weeklyPercentLeft != nil || snap.opusPercentLeft != nil
+            || snap.extraRateWindows.contains(where: { $0.usageKnown && !$0.window.isSyntheticPlaceholder })
+        else {
             throw ClaudeUsageError.parseFailed("missing session data")
         }
 
@@ -1187,9 +1184,9 @@ extension ClaudeUsageFetcher {
         }
 
         let primary = makeWindow(
-            pctLeft: sessionPctLeft,
+            pctLeft: snap.sessionPercentLeft,
             reset: snap.primaryResetDescription,
-            windowMinutes: Self.sessionWindowMinutes)!
+            windowMinutes: Self.sessionWindowMinutes)
         let weekly = makeWindow(
             pctLeft: snap.weeklyPercentLeft,
             reset: snap.secondaryResetDescription,

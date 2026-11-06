@@ -721,11 +721,12 @@ public struct CostUsageFetcher: Sendable {
                 let daily = try await Self.loadBedrockDailyReport(
                     environment: environment,
                     since: since,
-                    until: now)
+                    until: now,
+                    forceRefresh: forceRefresh)
                 remoteSnapshot = Self.tokenSnapshot(
                     from: CostUsageDailyReport(
                         data: CostReportingPeriod.rolling(days: clampedHistoryDays)
-                            .entries(daily.data, now: now, calendar: calendar),
+                            .entries(daily.report.data, now: now, calendar: calendar),
                         summary: nil),
                     now: now,
                     historyDays: clampedHistoryDays,
@@ -734,7 +735,8 @@ public struct CostUsageFetcher: Sendable {
                     historyCoverageIsEstablished: CostUsageLocalDay.key(from: now, calendar: calendar)
                         <= CostUsageLocalDay.key(
                             from: now, calendar: CostUsageBucketTimeZone.calendar(identifier: "UTC")),
-                    costProvenance: .vendorMetered)
+                    costProvenance: .vendorMetered,
+                    updatedAt: daily.updatedAt)
             }
 
             #if os(macOS)
@@ -772,10 +774,19 @@ public struct CostUsageFetcher: Sendable {
             let home = environment["HOME"].map { URL(fileURLWithPath: $0, isDirectory: true) }
                 ?? FileManager.default.homeDirectoryForCurrentUser
             return try await CostUsageScanExecutor.run { _ in
-                let usage = try OpenCodeGoLocalUsageReader(homeDirectory: home).fetch(
-                    now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
-                return CostUsageTokenResult(snapshot: usage.toCostUsageTokenSnapshot(
-                    historyDays: clampedHistoryDays, calendar: fallbackCalendar))
+                do {
+                    let usage = try OpenCodeGoLocalUsageReader(homeDirectory: home).fetch(
+                        now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
+                    return CostUsageTokenResult(snapshot: usage.toCostUsageTokenSnapshot(
+                        historyDays: clampedHistoryDays, calendar: fallbackCalendar))
+                } catch OpenCodeGoLocalUsageError.notDetected {
+                    return CostUsageTokenResult(snapshot: Self.tokenSnapshot(
+                        from: CostUsageDailyReport(data: [], summary: nil),
+                        now: now,
+                        historyDays: clampedHistoryDays,
+                        calendar: fallbackCalendar,
+                        historyCoverageIsEstablished: false))
+                }
             }
         }
         if provider == .muse {
@@ -2422,14 +2433,18 @@ public struct CostUsageFetcher: Sendable {
     private static func loadBedrockDailyReport(
         environment: [String: String],
         since: Date,
-        until: Date) async throws -> CostUsageDailyReport
+        until: Date,
+        forceRefresh: Bool) async throws -> (report: CostUsageDailyReport, updatedAt: Date)
     {
         let resolved = try await BedrockCredentialResolver.resolve(environment: environment)
         return try await BedrockUsageFetcher.fetchDailyReport(
             credentials: resolved.credentials,
+            region: resolved.region,
             since: since,
             until: until,
-            environment: environment)
+            environment: environment,
+            forceRefresh: forceRefresh,
+            cache: environment[BedrockSettingsReader.apiURLKey] == nil ? .shared : nil)
     }
 
     #if os(macOS)
@@ -2477,7 +2492,7 @@ public struct CostUsageFetcher: Sendable {
             allRows.append(contentsOf: CursorLocalCSVReader.parseFile(at: url, calendar: calendar))
         }
         guard !allRows.isEmpty else { return nil }
-        let full = CursorLocalCSVReader.makeDailyReport(from: allRows, calendar: calendar, now: now)
+        let full = CursorLocalCSVReader.makeDailyReport(from: allRows, calendar: calendar)
         let since = calendar.date(
             byAdding: .day,
             value: -(historyDays - 1),

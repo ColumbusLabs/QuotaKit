@@ -209,7 +209,10 @@ extension UsageStore {
             }
             return
         }
+        // A missing five-hour reading must not rearm the Claude session warning.
+        let isClaudeSessionLane = provider == .claude && transition.window == .session
         guard let rateWindow = transition.rateWindow else {
+            guard !isClaudeSessionLane else { return }
             if account.discriminator == nil {
                 self.quotaWarningState = self.quotaWarningState.filter { existing in
                     !(existing.key.provider == provider &&
@@ -221,8 +224,8 @@ extension UsageStore {
             }
             return
         }
-        // A weekly OAuth fallback may occupy primary when Claude omits its session payload.
-        guard provider != .claude || transition.window != .session || Self.isSessionWindow(rateWindow) else { return }
+        // Older cached snapshots can still carry a weekly quota in the primary slot.
+        guard !isClaudeSessionLane || Self.isSessionWindow(rateWindow) else { return }
         guard !rateWindow.isSyntheticPlaceholder else { return }
 
         let thresholds = self.settings.resolvedQuotaWarningThresholds(

@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-06)
+
+- Show weekly-only Claude quotas without a duplicate session and wait for Claude CLI quota redraws.
+- Report Synthetic weekly credits, NeuralWatt prepaid balances, and TypeSafe billing. Improve Kiro profile recovery and Grok token counts.
+- Support private Claude Platform session import from the CLI and a matching User-Agent for WorkBuddy manual cookies.
+- Find Settings by pane title, align usage and cost digits, and dim retained usage after a failed refresh.
+- Reduce local history memory, reuse provider connections, and reclaim disposable OpenAI dashboard caches.
+
 ## Unreleased upstream integration (2026-11-05)
 
 - Find Cursor's local sign-in encryption key under both current and legacy account names while preserving noninteractive background access.

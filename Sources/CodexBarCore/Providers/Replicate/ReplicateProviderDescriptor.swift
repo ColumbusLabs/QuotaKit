@@ -167,12 +167,18 @@ struct ReplicateWebFetchStrategy: ProviderFetchStrategy {
         (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
     }
 
-    private static func fetchUsage(cookieHeader: String) async throws -> UsageSnapshot {
+    static let usageSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
-        let session = ProviderHTTPClient.redirectGuardedSession(configuration: configuration)
-        defer { session.invalidateAndCancel() }
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return ProviderHTTPClient.redirectGuardedSession(configuration: configuration)
+    }()
+
+    private static func fetchUsage(cookieHeader: String) async throws -> UsageSnapshot {
+        let session = Self.usageSession
         let runtime = try ProviderPluginRuntime(
             bundledPlugin: "replicate",
             transport: ProviderHTTPClient(session: session))

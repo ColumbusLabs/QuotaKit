@@ -47,10 +47,16 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
 
 JSON output includes built-in provider authentication metadata: supported source modes, config API-key and cookie-header support, and names (never values) of projected environment variables. Optional login commands and token-account setup hints describe supported inputs, not credential health or a complete setup checklist. User-plugin entries omit this metadata; listing it performs no credential reads or provider requests.
 
+For Claude Platform setup or renewal, pipe a Console Cookie header containing `sessionKey` privately into `quotakit config login --provider claudeplatform --stdin --json` (`claude-platform` also works). It validates the candidate before replacing a saved cookie. See [validated session import](cli-configuration.md#claude-platform-session-import).
+
 ## Command
 - `quotakit` defaults to the `usage` command.
   - Multi-provider usage fetches run up to three providers concurrently. Text, JSON, and diagnostics retain selection order; a failed provider does not prevent the others from finishing. Refreshed credentials share a command-scoped writer, while external credential changes remain protected.
   - `--format text|json|toon` (default: text).
+  - Codex usage JSON can supplement a fresh measurement with an ownership-compatible cached `openaiDashboard`.
+    Cached dashboards are attached only when their `updatedAt` is no more than one hour old at attachment time,
+    with a 60-second allowance for future timestamps due to clock skew. Older caches and caches more than 60 seconds
+    in the future are omitted without deleting the shared cache. Live web dashboard results are unaffected.
   - JSON uses the generic `usage.details` array for provider-specific information. Each section contains an optional
     `title`, `rows` (`label`, `value`, and optional `secondaryValue`), and an optional `bars` or `line` chart. The same
     shape is returned by `GET /usage` from `quotakit serve`.
@@ -155,6 +161,7 @@ JSON output includes built-in provider authentication metadata: supported source
 - `quotakit dashboard` prints one dashboard-v1 JSON snapshot and exits.
   - Honors enabled providers in stable order, carries configured display sort keys, and redacts account identity by default. `--identity full` includes real account emails and should be used only with trusted, private output destinations.
   - Provider failures remain row-level errors alongside healthy rows; a valid partial snapshot exits `0`.
+  - Claude's unavailable per-model breakdown adds `providers[].warnings: ["model-breakdown-unavailable"]` while retaining session and all-model weekly quotas. This optional schema-v1 field carries fixed codes only, never provider notice text, in every identity mode. It is omitted after recovery and from shell rows; an account with no model-specific limit does not receive the warning.
   - Stdout contains only the snapshot document. Diagnostics and optional `--json-output` logs go to stderr.
   - `--pretty` formats the document. `--timeout <seconds>` accepts `0...86400`, defaults to `30`, and uses `0` to disable the command deadline.
   - `--output <path>` atomically writes the snapshot to a file (`0644`) instead of stdout — staged in the destination directory, fsync'd, then renamed over the target so readers never observe a partial document. The parent directory must already exist (it is not created), and stdout stays silent on success.
@@ -177,6 +184,7 @@ JSON output includes built-in provider authentication metadata: supported source
   - On a **non-loopback** host the token gates **all data routes** — `/usage`, `/cost`, and `/dashboard/v1/snapshot` all require `Authorization: Bearer YOUR_TOKEN`, so account data is never exposed to the network unauthenticated. The static web UI at `/` and `/health` are always open. On the default loopback bind, `/usage` and `/cost` stay unauthenticated.
   - `--allow-plain-http` is the explicit acknowledgment that the bearer token crosses the network **in cleartext on every request** when serving on a non-loopback host. `serve` refuses to start on a non-loopback host without it.
   - Provider config is reloaded for each usage/cost request; cache entries are keyed by the loaded config so provider toggles and source changes do not require restarting `serve`.
+  - Forced refreshes also prune expired response variants, so repeated configuration changes do not retain obsolete snapshots indefinitely.
   - Transient refresh failures fall back to the last good response for up to ten refresh intervals (minimum five minutes) so polling clients do not flicker between data and errors; disabled when `--refresh-interval 0`.
   - After a cached response expires, `serve` returns the last-good response immediately while rebuilding it in the background; `--refresh-interval 0` keeps every request blocking.
   - Add `refresh=1` to `/usage` or a full `/dashboard/v1/snapshot` request to wait for a new usage measurement inside the cache interval. Concurrent requests join an active measurement; forced measurements start at least five seconds apart per provider across both endpoints. Authentication, deadlines and last-good fallback still apply.
@@ -248,7 +256,8 @@ JSON output includes built-in provider authentication metadata: supported source
 - `quotakit hooks watch` polls enabled providers and fires matching hooks on real quota and status transitions.
   Without it, hook rules only ever fire from the macOS app, so a headless install can configure hooks that never run.
   - `--interval <seconds>`: poll period. Default `300`, minimum `60`; a smaller value is rejected rather than
-    clamped, because each tick fetches every selected provider.
+    clamped, because each tick fetches every selected provider. Nonfinite values and intervals that cannot fit the
+    rounded nanosecond sleep timer are also rejected before config reads or provider fetches.
   - `--provider <id>`: restrict to one provider; repeatable. Defaults to every enabled provider.
   - `--format json`/`--json`/`--pretty`: emit each attempted event as JSON, excluding throttled candidates.
   - Events are edge-triggered against the previous poll, so a condition that merely persists (a saturated window,
@@ -533,3 +542,5 @@ validation, and a locked commit that rejects a removed or changed account.
 `hooks watch --provider <id|both|all>` accepts repeated selections. `both` selects the primary providers; `all` selects the full registry, including providers disabled in config. Defaults remain the enabled providers. Commands requiring a concrete provider omit group aliases from their help.
 
 Usage JSON includes optional `resetCredits` with `available` and `nextExpiresAt`, derived from the shared unexpired, available reset-credit inventory. The compact summary omits credit identifiers.
+
+The Settings CLI install status reports successful installs alongside conflicts and protected or unwritable destinations.

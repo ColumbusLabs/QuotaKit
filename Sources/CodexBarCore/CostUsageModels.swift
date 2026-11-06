@@ -478,6 +478,9 @@ public struct CostUsageDayEvidence: Sendable, Codable, Equatable {
 }
 
 public struct CostUsageDailyReport: Sendable, Codable {
+    #if DEBUG
+    @TaskLocal static var entryAccumulationObserverForTesting: (@Sendable () -> Void)?
+    #endif
     public struct ModelBreakdown: Sendable, Codable, Equatable {
         public let modelName: String
         public let costUSD: Double?
@@ -1084,6 +1087,9 @@ extension CostUsageDailyReport {
         var hasDayEvidenceContributor = false
 
         mutating func add(_ entry: Entry) {
+            #if DEBUG
+            CostUsageDailyReport.entryAccumulationObserverForTesting?()
+            #endif
             if self.dayEvidenceIsComplete {
                 if let evidence = entry.dayEvidence {
                     if let current = self.dayEvidence, current != evidence {
@@ -1212,7 +1218,7 @@ extension CostUsageDailyReport {
         _ reports: [CostUsageDailyReport],
         calendar: Calendar = .current) -> CostUsageDailyReport
     {
-        let entries = self.mergedEntries(from: reports, calendar: calendar)
+        let entries = self.mergedEntries(from: reports.lazy.flatMap(\.data), calendar: calendar)
         let mergedHourly = self.mergedHourly(from: reports, calendar: calendar)
         let mergedQuotaSlices = self.mergedQuotaSlices(from: reports)
         guard !entries.isEmpty || !mergedHourly.isEmpty || !mergedQuotaSlices.isEmpty else {
@@ -1304,18 +1310,16 @@ extension CostUsageDailyReport {
         }
     }
 
-    private static func mergedEntries(
-        from reports: [CostUsageDailyReport],
+    static func mergedEntries(
+        from entries: some Sequence<Entry>,
         calendar: Calendar) -> [Entry]
     {
         var dayAccumulators: [String: EntryAccumulator] = [:]
-        for report in reports {
-            for entry in report.data {
-                let rawDate = entry.date.trimmingCharacters(in: .whitespacesAndNewlines)
-                let dayKey = CostUsageTokenSnapshot.localDayKey(for: rawDate, calendar: calendar)
-                    ?? rawDate
-                dayAccumulators[dayKey, default: EntryAccumulator()].add(entry)
-            }
+        for entry in entries {
+            let rawDate = entry.date.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dayKey = CostUsageTokenSnapshot.localDayKey(for: rawDate, calendar: calendar)
+                ?? rawDate
+            dayAccumulators[dayKey, default: EntryAccumulator()].add(entry)
         }
 
         return dayAccumulators

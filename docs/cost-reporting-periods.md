@@ -44,6 +44,8 @@ quotakit cost --days 7 --json
 
 `--days N` always selects a rolling window, even alongside `--period`. Rolling windows accept 1–365 days and default to 30 on installations without a saved selection. JSON includes `reportingPeriod`, `historyLabel`, and period totals under `totals`; the existing `last30DaysTokens` and `last30DaysCostUSD` compatibility fields retain their documented meaning.
 
+An explicit `--days` value must be an integer; malformed, fractional, or overflowing values fail with an argument error. Valid integers are clamped to 1–365 days.
+
 Available year reads at most the last 365 calendar days. QuotaKit retains this bound to protect its 30-day routine background scan and 365-day visible dashboard demand policy. Missing or deleted logs cannot be recovered, provider APIs can impose shorter limits, and incomplete scans remain marked as incomplete. This is not a permanent ledger or a lifetime bill since installation.
 
 Cursor's quota bars keep the billing-cycle dates reported by Cursor. Calendar-month cost is a complementary view of dated usage events; it does not reinterpret a mid-month billing-cycle allowance as a calendar-month quota.
@@ -57,3 +59,5 @@ Claude and Vertex reserve the final transcript row count during cache decoding a
 Claude and Vertex cache saves reuse encoded transcript fragments when their metadata bytes and row contents are unchanged. The bounded memo retains byte ranges in the previous artifact instead of encoded values; saves stream those ranges and newly encoded files into a replacement artifact. Reuse requires the same device, inode, size, and nanosecond modification time. Each cache URL has independent fragments; removed files are discarded and the memo can be evicted without changing saved JSON or report results. Transcript-cache loads use mapped input that is released after decoding. Key ordering and escaping still come from the JSON encoder.
 
 Archived Codex forks with missing parent logs stay out of billed totals and remain visible as unmetered activity. Their full observed event span is considered when deciding whether a requested history window is complete; restoring a missing parent lets the scanner reconcile the fork baseline.
+
+The settings dashboard builds its chart and session projection only while visible. Background publications remain available to overview consumers, which derive and cache their own requested projections. Closing the dashboard clears its displayed projection and invalidates any in-flight controller result.

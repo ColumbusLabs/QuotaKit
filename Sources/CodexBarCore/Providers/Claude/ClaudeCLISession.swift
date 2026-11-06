@@ -331,6 +331,7 @@ actor ClaudeCLISession {
         var lastOutputAt = Date()
         var lastEnterAt = Date()
         var stoppedEarly = false
+        var usagePanelOpen = false
         // Only send periodic Enter when the caller explicitly asks for it (used for /usage rendering).
         // For /status, periodic input can keep producing output and prevent idle-timeout short-circuiting.
         let effectiveEnterEvery: TimeInterval? = sendEnterEvery
@@ -350,6 +351,9 @@ actor ClaudeCLISession {
                 let normalizedScreen = Self.normalizedNeedle(screen)
                 let usagePanelScreen = Self.screenBeforeUsageInsights(from: normalizedScreen)
                 let trustPending = Self.isWorkspaceTrustPromptVisible(onScreen: screen)
+                if trimmed == "/usage", !trustPending {
+                    usagePanelOpen = usagePanelOpen || ClaudeStatusProbe.usageCaptureHasQuotaValue(usagePanelScreen)
+                }
 
                 let scanData = scanBuffer.append(newData)
                 if scanData.range(of: cursorQuery) != nil {
@@ -364,14 +368,16 @@ actor ClaudeCLISession {
                         trustKeysLeft: &trustKeysLeft)
                 } else {
                     lastTrustScreen = nil
-                    self.sendPendingPromptResponses(
-                        normalizedScan: usagePanelScreen,
-                        sendNeedles: sendNeedles,
-                        triggeredSends: &triggeredSends)
+                    if !usagePanelOpen {
+                        self.sendPendingPromptResponses(
+                            normalizedScan: usagePanelScreen,
+                            sendNeedles: sendNeedles,
+                            triggeredSends: &triggeredSends)
+                    }
 
                     if Self.shouldStopCapturing(
                         normalizedScan: normalizedScan,
-                        normalizedScreen: usagePanelScreen,
+                        normalizedScreen: normalizedScreen,
                         stopNeedles: stopNeedles,
                         stopWhenScreenNormalized: stopWhenScreenNormalized)
                     {
@@ -390,7 +396,9 @@ actor ClaudeCLISession {
                 break
             }
 
-            self.sendPeriodicEnterIfNeeded(every: effectiveEnterEvery, lastEnterAt: &lastEnterAt)
+            self.sendPeriodicEnterIfNeeded(
+                every: usagePanelOpen ? nil : effectiveEnterEvery,
+                lastEnterAt: &lastEnterAt)
 
             if let proc = self.process, !proc.isRunning {
                 throw SessionError.processExited

@@ -1,5 +1,7 @@
 ---
 summary: "OpenCode Go provider entry point: subscription usage, source selection, and local SQLite cost history."
+
+If OpenCode is not installed, local cost history is empty and uncovered; an installed account with missing history still reports the underlying error. Large histories are aggregated incrementally.
 read_when:
   - Configuring OpenCode Go separately from OpenCode
   - Finding OpenCode Go usage and local-history documentation

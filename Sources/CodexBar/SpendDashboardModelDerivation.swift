@@ -409,6 +409,7 @@ private final class SpendDashboardModelBuildJob: @unchecked Sendable {
     let request: SpendDashboardModelBuildRequest
     let builder: @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel
     var completions: [@Sendable (SpendDashboardModel) -> Void]
+    var hasPublicationDemand = false
 
     init(
         request: SpendDashboardModelBuildRequest,
@@ -431,6 +432,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
     private var activeJob: SpendDashboardModelBuildJob?
     private var pendingControllerJob: SpendDashboardModelBuildJob?
     private var pendingPublicationJob: SpendDashboardModelBuildJob?
+    private var joinedPublicationJobs: [SpendDashboardModelBuildJob] = []
     #if DEBUG
     var beforeAdmissionHook: (@Sendable () -> Void)?
     #endif
@@ -484,6 +486,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             request: request,
             builder: builder,
             completion: completion)
+        newJob.hasPublicationDemand = priority == .publication
         var result: SpendDashboardModelBuildEnqueueResult = .scheduled
         var jobToStart: SpendDashboardModelBuildJob?
         var didCoalesce = false
@@ -495,6 +498,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             self.order.append(request.key)
             cachedModel = cached
             if priority == .controller, self.pendingControllerJob != nil {
+                self.preserveJoinedPublication(self.pendingControllerJob)
                 self.pendingControllerJob = nil
                 didCoalesce = true
             }
@@ -502,12 +506,25 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             if priority == .controller, let pendingControllerJob = self.pendingControllerJob {
                 if pendingControllerJob.request.key == request.key {
                     activeJob.completions.append(contentsOf: pendingControllerJob.completions)
+                    activeJob.hasPublicationDemand = activeJob.hasPublicationDemand
+                        || pendingControllerJob.hasPublicationDemand
                 } else {
+                    self.preserveJoinedPublication(pendingControllerJob)
                     didCoalesce = true
                 }
                 self.pendingControllerJob = nil
             }
             activeJob.completions.append(completion)
+            activeJob.hasPublicationDemand = activeJob.hasPublicationDemand || priority == .publication
+            result = .alreadyScheduled
+        } else if let joinedIndex = self.joinedPublicationJobs.firstIndex(where: { $0.request.key == request.key }) {
+            let joinedJob = self.joinedPublicationJobs[joinedIndex]
+            joinedJob.completions.append(completion)
+            if priority == .controller {
+                self.joinedPublicationJobs.remove(at: joinedIndex)
+                self.preserveJoinedPublication(self.pendingControllerJob)
+                self.pendingControllerJob = joinedJob
+            }
             result = .alreadyScheduled
         } else {
             switch priority {
@@ -516,13 +533,17 @@ final class SpendDashboardModelCache: @unchecked Sendable {
                    pendingPublicationJob.request.key == request.key
                 {
                     newJob.completions.append(contentsOf: pendingPublicationJob.completions)
+                    newJob.hasPublicationDemand = true
                     self.pendingPublicationJob = nil
                 }
                 if let pendingControllerJob = self.pendingControllerJob {
                     if pendingControllerJob.request.key == request.key {
                         pendingControllerJob.completions.append(contentsOf: newJob.completions)
+                        pendingControllerJob.hasPublicationDemand = pendingControllerJob.hasPublicationDemand
+                            || newJob.hasPublicationDemand
                         result = .alreadyScheduled
                     } else {
+                        self.preserveJoinedPublication(pendingControllerJob)
                         self.pendingControllerJob = newJob
                         didCoalesce = true
                     }
@@ -534,6 +555,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
                    pendingControllerJob.request.key == request.key
                 {
                     pendingControllerJob.completions.append(completion)
+                    pendingControllerJob.hasPublicationDemand = true
                     result = .alreadyScheduled
                 } else if let pendingPublicationJob = self.pendingPublicationJob {
                     if pendingPublicationJob.request.key == request.key {
@@ -570,13 +592,23 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         return result
     }
 
-    /// Drops a controller request that has become unnecessary because its key is
-    /// already applied or the controller has stopped. An active build is left
-    /// alone; its completion is still serialized before any later job starts.
+    /// Drop unnecessary pending controller work unless a publication consumer joined it.
+    /// Active work finishes normally and stale controller completions are discarded.
     func discardPendingControllerBuild() {
         self.lock.lock()
+        self.preserveJoinedPublication(self.pendingControllerJob)
         self.pendingControllerJob = nil
         self.lock.unlock()
+    }
+
+    /// Called under `lock`; a joined publication must survive replacement of controller work.
+    private func preserveJoinedPublication(_ job: SpendDashboardModelBuildJob?) {
+        guard let job, job.hasPublicationDemand else { return }
+        if let existing = self.joinedPublicationJobs.first(where: { $0.request.key == job.request.key }) {
+            existing.completions.append(contentsOf: job.completions)
+        } else {
+            self.joinedPublicationJobs.append(job)
+        }
     }
 
     private func promoteNextJobLocked() -> SpendDashboardModelBuildJob? {
@@ -585,6 +617,8 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         if let controllerJob = self.pendingControllerJob {
             self.pendingControllerJob = nil
             next = controllerJob
+        } else if !self.joinedPublicationJobs.isEmpty {
+            next = self.joinedPublicationJobs.removeFirst()
         } else if let publicationJob = self.pendingPublicationJob {
             self.pendingPublicationJob = nil
             next = publicationJob

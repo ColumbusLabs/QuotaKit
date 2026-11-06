@@ -225,7 +225,18 @@ enum DashboardSnapshotBuilder {
                 generatedAt: generatedAt),
             accounts: accountCollection != nil ? accounts :
                 (collectedAccounts?.isEmpty == false ? collectedAccounts : nil),
-            accountsError: accountsError)
+            accountsError: accountsError,
+            warnings: self.makeWarnings(provider: provider, usage: payload.usage))
+    }
+
+    /// Surfaces partial data without forwarding provider-controlled text.
+    static func makeWarnings(provider: UsageProvider?, usage: UsageSnapshot?) -> [DashboardWarningCode] {
+        guard provider == .claude,
+              usage?.details.contains(where: { section in
+                  section.rows.contains { $0.id == ClaudeStatusProbe.modelBreakdownDetailRowID }
+              }) == true
+        else { return [] }
+        return [.modelBreakdownUnavailable]
     }
 
     private static func accountCollectionIncomplete(

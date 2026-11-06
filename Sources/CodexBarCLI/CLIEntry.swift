@@ -170,6 +170,7 @@ enum CodexBarCLI {
         let sessionsFocusSignature = CommandSignature.describe(SessionsFocusOptions())
         let serveSignature = CommandSignature.describe(ServeOptions())
         let configSignature = CommandSignature.describe(ConfigOptions())
+        let configLoginSignature = CommandSignature.describe(ConfigLoginOptions())
         let configDumpSignature = CommandSignature.describe(ConfigDumpOptions())
         let configProviderToggleSignature = CommandSignature.describe(ConfigProviderToggleOptions())
         let configSetSourceSignature = CommandSignature.describe(ConfigSetSourceOptions())
@@ -261,7 +262,7 @@ enum CodexBarCLI {
                         name: "login",
                         abstract: "Authenticate a provider account",
                         discussion: nil,
-                        signature: configProviderToggleSignature),
+                        signature: configLoginSignature),
                     CommandDescriptor(
                         name: "set-source",
                         abstract: "Store a provider data source",

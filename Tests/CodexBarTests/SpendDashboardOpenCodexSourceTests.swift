@@ -46,6 +46,7 @@ struct SpendDashboardOpenCodexSourceTests {
     func `OpenCodex-only configuration still starts a dashboard load`() async {
         let gate = SpendDashboardLoaderGate()
         let controller = SpendDashboardControllerTests.controller(gate: gate)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: SpendDashboardConfiguration(
             costUsageEnabled: true,
             providerIDs: [UsageProvider.codex.rawValue],

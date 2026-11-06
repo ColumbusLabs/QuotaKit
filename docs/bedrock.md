@@ -1,5 +1,7 @@
 ---
 summary: "AWS Bedrock provider: Cost Explorer spend, CloudWatch Claude activity, credentials, and budgets."
+
+Automatic app refreshes reuse successful Cost Explorer responses for up to six hours within the same credential, region, endpoint, and reporting period. Explicit refreshes bypass the cache. Zero-cost days remain in daily history.
 read_when:
   - Setting up AWS Bedrock usage tracking
   - Debugging Bedrock Cost Explorer or CloudWatch fetches

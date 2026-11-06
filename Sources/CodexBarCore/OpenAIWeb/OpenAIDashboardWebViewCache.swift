@@ -174,6 +174,8 @@ final class OpenAIDashboardWebViewCache {
             self.isBusy = false
             self.clearPreservedPage()
             self.host.close()
+            let store = self.webView.configuration.websiteDataStore
+            Task { await OpenAIDashboardCacheMaintenance.shared.clearIfNeeded(store) }
         }
     }
 

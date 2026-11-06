@@ -3365,6 +3365,25 @@ extension CostUsageStoreTests {
     }
 
     @Test
+    func `unchanged retention bounds do not write scan metadata again`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let since = "2026-08-01"
+        let until = "2026-08-02"
+
+        await store.retainDayWindow(sinceDay: since, untilDay: until)
+        let initialMetadata = await store.fetchMetadata()
+        #expect(initialMetadata.scanSinceDay == since)
+        #expect(initialMetadata.scanUntilDay == until)
+        let before = await store.persistenceWriteMetricsForTesting()
+
+        await store.retainDayWindow(sinceDay: since, untilDay: until)
+        let after = await store.persistenceWriteMetricsForTesting()
+        #expect(after.rows == before.rows)
+    }
+
+    @Test
     func `byte budget preserves in window data across repeated enforcement`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

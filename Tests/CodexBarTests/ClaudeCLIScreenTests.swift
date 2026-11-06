@@ -21,6 +21,18 @@ struct ClaudeCLIScreenTests {
     }
 
     @Test
+    func `weekly capture ignores usage insights and waits for the full redraw`() {
+        let partial = "currentweek(allmodels)67%usedwhat'scontributingtoyourlimitsusage?refreshing…esctocancel"
+        #expect(!ClaudeStatusProbe.usageCaptureIsComplete(partial))
+        #expect(!ClaudeStatusProbe.usageCaptureIsComplete(partial.replacingOccurrences(of: "…", with: "...")))
+        #expect(!ClaudeStatusProbe.usageCaptureIsComplete(
+            "currentweek(allmodels)what'scontributingtoyourlimitsusage?spent67%"))
+        #expect(ClaudeStatusProbe
+            .usageCaptureIsComplete("currentweek(allmodels)67%usedcurrentweek(examplemodel)42%used"))
+        #expect(ClaudeStatusProbe.usageCaptureIsComplete("currentsession9%used"))
+    }
+
+    @Test
     func `differential usage fixture preserves scoped quota and reset spacing`() throws {
         let text = try Self.fixture("usage-differential-redraw")
         #expect(TextParsing.stripANSICodes(text).contains("51%usd"))

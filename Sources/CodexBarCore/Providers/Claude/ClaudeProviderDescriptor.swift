@@ -283,10 +283,10 @@ public enum ClaudeProviderDescriptor {
         }
         guard context.metric == .automatic || context.metric == .primaryAndSecondary,
               context.snapshot.primary?.measured == nil,
-              context.snapshot.secondary?.measured == nil,
-              context.snapshot.tertiary?.measured == nil
+              context.snapshot.secondary?.measured == nil
         else { return .unhandled }
-        let window = context.snapshot.claudeScopedWeeklyWindow?.window
+        let window = context.snapshot.tertiary?.measured
+            ?? context.snapshot.claudeScopedWeeklyWindow?.window
             ?? context.snapshot.claudeMonthlySpendWindow?.window
         return .resolved(window)
     }
@@ -836,7 +836,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         var details = includeResetCredits ? usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [] : []
         if let notice = usage.rawText.flatMap({ ClaudeStatusProbe.modelBreakdownNotice(in: $0) }) {
             details.append(.makeSection(rows: [
-                .makeRow(id: "claude-model-breakdown", label: "Status", value: notice),
+                .makeRow(id: ClaudeStatusProbe.modelBreakdownDetailRowID, label: "Status", value: notice),
             ]))
         }
         if includeOptionalUsage {

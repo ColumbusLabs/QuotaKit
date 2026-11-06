@@ -801,6 +801,7 @@ extension LocalizationLanguageCatalogTests {
             "SuperGrok OAuth",
             "Token",
             "Trae CN",
+            "User-Agent",
             "ZeroGPU",
             "__raycast_session=…; csrf_token=…",
             "abliteration.ai",

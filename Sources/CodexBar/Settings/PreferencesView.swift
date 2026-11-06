@@ -66,6 +66,7 @@ struct PreferencesView: View {
     /// Measured titlebar height for the detail cover. Reading from the window avoids
     /// GeometryReader's zero top inset inside the detail scroll view.
     @State private var detailTitlebarInset: CGFloat = 0
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     /// The persisted width, guarded against out-of-range values (edited defaults,
     /// bounds that shrank in an update) so a bad stored value can't wreck the layout.
@@ -135,12 +136,13 @@ struct PreferencesView: View {
     /// macOS 26+: let SwiftUI and AppKit provide the native sidebar, toolbar and scroll-edge behavior.
     @available(macOS 26.0, *)
     private var splitViewLayout: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: self.$columnVisibility) {
             SettingsSidebarView(
                 settings: self.settings,
                 store: self.store,
                 selection: self.$selection.pane,
-                onSelectAbout: { self.selection.requestAboutRoot() })
+                onSelectAbout: { self.selection.requestAboutRoot() },
+                showsSortToolbar: self.columnVisibility != .detailOnly)
                 .modifier(SettingsSidebarSizing(width: self.$sidebarWidth))
         } detail: {
             self.detailView

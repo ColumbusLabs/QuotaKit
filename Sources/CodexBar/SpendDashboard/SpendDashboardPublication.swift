@@ -89,6 +89,30 @@ struct SpendDashboardPublication: Sendable {
         selectedDay: Date? = nil,
         providerScope: Set<UsageProvider>? = nil) -> SpendDashboardModel
     {
+        self.modelIfReady(
+            requestedDays: requestedDays,
+            reportingPeriod: reportingPeriod,
+            now: now,
+            calendar: calendar,
+            preferredCurrencyCode: preferredCurrencyCode,
+            hiddenSourceIDs: hiddenSourceIDs,
+            hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent,
+            selectedDay: selectedDay,
+            providerScope: providerScope)
+            ?? SpendDashboardModel(requestedDays: requestedDays, groups: [])
+    }
+
+    func modelIfReady(
+        requestedDays: Int,
+        reportingPeriod: CostReportingPeriod? = nil,
+        now: Date,
+        calendar: Calendar,
+        preferredCurrencyCode: String,
+        hiddenSourceIDs: Set<String> = [],
+        hideNativeCodexWhenOpenCodexPresent: Bool = false,
+        selectedDay: Date? = nil,
+        providerScope: Set<UsageProvider>? = nil) -> SpendDashboardModel?
+    {
         let staleSourceIDs = Set(self.sources.compactMap { source in
             source.state == .staleLastKnown ? source.id : nil
         })
@@ -119,7 +143,7 @@ struct SpendDashboardPublication: Sendable {
             // The controller owns the exact request but has not finished it.
             // Keep this synchronous API non-blocking; the controller republishes
             // after its cache completion makes the exact model available.
-            return SpendDashboardModel(requestedDays: requestedDays, groups: [])
+            return nil
         }
 
         if self.modelCache.supportsAsynchronousBuilds, let modelReadyHandler = self.modelReadyHandler {
@@ -143,7 +167,7 @@ struct SpendDashboardPublication: Sendable {
                 // different from the controller request. It is queued through
                 // the same single-flight coordinator instead of rebuilding on
                 // the main actor.
-                return SpendDashboardModel(requestedDays: requestedDays, groups: [])
+                return nil
             }
         }
 

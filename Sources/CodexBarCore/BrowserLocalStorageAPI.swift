@@ -63,7 +63,9 @@ struct BrowserLocalStorageAPI: Sendable {
             options: [.skipsHiddenFiles])
         else { return [] }
 
-        let profileNames = Self.chromeProfileNames(root: root)
+        let profileNames = ProviderBrowserProfile.chromiumProfileNames(
+            root: root,
+            nameKeys: ["gaia_given_name", "name"])
         return directories.compactMap { directory in
             guard !Task.isCancelled,
                   let isDirectory = try? directory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
@@ -92,22 +94,6 @@ struct BrowserLocalStorageAPI: Sendable {
             return Profile(id: id, label: label, entries: entries)
         }
         .sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
-    }
-
-    private static func chromeProfileNames(root: URL) -> [String: String] {
-        let localStateURL = root.appendingPathComponent("Local State")
-        guard let data = try? Data(contentsOf: localStateURL),
-              let rootObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let profile = rootObject["profile"] as? [String: Any],
-              let infoCache = profile["info_cache"] as? [String: Any]
-        else { return [:] }
-
-        return infoCache.reduce(into: [:]) { result, entry in
-            guard let info = entry.value as? [String: Any] else { return }
-            let name = (info["gaia_given_name"] as? String) ?? (info["name"] as? String)
-            guard let name else { return }
-            result[entry.key] = name
-        }
     }
 }
 #endif

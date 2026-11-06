@@ -81,6 +81,7 @@ struct SpendDashboardSourceConcurrencyTests {
             loader: { request in await gate.load(request) },
             nowProvider: { Date(timeIntervalSince1970: 1_784_179_200) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForResultGate(gate)
         await gate.resume(result: SpendDashboardLoadResult(
@@ -156,6 +157,7 @@ struct SpendDashboardSourceConcurrencyTests {
             requestBuilder: { mode in await requestSequence.next(mode: mode) },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForResultGate(gate)
         await gate.resume(result: SpendDashboardLoadResult(
@@ -223,6 +225,7 @@ struct SpendDashboardSourceConcurrencyTests {
                 return SpendDashboardLoadResult(inputs: request.capturedInputs, failedSourceIDs: [])
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForProviderGate(requestGate)
         controller.update(configuration: replacement)
@@ -263,6 +266,7 @@ struct SpendDashboardSourceConcurrencyTests {
                 return SpendDashboardLoadResult(inputs: request.capturedInputs, failedSourceIDs: [])
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
@@ -306,6 +310,7 @@ struct SpendDashboardSourceConcurrencyTests {
                 return SpendDashboardLoadResult(inputs: request.capturedInputs, failedSourceIDs: [])
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForProviderGate(requestGate)
 
@@ -358,6 +363,7 @@ struct SpendDashboardSourceConcurrencyTests {
                 return SpendDashboardLoadResult(inputs: request.capturedInputs, failedSourceIDs: [])
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForProviderGate(requestGate)
         controller.update(configuration: replacement)
@@ -399,6 +405,7 @@ struct SpendDashboardSourceConcurrencyTests {
             requestBuilder: { mode in await requestSequence.next(mode: mode) },
             loader: { request in await loaderGate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForRecordedResultGate(loaderGate, pendingCount: 1)
         controller.update(configuration: replacement)
@@ -454,6 +461,7 @@ struct SpendDashboardSourceConcurrencyTests {
             loader: { request in await loaderGate.load(request) })
         controllerBox.controller = controller
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForResultGate(loaderGate)
         let inFlightGeneration = controller.generation
@@ -511,6 +519,7 @@ struct SpendDashboardSourceConcurrencyTests {
             loader: { request in await loaderGate.load(request) })
         controllerBox.controller = controller
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForResultGate(cachedGate)
         let inFlightGeneration = controller.generation

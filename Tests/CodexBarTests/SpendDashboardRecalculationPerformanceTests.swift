@@ -77,6 +77,98 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
+    func `closed dashboard defers controller builds and discards a close race`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        let controller = Self.controller(
+            configuration: Self.configuration(),
+            input: Self.input(),
+            probe: nil,
+            modelBuilder: { request in gate.build(request) },
+            visible: false)
+        defer { gate.releaseFirstBuild() }
+
+        controller.update(configuration: Self.configuration())
+        await Self.waitUntil { !controller.isRefreshing && !controller.publication.inputs.isEmpty }
+        #expect(gate.invocationCount == 0)
+        #expect(controller.publication.controllerModelBuildKey == nil)
+
+        // An independent overview consumer can still build while the pane is closed.
+        let publication = controller.publication
+        _ = publication.model(
+            requestedDays: 7,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD")
+        await Self.waitUntil { controller.modelDerivationCounters.snapshot.buildCompletions > 0 }
+        let overview = publication.model(
+            requestedDays: 7,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD")
+        #expect(!overview.groups.isEmpty)
+
+        controller.activateHistoryDemandForVisibleDashboard()
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        controller.deactivateHistoryDemand()
+        #expect(!controller.isModelDerivationInFlight)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.publication.controllerModelBuildKey == nil)
+        gate.releaseFirstBuild()
+        await Self.waitUntil { controller.modelDerivationCounters.snapshot.staleCompletionsDiscarded > 0 }
+        #expect(controller.model.groups.isEmpty)
+
+        controller.activateHistoryDemandForVisibleDashboard()
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        #expect(controller.publication.controllerModelBuildKey != nil)
+    }
+
+    @Test
+    func `joined publication survives close and replacement controller work`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        defer { gate.releaseFirstBuild() }
+        let cache = SpendDashboardModelCache(supportsAsynchronousBuilds: true)
+        func request(_ days: Int) -> SpendDashboardModelBuildRequest {
+            SpendDashboardModelBuildRequest(
+                configuration: Self.configuration(),
+                inputs: [Self.input()],
+                requestedDays: days,
+                now: Self.now,
+                calendar: Self.configuration().bucketCalendar,
+                preferredCurrencyCode: "USD",
+                hiddenSourceIDs: [],
+                hideNativeCodexWhenOpenCodexPresent: false,
+                selectedDay: nil)
+        }
+        let first = request(30)
+        let joined = request(90)
+        let replacement = request(7)
+        let completions = SpendDashboardCompletionCounter()
+        cache.enqueue(request: first, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        cache.enqueue(request: joined, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        cache.enqueue(request: joined, priority: .publication, builder: { gate.build($0) }, completion: { _ in
+            completions.increment()
+        })
+        cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        cache.discardPendingControllerBuild()
+        cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        let repeated = cache.enqueue(
+            request: joined,
+            priority: .publication,
+            builder: { gate.build($0) },
+            completion: { _ in completions.increment() })
+        guard case .alreadyScheduled = repeated else {
+            Issue.record("Expected the preserved projection to be reused.")
+            return
+        }
+        gate.releaseFirstBuild()
+        await Self.waitUntil { completions.value == 2 }
+        #expect(cache.model(for: joined.key) != nil)
+        #expect(completions.value == 2)
+        #expect(cache.counters.snapshot.buildsExecuted == 3)
+    }
+
+    @Test
     func `an identical model key avoids another full derivation`() async {
         let configuration = Self.configuration()
         let input = Self.input()
@@ -499,6 +591,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         cache.insert(SpendDashboardModel(requestedDays: 30, groups: []), for: request.key)
         releaseAdmission.signal()
         await Self.waitUntil { admissionFinished.value }
+        await admissionTask.value
 
         #expect(resultWasCached.value)
         #expect(builderProbe.isEmpty)
@@ -581,7 +674,8 @@ struct SpendDashboardRecalculationPerformanceTests {
         configuration: SpendDashboardConfiguration,
         input: SpendDashboardModel.ProviderInput,
         probe: SpendDashboardRecalculationBuildProbe?,
-        modelBuilder: @escaping SpendDashboardController.ModelBuilder) -> SpendDashboardController
+        modelBuilder: @escaping SpendDashboardController.ModelBuilder,
+        visible: Bool = true) -> SpendDashboardController
     {
         let box = SpendDashboardRecalculationControllerBox()
         let controller = SpendDashboardController(
@@ -605,6 +699,7 @@ struct SpendDashboardRecalculationPerformanceTests {
                 return modelBuilder(request)
             })
         box.controller = controller
+        if visible { controller.activateHistoryDemandForVisibleDashboard() }
         return controller
     }
 
@@ -748,5 +843,22 @@ private final class SpendDashboardRecalculationBuildGate: @unchecked Sendable {
 
     func releaseFirstBuild() {
         self.releaseSemaphore.signal()
+    }
+}
+
+private final class SpendDashboardCompletionCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.count
+    }
+
+    func increment() {
+        self.lock.lock()
+        self.count += 1
+        self.lock.unlock()
     }
 }

@@ -1301,7 +1301,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=...\n\noppure incolla solo il valore di session_id";
 "Clear" = "Cancella";
 "No matching providers" = "Nessun provider corrispondente";
-"Search providers" = "Cerca provider";
+"No matching settings or providers" = "Nessuna impostazione o provider corrispondente";
+"Search settings" = "Cerca nelle impostazioni";
 
 "Request quota: %@ / %@" = "Quota richieste: %@ / %@";
 "language_arabic" = "العربية";
@@ -2889,3 +2890,21 @@
 "Leave blank to use the default name." = "Lascia vuoto per usare il nome predefinito.";
 "Rewards" = "Premi";
 "Reward expiry" = "Scadenza dei premi";
+
+"Claude Platform session validated and saved." = "Sessione di Claude Platform convalidata e salvata.";
+
+"Use %@ or %@." = "Usa %@ o %@.";
+
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Accedi a %@. Passa in modo riservato l’intestazione Cookie contenente sessionKey a %@. Poi esegui %@.";
+
+"Read cookie header from stdin" = "Leggi l’intestazione cookie da stdin";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Facoltativo. Incolla il valore User-Agent della stessa richiesta da cui proviene l’intestazione Cookie.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "Incolla lo User-Agent di WorkBuddy come singolo valore dell’intestazione della richiesta.";
+
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "Impossibile leggere il riepilogo di fatturazione di TypeSafe. Apri https://console.typesafe.ai/billing per verificare l’accesso; se la pagina si apre, segnala il problema di integrazione.";
+
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Nessun cookie di sessione TypeSafe trovato. Accedi a console.typesafe.ai/billing oppure incolla un’intestazione Cookie.";

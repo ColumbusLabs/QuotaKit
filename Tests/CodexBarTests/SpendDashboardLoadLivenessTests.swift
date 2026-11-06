@@ -28,6 +28,7 @@ struct SpendDashboardLoadLivenessTests {
             loader: { request in await loader.load(request) },
             publicationHandler: { publicationGate.observe($0) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
 
@@ -83,6 +84,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
         controller.update(configuration: revisionB)
@@ -132,6 +134,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstOwner)
         await Self.waitForPendingCount(1, gate: loader)
         controller.update(configuration: secondOwner)
@@ -170,6 +173,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForPendingCount(1, gate: loader)
         controller.update(configuration: latest)
@@ -201,6 +205,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisions[0])
         await Self.waitForPendingCount(1, gate: loader)
         for revision in revisions[1...] {
@@ -243,6 +248,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
 
@@ -290,6 +296,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForPendingCount(1, gate: loader)
         await loader.resume(at: 0, result: .init(
@@ -324,6 +331,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: oldName)
         await Self.waitForPendingCount(1, gate: loader)
 
@@ -368,6 +376,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForBuildGate(buildGate)
         controller.update(configuration: revisionB)
@@ -413,6 +422,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstOwner)
         await Self.waitForBuildGate(buildGate)
         controller.update(configuration: secondOwner)
@@ -459,6 +469,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForBuildGate(firstBuildGate)
         controller.update(configuration: revisionB)
@@ -537,6 +548,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: scope30)
         await Self.waitForPendingCount(1, gate: loader)
         controller.update(configuration: scope365)
@@ -578,6 +590,7 @@ struct SpendDashboardLoadLivenessTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: scope30)
         await Self.waitForBuildGate(buildGate)
         controller.update(configuration: scope365)
@@ -617,6 +630,7 @@ struct SpendDashboardLoadLivenessTests {
             loader: { request in await loader.load(request) },
             publicationHandler: { publicationGate.observe($0) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: revisionA)
         await Self.waitForPendingCount(1, gate: loader)
         controller.update(configuration: revisionB)

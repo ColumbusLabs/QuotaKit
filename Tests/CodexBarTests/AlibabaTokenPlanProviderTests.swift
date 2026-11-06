@@ -1782,3 +1782,15 @@ struct AlibabaTokenPlanPersonalUsageRetryTests {
         #expect(usageCalls.value == 1)
     }
 }
+
+struct AlibabaHTTPSessionReuseTests {
+    @Test
+    func `refreshes share a storage-free connection pool`() {
+        let session = AlibabaTokenPlanUsageFetcher.usageSession
+        #expect(session === AlibabaTokenPlanUsageFetcher.usageSession)
+        #expect(session.configuration.httpCookieStorage == nil)
+        #expect(!session.configuration.httpShouldSetCookies)
+        #expect(session.configuration.urlCredentialStorage == nil)
+        #expect(session.configuration.urlCache == nil)
+    }
+}

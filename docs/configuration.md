@@ -354,6 +354,8 @@ QuotaKit has two separate CloudKit paths in the private database of
 
 With **Sync usage snapshots** and **Show accounts from other Macs** enabled, an enabled provider without local usage can also supply the freshest fleet snapshot to separate, current-selection, highest-usage, and stacked menu bar icons. The status item's accessibility help identifies the source Mac and capture time, respecting Hide personal info. Local snapshots remain authoritative. Remote usage does not enable credential-dependent local refresh or populate local costs, pace, credits, or account labels. Highest usage ranks these presentation snapshots without enabling local fetches. Fleet updates preserve an open menu's provider switcher until the menu closes and reopens.
 
+Fleet account deduplication uses the provider’s own identity. Only Codex can fall back to the local Codex login.
+
 The three Mac fleet sub-options are unavailable while Mac fleet sync is off, iCloud is unavailable, or a newer QuotaKit version is required. Turning sync off retains their saved choices for when it is enabled again.
 
 The **Macs** list offers **Remove** for other devices, including stale duplicates left after a reinstall. Removal deletes that device record and its cached usage snapshots from iCloud; it leaves shared settings, credentials, and this Mac intact. Sync must be enabled and available. Failed removals remain visible and report a sync error. A Mac still running QuotaKit with sync enabled can publish its records again. If its previous record was deleted, the next save drops the stale server version and retries with a fresh record. A second missing-record response surfaces an error instead of looping.

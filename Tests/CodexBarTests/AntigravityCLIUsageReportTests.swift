@@ -10,6 +10,44 @@ import Glibc
 @Suite(.serialized)
 struct AntigravityCLIUsageReportTests {
     @Test
+    func `unchanged agy executable reuses its version across refreshes and rechecks replacements`() async throws {
+        let fixture = try Self.printExecutable("exit 0", version: "1.2.2")
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let versionCache = AntigravityCLIHTTPSFetchStrategy.AgyVersionCache()
+        for _ in 0..<3 {
+            let version = await AntigravityCLIHTTPSFetchStrategy.agyVersion(
+                binary: fixture.binary.path,
+                environment: fixture.environment,
+                versionCache: versionCache)
+            #expect(version?.0 == 1 && version?.1 == 2 && version?.2 == 2)
+        }
+        #expect(Self.versionCallCount(in: fixture.directory) == 1)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 1000)],
+            ofItemAtPath: fixture.binary.path)
+        _ = await AntigravityCLIHTTPSFetchStrategy.agyVersion(
+            binary: fixture.binary.path,
+            environment: fixture.environment,
+            versionCache: versionCache)
+        #expect(Self.versionCallCount(in: fixture.directory) == 2)
+        let replacement = try Data(contentsOf: fixture.binary)
+        try replacement.write(to: fixture.binary, options: .atomic)
+        try "1.2.3".write(
+            to: fixture.directory.appendingPathComponent("version"),
+            atomically: true,
+            encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 1000), .posixPermissions: 0o700],
+            ofItemAtPath: fixture.binary.path)
+        let updated = await AntigravityCLIHTTPSFetchStrategy.agyVersion(
+            binary: fixture.binary.path,
+            environment: fixture.environment,
+            versionCache: versionCache)
+        #expect(updated?.2 == 3)
+        #expect(Self.versionCallCount(in: fixture.directory) == 3)
+    }
+
+    @Test
     func `CLI report parses structured quotas`() throws {
         let json = """
         {
@@ -470,6 +508,11 @@ struct AntigravityCLIUsageReportTests {
         let text = try String(contentsOf: directory.appendingPathComponent("pid"), encoding: .utf8)
         let pid = try #require(Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)))
         #expect(kill(pid, 0) == -1)
+    }
+
+    private static func versionCallCount(in directory: URL) -> Int {
+        let calls = (try? String(contentsOf: directory.appendingPathComponent("version-calls"), encoding: .utf8)) ?? ""
+        return calls.split(separator: "\n").count
     }
 
     private static func printExecutable(
