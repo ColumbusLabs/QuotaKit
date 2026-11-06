@@ -774,10 +774,17 @@ public struct CostUsageFetcher: Sendable {
             let home = environment["HOME"].map { URL(fileURLWithPath: $0, isDirectory: true) }
                 ?? FileManager.default.homeDirectoryForCurrentUser
             return try await CostUsageScanExecutor.run { _ in
-                let usage = try OpenCodeGoLocalUsageReader(homeDirectory: home).fetch(
-                    now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
-                return CostUsageTokenResult(snapshot: usage.toCostUsageTokenSnapshot(
-                    historyDays: clampedHistoryDays, calendar: fallbackCalendar))
+                do {
+                    let usage = try OpenCodeGoLocalUsageReader(homeDirectory: home).fetch(
+                        now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
+                    return CostUsageTokenResult(snapshot: usage.toCostUsageTokenSnapshot(
+                        historyDays: clampedHistoryDays, calendar: fallbackCalendar))
+                } catch OpenCodeGoLocalUsageError.notDetected {
+                    return CostUsageTokenResult(snapshot: Self.tokenSnapshot(
+                        from: CostUsageDailyReport(data: [], summary: nil),
+                        now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar,
+                        historyCoverageIsEstablished: false))
+                }
             }
         }
         if provider == .muse {
