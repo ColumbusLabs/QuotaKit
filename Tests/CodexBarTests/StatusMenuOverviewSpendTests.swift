@@ -195,8 +195,14 @@ extension StatusMenuTests.Overview {
             id: "codex:account", provider: .codex, displayName: "Codex",
             snapshot: CostUsageTokenSnapshot(
                 sessionTokens: 10, sessionCostUSD: 2, last30DaysTokens: 10, last30DaysCostUSD: 2,
-                daily: [.init(date: "2026-08-17", inputTokens: 5, outputTokens: 5, totalTokens: 10,
-                              costUSD: 2, modelsUsed: nil, modelBreakdowns: nil)], updatedAt: now))
+                daily: [.init(
+                    date: "2026-08-17",
+                    inputTokens: 5,
+                    outputTokens: 5,
+                    totalTokens: 10,
+                    costUSD: 2,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)], updatedAt: now))
         let configuration = SpendDashboardConfiguration(
             costUsageEnabled: true, providerIDs: [UsageProvider.codex.rawValue],
             codexAccountIdentities: ["account|cache"],
@@ -204,8 +210,12 @@ extension StatusMenuTests.Overview {
                 settings: settings, store: store))
         store.spendDashboardPublication = SpendDashboardPublication(
             revision: 1, generation: 1, configuration: configuration, loadedAt: now, isRefreshing: false,
-            inputs: [input], sources: [.init(id: input.id, provider: .codex, displayName: input.displayName,
-                                              role: .subscription, state: .available)],
+            inputs: [input], sources: [.init(
+                id: input.id,
+                provider: .codex,
+                displayName: input.displayName,
+                role: .subscription,
+                state: .available)],
             modelCache: SpendDashboardModelCache(supportsAsynchronousBuilds: true), modelReadyHandler: {})
         let controller = StatusItemController(
             store: store, settings: settings, account: AccountInfo(email: nil, plan: nil),
