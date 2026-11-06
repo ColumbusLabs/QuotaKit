@@ -28,6 +28,14 @@ store or switch to another profile if the selection is missing or its session ex
 decryption follows QuotaKit's existing Keychain access gates. Safari does not require a Keychain
 prompt acknowledgement; macOS Full Disk Access may be needed to read Safari's cookie file.
 
+Edge and Chrome profile choices show the profile names saved by the browser. If a name cannot be read,
+QuotaKit keeps the directory name, such as `Default` or `Profile 1`. Renaming a browser profile does not
+change the saved selection.
+User-defined profile names keep their spelling in every app language.
+
+`quotakit cookie refresh --provider langdock` uses the configured browser and profile. Edge and Chrome
+require `--allow-keychain-prompt` for an explicit interactive retry; Safari does not require that flag.
+
 If usage disappears after a restart, verify the saved browser and **Browser profile** selections in
 QuotaKit; for Edge or Chrome, compare the selected profile with the path shown by `edge://version`
 or `chrome://version`. An Edge or Chrome cookie-access error calls for a manual

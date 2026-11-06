@@ -149,7 +149,7 @@ struct ProviderSettingsPickerRowView: View {
 
                 Picker("", selection: self.picker.binding) {
                     ForEach(self.picker.options) { option in
-                        Text(L(option.title)).tag(option.id)
+                        Text(option.displayTitle).tag(option.id)
                     }
                 }
                 .labelsHidden()
