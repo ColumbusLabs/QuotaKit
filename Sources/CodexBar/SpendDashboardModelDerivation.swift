@@ -409,6 +409,7 @@ private final class SpendDashboardModelBuildJob: @unchecked Sendable {
     let request: SpendDashboardModelBuildRequest
     let builder: @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel
     var completions: [@Sendable (SpendDashboardModel) -> Void]
+    var hasPublicationDemand = false
 
     init(
         request: SpendDashboardModelBuildRequest,
@@ -484,6 +485,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             request: request,
             builder: builder,
             completion: completion)
+        newJob.hasPublicationDemand = priority == .publication
         var result: SpendDashboardModelBuildEnqueueResult = .scheduled
         var jobToStart: SpendDashboardModelBuildJob?
         var didCoalesce = false
@@ -502,12 +504,15 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             if priority == .controller, let pendingControllerJob = self.pendingControllerJob {
                 if pendingControllerJob.request.key == request.key {
                     activeJob.completions.append(contentsOf: pendingControllerJob.completions)
+                    activeJob.hasPublicationDemand = activeJob.hasPublicationDemand
+                        || pendingControllerJob.hasPublicationDemand
                 } else {
                     didCoalesce = true
                 }
                 self.pendingControllerJob = nil
             }
             activeJob.completions.append(completion)
+            activeJob.hasPublicationDemand = activeJob.hasPublicationDemand || priority == .publication
             result = .alreadyScheduled
         } else {
             switch priority {
@@ -516,6 +521,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
                    pendingPublicationJob.request.key == request.key
                 {
                     newJob.completions.append(contentsOf: pendingPublicationJob.completions)
+                    newJob.hasPublicationDemand = true
                     self.pendingPublicationJob = nil
                 }
                 if let pendingControllerJob = self.pendingControllerJob {
@@ -534,6 +540,7 @@ final class SpendDashboardModelCache: @unchecked Sendable {
                    pendingControllerJob.request.key == request.key
                 {
                     pendingControllerJob.completions.append(completion)
+                    pendingControllerJob.hasPublicationDemand = true
                     result = .alreadyScheduled
                 } else if let pendingPublicationJob = self.pendingPublicationJob {
                     if pendingPublicationJob.request.key == request.key {
@@ -570,12 +577,13 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         return result
     }
 
-    /// Drops a controller request that has become unnecessary because its key is
-    /// already applied or the controller has stopped. An active build is left
-    /// alone; its completion is still serialized before any later job starts.
+    /// Drop unnecessary pending controller work unless a publication consumer joined it.
+    /// Active work finishes normally and stale controller completions are discarded.
     func discardPendingControllerBuild() {
         self.lock.lock()
-        self.pendingControllerJob = nil
+        if self.pendingControllerJob?.hasPublicationDemand != true {
+            self.pendingControllerJob = nil
+        }
         self.lock.unlock()
     }
 

@@ -1797,7 +1797,7 @@ final class SpendDashboardController {
             inputRevision: self.loadedInputsRevision,
             sources: sources,
             modelCache: self.modelCache,
-            controllerModelBuildKey: currentModelRequest.key,
+            controllerModelBuildKey: self.isHistoryDemandActive ? currentModelRequest.key : nil,
             appliedModelBuildKey: self.appliedModelBuildKey,
             controllerModel: self.model,
             modelReadyHandler: { [weak self] in
@@ -1996,7 +1996,9 @@ extension SpendDashboardController {
         if publish {
             self.publishCurrentState(modelRequest: request)
         }
-        self.scheduleModelBuild(request)
+        if self.isHistoryDemandActive {
+            self.scheduleModelBuild(request)
+        }
     }
 
     private func modelBuildRequest() -> SpendDashboardModelBuildRequest {
@@ -2081,14 +2083,25 @@ extension SpendDashboardController {
     /// current normalized selection as history demand. Persisted preference is
     /// unchanged: a closed dashboard never counts as an extended consumer.
     func activateHistoryDemandForVisibleDashboard() {
+        guard !self.isHistoryDemandActive else { return }
         self.isHistoryDemandActive = true
+        if self.configuration != nil {
+            self.rebuildModel()
+        }
     }
 
     /// Clears ephemeral demand when the dashboard is no longer visible (#160).
     /// The persisted `selectedDays` preference stays intact so reopening the
     /// dashboard restores the selected range and intentionally expands again.
     func deactivateHistoryDemand() {
+        guard self.isHistoryDemandActive else { return }
         self.isHistoryDemandActive = false
+        self.modelBuildGeneration &+= 1
+        self.modelCache.discardPendingControllerBuild()
+        self.activeModelBuildKey = nil
+        self.appliedModelBuildKey = nil
+        self.model = SpendDashboardModel(requestedDays: self.selectedDays, groups: [])
+        self.publishCurrentState()
     }
 
     /// Stops all loads and resets visible state. Lives in this extension (not
@@ -2101,6 +2114,8 @@ extension SpendDashboardController {
         self.modelBuildGeneration &+= 1
         self.modelCache.discardPendingControllerBuild()
         self.activeModelBuildKey = nil
+        self.appliedModelBuildKey = nil
+        self.model = SpendDashboardModel(requestedDays: self.selectedDays, groups: [])
         self.configuration = nil
         self.loadedInputs = []
         self.failedSourceIDs = []

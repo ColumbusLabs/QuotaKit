@@ -38,6 +38,7 @@ struct SpendDashboardClockRolloverTests {
             },
             nowProvider: { clock.value })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         controller.selectDays(7)
@@ -135,6 +136,7 @@ struct SpendDashboardClockRolloverTests {
             },
             nowProvider: { clock.value })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.failedSourceCount == 1)
@@ -176,6 +178,7 @@ struct SpendDashboardClockRolloverTests {
                 await gate.load(request)
             },
             nowProvider: { clock.value })
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
 
@@ -268,6 +271,7 @@ struct SpendDashboardClockRolloverTests {
             loader: { request in await gate.load(request) },
             nowProvider: { clock.value })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: SpendDashboardLoadResult(inputs: [initialInput], failedSourceIDs: []))

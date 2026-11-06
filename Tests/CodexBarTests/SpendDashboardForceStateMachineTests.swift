@@ -42,6 +42,7 @@ struct SpendDashboardForceStateMachineTests {
             loader: { request in await loader.load(request) },
             nowProvider: { Date(timeIntervalSince1970: 1_784_179_200) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: oldInputs, failedSourceIDs: []))
@@ -89,6 +90,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForLoader(loader)
         controller.update(configuration: latest)
@@ -148,6 +150,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForLoader(loader)
         controller.update(configuration: first)
@@ -194,6 +197,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial, force: true)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(
@@ -247,6 +251,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstOwner, force: true)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(
@@ -292,6 +297,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldInput], failedSourceIDs: []))
@@ -331,6 +337,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [codexInput], failedSourceIDs: []))
@@ -364,6 +371,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [input], failedSourceIDs: []))
@@ -410,6 +418,7 @@ struct SpendDashboardForceStateMachineTests {
                 })
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
@@ -479,6 +488,7 @@ struct SpendDashboardForceStateMachineTests {
                 })
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
@@ -535,6 +545,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))
@@ -600,6 +611,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))
@@ -656,6 +668,7 @@ struct SpendDashboardForceStateMachineTests {
             requestBuilder: { mode in await builder.next(mode) },
             loader: { request in await loader.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))

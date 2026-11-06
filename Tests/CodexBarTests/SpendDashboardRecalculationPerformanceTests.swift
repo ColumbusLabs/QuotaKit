@@ -77,6 +77,45 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
+    func `closed dashboard defers controller builds and discards a close race`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        let controller = Self.controller(
+            configuration: Self.configuration(), input: Self.input(), probe: nil,
+            modelBuilder: { request in gate.build(request) }, visible: false)
+        defer { gate.releaseFirstBuild() }
+
+        controller.update(configuration: Self.configuration())
+        await Self.waitUntil { !controller.isRefreshing && !controller.publication.inputs.isEmpty }
+        #expect(gate.invocationCount == 0)
+        #expect(controller.publication.controllerModelBuildKey == nil)
+
+        // An independent overview consumer can still build while the pane is closed.
+        let publication = controller.publication
+        _ = publication.model(
+            requestedDays: 7, now: Self.now, calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD")
+        await Self.waitUntil { controller.modelDerivationCounters.snapshot.buildCompletions > 0 }
+        let overview = publication.model(
+            requestedDays: 7, now: Self.now, calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD")
+        #expect(!overview.groups.isEmpty)
+
+        controller.activateHistoryDemandForVisibleDashboard()
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        controller.deactivateHistoryDemand()
+        #expect(!controller.isModelDerivationInFlight)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.publication.controllerModelBuildKey == nil)
+        gate.releaseFirstBuild()
+        await Self.waitUntil { controller.modelDerivationCounters.snapshot.staleCompletionsDiscarded > 0 }
+        #expect(controller.model.groups.isEmpty)
+
+        controller.activateHistoryDemandForVisibleDashboard()
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        #expect(controller.publication.controllerModelBuildKey != nil)
+    }
+
+    @Test
     func `an identical model key avoids another full derivation`() async {
         let configuration = Self.configuration()
         let input = Self.input()
@@ -581,7 +620,8 @@ struct SpendDashboardRecalculationPerformanceTests {
         configuration: SpendDashboardConfiguration,
         input: SpendDashboardModel.ProviderInput,
         probe: SpendDashboardRecalculationBuildProbe?,
-        modelBuilder: @escaping SpendDashboardController.ModelBuilder) -> SpendDashboardController
+        modelBuilder: @escaping SpendDashboardController.ModelBuilder,
+        visible: Bool = true) -> SpendDashboardController
     {
         let box = SpendDashboardRecalculationControllerBox()
         let controller = SpendDashboardController(
@@ -605,6 +645,7 @@ struct SpendDashboardRecalculationPerformanceTests {
                 return modelBuilder(request)
             })
         box.controller = controller
+        if visible { controller.activateHistoryDemandForVisibleDashboard() }
         return controller
     }
 

@@ -94,6 +94,7 @@ struct SpendDashboardCachedPresentationTests {
             },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await Self.waitUntil { !controller.isModelDerivationInFlight }
@@ -123,6 +124,7 @@ struct SpendDashboardCachedPresentationTests {
             },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await Self.waitUntil { !controller.isModelDerivationInFlight }
@@ -163,6 +165,7 @@ struct SpendDashboardCachedPresentationTests {
             },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: utc)
         await Self.waitForPendingCount(1, gate: gate)
         await Self.waitUntil { !controller.isModelDerivationInFlight }
@@ -202,6 +205,7 @@ struct SpendDashboardCachedPresentationTests {
             },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await Self.waitUntil { !controller.isModelDerivationInFlight }

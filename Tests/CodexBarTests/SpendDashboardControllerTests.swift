@@ -98,6 +98,7 @@ struct SpendDashboardControllerTests {
                 return result
             })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForCodexPendingCount(1, gate: gate)
         await gate.resume(at: 0, snapshot: Self.input(cost: 6).snapshot)
@@ -126,6 +127,7 @@ struct SpendDashboardControllerTests {
         let firstConfiguration = Self.configuration(account: "first")
         let secondConfiguration = Self.configuration(account: "second")
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         controller.update(configuration: secondConfiguration)
@@ -147,6 +149,7 @@ struct SpendDashboardControllerTests {
         let controller = Self.controller(gate: gate)
         let configuration = Self.configuration(account: "same")
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(
@@ -173,6 +176,7 @@ struct SpendDashboardControllerTests {
         let controller = Self.controller(gate: gate)
         let configuration = Self.configuration(account: "same")
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(
@@ -201,6 +205,7 @@ struct SpendDashboardControllerTests {
         let gate = SpendDashboardLoaderGate()
         let controller = Self.controller(gate: gate)
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: Self.configuration(account: "same", revision: "first"))
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(
@@ -256,6 +261,7 @@ struct SpendDashboardControllerTests {
         #expect(firstConfiguration.providerIDs == [UsageProvider.claude.rawValue])
         #expect(firstConfiguration.sourceRevisions != replacementConfiguration.sourceRevisions)
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(inputs: [firstInput], failedSourceIDs: []))
@@ -292,6 +298,7 @@ struct SpendDashboardControllerTests {
         let controller = Self.dashboardController(settings: settings, store: store)
 
         let baselineConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: baselineConfiguration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -361,6 +368,7 @@ struct SpendDashboardControllerTests {
             sourceOwnershipFingerprints: ["claude:owner-two", "openai:owner"],
             sourceRevisions: ["second"])
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(
@@ -414,6 +422,7 @@ struct SpendDashboardControllerTests {
         let controller = Self.dashboardController(settings: settings, store: store)
 
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstConfiguration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -488,6 +497,7 @@ struct SpendDashboardControllerTests {
         store._setTokenSnapshotForTesting(Self.input(provider: .mistral, cost: 3).snapshot, provider: .mistral)
         store._test_providerRefreshOverride = { _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: selectedBackupConfiguration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -527,6 +537,7 @@ struct SpendDashboardControllerTests {
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 4).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
@@ -556,6 +567,7 @@ struct SpendDashboardControllerTests {
         store._test_tokenUsageRefreshOverride = { _, _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: firstConfiguration)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
@@ -622,6 +634,7 @@ struct SpendDashboardControllerTests {
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 5).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
@@ -674,6 +687,7 @@ struct SpendDashboardControllerTests {
             })
         controllerBox.controller = controller
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initialConfiguration, force: true)
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
@@ -706,6 +720,7 @@ struct SpendDashboardControllerTests {
             },
             loader: { request in await gate.load(request) })
 
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: initialConfiguration, force: true)
         await Self.waitForPendingCount(1, gate: gate)
         controller.update(configuration: latestConfiguration)
@@ -723,6 +738,7 @@ struct SpendDashboardControllerTests {
     func `disablement cancels pending work and clears safely`() async {
         let gate = SpendDashboardLoaderGate()
         let controller = Self.controller(gate: gate)
+        controller.activateHistoryDemandForVisibleDashboard()
         controller.update(configuration: Self.configuration(account: "enabled"))
         await Self.waitForPendingCount(1, gate: gate)
 
@@ -1114,6 +1130,7 @@ struct SpendDashboardControllerRevisionTests {
                 baselineConfiguration.sourceRevisions != replacementConfiguration.sourceRevisions,
                 "\(mutation.name) must invalidate the dashboard request")
 
+            controller.activateHistoryDemandForVisibleDashboard()
             controller.update(configuration: baselineConfiguration)
             await Self.waitForPendingCount(1, gate: gate)
             await gate.resume(at: 0, result: .init(
