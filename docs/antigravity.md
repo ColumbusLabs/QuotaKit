@@ -47,6 +47,7 @@ file token store. Before using the result, QuotaKit verifies the staged token's 
 Google userinfo. It attaches the selected account identity only after that check and writes refreshed tokens
 back to the selected token account only after verification. Successful HTTPS results retain their verified
 identity. Failed command diagnostics do not include raw stderr.
+Identity checks with the full 15-second budget share a connection pool without cookie, credential, or response storage; shorter checks use private sessions with their own deadlines.
 
 Antigravity supports four usage data sources:
 

@@ -280,12 +280,16 @@ rejected, the timeout is 15 seconds, `Accept-Encoding: identity` is sent, compre
 response bytes are capped at 1 MiB. Request URLs must match a declared, approved origin.
 
 Bundled first-party providers that have cut over to JavaScript use the shared runtime's 20-second hung-script watchdog.
+Default API plugin descriptors retain a strategy for each declared timeout, reusing its initialized runtime across
+refreshes. Each fetch still reads current settings and credentials and requests fresh usage. Overlapping fetches use
+separate temporary runtimes so one account cannot consume another account's fetch deadline. Web strategies keep
+their existing source-specific lifecycle.
 A timeout fails that refresh and discards the poisoned worker before returning the error, so an immediate retry starts
 with a fresh context. Cancellation retires the worker in the same way. This is production-default and does not depend
 on `CODEXBAR_JS_PROVIDERS`.
 On Linux, QuickJS enforces the watchdog in-engine with `JS_SetInterruptHandler`, caps the runtime heap at 64 MiB, and
 caps the JavaScript stack at 2 MiB. The interrupt terminates evaluation on its confined thread; timed-out scripts do not
-leave an abandoned evaluation thread behind.
+leave an abandoned evaluation thread behind. Completed-fetch watchdogs copy the timeout value so they do not retain retired runtimes.
 
 The bundled Abacus AI plugin uses required credits GET and optional billing POST with host-encoded form data. It tries at most five Chrome-first validated sessions within a bounded refresh budget, and uses calendar-month dates for its pacing window.
 
