@@ -101,6 +101,11 @@ struct CLIDocumentedInvocationTests {
             path: "config login",
             options: ["provider": ["claude-platform"]],
             flags: ["stdin", "jsonShortcut"]),
+        .init(
+            "config login --provider copilot --format json --json-only --pretty",
+            path: "config login",
+            options: ["provider": ["copilot"], "format": ["json"]],
+            flags: ["jsonOnly", "pretty"]),
         .init("config providers", path: "config providers"),
         .init("config providers --format json", path: "config providers", options: ["format": ["json"]]),
         .init(
