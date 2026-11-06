@@ -366,7 +366,9 @@ struct TypeSafeCookieStrategyTests {
     func `cancellation cannot publish candidate to cache`() async {
         let strategy = TypeSafeWebFetchStrategy(
             usageLoader: { _ in withUnsafeCurrentTask { $0?.cancel() }; return Self.usage() },
-            sessionCandidateLoader: { _ in AnySequence([.init(cookieHeader: "session=fixture", sourceLabel: "Chrome")]) },
+            sessionCandidateLoader: { _ in
+                AnySequence([.init(cookieHeader: "session=fixture", sourceLabel: "Chrome")])
+            },
             cacheLoader: { .authoritative(nil) },
             cacheClearer: { _ in Issue.record("unexpected clear"); return false },
             cacheWriter: { _, _ in Issue.record("cancelled cache write") })

@@ -27,7 +27,8 @@ struct ClaudeCLIScreenTests {
         #expect(!ClaudeStatusProbe.usageCaptureIsComplete(partial.replacingOccurrences(of: "…", with: "...")))
         #expect(!ClaudeStatusProbe.usageCaptureIsComplete(
             "currentweek(allmodels)what'scontributingtoyourlimitsusage?spent67%"))
-        #expect(ClaudeStatusProbe.usageCaptureIsComplete("currentweek(allmodels)67%usedcurrentweek(examplemodel)42%used"))
+        #expect(ClaudeStatusProbe
+            .usageCaptureIsComplete("currentweek(allmodels)67%usedcurrentweek(examplemodel)42%used"))
         #expect(ClaudeStatusProbe.usageCaptureIsComplete("currentsession9%used"))
     }
 

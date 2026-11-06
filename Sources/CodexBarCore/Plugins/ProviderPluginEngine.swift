@@ -21,6 +21,7 @@ struct ProviderPluginContextOptions: Sendable {
     var waitForOptionalDeadline: @Sendable (ContinuousClock.Instant, Duration) async throws -> Void = { start, budget in
         try await Task.sleep(until: start.advanced(by: budget), clock: .continuous)
     }
+
     var beforeHTTPRequestAttempt: (@Sendable (URLRequest) async throws -> Void)?
     // Internal test observation; production never installs a completion hook.
     var didCollectHTTPCompletion: (@Sendable (ProviderPluginHTTPResponse.Completion) -> Void)?

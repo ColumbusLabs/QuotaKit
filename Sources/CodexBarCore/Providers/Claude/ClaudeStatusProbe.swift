@@ -268,7 +268,7 @@ extension ClaudeStatusProbe {
         let usagePanelText = latestUsagePanel ?? clean
         let labelContext = LabelSearchContext(text: usagePanelText)
 
-        var sessionPct = self.extractPercent(labelSubstring: "Current session", context: labelContext)
+        let sessionPct = self.extractPercent(labelSubstring: "Current session", context: labelContext)
         let weeklyPct = self.extractPercent(labelSubstring: "Current week (all models)", context: labelContext)
         let opusLabels = [
             "Current week (Opus)",
@@ -284,16 +284,6 @@ extension ClaudeStatusProbe {
         let hasAllModelsWeeklyLabel = weeklyModels.contains(where: self.isAllModelsWeeklyModel)
         let opusModels = Set(opusLabels.compactMap(self.weeklyModelName).map(self.normalizedForLabelSearch))
         let hasOpusLabel = !weeklyModels.isDisjoint(with: opusModels)
-
-        // Without a session row, the first percentage belongs to a weekly window. A near-complete
-        // Current session label still allows recovery from a garbled TUI row ("Curretsession").
-        let hasSessionLabel = labelContext.normalizedLines.contains { self.editDistance($0, "currentsession") <= 1 }
-        if sessionPct == nil, hasSessionLabel {
-            let ordered = self.allPercents(usagePanelText)
-            if ordered.indices.contains(0) {
-                sessionPct = ordered[0]
-            }
-        }
 
         let identity = Self.parseIdentity(usageText: clean, statusText: statusClean)
 
@@ -871,7 +861,7 @@ extension ClaudeStatusProbe {
         allowFuzzy: Bool = false) -> Bool
     {
         guard let expectedModel = self.weeklyModelName(from: labelSubstring) else {
-            return normalizedLine.contains(normalizedLabel)
+            return self.matchesNonWeeklyLabel(normalizedLine, label: normalizedLabel, allowFuzzy: allowFuzzy)
         }
         guard let actualModel = self.weeklyModelName(from: line) else { return false }
         let expectedNormalized = self.normalizedForLabelSearch(expectedModel)
@@ -894,7 +884,7 @@ extension ClaudeStatusProbe {
         let normalizedLine = self.normalizedForLabelSearch(line)
         guard normalizedLine.hasPrefix("current") else { return false }
         guard let expectedModel = self.weeklyModelName(from: labelSubstring) else {
-            return !normalizedLine.contains(normalizedLabel)
+            return !self.matchesNonWeeklyLabel(normalizedLine, label: normalizedLabel, allowFuzzy: allowFuzzy)
         }
         guard let actualModel = self.weeklyModelName(from: line) else { return true }
         let expectedNormalized = self.normalizedForLabelSearch(expectedModel)
@@ -903,6 +893,11 @@ extension ClaudeStatusProbe {
             return !self.isAllModelsWeeklyModel(actualNormalized)
         }
         return actualNormalized != expectedNormalized
+    }
+
+    private static func matchesNonWeeklyLabel(_ line: String, label: String, allowFuzzy: Bool) -> Bool {
+        // Recover a garbled session heading without borrowing the first weekly percentage.
+        line.contains(label) || (allowFuzzy && label == "currentsession" && self.editDistance(line, label) <= 1)
     }
 
     private static func weeklyModelName(from line: String) -> String? {

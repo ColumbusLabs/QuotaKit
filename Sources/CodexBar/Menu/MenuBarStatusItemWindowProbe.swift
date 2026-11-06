@@ -118,7 +118,8 @@ enum MenuBarStatusItemWindowProbe {
     static func hostingDiagnostics(name: String, windowInfo: [[String: Any]]) -> [String: Any] {
         let windows = windowInfo.filter {
             ($0[kCGWindowLayer as String] as? Int) == 25
-                && ["Control Center", "Control Centre", "MenuBarAgent"].contains($0[kCGWindowOwnerName as String] as? String ?? "")
+                && ["Control Center", "Control Centre", "MenuBarAgent"]
+                .contains($0[kCGWindowOwnerName as String] as? String ?? "")
         }
         let matches = windows.filter { !name.isEmpty && ($0[kCGWindowName as String] as? String) == name }
         return [
