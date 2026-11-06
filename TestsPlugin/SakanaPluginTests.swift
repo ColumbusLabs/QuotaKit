@@ -63,16 +63,37 @@ struct SakanaPluginTests {
         #expect(await transport.capturedRequestsSnapshot().count == 2)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `quick optional response can arrive after primary within shared budget`(
         engine: ProviderPluginEngineKind) async throws
     {
+        let (primary, primaryCollected) = AsyncStream<Void>.makeStream()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        defer {
+            primaryCollected.finish()
+            release.finish()
+        }
         let transport = SakanaScriptedTransport(
             statusCode: 200,
             body: Self.billingHTML,
-            overridesByURL: ["https://console.sakana.ai/billing?tab=payAsYouGo": (200, Self.payAsYouGoHTML)],
-            payAsYouGoDelayAfterBilling: .milliseconds(500))
-        let usage = try await Self.fetch(transport, engine: engine)
+            overridesByURL: ["https://console.sakana.ai/billing?tab=payAsYouGo": (200, Self.payAsYouGoHTML)])
+        let options = ProviderPluginContextOptions(
+            optionalRequestTimeoutSeconds: nil,
+            waitForOptionalDeadline: { _, budget in
+                #expect(budget == .milliseconds(200))
+                for await _ in pending {}
+                try Task.checkCancellation()
+            },
+            beforeHTTPRequestAttempt: { request in
+                if request.url?.query == "tab=payAsYouGo" {
+                    var iterator = primary.makeAsyncIterator()
+                    #expect(await iterator.next() != nil)
+                }
+            },
+            didCollectHTTPCompletion: { completion in
+                if case .primary = completion { primaryCollected.yield() }
+            })
+        let usage = try await Self.fetch(transport, engine: engine, contextOptions: options)
         #expect(usage.detailRow(label: "Balance")?.value == "$12.34")
         #expect(await transport.capturedRequestsSnapshot().map(\.url) == [
             "https://console.sakana.ai/billing",
@@ -241,16 +262,17 @@ struct SakanaPluginTests {
         _ transport: any ProviderHTTPTransport,
         engine: ProviderPluginEngineKind,
         optional: Bool = true,
-        now: Date = Date()) async throws -> UsageSnapshot
+        now: Date = Date(),
+        contextOptions: ProviderPluginContextOptions = .init(
+            optionalRequestTimeoutSeconds: nil,
+            optionalCollectionBudget: .seconds(3))) async throws -> UsageSnapshot
     {
         // Parser fixtures must not race loaded CI runners against the production 200 ms budget.
         let runtime = try BundledPluginTestSupport.runtime(
             "sakana",
             engine: engine,
             transport: transport,
-            contextOptions: ProviderPluginContextOptions(
-                optionalRequestTimeoutSeconds: nil,
-                optionalCollectionBudget: .seconds(3)))
+            contextOptions: contextOptions)
         return try await runtime.fetchUsage(
             settings: ["OPTIONAL_USAGE": String(optional)],
             secrets: ["SAKANA_COOKIE": "session=fixture"],
@@ -321,9 +343,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
     /// `(statusCode, body)` for any URL not present here.
     private let overridesByURL: [String: (statusCode: Int, body: String)]
     private let billingWaitsForPayAsYouGo: Bool
-    private let payAsYouGoDelayAfterBilling: Duration?
-    private let billingCompletions: AsyncStream<Void>
-    private let billingCompleted: AsyncStream<Void>.Continuation
     private var capturedRequests: [CapturedRequest] = []
     private var payAsYouGoStarted = false
     private var payAsYouGoCompleted = false
@@ -336,8 +355,7 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         responseURL: URL? = nil,
         headers: [String: String] = [:],
         overridesByURL: [String: (statusCode: Int, body: String)] = [:],
-        billingWaitsForPayAsYouGo: Bool = false,
-        payAsYouGoDelayAfterBilling: Duration? = nil)
+        billingWaitsForPayAsYouGo: Bool = false)
     {
         self.statusCode = statusCode
         self.body = body
@@ -345,8 +363,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         self.headers = headers
         self.overridesByURL = overridesByURL
         self.billingWaitsForPayAsYouGo = billingWaitsForPayAsYouGo
-        self.payAsYouGoDelayAfterBilling = payAsYouGoDelayAfterBilling
-        (self.billingCompletions, self.billingCompleted) = AsyncStream<Void>.makeStream()
     }
 
     func lastCapturedRequest() -> CapturedRequest? {
@@ -361,10 +377,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
         let isPayAsYouGo = request.url?.query == "tab=payAsYouGo"
         if isPayAsYouGo {
             self.markPayAsYouGoStarted()
-            if let payAsYouGoDelayAfterBilling {
-                for await _ in self.billingCompletions {}
-                try await Task.sleep(for: payAsYouGoDelayAfterBilling)
-            }
         } else if self.billingWaitsForPayAsYouGo {
             await self.waitForPayAsYouGoStart()
             await self.waitForPayAsYouGoCompletion()
@@ -385,8 +397,6 @@ private actor SakanaScriptedTransport: ProviderHTTPTransport {
             headerFields: self.headers)!
         if isPayAsYouGo {
             self.markPayAsYouGoCompleted()
-        } else {
-            self.billingCompleted.finish()
         }
         return (Data(responseBody.utf8), response)
     }

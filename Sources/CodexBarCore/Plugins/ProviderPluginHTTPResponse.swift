@@ -126,6 +126,7 @@ enum ProviderPluginHTTPResponse {
                     retryPolicy: request.retryPolicy,
                     beforeAttempt: {
                         try await contextOptions.beforeHTTPAttempt?()
+                        try await contextOptions.beforeHTTPRequestAttempt?(request.primary)
                         started.yield(.now)
                         started.finish()
                     }))
@@ -139,13 +140,16 @@ enum ProviderPluginHTTPResponse {
                             id: request.optionalCookieSessionID,
                             jar: contextOptions.cookieJar),
                         retryPolicy: .disabled,
-                        beforeAttempt: contextOptions.beforeHTTPAttempt))
+                        beforeAttempt: {
+                            try await contextOptions.beforeHTTPAttempt?()
+                            try await contextOptions.beforeHTTPRequestAttempt?(optional)
+                        }))
                 }
                 group.addTask {
                     // Admission and scheduling waits belong to the overall fetch timeout.
                     var iterator = starts.makeAsyncIterator()
                     if let start = await iterator.next() {
-                        try await Task.sleep(until: start.advanced(by: collectionBudget), clock: .continuous)
+                        try await contextOptions.waitForOptionalDeadline(start, collectionBudget)
                     }
                     return .budgetExpired
                 }

@@ -1,5 +1,8 @@
 import CoreFoundation
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public enum ProviderPluginEngineKind: Equatable, Sendable {
     case automatic
@@ -15,6 +18,10 @@ struct ProviderPluginContextOptions: Sendable {
     var optionalCollectionBudget: Duration = .milliseconds(200)
     var storage: ProviderPluginStorage?
     var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
+    var waitForOptionalDeadline: @Sendable (ContinuousClock.Instant, Duration) async throws -> Void = { start, budget in
+        try await Task.sleep(until: start.advanced(by: budget), clock: .continuous)
+    }
+    var beforeHTTPRequestAttempt: (@Sendable (URLRequest) async throws -> Void)?
     // Internal test observation; production never installs a completion hook.
     var didCollectHTTPCompletion: (@Sendable (ProviderPluginHTTPResponse.Completion) -> Void)?
     var cookieSource: ProviderCookieSource = .auto
