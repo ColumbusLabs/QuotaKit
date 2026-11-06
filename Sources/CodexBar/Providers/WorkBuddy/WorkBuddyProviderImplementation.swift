@@ -5,6 +5,28 @@ struct WorkBuddyProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .workbuddy
     private let plugin = PluginCookieProviderImplementation(spec: WorkBuddyProviderDescriptor.spec)
 
+    var supportsLoginFlow: Bool { self.plugin.supportsLoginFlow }
+
+    @MainActor
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool {
+        await self.plugin.runLoginFlow(context: context)
+    }
+
+    @MainActor
+    func isAvailable(context: ProviderAvailabilityContext) -> Bool {
+        self.plugin.isAvailable(context: context)
+    }
+
+    @MainActor
+    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
+        self.plugin.tokenAccountsVisibility(context: context, support: support)
+    }
+
+    @MainActor
+    func applyTokenAccountCookieSource(settings: SettingsStore) {
+        self.plugin.applyTokenAccountCookieSource(settings: settings)
+    }
+
     @MainActor
     func presentation(context: ProviderPresentationContext) -> ProviderPresentation {
         self.plugin.presentation(context: context)
@@ -19,7 +41,11 @@ struct WorkBuddyProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
         .workbuddy(.init(
-            cookies: context.settings.resolvedCookieSettings(provider: self.id, tokenOverride: context.tokenOverride),
+            cookies: context.settings.resolvedCookieSettings(
+                provider: self.id,
+                configuredSource: context.settings.resolvedCookieSource(provider: self.id, fallback: .auto),
+                configuredHeader: context.settings[providerConfig: self.id, field: .cookieHeader],
+                tokenOverride: context.tokenOverride),
             manualUserAgent: context.settings.providerConfig(for: self.id)?.workBuddyUserAgent))
     }
 
@@ -44,6 +70,7 @@ struct WorkBuddyProviderImplementation: ProviderImplementation {
                     }
                 }),
             actions: [],
-            isVisible: { context.settings.resolvedCookieSource(provider: self.id, fallback: .auto) == .manual })]
+            isVisible: { context.settings.resolvedCookieSource(provider: self.id, fallback: .auto) == .manual },
+            onActivate: nil)]
     }
 }
