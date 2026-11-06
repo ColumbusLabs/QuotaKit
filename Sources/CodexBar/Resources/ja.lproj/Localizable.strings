@@ -2895,3 +2895,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "%@ にサインインしてください。sessionKey を含む Cookie ヘッダーを %@ に非公開で渡してください。その後、%@ を実行してください。";
 
 "Read cookie header from stdin" = "stdin から Cookie ヘッダーを読み取る";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "任意。Cookie ヘッダーと同じリクエストの User-Agent 値を貼り付けてください。";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "WorkBuddy の User-Agent を単一のリクエストヘッダー値として貼り付けてください。";

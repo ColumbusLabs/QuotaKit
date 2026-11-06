@@ -2887,3 +2887,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "请登录 %@。将包含 sessionKey 的 Cookie 请求头私密地传给 %@，然后运行 %@。";
 
 "Read cookie header from stdin" = "从 stdin 读取 Cookie 请求头";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "选填。粘贴与 Cookie 来自同一请求的 User-Agent 值。";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "将 WorkBuddy 的 User-Agent 粘贴为单个请求标头值。";

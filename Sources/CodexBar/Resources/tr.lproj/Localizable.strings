@@ -2897,3 +2897,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "%@ adresinde oturum açın. sessionKey içeren Cookie başlığını gizli olarak %@ komutuna iletin. Ardından %@ komutunu çalıştırın.";
 
 "Read cookie header from stdin" = "Çerez başlığını stdin üzerinden oku";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "İsteğe bağlı. User-Agent değerini Cookie başlığıyla aynı istekten kopyalayıp yapıştırın.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "WorkBuddy User-Agent değerini tek bir istek üst bilgisi değeri olarak yapıştırın.";

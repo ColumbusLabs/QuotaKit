@@ -2896,3 +2896,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Войдите на %@. Конфиденциально передайте заголовок Cookie с sessionKey в %@. Затем выполните %@.";
 
 "Read cookie header from stdin" = "Читать заголовок Cookie из stdin";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Необязательно. Вставьте значение User-Agent из того же запроса, что и заголовок Cookie.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "Вставьте User-Agent WorkBuddy как одно значение заголовка запроса.";

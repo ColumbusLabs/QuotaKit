@@ -97,7 +97,7 @@ enum ProviderImplementationManifest {
         { PiProviderImplementation() },
         { PluginCookieProviderImplementation(spec: MuseAIProviderDescriptor.spec) },
         { PluginCookieProviderImplementation(spec: LithosAIProviderDescriptor.spec) },
-        { PluginCookieProviderImplementation(spec: WorkBuddyProviderDescriptor.spec) },
+        { WorkBuddyProviderImplementation() },
         { PluginCookieProviderImplementation(spec: LangdockProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: TavilyProviderDescriptor.spec) },
         { PluginAPIKeyProviderImplementation(spec: LinkupProviderDescriptor.spec) },

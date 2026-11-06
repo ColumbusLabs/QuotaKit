@@ -2896,3 +2896,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Đăng nhập tại %@. Cung cấp riêng tư tiêu đề Cookie chứa sessionKey cho %@. Sau đó chạy %@.";
 
 "Read cookie header from stdin" = "Đọc tiêu đề cookie từ stdin";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Không bắt buộc. Dán giá trị User-Agent từ cùng yêu cầu chứa tiêu đề Cookie.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "Dán User-Agent của WorkBuddy dưới dạng một giá trị tiêu đề yêu cầu duy nhất.";

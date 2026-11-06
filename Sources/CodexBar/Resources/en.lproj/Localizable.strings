@@ -2897,3 +2897,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@.";
 
 "Read cookie header from stdin" = "Read cookie header from stdin";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Optional. Paste the User-Agent value from the same request as the Cookie.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "Paste the WorkBuddy User-Agent as a single request header value.";

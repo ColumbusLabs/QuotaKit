@@ -2863,3 +2863,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "%@에서 로그인하세요. sessionKey가 포함된 Cookie 헤더를 %@에 비공개로 전달하세요. 그런 다음 %@을(를) 실행하세요.";
 
 "Read cookie header from stdin" = "stdin에서 쿠키 헤더 읽기";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "선택 사항입니다. Cookie 헤더와 동일한 요청의 User-Agent 값을 붙여넣으세요.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "WorkBuddy User-Agent를 단일 요청 헤더 값으로 붙여넣으세요.";

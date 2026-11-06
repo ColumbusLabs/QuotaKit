@@ -2898,3 +2898,9 @@
 "Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Masuk di %@. Berikan header Cookie yang berisi sessionKey secara privat ke %@. Lalu jalankan %@.";
 
 "Read cookie header from stdin" = "Baca header cookie dari stdin";
+
+"User-Agent" = "User-Agent";
+
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Opsional. Tempel nilai User-Agent dari permintaan yang sama dengan header Cookie.";
+
+"Paste the WorkBuddy User-Agent as a single request header value." = "Tempel User-Agent WorkBuddy sebagai satu nilai header permintaan.";
