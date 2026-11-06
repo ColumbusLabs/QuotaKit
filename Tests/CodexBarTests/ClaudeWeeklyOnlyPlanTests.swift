@@ -77,6 +77,7 @@ struct ClaudeWeeklyOnlyPlanTests {
             snapshot: UsageSnapshot(primary: nil, secondary: weekly, updatedAt: now),
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,

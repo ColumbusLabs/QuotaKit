@@ -7,6 +7,7 @@ import Testing
 struct ClaudeCredentialQuotaWarningTests {
     private final class NotifierSpy: SessionQuotaNotifying {
         var thresholds: [Int] = []
+        var windows: [QuotaWarningWindow] = []
 
         func post(transition _: SessionQuotaTransition, provider _: UsageProvider, badge _: NSNumber?) {}
 
@@ -17,6 +18,7 @@ struct ClaudeCredentialQuotaWarningTests {
             onScreenAlertEnabled _: Bool)
         {
             self.thresholds.append(event.threshold)
+            self.windows.append(event.window)
         }
     }
 
