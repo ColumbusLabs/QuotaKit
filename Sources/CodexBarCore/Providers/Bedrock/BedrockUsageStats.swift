@@ -131,7 +131,7 @@ enum BedrockUsageFetcher {
     private static let requestTimeoutSeconds: TimeInterval = 15
 
     private static func credentialFingerprint(_ credentials: BedrockAWSSigner.Credentials) -> Data {
-        let parts = [credentials.accessKeyID, credentials.secretAccessKey, credentials.sessionToken ?? ""]
+        let parts: [String?] = [credentials.accessKeyID, credentials.secretAccessKey, credentials.sessionToken]
         let encoded = (try? JSONEncoder().encode(parts)) ?? Data()
         return Data(SHA256.hash(data: encoded))
     }

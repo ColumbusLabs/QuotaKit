@@ -1,5 +1,7 @@
 ---
 summary: "Claude provider data sources: OAuth API, web API (cookies), CLI PTY, and local cost usage."
+
+Local cost scans also follow a symlink used for the projects directory.
 read_when:
   - Debugging Claude usage/status parsing
   - Updating Claude OAuth/web endpoints or cookie import

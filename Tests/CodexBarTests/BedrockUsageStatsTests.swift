@@ -844,9 +844,10 @@ extension BedrockUsageStatsTests {
         _ = try await fetch(time: now)
         #expect(capture.requests.count == 9)
         _ = try await fetch(secret: "rotated", time: now)
+        _ = try await fetch(secret: "rotated", token: "", time: now)
         _ = try await fetch(secret: "rotated", token: "session-a", time: now)
         _ = try await fetch(secret: "rotated", token: "session-b", time: now)
-        #expect(capture.requests.count == 12)
+        #expect(capture.requests.count == 13)
     }
 
     @Test

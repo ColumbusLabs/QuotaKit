@@ -1,5 +1,7 @@
 ---
 summary: "Cursor provider data sources, external-browser account switching, and cursor.com APIs."
+
+The local CSV fallback supports legacy, Kind, and cloud-agent exports, including trailing billing columns. Large exports are parsed incrementally.
 read_when:
   - Debugging Cursor usage parsing
   - Updating Cursor cookie import or session storage
