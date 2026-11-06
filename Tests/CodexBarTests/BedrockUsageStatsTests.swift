@@ -189,7 +189,7 @@ struct BedrockUsageStatsTests {
     }
 
     @Test
-    func `cost explorer measured zero remains a successful balance`() async throws {
+    func `cost explorer measured zero remains in monthly usage and daily history`() async throws {
         let registered = URLProtocol.registerClass(BedrockStubURLProtocol.self)
         defer {
             if registered { URLProtocol.unregisterClass(BedrockStubURLProtocol.self) }
@@ -200,7 +200,8 @@ struct BedrockUsageStatsTests {
             return Self.makeResponse(
                 url: url,
                 body: #"""
-                {"ResultsByTime":[{"Groups":[{"Keys":["Amazon Bedrock"],
+                {"ResultsByTime":[{"TimePeriod":{"Start":"2026-10-29","End":"2026-10-30"},
+                  "Groups":[{"Keys":["Amazon Bedrock"],
                   "Metrics":{"UnblendedCost":{"Amount":"0.00000000","Unit":"USD"}}}]}]}
                 """#,
                 statusCode: 200)
@@ -212,6 +213,21 @@ struct BedrockUsageStatsTests {
             environment: [BedrockSettingsReader.apiURLKey: "https://bedrock.test"])
         #expect(snapshot.monthlySpend == 0)
         #expect(snapshot.toUsageSnapshot().providerCost?.used == 0)
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-29T12:00:00Z"))
+        let cost = try await CostUsageFetcher(calendar: CostUsageBucketTimeZone.calendar(identifier: "UTC"))
+            .loadTokenSnapshot(
+                provider: .bedrock,
+                environment: [
+                    BedrockSettingsReader.accessKeyIDKey: "AKIATEST",
+                    BedrockSettingsReader.secretAccessKeyKey: "testSecret",
+                    BedrockSettingsReader.apiURLKey: "https://bedrock.test",
+                ],
+                now: now)
+        #expect(cost.daily.map(\.date) == ["2026-10-29"])
+        #expect(cost.daily.first?.costUSD == 0)
+        #expect(cost.last30DaysCostUSD == 0)
+        #expect(cost.sessionCostUSD == 0)
+        #expect(cost.last30DaysTokens == nil)
     }
 
     @Test
@@ -791,12 +807,14 @@ extension BedrockUsageStatsTests {
         let environment = [BedrockSettingsReader.apiURLKey: "https://bedrock.test"]
         func fetch(
             key: String = "account-a",
+            secret: String = "fixture",
+            token: String? = nil,
             region: String = "us-east-1",
             time: Date,
             env: [String: String]? = nil) async throws -> BedrockUsageSnapshot
         {
             try await BedrockUsageFetcher.fetchUsage(
-                credentials: .init(accessKeyID: key, secretAccessKey: "fixture", sessionToken: nil),
+                credentials: .init(accessKeyID: key, secretAccessKey: secret, sessionToken: token),
                 region: region,
                 budget: nil,
                 environment: env ?? environment,
@@ -825,6 +843,10 @@ extension BedrockUsageStatsTests {
         #expect(capture.requests.count == 8)
         _ = try await fetch(time: now)
         #expect(capture.requests.count == 9)
+        _ = try await fetch(secret: "rotated", time: now)
+        _ = try await fetch(secret: "rotated", token: "session-a", time: now)
+        _ = try await fetch(secret: "rotated", token: "session-b", time: now)
+        #expect(capture.requests.count == 12)
     }
 
     @Test
