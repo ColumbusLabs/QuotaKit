@@ -39,8 +39,7 @@ Accept: application/json
 The parser first looks for Synthetic's known quota slots, either at the root
 of the response or under `data`:
 
-- `rollingFiveHourLimit` -> Five-hour quota
-- `weeklyTokenLimit` -> Weekly tokens
+- `planWeeklyLimit` (or the older `weeklyTokenLimit`) -> Weekly quota
 - `search.hourly` -> Search hourly
 
 If those keys are absent, QuotaKit falls back to generic quota payloads such as
@@ -48,8 +47,9 @@ If those keys are absent, QuotaKit falls back to generic quota payloads such as
 
 ## Display
 
-- The menu card shows the five-hour, weekly token, and search-hourly lanes when present. The compact menu bar metric
-  uses the five-hour or weekly lane.
+- The menu card shows weekly credit usage and search-hourly usage for current plans. The compact menu bar metric
+  can use the weekly lane; automatic selection may choose search when it is more constrained.
+  Older responses can also show a five-hour lane.
 - Usage is normalized from percent fields when present, or computed from used/remaining/limit values.
 - Reset timestamps are shown when Synthetic returns one. When no timestamp is available, QuotaKit uses the returned
   or inferred window duration when present.
