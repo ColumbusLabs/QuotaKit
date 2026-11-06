@@ -2490,7 +2490,7 @@ public struct CostUsageFetcher: Sendable {
             allRows.append(contentsOf: CursorLocalCSVReader.parseFile(at: url, calendar: calendar))
         }
         guard !allRows.isEmpty else { return nil }
-        let full = CursorLocalCSVReader.makeDailyReport(from: allRows, calendar: calendar, now: now)
+        let full = CursorLocalCSVReader.makeDailyReport(from: allRows, calendar: calendar)
         let since = calendar.date(
             byAdding: .day,
             value: -(historyDays - 1),
