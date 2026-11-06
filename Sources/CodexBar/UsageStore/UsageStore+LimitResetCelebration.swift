@@ -505,12 +505,11 @@ extension UsageStore {
             && !shouldPost
             && !grokWeeklyBoundaryRebaselines
             && previousState?.resetBoundary != nil
-        let shouldPreserveBoundary = !sourceChanged
+        return !sourceChanged
             && !grokWeeklyBoundaryRebaselines
             && (preserveGrokWeeklyBoundary
                 || (!resetBoundaryAllowsPost
                     && (input.seriesName == .session || previousState?.resetBoundary != nil)))
-        return shouldPreserveBoundary
     }
 
     private nonisolated static func codexWeeklyBoundaryCorrectionTransition(
