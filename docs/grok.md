@@ -249,6 +249,11 @@ enabled Grok subscription is counted instead of omitted. SuperGrok/X Premium+
 credits remain a quota window on the usage bar; they are never converted into
 dollars.
 
+Weekly reset celebrations, hooks, and notifications require a high-to-low usage crossing after the previously
+observed weekly boundary has elapsed, with a later boundary that has not already been announced. Transient zero
+readings before rollover do not count. The detector keeps confirmed periods across refreshes and restarts, while
+allowing an unconfirmed initial or legacy boundary to recover from a transient reading.
+
 ## Status
 
 xAI has not exposed a Statuspage-style status feed yet. The "View Status" link

@@ -34,6 +34,8 @@ extension UsageStore {
         var planRawValue: String?
         /// Distinguishes states that carry the Codex plan/dedup evidence added with delayed reset confirmation.
         var codexWeeklyEvidenceVersion: Int?
+        /// Legacy Grok states may contain phantom posts; only guarded resets establish a trusted period.
+        var grokWeeklyBoundaryConfirmed: Bool?
 
         init(
             wasAboveThreshold: Bool,
@@ -49,7 +51,8 @@ extension UsageStore {
             notificationReceipt: LimitResetNotificationReceipt? = nil,
             lastNotifiedResetBoundary: Date? = nil,
             planRawValue: String? = nil,
-            codexWeeklyEvidenceVersion: Int? = Self.currentCodexWeeklyEvidenceVersion)
+            codexWeeklyEvidenceVersion: Int? = Self.currentCodexWeeklyEvidenceVersion,
+            grokWeeklyBoundaryConfirmed: Bool? = nil)
         {
             self.wasAboveThreshold = wasAboveThreshold
             self.wasAboveCodexWeeklyCandidateThreshold = wasAboveCodexWeeklyCandidateThreshold
@@ -65,6 +68,7 @@ extension UsageStore {
             self.lastNotifiedResetBoundary = lastNotifiedResetBoundary
             self.planRawValue = planRawValue
             self.codexWeeklyEvidenceVersion = codexWeeklyEvidenceVersion
+            self.grokWeeklyBoundaryConfirmed = grokWeeklyBoundaryConfirmed
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -82,6 +86,7 @@ extension UsageStore {
             case lastNotifiedResetBoundary
             case planRawValue
             case codexWeeklyEvidenceVersion
+            case grokWeeklyBoundaryConfirmed
         }
 
         init(from decoder: Decoder) throws {
@@ -116,6 +121,8 @@ extension UsageStore {
             self.codexWeeklyEvidenceVersion = try container.decodeIfPresent(
                 Int.self,
                 forKey: .codexWeeklyEvidenceVersion)
+            self.grokWeeklyBoundaryConfirmed = try container.decodeIfPresent(
+                Bool.self, forKey: .grokWeeklyBoundaryConfirmed)
         }
     }
 
@@ -334,6 +341,7 @@ extension UsageStore {
         let isClaudeWeekly = input.provider == .claude && input.seriesName == .weekly
         let isCodexWeekly = input.provider == .codex && input.seriesName == .weekly
         let codexEarlyWeeklyResetPending = previousState?.codexEarlyWeeklyResetPending ?? false
+        let isGrokWeekly = input.provider == .grok && input.seriesName == .weekly
         let claudeWeeklyRecoveryPending = isClaudeWeekly
             && previousState?.recoveryAboveThresholdCount != nil
         let planRawValue = isCodexWeekly ? self.limitResetPlanIdentifier(input.snapshot) : nil
@@ -378,10 +386,28 @@ extension UsageStore {
             && resetBoundaryAllowsPost
             && !claudeWeeklyRecoveryPending
         // Sessions retain the last non-regressed boundary on every guarded sample. Codex weekly crossings
-        // adopt a newly appearing boundary so a later genuine advance can still trigger once.
+        // adopt a newly appearing boundary so a later genuine advance can still trigger once. Grok weekly
+        // samples keep the pre-reset boundary until a crossing actually posts, because a still-high sample
+        // can advertise the next boundary right after rollover.
+        // A fresh detector can first see a transient low sample that advertises a later boundary. Let a
+        // later sample whose boundary is earlier replace that untrusted seed instead of freezing it.
+        var grokWeeklyBoundaryRebaselines = false
+        if isGrokWeekly, !shouldPost, previousState?.grokWeeklyBoundaryConfirmed != true,
+           let previousBoundary = previousState?.resetBoundary,
+           let currentBoundary = observation.resetBoundary,
+           currentBoundary < previousBoundary
+        {
+            grokWeeklyBoundaryRebaselines = true
+        }
+        let preserveGrokWeeklyBoundary = isGrokWeekly
+            && !shouldPost
+            && !grokWeeklyBoundaryRebaselines
+            && previousState?.resetBoundary != nil
         let shouldPreserveBoundary = !sourceChanged
-            && !resetBoundaryAllowsPost
-            && (input.seriesName == .session || previousState?.resetBoundary != nil)
+            && !grokWeeklyBoundaryRebaselines
+            && (preserveGrokWeeklyBoundary
+                || (!resetBoundaryAllowsPost
+                    && (input.seriesName == .session || previousState?.resetBoundary != nil)))
         let shouldPreserveBaseline = suppressedGuardedCrossing
             && !planChanged
             && !codexDecision.expiredCandidate
@@ -459,7 +485,9 @@ extension UsageStore {
             lastPostedResetBoundary: lastPostedResetBoundary,
             notificationReceipt: previousState?.notificationReceipt,
             lastNotifiedResetBoundary: previousState?.lastNotifiedResetBoundary,
-            planRawValue: planRawValue)
+            planRawValue: planRawValue,
+            grokWeeklyBoundaryConfirmed: isGrokWeekly && shouldPost
+                ? true : previousState?.grokWeeklyBoundaryConfirmed)
         return LimitResetDetectorTransition(
             state: state,
             shouldPost: shouldPost,
@@ -577,6 +605,16 @@ extension UsageStore {
             }
             guard input.previousState?.codexEarlyWeeklyResetPending == true else { return true }
             return input.previousState?.resetBoundary.map { input.observation.observedAt >= $0 } ?? false
+        }
+        if input.provider == .grok, input.seriesName == .weekly {
+            guard let previousBoundary = input.previousState?.resetBoundary,
+                  let currentBoundary = input.observation.resetBoundary,
+                  input.observation.observedAt >= previousBoundary,
+                  currentBoundary > previousBoundary
+            else { return false }
+            return !self.codexWeeklyResetCandidateBoundaryMatches(
+                input.previousState?.lastPostedResetBoundary,
+                currentBoundary)
         }
         return true
     }
