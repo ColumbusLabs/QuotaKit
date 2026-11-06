@@ -753,7 +753,10 @@ struct SpendDashboardControllerTests {
         await Task.yield()
         #expect(controller.model.groups.isEmpty)
     }
+}
 
+@MainActor
+extension SpendDashboardControllerTests {
     @Test
     func `range selection persists the shared reporting period`() throws {
         let suite = "SpendDashboardControllerTests-days"

@@ -90,10 +90,15 @@ struct SpendDashboardPublication: Sendable {
         providerScope: Set<UsageProvider>? = nil) -> SpendDashboardModel
     {
         self.modelIfReady(
-            requestedDays: requestedDays, reportingPeriod: reportingPeriod, now: now, calendar: calendar,
-            preferredCurrencyCode: preferredCurrencyCode, hiddenSourceIDs: hiddenSourceIDs,
+            requestedDays: requestedDays,
+            reportingPeriod: reportingPeriod,
+            now: now,
+            calendar: calendar,
+            preferredCurrencyCode: preferredCurrencyCode,
+            hiddenSourceIDs: hiddenSourceIDs,
             hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent,
-            selectedDay: selectedDay, providerScope: providerScope)
+            selectedDay: selectedDay,
+            providerScope: providerScope)
             ?? SpendDashboardModel(requestedDays: requestedDays, groups: [])
     }
 

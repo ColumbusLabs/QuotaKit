@@ -80,8 +80,11 @@ struct SpendDashboardRecalculationPerformanceTests {
     func `closed dashboard defers controller builds and discards a close race`() async {
         let gate = SpendDashboardRecalculationBuildGate()
         let controller = Self.controller(
-            configuration: Self.configuration(), input: Self.input(), probe: nil,
-            modelBuilder: { request in gate.build(request) }, visible: false)
+            configuration: Self.configuration(),
+            input: Self.input(),
+            probe: nil,
+            modelBuilder: { request in gate.build(request) },
+            visible: false)
         defer { gate.releaseFirstBuild() }
 
         controller.update(configuration: Self.configuration())
@@ -92,11 +95,15 @@ struct SpendDashboardRecalculationPerformanceTests {
         // An independent overview consumer can still build while the pane is closed.
         let publication = controller.publication
         _ = publication.model(
-            requestedDays: 7, now: Self.now, calendar: Self.configuration().bucketCalendar,
+            requestedDays: 7,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
             preferredCurrencyCode: "USD")
         await Self.waitUntil { controller.modelDerivationCounters.snapshot.buildCompletions > 0 }
         let overview = publication.model(
-            requestedDays: 7, now: Self.now, calendar: Self.configuration().bucketCalendar,
+            requestedDays: 7,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
             preferredCurrencyCode: "USD")
         #expect(!overview.groups.isEmpty)
 
@@ -122,9 +129,15 @@ struct SpendDashboardRecalculationPerformanceTests {
         let cache = SpendDashboardModelCache(supportsAsynchronousBuilds: true)
         func request(_ days: Int) -> SpendDashboardModelBuildRequest {
             SpendDashboardModelBuildRequest(
-                configuration: Self.configuration(), inputs: [Self.input()], requestedDays: days,
-                now: Self.now, calendar: Self.configuration().bucketCalendar, preferredCurrencyCode: "USD",
-                hiddenSourceIDs: [], hideNativeCodexWhenOpenCodexPresent: false, selectedDay: nil)
+                configuration: Self.configuration(),
+                inputs: [Self.input()],
+                requestedDays: days,
+                now: Self.now,
+                calendar: Self.configuration().bucketCalendar,
+                preferredCurrencyCode: "USD",
+                hiddenSourceIDs: [],
+                hideNativeCodexWhenOpenCodexPresent: false,
+                selectedDay: nil)
         }
         let first = request(30)
         let joined = request(90)

@@ -270,7 +270,9 @@ extension StatusItemController {
             windowSnapshots: windowSnapshots,
             detectTahoeBlockedStatusItem: self.canDetectTahoeBlockedStatusItem)
         self.traceStatusItems(
-            "startup-check", evidence: evidence, startupAge: now.timeIntervalSince(appLaunchedAt),
+            "startup-check",
+            evidence: evidence,
+            startupAge: now.timeIntervalSince(appLaunchedAt),
             recoveryEligible: recoveryEligible)
         guard recoveryEligible else { return }
 
@@ -294,7 +296,9 @@ extension StatusItemController {
             windowSnapshots: recoveredWindowSnapshots,
             detectTahoeBlockedStatusItem: self.canDetectTahoeBlockedStatusItem)
         self.traceStatusItems(
-            "startup-recovery-check", evidence: recoveredEvidence, startupAge: now.timeIntervalSince(appLaunchedAt),
+            "startup-recovery-check",
+            evidence: recoveredEvidence,
+            startupAge: now.timeIntervalSince(appLaunchedAt),
             recoveryEligible: recoveryStillEligible)
         guard recoveryStillEligible else {
             self.menuLogger.info(
@@ -330,8 +334,12 @@ extension StatusItemController {
             evidence ?? self.startupStatusItemVisibilityEvidence()).enumerated()
         {
             MenuBarStatusItemWindowProbe.trace(
-                stage, item: item, evidence: evidence, itemIndex: index,
-                startupAge: startupAge, recoveryEligible: recoveryEligible)
+                stage,
+                item: item,
+                evidence: evidence,
+                itemIndex: index,
+                startupAge: startupAge,
+                recoveryEligible: recoveryEligible)
         }
     }
 
