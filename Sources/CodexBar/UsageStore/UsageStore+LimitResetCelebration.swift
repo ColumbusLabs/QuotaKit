@@ -385,29 +385,12 @@ extension UsageStore {
             && !confirmingLowSample
             && resetBoundaryAllowsPost
             && !claudeWeeklyRecoveryPending
-        // Sessions retain the last non-regressed boundary on every guarded sample. Codex weekly crossings
-        // adopt a newly appearing boundary so a later genuine advance can still trigger once. Grok weekly
-        // samples keep the pre-reset boundary until a crossing actually posts, because a still-high sample
-        // can advertise the next boundary right after rollover.
-        // A fresh detector can first see a transient low sample that advertises a later boundary. Let a
-        // later sample whose boundary is earlier replace that untrusted seed instead of freezing it.
-        var grokWeeklyBoundaryRebaselines = false
-        if isGrokWeekly, !shouldPost, previousState?.grokWeeklyBoundaryConfirmed != true,
-           let previousBoundary = previousState?.resetBoundary,
-           let currentBoundary = observation.resetBoundary,
-           currentBoundary < previousBoundary
-        {
-            grokWeeklyBoundaryRebaselines = true
-        }
-        let preserveGrokWeeklyBoundary = isGrokWeekly
-            && !shouldPost
-            && !grokWeeklyBoundaryRebaselines
-            && previousState?.resetBoundary != nil
-        let shouldPreserveBoundary = !sourceChanged
-            && !grokWeeklyBoundaryRebaselines
-            && (preserveGrokWeeklyBoundary
-                || (!resetBoundaryAllowsPost
-                    && (input.seriesName == .session || previousState?.resetBoundary != nil)))
+        let shouldPreserveBoundary = self.limitResetShouldPreserveBoundary(
+            input: input,
+            isGrokWeekly: isGrokWeekly,
+            shouldPost: shouldPost,
+            sourceChanged: sourceChanged,
+            resetBoundaryAllowsPost: resetBoundaryAllowsPost)
         let shouldPreserveBaseline = suppressedGuardedCrossing
             && !planChanged
             && !codexDecision.expiredCandidate
@@ -493,6 +476,41 @@ extension UsageStore {
             shouldPost: shouldPost,
             claudeWeeklyRecoveryPending: claudeWeeklyRecoveryPending,
             nextRecoveryCount: nextRecoveryCount)
+    }
+
+    private nonisolated static func limitResetShouldPreserveBoundary(
+        input: LimitResetDetectorTransitionInput,
+        isGrokWeekly: Bool,
+        shouldPost: Bool,
+        sourceChanged: Bool,
+        resetBoundaryAllowsPost: Bool) -> Bool
+    {
+        let previousState = input.previousState
+        let observation = input.observation
+        // Sessions retain the last non-regressed boundary on every guarded sample. Codex weekly crossings
+        // adopt a newly appearing boundary so a later genuine advance can still trigger once. Grok weekly
+        // samples keep the pre-reset boundary until a crossing actually posts, because a still-high sample
+        // can advertise the next boundary right after rollover.
+        // A fresh detector can first see a transient low sample that advertises a later boundary. Let a
+        // later sample whose boundary is earlier replace that untrusted seed instead of freezing it.
+        var grokWeeklyBoundaryRebaselines = false
+        if isGrokWeekly, !shouldPost, previousState?.grokWeeklyBoundaryConfirmed != true,
+           let previousBoundary = previousState?.resetBoundary,
+           let currentBoundary = observation.resetBoundary,
+           currentBoundary < previousBoundary
+        {
+            grokWeeklyBoundaryRebaselines = true
+        }
+        let preserveGrokWeeklyBoundary = isGrokWeekly
+            && !shouldPost
+            && !grokWeeklyBoundaryRebaselines
+            && previousState?.resetBoundary != nil
+        let shouldPreserveBoundary = !sourceChanged
+            && !grokWeeklyBoundaryRebaselines
+            && (preserveGrokWeeklyBoundary
+                || (!resetBoundaryAllowsPost
+                    && (input.seriesName == .session || previousState?.resetBoundary != nil)))
+        return shouldPreserveBoundary
     }
 
     private nonisolated static func codexWeeklyBoundaryCorrectionTransition(
