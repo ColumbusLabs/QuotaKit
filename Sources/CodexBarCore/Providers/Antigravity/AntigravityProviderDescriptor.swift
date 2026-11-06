@@ -712,7 +712,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         versionResolver: AgyVersionResolver = AgyVersionResolver()) async throws -> AntigravityStatusSnapshot
     {
         try Task.checkCancellation()
-        func run(
+        @Sendable func run(
             _ arguments: [String],
             timeout: TimeInterval,
             reapDescendants: Bool = false,
