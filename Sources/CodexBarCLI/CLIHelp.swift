@@ -315,6 +315,7 @@ extension CodexBarCLI {
           quotakit config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config login --provider copilot [--format text|json] [--json] [--json-only]
+          quotakit config login --provider claudeplatform --stdin [--json]
           quotakit config set-source --provider <name> --source auto|web|cli|oauth|api
                                      [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
