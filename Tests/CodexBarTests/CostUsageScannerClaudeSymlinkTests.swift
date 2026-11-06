@@ -7,7 +7,7 @@ import Testing
 struct CostUsageScannerClaudeSymlinkTests {
     @Test
     func `symlinked project roots retain history and deduplicate without traversing nested directory links`() throws {
-        var fixture = try CostUsageClaudeReportContextTests.Fixture()
+        let fixture = try CostUsageClaudeReportContextTests.Fixture()
         defer { fixture.env.cleanup() }
         let fm = FileManager.default
         let physicalConfig = fixture.env.root.appendingPathComponent("physical-config")
@@ -15,7 +15,6 @@ struct CostUsageScannerClaudeSymlinkTests {
         try fm.createDirectory(at: physicalConfig, withIntermediateDirectories: true)
         _ = try fixture.write(path: "project/session.jsonl", day: fixture.now, id: "kept", input: 123)
         try fm.moveItem(at: fixture.env.claudeProjectsRoot, to: physicalProjects)
-        fixture.options.claudeProjectsRoots = [physicalProjects]
 
         let outside = fixture.env.root.appendingPathComponent("outside")
         try fm.createDirectory(at: outside, withIntermediateDirectories: true)
@@ -24,7 +23,7 @@ struct CostUsageScannerClaudeSymlinkTests {
         try fm.createSymbolicLink(
             at: physicalProjects.appendingPathComponent("nested-link"),
             withDestinationURL: outside)
-        let oracle = try fixture.load(context: .regular, days: 30).0
+        let oracle = try Self.load(fixture: fixture, roots: [physicalProjects]).0
         #expect(oracle.summary?.totalInputTokens == 123)
 
         let configLink = fixture.env.root.appendingPathComponent(".claude")
@@ -37,11 +36,7 @@ struct CostUsageScannerClaudeSymlinkTests {
         #expect(SettingsStore.hasAnyTokenCostUsageSources(env: [:], homeDirectory: fixture.env.root))
 
         for selected in [roots, [projectsLink, physicalProjects]] {
-            fixture.options.claudeProjectsRoots = selected
-            let (report, work) = try fixture.load(
-                context: .regular,
-                days: 30,
-                cacheRoot: fixture.env.root.appendingPathComponent("cache-\(UUID().uuidString)"))
+            let (report, work) = try Self.load(fixture: fixture, roots: selected)
             #expect(report.data == oracle.data)
             #expect(report.summary == oracle.summary)
             #expect(report.hourly == oracle.hourly)
@@ -52,7 +47,7 @@ struct CostUsageScannerClaudeSymlinkTests {
 
     @Test
     func `symlinked config directory works for explicit and account cost roots`() throws {
-        var fixture = try CostUsageClaudeReportContextTests.Fixture()
+        let fixture = try CostUsageClaudeReportContextTests.Fixture()
         defer { fixture.env.cleanup() }
         _ = try fixture.write(path: "project/session.jsonl", day: fixture.now, id: "kept", input: 321)
         let oracle = try fixture.load(context: .regular, days: 30).0
@@ -65,15 +60,34 @@ struct CostUsageScannerClaudeSymlinkTests {
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: config)
         let environment = ["HOME": fixture.env.root.path, "CLAUDE_CONFIG_DIR": link.path]
         for accountRoot in [nil, link.path] {
-            fixture.options.claudeProjectsRoots = ClaudeConfigPaths.costProjectsRoots(
+            let roots = ClaudeConfigPaths.costProjectsRoots(
                 accountConfigDirectory: accountRoot,
                 environment: environment)
-            let report = try fixture.load(
-                context: .regular,
-                days: 30,
-                cacheRoot: fixture.env.root.appendingPathComponent("cache-\(UUID().uuidString)")).0
+            let report = try Self.load(fixture: fixture, roots: roots).0
             #expect(report.data == oracle.data)
             #expect(report.summary == oracle.summary)
         }
+    }
+
+    private static func load(
+        fixture: CostUsageClaudeReportContextTests.Fixture,
+        roots: [URL]) throws -> (CostUsageDailyReport, CostUsageScanner.ClaudeScanWorkMetrics)
+    {
+        var options = fixture.options
+        options.claudeProjectsRoots = roots
+        options.cacheRoot = fixture.env.root.appendingPathComponent("cache-\(UUID().uuidString)")
+        let since = options.calendar.date(byAdding: .day, value: -29, to: fixture.now)!
+        let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let report = try CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) {
+            try CostUsageScanner.loadDailyReportCancellable(
+                provider: .claude,
+                since: since,
+                until: fixture.now,
+                now: fixture.now,
+                options: options,
+                reportContext: .regular,
+                checkCancellation: nil)
+        }
+        return (report, recorder.snapshot())
     }
 }
