@@ -43,10 +43,13 @@ Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAu
    - Endpoint follows the CLI profile ARN: US East uses `POST https://codewhisperer.us-east-1.amazonaws.com/`;
      Frankfurt uses `POST https://q.eu-central-1.amazonaws.com/`. Invalid or unsupported profile ARNs skip enrichment.
      Header `X-Amz-Target: AmazonCodeWhispererService.GetUsageLimits`, body `{"profileArn": ...}`.
+     Builder ID logins may persist a token without a profile row. In that case CodexBar sends `{}` to
+     the fixed US East endpoint. A present but malformed profile or unreadable profile storage still
+     skips the API; it never redirects an existing unsupported profile to the default region.
    - Credentials come from the CLI's own state, opened **read-only** (the CLI owns the token and its refresh):
      `~/Library/Application Support/kiro-cli/data.sqlite3`
      - `auth_kv` key `kirocli:odic:token` → `access_token`
-     - `state` key `api.codewhisperer.profile` → `arn`
+     - `state` key `api.codewhisperer.profile` → `arn` when the profile row exists
    - Regional endpoints follow [AWS profile-region routing](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/firewall.html), independently of the IAM Identity Center authentication region.
    - Runs after the CLI probe, so a token the CLI refreshed along the way is already in place.
    - Failure is non-fatal: the plan-relative numbers the CLI produced stand. The API path depends on the CLI's
