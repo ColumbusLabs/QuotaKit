@@ -27,6 +27,19 @@ struct CLIClaudePlatformLoginTests {
     }
 
     @Test
+    func `manual candidate resolver is scoped and issues at most one opaque session`() async throws {
+        let resolve = ProviderPluginCookieSession.manualResolver(
+            header: Self.candidate, domain: "platform.claude.com")
+        #expect(try await resolve("unrelated.example", false) == nil)
+        #expect(try await resolve("platform.claude.com", true) == nil)
+        let session = try #require(await resolve("platform.claude.com", false))
+        #expect(session.origin == "https://platform.claude.com")
+        #expect(session.source == "manual")
+        #expect(session.header.isEmpty)
+        #expect(try await resolve("platform.claude.com", false) == nil)
+    }
+
+    @Test
     func `validated zero balance saves only the supplied candidate despite optional spend failure`() async throws {
         let store = try Self.temporaryStore()
         defer { try? FileManager.default.removeItem(at: store.fileURL.deletingLastPathComponent()) }

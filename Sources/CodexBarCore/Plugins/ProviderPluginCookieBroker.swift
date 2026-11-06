@@ -39,6 +39,22 @@ public struct ProviderPluginCookieSession: Codable, Equatable, Sendable {
         self.records = records
     }
 
+    /// Supplies a single in-memory manual candidate to an opaque cookie-jar fetch.
+    package static func manualResolver(
+        header: String,
+        domain: String) -> ProviderPluginRuntime.CookieSessionResolver
+    {
+        let state = LegacySessionDomains()
+        return { requestedDomain, cachedOnly in
+            guard !cachedOnly, requestedDomain == domain, state.take(domain, manual: true) else { return nil }
+            return Self(
+                header: "",
+                source: "manual",
+                origin: "https://\(domain)",
+                records: ProviderPluginCookieBroker.manualRecords(header, domain: domain))
+        }
+    }
+
     func json(opaque: Bool = false) throws -> String {
         let data: Data = if opaque {
             try JSONSerialization.data(withJSONObject: [
@@ -539,7 +555,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         return session
     }
 
-    private static func manualRecords(_ header: String, domain: String) -> [ProviderPluginCookieRecord] {
+    fileprivate static func manualRecords(_ header: String, domain: String) -> [ProviderPluginCookieRecord] {
         CookieHeaderNormalizer.pairs(from: header).map { pair in
             ProviderPluginCookieRecord(
                 name: pair.name,

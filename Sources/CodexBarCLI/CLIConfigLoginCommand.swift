@@ -109,7 +109,11 @@ extension CodexBarCLI {
         // Provider-specific by design: run the bundled Console plugin with one in-memory candidate and no fallback.
         let runtime = try ProviderPluginRuntime(
             bundledPlugin: "claudeplatform", transport: transport, timeout: ClaudePlatformProviderDescriptor.webTimeout)
-        _ = try await runtime.fetchUsage(sourceMode: .web, cookieSource: .manual, cookieResolver: { _, _ in header })
+        _ = try await runtime.fetchUsage(
+            sourceMode: .web,
+            cookieSource: .manual,
+            cookieSessionResolver: ProviderPluginCookieSession.manualResolver(
+                header: header, domain: "platform.claude.com"))
         // Provider-specific by design: validation authorizes only the Console manual-cookie configuration.
         let config = Self.configSettingCookie(
             original ?? .makeDefault(), provider: .claudeplatform, cookieHeader: header, enableProvider: true)
