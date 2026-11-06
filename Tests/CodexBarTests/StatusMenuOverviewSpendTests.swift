@@ -180,6 +180,49 @@ extension StatusMenuTests.Overview {
     }
 
     @Test
+    func `cold closed dashboard share waits for its overview projection`() async throws {
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
+        }
+        let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
+        let input = SpendDashboardModel.ProviderInput(
+            id: "codex:account", provider: .codex, displayName: "Codex",
+            snapshot: CostUsageTokenSnapshot(
+                sessionTokens: 10, sessionCostUSD: 2, last30DaysTokens: 10, last30DaysCostUSD: 2,
+                daily: [.init(date: "2026-08-17", inputTokens: 5, outputTokens: 5, totalTokens: 10,
+                              costUSD: 2, modelsUsed: nil, modelBreakdowns: nil)], updatedAt: now))
+        let configuration = SpendDashboardConfiguration(
+            costUsageEnabled: true, providerIDs: [UsageProvider.codex.rawValue],
+            codexAccountIdentities: ["account|cache"],
+            menuOwnershipFingerprint: SpendDashboardSource.currentMenuOwnershipFingerprint(
+                settings: settings, store: store))
+        store.spendDashboardPublication = SpendDashboardPublication(
+            revision: 1, generation: 1, configuration: configuration, loadedAt: now, isRefreshing: false,
+            inputs: [input], sources: [.init(id: input.id, provider: .codex, displayName: input.displayName,
+                                              role: .subscription, state: .available)],
+            modelCache: SpendDashboardModelCache(supportsAsynchronousBuilds: true), modelReadyHandler: {})
+        let controller = StatusItemController(
+            store: store, settings: settings, account: AccountInfo(email: nil, plan: nil),
+            updater: DisabledUpdaterController(), preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        #expect(store.sharedSpendDashboardControllerStorage == nil)
+        let model = await OverviewShareProjection.waitForModel(
+            attempts: 1000, interval: .milliseconds(1), isRefreshing: { false },
+            modelIfReady: { controller.overviewSpendDashboardModelIfReady(providers: [.codex], now: now) })
+        let payload = try #require(model.flatMap { ShareStatsPayloadFactory.make(model: $0, store: store) })
+        #expect(payload.currencies.first?.estimatedCost == 2)
+        #expect(store.sharedSpendDashboardControllerStorage == nil)
+    }
+
+    @Test
     func `overview consumes shared publication without starting a loader`() throws {
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false

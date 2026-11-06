@@ -116,6 +116,36 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
+    func `joined publication survives close and replacement controller work`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        defer { gate.releaseFirstBuild() }
+        let cache = SpendDashboardModelCache(supportsAsynchronousBuilds: true)
+        func request(_ days: Int) -> SpendDashboardModelBuildRequest {
+            SpendDashboardModelBuildRequest(
+                configuration: Self.configuration(), inputs: [Self.input()], requestedDays: days,
+                now: Self.now, calendar: Self.configuration().bucketCalendar, preferredCurrencyCode: "USD",
+                hiddenSourceIDs: [], hideNativeCodexWhenOpenCodexPresent: false, selectedDay: nil)
+        }
+        let first = request(30)
+        let joined = request(90)
+        let replacement = request(7)
+        let completed = LockIsolated(false)
+        cache.enqueue(request: first, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        cache.enqueue(request: joined, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        cache.enqueue(request: joined, priority: .publication, builder: { gate.build($0) }, completion: { _ in
+            completed.setValue(true)
+        })
+        cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        cache.discardPendingControllerBuild()
+        cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        gate.releaseFirstBuild()
+        await Self.waitUntil { completed.value }
+        #expect(cache.model(for: joined.key) != nil)
+        #expect(completed.value)
+    }
+
+    @Test
     func `an identical model key avoids another full derivation`() async {
         let configuration = Self.configuration()
         let input = Self.input()

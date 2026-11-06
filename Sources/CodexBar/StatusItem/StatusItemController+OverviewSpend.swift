@@ -144,6 +144,27 @@ struct OverviewSharePresentation {
     var generation: UInt64 = 0
 }
 
+@MainActor
+enum OverviewShareProjection {
+    static func waitForModel(
+        attempts: Int = 200,
+        interval: Duration = .milliseconds(50),
+        isRefreshing: () -> Bool,
+        modelIfReady: () -> SpendDashboardModel?) async -> SpendDashboardModel?
+    {
+        for _ in 0..<attempts {
+            guard !Task.isCancelled else { return nil }
+            if !isRefreshing(), let model = modelIfReady() { return model }
+            do {
+                try await Task.sleep(for: interval)
+            } catch {
+                return nil
+            }
+        }
+        return nil
+    }
+}
+
 extension StatusItemController {
     func makeOverviewShareStatsMenuItem(model: SpendDashboardModel) -> NSMenuItem? {
         guard ShareStatsPayloadFactory.make(model: model, store: self.store) != nil else { return nil }
@@ -186,20 +207,24 @@ extension StatusItemController {
                 }
             }
             guard let dashboard else { return }
-            for _ in 0..<200 where dashboard.isRefreshing {
-                try? await Task.sleep(for: .milliseconds(50))
-                guard !Task.isCancelled else { return }
-            }
-            guard !Task.isCancelled, let self else { return }
-            if let payload = self.overviewShareStatsPayload() {
+            guard let self else { return }
+            let model = await OverviewShareProjection.waitForModel(
+                isRefreshing: { dashboard.isRefreshing },
+                modelIfReady: {
+                    let enabledProviders = self.store.enabledFirstPartyProvidersForDisplay()
+                    let providers = self.overviewProviderScopes(enabledProviders: enabledProviders).spend
+                    return self.overviewSpendDashboardModelIfReady(providers: providers)
+                })
+            guard !Task.isCancelled else { return }
+            if let model, let payload = ShareStatsPayloadFactory.make(model: model, store: self.store) {
                 ShareStatsPresenter.shared.present(payload: payload)
-            } else {
-                NSApp.activate(ignoringOtherApps: true)
-                self.presentLoginAlert(
-                    title: L("Usage snapshot unavailable"),
-                    message: L("QuotaKit couldn't prepare a shareable usage snapshot. "
-                        + "Refresh Usage & Spend and try again."))
+                return
             }
+            NSApp.activate(ignoringOtherApps: true)
+            self.presentLoginAlert(
+                title: L("Usage snapshot unavailable"),
+                message: L("QuotaKit couldn't prepare a shareable usage snapshot. "
+                    + "Refresh Usage & Spend and try again."))
         }
     }
 
@@ -256,6 +281,14 @@ extension StatusItemController {
         providers: [UsageProvider],
         now: Date = Date()) -> SpendDashboardModel
     {
+        self.overviewSpendDashboardModelIfReady(providers: providers, now: now)
+            ?? SpendDashboardModel(requestedDays: self.settings.costUsageHistoryDays, groups: [])
+    }
+
+    func overviewSpendDashboardModelIfReady(
+        providers: [UsageProvider],
+        now: Date = Date()) -> SpendDashboardModel?
+    {
         let publication = self.store.spendDashboardPublication
         if let configuration = publication.configuration {
             guard configuration.menuOwnershipFingerprint == SpendDashboardSource.currentMenuOwnershipFingerprint(
@@ -270,7 +303,7 @@ extension StatusItemController {
                     calendar: self.settings.costUsageBucketCalendar,
                     preferredCurrencyCode: self.settings.preferredCurrencyCode)
             }
-            return publication.model(
+            return publication.modelIfReady(
                 requestedDays: self.settings.costUsageHistoryDays,
                 reportingPeriod: self.settings.costReportingPeriod,
                 now: now,
