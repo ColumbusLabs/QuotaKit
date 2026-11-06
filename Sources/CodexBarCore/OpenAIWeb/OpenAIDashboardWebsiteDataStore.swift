@@ -22,7 +22,7 @@ public enum OpenAIDashboardWebsiteDataStore {
 
     /// Clear disposable HTTP caches without touching persisted account sessions.
     public static func clearNetworkCaches() async {
-        guard !TestProcessSafety.isRunning else { return }
+        guard !TestProcessSafety.isRunningUnderTests() else { return }
         for identifier in await WKWebsiteDataStore.allDataStoreIdentifiers {
             await OpenAIDashboardCacheMaintenance.shared.clearIfNeeded(WKWebsiteDataStore(forIdentifier: identifier))
         }

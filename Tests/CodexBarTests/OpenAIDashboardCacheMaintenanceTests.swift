@@ -7,7 +7,7 @@ import WebKit
 struct OpenAIDashboardCacheMaintenanceTests {
     @Test
     func `launch maintenance is inert in test processes`() async {
-        #expect(TestProcessSafety.isRunning)
+        #expect(TestProcessSafety.isRunningUnderTests())
         await OpenAIDashboardWebsiteDataStore.clearNetworkCaches()
     }
 
