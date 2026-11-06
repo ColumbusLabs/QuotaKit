@@ -31,7 +31,9 @@ struct GrokWeeklyResetDetectorTests {
                         resetBoundary: formatter.date(from: resetsAt)!,
                         source: nil),
                     previousState: state,
-                    requiresLowConfirmation: false))
+                    requiresLowConfirmation: false,
+                    suppressesCodexWeeklyResetCelebration: false,
+                    codexCorrectsWeeklyBoundary: false))
             if transition.shouldPost { posts.append(at) }
             state = try JSONDecoder().decode(
                 UsageStore.LimitResetDetectorState.self,
