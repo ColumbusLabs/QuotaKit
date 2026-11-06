@@ -142,12 +142,12 @@ struct SpendDashboardRecalculationPerformanceTests {
         let first = request(30)
         let joined = request(90)
         let replacement = request(7)
-        let completions = LockIsolated(0)
+        let completions = SpendDashboardCompletionCounter()
         cache.enqueue(request: first, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         await Self.waitUntil { gate.firstBuildStarted.value }
         cache.enqueue(request: joined, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         cache.enqueue(request: joined, priority: .publication, builder: { gate.build($0) }, completion: { _ in
-            completions.withValue { $0 += 1 }
+            completions.increment()
         })
         cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         cache.discardPendingControllerBuild()
@@ -156,7 +156,7 @@ struct SpendDashboardRecalculationPerformanceTests {
             request: joined,
             priority: .publication,
             builder: { gate.build($0) },
-            completion: { _ in completions.withValue { $0 += 1 } })
+            completion: { _ in completions.increment() })
         guard case .alreadyScheduled = repeated else {
             Issue.record("Expected the preserved projection to be reused.")
             return
@@ -591,6 +591,7 @@ struct SpendDashboardRecalculationPerformanceTests {
         cache.insert(SpendDashboardModel(requestedDays: 30, groups: []), for: request.key)
         releaseAdmission.signal()
         await Self.waitUntil { admissionFinished.value }
+        await admissionTask.value
 
         #expect(resultWasCached.value)
         #expect(builderProbe.isEmpty)
@@ -842,5 +843,22 @@ private final class SpendDashboardRecalculationBuildGate: @unchecked Sendable {
 
     func releaseFirstBuild() {
         self.releaseSemaphore.signal()
+    }
+}
+
+private final class SpendDashboardCompletionCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.count
+    }
+
+    func increment() {
+        self.lock.lock()
+        self.count += 1
+        self.lock.unlock()
     }
 }

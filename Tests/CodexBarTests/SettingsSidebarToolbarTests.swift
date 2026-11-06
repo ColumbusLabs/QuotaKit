@@ -22,7 +22,8 @@ struct SettingsSidebarToolbarTests {
             settings: settings,
             store: store,
             updater: DisabledUpdaterController(),
-            selection: selection)
+            selection: selection,
+            syncCoordinator: SyncCoordinator(store: store, settings: settings))
             .defaultAppStorage(InMemoryUserDefaults())
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 620),

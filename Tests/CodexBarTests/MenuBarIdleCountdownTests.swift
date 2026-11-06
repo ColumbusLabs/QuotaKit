@@ -91,8 +91,8 @@ struct MenuBarIdleCountdownTests {
     static func makeController() -> (SettingsStore, UsageStore, StatusItemController) {
         let settings = testSettingsStore(
             suiteName: "MenuBarIdleCountdownTests",
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false

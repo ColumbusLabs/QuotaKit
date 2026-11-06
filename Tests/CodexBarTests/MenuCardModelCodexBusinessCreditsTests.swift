@@ -226,7 +226,7 @@ struct MenuCardModelCodexBusinessCreditsTests {
         #expect(model.metrics.count == 1)
         #expect((model.subtitleStyle == .error) == quotaRefreshFailed)
         #expect(model.showsRetainedMeasurement == quotaRefreshFailed)
-        #expect(monthly.isSyntheticCreditLane)
+        #expect(monthly.retainedMeasurementOverride == false)
         let row = MetricRow(
             metric: monthly,
             layoutMetric: monthly,

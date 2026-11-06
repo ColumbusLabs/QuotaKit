@@ -80,8 +80,23 @@ extension UsageMenuCardView.Model {
                 workdayTickAppearance: input.workdayTickAppearance,
                 sessionEquivalentDetail: lane == .weekly
                     ? Self.sessionEquivalentDetail(input: input, weeklyWindow: window, weeklyWindowID: nil)
-                    : nil)
+                    : nil,
+                retainedMeasurementOverride: Self.freshCodexCreditLaneOverride(
+                    lane: lane, window: window, input: input, projection: projection))
         }
+    }
+
+    private static func freshCodexCreditLaneOverride(
+        lane: CodexConsumerProjection.RateLane,
+        window: RateWindow,
+        input: Input,
+        projection: CodexConsumerProjection) -> Bool?
+    {
+        guard lane == .monthly, window.windowMinutes == nil,
+              input.creditsError == nil, let cost = projection.extraUsageCost
+        else { return nil }
+        if let attached = input.snapshot?.providerCost, attached.updatedAt >= cost.updatedAt { return nil }
+        return false
     }
 
     private static func codexMonthlyCreditDetail(
