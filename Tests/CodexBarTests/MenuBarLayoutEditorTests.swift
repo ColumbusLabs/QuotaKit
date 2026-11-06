@@ -22,14 +22,21 @@ struct MenuBarLayoutEditorTests {
                         resetsAt: now.addingTimeInterval(86400 * 3),
                         resetDescription: nil))],
                 updatedAt: now)
+            let alternateAccount = UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: 43200, resetsAt: now, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 30, windowMinutes: 43200, resetsAt: now, resetDescription: nil),
+                cursorRateWindowLayout: .autoAPI,
+                updatedAt: now)
             let weekly = UsageSnapshot(
                 primary: RateWindow(usedPercent: 40, windowMinutes: 10080, resetsAt: now, resetDescription: nil),
                 secondary: nil,
                 updatedAt: now)
             let countdown = MenuBarLayoutToken.windowResetCountdown(window: .weekly)
             let absolute = MenuBarLayoutToken.windowResetAbsolute(window: .weekly)
-            #expect(countdown.editorLabel(provider: .cursor, snapshot: monthly) == "Cursor: Resets in")
-            #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: monthly) == "Cursor: Reset at")
+            #expect(countdown.editorLabel(provider: .cursor, snapshot: monthly) == "Auto: Resets in")
+            #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: monthly) == "Auto: Reset at")
+            #expect(countdown.editorLabel(provider: .cursor, snapshot: alternateAccount) == "API: Resets in")
+            #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: alternateAccount) == "API: Reset at")
             #expect(countdown.editorLabel(provider: .cursor, snapshot: weekly) == "Weekly: Resets in")
             #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: weekly) == "Weekly: Reset at")
         }
