@@ -11,15 +11,18 @@ struct StatusItemHostingDiagnosticsTests {
             self.window(number: 3, owner: "Other App"),
             self.window(number: 4, layer: 0),
             self.window(number: 5, name: "private window title"),
+            self.window(number: 6, owner: "MenuBarAgent"),
         ]
         let diagnostic = MenuBarStatusItemWindowProbe.hostingDiagnostics(
             name: "quotakit-merged",
             windowInfo: records)
 
-        #expect(diagnostic["layer25Count"] as? Int == 3)
-        #expect(diagnostic["layer25Numbers"] as? [Int] == [1, 2, 5])
+        #expect(diagnostic["layer25Count"] as? Int == 4)
+        #expect(diagnostic["layer25Numbers"] as? [Int] == [1, 2, 5, 6])
+        let ownerCounts = try #require(diagnostic["ownerCounts"] as? [String: Int])
+        #expect(ownerCounts["MenuBarAgent"] == 1)
         let matches = try #require(diagnostic["namedMatches"] as? [[String: Any]])
-        #expect(matches.compactMap { $0["number"] as? Int } == [1, 2])
+        #expect(matches.compactMap { $0["number"] as? Int } == [1, 2, 6])
         #expect(matches.first?["onscreen"] as? Bool == true)
         let data = try JSONSerialization.data(withJSONObject: diagnostic)
         let json = try #require(String(data: data, encoding: .utf8))

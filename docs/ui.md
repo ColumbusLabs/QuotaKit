@@ -225,3 +225,6 @@ target. This is a budget for the remaining period, not a measurement of today's 
 
 - Usage and cost values use tabular digits. Retained quota bars dim after a failed refresh while independently refreshed costs retain their normal tint.
 - Closing a usage share preview releases its hosted content; reopening rebuilds it with the current payload.
+
+- Conditional menu-bar layouts schedule reset countdown refreshes only for visible tokens, while retaining wakes at conditional reset thresholds and expiration.
+- Opt-in status-item diagnostics report Control Center and MenuBarAgent host counts and startup recovery decisions without recording window titles or account identities.

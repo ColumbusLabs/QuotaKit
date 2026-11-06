@@ -233,8 +233,8 @@ extension StatusItemController {
             return self.menuBarLayoutResetDates(for: provider, now: now, absolute: absolute)
         }
         let data = self.menuBarLayoutRenderData(for: instanceID, now: now)
-        let tokens = self.renderedMenuBarLayoutResolution(forInstanceID: instanceID).layout
-            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let tokens = self.displayedResetTokens(
+            layout: self.renderedMenuBarLayoutResolution(forInstanceID: instanceID).layout, data: data, now: now)
         let selections = Set(tokens.filter { absolute == nil || $0.resetIsAbsolute == absolute }
             .compactMap(\.resetWindow))
         return PercentWindow.allCases.filter(selections.contains).compactMap {
@@ -314,12 +314,28 @@ extension StatusItemController {
     {
         let snapshot = self.menuBarUsageSource(for: provider).snapshot
         let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
-        let tokens = self.renderedMenuBarLayoutResolution(for: provider).layout
-            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let data = self.menuBarLayoutRenderData(provider: provider, snapshot: snapshot, warningFlash: false, now: now)
+        let tokens = self.displayedResetTokens(
+            layout: self.renderedMenuBarLayoutResolution(for: provider).layout, data: data, now: now)
         let selections = Set(tokens.filter { absolute == nil || $0.resetIsAbsolute == absolute }
             .compactMap(\.resetWindow))
         return PercentWindow.allCases.filter(selections.contains).compactMap {
             windows.resetWindow($0, snapshot: snapshot)?.resetsAt
+        }
+    }
+
+    private func displayedResetTokens(
+        layout: MenuBarLayout,
+        data: MenuBarLayoutRenderData,
+        now: Date) -> [MenuBarLayoutToken]
+    {
+        let conditionals = Dictionary(
+            self.settings.menuBarLayoutConditionals.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first })
+        let outcomes = conditionals.mapValues { $0.evaluatesTrue(data: data, now: now) }
+        return layout.lines.joined().compactMap {
+            MenuBarLayoutRenderer.resolvedDisplayToken(
+                $0, data: data, conditionals: conditionals, outcomes: outcomes)
         }
     }
 
