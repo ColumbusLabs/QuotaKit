@@ -14,7 +14,7 @@ Pinned range `6f72afa7b378f4b2325afe71421946ebabb821b6..20ada8abf0e4e2267aaa8c7c
 | `36698c56625cd85afc6ee7bf5c5c5d95368c3c6f` | Adapted | Synchronize optional plugin request fixtures with deterministic admission/deadline seams. Keep the existing PR #269 admission and cancellation contracts. |
 | `78374117aa707ace7615384bf4aa3bfad21e760c` | Adapted | Expose the native NeuralWatt prepaid balance through provider cost. |
 | `a20e95e6966071dd75d3b9c4c23dacf189dfcee5` | Adapted | Present Synthetic weekly plan credits without dropping the existing other quotas. Check weekly-only widget identity on iPhone. |
-| `9faf0c7c9dc695b502b54247e05ea83ae3ad085c` | Adapted | Reuse bounded Bedrock cost reports by credential fingerprint, region, endpoint, and date range. Preserve explicit refresh and unknown cost behavior. |
+| `9faf0c7c9dc695b502b54247e05ea83ae3ad085c` | Adapted | Reuse bounded Bedrock cost reports by credential fingerprint, region, endpoint, and date range. Preserve explicit refresh and unknown cost behavior. Include the shared expiring-cache dependency from upstream c46e90701. |
 | `79d207d1f936f0972901e567a2510d71dcb5d1ff` | Adapted | Expose a Claude dashboard warning code when the model breakdown is unavailable, without forwarding diagnostic notice text. |
 | `1d590434fa46742bf16dc73c69ff1c7ea1fed459` | Adapted | Hide provider sorting when the Settings sidebar is closed. |
 | `f47299f4becfd1994f3fe4b901038b38fb1ee1a1` | Adapted | Include localized pane titles in Settings search and retain the Mobile pane. |
@@ -38,7 +38,7 @@ Pinned range `6f72afa7b378f4b2325afe71421946ebabb821b6..20ada8abf0e4e2267aaa8c7c
 | `ea41440edc568350be9e058c4fd598e672aa028c` | Adapted | Reduce OpenCode Go history memory while preserving per-day cost and token evidence. |
 | `458afc6017c4b2f5f97615653ce2999de3551673` | Adapted | Avoid unused Spend Dashboard projections through QuotaKit’s asynchronous publication ownership model. |
 | `1ce556012450b2224abe58f2f6259426269c474d` | Adopted | Stream Cursor CSV input to reduce parsing memory. |
-| `a55183c0ce2cde51b76dcfda2850e89f74b2a03c` | Adopted | Read a symlinked Claude projects root while retaining scoped configuration and nested-link traversal limits. |
+| `a55183c0ce2cde51b76dcfda2850e89f74b2a03c` | Adopted | Read a symlinked Claude projects root while retaining scoped configuration and nested-link traversal limits. Advance the fork’s Claude parser artifact epoch so old results are rescanned. |
 | `95560897c629440582908316e333b57c996369c4` | Adapted | Release closed share previews. |
 | `7e51f65933af5f9be03387dfc6f876420259a82c` | Adapted | Aggregate Grok local tokens by turn in usage.json. |
 | `24132dbb10a8a8f78d34f6b593f5dfc4e8be1fe5` | Adapted | Allow a matching manual User-Agent for WorkBuddy manual cookies through the existing provider config and manifest. |
