@@ -5,7 +5,9 @@ struct WorkBuddyProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .workbuddy
     private let plugin = PluginCookieProviderImplementation(spec: WorkBuddyProviderDescriptor.spec)
 
-    var supportsLoginFlow: Bool { self.plugin.supportsLoginFlow }
+    var supportsLoginFlow: Bool {
+        self.plugin.supportsLoginFlow
+    }
 
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {
