@@ -130,7 +130,7 @@ struct ProviderPluginOptionalRequestTests {
                     if case .budgetExpired = completion { budgetExpired.yield() }
                 }))
         #expect(payload.value["optional"] is NSNull)
-        #expect(deadlines.counts.0 == 1)
+        #expect(deadlines.count == 1)
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
@@ -197,6 +197,11 @@ struct ProviderPluginOptionalRequestTests {
     private final class RequestCalls: @unchecked Sendable {
         private let lock = NSLock()
         private var startedAt: ContinuousClock.Instant?
+        private var startCount = 0
+
+        var count: Int {
+            self.lock.withLock { self.startCount }
+        }
 
         var elapsed: Duration? {
             self.lock.withLock { self.startedAt?.duration(to: .now) }
@@ -205,6 +210,7 @@ struct ProviderPluginOptionalRequestTests {
         func start() {
             self.lock.withLock {
                 self.startedAt = self.startedAt ?? .now
+                self.startCount += 1
             }
         }
     }
