@@ -42,6 +42,11 @@ of the response or under `data`:
 - `planWeeklyLimit` (or the older `weeklyTokenLimit`) -> Weekly quota
 - `search.hourly` -> Search hourly
 
+The current weekly plan reports percentages in percentage points, including values below 1%. Its
+regeneration timestamp and percentage do not require credit amounts. Known quota lanes suppress the
+retired subscription counter; subscription-only responses remain supported. Older plans may also
+return a rolling five-hour lane.
+
 If those keys are absent, QuotaKit falls back to generic quota payloads such as
 `quotas`, `quota`, `limits`, `usage`, `entries`, or `subscription`.
 

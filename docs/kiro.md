@@ -55,6 +55,8 @@ Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAu
    - Failure is non-fatal: the plan-relative numbers the CLI produced stand. The API path depends on the CLI's
      private token store, which a Kiro release can move, whereas the CLI reads only its own published output.
 
+CLI plan names preserve a `+` suffix, including in legacy and Estimated Usage reports.
+
 ## Output format (example)
 
 ```
