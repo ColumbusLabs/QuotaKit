@@ -1342,7 +1342,7 @@
           0.9529411764705882
         ]
       ],
-      "creditsHint": "Weekly token quota regenerates continuously.",
+      "creditsHint": "",
       "dashboard": "",
       "debug": "",
       "detail": "api",
@@ -1389,7 +1389,7 @@
       "id": "synthetic",
       "labels": [
         "Five-hour quota",
-        "Weekly tokens",
+        "Weekly quota",
         "Search hourly"
       ],
       "name": "Synthetic",
