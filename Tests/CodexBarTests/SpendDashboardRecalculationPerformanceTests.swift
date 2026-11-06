@@ -129,20 +129,30 @@ struct SpendDashboardRecalculationPerformanceTests {
         let first = request(30)
         let joined = request(90)
         let replacement = request(7)
-        let completed = LockIsolated(false)
+        let completions = LockIsolated(0)
         cache.enqueue(request: first, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         await Self.waitUntil { gate.firstBuildStarted.value }
         cache.enqueue(request: joined, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         cache.enqueue(request: joined, priority: .publication, builder: { gate.build($0) }, completion: { _ in
-            completed.setValue(true)
+            completions.withValue { $0 += 1 }
         })
         cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
         cache.discardPendingControllerBuild()
         cache.enqueue(request: replacement, priority: .controller, builder: { gate.build($0) }, completion: { _ in })
+        let repeated = cache.enqueue(
+            request: joined,
+            priority: .publication,
+            builder: { gate.build($0) },
+            completion: { _ in completions.withValue { $0 += 1 } })
+        guard case .alreadyScheduled = repeated else {
+            Issue.record("Expected the preserved projection to be reused.")
+            return
+        }
         gate.releaseFirstBuild()
-        await Self.waitUntil { completed.value }
+        await Self.waitUntil { completions.value == 2 }
         #expect(cache.model(for: joined.key) != nil)
-        #expect(completed.value)
+        #expect(completions.value == 2)
+        #expect(cache.counters.snapshot.buildsExecuted == 3)
     }
 
     @Test

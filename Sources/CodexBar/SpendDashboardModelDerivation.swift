@@ -517,6 +517,15 @@ final class SpendDashboardModelCache: @unchecked Sendable {
             activeJob.completions.append(completion)
             activeJob.hasPublicationDemand = activeJob.hasPublicationDemand || priority == .publication
             result = .alreadyScheduled
+        } else if let joinedIndex = self.joinedPublicationJobs.firstIndex(where: { $0.request.key == request.key }) {
+            let joinedJob = self.joinedPublicationJobs[joinedIndex]
+            joinedJob.completions.append(completion)
+            if priority == .controller {
+                self.joinedPublicationJobs.remove(at: joinedIndex)
+                self.preserveJoinedPublication(self.pendingControllerJob)
+                self.pendingControllerJob = joinedJob
+            }
+            result = .alreadyScheduled
         } else {
             switch priority {
             case .controller:
