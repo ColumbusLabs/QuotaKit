@@ -5219,7 +5219,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "These providers have detail rows without dedicated mobile payloads; Future AGI zero allowances and Munito no-limit spend and organization rows remain visible without a window or budget."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Plugins/ProviderPluginCookieBroker.swift",
-            line: 693,
+            line: 709,
             anchor: "let preferredHost: String = if provider == .traecn, domain == \"trae.cn\" {",
             expectedProviderIDs: ["helmcode", "traecn"],
             expectedReferenceCount: 2,
@@ -5227,7 +5227,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Trae CN's API-host session takes precedence on trae.cn while Helmcode's cloud session takes precedence on its parent domains."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Plugins/ProviderPluginCookieBroker.swift",
-            line: 729,
+            line: 745,
             anchor: "if provider == .helmcode, [\"helmcode.com\", \"nan.builders\"].contains(domain) {",
             expectedProviderIDs: ["helmcode", "traecn"],
             expectedReferenceCount: 2,
@@ -5681,7 +5681,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Claude reset-credit rows are removed from generic details because they render in the dedicated live reset-credit section."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLIConfigLoginCommand.swift",
-            line: 134,
+            line: 138,
             anchor: "var provider = config.providerConfig(for: .copilot) ?? ProviderConfig(id: .copilot)",
             expectedProviderIDs: ["copilot"],
             expectedReferenceCount: 2,
