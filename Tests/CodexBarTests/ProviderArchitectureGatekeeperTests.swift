@@ -2453,7 +2453,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Claude weekly reset recovery state applies only to Claude observations."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore/UsageStore+LimitResetCelebration.swift",
-            line: 597,
+            line: 615,
             anchor: "if input.provider == .codex, input.seriesName == .weekly {",
             expectedProviderIDs: ["codex", "grok"],
             expectedReferenceCount: 2,
@@ -2461,7 +2461,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex weekly reset celebrations require provider-owned boundary evidence."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore/UsageStore+LimitResetCelebration.swift",
-            line: 624,
+            line: 642,
             anchor: "snapshot.loginMethod(for: .codex)?",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
