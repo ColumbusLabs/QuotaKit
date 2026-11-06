@@ -61,6 +61,7 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
                 ProviderCookieRefreshAction.trailingText(
                     provider: .typesafe,
                     cookieSource: context.settings.typesafeCookieSource,
+                    scope: .typesafeBilling,
                     context: context)
             },
             trailingActions: [
@@ -86,7 +87,7 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
                 style: .link,
                 isVisible: nil,
                 perform: {
-                    if let url = URL(string: "https://console.typesafe.ai/settings/billing") {
+                    if let url = URL(string: "https://console.typesafe.ai/billing") {
                         NSWorkspace.shared.open(url)
                     }
                 })],
