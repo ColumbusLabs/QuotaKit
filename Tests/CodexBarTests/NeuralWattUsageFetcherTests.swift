@@ -76,6 +76,7 @@ struct NeuralWattUsageFetcherTests {
         #expect(usage.primary?.resetsAt == snapshot.subscription?.currentPeriodEnd)
         #expect(usage.subscriptionRenewsAt == snapshot.subscription?.currentPeriodEnd)
         #expect(usage.providerCost?.used == 32.6774)
+        #expect(usage.providerCost?.balance == 32.6774)
         #expect(usage.providerCost?.period == "Neuralwatt prepaid balance")
         #expect(usage.loginMethod(for: .neuralwatt) == "Standard plan")
         #expect(usage.extraRateWindows?.count == 1)
@@ -171,6 +172,7 @@ struct NeuralWattUsageFetcherTests {
         #expect(snapshot.creditUsedPercent == 100)
         #expect(usage.primary == nil)
         #expect(usage.providerCost?.used == 0)
+        #expect(usage.providerCost?.balance == 0)
         #expect(usage.providerCost?.period == "Neuralwatt prepaid balance")
     }
 
@@ -206,6 +208,7 @@ struct NeuralWattUsageFetcherTests {
         #expect(usage.primary?.usedPercent == 25)
         #expect(usage.primary?.resetDescription == "2.50 / 10 kWh")
         #expect(usage.providerCost?.used == 0)
+        #expect(usage.providerCost?.balance == 0)
         #expect(usage.loginMethod(for: .neuralwatt) == "Pro Energy plan")
     }
 

@@ -304,6 +304,7 @@ public struct NeuralWattUsageSnapshot: Codable, Sendable, Equatable {
             limit: 0,
             currencyCode: "USD",
             period: "Neuralwatt prepaid balance",
+            balance: remaining,
             updatedAt: self.updatedAt)
     }
 
