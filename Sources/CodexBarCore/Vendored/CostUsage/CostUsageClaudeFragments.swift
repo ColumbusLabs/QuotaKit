@@ -216,8 +216,12 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                 guard let stamp = authoredStamp else { return nil }
                 if CostUsageClaudeFileStamp.read(at: url) == stamp {
                     self.remember(url, Snapshot(
-                        stamp: stamp, manifest: manifest, headerDigest: headerDigest,
-                        values: values, header: header, contentID: contentID))
+                        stamp: stamp,
+                        manifest: manifest,
+                        headerDigest: headerDigest,
+                        values: values,
+                        header: header,
+                        contentID: contentID))
                     // Readers hold the same lock, so no reader can still need the previous manifest's shards.
                     let retained = Set(manifest.shards.values.map { $0.digest + ".json" })
                     let directory = Self.directory(at: url)

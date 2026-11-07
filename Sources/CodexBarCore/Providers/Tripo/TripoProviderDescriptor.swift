@@ -16,14 +16,14 @@ public enum TripoProviderDescriptor {
         weeklyLabel: "Credits",
         balanceOnly: true,
         dashboardURL: "https://developers.tripo3d.ai/en/billing",
-        statusPageURL: "https://tripo3d.statuspage.io",
+        statusLinkURL: "https://tripo3d.statuspage.io",
         color: .init(hex: 0xF8CF00),
         confetti: [0xF8CF00, 0xFFF3B0],
         noDataMessage: "No cost history data.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: "TRIPO_API_KEY",
         missingCredentialMessage: { _ in UsageFormatter.localized("Check your API key in Settings.") },
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         scriptSettings: { _ in
             let messages = Dictionary(uniqueKeysWithValues: Self.diagnosticMessages.map {
                 ($0, UsageFormatter.localized($0))

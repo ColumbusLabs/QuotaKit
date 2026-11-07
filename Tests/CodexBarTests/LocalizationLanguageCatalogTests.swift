@@ -881,6 +881,10 @@ extension LocalizationLanguageCatalogTests {
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)
 
+        try Self.verifyItalianQuotaWarningFormats(italian)
+    }
+
+    private static func verifyItalianQuotaWarningFormats(_ italian: [String: String]) throws {
         let warningFormat = try #require(italian["quota_warning_notification_body"])
         let warning = String(
             format: warningFormat,

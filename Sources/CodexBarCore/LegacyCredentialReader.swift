@@ -11,16 +11,21 @@ package enum LegacyCredentialReader {
         let notify: (KeychainPromptContext) -> Bool
         let denial: (String) -> Void
 
-        static let live = Operations(
-            preflight: { KeychainAccessPreflight.checkGenericPassword(service: $0.service, account: $0.account) },
-            read: { query, policy in
-                var result: CFTypeRef?
-                let status = KeychainSecurity.copyMatching(query as CFDictionary, &result, interactionPolicy: policy)
-                return (status, result)
-            },
-            claim: { BrowserCookieAccessGate.claimCredentialRead(service: $0) },
-            notify: { KeychainPromptHandler.notifyIfHandled($0) },
-            denial: { BrowserCookieAccessGate.recordCredentialDenial(service: $0) })
+        static var live: Self {
+            Operations(
+                preflight: { KeychainAccessPreflight.checkGenericPassword(service: $0.service, account: $0.account) },
+                read: { query, policy in
+                    var result: CFTypeRef?
+                    let status = KeychainSecurity.copyMatching(
+                        query as CFDictionary,
+                        &result,
+                        interactionPolicy: policy)
+                    return (status, result)
+                },
+                claim: { BrowserCookieAccessGate.claimCredentialRead(service: $0) },
+                notify: { KeychainPromptHandler.notifyIfHandled($0) },
+                denial: { BrowserCookieAccessGate.recordCredentialDenial(service: $0) })
+        }
     }
 
     package static func read(service: String, account: String, kind: KeychainPromptContext.Kind)

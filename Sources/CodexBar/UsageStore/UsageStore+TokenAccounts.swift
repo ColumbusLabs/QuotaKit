@@ -277,7 +277,7 @@ extension UsageStore {
 
         guard self.codexVisibleSelectionStillMatches(
             originalVisibleAccountID: originalVisibleAccountID,
-            originalSelectionSource: originalVisibleAccount?.selectionSource,
+            originalSelectionSource: originalSelectionSource,
             originalAccount: originalVisibleAccount,
             currentProjection: currentProjection)
         else {
@@ -285,19 +285,10 @@ extension UsageStore {
             return
         }
         guard let selectedOutcome, let selectedAccount else {
-            if selectedWithheldSuccess {
-                self.recordCodexWithheldFetchSuccess()
-            }
-            if let selectedID = currentProjection.activeVisibleAccountID,
-               let preserved = currentSnapshots.first(where: { $0.id == selectedID }),
-               let snapshot = preserved.snapshot
-            {
-                self.snapshots[.codex] = snapshot
-                self.lastKnownResetSnapshots[.codex] = snapshot
-                let publicationGuard = Self.codexScopedRefreshGuard(for: preserved.account)
-                self.lastCodexUsagePublicationGuard = publicationGuard
-                self.lastCodexAccountScopedRefreshGuard = publicationGuard
-            }
+            self.publishRetainedCodexSelection(
+                currentSnapshots,
+                activeVisibleAccountID: currentProjection.activeVisibleAccountID,
+                withheldSuccess: selectedWithheldSuccess)
             return
         }
 
@@ -332,6 +323,26 @@ extension UsageStore {
             }
         } else {
             self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
+        }
+    }
+
+    private func publishRetainedCodexSelection(
+        _ snapshots: [CodexAccountUsageSnapshot],
+        activeVisibleAccountID: String?,
+        withheldSuccess: Bool)
+    {
+        if withheldSuccess {
+            self.recordCodexWithheldFetchSuccess()
+        }
+        if let selectedID = activeVisibleAccountID,
+           let preserved = snapshots.first(where: { $0.id == selectedID }),
+           let snapshot = preserved.snapshot
+        {
+            self.snapshots[.codex] = snapshot
+            self.lastKnownResetSnapshots[.codex] = snapshot
+            let publicationGuard = Self.codexScopedRefreshGuard(for: preserved.account)
+            self.lastCodexUsagePublicationGuard = publicationGuard
+            self.lastCodexAccountScopedRefreshGuard = publicationGuard
         }
     }
 

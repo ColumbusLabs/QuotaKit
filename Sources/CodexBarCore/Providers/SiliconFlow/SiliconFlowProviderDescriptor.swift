@@ -21,8 +21,6 @@ public enum SiliconFlowProviderDescriptor {
         color: .init(hex: 0x6E29F5),
         confetti: [0x6E29F5, 0xE8DDFF],
         noDataMessage: "No cost history data.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: SiliconFlowSettingsReader.apiKeyEnvironmentKey,
         missingCredentialMessage: { _ in UsageFormatter.localized("Check your API key in Settings.") },
         configValidator: { config in
@@ -37,6 +35,8 @@ public enum SiliconFlowProviderDescriptor {
             }
             return []
         },
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         scriptSettings: { _ in
             let messages = Dictionary(uniqueKeysWithValues: Self.diagnosticMessages.map {
                 ($0, UsageFormatter.localized($0))

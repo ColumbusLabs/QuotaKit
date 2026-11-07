@@ -90,8 +90,15 @@ enum SyncProviderBillingDetails {
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
+        default:
+            self.additionalRules(for: provider)
+        }
+    }
+
+    private static func additionalRules(for provider: UsageProvider) -> [SectionRule]? {
         // Provider-specific by design: typed display-only rows retain JetBrains top-up, xAI's estimate,
         // fal/FLORA and Parallel billing fields, and Claude Console's monthly spend details.
+        switch provider {
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         case .xai:
