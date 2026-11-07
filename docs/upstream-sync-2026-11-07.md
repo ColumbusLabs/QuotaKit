@@ -19,7 +19,7 @@ Claude cache file generations advance to 22 for Claude and 8 for Vertex AI. Olde
 | `fc9751a47` | Adapted | Discard duplicate encoded Claude fragment headers. |
 | `d6bad6a24` | Adapted | Filter ignored OpenCode Go parts before JSON parsing. |
 | `2b3bef8eb` | Adapted | Release obsolete dashboard captures while preserving QuotaKit provider privacy and retained details. |
-| `14483dee7` | Adapted | Construct only the invoked CLI command family with QuotaKit options and the existing cold pipe gate. |
+| `14483dee7` | Adapted | Construct only the invoked CLI command family with QuotaKit options and a bounded first-RPC warm-up followed by the existing 60-request zero-growth pipe check. |
 | `02f300ee9` | Adapted | Load path diagnostics when Debug opens and retain normal login-shell PATH capture. |
 | `f0fb26b16` | Adapted | Prevent completed targets from masking stalled cost catch-up. |
 | `8f906b7d7` | Adapted | Normalize legacy incoming scan flags once per comparison and preserve restored normalized rows. |

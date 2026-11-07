@@ -143,9 +143,14 @@ enum QuotaKitWidgetPresentation {
         for provider: QuotaKitWidgetSnapshot.Provider,
         allowPrimaryFallback: Bool) -> QuotaKitWidgetSnapshot.Provider.Window?
     {
-        provider.windows.first(where: { $0.identity == .weekly })
+        if let weekly = provider.windows.first(where: { $0.identity == .weekly })
             ?? provider.windows.first(where: self.isWeeklyWindow)
-            ?? self.fallbackWeeklyWindow(for: provider)
+        {
+            return weekly
+        }
+        // Cursor can have several billing lanes, regardless of position in the snapshot.
+        guard provider.id != "cursor" else { return nil }
+        return self.fallbackWeeklyWindow(for: provider)
             ?? (allowPrimaryFallback ? provider.windows.first : nil)
     }
 
