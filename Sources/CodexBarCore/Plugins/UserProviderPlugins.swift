@@ -421,8 +421,10 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
             try QuickJSProviderPluginEngine.transpileTypeScript(source: source, sucraseSource: sucraseSource)
         }
         try Data(output.utf8).write(to: cacheURL, options: .atomic)
-        // Runtimes own their source strings; no running fetch reopens these cache files.
-        try? Self.removeCachedRevisions(sourceFileURL: sourceFileURL, directory: self.cacheDirectory, keeping: cacheURL)
+        // External previews can share a basename with an installed plugin.
+        if sourceFileURL.deletingLastPathComponent().standardizedFileURL == self.providersDirectory.standardizedFileURL {
+            try? Self.removeCachedRevisions(sourceFileURL: sourceFileURL, directory: self.cacheDirectory, keeping: cacheURL)
+        }
         return (output, cacheURL, false)
     }
 
@@ -519,9 +521,11 @@ public enum UserProviderPluginManager {
         if FileManager.default.fileExists(atPath: plugin.fileURL.path) {
             try FileManager.default.removeItem(at: plugin.fileURL)
         }
-        let directory = plugin.transpiledCacheURL?.deletingLastPathComponent()
-            ?? UserProviderPluginLoader.defaultCacheDirectory
-        try UserProviderPluginLoader.removeCachedRevisions(sourceFileURL: plugin.fileURL, directory: directory)
+        if let cacheURL = plugin.transpiledCacheURL {
+            try UserProviderPluginLoader.removeCachedRevisions(
+                sourceFileURL: plugin.fileURL,
+                directory: cacheURL.deletingLastPathComponent())
+        }
         try approvalStore.remove(instanceID: plugin.manifest.id)
         config.removeProviderConfig(for: plugin.manifest.id)
         if let historyDirectory {
