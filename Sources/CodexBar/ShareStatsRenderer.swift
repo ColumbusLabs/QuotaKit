@@ -5,7 +5,12 @@ import SwiftUI
 enum ShareStatsRenderer {
     static func pngData(for payload: ShareStatsPayload) -> Data? {
         let size = ShareStatsCardView.size
-        let view = NSHostingView(rootView: ShareStatsCardView(payload: payload).codexBarLocalized())
+        let appearance = NSApp?.effectiveAppearance ?? NSAppearance(named: .aqua)
+        let isDark = appearance?.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let view = NSHostingView(rootView: ShareStatsCardView(payload: payload)
+            .environment(\.colorScheme, isDark ? .dark : .light)
+            .codexBarLocalized())
+        view.appearance = appearance
         view.frame = CGRect(origin: .zero, size: size)
         view.layoutSubtreeIfNeeded()
 
