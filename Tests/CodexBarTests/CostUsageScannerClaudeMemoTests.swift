@@ -528,6 +528,13 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 0)
+        #expect(CostUsageClaudeFileStamp.read(at: cacheURL) == replacementStamp)
+
+        let (reused, reuseMetrics) = self.recordedLoad(day: day, options: options)
+        #expect(reused.data == initial.data)
+        #expect(reuseMetrics.cacheDecodes == 0)
+        #expect(reuseMetrics.transcriptParses == 0)
+        #expect(reuseMetrics.cacheEncodes == 0)
     }
 
     @Test

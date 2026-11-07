@@ -172,10 +172,15 @@ struct LegacyCredentialRefreshRecoveryTests {
         #expect(fixture.cookies.loadCount == reads)
         fixture.settings.openAIWebAccessEnabled = true
         fixture.settings.showOptionalCreditsAndExtraUsage = true
+        #expect(fixture.settings.codexCookieSource == .auto)
         await self.manual {
             fixture.usage.prepareRefreshState(for: .codex)
             fixture.usage.prepareRefreshState(for: .claude)
         }
+        #expect(fixture.settings.providerConfig(for: .codex)?.cookieHeader == nil)
+        #expect(fixture.settings.providerConfig(for: .claude)?.cookieHeader == "session=fixture")
+        fixture.settings.codexCookieSource = .manual
+        await self.manual { fixture.usage.prepareRefreshState(for: .codex) }
         #expect(fixture.settings.providerConfig(for: .codex)?.cookieHeader == "session=fixture")
         #expect(fixture.settings.providerConfig(for: .claude)?.cookieHeader == "session=fixture")
     }

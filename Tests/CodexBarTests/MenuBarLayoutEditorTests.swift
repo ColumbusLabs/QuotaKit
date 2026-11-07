@@ -62,8 +62,8 @@ struct MenuBarLayoutEditorTests {
                 updatedAt: now)
             let countdown = MenuBarLayoutToken.windowResetCountdown(window: .weekly)
             let absolute = MenuBarLayoutToken.windowResetAbsolute(window: .weekly)
-            #expect(countdown.editorLabel(provider: .cursor, snapshot: snapshot) == "Cursor: Resets in")
-            #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: snapshot) == "Cursor: Reset at")
+            #expect(countdown.editorLabel(provider: .cursor, snapshot: snapshot) == "Auto: Resets in")
+            #expect(absolute.editorAccessibilityLabel(provider: .cursor, snapshot: snapshot) == "Auto: Reset at")
             #expect(snapshot.primary?.usedPercent == 20)
             #expect(snapshot.extraRateWindows?.first?.window.usedPercent == (hasIndependentBot ? 80 : nil))
         }

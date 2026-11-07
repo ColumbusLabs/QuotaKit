@@ -2360,6 +2360,7 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "1a32d8d0c63060d2",
         "8d37b5425fe86c2a",
         "c939f17d29a7e29d",
         "65175f55d6bacbca",
@@ -2471,9 +2472,11 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        // Existing reports predate the Fast pricing correction. Preserve source rows and scan
-        // state, but discard the derived report so it is repriced from the retained evidence.
-        before.metadata.previousReportPayload = nil
+        // Earlier reports predate the Fast pricing correction. The immediate QuotaKit
+        // predecessor already contains corrected reports, so preserve those bytes.
+        if predecessorHash != "1a32d8d0c63060d2" {
+            before.metadata.previousReportPayload = nil
+        }
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         let after = await current.readSnapshot()

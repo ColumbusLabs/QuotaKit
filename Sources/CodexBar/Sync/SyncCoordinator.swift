@@ -757,6 +757,8 @@ final class SyncCoordinator {
                 window: extra.window,
                 role: .other,
                 dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                identityOverride: provider == .cursor && extra.id == CursorSandUsageStatus.extraWindowID &&
+                    extra.window.windowMinutes == 10080 ? .weekly : nil,
                 now: paceNow))
         }
 
@@ -1094,6 +1096,7 @@ final class SyncCoordinator {
         window: RateWindow,
         role: SyncPaceWindowRole,
         dataConfidence: UsageDataConfidence,
+        identityOverride: SyncRateWindowIdentity? = nil,
         now: Date) -> SyncRateWindow
     {
         SyncRateWindow(
@@ -1105,7 +1108,7 @@ final class SyncCoordinator {
             pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
                 ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
                 : nil,
-            identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window))
+            identity: identityOverride ?? Self.syncRateWindowIdentity(provider: provider, label: label, window: window))
     }
 
     private static func syncRateWindowIdentity(
@@ -1113,6 +1116,7 @@ final class SyncCoordinator {
         label: String?,
         window: RateWindow) -> SyncRateWindowIdentity?
     {
+        // Provider-specific by design: Cursor's weekly-window identity requires its matching named lane.
         if window.windowMinutes == 10080, provider != .cursor || label == "Weekly" {
             return .weekly
         }
