@@ -348,6 +348,7 @@ final class UsageStore {
     @ObservationIgnored var cliUsageCachePersistTask: Task<Void, Never>?
     @ObservationIgnored var widgetSnapshotPersistenceState: (token: UUID?, pendingColdLoad: Bool) = (nil, false)
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
+    @ObservationIgnored var lastPublishedWidgetSnapshot: WidgetSnapshotPublication?
     @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
     @ObservationIgnored let cliUsageCacheURL: URL?

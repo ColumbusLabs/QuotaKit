@@ -1,4 +1,5 @@
 import CodexBarCore
+import CryptoKit
 import Foundation
 #if canImport(WidgetKit)
 import WidgetKit
@@ -154,11 +155,12 @@ extension UsageStore {
                 self.widgetSnapshotPersistenceState.pendingColdLoad = false
             }
 
-            await self.saveWidgetSnapshot(snapshotToPersist)
+            let (publication, didChange) = await self.saveWidgetSnapshot(snapshotToPersist)
             guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
+            self.lastPublishedWidgetSnapshot = publication
 
             #if canImport(WidgetKit)
-            if shouldReloadTimelines {
+            if shouldReloadTimelines, didChange {
                 self.widgetTimelineReloader()
             }
             #endif
@@ -233,21 +235,58 @@ extension UsageStore {
             generatedAt: max(Date(), max(snapshot.generatedAt, generation).addingTimeInterval(0.001)))
     }
 
-    private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {
+    struct WidgetSnapshotPublication: Sendable {
+        let contentHash: SHA256.Digest
+        let fileHash: SHA256.Digest
+    }
+
+    private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async -> (WidgetSnapshotPublication?, Bool) {
         if let override = self._test_widgetSnapshotSaveOverride {
             await override(snapshot)
-            return
+            return (nil, true)
         }
-        // Keep a mistakenly scheduled test task from writing to the app-group container as well.
-        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return (nil, false) }
+        return await Self.writeWidgetSnapshot(
+            snapshot,
+            to: self.widgetSnapshotURL,
+            previousPublication: self.lastPublishedWidgetSnapshot)
+    }
 
-        let widgetSnapshotURL = self.widgetSnapshotURL
+    @discardableResult
+    static func saveWidgetSnapshot(
+        _ snapshot: WidgetSnapshot,
+        to url: URL?,
+        previousPublication: WidgetSnapshotPublication? = nil,
+        isRunningTests: Bool,
+        reloadTimelines: @MainActor () -> Void) async -> WidgetSnapshotPublication?
+    {
+        let (publication, shouldReload) = await self.writeWidgetSnapshot(
+            snapshot, to: url, previousPublication: previousPublication)
+        if shouldReload, !isRunningTests { reloadTimelines() }
+        return publication
+    }
+
+    private static func writeWidgetSnapshot(
+        _ snapshot: WidgetSnapshot,
+        to url: URL?,
+        previousPublication: WidgetSnapshotPublication?) async -> (WidgetSnapshotPublication?, Bool)
+    {
         await Task.detached(priority: .utility) {
-            if let widgetSnapshotURL {
-                WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
-            } else {
-                WidgetSnapshotStore.save(snapshot)
+            () -> (WidgetSnapshotPublication?, Bool) in
+            var comparable = snapshot
+            comparable.generatedAt = Date(timeIntervalSince1970: 0)
+            guard let contentHash = try? SHA256.hash(data: WidgetSnapshotStore.encodedData(comparable))
+            else { return (nil, true) }
+            if let previousPublication, previousPublication.contentHash == contentHash,
+               let savedData = WidgetSnapshotStore.loadData(from: url),
+               SHA256.hash(data: savedData) == previousPublication.fileHash
+            {
+                return (previousPublication, false)
             }
+            guard let data = try? WidgetSnapshotStore.encodedData(snapshot),
+                  WidgetSnapshotStore.save(data: data, to: url)
+            else { return (nil, true) }
+            return (WidgetSnapshotPublication(contentHash: contentHash, fileHash: SHA256.hash(data: data)), true)
         }.value
     }
 

@@ -12,6 +12,11 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: ../Sources/CodexBarWidget
+        excludes:
+          - Resources/ProviderMarks
+      - path: ../Sources/CodexBarWidget/Resources/ProviderMarks
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: CodexBar
         product: CodexBarCore
