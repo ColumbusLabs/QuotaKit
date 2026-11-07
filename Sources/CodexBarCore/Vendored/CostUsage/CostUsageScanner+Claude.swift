@@ -936,12 +936,12 @@ extension CostUsageScanner {
             cache = scanState.cache
             artifact.updateSourceFileIDs(scanState.sourceFileIDs, presentIn: sourceInventory)
             let retainedBounds = scanState.sourceDayBounds.filter { sourceInventory[$0.key] != nil }
-            let boundsChanged = artifact.sourceDayBounds.count != retainedBounds.count || retainedBounds.contains {
-                key, bounds in
-                guard let index = artifact.sourceDayBounds.index(forKey: key) else { return true }
-                let existing = artifact.sourceDayBounds[index]
-                return !existing.key.utf8.elementsEqual(key.utf8) || existing.value != bounds
-            }
+            let boundsChanged = artifact.sourceDayBounds.count != retainedBounds.count ||
+                retainedBounds.contains { item in
+                    guard let index = artifact.sourceDayBounds.index(forKey: item.key) else { return true }
+                    let existing = artifact.sourceDayBounds[index]
+                    return !existing.key.utf8.elementsEqual(item.key.utf8) || existing.value != item.value
+                }
             if boundsChanged {
                 artifact.sourceDayBounds = retainedBounds
             }
