@@ -7,7 +7,7 @@ extension StatusMenuTests.Overview {
     @Test
     func `overview rows expose provider detail submenus`() throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -16,12 +16,7 @@ extension StatusMenuTests.Overview {
         settings.costUsageEnabled = true
         settings.costSummaryDisplayStyle = .both
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .openai || provider == .codex
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.openai, .codex], settings: settings)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -67,7 +62,7 @@ extension StatusMenuTests.Overview {
     @Test
     func `overview row shows plan usage not cost history for opencodego`() throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -79,12 +74,7 @@ extension StatusMenuTests.Overview {
         // unconditionally preferring cost history the way mistral's Overview row does.
         settings.costSummaryDisplayStyle = .inlineSummary
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .opencodego || provider == .codex
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.opencodego, .codex], settings: settings)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -136,19 +126,14 @@ extension StatusMenuTests.Overview {
     @Test
     func `overview row uses declarative details without bespoke submenu`() throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .claude
         settings.mergedMenuLastSelectedWasOverview = true
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .zai || provider == .claude
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.zai, .claude], settings: settings)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -208,19 +193,14 @@ extension StatusMenuTests.Overview {
             StatusItemController.setMenuRefreshEnabledForTesting(previousMenuRefresh)
         }
 
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.mergedMenuLastSelectedWasOverview = true
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .codex || provider == .cursor
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.codex, .cursor], settings: settings)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -282,19 +262,14 @@ extension StatusMenuTests.Overview {
             StatusItemController.setMenuRefreshEnabledForTesting(previousMenuRefresh)
         }
 
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.mergedMenuLastSelectedWasOverview = true
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .codex || provider == .cursor
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.codex, .cursor], settings: settings)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)

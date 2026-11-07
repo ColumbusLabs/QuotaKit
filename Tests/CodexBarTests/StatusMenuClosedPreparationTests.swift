@@ -33,16 +33,11 @@ extension StatusMenuTests.Overview {
     @Test
     func `stale data refresh suppresses icon attached closed menu preparation`() async {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            if let metadata = registry.metadata[provider] {
-                settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-            }
-        }
+        enableTestProviders([.codex], settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let controller = StatusItemController(
@@ -84,16 +79,11 @@ extension StatusMenuTests.Overview {
     @Test
     func `stale refresh completion requeues required closed menu preparation blocked by refresh`() async {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            if let metadata = registry.metadata[provider] {
-                settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-            }
-        }
+        enableTestProviders([.codex], settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let controller = StatusItemController(
@@ -146,16 +136,11 @@ extension StatusMenuTests.Overview {
     @Test
     func `manual refresh completion requeues required closed menu preparation`() async throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            if let metadata = registry.metadata[provider] {
-                settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-            }
-        }
+        enableTestProviders([.codex], settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let controller = StatusItemController(
@@ -207,7 +192,7 @@ extension StatusMenuTests.Overview {
     @Test
     func `closed menu prewarm waits for other menu tracking to end`() async {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -259,16 +244,11 @@ extension StatusMenuTests.Overview {
     @Test
     func `data refresh while persistent menu is open rebuilds on close`() async {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            if let metadata = registry.metadata[provider] {
-                settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-            }
-        }
+        enableTestProviders([.codex], settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let controller = StatusItemController(

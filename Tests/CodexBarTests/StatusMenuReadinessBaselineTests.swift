@@ -13,7 +13,7 @@ extension StatusMenuTests.Overview {
         // open-menu change that reverts to the *previous* baseline value, would be treated as
         // "unchanged" and skip the rebuild, leaving the visible menu showing stale content.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -72,7 +72,7 @@ extension StatusMenuTests.Overview {
         // refresh-completion store mutation would compare equal against the prematurely resynced baseline
         // and skip the rebuild, leaving stale content visible (#1351).
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -131,7 +131,7 @@ extension StatusMenuTests.Overview {
     @Test
     func `native merged menu preparation during in flight refresh preserves stale menu freshness`() throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -188,7 +188,7 @@ extension StatusMenuTests.Overview {
         // live data changes but before that task runs, it must rebuild from live data and let the matching
         // observer invalidate any coalesced non-readiness menu state without losing the readiness baseline.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -249,7 +249,7 @@ extension StatusMenuTests.Overview {
         // While data is refreshing, the deferred observer should still invalidate the open menu and defer
         // parent rebuild instead of marking an intermediate snapshot fresh.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -306,7 +306,7 @@ extension StatusMenuTests.Overview {
         // An in-flight refresh elsewhere must not block re-anchoring when this menu was already rebuilt for
         // a newer menuContentVersion. Otherwise the stale baseline can still hide a later reverted update.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -362,7 +362,7 @@ extension StatusMenuTests.Overview {
         // menu is fresh for a newer menuContentVersion. Record that version so a later live-data change before
         // its deferred observer does not look like already-rendered data.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -421,7 +421,7 @@ extension StatusMenuTests.Overview {
         // A menu can be fresh for the current menuContentVersion while still having rendered an older
         // readiness signature than the current live store. Root open must rebuild in that pre-observer gap.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -487,7 +487,7 @@ extension StatusMenuTests.Overview {
         // A closed provider menu can be rebuilt from B while the readiness baseline remains A. If live data
         // reverts to A before the deferred observer runs, root open must still repair the B-rendered menu.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -549,7 +549,7 @@ extension StatusMenuTests.Overview {
         // provider's menu must not consume a pending global observation while leaving sibling menus marked
         // fresh even though their provider data changed.
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -611,11 +611,7 @@ extension StatusMenuTests.Overview {
     }
 
     private func enableProvidersForReadinessBaseline(_ settings: SettingsStore, providers: Set<UsageProvider>) {
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: providers.contains(provider))
-        }
+        enableTestProviders(providers, settings: settings)
     }
 
     private func makeReadinessBaselineTokenSnapshot(
