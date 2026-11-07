@@ -27,7 +27,8 @@ struct ProviderArchitectureGatekeeperTests {
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
         .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
         .tavily, .exa, .linkup, .tinyapi, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-        .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow, .tripo,
+        .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow,
+        .tripo,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -2114,7 +2115,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Settings/SettingsStore.swift",
-            line: 1330,
+            line: 1332,
             anchor: "if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {",
             expectedProviderIDs: ["factory", "minimax", "zai"],
             expectedReferenceCount: 8,
@@ -3626,7 +3627,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "siliconflow@1",
                 "soniox@1",
                 "traecn@1",
-                "tripo@1",
+                "tripo@2",
             ],
             reason: "These added providers remain non-Tier-A until iOS supports stable identity rendering and a cross-Mac merge need."),
         AllowedProviderConstruct(
@@ -3738,7 +3739,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Z.ai team-scope credentials uniquely require an organization or workspace identifier."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Settings/SettingsStore.swift",
-            line: 966,
+            line: 968,
             anchor: "switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? \"\") {",
             expectedProviderIDs: ["antigravity", "cursor"],
             expectedReferenceCount: 8,
@@ -5242,6 +5243,20 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: ["traecn@0", "helmcode@5"],
             reason: "Cookie import includes Trae CN's host-only API cookie and Helmcode's cloud subdomain session cookie."),
         AllowedProviderConstruct(
+            path: "Sources/CodexBar/Config/CodexBarConfigMigrator.swift",
+            line: 129,
+            anchor: "(.zai, \"zai-token\", stores.zaiTokenStore.loadToken, \\.apiKey),",
+            expectedProviderIDs: [
+                "amp", "augment", "claude", "codex", "copilot", "cursor", "factory", "kimi", "minimax", "opencode",
+                "synthetic", "zai",
+            ],
+            expectedReferenceCount: 13,
+            expectedReferenceFingerprint: [
+                "zai@0", "synthetic@1", "copilot@2", "codex@3", "claude@4", "cursor@5", "factory@6", "augment@7",
+                "amp@8", "minimax@9", "minimax@10", "kimi@11", "opencode@12",
+            ],
+            reason: "Legacy credential recovery maps each retired store to its existing provider config field."),
+        AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncProviderBillingDetails.swift",
             line: 137,
             anchor: "case .abliteration:",
@@ -5399,7 +5414,7 @@ struct ProviderArchitectureGatekeeperTests {
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
             line: 758,
-            anchor: "if provider != .antigravity && (provider != .cursor || cursorCookieHeaderOverride != nil) {",
+            anchor: "if provider != .antigravity, provider != .cursor || cursorCookieHeaderOverride != nil {",
             expectedProviderIDs: ["antigravity", "cursor"],
             expectedReferenceCount: 2,
             expectedReferenceFingerprint: ["antigravity@0", "cursor@0"],
